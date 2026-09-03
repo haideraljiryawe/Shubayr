@@ -10,7 +10,7 @@ Online multi-section store (a digital shopping mall for a single owner) — **we
 
 ```
 shubayr/
-├── backend/      Laravel API (PHP 8.3) — REST/JSON, RBAC, inventory, orders     ← Codex
+├── backend/      Node.js API (NestJS + TypeScript + Prisma) — REST/JSON         ← Codex
 ├── web/          Next.js public storefront (SSR/SEO)                            ← Claude Code
 ├── mobile/       Flutter app — customer + delivery + admin (also Web target)    ← Claude Code
 ├── infra/
@@ -27,7 +27,7 @@ shubayr/
 |---|---|
 | Mobile (customer + delivery + admin) | **Flutter** (also Flutter **Web** for admin) |
 | Public web storefront | **Next.js** (React, SSR/SEO) |
-| Backend API | **Laravel 13** (PHP 8.3) — REST/JSON |
+| Backend API | **Node.js 24 LTS** (NestJS + TypeScript + Prisma) — REST/JSON |
 | Database | **PostgreSQL 16** |
 | Cache / queues | **Redis** |
 | Search | **Meilisearch** |
@@ -53,7 +53,7 @@ On first boot, PostgreSQL auto-loads `infra/db/schema.sql` + `seed_rbac.sql`.
 Once the backend exists in `backend/`, run the full stack:
 
 ```bash
-docker compose --profile full up -d --build   # adds the Laravel API on :8000
+docker compose --profile full up -d --build   # adds the NestJS API on :8000
 ```
 
 ## Getting started as a developer

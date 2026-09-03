@@ -88,7 +88,7 @@ and the ER diagram/docs are updated in the same PR.
 ## 6. Environment & secrets
 
 - Never commit `.env`. Copy `.env.example` → `.env` locally.
-- Backend keeps its own `backend/.env` (Laravel). Never commit it.
+- Backend keeps its own `backend/.env` (NestJS/Prisma). Never commit it.
 - Rotate the Meilisearch/JWT keys before production.
 
 ## 7. Definition of Done

@@ -4,7 +4,7 @@
 -- warehouses/locations, stock movements, FEFO, reservations, picking,
 -- returns, loyalty, split ratings, RBAC, audit trail, white-label).
 --
--- This file is the SHARED CONTRACT. Backend (Laravel/Codex) implements
+-- This file is the SHARED CONTRACT. Backend (NestJS/Prisma/Codex) implements
 -- migrations that match these tables. Do NOT diverge without a PR that
 -- updates this file first.
 -- =====================================================================

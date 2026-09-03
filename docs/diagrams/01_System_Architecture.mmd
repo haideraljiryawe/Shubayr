@@ -2,16 +2,16 @@ flowchart TB
   subgraph Clients["Client Layer"]
     MA["Mobile App<br/>(Flutter · iOS & Android)"]
     WEB["Web Storefront<br/>(Next.js · SSR/SEO)"]
-    ADM["Admin Dashboard<br/>(Filament / React)"]
+    ADM["Admin Dashboard<br/>(Flutter Web)"]
   end
   subgraph Edge["Edge / Delivery"]
     CDN["CDN + Image Optimization"]
     LB["Nginx · Load Balancer / TLS"]
   end
   subgraph AppLayer["Application Layer"]
-    API["REST / JSON API<br/>(Laravel 13 · PHP 8.x)"]
-    AUTH["Auth Service<br/>(JWT / Sanctum · OTP)"]
-    QUEUE["Queue Workers<br/>(Redis Queues)"]
+    API["REST / JSON API<br/>(NestJS · TypeScript · Prisma)"]
+    AUTH["Auth Service<br/>(JWT / Passport · OTP)"]
+    QUEUE["Queue Workers<br/>(BullMQ · Redis)"]
   end
   subgraph DataLayer["Data Layer"]
     PG[("PostgreSQL<br/>Primary DB")]
