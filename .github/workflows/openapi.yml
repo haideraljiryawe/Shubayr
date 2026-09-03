@@ -1,0 +1,26 @@
+name: API contract
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: [ "api/**" ]
+  pull_request:
+    paths: [ "api/**" ]
+
+jobs:
+  lint-openapi:
+    name: Validate openapi.yaml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Validate the OpenAPI contract
+        run: |
+          pip install openapi-spec-validator pyyaml
+          python - <<'PY'
+          from openapi_spec_validator import validate
+          import yaml
+          validate(yaml.safe_load(open('api/openapi.yaml')))
+          print("OpenAPI contract is valid.")
+          PY
