@@ -1,20 +1,39 @@
-# Shubayr — Backend API (Laravel)
+# Shubayr - Backend API (NestJS + TypeScript + Prisma)
 
-This folder holds the Laravel 13 REST API. It is scaffolded with **Codex** using
-`../prompts/BACKEND_CODEX.md`.
+This folder holds the Node.js 24 LTS NestJS REST API. It is scaffolded with
+Codex using `../prompts/BACKEND_CODEX.md`.
 
-## Contract
-- Match the database schema in `../infra/db/schema.sql` exactly.
+## Contracts
+
+- Match all 37 tables in `../infra/db/schema.sql` exactly through Prisma models
+  and migrations.
+- Implement `../api/openapi.yaml` exactly at `/api/v1`.
 - Follow the 18 rules in `../docs/ARCHITECTURE.md`.
 
-## Run (after scaffolding)
+## Run locally (after scaffolding)
+
 ```bash
-cp .env.example .env         # set DB to the docker postgres (host: db)
-composer install
-php artisan key:generate
-php artisan migrate --seed
-php artisan serve --host=0.0.0.0 --port=8000
+cp ../.env.example .env
+# When running outside Docker, change db/redis/search hosts to localhost.
+npm install
+npx prisma migrate dev
+npm run start:dev
 ```
-Or via Docker from the repo root: `docker compose --profile full up -d --build`.
+
+## Run with Docker
+
+From the repository root:
+
+```bash
+docker compose --profile full up -d --build
+```
 
 API base URL: `http://localhost:8000/api/v1`
+
+Before opening a pull request, run:
+
+```bash
+npx prisma validate
+npm run build
+npm test
+```

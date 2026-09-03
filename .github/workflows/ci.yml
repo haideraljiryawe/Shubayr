@@ -28,20 +28,28 @@ jobs:
           PGPASSWORD=test psql -h localhost -U postgres -d shubayr_ci -v ON_ERROR_STOP=1 -f infra/db/seed_rbac.sql
 
   backend:
-    name: Backend (Laravel)
+    name: Backend (NestJS)
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('backend/composer.json') != '' }}
+    if: ${{ hashFiles('backend/package.json') != '' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.3', extensions: 'pdo_pgsql, bcmath, intl, zip' }
-      - name: Install & test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
         working-directory: backend
-        run: |
-          composer install --no-interaction --prefer-dist
-          cp .env.example .env || true
-          php artisan key:generate || true
-          vendor/bin/phpunit || php artisan test || true
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+      - name: Build
+        working-directory: backend
+        run: npm run build
+      - name: Test
+        working-directory: backend
+        run: npm test
 
   web:
     name: Web (Next.js)

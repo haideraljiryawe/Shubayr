@@ -5,7 +5,7 @@ AI coding tool. Run them from inside the matching folder so files land correctly
 
 | Prompt | Tool | Run from | Produces |
 |---|---|---|---|
-| `BACKEND_CODEX.md` | **Codex** | `backend/` | Laravel API, migrations, RBAC, auth, inventory, orders |
+| `BACKEND_CODEX.md` | **Codex** | `backend/` | NestJS API, Prisma, RBAC, auth, inventory, orders |
 | `WEB_CLAUDE.md` | **Claude Code** | `web/` | Next.js public storefront |
 | `MOBILE_CLAUDE.md` | **Claude Code** | `mobile/` | Flutter app (customer + delivery + admin) |
 

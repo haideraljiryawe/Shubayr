@@ -21,15 +21,9 @@ npm-debug.log*
 yarn-error.log*
 .pnpm-store/
 
-# --- PHP / Laravel (backend) ---
-/backend/vendor/
-/backend/storage/*.key
-/backend/storage/logs/*
-/backend/storage/framework/cache/*
-/backend/storage/framework/sessions/*
-/backend/storage/framework/views/*
-/backend/bootstrap/cache/*
-/backend/public/storage
+# --- NestJS / Prisma (backend) ---
+/backend/src/generated/prisma/
+/backend/.nestjs/
 
 # --- Flutter (mobile) ---
 /mobile/.dart_tool/
