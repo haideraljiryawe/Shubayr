@@ -1,0 +1,632 @@
+openapi: 3.1.0
+info:
+  title: Shubayr API
+  version: 1.0.0
+  description: >
+    REST/JSON API contract for Shubayr — an online multi-section store
+    (single-owner, white-label). This document is the SHARED CONTRACT between
+    the backend (Laravel) and the clients (Next.js web, Flutter mobile/admin).
+    It must stay in sync with infra/db/schema.sql. Changing an endpoint's shape
+    is a reviewed PR that updates this file first.
+  license:
+    name: Proprietary — Shubayr project
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development
+tags:
+  - name: Auth
+  - name: Catalog
+  - name: Cart
+  - name: Wishlist
+  - name: Coupons
+  - name: Orders
+  - name: Reviews
+  - name: Loyalty
+  - name: Purchasing
+  - name: Inventory
+  - name: Fulfilment
+  - name: Returns
+  - name: Deliveries
+  - name: Admin
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ---------------- AUTH ----------------
+  /auth/request-otp:
+    post:
+      tags: [Auth]
+      summary: Send an OTP to a phone number
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string, example: "+9647701234567" }
+      responses:
+        "200": { description: OTP sent, content: { application/json: { schema: { type: object, properties: { otp_sent: { type: boolean } } } } } }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /auth/verify-otp:
+    post:
+      tags: [Auth]
+      summary: Verify an OTP and issue tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, code]
+              properties:
+                phone: { type: string }
+                code: { type: string, example: "123456" }
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+                  user: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /me:
+    get:
+      tags: [Auth]
+      summary: Current user profile
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ---------------- CATALOG ----------------
+  /categories:
+    get:
+      tags: [Catalog]
+      summary: List departments & categories (tree)
+      security: []
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Category" } } } } }
+  /products:
+    get:
+      tags: [Catalog]
+      summary: List / filter / search products
+      security: []
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: search text }
+        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: min_price, in: query, schema: { type: number } }
+        - { name: max_price, in: query, schema: { type: number } }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating] } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ProductPage" } } } }
+  /products/{id}:
+    get:
+      tags: [Catalog]
+      summary: Product detail (variants, images, reviews summary)
+      security: []
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ---------------- CART ----------------
+  /cart:
+    get:
+      tags: [Cart]
+      summary: Get current cart
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Cart" } } } }
+  /cart/items:
+    post:
+      tags: [Cart]
+      summary: Add an item to the cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, quantity]
+              properties:
+                product_id: { type: string, format: uuid }
+                variant_id: { type: string, format: uuid, nullable: true }
+                quantity: { type: integer, minimum: 1 }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Cart" } } } }
+  /cart/items/{id}:
+    patch:
+      tags: [Cart]
+      summary: Update a cart item quantity
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, properties: { quantity: { type: integer, minimum: 1 } } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Cart" } } } }
+    delete:
+      tags: [Cart]
+      summary: Remove a cart item
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Removed }
+
+  # ---------------- WISHLIST ----------------
+  /wishlist:
+    get:
+      tags: [Wishlist]
+      summary: List wishlist items
+      responses: { "200": { description: OK } }
+    post:
+      tags: [Wishlist]
+      summary: Add a product to the wishlist
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [product_id], properties: { product_id: { type: string, format: uuid } } } } }
+      responses: { "201": { description: Added } }
+
+  # ---------------- COUPONS ----------------
+  /coupons/validate:
+    post:
+      tags: [Coupons]
+      summary: Validate a coupon code
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string } } } } }
+      responses:
+        "200": { description: Valid, content: { application/json: { schema: { $ref: "#/components/schemas/Coupon" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ---------------- ORDERS ----------------
+  /orders:
+    get:
+      tags: [Orders]
+      summary: List the current user's orders
+      responses: { "200": { description: OK } }
+    post:
+      tags: [Orders]
+      summary: Place a Cash-on-Delivery order
+      description: >
+        Creates the order (status=pending) and a pending COD payment. Stock is
+        validated but NOT deducted here; reservation happens on staff confirm.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [address_id]
+              properties:
+                address_id: { type: string, format: uuid }
+                coupon_code: { type: string, nullable: true }
+                payment_method: { type: string, enum: [cod], default: cod }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Order" } } } }
+        "409": { description: One or more items unavailable, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+  /orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Order detail
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Order" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /orders/{id}/track:
+    get:
+      tags: [Orders]
+      summary: Order status timeline
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses: { "200": { description: OK } }
+  /orders/{id}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel an order (releases any reservations)
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses: { "200": { description: Cancelled } }
+  /orders/{id}/status:
+    patch:
+      tags: [Admin]
+      summary: Update order status (staff) — confirm triggers FEFO reservation + pick list
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [confirmed, processing, out_for_delivery, delivered, cancelled, failed_delivery] }
+      responses: { "200": { description: Updated } }
+
+  # ---------------- REVIEWS ----------------
+  /products/{id}/reviews:
+    get:
+      tags: [Reviews]
+      summary: List published reviews for a product
+      security: []
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses: { "200": { description: OK } }
+    post:
+      tags: [Reviews]
+      summary: Submit a review (must reference a purchased order item)
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_item_id, rating]
+              properties:
+                order_item_id: { type: string, format: uuid }
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string }
+      responses:
+        "201": { description: Created }
+        "422": { $ref: "#/components/responses/Validation" }
+  /deliveries/{id}/rating:
+    post:
+      tags: [Reviews]
+      summary: Rate the delivery/agent (separate from product review)
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stars]
+              properties:
+                stars: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string }
+      responses: { "201": { description: Created } }
+
+  # ---------------- LOYALTY ----------------
+  /loyalty:
+    get:
+      tags: [Loyalty]
+      summary: Current points balance and ledger
+      responses: { "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/LoyaltyAccount" } } } } }
+
+  # ---------------- PURCHASING (staff) ----------------
+  /suppliers:
+    get: { tags: [Purchasing], summary: List suppliers, responses: { "200": { description: OK } } }
+    post:
+      tags: [Purchasing]
+      summary: Create a supplier
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Supplier" } } } }
+      responses: { "201": { description: Created } }
+  /purchase-invoices:
+    post:
+      tags: [Purchasing]
+      summary: Create a purchase invoice (draft)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [supplier_id, items]
+              properties:
+                supplier_id: { type: string, format: uuid }
+                invoice_number: { type: string }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [product_id, quantity, unit_cost]
+                    properties:
+                      product_id: { type: string, format: uuid }
+                      quantity: { type: integer, minimum: 1 }
+                      unit_cost: { type: number }
+                      lot_number: { type: string }
+                      expiry_date: { type: string, format: date, nullable: true }
+      responses: { "201": { description: Created } }
+  /purchase-invoices/{id}/receive:
+    post:
+      tags: [Purchasing]
+      summary: Receive goods — creates inventory batches and places them into locations
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                placements:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      po_item_id: { type: string, format: uuid }
+                      location_id: { type: string, format: uuid }
+                      quantity: { type: integer }
+      responses: { "200": { description: Received; batches + stock movements created } }
+
+  # ---------------- INVENTORY (staff) ----------------
+  /inventory/batches:
+    get:
+      tags: [Inventory]
+      summary: List inventory batches (filter by product, expiry)
+      parameters:
+        - { name: product_id, in: query, schema: { type: string, format: uuid } }
+      responses: { "200": { description: OK } }
+  /inventory/movements:
+    get: { tags: [Inventory], summary: List stock movements, responses: { "200": { description: OK } } }
+  /inventory/adjust:
+    post:
+      tags: [Inventory]
+      summary: Controlled stock adjustment (permissioned + audited)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [batch_id, location_id, quantity, reason]
+              properties:
+                batch_id: { type: string, format: uuid }
+                location_id: { type: string, format: uuid }
+                quantity: { type: integer, description: "signed delta" }
+                reason: { type: string }
+      responses: { "200": { description: Adjusted } }
+  /inventory/transfer:
+    post:
+      tags: [Inventory]
+      summary: Transfer stock between locations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [batch_id, from_location, to_location, quantity]
+              properties:
+                batch_id: { type: string, format: uuid }
+                from_location: { type: string, format: uuid }
+                to_location: { type: string, format: uuid }
+                quantity: { type: integer, minimum: 1 }
+      responses: { "200": { description: Transferred } }
+
+  # ---------------- FULFILMENT (staff/warehouse) ----------------
+  /pick-lists/{id}:
+    get:
+      tags: [Fulfilment]
+      summary: Get a pick list (item + qty + warehouse + shelf + batch)
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses: { "200": { description: OK } }
+  /pick-lists/{id}/items/{itemId}/pick:
+    post:
+      tags: [Fulfilment]
+      summary: Mark a pick-list item as picked
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { "200": { description: Picked } }
+
+  # ---------------- RETURNS ----------------
+  /returns:
+    post:
+      tags: [Returns]
+      summary: Request a return (partial allowed — choose items & quantities)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_id, items]
+              properties:
+                order_id: { type: string, format: uuid }
+                reason: { type: string }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [order_item_id, quantity]
+                    properties:
+                      order_item_id: { type: string, format: uuid }
+                      quantity: { type: integer, minimum: 1 }
+      responses: { "201": { description: Created } }
+  /returns/{id}/inspect:
+    post:
+      tags: [Returns]
+      summary: Inspect returned items (staff) — set condition & restock
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      return_item_id: { type: string, format: uuid }
+                      condition: { type: string, enum: [sellable, opened, damaged] }
+                      restock: { type: boolean }
+                      batch_id: { type: string, format: uuid, nullable: true }
+      responses: { "200": { description: Inspected } }
+
+  # ---------------- DELIVERIES (agent) ----------------
+  /deliveries/assigned:
+    get: { tags: [Deliveries], summary: Deliveries assigned to the current agent, responses: { "200": { description: OK } } }
+  /deliveries/{id}:
+    patch:
+      tags: [Deliveries]
+      summary: Update delivery status (agent)
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [out_for_delivery, delivered, failed] }
+      responses: { "200": { description: Updated } }
+
+  # ---------------- ADMIN ----------------
+  /admin/reports/sales:
+    get:
+      tags: [Admin]
+      summary: Sales & analytics summary
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses: { "200": { description: OK } }
+  /settings:
+    get:
+      tags: [Admin]
+      summary: White-label store settings (name, logo, colors, currency)
+      security: []
+      responses: { "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/StoreSettings" } } } } }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    PathId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Unauthorized: { description: Missing/invalid token, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    NotFound: { description: Not found, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Validation: { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    RateLimited: { description: Too many requests, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Forbidden: { description: Missing permission (RBAC), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+        errors: { type: object, additionalProperties: true }
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        role: { type: string, example: customer }
+    Category:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        parent_id: { type: string, format: uuid, nullable: true }
+        name_en: { type: string }
+        name_ar: { type: string }
+        children: { type: array, items: { $ref: "#/components/schemas/Category" } }
+    Product:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name_en: { type: string }
+        name_ar: { type: string }
+        description: { type: string }
+        sale_price: { type: number }
+        is_negotiable: { type: boolean }
+        floor_price: { type: number, nullable: true }
+        points_price: { type: integer, nullable: true }
+        rating_avg: { type: number }
+        status: { type: string, enum: [active, hidden, archived] }
+        images: { type: array, items: { type: string, format: uri } }
+        variants: { type: array, items: { $ref: "#/components/schemas/ProductVariant" } }
+    ProductVariant:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        sku: { type: string }
+        attributes: { type: object, additionalProperties: true }
+        price_delta: { type: number }
+    ProductPage:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Product" } }
+        page: { type: integer }
+        total: { type: integer }
+    Cart:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              product_id: { type: string, format: uuid }
+              quantity: { type: integer }
+              unit_price: { type: number }
+        subtotal: { type: number }
+    Coupon:
+      type: object
+      properties:
+        code: { type: string }
+        type: { type: string, enum: [percentage, fixed] }
+        value: { type: number }
+    Order:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        order_number: { type: string }
+        status: { type: string }
+        payment_method: { type: string, enum: [cod] }
+        subtotal: { type: number }
+        delivery_fee: { type: number }
+        discount: { type: number }
+        total: { type: number }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product_id: { type: string, format: uuid }
+              quantity: { type: integer }
+              unit_price: { type: number }
+              line_total: { type: number }
+    LoyaltyAccount:
+      type: object
+      properties:
+        points_balance: { type: integer }
+        ledger:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string, enum: [earn, redeem, adjust, expire] }
+              points: { type: integer }
+              created_at: { type: string, format: date-time }
+    Supplier:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        is_active: { type: boolean }
+    StoreSettings:
+      type: object
+      properties:
+        store_name: { type: string }
+        logo_url: { type: string }
+        primary_color: { type: string }
+        currency: { type: string, example: IQD }
