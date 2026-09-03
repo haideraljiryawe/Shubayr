@@ -1,0 +1,40 @@
+flowchart TB
+  subgraph Devices["User Devices"]
+    D1["Android / iOS<br/>Flutter App"]
+    D2["Browser<br/>Web Storefront"]
+    D3["Staff Browser<br/>Admin Dashboard"]
+  end
+  subgraph Cloud["Cloud Infrastructure (VPS / Cloud · Docker)"]
+    subgraph Web["Web Tier"]
+      NGINX["Nginx<br/>Reverse Proxy + TLS"]
+    end
+    subgraph AppT["App Tier (containers)"]
+      APIC["Laravel API<br/>PHP-FPM"]
+      WRK["Queue Workers"]
+      SCH["Scheduler / Cron"]
+    end
+    subgraph DataT["Data Tier"]
+      PGN[("PostgreSQL<br/>+ daily backups")]
+      REDN[("Redis")]
+      MEIL[("Meilisearch")]
+    end
+    OBJN[("Object Storage<br/>S3-compatible")]
+  end
+  subgraph SaaS["Managed / 3rd-Party"]
+    FCMS["Firebase Cloud Messaging"]
+    SMSG["SMS / OTP Provider"]
+    CDNS["CDN"]
+  end
+  D1 --> CDNS
+  D2 --> CDNS
+  D3 --> NGINX
+  CDNS --> NGINX
+  NGINX --> APIC
+  APIC --> PGN
+  APIC --> REDN
+  APIC --> MEIL
+  APIC --> OBJN
+  WRK --> REDN
+  WRK --> FCMS
+  WRK --> SMSG
+  SCH --> APIC

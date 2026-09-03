@@ -1,0 +1,42 @@
+flowchart TB
+  subgraph Clients["Client Layer"]
+    MA["Mobile App<br/>(Flutter · iOS & Android)"]
+    WEB["Web Storefront<br/>(Next.js · SSR/SEO)"]
+    ADM["Admin Dashboard<br/>(Filament / React)"]
+  end
+  subgraph Edge["Edge / Delivery"]
+    CDN["CDN + Image Optimization"]
+    LB["Nginx · Load Balancer / TLS"]
+  end
+  subgraph AppLayer["Application Layer"]
+    API["REST / JSON API<br/>(Laravel 13 · PHP 8.x)"]
+    AUTH["Auth Service<br/>(JWT / Sanctum · OTP)"]
+    QUEUE["Queue Workers<br/>(Redis Queues)"]
+  end
+  subgraph DataLayer["Data Layer"]
+    PG[("PostgreSQL<br/>Primary DB")]
+    RED[("Redis<br/>Cache + Sessions")]
+    SEARCH[("Meilisearch<br/>Product Search")]
+    OBJ[("Object Storage<br/>Images / Media")]
+  end
+  subgraph External["External Services"]
+    FCM["Firebase Cloud<br/>Messaging (Push)"]
+    SMS["SMS / OTP Gateway"]
+    PAY["Payment Module<br/>(COD now · gateways later)"]
+    MAP["Maps / Geocoding"]
+  end
+  MA --> CDN
+  WEB --> CDN
+  ADM --> LB
+  CDN --> LB
+  LB --> API
+  API --> AUTH
+  API --> PG
+  API --> RED
+  API --> SEARCH
+  API --> OBJ
+  API --> QUEUE
+  QUEUE --> FCM
+  QUEUE --> SMS
+  API --> PAY
+  API --> MAP

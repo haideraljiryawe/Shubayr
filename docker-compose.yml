@@ -1,0 +1,100 @@
+# =====================================================================
+# Shubayr — Local development stack
+# Run:  docker compose up -d
+# Services: PostgreSQL, Redis, Meilisearch, Adminer (DB UI), Mailpit,
+#           and the Laravel API (once backend/ is scaffolded).
+# =====================================================================
+name: shubayr
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: shubayr_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-shubayr}
+      POSTGRES_USER: ${DB_USERNAME:-shubayr}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-shubayr_secret}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # Loads the shared schema automatically on first boot of an empty volume:
+      - ./infra/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./infra/db/seed_rbac.sql:/docker-entrypoint-initdb.d/02_seed_rbac.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-shubayr}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: shubayr_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+
+  search:
+    image: getmeili/meilisearch:v1.9
+    container_name: shubayr_search
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-masterKey_dev_only}
+      MEILI_ENV: development
+    ports:
+      - "${MEILI_PORT:-7700}:7700"
+    volumes:
+      - search_data:/meili_data
+
+  adminer:
+    image: adminer:4
+    container_name: shubayr_adminer
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    depends_on:
+      - db
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: shubayr_mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"   # web UI
+      - "${MAILPIT_SMTP_PORT:-1025}:1025" # SMTP
+
+  # ------------------------------------------------------------------
+  # API — enabled once the Laravel project exists in ./backend
+  # (Codex scaffolds it using prompts/BACKEND_CODEX.md). Until then
+  # this service will fail to build; that is expected. Comment it out
+  # if you want to run only the infrastructure first.
+  # ------------------------------------------------------------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: shubayr_api
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      search:
+        condition: service_started
+    env_file:
+      - ./backend/.env
+    profiles: ["full"]   # start with:  docker compose --profile full up -d
+
+volumes:
+  db_data:
+  redis_data:
+  search_data:

@@ -1,0 +1,35 @@
+sequenceDiagram
+  autonumber
+  actor M as Store Manager
+  actor D as Delivery Agent
+  participant Adm as Admin Dashboard
+  participant API as API (Laravel)
+  participant Ord as Order Service
+  participant DB as PostgreSQL
+  participant Q as Queue Worker
+  participant FCM as Push (FCM)
+  actor C as Customer
+
+  M->>Adm: Open new orders queue
+  Adm->>API: GET /admin/orders?status=PENDING
+  API->>DB: SELECT orders
+  DB-->>API: orders list
+  API-->>Adm: Render orders
+  M->>Adm: Confirm order -> CONFIRMED
+  Adm->>API: PATCH /orders/{id} {status: CONFIRMED}
+  API->>Ord: Update status + assign delivery
+  Ord->>DB: UPDATE order, INSERT delivery
+  API->>Q: OrderStatusChanged job
+  Q->>FCM: Push "Order confirmed"
+  FCM-->>C: Notification
+  D->>API: PATCH /deliveries/{id} {status: OUT_FOR_DELIVERY}
+  API->>DB: UPDATE delivery + order
+  API->>Q: OrderStatusChanged job
+  Q->>FCM: Push "Out for delivery"
+  FCM-->>C: Notification
+  C->>API: GET /orders/{id}/track
+  API->>DB: SELECT order + delivery status
+  DB-->>API: timeline
+  API-->>C: Live status timeline
+  D->>API: PATCH /deliveries/{id} {status: DELIVERED}
+  API->>DB: UPDATE delivery, order=DELIVERED, payment=PAID

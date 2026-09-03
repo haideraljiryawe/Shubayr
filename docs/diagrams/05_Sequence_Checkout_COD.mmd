@@ -1,0 +1,40 @@
+sequenceDiagram
+  autonumber
+  actor C as Customer
+  participant App as Flutter App / Web
+  participant API as API (Laravel)
+  participant Cart as Cart Service
+  participant Inv as Inventory Service
+  participant Ord as Order Service
+  participant DB as PostgreSQL
+  participant Q as Queue Worker
+  participant N as Notifications (FCM/SMS)
+
+  C->>App: Open cart & tap "Checkout"
+  App->>API: GET /cart (JWT)
+  API->>Cart: Load cart items
+  Cart->>DB: SELECT cart_items
+  DB-->>Cart: items
+  Cart-->>API: cart summary
+  API-->>App: Cart + totals
+  C->>App: Select address + COD, confirm
+  App->>API: POST /orders {addressId, paymentMethod: COD}
+  API->>Inv: Check stock for all items
+  Inv->>DB: SELECT stock
+  alt Stock available
+    API->>Ord: Create order (status = PENDING)
+    Ord->>DB: INSERT order + order_items
+    Ord->>Inv: Reserve / decrement stock
+    Inv->>DB: UPDATE stock
+    Ord->>DB: INSERT payment (method=COD, status=PENDING)
+    DB-->>Ord: committed
+    Ord-->>API: order created (orderNumber)
+    API->>Q: Dispatch OrderPlaced job
+    Q->>N: Send confirmation (push + SMS)
+    N-->>C: "Order #SB-1024 confirmed"
+    API-->>App: 201 Created {order}
+    App-->>C: Show confirmation & tracking
+  else Out of stock
+    API-->>App: 409 Conflict {unavailable items}
+    App-->>C: Prompt to update cart
+  end

@@ -1,0 +1,46 @@
+flowchart TB
+  subgraph Frontend["Presentation Components"]
+    F1[Mobile UI Modules<br/>Flutter]
+    F2[Web Storefront<br/>Next.js]
+    F3[Admin Panel<br/>Filament]
+  end
+  subgraph Gateway["API Gateway"]
+    G1[REST Controllers]
+    G2[Auth & Rate Limiting Middleware]
+    G3[Request Validation]
+  end
+  subgraph Domain["Domain / Service Components"]
+    S1[Catalog Service]
+    S2[Cart Service]
+    S3[Order Service]
+    S4[Inventory Service]
+    S5[User & Auth Service]
+    S6[Payment Module<br/>COD + pluggable]
+    S7[Promotion Service]
+    S8[Notification Service]
+    S9[Review Service]
+    S10[Reporting Service]
+  end
+  subgraph Infra["Infrastructure Components"]
+    R1[(PostgreSQL)]
+    R2[(Redis)]
+    R3[(Meilisearch)]
+    R4[(Object Storage)]
+    R5[Queue / Jobs]
+  end
+  Frontend --> Gateway
+  Gateway --> Domain
+  S1 --> R1
+  S1 --> R3
+  S2 --> R2
+  S3 --> R1
+  S3 --> R5
+  S4 --> R1
+  S5 --> R1
+  S5 --> R2
+  S6 --> R1
+  S7 --> R1
+  S8 --> R5
+  S9 --> R1
+  S10 --> R1
+  S1 --> R4

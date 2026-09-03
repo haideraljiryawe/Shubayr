@@ -1,0 +1,17 @@
+flowchart TD
+  Start([Customer requests return]) --> Select[Select items to return<br/>partial return allowed: keep the rest]
+  Select --> Reason[Choose reason]
+  Reason --> Submit[Submit return request]
+  Submit --> Approve{Approved by staff?}
+  Approve -- No --> Reject[Reject & notify customer] --> End1([End])
+  Approve -- Yes --> Collect[Agent collects returned item]
+  Collect --> Inspect{Inspect condition}
+  Inspect -- Sellable --> Restock[Restock to a batch/location<br/>stock_movement = RETURN in]
+  Inspect -- Opened --> Quarantine[Move to quarantine/open-box<br/>not auto-sellable]
+  Inspect -- Damaged --> Damage[Move to damaged/write-off<br/>no restock]
+  Restock --> Settle
+  Quarantine --> Settle
+  Damage --> Settle
+  Settle[Settle: refund / exchange / points adjust] --> Ledger[Update order, returns, audit log]
+  Ledger --> Notify[Notify customer of outcome]
+  Notify --> End2([End])

@@ -1,0 +1,117 @@
+erDiagram
+  ROLES ||--o{ ROLE_PERMISSIONS : grants
+  PERMISSIONS ||--o{ ROLE_PERMISSIONS : in
+  ROLES ||--o{ USERS : assigned
+  USERS ||--o{ ADDRESSES : has
+  USERS ||--|| CARTS : owns
+  USERS ||--o{ ORDERS : places
+  USERS ||--o{ PRODUCT_REVIEWS : writes
+  USERS ||--o{ DELIVERY_RATINGS : gives
+  USERS ||--|| LOYALTY_ACCOUNTS : has
+  USERS ||--o{ WISHLIST_ITEMS : saves
+  CATEGORIES ||--o{ CATEGORIES : parent_of
+  CATEGORIES ||--o{ PRODUCTS : contains
+  PRODUCTS ||--o{ PRODUCT_VARIANTS : has
+  PRODUCTS ||--o{ PRODUCT_REVIEWS : receives
+  CARTS ||--o{ CART_ITEMS : contains
+  PRODUCTS ||--o{ CART_ITEMS : referenced
+  ORDERS ||--o{ ORDER_ITEMS : contains
+  PRODUCTS ||--o{ ORDER_ITEMS : referenced
+  ORDERS ||--|| PAYMENTS : settled_by
+  ORDERS ||--o| DELIVERIES : fulfilled_by
+  DELIVERIES ||--o| DELIVERY_RATINGS : rated_by
+  ORDERS ||--o| COUPONS : uses
+  ORDER_ITEMS ||--o| PRODUCT_REVIEWS : verified_by
+  LOYALTY_ACCOUNTS ||--o{ LOYALTY_LEDGER : records
+  ORDERS ||--o{ LOYALTY_LEDGER : earns_from
+
+  ROLES { uuid id PK
+    string name
+    bool is_system }
+  PERMISSIONS { uuid id PK
+    string key
+    string group }
+  ROLE_PERMISSIONS { uuid role_id FK
+    uuid permission_id FK }
+  USERS { uuid id PK
+    uuid role_id FK
+    string phone UK
+    string name
+    bool is_active }
+  LOYALTY_ACCOUNTS { uuid id PK
+    uuid user_id FK
+    int points_balance }
+  LOYALTY_LEDGER { uuid id PK
+    uuid account_id FK
+    uuid order_id FK
+    string type
+    int points
+    timestamp created_at }
+  PRODUCTS { uuid id PK
+    uuid category_id FK
+    string name_en
+    string name_ar
+    decimal sale_price
+    bool is_negotiable
+    decimal floor_price
+    int points_price
+    string status }
+  PRODUCT_VARIANTS { uuid id PK
+    uuid product_id FK
+    string sku UK
+    json attributes }
+  ORDERS { uuid id PK
+    uuid user_id FK
+    uuid address_id FK
+    string order_number UK
+    string status
+    string payment_method
+    decimal total }
+  ORDER_ITEMS { uuid id PK
+    uuid order_id FK
+    uuid product_id FK
+    int quantity
+    decimal unit_price }
+  PAYMENTS { uuid id PK
+    uuid order_id FK
+    string method
+    string status
+    decimal amount }
+  DELIVERIES { uuid id PK
+    uuid order_id FK
+    uuid agent_id FK
+    string status }
+  DELIVERY_RATINGS { uuid id PK
+    uuid delivery_id FK
+    uuid user_id FK
+    int stars
+    text comment }
+  PRODUCT_REVIEWS { uuid id PK
+    uuid product_id FK
+    uuid order_item_id FK
+    int rating
+    text comment
+    bool verified_purchase
+    string status }
+  CATEGORIES { uuid id PK
+    uuid parent_id FK
+    string name_en
+    string name_ar }
+  ADDRESSES { uuid id PK
+    uuid user_id FK
+    string city
+    float lat
+    float lng }
+  CARTS { uuid id PK
+    uuid user_id FK }
+  CART_ITEMS { uuid id PK
+    uuid cart_id FK
+    uuid product_id FK
+    int quantity }
+  COUPONS { uuid id PK
+    string code UK
+    string type
+    decimal value }
+  WISHLIST_ITEMS { uuid id PK
+    uuid user_id FK
+    uuid product_id FK }

@@ -1,0 +1,47 @@
+flowchart LR
+  Guest(("Guest"))
+  Customer(("Customer"))
+  Manager(("Store Manager"))
+  Admin(("Admin"))
+  Delivery(("Delivery Agent"))
+
+  subgraph SYS["Shubayr System Boundary"]
+    UC1(["Browse / Search Products"])
+    UC2(["View Product Details"])
+    UC4(["Register / Login (OTP)"])
+    UC3(["Manage Cart"])
+    UC5(["Place Order (Cash on Delivery)"])
+    UC6(["Track Order"])
+    UC7(["Manage Wishlist"])
+    UC8(["Rate & Review Product"])
+    UC9(["Manage Profile & Addresses"])
+    UC10(["Manage Products & Categories"])
+    UC11(["Manage Inventory / Stock"])
+    UC12(["Manage & Update Orders"])
+    UC13(["Manage Promotions / Coupons"])
+    UC14(["View Reports & Analytics"])
+    UC15(["Manage Users & Roles"])
+    UC16(["Update Delivery Status"])
+  end
+
+  Guest --> UC1
+  Guest --> UC2
+  Guest --> UC4
+  Customer --> UC1
+  Customer --> UC2
+  Customer --> UC3
+  Customer --> UC5
+  Customer --> UC6
+  Customer --> UC7
+  Customer --> UC8
+  Customer --> UC9
+  Manager --> UC10
+  Manager --> UC11
+  Manager --> UC12
+  Manager --> UC13
+  Admin --> UC14
+  Admin --> UC15
+  Admin --> UC10
+  Admin --> UC12
+  Delivery --> UC16
+  Delivery --> UC6

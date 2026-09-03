@@ -1,0 +1,29 @@
+sequenceDiagram
+  autonumber
+  actor C as Customer
+  participant App as Flutter App / Web
+  participant API as API (Laravel)
+  participant Auth as Auth Service
+  participant SMS as SMS/OTP Gateway
+  participant DB as PostgreSQL
+
+  C->>App: Enter phone number to register/login
+  App->>API: POST /auth/request-otp {phone}
+  API->>Auth: Generate OTP + rate-limit check
+  Auth->>DB: Store OTP hash (expires 5 min)
+  Auth->>SMS: Send OTP code
+  SMS-->>C: SMS with 6-digit code
+  API-->>App: 200 {otpSent: true}
+  C->>App: Enter received OTP
+  App->>API: POST /auth/verify-otp {phone, code}
+  API->>Auth: Verify OTP
+  Auth->>DB: Validate + mark used
+  alt Valid OTP
+    Auth->>DB: Find or create user
+    Auth-->>API: Issue JWT access + refresh tokens
+    API-->>App: 200 {accessToken, refreshToken, user}
+    App-->>C: Logged in / Home screen
+  else Invalid or expired
+    API-->>App: 401 {error: invalid_otp}
+    App-->>C: Show error, allow retry
+  end

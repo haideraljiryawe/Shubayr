@@ -1,0 +1,96 @@
+erDiagram
+  SUPPLIERS ||--o{ PURCHASE_INVOICES : issues
+  PURCHASE_INVOICES ||--o{ PURCHASE_INVOICE_ITEMS : contains
+  PURCHASE_INVOICE_ITEMS ||--|| INVENTORY_BATCHES : creates
+  PRODUCTS ||--o{ INVENTORY_BATCHES : stocked_as
+  WAREHOUSES ||--o{ WAREHOUSE_LOCATIONS : has
+  INVENTORY_BATCHES ||--o{ BATCH_STOCK : distributed_as
+  WAREHOUSE_LOCATIONS ||--o{ BATCH_STOCK : holds
+  INVENTORY_BATCHES ||--o{ STOCK_MOVEMENTS : moved_by
+  WAREHOUSE_LOCATIONS ||--o{ STOCK_MOVEMENTS : from_to
+  ORDERS ||--o{ STOCK_RESERVATIONS : reserves
+  INVENTORY_BATCHES ||--o{ STOCK_RESERVATIONS : against
+  ORDERS ||--o| PICK_LISTS : picked_by
+  PICK_LISTS ||--o{ PICK_LIST_ITEMS : contains
+  INVENTORY_BATCHES ||--o{ PICK_LIST_ITEMS : from_batch
+  ORDERS ||--o{ RETURNS : may_have
+  RETURNS ||--o{ RETURN_ITEMS : contains
+  ORDER_ITEMS ||--o{ RETURN_ITEMS : returns
+
+  SUPPLIERS { uuid id PK
+    string name
+    string phone
+    string email
+    bool is_active }
+  PURCHASE_INVOICES { uuid id PK
+    uuid supplier_id FK
+    string invoice_number
+    decimal total_cost
+    string status
+    timestamp received_at }
+  PURCHASE_INVOICE_ITEMS { uuid id PK
+    uuid invoice_id FK
+    uuid product_id FK
+    int quantity
+    decimal unit_cost }
+  INVENTORY_BATCHES { uuid id PK
+    uuid product_id FK
+    uuid supplier_id FK
+    uuid po_item_id FK
+    string lot_number
+    date expiry_date
+    decimal purchase_cost
+    int qty_received
+    timestamp entry_date }
+  WAREHOUSES { uuid id PK
+    string name
+    string code
+    bool is_active }
+  WAREHOUSE_LOCATIONS { uuid id PK
+    uuid warehouse_id FK
+    string zone
+    string aisle
+    string shelf
+    string bin }
+  BATCH_STOCK { uuid id PK
+    uuid batch_id FK
+    uuid location_id FK
+    int quantity }
+  STOCK_MOVEMENTS { uuid id PK
+    uuid batch_id FK
+    string type
+    uuid from_location FK
+    uuid to_location FK
+    int quantity
+    string reference
+    uuid user_id
+    timestamp created_at }
+  STOCK_RESERVATIONS { uuid id PK
+    uuid order_id FK
+    uuid batch_id FK
+    uuid location_id FK
+    int quantity
+    string status }
+  PICK_LISTS { uuid id PK
+    uuid order_id FK
+    uuid assigned_to
+    string status }
+  PICK_LIST_ITEMS { uuid id PK
+    uuid pick_list_id FK
+    uuid batch_id FK
+    uuid location_id FK
+    int quantity
+    bool picked }
+  RETURNS { uuid id PK
+    uuid order_id FK
+    uuid user_id FK
+    string type
+    string status
+    timestamp created_at }
+  RETURN_ITEMS { uuid id PK
+    uuid return_id FK
+    uuid order_item_id FK
+    int quantity
+    string condition
+    bool restock
+    uuid batch_id FK }

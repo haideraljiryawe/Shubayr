@@ -1,0 +1,31 @@
+sequenceDiagram
+  autonumber
+  actor M as Store Manager
+  participant API as API (Laravel)
+  participant Ord as Order Service
+  participant Inv as Inventory Service
+  participant DB as PostgreSQL
+  actor W as Warehouse Worker
+  actor D as Delivery Agent
+
+  M->>API: Accept order #SB-1042
+  API->>Inv: Reserve items (FEFO)
+  loop Each order item
+    Inv->>DB: SELECT batches ORDER BY expiry_date ASC (available>0)
+    Inv->>DB: INSERT stock_reservation (batch, location, qty, RESERVED)
+    Inv->>DB: INSERT stock_movement (type=RESERVE)
+  end
+  Note over Inv,DB: Stock is reserved, NOT yet deducted<br/>(prevents double-selling)
+  Inv->>DB: Generate pick_list + pick_list_items (batch + shelf)
+  Inv-->>API: Reservation done + pick list ready
+  API-->>M: Order CONFIRMED, picking assigned
+  W->>API: Open pick list
+  API-->>W: Item + qty + warehouse + shelf + batch
+  W->>API: Mark items picked
+  API->>Inv: Confirm pick
+  W->>D: Hand over parcel
+  D->>API: Mark OUT_FOR_DELIVERY
+  API->>Inv: Convert reservation -> deduction
+  Inv->>DB: UPDATE batch_stock (-qty), stock_movement (type=SALE)
+  D->>API: Mark DELIVERED (cash collected)
+  API->>DB: order=DELIVERED, payment=PAID

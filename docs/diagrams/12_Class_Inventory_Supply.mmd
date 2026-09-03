@@ -1,0 +1,115 @@
+classDiagram
+  direction LR
+  class Supplier {
+    +UUID id
+    +string name
+    +string phone
+    +bool isActive
+    +createPurchaseInvoice()
+  }
+  class PurchaseInvoice {
+    +UUID id
+    +UUID supplierId
+    +string invoiceNumber
+    +decimal totalCost
+    +enum status
+    +datetime receivedAt
+    +receive()
+    +post()
+  }
+  class PurchaseInvoiceItem {
+    +UUID id
+    +UUID productId
+    +int quantity
+    +decimal unitCost
+  }
+  class InventoryBatch {
+    +UUID id
+    +UUID productId
+    +UUID supplierId
+    +string lotNumber
+    +date expiryDate
+    +decimal purchaseCost
+    +int qtyReceived
+    +datetime entryDate
+    +availableQty()
+  }
+  class Warehouse {
+    +UUID id
+    +string name
+    +string code
+  }
+  class WarehouseLocation {
+    +UUID id
+    +string zone
+    +string aisle
+    +string shelf
+    +string bin
+    +code()
+  }
+  class BatchStock {
+    +UUID id
+    +int quantity
+  }
+  class StockMovement {
+    +UUID id
+    +enum type
+    +int quantity
+    +string reference
+    +datetime createdAt
+    +record()
+  }
+  class StockReservation {
+    +UUID id
+    +UUID orderId
+    +int quantity
+    +enum status
+    +reserve()
+    +release()
+    +fulfill()
+  }
+  class PickList {
+    +UUID id
+    +UUID orderId
+    +enum status
+    +generateFEFO()
+  }
+  class PickListItem {
+    +UUID id
+    +int quantity
+    +bool picked
+  }
+  class Return {
+    +UUID id
+    +UUID orderId
+    +enum type
+    +enum status
+    +inspect()
+  }
+  class ReturnItem {
+    +UUID id
+    +int quantity
+    +enum condition
+    +bool restock
+  }
+  class AuditLog {
+    +UUID id
+    +UUID actorId
+    +string action
+    +string entityType
+    +json before
+    +json after
+    +datetime createdAt
+  }
+
+  Supplier "1" --> "0..*" PurchaseInvoice : issues
+  PurchaseInvoice "1" --> "1..*" PurchaseInvoiceItem : contains
+  PurchaseInvoiceItem "1" --> "1" InventoryBatch : creates
+  InventoryBatch "1" --> "0..*" BatchStock : distributed
+  Warehouse "1" --> "0..*" WarehouseLocation : has
+  WarehouseLocation "1" --> "0..*" BatchStock : holds
+  InventoryBatch "1" --> "0..*" StockMovement : moved
+  InventoryBatch "1" --> "0..*" StockReservation : against
+  PickList "1" --> "1..*" PickListItem : contains
+  InventoryBatch "1" --> "0..*" PickListItem : from
+  Return "1" --> "1..*" ReturnItem : contains

@@ -1,0 +1,15 @@
+stateDiagram-v2
+  [*] --> PENDING : Order placed (COD)
+  PENDING --> CONFIRMED : Manager confirms
+  PENDING --> CANCELLED : Customer / manager cancels
+  CONFIRMED --> PROCESSING : Items being packed
+  PROCESSING --> OUT_FOR_DELIVERY : Assigned to delivery agent
+  OUT_FOR_DELIVERY --> DELIVERED : Customer receives & pays cash
+  OUT_FOR_DELIVERY --> FAILED_DELIVERY : Customer unreachable / refused
+  FAILED_DELIVERY --> OUT_FOR_DELIVERY : Re-attempt delivery
+  FAILED_DELIVERY --> RETURNED : Return to store
+  DELIVERED --> RETURN_REQUESTED : Customer requests return
+  RETURN_REQUESTED --> RETURNED : Return approved & collected
+  DELIVERED --> [*]
+  CANCELLED --> [*]
+  RETURNED --> [*]

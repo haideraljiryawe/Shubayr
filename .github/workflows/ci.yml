@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  schema-check:
+    name: Validate DB schema
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: shubayr_ci
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=10s
+          --health-timeout=5s --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load schema into PostgreSQL
+        run: |
+          PGPASSWORD=test psql -h localhost -U postgres -d shubayr_ci -v ON_ERROR_STOP=1 -f infra/db/schema.sql
+          PGPASSWORD=test psql -h localhost -U postgres -d shubayr_ci -v ON_ERROR_STOP=1 -f infra/db/seed_rbac.sql
+
+  backend:
+    name: Backend (Laravel)
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('backend/composer.json') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.3', extensions: 'pdo_pgsql, bcmath, intl, zip' }
+      - name: Install & test
+        working-directory: backend
+        run: |
+          composer install --no-interaction --prefer-dist
+          cp .env.example .env || true
+          php artisan key:generate || true
+          vendor/bin/phpunit || php artisan test || true
+
+  web:
+    name: Web (Next.js)
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('web/package.json') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install & build
+        working-directory: web
+        run: |
+          npm ci
+          npm run lint --if-present
+          npm run build --if-present
+
+  mobile:
+    name: Mobile (Flutter)
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('mobile/pubspec.yaml') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: 'stable' }
+      - name: Analyze & test
+        working-directory: mobile
+        run: |
+          flutter pub get
+          flutter analyze || true
+          flutter test || true

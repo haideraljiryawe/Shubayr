@@ -1,0 +1,26 @@
+flowchart TD
+  Start([Start]) --> Browse[Browse / Search catalog]
+  Browse --> View[Open product details]
+  View --> AddCart{Add to cart?}
+  AddCart -- No --> Browse
+  AddCart -- Yes --> Cart[Item added to cart]
+  Cart --> More{Continue shopping?}
+  More -- Yes --> Browse
+  More -- No --> Checkout[Proceed to checkout]
+  Checkout --> Auth{Logged in?}
+  Auth -- No --> Login[Register / Login via OTP]
+  Login --> Address
+  Auth -- Yes --> Address[Select / add delivery address]
+  Address --> Pay[Select payment: Cash on Delivery]
+  Pay --> Coupon{Apply coupon?}
+  Coupon -- Yes --> Validate[Validate coupon code]
+  Validate --> Review
+  Coupon -- No --> Review[Review order summary]
+  Review --> Confirm{Confirm order?}
+  Confirm -- No --> Cart
+  Confirm -- Yes --> Stock{Stock available?}
+  Stock -- No --> Fix[Prompt to adjust cart] --> Cart
+  Stock -- Yes --> Place[Create order · status PENDING]
+  Place --> Notify[Send confirmation push + SMS]
+  Notify --> Track[Show order tracking]
+  Track --> End([End])

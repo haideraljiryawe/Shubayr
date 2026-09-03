@@ -1,0 +1,51 @@
+# --- Env & secrets ---
+.env
+*.env.local
+!.env.example
+*.pem
+*.key
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Node / Next.js (web) ---
+node_modules/
+.next/
+out/
+dist/
+npm-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+# --- PHP / Laravel (backend) ---
+/backend/vendor/
+/backend/storage/*.key
+/backend/storage/logs/*
+/backend/storage/framework/cache/*
+/backend/storage/framework/sessions/*
+/backend/storage/framework/views/*
+/backend/bootstrap/cache/*
+/backend/public/storage
+
+# --- Flutter (mobile) ---
+/mobile/.dart_tool/
+/mobile/.flutter-plugins
+/mobile/.flutter-plugins-dependencies
+/mobile/build/
+/mobile/ios/Pods/
+/mobile/android/.gradle/
+/mobile/**/GeneratedPluginRegistrant.*
+*.iml
+
+# --- Docker / data ---
+/infra/**/data/
+*.local.yml
+
+# --- Misc ---
+coverage/
+*.log
+tmp/

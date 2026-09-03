@@ -1,0 +1,27 @@
+sequenceDiagram
+  autonumber
+  actor P as Purchasing Staff
+  participant Adm as Admin (Flutter Web)
+  participant API as API (Laravel)
+  participant Pur as Purchasing Service
+  participant Inv as Inventory Service
+  participant DB as PostgreSQL
+  participant Aud as Audit Log
+
+  P->>Adm: New Purchase Invoice (select supplier)
+  P->>Adm: Add items (product, qty, unit cost, LOT, expiry)
+  Adm->>API: POST /purchase-invoices
+  API->>Pur: Validate & create invoice
+  Pur->>DB: INSERT purchase_invoice + items
+  P->>Adm: Receive goods to warehouse/location
+  Adm->>API: POST /purchase-invoices/{id}/receive
+  API->>Inv: For each item -> create batch
+  loop Each invoice item
+    Inv->>DB: INSERT inventory_batch (cost, lot, expiry, qty)
+    Inv->>DB: INSERT batch_stock (batch, location, qty)
+    Inv->>DB: INSERT stock_movement (type=PURCHASE, +qty)
+  end
+  Inv->>Aud: Log receipt (who, what, cost)
+  Inv-->>API: Batches created & located
+  API-->>Adm: Invoice posted, stock updated
+  Adm-->>P: Show batches + locations + landed cost

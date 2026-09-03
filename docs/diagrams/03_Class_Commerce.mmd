@@ -1,0 +1,144 @@
+classDiagram
+  direction LR
+  class User {
+    +UUID id
+    +string name
+    +string phone
+    +string email
+    +string passwordHash
+    +enum role
+    +bool isActive
+    +datetime createdAt
+    +register()
+    +login()
+    +updateProfile()
+  }
+  class Address {
+    +UUID id
+    +string label
+    +string city
+    +string area
+    +string street
+    +string details
+    +float lat
+    +float lng
+    +bool isDefault
+  }
+  class Category {
+    +UUID id
+    +string nameEn
+    +string nameAr
+    +UUID parentId
+    +string icon
+    +int sortOrder
+    +bool isActive
+  }
+  class Product {
+    +UUID id
+    +string nameEn
+    +string nameAr
+    +text description
+    +decimal price
+    +decimal salePrice
+    +int stock
+    +enum status
+    +float ratingAvg
+    +addVariant()
+    +updateStock()
+  }
+  class ProductVariant {
+    +UUID id
+    +string sku
+    +json attributes
+    +decimal priceDelta
+    +int stock
+  }
+  class ProductImage {
+    +UUID id
+    +string url
+    +int sortOrder
+  }
+  class Cart {
+    +UUID id
+    +UUID userId
+    +addItem()
+    +removeItem()
+    +total()
+  }
+  class CartItem {
+    +UUID id
+    +int quantity
+    +decimal unitPrice
+  }
+  class Order {
+    +UUID id
+    +string orderNumber
+    +enum status
+    +enum paymentMethod
+    +decimal subtotal
+    +decimal deliveryFee
+    +decimal discount
+    +decimal total
+    +datetime placedAt
+    +place()
+    +cancel()
+    +updateStatus()
+  }
+  class OrderItem {
+    +UUID id
+    +int quantity
+    +decimal unitPrice
+    +decimal lineTotal
+  }
+  class Payment {
+    +UUID id
+    +enum method
+    +enum status
+    +decimal amount
+    +datetime paidAt
+  }
+  class Delivery {
+    +UUID id
+    +UUID agentId
+    +enum status
+    +datetime dispatchedAt
+    +datetime deliveredAt
+  }
+  class Review {
+    +UUID id
+    +int rating
+    +text comment
+    +enum status
+  }
+  class Coupon {
+    +UUID id
+    +string code
+    +enum type
+    +decimal value
+    +int usageLimit
+    +datetime expiresAt
+    +isValid()
+  }
+  class WishlistItem {
+    +UUID id
+    +datetime addedAt
+  }
+
+  User "1" --> "0..*" Address : has
+  User "1" --> "1" Cart : owns
+  User "1" --> "0..*" Order : places
+  User "1" --> "0..*" Review : writes
+  User "1" --> "0..*" WishlistItem : saves
+  Category "1" --> "0..*" Product : contains
+  Category "1" --> "0..*" Category : subcategories
+  Product "1" --> "0..*" ProductVariant : has
+  Product "1" --> "0..*" ProductImage : has
+  Product "1" --> "0..*" Review : receives
+  Cart "1" --> "0..*" CartItem : contains
+  CartItem "0..*" --> "1" Product : refers
+  Order "1" --> "1..*" OrderItem : contains
+  OrderItem "0..*" --> "1" Product : refers
+  Order "1" --> "1" Payment : has
+  Order "1" --> "0..1" Delivery : fulfilled by
+  Order "0..*" --> "0..1" Coupon : applies
+  WishlistItem "0..*" --> "1" Product : refers
