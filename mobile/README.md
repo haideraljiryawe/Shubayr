@@ -2,7 +2,8 @@
 
 One Flutter codebase for **Customer + Delivery + Admin**, also building for
 **Flutter Web** (admin dashboard). Scaffolded with **Claude Code** using
-`../prompts/MOBILE_CLAUDE.md`.
+`../prompts/MOBILE_CLAUDE_FULL.md`. See
+`../docs/setup/SETUP_MOBILE.md` for complete environment setup.
 
 ## Run (after scaffolding)
 ```bash
