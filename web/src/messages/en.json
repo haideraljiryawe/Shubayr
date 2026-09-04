@@ -1,0 +1,75 @@
+{
+  "brand": {
+    "name": "Shubayr",
+    "tagline": "Everything you need",
+    "strapline": "Modern · Simple · Everywhere"
+  },
+  "nav": {
+    "home": "Home",
+    "categories": "Categories",
+    "cart": "Cart",
+    "wishlist": "Wishlist",
+    "account": "Account",
+    "offers": "Offers",
+    "styleGuide": "Style guide"
+  },
+  "header": {
+    "searchPlaceholder": "Search products, brands and more",
+    "deliverTo": "Deliver to",
+    "defaultLocation": "Kut, Iraq",
+    "notifications": "Notifications",
+    "cart": "Shopping cart",
+    "changeLanguage": "Change language",
+    "openMenu": "Open menu",
+    "search": "Search"
+  },
+  "footer": {
+    "tagline": "An easier shopping experience … for everything you need",
+    "rights": "All rights reserved"
+  },
+  "common": {
+    "viewAll": "View all",
+    "addToCart": "Add to cart",
+    "reviews": "reviews",
+    "increase": "Increase quantity",
+    "decrease": "Decrease quantity",
+    "addToWishlist": "Add to wishlist",
+    "removeFromWishlist": "Remove from wishlist",
+    "quantity": "Quantity"
+  },
+  "styleGuide": {
+    "title": "Style guide",
+    "subtitle": "The Shubayr design system — colors, type and base components",
+    "primaryColors": "Primary colors",
+    "secondaryColors": "Secondary colors",
+    "statusColors": "Status colors",
+    "typography": "Typography",
+    "buttons": "Buttons",
+    "fields": "Fields",
+    "elements": "Elements",
+    "radiiAndShadows": "Radii & shadows",
+    "components": "Components",
+    "primaryButton": "Primary button",
+    "secondaryButton": "Secondary button",
+    "lightButton": "Light button",
+    "disabledButton": "Disabled button",
+    "fieldText": "Field text",
+    "fieldLabel": "Field",
+    "selectPlaceholder": "Choose from the list",
+    "errorField": "Field with an error",
+    "errorMessage": "This field is required",
+    "textareaPlaceholder": "Write your notes here…",
+    "radiusSmall": "Small",
+    "radiusMedium": "Medium",
+    "radiusLarge": "Large",
+    "shadowSmall": "Small shadow",
+    "shadowMedium": "Medium shadow",
+    "shadowLarge": "Large shadow",
+    "featuredProducts": "Featured products",
+    "sampleProduct": "Wireless headphones",
+    "brandNote": "A note on the primary color",
+    "spec": "Spec",
+    "mockup": "Mockup",
+    "contrast": "Contrast on white"
+  }
+}

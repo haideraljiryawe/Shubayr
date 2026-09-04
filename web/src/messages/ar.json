@@ -1,0 +1,75 @@
+{
+  "brand": {
+    "name": "Shubayr",
+    "tagline": "كل ما تحتاجه في مكان واحد",
+    "strapline": "Modern · Simple · Everywhere"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "categories": "الأقسام",
+    "cart": "السلة",
+    "wishlist": "المفضلة",
+    "account": "حسابي",
+    "offers": "العروض",
+    "styleGuide": "دليل التصميم"
+  },
+  "header": {
+    "searchPlaceholder": "ابحث عن منتجات، علامات، وأكثر",
+    "deliverTo": "موقع التوصيل",
+    "defaultLocation": "الكوت، العراق",
+    "notifications": "الإشعارات",
+    "cart": "سلة المشتريات",
+    "changeLanguage": "تغيير اللغة",
+    "openMenu": "فتح القائمة",
+    "search": "بحث"
+  },
+  "footer": {
+    "tagline": "تجربة تسوق أسهل … لكل ما تحتاج",
+    "rights": "جميع الحقوق محفوظة"
+  },
+  "common": {
+    "viewAll": "عرض الكل",
+    "addToCart": "أضف إلى السلة",
+    "reviews": "تقييم",
+    "increase": "زيادة الكمية",
+    "decrease": "إنقاص الكمية",
+    "addToWishlist": "أضف إلى المفضلة",
+    "removeFromWishlist": "إزالة من المفضلة",
+    "quantity": "الكمية"
+  },
+  "styleGuide": {
+    "title": "دليل التصميم",
+    "subtitle": "نظام تصميم Shubayr — الألوان والخطوط والمكونات الأساسية",
+    "primaryColors": "الألوان الأساسية",
+    "secondaryColors": "الألوان الثانوية",
+    "statusColors": "ألوان الحالة",
+    "typography": "الخطوط",
+    "buttons": "الأزرار",
+    "fields": "الحقول",
+    "elements": "العناصر",
+    "radiiAndShadows": "الظلال والزوايا",
+    "components": "المكونات",
+    "primaryButton": "زر أساسي",
+    "secondaryButton": "زر ثانوي",
+    "lightButton": "زر خفيف",
+    "disabledButton": "زر معطل",
+    "fieldText": "نص الحقل",
+    "fieldLabel": "الحقل",
+    "selectPlaceholder": "اختر من القائمة",
+    "errorField": "حقل به خطأ",
+    "errorMessage": "هذا الحقل مطلوب",
+    "textareaPlaceholder": "اكتب ملاحظاتك هنا…",
+    "radiusSmall": "صغيرة",
+    "radiusMedium": "متوسطة",
+    "radiusLarge": "كبيرة",
+    "shadowSmall": "ظل خفيف",
+    "shadowMedium": "ظل متوسط",
+    "shadowLarge": "ظل كبير",
+    "featuredProducts": "منتجات مميزة",
+    "sampleProduct": "سماعات لاسلكية",
+    "brandNote": "ملاحظة حول اللون الأساسي",
+    "spec": "المواصفات",
+    "mockup": "النموذج",
+    "contrast": "التباين مع الأبيض"
+  }
+}
