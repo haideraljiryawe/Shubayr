@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Warm off-white — matches AppColors.background so the native launch
+         screen hands over to the Flutter splash without a colour flash. -->
+    <color name="launch_background">#FAF7F2</color>
+</resources>

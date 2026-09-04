@@ -1,0 +1,69 @@
+{
+  "@@locale": "ar",
+
+  "storeFallbackName": "المتجر",
+
+  "actionRetry": "إعادة المحاولة",
+  "actionCancel": "إلغاء",
+  "actionContinue": "متابعة",
+  "actionSave": "حفظ",
+  "actionClose": "إغلاق",
+
+  "navHome": "الرئيسية",
+  "navCategories": "الأقسام",
+  "navCart": "السلة",
+  "navOrders": "الطلبات",
+  "navAccount": "الحساب",
+
+  "stateLoading": "جارٍ التحميل…",
+  "stateEmptyTitle": "لا يوجد شيء هنا بعد",
+  "stateEmptyMessage": "سيظهر المحتوى هنا فور توفره.",
+  "stateErrorTitle": "حدث خطأ ما",
+
+  "errorNetwork": "لا يوجد اتصال بالإنترنت. تحقّق من الشبكة وحاول مرة أخرى.",
+  "errorTimeout": "استغرق الطلب وقتًا طويلًا. حاول مرة أخرى.",
+  "errorServer": "تعذّر على الخادم إكمال الطلب.",
+  "errorUnauthorized": "انتهت صلاحية الجلسة. الرجاء تسجيل الدخول مجددًا.",
+  "errorNotFound": "لم نتمكّن من العثور على ما تبحث عنه.",
+  "errorValidation": "يرجى التحقّق من البيانات المُدخلة.",
+  "errorRateLimited": "محاولات كثيرة. انتظر قليلًا ثم حاول مجددًا.",
+  "errorUnknown": "حدث خطأ غير متوقّع.",
+
+  "authSignInTitle": "تسجيل الدخول",
+  "authSignInSubtitle": "أدخل رقم هاتفك وسنرسل لك رمز تحقّق.",
+  "authPhoneLabel": "رقم الهاتف",
+  "authPhoneHint": "+964 770 000 0000",
+  "authPhoneInvalid": "أدخل رقم هاتف صحيح.",
+  "authSendCode": "إرسال الرمز",
+  "authVerifyTitle": "رمز التحقّق",
+  "authVerifySubtitle": "أرسلنا رمزًا من ٦ أرقام إلى {phone}.",
+  "authCodeLabel": "رمز التحقّق",
+  "authCodeInvalid": "أدخل الرمز المكوّن من ٦ أرقام.",
+  "authVerify": "تحقّق",
+  "authResendCode": "إعادة إرسال الرمز",
+  "authSignOut": "تسجيل الخروج",
+  "authGuest": "زائر",
+
+  "accountTitle": "حسابي",
+  "accountLanguage": "اللغة",
+  "accountLanguageArabic": "العربية",
+  "accountLanguageEnglish": "English",
+  "accountCurrency": "العملة",
+  "accountSignedInAs": "مسجّل الدخول بصفة {role}",
+
+  "roleCustomer": "زبون",
+  "roleDelivery": "مندوب توصيل",
+  "roleStaff": "موظّف",
+
+  "homeTitle": "الرئيسية",
+  "categoriesTitle": "الأقسام",
+  "cartTitle": "السلة",
+  "ordersTitle": "الطلبات",
+  "deliveryTitle": "التوصيل",
+  "adminTitle": "لوحة التحكّم",
+
+  "comingSoonTitle": "قريبًا",
+  "comingSoonMessage": "هذا الجزء من التطبيق قيد التطوير.",
+
+  "routeNotFoundTitle": "الصفحة غير موجودة"
+}
