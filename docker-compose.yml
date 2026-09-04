@@ -2,7 +2,7 @@
 # Shubayr — Local development stack
 # Run:  docker compose up -d
 # Services: PostgreSQL, Redis, Meilisearch, Adminer (DB UI), Mailpit,
-#           and the Laravel API (once backend/ is scaffolded).
+#           and the NestJS API (once backend/ is scaffolded).
 # =====================================================================
 name: shubayr
 
@@ -67,7 +67,7 @@ services:
       - "${MAILPIT_SMTP_PORT:-1025}:1025" # SMTP
 
   # ------------------------------------------------------------------
-  # API — enabled once the Laravel project exists in ./backend
+  # API — enabled once the NestJS project exists in ./backend
   # (Codex scaffolds it using prompts/BACKEND_CODEX.md). Until then
   # this service will fail to build; that is expected. Comment it out
   # if you want to run only the infrastructure first.
@@ -76,11 +76,13 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: development
     container_name: shubayr_api
     restart: unless-stopped
-    working_dir: /var/www/html
+    working_dir: /app
     volumes:
-      - ./backend:/var/www/html
+      - ./backend:/app
+      - /app/node_modules
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -91,7 +93,8 @@ services:
       search:
         condition: service_started
     env_file:
-      - ./backend/.env
+      - path: ./backend/.env
+        required: false
     profiles: ["full"]   # start with:  docker compose --profile full up -d
 
 volumes:

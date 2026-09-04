@@ -24,7 +24,7 @@ start aligned:
 - **Ready-to-paste prompts**: `prompts/BACKEND_CODEX.md`, `prompts/WEB_CLAUDE.md`, `prompts/MOBILE_CLAUDE.md`.
 - **CI**: `.github/workflows/ci.yml` validates the schema on every push and builds each app once it exists.
 
-**Not yet written (this is your job):** the actual Laravel app, Next.js app, and
+**Not yet written (this is your job):** the actual NestJS app, Next.js app, and
 Flutter app. Each has a prompt that scaffolds it against the contract above.
 
 ## 2. Who builds what
@@ -40,7 +40,7 @@ Build the **backend first** (it defines the API); web and mobile can then procee
 ## 3. Prerequisites
 
 - **Everyone:** Git, Docker Desktop (for the DB and services).
-- **Backend:** PHP 8.3 + Composer (or just use Docker).
+- **Backend:** Node.js 24 LTS + npm (or just use Docker).
 - **Web:** Node.js 20+.
 - **Mobile:** Flutter (stable channel).
 

@@ -9,10 +9,12 @@ contract is `../infra/db/schema.sql`.
 ```
 Customer / Delivery / Admin  ─┐
    Flutter (iOS/Android/Web)  │
-                              ├──►  Laravel REST API (/api/v1)  ──►  PostgreSQL
-Public storefront (Next.js) ─┘            │  Redis (cache/queue)
-                                          │  Meilisearch (search)
-                                          └  FCM (push) · SMS (OTP)
+                              ├──► Node.js REST API (/api/v1)
+Public storefront (Next.js) ─┘      NestJS + TypeScript + Prisma
+                                      ├──► PostgreSQL
+                                      ├──► Redis (cache/BullMQ)
+                                      ├──► Meilisearch (search)
+                                      └──► FCM (push) · SMS (OTP)
 ```
 
 - **One backend** serves all clients. Business logic lives in the backend only.

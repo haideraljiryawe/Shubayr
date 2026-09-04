@@ -8,9 +8,6 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 2
 
-[*.php]
-indent_size = 4
-
 [*.{dart,py}]
 indent_size = 2
 

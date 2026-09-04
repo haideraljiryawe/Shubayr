@@ -9,7 +9,7 @@ flowchart TB
       NGINX["Nginx<br/>Reverse Proxy + TLS"]
     end
     subgraph AppT["App Tier (containers)"]
-      APIC["Laravel API<br/>PHP-FPM"]
+      APIC["NestJS API<br/>Node.js"]
       WRK["Queue Workers"]
       SCH["Scheduler / Cron"]
     end

@@ -27,26 +27,51 @@ jobs:
           PGPASSWORD=test psql -h localhost -U postgres -d shubayr_ci -v ON_ERROR_STOP=1 -f infra/db/schema.sql
           PGPASSWORD=test psql -h localhost -U postgres -d shubayr_ci -v ON_ERROR_STOP=1 -f infra/db/seed_rbac.sql
 
-  backend:
-    name: Backend (Laravel)
+  detect:
+    name: Detect project manifests
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('backend/composer.json') != '' }}
+    outputs:
+      backend: ${{ steps.f.outputs.backend }}
+      web: ${{ steps.f.outputs.web }}
+      mobile: ${{ steps.f.outputs.mobile }}
     steps:
       - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.3', extensions: 'pdo_pgsql, bcmath, intl, zip' }
-      - name: Install & test
-        working-directory: backend
+      - id: f
         run: |
-          composer install --no-interaction --prefer-dist
-          cp .env.example .env || true
-          php artisan key:generate || true
-          vendor/bin/phpunit || php artisan test || true
+          echo "backend=$([ -f backend/package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "web=$([ -f web/package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "mobile=$([ -f mobile/pubspec.yaml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  backend:
+    name: Backend (NestJS)
+    runs-on: ubuntu-latest
+    needs: detect
+    if: ${{ needs.detect.outputs.backend == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+      - name: Build
+        working-directory: backend
+        run: npm run build
+      - name: Test
+        working-directory: backend
+        run: npm test
 
   web:
     name: Web (Next.js)
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('web/package.json') != '' }}
+    needs: detect
+    if: ${{ needs.detect.outputs.web == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,7 +86,8 @@ jobs:
   mobile:
     name: Mobile (Flutter)
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('mobile/pubspec.yaml') != '' }}
+    needs: detect
+    if: ${{ needs.detect.outputs.mobile == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2

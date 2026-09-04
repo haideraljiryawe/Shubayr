@@ -1,0 +1,20 @@
+# Shubayr — code owners (auto-requests reviews on matching PRs)
+# Replace the placeholder handles with real GitHub usernames, then commit.
+# Syntax: <path>  <@owner> [<@owner2> ...]
+
+# Default owner for everything
+*                       @haideraljiryawee
+
+# Backend (Codex operator)
+/backend/               @haideraljiryawee
+/infra/                 @haideraljiryawee
+
+# Web storefront (frontend dev) — replace with their handle
+/web/                   @haideraljiryawee
+
+# Mobile & admin (frontend dev) — replace with their handle
+/mobile/                @haideraljiryawee
+
+# The API contract + DB schema are shared — the backend owner reviews changes
+/api/                   @haideraljiryawee
+/infra/db/schema.sql    @haideraljiryawee
