@@ -83,6 +83,16 @@ CREATE TABLE addresses (
     is_default      BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+-- FCM push-notification device tokens (one row per device/token per user)
+CREATE TABLE device_tokens (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token           VARCHAR(512) NOT NULL,
+    platform        VARCHAR(16) NOT NULL,   -- android | ios | web
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, token)
+);
+
 -- ---------------------------------------------------------------------
 -- 3. CATALOG
 -- ---------------------------------------------------------------------
@@ -442,6 +452,7 @@ CREATE INDEX idx_batch_stock_location   ON batch_stock(location_id);
 CREATE INDEX idx_movements_batch        ON stock_movements(batch_id);
 CREATE INDEX idx_movements_type         ON stock_movements(type);
 CREATE INDEX idx_reservations_order     ON stock_reservations(order_id);
+CREATE INDEX idx_device_tokens_user     ON device_tokens(user_id);
 CREATE INDEX idx_orders_user            ON orders(user_id);
 CREATE INDEX idx_orders_status          ON orders(status);
 CREATE INDEX idx_order_items_order      ON order_items(order_id);
