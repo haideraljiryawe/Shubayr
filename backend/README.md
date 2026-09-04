@@ -1,7 +1,8 @@
 # Shubayr - Backend API (NestJS + TypeScript + Prisma)
 
 This folder holds the Node.js 24 LTS NestJS REST API. It is scaffolded with
-Codex using `../prompts/BACKEND_CODEX.md`.
+Codex using `../prompts/BACKEND_CODEX.md`. See
+`../docs/setup/SETUP_BACKEND.md` for complete environment setup.
 
 ## Contracts
 

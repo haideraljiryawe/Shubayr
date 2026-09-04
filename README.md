@@ -60,8 +60,11 @@ docker compose --profile full up -d --build   # adds the NestJS API on :8000
 
 1. Read **`docs/ARCHITECTURE.md`** and skim **`infra/db/schema.sql`** — that schema is the contract.
 2. Backend dev: open **`prompts/BACKEND_CODEX.md`** and run it in Codex inside `backend/`.
-3. Web / mobile dev: open **`prompts/WEB_CLAUDE.md`** / **`prompts/MOBILE_CLAUDE.md`** in Claude Code.
+3. Web / mobile dev: open **`prompts/WEB_CLAUDE_FULL.md`** / **`prompts/MOBILE_CLAUDE_FULL.md`** in Claude Code.
 4. Follow the git workflow in **`CONTRIBUTING.md`**.
+
+New team members should start with **`TEAM_ONBOARDING.md`**, then follow the
+matching guide in **`docs/setup/`**.
 
 ## The 18 architecture rules (team review)
 

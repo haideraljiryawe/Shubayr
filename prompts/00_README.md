@@ -1,20 +1,21 @@
-# How to use these prompts
+# Authoritative build prompts
 
-Each file is a **ready-to-paste prompt** to scaffold one part of Shubayr with an
-AI coding tool. Run them from inside the matching folder so files land correctly.
+Run the matching prompt with the coding tool from the repository root so it can
+read the shared contracts and contribution rules.
 
-| Prompt | Tool | Run from | Produces |
+| Part | Owner | Working folder | Authoritative prompt |
 |---|---|---|---|
-| `BACKEND_CODEX.md` | **Codex** | `backend/` | NestJS API, Prisma, RBAC, auth, inventory, orders |
-| `WEB_CLAUDE.md` | **Claude Code** | `web/` | Next.js public storefront |
-| `MOBILE_CLAUDE.md` | **Claude Code** | `mobile/` | Flutter app (customer + delivery + admin) |
+| Backend | Abbas | `backend/` | [BACKEND_CODEX.md](BACKEND_CODEX.md) |
+| Website | Hiader | `web/` | [WEB_CLAUDE_FULL.md](WEB_CLAUDE_FULL.md) |
+| Mobile app | Ahmed | `mobile/` | [MOBILE_CLAUDE_FULL.md](MOBILE_CLAUDE_FULL.md) |
 
-### Recommended order
-1. **Backend first** (`BACKEND_CODEX.md`) — it defines the API the apps consume.
-2. Then **web** and **mobile** in parallel; both point at the running API on `http://localhost:8000/api/v1`.
+There is one prompt per part. Do not add shortened copies; update the relevant
+authoritative prompt through a reviewed pull request.
 
-### Golden rules for every tool
-- The database schema in **`../infra/db/schema.sql`** is the contract. Match it. Do not invent columns.
-- Honor the **18 architecture rules** in `../docs/ARCHITECTURE.md`.
-- Never edit files outside your own folder except via a reviewed PR.
-- Write an **audit log** entry for every sensitive action (stock, price, cost, purchase, return, order status, permission).
+## Shared rules
+
+- [The API contract](../api/openapi.yaml) defines all endpoints and payloads.
+- [The database contract](../infra/db/schema.sql) defines all 37 tables.
+- [The architecture guide](../docs/ARCHITECTURE.md) defines the 18 design rules.
+- [The contribution guide](../CONTRIBUTING.md) defines the Git workflow.
+- Sensitive actions must produce an `audit_logs` entry.
