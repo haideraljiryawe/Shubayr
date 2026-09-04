@@ -1,7 +1,8 @@
 # Shubayr — Web Storefront (Next.js)
 
 Public, SEO-friendly, Arabic-first storefront. Scaffolded with **Claude Code**
-using `../prompts/WEB_CLAUDE.md`.
+using `../prompts/WEB_CLAUDE_FULL.md`. See
+`../docs/setup/SETUP_WEB.md` for complete environment setup.
 
 ## Run (after scaffolding)
 ```bash

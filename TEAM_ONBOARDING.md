@@ -1,121 +1,62 @@
-# Shubayr — Team Onboarding / دليل الفريق
+# Shubayr team onboarding
 
-Welcome to **Shubayr**. This guide gets everyone working cleanly from the same
-repo. Read it once, then keep `CONTRIBUTING.md` handy for the daily git flow.
+Start here. This page identifies each owner, the shared contracts, and the safe
+workflow. Role-specific setup details are linked below.
 
-> **الملخص:** هذا المستودع (repo) يحتوي الهيكل الكامل للمشروع + قاعدة البيانات
-> الموحّدة + كل المخططات + برومبتات جاهزة لكل مطوّر. المطوّر الخلفي (Backend) يستخدم
-> Codex داخل مجلد `backend/`، ومطوّر الواجهات يستخدم Claude Code داخل `web/`
-> و`mobile/`. لا تعدّل قاعدة البيانات المشتركة إلا عبر Pull Request مراجَع.
+## Team ownership
 
----
+| Person | Responsibility | Folder | Setup | Build prompt |
+|---|---|---|---|---|
+| Hiader | Website - Next.js | `web/` | [Web setup](docs/setup/SETUP_WEB.md) | [Web build prompt](prompts/WEB_CLAUDE_FULL.md) |
+| Ahmed | Mobile app only - Flutter | `mobile/` | [Mobile setup](docs/setup/SETUP_MOBILE.md) | [Mobile build prompt](prompts/MOBILE_CLAUDE_FULL.md) |
+| Abbas | Backend - Node.js, NestJS, TypeScript, Prisma | `backend/` | [Backend setup](docs/setup/SETUP_BACKEND.md) | [Backend build prompt](prompts/BACKEND_CODEX.md) |
 
-## 1. What is already done (the starting point)
+Only the listed owner should lead changes in each application folder. Shared
+contract changes require coordination with every affected owner.
 
-This repo is **not empty** — it ships a complete foundation so both developers
-start aligned:
+## What already exists
 
-- **Monorepo structure**: `backend/`, `web/`, `mobile/`, `infra/`, `docs/`, `prompts/`.
-- **The database is designed and validated**: `infra/db/schema.sql` (37 tables, loads cleanly on PostgreSQL 16) — this is the **shared contract**. Plus `seed_rbac.sql` (roles, permissions, white-label defaults).
-- **Docker dev stack**: `docker-compose.yml` — PostgreSQL, Redis, Meilisearch, Adminer, Mailpit. Postgres auto-loads the schema + seed on first boot.
-- **Architecture & rules**: `docs/ARCHITECTURE.md` — the 18 design rules from the team review (suppliers, batches, warehouses/locations, stock movements, FEFO, reservation, picking, costing, returns, loyalty, ratings, RBAC, audit, white-label).
-- **All UML diagrams**: `docs/diagrams/` (PNG + SVG + editable Mermaid `.mmd`).
-- **Full analysis report**: `docs/Shubayr_Software_Engineering_Analysis_v2.pdf` (+ Word).
-- **Ready-to-paste prompts**: `prompts/BACKEND_CODEX.md`, `prompts/WEB_CLAUDE.md`, `prompts/MOBILE_CLAUDE.md`.
-- **CI**: `.github/workflows/ci.yml` validates the schema on every push and builds each app once it exists.
+- [Database contract](infra/db/schema.sql): the authoritative PostgreSQL schema
+  with 37 tables.
+- [API contract](api/openapi.yaml): the authoritative REST contract served at
+  `http://localhost:8000/api/v1`.
+- [Docker Compose stack](docker-compose.yml): PostgreSQL, Redis, Meilisearch,
+  Adminer, Mailpit, and the optional API profile.
+- [Architecture rules](docs/ARCHITECTURE.md): the 18 non-negotiable design rules.
+- [Diagrams](docs/diagrams/README.md): editable Mermaid sources plus rendered
+  PNG and SVG files.
+- `docs/Shubayr_Software_Engineering_Analysis_v2.pdf`: the full analysis report.
+- [Contribution guide](CONTRIBUTING.md): branching, commits, reviews, and the
+  definition of done.
 
-**Not yet written (this is your job):** the actual NestJS app, Next.js app, and
-Flutter app. Each has a prompt that scaffolds it against the contract above.
+## Git workflow
 
-## 2. Who builds what
-
-| Developer | Tool | Folder | Start by running |
-|---|---|---|---|
-| Backend | **Codex** | `backend/` | `prompts/BACKEND_CODEX.md` |
-| Frontend — web | **Claude Code** | `web/` | `prompts/WEB_CLAUDE.md` |
-| Frontend — mobile/admin | **Claude Code** | `mobile/` | `prompts/MOBILE_CLAUDE.md` |
-
-Build the **backend first** (it defines the API); web and mobile can then proceed in parallel.
-
-## 3. Prerequisites
-
-- **Everyone:** Git, Docker Desktop (for the DB and services).
-- **Backend:** Node.js 24 LTS + npm (or just use Docker).
-- **Web:** Node.js 20+.
-- **Mobile:** Flutter (stable channel).
-
-## 4. One-time: create the GitHub repo (owner does this once)
-
-The repo currently lives locally with its first commit already made. To publish it:
-
-**Option A — GitHub CLI (easiest):**
-```bash
-# install gh from https://cli.github.com, then:
-gh auth login
-gh repo create Shubayr --private --source=. --remote=origin --push
-```
-
-**Option B — plain git (create an empty repo named "Shubayr" on github.com first):**
-```bash
-git remote add origin https://github.com/<your-username>/Shubayr.git
-git branch -M main
-git push -u origin main
-# create the shared integration branch:
-git checkout -b develop && git push -u origin develop
-```
-
-Then, in the repo settings on GitHub, **protect `main` and `develop`** (require a
-pull request before merging), and invite the two developers as collaborators.
-
-## 5. One-time: each developer sets up
+Never push directly to `main` or `develop`.
 
 ```bash
-git clone https://github.com/<your-username>/Shubayr.git
-cd Shubayr
-cp .env.example .env
-docker compose up -d          # brings up the database + services
-# verify the DB: open http://localhost:8081 (Adminer) and log into "shubayr"
+git switch develop
+git pull --ff-only origin develop
+git switch -c feature/<area>-<change>
+
+# work, test, and commit
+git fetch origin
+git rebase origin/develop
+git push -u origin feature/<area>-<change>
 ```
 
-Then run your prompt (section 2) inside your folder.
+Open a pull request into `develop`, request review, and merge only after checks
+pass. Promotion from `develop` to `main` also happens through a pull request.
+Never commit `.env`, credentials, generated secrets, or silent changes to either
+shared contract.
 
-## 6. Daily workflow — pull & push
+## Where each person goes next
 
-Full detail is in `CONTRIBUTING.md`. The short version:
+1. **Abbas:** follow [Backend setup](docs/setup/SETUP_BACKEND.md), then use the
+   [Node backend prompt](prompts/BACKEND_CODEX.md).
+2. **Hiader:** follow [Web setup](docs/setup/SETUP_WEB.md), then use the
+   [full web prompt](prompts/WEB_CLAUDE_FULL.md).
+3. **Ahmed:** follow [Mobile setup](docs/setup/SETUP_MOBILE.md), then use the
+   [full mobile prompt](prompts/MOBILE_CLAUDE_FULL.md).
 
-```bash
-git checkout develop
-git pull origin develop                 # always start from the latest
-git checkout -b feature/<area>-<thing>  # your branch
-
-# ... do the work ...
-git add -A
-git commit -m "feat(backend): receive purchase invoice into batches"
-
-git fetch origin && git rebase origin/develop   # stay current
-git push -u origin feature/<area>-<thing>
-# open a Pull Request into develop on GitHub → get a review → merge
-```
-
-**Golden rules**
-- Never push straight to `main` or `develop` — always via a PR.
-- Never commit `.env` or secrets (only `.env.example`).
-- **Never change `infra/db/schema.sql` silently** — it is the contract. Schema
-  changes are their own PR, reviewed by the other developer, with the ER
-  diagram/docs updated in the same PR.
-- Write an **audit log** for sensitive actions (stock, price, cost, purchase,
-  return, order status, permissions).
-
-## 7. Where to look
-
-| I need… | Look at |
-|---|---|
-| The data model | `infra/db/schema.sql` |
-| The rules & decisions | `docs/ARCHITECTURE.md` |
-| The diagrams | `docs/diagrams/` (edit the `.mmd` at mermaid.live) |
-| The full report | `docs/Shubayr_Software_Engineering_Analysis_v2.pdf` |
-| How to scaffold my part | `prompts/` |
-| Git workflow | `CONTRIBUTING.md` |
-
-Questions or a schema change idea? Open an issue or ping the backend owner first.
-Happy building. 🚀
+Web and mobile must implement [the OpenAPI contract](api/openapi.yaml), using
+contract-shaped mocks until Abbas has the corresponding endpoints running.
