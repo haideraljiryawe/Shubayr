@@ -27,10 +27,26 @@ jobs:
           PGPASSWORD=test psql -h localhost -U postgres -d shubayr_ci -v ON_ERROR_STOP=1 -f infra/db/schema.sql
           PGPASSWORD=test psql -h localhost -U postgres -d shubayr_ci -v ON_ERROR_STOP=1 -f infra/db/seed_rbac.sql
 
+  detect:
+    name: Detect project manifests
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.f.outputs.backend }}
+      web: ${{ steps.f.outputs.web }}
+      mobile: ${{ steps.f.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: f
+        run: |
+          echo "backend=$([ -f backend/package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "web=$([ -f web/package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "mobile=$([ -f mobile/pubspec.yaml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
   backend:
     name: Backend (NestJS)
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('backend/package.json') != '' }}
+    needs: detect
+    if: ${{ needs.detect.outputs.backend == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -54,7 +70,8 @@ jobs:
   web:
     name: Web (Next.js)
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('web/package.json') != '' }}
+    needs: detect
+    if: ${{ needs.detect.outputs.web == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -69,7 +86,8 @@ jobs:
   mobile:
     name: Mobile (Flutter)
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('mobile/pubspec.yaml') != '' }}
+    needs: detect
+    if: ${{ needs.detect.outputs.mobile == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
