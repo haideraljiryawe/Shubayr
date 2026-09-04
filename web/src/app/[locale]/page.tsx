@@ -1,12 +1,68 @@
+import { Suspense } from "react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Palette } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Link } from "@/i18n/navigation";
+import { CategoryRail } from "@/components/home/category-rail";
+import { HeroCarousel } from "@/components/home/hero-carousel";
+import { ProductSection } from "@/components/home/product-section";
+import {
+  CategoryRailSkeleton,
+  HeroSkeleton,
+  ProductGridSkeleton,
+} from "@/components/home/skeletons";
+import { SectionEmpty, SectionError } from "@/components/home/states";
+import { SectionHeader } from "@/components/ui/section-header";
+import { api } from "@/lib/api";
+import type { Locale } from "@/i18n/routing";
 
 /**
- * Phase 1 placeholder. Real storefront pages (home, categories, product, cart)
- * land in phase 2 — this exists so the app shell has something to frame.
+ * Home page. Every catalog read happens in a server component so the markup is
+ * fully rendered for crawlers; each section streams in behind its own Suspense
+ * boundary, so a slow strip never holds up the hero.
  */
+
+/** Hero is its own async component purely so it can stream independently. */
+async function Hero() {
+  let banners;
+  try {
+    banners = await api.getBanners();
+  } catch {
+    // A dead promo feed must never cost us the rest of the page.
+    return null;
+  }
+  if (banners.length === 0) return null;
+  return <HeroCarousel banners={banners} />;
+}
+
+async function Categories({ locale }: { locale: Locale }) {
+  const t = await getTranslations("home");
+  const tc = await getTranslations("common");
+
+  let categories;
+  try {
+    categories = await api.getCategories();
+  } catch {
+    categories = null;
+  }
+
+  return (
+    <section className="mt-8">
+      <SectionHeader
+        title={t("categoriesTitle")}
+        actionLabel={tc("viewAll")}
+        href="/category/c1"
+      />
+      <div className="mt-4">
+        {categories === null ? (
+          <SectionError />
+        ) : categories.length === 0 ? (
+          <SectionEmpty />
+        ) : (
+          <CategoryRail categories={categories} locale={locale} />
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default async function HomePage({
   params,
 }: {
@@ -14,23 +70,74 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations();
+  const t = await getTranslations("home");
+  const typedLocale = locale as Locale;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 lg:px-8 py-16">
-      <Card padding="lg" className="mx-auto max-w-2xl text-center">
-        <h1 className="text-3xl font-bold text-text">{t("brand.name")}</h1>
-        <p className="mt-2 text-text-muted">{t("brand.tagline")}</p>
-        <p className="mt-6 text-sm text-text-muted">{t("footer.tagline")}</p>
+    <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
+      <Suspense fallback={<HeroSkeleton />}>
+        <Hero />
+      </Suspense>
 
-        <Link
-          href="/style-guide"
-          className="mt-8 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary-dark"
-        >
-          <Palette className="size-4" aria-hidden />
-          {t("nav.styleGuide")}
-        </Link>
-      </Card>
+      <Suspense
+        fallback={
+          <div className="mt-8">
+            <CategoryRailSkeleton />
+          </div>
+        }
+      >
+        <Categories locale={typedLocale} />
+      </Suspense>
+
+      <Suspense
+        fallback={
+          <div className="mt-10">
+            <ProductGridSkeleton />
+          </div>
+        }
+      >
+        <ProductSection
+          title={t("featuredTitle")}
+          viewAllHref="/category/c1"
+          locale={typedLocale}
+          priority
+          load={async () =>
+            (await api.listProducts({ sort: "rating", per_page: 5 })).data
+          }
+        />
+      </Suspense>
+
+      <Suspense
+        fallback={
+          <div className="mt-10">
+            <ProductGridSkeleton />
+          </div>
+        }
+      >
+        <ProductSection
+          title={t("newArrivalsTitle")}
+          viewAllHref="/category/c1"
+          locale={typedLocale}
+          load={async () =>
+            (await api.listProducts({ sort: "newest", per_page: 5 })).data
+          }
+        />
+      </Suspense>
+
+      <Suspense
+        fallback={
+          <div className="mt-10">
+            <ProductGridSkeleton />
+          </div>
+        }
+      >
+        <ProductSection
+          title={t("dealsTitle")}
+          viewAllHref="/category/c1"
+          locale={typedLocale}
+          load={() => api.listDeals(5)}
+        />
+      </Suspense>
     </div>
   );
 }

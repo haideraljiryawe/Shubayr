@@ -71,5 +71,31 @@
     "spec": "Spec",
     "mockup": "Mockup",
     "contrast": "Contrast on white"
+  },
+  "product": {
+    "outOfStock": "Out of stock",
+    "addedToCart": "Added",
+    "comingSoonTitle": "Product page coming soon",
+    "comingSoonBody": "The product detail page is built in the next phase.",
+    "backHome": "Back to home"
+  },
+  "home": {
+    "categoriesTitle": "Main categories",
+    "featuredTitle": "Featured products",
+    "newArrivalsTitle": "New arrivals",
+    "dealsTitle": "Deals & discounts",
+    "errorTitle": "This section could not be loaded",
+    "errorBody": "Something went wrong fetching the data. Try refreshing the page.",
+    "emptyTitle": "Nothing here yet",
+    "emptyBody": "Check back soon — more is on the way.",
+    "previousSlide": "Previous slide",
+    "nextSlide": "Next slide",
+    "goToSlide": "Go to slide {number}",
+    "promotions": "Promotions"
+  },
+  "category": {
+    "comingSoonTitle": "Category page coming soon",
+    "comingSoonBody": "Category browsing is built in the next phase.",
+    "backHome": "Back to home"
   }
 }
