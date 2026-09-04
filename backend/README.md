@@ -1,39 +1,63 @@
-# Shubayr - Backend API (NestJS + TypeScript + Prisma)
+# Shubayr Backend API
 
-This folder holds the Node.js 24 LTS NestJS REST API. It is scaffolded with
-Codex using `../prompts/BACKEND_CODEX.md`.
+Node.js 24 LTS, TypeScript, NestJS, and Prisma REST API. The API is served below
+`http://localhost:8000/api/v1`.
 
-## Contracts
+## Authoritative contracts
 
-- Match all 37 tables in `../infra/db/schema.sql` exactly through Prisma models
-  and migrations.
-- Implement `../api/openapi.yaml` exactly at `/api/v1`.
-- Follow the 18 rules in `../docs/ARCHITECTURE.md`.
+- `../infra/db/schema.sql`: all 37 PostgreSQL tables and constraints.
+- `../api/openapi.yaml`: endpoint paths, payloads, responses, and security.
+- `../docs/ARCHITECTURE.md`: the 18 mandatory architecture rules.
+- `../prompts/BACKEND_CODEX.md`: implementation phases and quality gates.
 
-## Run locally (after scaffolding)
+Do not change either shared contract silently. Contract changes require their
+own reviewed pull request.
+
+## Local development
+
+Start the infrastructure from the repository root:
 
 ```bash
-cp ../.env.example .env
-# When running outside Docker, change db/redis/search hosts to localhost.
+docker compose up -d
+```
+
+Then run the API:
+
+```bash
+cd backend
+cp .env.example .env
 npm install
-npx prisma migrate dev
+npm run prisma:generate
 npm run start:dev
 ```
 
-## Run with Docker
+On Windows PowerShell with script execution disabled, use `npm.cmd` and
+`npx.cmd` in place of `npm` and `npx`.
 
-From the repository root:
+Available scaffold endpoints:
+
+- `GET /api/v1/health`: process liveness.
+- `GET /api/v1/ready`: PostgreSQL readiness.
+- `GET /api/v1/settings`: public white-label settings loaded from the database.
+
+The remaining OpenAPI endpoints are implemented phase-by-phase in the order
+specified by the backend build prompt.
+
+## Docker API profile
+
+From the repository root, after setting service hostnames (`db`, `redis`, and
+`search`) in `backend/.env`:
 
 ```bash
 docker compose --profile full up -d --build
 ```
 
-API base URL: `http://localhost:8000/api/v1`
-
-Before opening a pull request, run:
+## Quality gates
 
 ```bash
-npx prisma validate
+npm run prisma:validate
+npm run typecheck
+npm run lint
 npm run build
 npm test
 ```
