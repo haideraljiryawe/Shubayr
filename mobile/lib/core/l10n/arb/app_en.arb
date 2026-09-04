@@ -1,0 +1,72 @@
+{
+  "@@locale": "en",
+
+  "storeFallbackName": "Store",
+  "@storeFallbackName": { "description": "Neutral brand name used before store settings load." },
+
+  "actionRetry": "Retry",
+  "actionCancel": "Cancel",
+  "actionContinue": "Continue",
+  "actionSave": "Save",
+  "actionClose": "Close",
+
+  "navHome": "Home",
+  "navCategories": "Categories",
+  "navCart": "Cart",
+  "navOrders": "Orders",
+  "navAccount": "Account",
+
+  "stateLoading": "Loading…",
+  "stateEmptyTitle": "Nothing here yet",
+  "stateEmptyMessage": "Once there is something to show, it will appear here.",
+  "stateErrorTitle": "Something went wrong",
+
+  "errorNetwork": "No internet connection. Check your network and try again.",
+  "errorTimeout": "The request took too long. Please try again.",
+  "errorServer": "The server could not complete the request.",
+  "errorUnauthorized": "Your session has expired. Please sign in again.",
+  "errorNotFound": "We could not find what you were looking for.",
+  "errorValidation": "Please check the information you entered.",
+  "errorRateLimited": "Too many attempts. Please wait a moment and try again.",
+  "errorUnknown": "An unexpected error occurred.",
+
+  "authSignInTitle": "Sign in",
+  "authSignInSubtitle": "Enter your phone number and we will send you a verification code.",
+  "authPhoneLabel": "Phone number",
+  "authPhoneHint": "+964 770 000 0000",
+  "authPhoneInvalid": "Enter a valid phone number.",
+  "authSendCode": "Send code",
+  "authVerifyTitle": "Verification code",
+  "authVerifySubtitle": "We sent a 6-digit code to {phone}.",
+  "@authVerifySubtitle": { "placeholders": { "phone": { "type": "String" } } },
+  "authCodeLabel": "Verification code",
+  "authCodeInvalid": "Enter the 6-digit code.",
+  "authVerify": "Verify",
+  "authResendCode": "Resend code",
+  "authSignOut": "Sign out",
+  "authGuest": "Guest",
+
+  "accountTitle": "Account",
+  "accountLanguage": "Language",
+  "accountLanguageArabic": "العربية",
+  "accountLanguageEnglish": "English",
+  "accountCurrency": "Currency",
+  "accountSignedInAs": "Signed in as {role}",
+  "@accountSignedInAs": { "placeholders": { "role": { "type": "String" } } },
+
+  "roleCustomer": "Customer",
+  "roleDelivery": "Delivery agent",
+  "roleStaff": "Staff",
+
+  "homeTitle": "Home",
+  "categoriesTitle": "Categories",
+  "cartTitle": "Cart",
+  "ordersTitle": "Orders",
+  "deliveryTitle": "Deliveries",
+  "adminTitle": "Dashboard",
+
+  "comingSoonTitle": "Coming soon",
+  "comingSoonMessage": "This part of the app is not built yet.",
+
+  "routeNotFoundTitle": "Page not found"
+}

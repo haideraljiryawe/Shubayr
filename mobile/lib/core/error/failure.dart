@@ -1,0 +1,48 @@
+import '../l10n/generated/app_localizations.dart';
+
+/// The kinds of failure the UI needs to distinguish.
+enum FailureKind {
+  network,
+  timeout,
+  unauthorized,
+  notFound,
+  validation,
+  rateLimited,
+  server,
+  unknown,
+}
+
+/// A transport-agnostic error.
+///
+/// Repositories (mock and remote alike) throw this, so presentation code never
+/// imports Dio and behaves identically on either data source.
+class AppFailure implements Exception {
+  const AppFailure(this.kind, {this.statusCode, this.serverMessage});
+
+  const AppFailure.network() : this(FailureKind.network);
+  const AppFailure.timeout() : this(FailureKind.timeout);
+  const AppFailure.unauthorized() : this(FailureKind.unauthorized);
+  const AppFailure.unknown() : this(FailureKind.unknown);
+
+  final FailureKind kind;
+  final int? statusCode;
+
+  /// `Error.message` from the API, when present. Shown only as a detail line —
+  /// primary copy is always localised.
+  final String? serverMessage;
+
+  String localizedMessage(AppLocalizations l10n) => switch (kind) {
+    FailureKind.network => l10n.errorNetwork,
+    FailureKind.timeout => l10n.errorTimeout,
+    FailureKind.unauthorized => l10n.errorUnauthorized,
+    FailureKind.notFound => l10n.errorNotFound,
+    FailureKind.validation => l10n.errorValidation,
+    FailureKind.rateLimited => l10n.errorRateLimited,
+    FailureKind.server => l10n.errorServer,
+    FailureKind.unknown => l10n.errorUnknown,
+  };
+
+  @override
+  String toString() =>
+      'AppFailure(${kind.name}, status: $statusCode, message: $serverMessage)';
+}
