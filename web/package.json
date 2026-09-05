@@ -2,6 +2,9 @@
   "name": "shubayr-web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "description": "Shubayr — public Arabic-first storefront (Next.js App Router).",
   "scripts": {
     "dev": "next dev",
