@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +11,7 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/product.dart';
 import '../providers/catalog_providers.dart';
+import '../widgets/product_gallery.dart';
 
 /// Product detail: gallery, price, options and description, with a sticky
 /// add-to-cart bar. Reviews and live availability arrive in a later phase.
@@ -58,10 +58,7 @@ class _Detail extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.only(bottom: AppSpacing.xl),
             children: [
-              AspectRatio(
-                aspectRatio: 1,
-                child: _Gallery(image: product.primaryImage),
-              ),
+              ProductGallery(images: product.images),
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.screenH),
                 child: Column(
@@ -125,28 +122,6 @@ class _Detail extends ConsumerWidget {
         ),
         _AddToCartBar(product: product),
       ],
-    );
-  }
-}
-
-class _Gallery extends StatelessWidget {
-  const _Gallery({required this.image});
-
-  final String? image;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    Widget placeholder() => ColoredBox(
-      color: colors.surfaceAlt,
-      child: Icon(Icons.image_outlined, color: colors.textMuted, size: 48),
-    );
-    if (image == null) return placeholder();
-    return CachedNetworkImage(
-      imageUrl: image!,
-      fit: BoxFit.cover,
-      errorWidget: (context, _, _) => placeholder(),
-      placeholder: (context, _) => ColoredBox(color: colors.surfaceAlt),
     );
   }
 }

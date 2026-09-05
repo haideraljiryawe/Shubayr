@@ -31,8 +31,8 @@ abstract final class NavigationThemes {
   /// Active-tab top indicator — the thick bar shown at the top edge of the
   /// selected destination, in the active (primary) colour. Tune its size here;
   /// never hard-code these in CustomerShell.
-  static const double bottomBarIndicatorWidth = 36;
-  static const double bottomBarIndicatorThickness = 3;
+  static const double bottomBarIndicatorWidth = 50;
+  static const double bottomBarIndicatorThickness = 5;
 
   /// Icon size in the wide-layout navigation rail (left untouched by the
   /// phone-oriented refinement above).

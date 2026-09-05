@@ -15,6 +15,10 @@ class CatalogRepositoryMock implements CatalogRepository {
 
   static String _img(String seed) => 'https://picsum.photos/seed/$seed/500/500';
 
+  /// A few distinct images for a product's detail gallery.
+  static List<String> _gallery(String id) =>
+      [for (var i = 1; i <= 4; i++) _img('$id-$i')];
+
   static const _cElectronics = 'cat-electronics';
   static const _cGrocery = 'cat-grocery';
   static const _cClothing = 'cat-clothing';
@@ -274,6 +278,8 @@ class CatalogRepositoryMock implements CatalogRepository {
   @override
   Future<Product> fetchProduct(String id) async {
     await Future<void>.delayed(delay);
-    return _products.firstWhere((p) => p.id == id);
+    final product = _products.firstWhere((p) => p.id == id);
+    // List fixtures carry one image; the detail view shows a small gallery.
+    return product.copyWith(images: _gallery(id));
   }
 }

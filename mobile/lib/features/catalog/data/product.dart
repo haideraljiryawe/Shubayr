@@ -86,6 +86,25 @@ class Product {
   /// First image, or null when the product has none (the UI shows a placeholder).
   String? get primaryImage => images.isNotEmpty ? images.first : null;
 
+  Product copyWith({List<String>? images}) => Product(
+    id: id,
+    categoryId: categoryId,
+    nameEn: nameEn,
+    nameAr: nameAr,
+    description: description,
+    salePrice: salePrice,
+    isNegotiable: isNegotiable,
+    floorPrice: floorPrice,
+    pointsPrice: pointsPrice,
+    tracksExpiry: tracksExpiry,
+    ratingAvg: ratingAvg,
+    status: status,
+    inStock: inStock,
+    availableQty: availableQty,
+    images: images ?? this.images,
+    variants: variants,
+  );
+
   factory Product.fromJson(Map<String, dynamic> json) =>
       _$ProductFromJson(json);
 
