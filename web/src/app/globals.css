@@ -2,7 +2,7 @@
 
 /* ============================================================================
    SHUBAYR DESIGN TOKENS
-   Source of truth: the Shubayr design-system sheet (docs/design/).
+   Source of truth: docs/design/shubayr-design-system.jpeg (see docs/design/README.md).
 
    Raw tokens are plain custom properties under a `--t-*` (token) namespace so
    the white-label ThemeProvider (rule #1 in docs/ARCHITECTURE.md) can override

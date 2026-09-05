@@ -280,7 +280,7 @@ paths:
               required: [product_id, quantity]
               properties:
                 product_id: { type: string, format: uuid }
-                variant_id: { type: string, format: uuid, nullable: true }
+                variant_id: { type: [string, "null"], format: uuid }
                 quantity: { type: integer, minimum: 1 }
       responses:
         "200":
@@ -408,7 +408,7 @@ paths:
               required: [address_id]
               properties:
                 address_id: { type: string, format: uuid }
-                coupon_code: { type: string, nullable: true }
+                coupon_code: { type: [string, "null"] }
                 payment_method: { type: string, enum: [cod], default: cod }
       responses:
         "201":
@@ -610,7 +610,7 @@ paths:
                       quantity: { type: integer, minimum: 1 }
                       unit_cost: { type: number }
                       lot_number: { type: string }
-                      expiry_date: { type: string, format: date, nullable: true }
+                      expiry_date: { type: [string, "null"], format: date }
       responses:
         "201":
           description: Created purchase invoice
@@ -848,7 +848,7 @@ paths:
                       return_item_id: { type: string, format: uuid }
                       condition: { type: string, enum: [sellable, opened, damaged] }
                       restock: { type: boolean }
-                      batch_id: { type: string, format: uuid, nullable: true }
+                      batch_id: { type: [string, "null"], format: uuid }
       responses:
         "200":
           description: Inspected return
@@ -1281,7 +1281,7 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         phone: { type: string }
-        email: { type: string, nullable: true }
+        email: { type: [string, "null"] }
         is_active: { type: boolean }
         role: { type: string, example: customer, description: "role name" }
         permissions:
@@ -1296,10 +1296,10 @@ components:
       properties:
         name: { type: string }
         phone: { type: string }
-        email: { type: string, nullable: true }
+        email: { type: [string, "null"] }
         role: { type: string, description: "role name to assign", example: warehouse }
         is_active: { type: boolean, default: true }
-        password: { type: string, nullable: true, description: "optional; staff accounts may use password login" }
+        password: { type: [string, "null"], description: "optional; staff accounts may use password login" }
 
     Address:
       type: object
@@ -1310,9 +1310,9 @@ components:
         city: { type: string }
         area: { type: string }
         street: { type: string }
-        details: { type: string, nullable: true }
-        lat: { type: number, format: double, nullable: true }
-        lng: { type: number, format: double, nullable: true }
+        details: { type: [string, "null"] }
+        lat: { type: [number, "null"], format: double }
+        lng: { type: [number, "null"], format: double }
         is_default: { type: boolean }
 
     AddressInput:
@@ -1323,9 +1323,9 @@ components:
         city: { type: string }
         area: { type: string }
         street: { type: string }
-        details: { type: string, nullable: true }
-        lat: { type: number, format: double, nullable: true }
-        lng: { type: number, format: double, nullable: true }
+        details: { type: [string, "null"] }
+        lat: { type: [number, "null"], format: double }
+        lng: { type: [number, "null"], format: double }
         is_default: { type: boolean, default: false }
 
     AddressPage:
@@ -1342,10 +1342,10 @@ components:
       type: object
       properties:
         id: { type: string, format: uuid }
-        parent_id: { type: string, format: uuid, nullable: true }
+        parent_id: { type: [string, "null"], format: uuid }
         name_en: { type: string }
         name_ar: { type: string }
-        icon: { type: string, nullable: true }
+        icon: { type: [string, "null"] }
         sort_order: { type: integer }
         is_active: { type: boolean }
         children: { type: array, items: { $ref: "#/components/schemas/Category" } }
@@ -1354,10 +1354,10 @@ components:
       type: object
       required: [name_en, name_ar]
       properties:
-        parent_id: { type: string, format: uuid, nullable: true }
+        parent_id: { type: [string, "null"], format: uuid }
         name_en: { type: string }
         name_ar: { type: string }
-        icon: { type: string, nullable: true }
+        icon: { type: [string, "null"] }
         sort_order: { type: integer, default: 0 }
         is_active: { type: boolean, default: true }
 
@@ -1374,8 +1374,8 @@ components:
         description: { type: string }
         sale_price: { type: number }
         is_negotiable: { type: boolean }
-        floor_price: { type: number, nullable: true }
-        points_price: { type: integer, nullable: true }
+        floor_price: { type: [number, "null"] }
+        points_price: { type: [integer, "null"] }
         tracks_expiry: { type: boolean }
         rating_avg: { type: number }
         status: { type: string, enum: [active, hidden, archived] }
@@ -1394,8 +1394,8 @@ components:
         description: { type: string }
         sale_price: { type: number }
         is_negotiable: { type: boolean, default: false }
-        floor_price: { type: number, nullable: true }
-        points_price: { type: integer, nullable: true }
+        floor_price: { type: [number, "null"] }
+        points_price: { type: [integer, "null"] }
         tracks_expiry: { type: boolean, default: false }
         status: { type: string, enum: [active, hidden, archived], default: active }
         images: { type: array, items: { type: string, format: uri } }
@@ -1428,7 +1428,7 @@ components:
           items:
             type: object
             properties:
-              variant_id: { type: string, format: uuid, nullable: true }
+              variant_id: { type: [string, "null"], format: uuid }
               sku: { type: string }
               available_qty: { type: integer }
               in_stock: { type: boolean }
@@ -1454,7 +1454,7 @@ components:
             properties:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
-              variant_id: { type: string, format: uuid, nullable: true }
+              variant_id: { type: [string, "null"], format: uuid }
               quantity: { type: integer }
               unit_price: { type: number }
         subtotal: { type: number }
@@ -1503,7 +1503,7 @@ components:
       properties:
         id: { type: string, format: uuid, description: "order_item_id — reference this from reviews & returns" }
         product_id: { type: string, format: uuid }
-        variant_id: { type: string, format: uuid, nullable: true }
+        variant_id: { type: [string, "null"], format: uuid }
         quantity: { type: integer }
         unit_price: { type: number }
         line_total: { type: number }
@@ -1515,7 +1515,7 @@ components:
         order_number: { type: string }
         status: { $ref: "#/components/schemas/OrderStatus" }
         payment_method: { type: string, enum: [cod] }
-        address_id: { type: string, format: uuid, nullable: true }
+        address_id: { type: [string, "null"], format: uuid }
         subtotal: { type: number }
         delivery_fee: { type: number }
         discount: { type: number }
@@ -1545,7 +1545,7 @@ components:
             type: object
             properties:
               status: { $ref: "#/components/schemas/OrderStatus" }
-              note: { type: string, nullable: true }
+              note: { type: [string, "null"] }
               at: { type: string, format: date-time }
 
     Review:
@@ -1554,9 +1554,9 @@ components:
         id: { type: string, format: uuid }
         product_id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
-        order_item_id: { type: string, format: uuid, nullable: true }
+        order_item_id: { type: [string, "null"], format: uuid }
         rating: { type: integer, minimum: 1, maximum: 5 }
-        comment: { type: string, nullable: true }
+        comment: { type: [string, "null"] }
         verified_purchase: { type: boolean }
         status: { type: string, enum: [pending, published, rejected] }
         created_at: { type: string, format: date-time }
@@ -1576,10 +1576,10 @@ components:
       properties:
         id: { type: string, format: uuid }
         delivery_id: { type: string, format: uuid }
-        agent_id: { type: string, format: uuid, nullable: true }
+        agent_id: { type: [string, "null"], format: uuid }
         user_id: { type: string, format: uuid }
         stars: { type: integer, minimum: 1, maximum: 5 }
-        comment: { type: string, nullable: true }
+        comment: { type: [string, "null"] }
         created_at: { type: string, format: date-time }
 
     LoyaltyAccount:
@@ -1600,9 +1600,9 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
-        phone: { type: string, nullable: true }
-        email: { type: string, nullable: true }
-        address: { type: string, nullable: true }
+        phone: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        address: { type: [string, "null"] }
         is_active: { type: boolean }
         created_at: { type: string, format: date-time }
 
@@ -1611,9 +1611,9 @@ components:
       required: [name]
       properties:
         name: { type: string }
-        phone: { type: string, nullable: true }
-        email: { type: string, nullable: true }
-        address: { type: string, nullable: true }
+        phone: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        address: { type: [string, "null"] }
         is_active: { type: boolean, default: true }
 
     SupplierPage:
@@ -1631,10 +1631,10 @@ components:
       properties:
         id: { type: string, format: uuid }
         supplier_id: { type: string, format: uuid }
-        invoice_number: { type: string, nullable: true }
+        invoice_number: { type: [string, "null"] }
         total_cost: { type: number }
         status: { type: string, enum: [draft, received, posted, cancelled] }
-        received_at: { type: string, format: date-time, nullable: true }
+        received_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
         items:
           type: array
@@ -1643,22 +1643,22 @@ components:
             properties:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
-              variant_id: { type: string, format: uuid, nullable: true }
+              variant_id: { type: [string, "null"], format: uuid }
               quantity: { type: integer }
               unit_cost: { type: number }
-              lot_number: { type: string, nullable: true }
-              expiry_date: { type: string, format: date, nullable: true }
+              lot_number: { type: [string, "null"] }
+              expiry_date: { type: [string, "null"], format: date }
 
     InventoryBatch:
       type: object
       properties:
         id: { type: string, format: uuid }
         product_id: { type: string, format: uuid }
-        variant_id: { type: string, format: uuid, nullable: true }
-        supplier_id: { type: string, format: uuid, nullable: true }
-        po_item_id: { type: string, format: uuid, nullable: true }
-        lot_number: { type: string, nullable: true }
-        expiry_date: { type: string, format: date, nullable: true }
+        variant_id: { type: [string, "null"], format: uuid }
+        supplier_id: { type: [string, "null"], format: uuid }
+        po_item_id: { type: [string, "null"], format: uuid }
+        lot_number: { type: [string, "null"] }
+        expiry_date: { type: [string, "null"], format: date }
         purchase_cost: { type: number }
         qty_received: { type: integer }
         entry_date: { type: string, format: date-time }
@@ -1683,11 +1683,11 @@ components:
         id: { type: string, format: uuid }
         batch_id: { type: string, format: uuid }
         type: { $ref: "#/components/schemas/StockMovementType" }
-        from_location: { type: string, format: uuid, nullable: true }
-        to_location: { type: string, format: uuid, nullable: true }
+        from_location: { type: [string, "null"], format: uuid }
+        to_location: { type: [string, "null"], format: uuid }
         quantity: { type: integer }
-        reference: { type: string, nullable: true }
-        user_id: { type: string, format: uuid, nullable: true }
+        reference: { type: [string, "null"] }
+        user_id: { type: [string, "null"], format: uuid }
         created_at: { type: string, format: date-time }
 
     StockMovementPage:
@@ -1723,10 +1723,10 @@ components:
       properties:
         id: { type: string, format: uuid }
         warehouse_id: { type: string, format: uuid }
-        zone: { type: string, nullable: true }
-        aisle: { type: string, nullable: true }
-        shelf: { type: string, nullable: true }
-        bin: { type: string, nullable: true }
+        zone: { type: [string, "null"] }
+        aisle: { type: [string, "null"] }
+        shelf: { type: [string, "null"] }
+        bin: { type: [string, "null"] }
 
     WarehouseLocationPage:
       allOf:
@@ -1742,7 +1742,7 @@ components:
       type: object
       properties:
         id: { type: string, format: uuid }
-        order_item_id: { type: string, format: uuid, nullable: true }
+        order_item_id: { type: [string, "null"], format: uuid }
         batch_id: { type: string, format: uuid }
         location_id: { type: string, format: uuid }
         quantity: { type: integer }
@@ -1753,7 +1753,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         order_id: { type: string, format: uuid }
-        assigned_to: { type: string, format: uuid, nullable: true }
+        assigned_to: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [open, picking, picked, closed] }
         created_at: { type: string, format: date-time }
         items:
@@ -1766,9 +1766,9 @@ components:
         id: { type: string, format: uuid }
         order_item_id: { type: string, format: uuid }
         quantity: { type: integer }
-        condition: { type: string, enum: [sellable, opened, damaged], nullable: true }
+        condition: { type: [string, "null"], enum: [sellable, opened, damaged] }
         restock: { type: boolean }
-        batch_id: { type: string, format: uuid, nullable: true }
+        batch_id: { type: [string, "null"], format: uuid }
 
     Return:
       type: object
@@ -1778,7 +1778,7 @@ components:
         user_id: { type: string, format: uuid }
         type: { type: string, enum: [return, exchange] }
         status: { type: string, enum: [requested, approved, collected, settled, rejected] }
-        reason: { type: string, nullable: true }
+        reason: { type: [string, "null"] }
         created_at: { type: string, format: date-time }
         items:
           type: array
@@ -1789,11 +1789,11 @@ components:
       properties:
         id: { type: string, format: uuid }
         order_id: { type: string, format: uuid }
-        agent_id: { type: string, format: uuid, nullable: true }
+        agent_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
         delivery_fee: { type: number }
-        dispatched_at: { type: string, format: date-time, nullable: true }
-        delivered_at: { type: string, format: date-time, nullable: true }
+        dispatched_at: { type: [string, "null"], format: date-time }
+        delivered_at: { type: [string, "null"], format: date-time }
 
     DeliveryPage:
       allOf:
@@ -1819,14 +1819,14 @@ components:
       properties:
         key: { type: string, example: "orders.confirm" }
         group: { type: string, example: orders }
-        description: { type: string, nullable: true }
+        description: { type: [string, "null"] }
 
     Role:
       type: object
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
-        description: { type: string, nullable: true }
+        description: { type: [string, "null"] }
         is_system: { type: boolean }
         created_at: { type: string, format: date-time }
         permissions:
@@ -1838,7 +1838,7 @@ components:
       required: [name]
       properties:
         name: { type: string }
-        description: { type: string, nullable: true }
+        description: { type: [string, "null"] }
         permissions:
           type: array
           description: Permission keys granted to this role.
@@ -1868,8 +1868,8 @@ components:
       type: object
       description: Aggregated sales & analytics for the selected date range.
       properties:
-        from: { type: string, format: date, nullable: true }
-        to: { type: string, format: date, nullable: true }
+        from: { type: [string, "null"], format: date }
+        to: { type: [string, "null"], format: date }
         orders_count: { type: integer }
         gross_sales: { type: number }
         discounts: { type: number }
