@@ -8,6 +8,7 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../providers/product_list_controller.dart';
 import '../widgets/product_card.dart';
@@ -289,20 +290,21 @@ class _PriceFilterSheetState extends State<_PriceFilterSheet> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: AppButton(
+                    label: l10n.filterClear,
+                    variant: AppButtonVariant.secondary,
                     onPressed: () =>
                         Navigator.pop(context, (min: null, max: null)),
-                    child: Text(l10n.filterClear),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: FilledButton(
+                  child: AppButton(
+                    label: l10n.filterApply,
                     onPressed: () => Navigator.pop(
                       context,
                       (min: _parse(_min.text), max: _parse(_max.text)),
                     ),
-                    child: Text(l10n.filterApply),
                   ),
                 ),
               ],

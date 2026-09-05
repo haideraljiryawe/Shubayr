@@ -7,7 +7,10 @@ import '../tokens/app_spacing.dart';
 /// Button styling for the whole app. Feature code uses `AppButton` (or plain
 /// Material buttons) and never restyles them locally.
 abstract final class ButtonThemes {
-  static const Size _minSize = Size(64, 52);
+  /// Shared minimum height for all buttons — the single place to retune button
+  /// height app-wide. Kept close to the text-field height for a consistent bar
+  /// of controls.
+  static const Size _minSize = Size(64, 48);
   static const EdgeInsets _padding = EdgeInsets.symmetric(
     horizontal: AppSpacing.xl,
     vertical: AppSpacing.md,
@@ -34,7 +37,7 @@ abstract final class ButtonThemes {
         padding: WidgetStateProperty.all(_padding),
         textStyle: WidgetStateProperty.all(text.labelLarge),
         shape: WidgetStateProperty.all(
-          const RoundedRectangleBorder(borderRadius: AppRadii.mdAll),
+          const RoundedRectangleBorder(borderRadius: AppRadii.controlAll),
         ),
       ),
     );
@@ -60,7 +63,7 @@ abstract final class ButtonThemes {
         padding: WidgetStateProperty.all(_padding),
         textStyle: WidgetStateProperty.all(text.labelLarge),
         shape: WidgetStateProperty.all(
-          const RoundedRectangleBorder(borderRadius: AppRadii.mdAll),
+          const RoundedRectangleBorder(borderRadius: AppRadii.controlAll),
         ),
       ),
     );
@@ -80,7 +83,7 @@ abstract final class ButtonThemes {
         ),
         textStyle: WidgetStateProperty.all(text.labelLarge),
         shape: WidgetStateProperty.all(
-          const RoundedRectangleBorder(borderRadius: AppRadii.smAll),
+          const RoundedRectangleBorder(borderRadius: AppRadii.controlAll),
         ),
       ),
     );
