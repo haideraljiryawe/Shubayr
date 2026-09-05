@@ -34,7 +34,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final context = tester.element(find.byType(NavigationBar));
+    final context = tester.element(find.byType(HomeScreen));
     expect(Directionality.of(context), TextDirection.rtl);
     expect(Localizations.localeOf(context).languageCode, 'ar');
     expect(find.text('الرئيسية'), findsOneWidget);
@@ -56,8 +56,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(NavigationDestination), findsNWidgets(3));
-    // Cart is deliberately not one of them.
+    // Guest bar = Home · Categories · Account (each label once); Cart absent.
+    expect(find.text('الرئيسية'), findsOneWidget);
+    expect(find.text('الأقسام'), findsOneWidget);
+    expect(find.text('الحساب'), findsOneWidget);
     expect(find.text('السلة'), findsNothing);
   });
 
@@ -99,7 +101,7 @@ void main() {
         .setLocale(AppLocales.english);
     await tester.pumpAndSettle();
 
-    final context = tester.element(find.byType(NavigationBar));
+    final context = tester.element(find.byType(HomeScreen));
     expect(Directionality.of(context), TextDirection.ltr);
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('Categories'), findsOneWidget);
@@ -120,7 +122,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final theme = Theme.of(tester.element(find.byType(NavigationBar)));
+    final theme = Theme.of(tester.element(find.byType(HomeScreen)));
     final colors = theme.extension<AppColors>()!;
     expect(colors.primary, const Color(0xFF5B8F6B));
     expect(theme.scaffoldBackgroundColor, const Color(0xFFFAF7F2));

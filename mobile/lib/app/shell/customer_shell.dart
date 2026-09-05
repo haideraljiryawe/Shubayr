@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/l10n/l10n_context.dart';
+import '../../core/theme/components/navigation_themes.dart';
 import '../../core/theme/theme_context.dart';
+import '../../core/theme/tokens/app_motion.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 
 /// A single navigation destination bound to a shell branch.
@@ -126,20 +128,141 @@ class CustomerShell extends ConsumerWidget {
 
         return Scaffold(
           body: navigationShell,
-          bottomNavigationBar: NavigationBar(
+          bottomNavigationBar: _BottomNavBar(
+            destinations: destinations,
             selectedIndex: selectedIndex,
-            onDestinationSelected: onSelect,
-            destinations: [
-              for (final d in destinations)
-                NavigationDestination(
-                  icon: Icon(d.icon),
-                  selectedIcon: Icon(d.selectedIcon),
-                  label: d.label,
-                ),
-            ],
+            onSelected: onSelect,
           ),
         );
       },
+    );
+  }
+}
+
+/// The customer bottom bar: a hairline top border and a soft upward shadow so
+/// its edge never disappears over white content, and a thick top indicator on
+/// the selected tab in the active (primary) colour.
+class _BottomNavBar extends StatelessWidget {
+  const _BottomNavBar({
+    required this.destinations,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final List<_Destination> destinations;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.divider)),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: NavigationThemes.bottomBarHeight,
+          child: Row(
+            children: [
+              for (var i = 0; i < destinations.length; i++)
+                Expanded(
+                  child: _BottomNavItem(
+                    destination: destinations[i],
+                    selected: i == selectedIndex,
+                    onTap: () => onSelected(i),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomNavItem extends StatelessWidget {
+  const _BottomNavItem({
+    required this.destination,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _Destination destination;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    // Icon and label sizes/colours read exactly from NavigationThemes (the
+    // bar's central metrics) so this custom bar matches the original — only the
+    // top border/shadow and active indicator are new.
+    final iconColor = selected ? colors.primary : colors.textMuted;
+    final labelStyle = selected
+        ? context.text.labelMedium?.copyWith(
+            color: colors.primaryDark,
+            fontWeight: FontWeight.w700,
+          )
+        : context.text.labelMedium?.copyWith(
+            color: colors.textMuted,
+            fontWeight: FontWeight.w500,
+          );
+
+    return InkWell(
+      onTap: onTap,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Icon + label, centred.
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                selected ? destination.selectedIcon : destination.icon,
+                color: iconColor,
+                size: NavigationThemes.bottomBarIconSize,
+              ),
+              Padding(
+                padding: NavigationThemes.bottomBarLabelPadding,
+                child: Text(
+                  destination.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: labelStyle,
+                ),
+              ),
+            ],
+          ),
+          // Thick top indicator, shown only for the active tab.
+          Align(
+            alignment: Alignment.topCenter,
+            child: AnimatedContainer(
+              duration: AppMotion.medium,
+              curve: AppMotion.standard,
+              height: NavigationThemes.bottomBarIndicatorThickness,
+              width: selected ? NavigationThemes.bottomBarIndicatorWidth : 0,
+              decoration: BoxDecoration(
+                color: colors.primary,
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(
+                    NavigationThemes.bottomBarIndicatorThickness,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
