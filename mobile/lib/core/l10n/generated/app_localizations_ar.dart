@@ -190,6 +190,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get categoriesTitle => 'الأقسام';
 
   @override
+  String get categoriesBrowseAll => 'تصفّح الكل';
+
+  @override
   String get cartTitle => 'السلة';
 
   @override

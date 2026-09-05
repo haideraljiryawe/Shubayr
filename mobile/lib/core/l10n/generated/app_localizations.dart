@@ -446,6 +446,12 @@ abstract class AppLocalizations {
   /// **'Categories'**
   String get categoriesTitle;
 
+  /// No description provided for @categoriesBrowseAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse all'**
+  String get categoriesBrowseAll;
+
   /// No description provided for @cartTitle.
   ///
   /// In en, this message translates to:

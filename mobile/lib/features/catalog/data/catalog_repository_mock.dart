@@ -32,20 +32,10 @@ class CatalogRepositoryMock implements CatalogRepository {
       icon: 'devices',
       sortOrder: 1,
       children: const [
-        Category(
-          id: 'cat-phones',
-          parentId: _cElectronics,
-          nameEn: 'Phones',
-          nameAr: 'هواتف',
-          sortOrder: 1,
-        ),
-        Category(
-          id: 'cat-accessories',
-          parentId: _cElectronics,
-          nameEn: 'Accessories',
-          nameAr: 'ملحقات',
-          sortOrder: 2,
-        ),
+        Category(id: 'cat-phones', parentId: _cElectronics, nameEn: 'Phones', nameAr: 'هواتف', icon: 'smartphone', sortOrder: 1),
+        Category(id: 'cat-audio', parentId: _cElectronics, nameEn: 'Audio', nameAr: 'صوتيات', icon: 'headphones', sortOrder: 2),
+        Category(id: 'cat-wearables', parentId: _cElectronics, nameEn: 'Wearables', nameAr: 'أجهزة الارتداء', icon: 'watch', sortOrder: 3),
+        Category(id: 'cat-accessories', parentId: _cElectronics, nameEn: 'Accessories', nameAr: 'ملحقات', icon: 'cable', sortOrder: 4),
       ],
     ),
     Category(
@@ -54,6 +44,11 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'بقالة',
       icon: 'basket',
       sortOrder: 2,
+      children: const [
+        Category(id: 'cat-pantry', parentId: _cGrocery, nameEn: 'Pantry', nameAr: 'مؤن', icon: 'kitchen', sortOrder: 1),
+        Category(id: 'cat-beverages', parentId: _cGrocery, nameEn: 'Beverages', nameAr: 'مشروبات', icon: 'coffee', sortOrder: 2),
+        Category(id: 'cat-staples', parentId: _cGrocery, nameEn: 'Staples', nameAr: 'أساسيات', icon: 'rice', sortOrder: 3),
+      ],
     ),
     Category(
       id: _cClothing,
@@ -61,6 +56,11 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'ملابس',
       icon: 'checkroom',
       sortOrder: 3,
+      children: const [
+        Category(id: 'cat-men', parentId: _cClothing, nameEn: 'Men', nameAr: 'رجالي', icon: 'man', sortOrder: 1),
+        Category(id: 'cat-women', parentId: _cClothing, nameEn: 'Women', nameAr: 'نسائي', icon: 'woman', sortOrder: 2),
+        Category(id: 'cat-kids', parentId: _cClothing, nameEn: 'Kids', nameAr: 'أطفال', icon: 'child', sortOrder: 3),
+      ],
     ),
     Category(
       id: _cHome,
@@ -68,13 +68,31 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'المنزل والمطبخ',
       icon: 'home',
       sortOrder: 4,
+      children: const [
+        Category(id: 'cat-cookware', parentId: _cHome, nameEn: 'Cookware', nameAr: 'أواني طهي', icon: 'cookware', sortOrder: 1),
+        Category(id: 'cat-tableware', parentId: _cHome, nameEn: 'Tableware', nameAr: 'أدوات المائدة', icon: 'tableware', sortOrder: 2),
+        Category(id: 'cat-lighting', parentId: _cHome, nameEn: 'Lighting', nameAr: 'إضاءة', icon: 'lighting', sortOrder: 3),
+      ],
     ),
   ];
+
+  /// A category id plus all of its descendants — a `GET /products?category_id=`
+  /// on a department returns everything under it, while a leaf returns just its
+  /// own products. Mirrors how the real backend scopes a category filter.
+  static Set<String> _categorySubtree(String id) {
+    for (final top in _categories) {
+      if (top.id == id) return {top.id, for (final c in top.children) c.id};
+      for (final c in top.children) {
+        if (c.id == id) return {c.id};
+      }
+    }
+    return {id};
+  }
 
   static final List<Product> _products = [
     Product(
       id: 'p1',
-      categoryId: _cElectronics,
+      categoryId: 'cat-audio',
       nameEn: 'Wireless Earbuds',
       nameAr: 'سماعات لاسلكية',
       description: 'Compact wireless earbuds with a charging case.',
@@ -85,7 +103,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p2',
-      categoryId: _cElectronics,
+      categoryId: 'cat-wearables',
       nameEn: 'Smart Watch',
       nameAr: 'ساعة ذكية',
       description: 'Fitness tracking, notifications and a week of battery.',
@@ -98,7 +116,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p3',
-      categoryId: _cElectronics,
+      categoryId: 'cat-accessories',
       nameEn: 'Power Bank 20000mAh',
       nameAr: 'باور بانك ٢٠٠٠٠',
       description: 'Fast-charging power bank with two USB outputs.',
@@ -111,7 +129,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p4',
-      categoryId: _cGrocery,
+      categoryId: 'cat-pantry',
       nameEn: 'Olive Oil 1L',
       nameAr: 'زيت زيتون ١ لتر',
       description: 'Extra-virgin olive oil, cold pressed.',
@@ -122,7 +140,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p5',
-      categoryId: _cGrocery,
+      categoryId: 'cat-staples',
       nameEn: 'Basmati Rice 5kg',
       nameAr: 'رز بسمتي ٥ كغم',
       description: 'Aged long-grain basmati rice.',
@@ -133,7 +151,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p6',
-      categoryId: _cGrocery,
+      categoryId: 'cat-beverages',
       nameEn: 'Ground Coffee 250g',
       nameAr: 'قهوة مطحونة ٢٥٠ غم',
       description: 'Medium-roast Arabica ground coffee.',
@@ -144,7 +162,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p7',
-      categoryId: _cClothing,
+      categoryId: 'cat-men',
       nameEn: 'Cotton T-Shirt',
       nameAr: 'قميص قطني',
       description: 'Soft cotton t-shirt, several sizes.',
@@ -165,7 +183,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p8',
-      categoryId: _cClothing,
+      categoryId: 'cat-men',
       nameEn: 'Denim Jacket',
       nameAr: 'جاكيت جينز',
       description: 'Classic denim jacket.',
@@ -178,7 +196,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p9',
-      categoryId: _cHome,
+      categoryId: 'cat-cookware',
       nameEn: 'Non-stick Pan',
       nameAr: 'مقلاة غير لاصقة',
       description: '28cm non-stick frying pan.',
@@ -189,7 +207,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p10',
-      categoryId: _cHome,
+      categoryId: 'cat-tableware',
       nameEn: 'Ceramic Mug Set',
       nameAr: 'طقم أكواب سيراميك',
       description: 'Set of four ceramic mugs.',
@@ -200,7 +218,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p11',
-      categoryId: _cHome,
+      categoryId: 'cat-lighting',
       nameEn: 'LED Desk Lamp',
       nameAr: 'مصباح مكتب LED',
       description: 'Dimmable LED desk lamp with USB port.',
@@ -212,7 +230,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
     Product(
       id: 'p12',
-      categoryId: _cElectronics,
+      categoryId: 'cat-audio',
       nameEn: 'Bluetooth Speaker',
       nameAr: 'مكبر صوت بلوتوث',
       description: 'Portable waterproof Bluetooth speaker.',
@@ -241,8 +259,13 @@ class CatalogRepositoryMock implements CatalogRepository {
   }) async {
     await Future<void>.delayed(delay);
 
+    // A department filter matches the whole subtree; a leaf matches just itself.
+    final categoryIds = categoryId == null ? null : _categorySubtree(categoryId);
+
     var items = _products.where((p) {
-      if (categoryId != null && p.categoryId != categoryId) return false;
+      if (categoryIds != null && !categoryIds.contains(p.categoryId)) {
+        return false;
+      }
       if (minPrice != null && p.salePrice < minPrice) return false;
       if (maxPrice != null && p.salePrice > maxPrice) return false;
       if (query != null && query.trim().isNotEmpty) {

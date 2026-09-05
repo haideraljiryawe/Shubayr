@@ -70,6 +70,7 @@
 
   "homeTitle": "Home",
   "categoriesTitle": "Categories",
+  "categoriesBrowseAll": "Browse all",
   "cartTitle": "Cart",
   "ordersTitle": "Orders",
   "deliveryTitle": "Deliveries",
