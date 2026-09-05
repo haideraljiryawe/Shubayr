@@ -139,6 +139,22 @@ class AppLocalizationsAr extends AppLocalizations {
   String get accountCurrency => 'العملة';
 
   @override
+  String get accountGuestPrompt =>
+      'سجّل الدخول للوصول إلى سلّتك وطلباتك ونقاط الولاء.';
+
+  @override
+  String get accountPreferences => 'التفضيلات';
+
+  @override
+  String get accountSupport => 'المساعدة والدعم';
+
+  @override
+  String get accountHelp => 'المساعدة';
+
+  @override
+  String get accountPrivacy => 'سياسة الخصوصية';
+
+  @override
   String get accountTheme => 'المظهر';
 
   @override

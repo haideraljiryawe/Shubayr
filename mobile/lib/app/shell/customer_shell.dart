@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/l10n/l10n_context.dart';
 import '../../core/theme/theme_context.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
-import '../router/app_routes.dart';
 
 /// A single navigation destination bound to a shell branch.
 typedef _Destination = ({
@@ -28,10 +27,6 @@ class CustomerShell extends ConsumerWidget {
   const CustomerShell({super.key, required this.navigationShell});
 
   static const double railBreakpoint = 900;
-
-  /// Branch index of the Account destination. Must match the branch order in
-  /// `app_router.dart` and the destination order below.
-  static const int accountBranchIndex = 4;
 
   final StatefulNavigationShell navigationShell;
 
@@ -90,16 +85,11 @@ class CustomerShell extends ConsumerWidget {
         .indexOf(navigationShell.currentIndex)
         .clamp(0, destinations.length - 1);
 
-    // A signed-out guest tapping Account gets sign-in pushed over the shell
-    // rather than switching branch into a guarded route. That keeps real
-    // navigation history, so Back returns to whatever they were browsing —
-    // Home or Categories — instead of a hard-coded destination.
+    // Every visible destination is a plain tab switch. Account is public — for
+    // a guest it shows the app-settings screen with a sign-in prompt inside, so
+    // there is no longer a special case that pushes sign-in from the bar.
     void onSelect(int visibleIndex) {
       final branchIndex = visibleBranches[visibleIndex];
-      if (!isSignedIn && branchIndex == accountBranchIndex) {
-        context.pushNamed(AppRoutes.signInName);
-        return;
-      }
       navigationShell.goBranch(
         branchIndex,
         initialLocation: branchIndex == navigationShell.currentIndex,

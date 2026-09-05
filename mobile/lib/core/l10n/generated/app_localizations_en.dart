@@ -142,6 +142,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountCurrency => 'Currency';
 
   @override
+  String get accountGuestPrompt =>
+      'Sign in to reach your cart, orders and loyalty points.';
+
+  @override
+  String get accountPreferences => 'Preferences';
+
+  @override
+  String get accountSupport => 'Help & support';
+
+  @override
+  String get accountHelp => 'Help';
+
+  @override
+  String get accountPrivacy => 'Privacy policy';
+
+  @override
   String get accountTheme => 'Appearance';
 
   @override

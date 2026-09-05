@@ -5,14 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shubayr/app/app.dart';
 import 'package:shubayr/app/router/app_router.dart';
 import 'package:shubayr/app/router/app_routes.dart';
-import 'package:shubayr/core/l10n/locale_controller.dart';
 import 'package:shubayr/core/storage/prefs_store.dart';
 import 'package:shubayr/core/storage/token_store.dart';
 import 'package:shubayr/features/auth/presentation/screens/sign_in_screen.dart';
-import 'package:shubayr/features/catalog/presentation/screens/categories_screen.dart';
 import 'package:shubayr/features/catalog/presentation/screens/home_screen.dart';
+import 'package:shubayr/features/settings/presentation/screens/account_view.dart';
 
-/// A signed-out guest must always be able to leave the sign-in screen.
+/// A guest can open Account (app settings) without signing in, reach sign-in
+/// from a prompt inside it, and change language/theme while signed out.
 Future<ProviderContainer> _guestContainer() async {
   SharedPreferences.setMockInitialValues({});
   final prefs = PrefsStore(await SharedPreferences.getInstance());
@@ -31,45 +31,61 @@ Future<void> _pumpApp(WidgetTester tester, ProviderContainer container) async {
   await tester.pumpAndSettle();
 }
 
+/// Guest taps the Account tab and lands on the settings screen.
+Future<void> _openAccount(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.person_outline).first);
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('Home → Account → sign in → back → Home', (tester) async {
-    final container = await _guestContainer();
-    addTearDown(container.dispose);
-    await _pumpApp(tester, container);
-
-    expect(find.byType(HomeScreen), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.person_outline).first);
-    await tester.pumpAndSettle();
-    expect(find.byType(SignInScreen), findsOneWidget);
-
-    await tester.tap(find.byType(BackButton));
-    await tester.pumpAndSettle();
-    expect(find.byType(HomeScreen), findsOneWidget);
-    expect(find.byType(SignInScreen), findsNothing);
-  });
-
-  testWidgets('Categories → Account → sign in → back → Categories', (
+  testWidgets('guest opens Account settings without being sent to sign-in', (
     tester,
   ) async {
     final container = await _guestContainer();
     addTearDown(container.dispose);
     await _pumpApp(tester, container);
 
-    await tester.tap(find.byIcon(Icons.grid_view_outlined).first);
-    await tester.pumpAndSettle();
-    expect(find.byType(CategoriesScreen), findsOneWidget);
+    await _openAccount(tester);
 
-    await tester.tap(find.byIcon(Icons.person_outline).first);
+    expect(find.byType(AccountView), findsOneWidget);
+    expect(find.byType(SignInScreen), findsNothing);
+    // The sign-in prompt is inside the settings screen.
+    expect(find.byIcon(Icons.login), findsOneWidget);
+  });
+
+  testWidgets('guest reaches sign-in from the Account prompt and can go back', (
+    tester,
+  ) async {
+    final container = await _guestContainer();
+    addTearDown(container.dispose);
+    await _pumpApp(tester, container);
+
+    await _openAccount(tester);
+    await tester.tap(find.byIcon(Icons.login));
     await tester.pumpAndSettle();
     expect(find.byType(SignInScreen), findsOneWidget);
 
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
+    expect(find.byType(AccountView), findsOneWidget);
+    expect(find.byType(SignInScreen), findsNothing);
+  });
 
-    // Back returns to what the guest was browsing, not to a hard-coded Home.
-    expect(find.byType(CategoriesScreen), findsOneWidget);
-    expect(find.byType(HomeScreen), findsNothing);
+  testWidgets('guest can switch the app language from Account', (tester) async {
+    final container = await _guestContainer();
+    addTearDown(container.dispose);
+    await _pumpApp(tester, container);
+
+    await _openAccount(tester);
+    // Arabic is the default locale.
+    expect(find.text('التفضيلات'), findsOneWidget);
+
+    // Switch to English — the section labels re-render in English, proving a
+    // signed-out guest is no longer stuck in whatever language was last set.
+    await tester.tap(find.text('English'));
+    await tester.pumpAndSettle();
+    expect(find.text('Preferences'), findsOneWidget);
+    expect(find.text('التفضيلات'), findsNothing);
   });
 
   testWidgets('reaching sign-in with no history falls back to public Home', (
@@ -84,37 +100,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SignInScreen), findsOneWidget);
 
-    await tester.tap(find.byType(BackButton));
-    await tester.pumpAndSettle();
-    expect(find.byType(HomeScreen), findsOneWidget);
-  });
-
-  testWidgets('the back affordance is present in Arabic RTL and English LTR', (
-    tester,
-  ) async {
-    final container = await _guestContainer();
-    addTearDown(container.dispose);
-    await _pumpApp(tester, container);
-
-    await tester.tap(find.byIcon(Icons.person_outline).first);
-    await tester.pumpAndSettle();
-
-    // Arabic is the default locale: the sign-in screen lays out right-to-left
-    // and the platform back glyph mirrors itself (matchTextDirection).
-    final rtlContext = tester.element(find.byType(BackButton));
-    expect(Directionality.of(rtlContext), TextDirection.rtl);
-    expect(find.byType(BackButton), findsOneWidget);
-
-    await container
-        .read(localeControllerProvider.notifier)
-        .setLocale(AppLocales.english);
-    await tester.pumpAndSettle();
-
-    final ltrContext = tester.element(find.byType(BackButton));
-    expect(Directionality.of(ltrContext), TextDirection.ltr);
-    expect(find.byType(BackButton), findsOneWidget);
-
-    // Still able to leave the screen after the locale switch.
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.byType(HomeScreen), findsOneWidget);

@@ -24,10 +24,13 @@ abstract final class RoleGuard {
 
   /// Catalog browsing is public in the contract (`/categories`, `/products`
   /// are `security: []`), so a signed-out visitor may browse home and the
-  /// departments without an account.
+  /// departments without an account. Account is public too: for a guest it is
+  /// the app-settings screen (language, appearance, and a sign-in prompt), not
+  /// account data — those preferences must be reachable without signing in.
   static bool isPublic(String location) =>
       location == AppRoutes.home ||
       location == AppRoutes.categories ||
+      location == AppRoutes.account ||
       location.startsWith(AppRoutes.productsPrefix) ||
       location.startsWith(AppRoutes.signIn);
 

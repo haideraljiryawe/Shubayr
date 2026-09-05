@@ -39,8 +39,10 @@ void main() {
     addTearDown(container.dispose);
     await _pumpApp(tester, container);
 
-    // Guest taps Account -> the sign-in screen is pushed over the shell.
+    // Guest taps Account -> settings screen, then the sign-in prompt inside it.
     await tester.tap(find.byIcon(Icons.person_outline).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.login));
     await tester.pumpAndSettle();
     expect(find.byType(SignInScreen), findsOneWidget);
 

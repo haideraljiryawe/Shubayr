@@ -350,6 +350,36 @@ abstract class AppLocalizations {
   /// **'Currency'**
   String get accountCurrency;
 
+  /// No description provided for @accountGuestPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to reach your cart, orders and loyalty points.'**
+  String get accountGuestPrompt;
+
+  /// No description provided for @accountPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences'**
+  String get accountPreferences;
+
+  /// No description provided for @accountSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Help & support'**
+  String get accountSupport;
+
+  /// No description provided for @accountHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Help'**
+  String get accountHelp;
+
+  /// No description provided for @accountPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get accountPrivacy;
+
   /// No description provided for @accountTheme.
   ///
   /// In en, this message translates to:
