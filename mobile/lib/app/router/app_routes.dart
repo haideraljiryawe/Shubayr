@@ -16,6 +16,9 @@ abstract final class AppRoutes {
   static const delivery = '/delivery';
   static const admin = '/admin';
 
+  // Developer-only design gallery (reachable in debug builds only).
+  static const design = '/design';
+
   static const signInName = 'sign-in';
   static const verifyOtpName = 'verify-otp';
   static const homeName = 'home';
@@ -25,4 +28,5 @@ abstract final class AppRoutes {
   static const accountName = 'account';
   static const deliveryName = 'delivery';
   static const adminName = 'admin';
+  static const designName = 'design';
 }

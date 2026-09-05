@@ -350,6 +350,30 @@ abstract class AppLocalizations {
   /// **'Currency'**
   String get accountCurrency;
 
+  /// No description provided for @accountTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get accountTheme;
+
+  /// No description provided for @accountThemeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get accountThemeSystem;
+
+  /// No description provided for @accountThemeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get accountThemeLight;
+
+  /// No description provided for @accountThemeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get accountThemeDark;
+
   /// No description provided for @accountSignedInAs.
   ///
   /// In en, this message translates to:

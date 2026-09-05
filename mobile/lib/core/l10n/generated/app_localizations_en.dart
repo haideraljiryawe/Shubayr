@@ -142,6 +142,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountCurrency => 'Currency';
 
   @override
+  String get accountTheme => 'Appearance';
+
+  @override
+  String get accountThemeSystem => 'System';
+
+  @override
+  String get accountThemeLight => 'Light';
+
+  @override
+  String get accountThemeDark => 'Dark';
+
+  @override
   String accountSignedInAs(String role) {
     return 'Signed in as $role';
   }

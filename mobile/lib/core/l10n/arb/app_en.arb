@@ -51,6 +51,10 @@
   "accountLanguageArabic": "العربية",
   "accountLanguageEnglish": "English",
   "accountCurrency": "Currency",
+  "accountTheme": "Appearance",
+  "accountThemeSystem": "System",
+  "accountThemeLight": "Light",
+  "accountThemeDark": "Dark",
   "accountSignedInAs": "Signed in as {role}",
   "@accountSignedInAs": { "placeholders": { "role": { "type": "String" } } },
 

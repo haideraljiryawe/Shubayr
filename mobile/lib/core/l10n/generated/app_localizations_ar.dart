@@ -139,6 +139,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get accountCurrency => 'العملة';
 
   @override
+  String get accountTheme => 'المظهر';
+
+  @override
+  String get accountThemeSystem => 'النظام';
+
+  @override
+  String get accountThemeLight => 'فاتح';
+
+  @override
+  String get accountThemeDark => 'داكن';
+
+  @override
   String accountSignedInAs(String role) {
     return 'مسجّل الدخول بصفة $role';
   }

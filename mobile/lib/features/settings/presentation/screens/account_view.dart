@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/l10n/locale_controller.dart';
 import '../../../../core/theme/theme_context.dart';
+import '../../../../core/theme/theme_mode_controller.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -25,6 +29,7 @@ class AccountView extends ConsumerWidget {
     final colors = context.colors;
     final brand = ref.watch(brandProvider);
     final locale = ref.watch(localeControllerProvider);
+    final themeMode = ref.watch(themeModeControllerProvider);
     final session = ref.watch(sessionControllerProvider).valueOrNull;
 
     final roleLabel = switch (session?.role) {
@@ -90,6 +95,33 @@ class AccountView extends ConsumerWidget {
                     .setLocale(selection.first),
               ),
               const SizedBox(height: AppSpacing.lg),
+              Text(l10n.accountTheme, style: context.text.titleSmall),
+              const SizedBox(height: AppSpacing.md),
+              SegmentedButton<ThemeMode>(
+                segments: [
+                  ButtonSegment(
+                    value: ThemeMode.system,
+                    icon: const Icon(Icons.brightness_auto_outlined),
+                    label: Text(l10n.accountThemeSystem),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    icon: const Icon(Icons.light_mode_outlined),
+                    label: Text(l10n.accountThemeLight),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    icon: const Icon(Icons.dark_mode_outlined),
+                    label: Text(l10n.accountThemeDark),
+                  ),
+                ],
+                selected: {themeMode},
+                showSelectedIcon: false,
+                onSelectionChanged: (selection) => ref
+                    .read(themeModeControllerProvider.notifier)
+                    .setMode(selection.first),
+              ),
+              const SizedBox(height: AppSpacing.lg),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -105,6 +137,20 @@ class AccountView extends ConsumerWidget {
             ],
           ),
         ),
+        if (kDebugMode) ...[
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.palette_outlined),
+              // Developer-only tool; labels are intentionally not localised.
+              title: const Text('Design system'),
+              subtitle: const Text('Tokens · components · light/dark'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push(AppRoutes.design),
+            ),
+          ),
+        ],
         if (session != null && session.isSignedIn) ...[
           const SizedBox(height: AppSpacing.lg),
           AppButton(

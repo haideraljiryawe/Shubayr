@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/l10n/l10n_context.dart';
 import '../../core/widgets/state_views.dart';
 import '../../features/admin/presentation/screens/admin_home_screen.dart';
+import '../../features/dev/presentation/screens/design_gallery_screen.dart';
 import '../../features/auth/domain/user_role.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/screens/sign_in_screen.dart';
@@ -31,6 +33,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.splash,
     refreshListenable: refresh,
     redirect: (context, state) {
+      // The design gallery is a developer tool: reachable in debug builds only,
+      // and outside the role rules (which stay a pure, production concern).
+      if (kDebugMode && state.matchedLocation.startsWith(AppRoutes.design)) {
+        return null;
+      }
       final session = ref.read(sessionControllerProvider);
       final status = switch (session) {
         AsyncLoading() => SessionStatus.restoring,
@@ -129,6 +136,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.admin,
         name: AppRoutes.adminName,
         builder: (context, state) => const AdminHomeScreen(),
+      ),
+
+      // Developer-only design gallery. The redirect above only lets this
+      // through in debug builds.
+      GoRoute(
+        path: AppRoutes.design,
+        name: AppRoutes.designName,
+        builder: (context, state) => const DesignGalleryScreen(),
       ),
     ],
   );

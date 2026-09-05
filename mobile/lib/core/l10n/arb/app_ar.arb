@@ -49,6 +49,10 @@
   "accountLanguageArabic": "العربية",
   "accountLanguageEnglish": "English",
   "accountCurrency": "العملة",
+  "accountTheme": "المظهر",
+  "accountThemeSystem": "النظام",
+  "accountThemeLight": "فاتح",
+  "accountThemeDark": "داكن",
   "accountSignedInAs": "مسجّل الدخول بصفة {role}",
 
   "roleCustomer": "زبون",
