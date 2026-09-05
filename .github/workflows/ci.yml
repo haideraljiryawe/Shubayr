@@ -59,6 +59,8 @@ jobs:
         run: npm ci
       - name: Generate Prisma client
         working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:test@localhost:5432/shubayr_ci?schema=public
         run: npx prisma generate
       - name: Build
         working-directory: backend
