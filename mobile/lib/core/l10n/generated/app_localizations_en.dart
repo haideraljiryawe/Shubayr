@@ -216,5 +216,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productReviewsSoon => 'Reviews are coming soon.';
 
   @override
+  String get adminSectionCatalog => 'Catalog';
+
+  @override
+  String get adminSectionOrders => 'Orders';
+
+  @override
+  String get adminSectionInventory => 'Inventory';
+
+  @override
+  String get adminSectionPicking => 'Picking';
+
+  @override
+  String get adminSectionPurchasing => 'Purchasing';
+
+  @override
+  String get adminSectionReturns => 'Returns';
+
+  @override
+  String get adminSectionReports => 'Reports';
+
+  @override
+  String get adminSectionUsers => 'Users & roles';
+
+  @override
+  String get adminSectionSettings => 'Settings';
+
+  @override
+  String get adminNoAccess => 'No permissions are assigned to your account.';
+
+  @override
   String get routeNotFoundTitle => 'Page not found';
 }

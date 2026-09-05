@@ -81,5 +81,16 @@
   "productAddToCart": "Add to cart",
   "productReviewsSoon": "Reviews are coming soon.",
 
+  "adminSectionCatalog": "Catalog",
+  "adminSectionOrders": "Orders",
+  "adminSectionInventory": "Inventory",
+  "adminSectionPicking": "Picking",
+  "adminSectionPurchasing": "Purchasing",
+  "adminSectionReturns": "Returns",
+  "adminSectionReports": "Reports",
+  "adminSectionUsers": "Users & roles",
+  "adminSectionSettings": "Settings",
+  "adminNoAccess": "No permissions are assigned to your account.",
+
   "routeNotFoundTitle": "Page not found"
 }

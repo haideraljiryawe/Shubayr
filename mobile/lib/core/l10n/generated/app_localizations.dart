@@ -494,6 +494,66 @@ abstract class AppLocalizations {
   /// **'Reviews are coming soon.'**
   String get productReviewsSoon;
 
+  /// No description provided for @adminSectionCatalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Catalog'**
+  String get adminSectionCatalog;
+
+  /// No description provided for @adminSectionOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get adminSectionOrders;
+
+  /// No description provided for @adminSectionInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'Inventory'**
+  String get adminSectionInventory;
+
+  /// No description provided for @adminSectionPicking.
+  ///
+  /// In en, this message translates to:
+  /// **'Picking'**
+  String get adminSectionPicking;
+
+  /// No description provided for @adminSectionPurchasing.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchasing'**
+  String get adminSectionPurchasing;
+
+  /// No description provided for @adminSectionReturns.
+  ///
+  /// In en, this message translates to:
+  /// **'Returns'**
+  String get adminSectionReturns;
+
+  /// No description provided for @adminSectionReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get adminSectionReports;
+
+  /// No description provided for @adminSectionUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'Users & roles'**
+  String get adminSectionUsers;
+
+  /// No description provided for @adminSectionSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get adminSectionSettings;
+
+  /// No description provided for @adminNoAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'No permissions are assigned to your account.'**
+  String get adminNoAccess;
+
   /// No description provided for @routeNotFoundTitle.
   ///
   /// In en, this message translates to:

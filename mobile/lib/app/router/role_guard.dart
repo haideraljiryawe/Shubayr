@@ -9,9 +9,11 @@ enum SessionStatus { restoring, signedOut, signedIn }
 /// Pure functions, deliberately independent of go_router and Flutter so they
 /// can be unit tested directly.
 ///
-/// Gating is **role-based only**. `api/openapi.yaml` exposes no `permissions`
-/// on the user, so per-permission gating (e.g. hiding inventory from a
-/// purchasing user) is not attempted here.
+/// This layer gates on **role** — which *area* (customer / delivery / staff) a
+/// session may enter. Fine-grained gating *within* an area (e.g. hiding an
+/// action a manager lacks) is permission-based and done in-screen via
+/// `Session.can(...)` / `PermissionGate`, now that the contract exposes
+/// `User.permissions`.
 abstract final class RoleGuard {
   /// Where each role lands after sign-in.
   static String homeFor(UserRole role) => switch (role) {

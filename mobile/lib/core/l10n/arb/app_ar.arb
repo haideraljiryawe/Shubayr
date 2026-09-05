@@ -78,5 +78,16 @@
   "productAddToCart": "أضف إلى السلة",
   "productReviewsSoon": "التقييمات قريبًا.",
 
+  "adminSectionCatalog": "الكتالوج",
+  "adminSectionOrders": "الطلبات",
+  "adminSectionInventory": "المخزون",
+  "adminSectionPicking": "الانتقاء",
+  "adminSectionPurchasing": "المشتريات",
+  "adminSectionReturns": "المرتجعات",
+  "adminSectionReports": "التقارير",
+  "adminSectionUsers": "المستخدمون والأدوار",
+  "adminSectionSettings": "الإعدادات",
+  "adminNoAccess": "لا توجد صلاحيات مسندة لحسابك.",
+
   "routeNotFoundTitle": "الصفحة غير موجودة"
 }

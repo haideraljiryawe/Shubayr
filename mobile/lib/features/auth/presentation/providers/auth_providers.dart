@@ -73,3 +73,12 @@ class SessionController extends AsyncNotifier<Session> {
 
 final sessionControllerProvider =
     AsyncNotifierProvider<SessionController, Session>(SessionController.new);
+
+/// The current session's RBAC permission keys (empty for guests and
+/// customers). Screens read this — or use `PermissionGate` — to hide actions
+/// the user's role does not grant.
+final permissionsProvider = Provider<List<String>>(
+  (ref) =>
+      ref.watch(sessionControllerProvider).valueOrNull?.permissions ??
+      const [],
+);

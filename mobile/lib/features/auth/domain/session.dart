@@ -13,14 +13,25 @@ class Session {
 
   bool get isSignedIn => user != null;
 
-  /// The area this session may enter. Role-based only — the contract exposes
-  /// no permissions yet.
+  /// The application *area* this session may enter (customer / delivery /
+  /// staff). Route access is gated on this — see [UserRole] and `RoleGuard`.
   UserRole get role => UserRole.fromApi(user?.role);
+
+  /// The RBAC permission keys granted to this user (empty for guests and
+  /// customers). Use [can] for fine-grained gating *within* an area.
+  List<String> get permissions => user?.permissions ?? const [];
+
+  /// Whether this session holds the given RBAC permission, e.g.
+  /// `session.can('orders.confirm')`.
+  bool can(String permission) => permissions.contains(permission);
 
   @override
   bool operator ==(Object other) =>
-      other is Session && other.user?.id == user?.id && other.role == role;
+      other is Session &&
+      other.user?.id == user?.id &&
+      other.role == role &&
+      other.permissions.length == permissions.length;
 
   @override
-  int get hashCode => Object.hash(user?.id, role);
+  int get hashCode => Object.hash(user?.id, role, permissions.length);
 }

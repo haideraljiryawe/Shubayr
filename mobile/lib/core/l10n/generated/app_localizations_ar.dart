@@ -213,5 +213,35 @@ class AppLocalizationsAr extends AppLocalizations {
   String get productReviewsSoon => 'التقييمات قريبًا.';
 
   @override
+  String get adminSectionCatalog => 'الكتالوج';
+
+  @override
+  String get adminSectionOrders => 'الطلبات';
+
+  @override
+  String get adminSectionInventory => 'المخزون';
+
+  @override
+  String get adminSectionPicking => 'الانتقاء';
+
+  @override
+  String get adminSectionPurchasing => 'المشتريات';
+
+  @override
+  String get adminSectionReturns => 'المرتجعات';
+
+  @override
+  String get adminSectionReports => 'التقارير';
+
+  @override
+  String get adminSectionUsers => 'المستخدمون والأدوار';
+
+  @override
+  String get adminSectionSettings => 'الإعدادات';
+
+  @override
+  String get adminNoAccess => 'لا توجد صلاحيات مسندة لحسابك.';
+
+  @override
   String get routeNotFoundTitle => 'الصفحة غير موجودة';
 }
