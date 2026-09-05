@@ -56,16 +56,6 @@ class AccountView extends ConsumerWidget {
             ),
           ),
         ],
-        if (isSignedIn) ...[
-          const SizedBox(height: AppSpacing.xl),
-          AppButton(
-            label: l10n.authSignOut,
-            variant: AppButtonVariant.secondary,
-            icon: Icons.logout,
-            onPressed: () =>
-                ref.read(sessionControllerProvider.notifier).signOut(),
-          ),
-        ],
       ],
     );
   }
@@ -109,6 +99,7 @@ class _ProfileCard extends ConsumerWidget {
     };
 
     return AppCard(
+      onTap: () => context.pushNamed(AppRoutes.profileName),
       child: Row(
         children: [
           BrandMark(brand: brand, size: 48),
@@ -131,6 +122,7 @@ class _ProfileCard extends ConsumerWidget {
               ],
             ),
           ),
+          Icon(Icons.chevron_right, color: colors.textMuted),
         ],
       ),
     );

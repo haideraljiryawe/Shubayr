@@ -9,6 +9,7 @@
   "actionContinue": "Continue",
   "actionSave": "Save",
   "actionClose": "Close",
+  "actionDelete": "Delete",
 
   "navHome": "Home",
   "navCategories": "Categories",
@@ -96,6 +97,15 @@
   "adminSectionUsers": "Users & roles",
   "adminSectionSettings": "Settings",
   "adminNoAccess": "No permissions are assigned to your account.",
+
+  "profileTitle": "Profile",
+  "profileName": "Name",
+  "profileNameRequired": "Enter your name.",
+  "profileChangePhoto": "Change photo",
+  "profileSaved": "Changes saved.",
+  "profileDeleteAccount": "Delete account",
+  "profileDeleteTitle": "Delete account?",
+  "profileDeleteMessage": "Your account and its data will be permanently deleted. This cannot be undone.",
 
   "routeNotFoundTitle": "Page not found"
 }

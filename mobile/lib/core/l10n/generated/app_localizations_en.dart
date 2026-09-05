@@ -27,6 +27,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionClose => 'Close';
 
   @override
+  String get actionDelete => 'Delete';
+
+  @override
   String get navHome => 'Home';
 
   @override
@@ -260,6 +263,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminNoAccess => 'No permissions are assigned to your account.';
+
+  @override
+  String get profileTitle => 'Profile';
+
+  @override
+  String get profileName => 'Name';
+
+  @override
+  String get profileNameRequired => 'Enter your name.';
+
+  @override
+  String get profileChangePhoto => 'Change photo';
+
+  @override
+  String get profileSaved => 'Changes saved.';
+
+  @override
+  String get profileDeleteAccount => 'Delete account';
+
+  @override
+  String get profileDeleteTitle => 'Delete account?';
+
+  @override
+  String get profileDeleteMessage =>
+      'Your account and its data will be permanently deleted. This cannot be undone.';
 
   @override
   String get routeNotFoundTitle => 'Page not found';

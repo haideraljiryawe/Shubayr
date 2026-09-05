@@ -18,6 +18,7 @@ import '../../features/catalog/presentation/screens/product_detail_screen.dart';
 import '../../features/delivery/presentation/screens/delivery_home_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
 import '../../features/settings/presentation/screens/account_screen.dart';
+import '../../features/settings/presentation/screens/profile_screen.dart';
 import '../shell/customer_shell.dart';
 import '../splash_screen.dart';
 import 'app_routes.dart';
@@ -39,10 +40,18 @@ final _ordersBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-orders');
 final _accountBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-account');
 
 final routerProvider = Provider<GoRouter>((ref) {
-  // Bridges Riverpod state changes to go_router's refresh mechanism.
+  // Bridges Riverpod state changes to go_router's refresh mechanism. Only
+  // routing-relevant changes (restore state, signed-in status, role) trigger a
+  // refresh — editing the profile name must not rebuild the navigator while a
+  // route like /profile is pushed over the shell.
   final refresh = ValueNotifier<int>(0);
   ref
-    ..listen(sessionControllerProvider, (_, _) => refresh.value++)
+    ..listen(
+      sessionControllerProvider.select(
+        (s) => (s.isLoading, s.valueOrNull?.isSignedIn ?? false, s.valueOrNull?.role),
+      ),
+      (_, _) => refresh.value++,
+    )
     ..onDispose(refresh.dispose);
 
   return GoRouter(
@@ -168,6 +177,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) =>
             ProductDetailScreen(productId: state.pathParameters['id']!),
+      ),
+
+      // Shared full-screen pages any signed-in role reaches with a back button:
+      // the account-settings page (staff/delivery open it here) and the profile
+      // editor (reached from the account/profile row).
+      GoRoute(
+        path: AppRoutes.settings,
+        name: AppRoutes.settingsName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AccountScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        name: AppRoutes.profileName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ProfileScreen(),
       ),
 
       GoRoute(

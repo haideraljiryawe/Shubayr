@@ -17,6 +17,14 @@ class User {
     this.permissions = const [],
   });
 
+  User copyWith({String? name}) => User(
+    id: id,
+    name: name ?? this.name,
+    phone: phone,
+    role: role,
+    permissions: permissions,
+  );
+
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
 
   final String? id;

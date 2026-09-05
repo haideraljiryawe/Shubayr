@@ -8,6 +8,7 @@
   "actionContinue": "متابعة",
   "actionSave": "حفظ",
   "actionClose": "إغلاق",
+  "actionDelete": "حذف",
 
   "navHome": "الرئيسية",
   "navCategories": "الأقسام",
@@ -93,6 +94,15 @@
   "adminSectionUsers": "المستخدمون والأدوار",
   "adminSectionSettings": "الإعدادات",
   "adminNoAccess": "لا توجد صلاحيات مسندة لحسابك.",
+
+  "profileTitle": "الملف الشخصي",
+  "profileName": "الاسم",
+  "profileNameRequired": "أدخل اسمك.",
+  "profileChangePhoto": "تغيير الصورة",
+  "profileSaved": "تم حفظ التغييرات.",
+  "profileDeleteAccount": "حذف الحساب",
+  "profileDeleteTitle": "حذف الحساب؟",
+  "profileDeleteMessage": "سيتم حذف حسابك وبياناته نهائيًا. لا يمكن التراجع عن هذا الإجراء.",
 
   "routeNotFoundTitle": "الصفحة غير موجودة"
 }

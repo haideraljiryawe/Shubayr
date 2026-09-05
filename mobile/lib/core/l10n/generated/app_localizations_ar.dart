@@ -27,6 +27,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get actionClose => 'إغلاق';
 
   @override
+  String get actionDelete => 'حذف';
+
+  @override
   String get navHome => 'الرئيسية';
 
   @override
@@ -257,6 +260,31 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminNoAccess => 'لا توجد صلاحيات مسندة لحسابك.';
+
+  @override
+  String get profileTitle => 'الملف الشخصي';
+
+  @override
+  String get profileName => 'الاسم';
+
+  @override
+  String get profileNameRequired => 'أدخل اسمك.';
+
+  @override
+  String get profileChangePhoto => 'تغيير الصورة';
+
+  @override
+  String get profileSaved => 'تم حفظ التغييرات.';
+
+  @override
+  String get profileDeleteAccount => 'حذف الحساب';
+
+  @override
+  String get profileDeleteTitle => 'حذف الحساب؟';
+
+  @override
+  String get profileDeleteMessage =>
+      'سيتم حذف حسابك وبياناته نهائيًا. لا يمكن التراجع عن هذا الإجراء.';
 
   @override
   String get routeNotFoundTitle => 'الصفحة غير موجودة';

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
@@ -8,7 +10,6 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../auth/domain/permissions.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
-import '../../../settings/presentation/screens/account_screen.dart';
 
 /// One admin section entry, gated by a single RBAC permission.
 typedef _Section = ({IconData icon, String Function(BuildContext) label, String permission});
@@ -44,7 +45,7 @@ class AdminHomeScreen extends ConsumerWidget {
         title: Text(context.l10n.adminTitle),
         actions: [
           IconButton(
-            onPressed: () => showAccountSheet(context),
+            onPressed: () => context.push(AppRoutes.settings),
             icon: const Icon(Icons.person_outline),
             tooltip: context.l10n.accountTitle,
           ),

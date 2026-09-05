@@ -29,9 +29,11 @@ class Session {
   bool operator ==(Object other) =>
       other is Session &&
       other.user?.id == user?.id &&
+      other.user?.name == user?.name &&
       other.role == role &&
       other.permissions.length == permissions.length;
 
   @override
-  int get hashCode => Object.hash(user?.id, role, permissions.length);
+  int get hashCode =>
+      Object.hash(user?.id, user?.name, role, permissions.length);
 }

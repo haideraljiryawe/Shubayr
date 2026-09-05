@@ -134,6 +134,12 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get actionClose;
 
+  /// No description provided for @actionDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get actionDelete;
+
   /// No description provided for @navHome.
   ///
   /// In en, this message translates to:
@@ -583,6 +589,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No permissions are assigned to your account.'**
   String get adminNoAccess;
+
+  /// No description provided for @profileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profileTitle;
+
+  /// No description provided for @profileName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get profileName;
+
+  /// No description provided for @profileNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your name.'**
+  String get profileNameRequired;
+
+  /// No description provided for @profileChangePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Change photo'**
+  String get profileChangePhoto;
+
+  /// No description provided for @profileSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes saved.'**
+  String get profileSaved;
+
+  /// No description provided for @profileDeleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get profileDeleteAccount;
+
+  /// No description provided for @profileDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account?'**
+  String get profileDeleteTitle;
+
+  /// No description provided for @profileDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account and its data will be permanently deleted. This cannot be undone.'**
+  String get profileDeleteMessage;
 
   /// No description provided for @routeNotFoundTitle.
   ///

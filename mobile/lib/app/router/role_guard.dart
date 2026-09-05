@@ -35,6 +35,11 @@ abstract final class RoleGuard {
       location.startsWith(AppRoutes.signIn);
 
   static bool allows(UserRole role, String location) {
+    // Cross-area pages any signed-in user may open regardless of their area:
+    // the shared app-settings page and their own profile editor.
+    const shared = [AppRoutes.settings, AppRoutes.profile];
+    if (shared.any(location.startsWith)) return true;
+
     final area = switch (role) {
       UserRole.customer => const [
         AppRoutes.home,
