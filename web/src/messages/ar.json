@@ -71,5 +71,31 @@
     "spec": "المواصفات",
     "mockup": "النموذج",
     "contrast": "التباين مع الأبيض"
+  },
+  "product": {
+    "outOfStock": "غير متوفر",
+    "addedToCart": "تمت الإضافة",
+    "comingSoonTitle": "صفحة المنتج قيد الإنشاء",
+    "comingSoonBody": "سيتم بناء صفحة تفاصيل المنتج في المرحلة القادمة.",
+    "backHome": "العودة إلى الرئيسية"
+  },
+  "home": {
+    "categoriesTitle": "الأقسام الرئيسية",
+    "featuredTitle": "منتجات مميزة",
+    "newArrivalsTitle": "وصل حديثًا",
+    "dealsTitle": "عروض وخصومات",
+    "errorTitle": "تعذّر تحميل هذا القسم",
+    "errorBody": "حدث خطأ أثناء جلب البيانات. حاول تحديث الصفحة.",
+    "emptyTitle": "لا توجد عناصر حاليًا",
+    "emptyBody": "تابعنا — سنضيف المزيد قريبًا.",
+    "previousSlide": "الشريحة السابقة",
+    "nextSlide": "الشريحة التالية",
+    "goToSlide": "الانتقال إلى الشريحة {number}",
+    "promotions": "العروض الترويجية"
+  },
+  "category": {
+    "comingSoonTitle": "صفحة القسم قيد الإنشاء",
+    "comingSoonBody": "سيتم بناء صفحة تصفح الأقسام في المرحلة القادمة.",
+    "backHome": "العودة إلى الرئيسية"
   }
 }

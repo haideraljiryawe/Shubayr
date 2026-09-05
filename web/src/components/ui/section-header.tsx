@@ -29,7 +29,9 @@ export function SectionHeader({
       {actionLabel && href ? (
         <Link
           href={href}
-          className="inline-flex items-center gap-0.5 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+          // primary-dark, not primary: primary on the page background is
+          // 4.03:1, just under AA for this 14px label.
+          className="inline-flex items-center gap-0.5 text-sm font-medium text-primary-dark hover:text-primary transition-colors"
         >
           {actionLabel}
           <ChevronLeft className="size-4 rtl-flip" aria-hidden />

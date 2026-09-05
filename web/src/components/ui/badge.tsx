@@ -12,8 +12,9 @@ export type BadgeTone =
   | "neutral";
 
 const TONES: Record<BadgeTone, string> = {
-  // The «-40%» discount flag.
-  sale: "bg-error text-white",
+  // The «-40%» discount flag. Uses error-dark so white text clears AA (5.70:1);
+  // plain --t-error would be 3.76:1.
+  sale: "bg-error-dark text-white",
   primary: "bg-primary text-on-primary",
   accent: "bg-accent text-white",
   success: "bg-success/12 text-success",

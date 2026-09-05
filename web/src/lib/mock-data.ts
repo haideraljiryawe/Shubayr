@@ -82,7 +82,78 @@ export const demoProducts: DemoProduct[] = [
   demo("p2", "c1", "هاتف ذكي", "Smartphone", 299, 4.8, 124),
   demo("p3", "c1", "ساعة ذكية", "Smart watch", 129, 4.7, 76),
   demo("p4", "c1", "لابتوب", "Laptop", 799, 4.8, 210),
+  demo("p5", "c1", "كاميرا رقمية", "Digital camera", 449, 4.5, 63, 599),
+  demo("p6", "c1", "سماعات أذن لاسلكية", "Wireless earbuds", 59, 4.4, 187, 99),
+  demo("p7", "c2", "آلة قهوة", "Coffee machine", 199, 4.7, 142),
+  demo("p8", "c2", "خلاط كهربائي", "Electric blender", 75, 4.3, 88, 110),
+  demo("p9", "c2", "أريكة قماشية", "Fabric sofa", 649, 4.6, 41),
+  demo("p10", "c3", "قميص قطني", "Cotton shirt", 35, 4.2, 256),
+  demo("p11", "c3", "حذاء رياضي", "Running shoes", 120, 4.8, 312, 180),
+  demo("p12", "c4", "طقم عناية بالبشرة", "Skincare set", 68, 4.9, 174),
+  demo("p13", "c5", "دمبل معدني", "Metal dumbbell", 45, 4.5, 97),
+  demo("p14", "c5", "سجادة يوغا", "Yoga mat", 29, 4.4, 133, 49),
+  demo("p15", "c6", "ذراع تحكم", "Game controller", 65, 4.7, 205),
+  demo("p16", "c7", "مثقاب كهربائي", "Power drill", 139, 4.6, 78, 189),
 ];
 
 /** Contract-shaped view of the same fixtures, used by the API client. */
 export const mockProducts: Product[] = demoProducts;
+
+/* ---------------------------------------------------------------------------
+ * Home hero banners.
+ *
+ * NOTE: there is no banner resource in api/openapi.yaml — StoreSettings only
+ * carries store_name/logo_url/primary_color/currency. These fixtures let the
+ * carousel ship now; a `GET /banners` endpoint (or a `banners` array on
+ * settings) has to be added to the contract before this can go live. The shape
+ * below is deliberately minimal so it maps onto whatever the contract adopts.
+ * ------------------------------------------------------------------------- */
+
+export interface Banner {
+  id: string;
+  title_ar: string;
+  title_en: string;
+  subtitle_ar: string;
+  subtitle_en: string;
+  cta_ar: string;
+  cta_en: string;
+  href: string;
+  /** Optional artwork; the banner falls back to the brand gradient without it. */
+  image_url: string | null;
+}
+
+export const mockBanners: Banner[] = [
+  {
+    id: "b1",
+    title_ar: "عروض مميزة",
+    title_en: "Featured offers",
+    subtitle_ar: "حتى 40%",
+    subtitle_en: "Up to 40% off",
+    cta_ar: "تسوق الآن",
+    cta_en: "Shop now",
+    href: "/category/c1",
+    image_url: null,
+  },
+  {
+    id: "b2",
+    title_ar: "وصل حديثًا",
+    title_en: "Just arrived",
+    subtitle_ar: "أحدث الإلكترونيات",
+    subtitle_en: "The latest electronics",
+    cta_ar: "اكتشف الجديد",
+    cta_en: "Discover new",
+    href: "/category/c1",
+    image_url: null,
+  },
+  {
+    id: "b3",
+    title_ar: "كل ما يحتاجه منزلك",
+    title_en: "Everything for your home",
+    subtitle_ar: "توصيل مجاني للطلبات فوق $50",
+    subtitle_en: "Free delivery over $50",
+    cta_ar: "تسوق المنزل",
+    cta_en: "Shop home",
+    href: "/category/c2",
+    image_url: null,
+  },
+];

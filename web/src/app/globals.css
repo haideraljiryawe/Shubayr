@@ -43,6 +43,10 @@
   --t-success: #22c55e;
   --t-warning: #f59e0b;
   --t-error: #ef4444;
+  /* White text on --t-error is 3.76:1, below AA. This darker sibling (5.70:1)
+     is used wherever red is a FILL behind white text — sale and count badges.
+     The lighter --t-error stays the status/border colour. */
+  --t-error-dark: #c81e1e;
   --t-info: #3b82f6;
 
   /* --- Radii (8 / 12 / 20 per the sheet) -------------------------------- */
@@ -78,6 +82,7 @@
   --color-success: var(--t-success);
   --color-warning: var(--t-warning);
   --color-error: var(--t-error);
+  --color-error-dark: var(--t-error-dark);
   --color-info: var(--t-info);
 
   --radius-sm: var(--t-radius-sm);

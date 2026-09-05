@@ -1,5 +1,12 @@
 import type { components } from "@/types/api";
-import { mockCategories, mockProducts, mockSettings } from "./mock-data";
+import {
+  demoProducts,
+  mockBanners,
+  mockCategories,
+  mockProducts,
+  mockSettings,
+  type Banner,
+} from "./mock-data";
 
 /* ---------------------------------------------------------------------------
  * Types come straight from api/openapi.yaml via `npm run gen:api`. Never hand-
@@ -73,6 +80,27 @@ export interface ProductQuery {
   per_page?: number;
 }
 
+/** Mirrors the `sort` values the contract allows on GET /products. */
+function sortMockProducts(
+  items: Product[],
+  sort: ProductQuery["sort"],
+): Product[] {
+  switch (sort) {
+    case "price_asc":
+      return items.sort((a, b) => (a.sale_price ?? 0) - (b.sale_price ?? 0));
+    case "price_desc":
+      return items.sort((a, b) => (b.sale_price ?? 0) - (a.sale_price ?? 0));
+    case "rating":
+      return items.sort((a, b) => (b.rating_avg ?? 0) - (a.rating_avg ?? 0));
+    case "newest":
+      // Fixtures are authored newest-last; the contract has no created_at on
+      // Product, so "newest" is the reverse fixture order until it does.
+      return items.reverse();
+    default:
+      return items;
+  }
+}
+
 export const api = {
   /**
    * White-label identity (rule #1). Read on every page load by ThemeProvider.
@@ -92,9 +120,24 @@ export const api = {
     if (USE_MOCKS) {
       const perPage = query.per_page ?? 20;
       const page = query.page ?? 1;
-      const matches = query.category_id
-        ? mockProducts.filter((p) => p.category_id === query.category_id)
-        : mockProducts;
+
+      let matches = [...mockProducts];
+      if (query.category_id) {
+        matches = matches.filter((p) => p.category_id === query.category_id);
+      }
+      if (query.q) {
+        const needle = query.q.toLowerCase();
+        matches = matches.filter(
+          (p) =>
+            p.name_ar?.includes(query.q!) ||
+            p.name_en?.toLowerCase().includes(needle),
+        );
+      }
+
+      // The mock honours `sort` so the home page's sections are genuinely
+      // different sets rather than the same slice repeated.
+      matches = sortMockProducts(matches, query.sort);
+
       return {
         page,
         per_page: perPage,
@@ -103,6 +146,34 @@ export const api = {
       };
     }
     return request<ProductPage>("/products", { query: { ...query } });
+  },
+
+  /**
+   * Home hero banners.
+   *
+   * NOT in api/openapi.yaml yet — see the note on `mockBanners`. This resolves
+   * from fixtures regardless of USE_MOCKS, because there is no endpoint to call.
+   * Once the contract gains `GET /banners`, this becomes a normal request() and
+   * every caller stays unchanged.
+   */
+  async getBanners(): Promise<Banner[]> {
+    return mockBanners;
+  },
+
+  /**
+   * Discounted products for the deals strip.
+   *
+   * CONTRACT GAP: Product has no "was" price or discount flag, so a real API
+   * cannot express this yet. Until `compare_at_price` (or similar) is added to
+   * api/openapi.yaml, this reads the fixtures directly; with mocks off it
+   * returns an empty list rather than inventing a filter the backend does not
+   * support, and the section renders its empty state.
+   */
+  async listDeals(limit = 6): Promise<Product[]> {
+    if (!USE_MOCKS) return [];
+    return demoProducts
+      .filter((p) => p.compare_at_price && p.compare_at_price > p.sale_price)
+      .slice(0, limit);
   },
 
   async getProduct(id: string): Promise<Product> {
