@@ -9,13 +9,13 @@ We use a simple, safe model:
 
 ```
 main        ← always deployable. Protected. No direct pushes.
-develop     ← integration branch. Features merge here first.
 feature/*   ← your day-to-day work branches.
 fix/*       ← bug fixes.
 ```
 
-- `main` and `develop` are **protected**: changes land only through Pull Requests (PRs).
-- Branch off `develop`, never off another unfinished feature branch.
+- `main` is **protected**: changes land only through Pull Requests (PRs).
+- Branch off `main`, never off another unfinished feature branch.
+- After a PR merges into `main`, delete its source branch.
 
 Branch naming:
 ```
@@ -28,9 +28,9 @@ fix/order-total-rounding
 ## 2. The daily loop (pull → work → push)
 
 ```bash
-# 1. Get the latest integration branch
-git checkout develop
-git pull origin develop
+# 1. Get the latest main branch
+git checkout main
+git pull --ff-only origin main
 
 # 2. Start your feature
 git checkout -b feature/backend-purchase-invoices
@@ -41,12 +41,13 @@ git commit -m "feat(purchasing): create purchase invoice + receive to batches"
 
 # 4. Keep up to date while you work (avoids big conflicts)
 git fetch origin
-git rebase origin/develop      # or: git merge origin/develop
+git rebase origin/main         # or: git merge origin/main
 
 # 5. Push your branch
 git push -u origin feature/backend-purchase-invoices
 
-# 6. Open a Pull Request into develop on GitHub, request a review.
+# 6. Open a Pull Request into main on GitHub, request a review.
+#    After it merges, delete the feature branch.
 ```
 
 ## 3. Commit messages (Conventional Commits)
@@ -79,7 +80,7 @@ and the ER diagram/docs are updated in the same PR.
 
 ## 5. Pull Request checklist
 
-- [ ] Branch is up to date with `develop`.
+- [ ] Branch is up to date with `main`.
 - [ ] Code builds locally; lint/tests pass.
 - [ ] No secrets committed (`.env` is gitignored — use `.env.example`).
 - [ ] If DB changed: `schema.sql` + migration + docs updated together.
@@ -95,4 +96,5 @@ and the ER diagram/docs are updated in the same PR.
 
 A feature is done when: it works end-to-end against the real schema, has at least
 basic tests, respects RBAC permissions, writes an **audit log** for sensitive
-actions, and is merged to `develop` via an approved PR.
+actions, and is merged to `main` via an approved PR. Delete the feature branch
+after the merge.

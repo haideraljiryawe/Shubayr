@@ -31,23 +31,22 @@ contract changes require coordination with every affected owner.
 
 ## Git workflow
 
-Never push directly to `main` or `develop`.
+Never push directly to `main`.
 
 ```bash
-git switch develop
-git pull --ff-only origin develop
+git switch main
+git pull --ff-only origin main
 git switch -c feature/<area>-<change>
 
 # work, test, and commit
 git fetch origin
-git rebase origin/develop
+git rebase origin/main
 git push -u origin feature/<area>-<change>
 ```
 
-Open a pull request into `develop`, request review, and merge only after checks
-pass. Promotion from `develop` to `main` also happens through a pull request.
-Never commit `.env`, credentials, generated secrets, or silent changes to either
-shared contract.
+Open a pull request into `main`, request review, and merge only after checks
+pass. Delete the feature branch after the merge. Never commit `.env`,
+credentials, generated secrets, or silent changes to either shared contract.
 
 ## Where each person goes next
 

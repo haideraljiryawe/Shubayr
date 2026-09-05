@@ -23,8 +23,13 @@ flutter doctor
 ```bash
 git clone https://github.com/haideraljiryawe/Shubayr.git
 cd Shubayr
-git switch develop
+git switch main
+git pull --ff-only origin main
+git switch -c feature/mobile-<change>
 ```
+
+Open a pull request into `main` when the work is ready; delete the feature branch
+after it merges.
 
 Follow the [authoritative mobile build prompt](../../prompts/MOBILE_CLAUDE_FULL.md).
 After `pubspec.yaml` exists:

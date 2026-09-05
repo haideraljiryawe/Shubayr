@@ -27,8 +27,13 @@ npm --version
 ```bash
 git clone https://github.com/haideraljiryawe/Shubayr.git
 cd Shubayr
-git switch develop
+git switch main
+git pull --ff-only origin main
+git switch -c feature/backend-<change>
 ```
+
+Open a pull request into `main` when the work is ready; delete the feature branch
+after it merges.
 
 macOS/Linux:
 

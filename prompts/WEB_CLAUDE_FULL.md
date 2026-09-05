@@ -21,7 +21,7 @@ STEP 0 — READ THESE FIRST (source of truth)
 4. README.md, CONTRIBUTING.md → how the repo runs and how we collaborate.
 
 The API base URL is `NEXT_PUBLIC_API_URL` (default `http://localhost:8000/api/v1`).
-Until the backend is live, develop against the OpenAPI contract and mock responses.
+Until the backend is live, work against the OpenAPI contract and mock responses.
 
 ═══════════════════════════════════════════════════════════════════════
 STEP 1 — STACK
@@ -70,8 +70,8 @@ STEP 4 — QUALITY BAR
 ═══════════════════════════════════════════════════════════════════════
 STEP 5 — WORKING AGREEMENT
 ═══════════════════════════════════════════════════════════════════════
-- Branch off `develop` (e.g. `feature/web-product-listing`); Conventional Commits;
-  open PRs into `develop`.
+- Branch off `main` (e.g. `feature/web-product-listing`); use Conventional
+  Commits; open PRs into `main`, then delete the branch after it merges.
 - Never commit secrets. Never touch `backend/`, `mobile/`, or `infra/db/schema.sql`.
 - If the API contract needs a change, raise it — don't work around it silently.
 

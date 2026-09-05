@@ -22,7 +22,7 @@ STEP 0 — READ THESE FIRST (source of truth)
 4. README.md, CONTRIBUTING.md → how the repo runs and how we collaborate.
 
 API base URL via `--dart-define=API_URL=...` (default `http://localhost:8000/api/v1`).
-Until the backend is live, develop against the OpenAPI contract with mocks.
+Until the backend is live, work against the OpenAPI contract with mocks.
 
 ═══════════════════════════════════════════════════════════════════════
 STEP 1 — FOUNDATION
@@ -70,8 +70,9 @@ STEP 5 — QUALITY BAR & WORKING AGREEMENT
 ═══════════════════════════════════════════════════════════════════════
 - Handle offline/errors gracefully; never crash on an API error.
 - `mobile/README.md` with run instructions and how to switch API_URL.
-- Branch off `develop` (e.g. `feature/mobile-cart`); Conventional Commits; PRs into
-  `develop`. Never touch `backend/`, `web/`, or `infra/db/schema.sql`.
+- Branch off `main` (e.g. `feature/mobile-cart`); use Conventional Commits; open
+  PRs into `main`, then delete the branch after it merges. Never touch
+  `backend/`, `web/`, or `infra/db/schema.sql`.
 - If the API contract needs a change, raise it — don't work around it silently.
 
 Start by scaffolding the Flutter app with routing + role guards + i18n/RTL +
