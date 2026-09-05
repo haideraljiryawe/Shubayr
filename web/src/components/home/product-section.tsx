@@ -1,0 +1,92 @@
+import { getTranslations } from "next-intl/server";
+import { SectionHeader } from "@/components/ui/section-header";
+import { ProductCard } from "@/components/ui/product-card";
+import type { Product } from "@/lib/api";
+import type { DemoProduct } from "@/lib/mock-data";
+import type { Locale } from "@/i18n/routing";
+import { SectionEmpty, SectionError } from "./states";
+
+/**
+ * `review_count` and `compare_at_price` are fixture-only: neither is on the
+ * OpenAPI Product schema. Read them defensively so the grid renders correctly
+ * both today (mocks supply them) and once the real API does not.
+ */
+function displayExtras(product: Product) {
+  const extras = product as Partial<DemoProduct>;
+  return {
+    reviewCount: extras.review_count,
+    compareAtPrice: extras.compare_at_price ?? null,
+  };
+}
+
+/**
+ * A titled product strip. Fetching happens here rather than in the page so each
+ * section can stream in behind its own Suspense boundary and fail on its own —
+ * one dead endpoint degrades one strip instead of the whole home page.
+ */
+export async function ProductSection({
+  title,
+  viewAllHref,
+  locale,
+  load,
+  priority = false,
+}: {
+  title: string;
+  viewAllHref: string;
+  locale: Locale;
+  load: () => Promise<Product[]>;
+  /** Set on the first grid so its images are LCP candidates. */
+  priority?: boolean;
+}) {
+  const t = await getTranslations("common");
+
+  let products: Product[] | null = null;
+  try {
+    products = await load();
+  } catch {
+    products = null;
+  }
+
+  return (
+    <section className="mt-10">
+      <SectionHeader
+        title={title}
+        actionLabel={t("viewAll")}
+        href={viewAllHref}
+      />
+
+      <div className="mt-4">
+        {products === null ? (
+          <SectionError />
+        ) : products.length === 0 ? (
+          <SectionEmpty />
+        ) : (
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {products.map((product, index) => {
+              const { reviewCount, compareAtPrice } = displayExtras(product);
+              const name =
+                (locale === "ar" ? product.name_ar : product.name_en) ?? "";
+
+              return (
+                <li key={product.id} className="flex">
+                  <ProductCard
+                    id={product.id ?? ""}
+                    name={name}
+                    price={product.sale_price ?? 0}
+                    compareAtPrice={compareAtPrice}
+                    rating={product.rating_avg}
+                    reviewCount={reviewCount}
+                    imageUrl={product.images?.[0] ?? null}
+                    inStock={product.in_stock ?? true}
+                    priority={priority && index < 5}
+                    className="w-full"
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
