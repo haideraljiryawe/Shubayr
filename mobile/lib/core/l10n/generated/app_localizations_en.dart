@@ -192,5 +192,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get comingSoonMessage => 'This part of the app is not built yet.';
 
   @override
+  String get commonOutOfStock => 'Out of stock';
+
+  @override
+  String get homeSectionDepartments => 'Shop by department';
+
+  @override
+  String get homeAllDepartments => 'All';
+
+  @override
+  String get homeSectionProducts => 'Products';
+
+  @override
+  String get productDescription => 'Description';
+
+  @override
+  String get productNegotiable => 'Negotiable';
+
+  @override
+  String get productAddToCart => 'Add to cart';
+
+  @override
+  String get productReviewsSoon => 'Reviews are coming soon.';
+
+  @override
   String get routeNotFoundTitle => 'Page not found';
 }

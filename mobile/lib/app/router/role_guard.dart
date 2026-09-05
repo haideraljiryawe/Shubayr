@@ -26,6 +26,7 @@ abstract final class RoleGuard {
   static bool isPublic(String location) =>
       location == AppRoutes.home ||
       location == AppRoutes.categories ||
+      location.startsWith(AppRoutes.productsPrefix) ||
       location.startsWith(AppRoutes.signIn);
 
   static bool allows(UserRole role, String location) {
@@ -33,6 +34,7 @@ abstract final class RoleGuard {
       UserRole.customer => const [
         AppRoutes.home,
         AppRoutes.categories,
+        AppRoutes.productsPrefix,
         AppRoutes.cart,
         AppRoutes.orders,
         AppRoutes.account,

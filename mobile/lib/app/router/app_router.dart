@@ -14,6 +14,7 @@ import '../../features/auth/presentation/screens/verify_otp_screen.dart';
 import '../../features/cart/presentation/screens/cart_screen.dart';
 import '../../features/catalog/presentation/screens/categories_screen.dart';
 import '../../features/catalog/presentation/screens/home_screen.dart';
+import '../../features/catalog/presentation/screens/product_detail_screen.dart';
 import '../../features/delivery/presentation/screens/delivery_home_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
 import '../../features/settings/presentation/screens/account_screen.dart';
@@ -157,6 +158,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+
+      // Product detail — full-screen over the shell (keeps the tab bar behind
+      // it in history), reachable from any catalog surface.
+      GoRoute(
+        path: AppRoutes.product,
+        name: AppRoutes.productName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) =>
+            ProductDetailScreen(productId: state.pathParameters['id']!),
       ),
 
       GoRoute(

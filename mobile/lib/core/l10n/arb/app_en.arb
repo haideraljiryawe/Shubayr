@@ -72,5 +72,14 @@
   "comingSoonTitle": "Coming soon",
   "comingSoonMessage": "This part of the app is not built yet.",
 
+  "commonOutOfStock": "Out of stock",
+  "homeSectionDepartments": "Shop by department",
+  "homeAllDepartments": "All",
+  "homeSectionProducts": "Products",
+  "productDescription": "Description",
+  "productNegotiable": "Negotiable",
+  "productAddToCart": "Add to cart",
+  "productReviewsSoon": "Reviews are coming soon.",
+
   "routeNotFoundTitle": "Page not found"
 }

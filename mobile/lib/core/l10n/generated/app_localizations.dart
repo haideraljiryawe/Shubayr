@@ -446,6 +446,54 @@ abstract class AppLocalizations {
   /// **'This part of the app is not built yet.'**
   String get comingSoonMessage;
 
+  /// No description provided for @commonOutOfStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of stock'**
+  String get commonOutOfStock;
+
+  /// No description provided for @homeSectionDepartments.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop by department'**
+  String get homeSectionDepartments;
+
+  /// No description provided for @homeAllDepartments.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get homeAllDepartments;
+
+  /// No description provided for @homeSectionProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Products'**
+  String get homeSectionProducts;
+
+  /// No description provided for @productDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get productDescription;
+
+  /// No description provided for @productNegotiable.
+  ///
+  /// In en, this message translates to:
+  /// **'Negotiable'**
+  String get productNegotiable;
+
+  /// No description provided for @productAddToCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to cart'**
+  String get productAddToCart;
+
+  /// No description provided for @productReviewsSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews are coming soon.'**
+  String get productReviewsSoon;
+
   /// No description provided for @routeNotFoundTitle.
   ///
   /// In en, this message translates to:

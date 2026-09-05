@@ -16,6 +16,12 @@ abstract final class AppRoutes {
   static const delivery = '/delivery';
   static const admin = '/admin';
 
+  // Product detail, pushed full-screen over the shell.
+  static const product = '/products/:id';
+
+  /// Prefix shared by all product routes, for public-access checks.
+  static const productsPrefix = '/products';
+
   // Developer-only design gallery (reachable in debug builds only).
   static const design = '/design';
 
@@ -28,5 +34,6 @@ abstract final class AppRoutes {
   static const accountName = 'account';
   static const deliveryName = 'delivery';
   static const adminName = 'admin';
+  static const productName = 'product';
   static const designName = 'design';
 }

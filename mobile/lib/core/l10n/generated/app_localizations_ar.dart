@@ -189,5 +189,29 @@ class AppLocalizationsAr extends AppLocalizations {
   String get comingSoonMessage => 'هذا الجزء من التطبيق قيد التطوير.';
 
   @override
+  String get commonOutOfStock => 'غير متوفر';
+
+  @override
+  String get homeSectionDepartments => 'تسوّق حسب القسم';
+
+  @override
+  String get homeAllDepartments => 'الكل';
+
+  @override
+  String get homeSectionProducts => 'منتجات';
+
+  @override
+  String get productDescription => 'الوصف';
+
+  @override
+  String get productNegotiable => 'قابل للتفاوض';
+
+  @override
+  String get productAddToCart => 'أضف إلى السلة';
+
+  @override
+  String get productReviewsSoon => 'التقييمات قريبًا.';
+
+  @override
   String get routeNotFoundTitle => 'الصفحة غير موجودة';
 }

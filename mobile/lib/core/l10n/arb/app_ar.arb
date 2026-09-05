@@ -69,5 +69,14 @@
   "comingSoonTitle": "قريبًا",
   "comingSoonMessage": "هذا الجزء من التطبيق قيد التطوير.",
 
+  "commonOutOfStock": "غير متوفر",
+  "homeSectionDepartments": "تسوّق حسب القسم",
+  "homeAllDepartments": "الكل",
+  "homeSectionProducts": "منتجات",
+  "productDescription": "الوصف",
+  "productNegotiable": "قابل للتفاوض",
+  "productAddToCart": "أضف إلى السلة",
+  "productReviewsSoon": "التقييمات قريبًا.",
+
   "routeNotFoundTitle": "الصفحة غير موجودة"
 }
