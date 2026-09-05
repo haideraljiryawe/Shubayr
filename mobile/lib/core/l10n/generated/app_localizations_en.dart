@@ -327,7 +327,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String galleryCounter(String current, String total) {
-    return '$current from $total';
+    return '$current of $total';
   }
 
   @override

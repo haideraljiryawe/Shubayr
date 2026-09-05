@@ -710,10 +710,10 @@ abstract class AppLocalizations {
   /// **'Your account and its data will be permanently deleted. This cannot be undone.'**
   String get profileDeleteMessage;
 
-  /// Image position in the full-screen product gallery, e.g. '1 from 5'. Digits are passed as strings so they stay Western Arabic numerals like the rest of the app.
+  /// Image position in the full-screen product gallery, e.g. '1 of 5'. Digits are passed as strings so they stay Western Arabic numerals like the rest of the app.
   ///
   /// In en, this message translates to:
-  /// **'{current} from {total}'**
+  /// **'{current} of {total}'**
   String galleryCounter(String current, String total);
 
   /// No description provided for @routeNotFoundTitle.

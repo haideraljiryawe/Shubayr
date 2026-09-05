@@ -43,13 +43,13 @@ void main() {
     expect(find.byKey(const ValueKey('gallery-dot-0')), findsNothing);
   });
 
-  testWidgets('English counter reads "1 from 3"', (tester) async {
+  testWidgets('English counter reads "1 of 3"', (tester) async {
     await tester.pumpWidget(host(images, locale: const Locale('en')));
     await tester.pump();
 
     await openViewer(tester);
 
-    expect(find.text('1 from 3'), findsOneWidget);
+    expect(find.text('1 of 3'), findsOneWidget);
   });
 
   testWidgets('Arabic counter reads "1 من 3"', (tester) async {
