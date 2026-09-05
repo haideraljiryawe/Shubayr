@@ -22,6 +22,9 @@ abstract final class AppRoutes {
   /// Prefix shared by all product routes, for public-access checks.
   static const productsPrefix = '/products';
 
+  // Product search / listing (public), full-screen over the shell.
+  static const search = '/search';
+
   // Cross-area, full-screen pages any signed-in role can open with a back
   // button: the account-settings page (staff/delivery reach it here instead of
   // a bottom sheet) and the user's own profile editor.
@@ -41,6 +44,7 @@ abstract final class AppRoutes {
   static const deliveryName = 'delivery';
   static const adminName = 'admin';
   static const productName = 'product';
+  static const searchName = 'search';
   static const settingsName = 'settings';
   static const profileName = 'profile';
   static const designName = 'design';

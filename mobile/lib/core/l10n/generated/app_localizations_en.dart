@@ -235,6 +235,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productReviewsSoon => 'Reviews are coming soon.';
 
   @override
+  String get searchHint => 'Search products';
+
+  @override
+  String get searchNoResults => 'No matching products.';
+
+  @override
+  String get sortNewest => 'Newest';
+
+  @override
+  String get sortCheapest => 'Lowest price';
+
+  @override
+  String get sortDearest => 'Highest price';
+
+  @override
+  String get sortTopRated => 'Top rated';
+
+  @override
+  String get filtersTitle => 'Filters';
+
+  @override
+  String get filterPrice => 'Price';
+
+  @override
+  String get filterMin => 'Min';
+
+  @override
+  String get filterMax => 'Max';
+
+  @override
+  String get filterApply => 'Apply';
+
+  @override
+  String get filterClear => 'Clear';
+
+  @override
   String get adminSectionCatalog => 'Catalog';
 
   @override

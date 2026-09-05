@@ -31,6 +31,7 @@ abstract final class RoleGuard {
       location == AppRoutes.home ||
       location == AppRoutes.categories ||
       location == AppRoutes.account ||
+      location == AppRoutes.search ||
       location.startsWith(AppRoutes.productsPrefix) ||
       location.startsWith(AppRoutes.signIn);
 
@@ -45,6 +46,7 @@ abstract final class RoleGuard {
         AppRoutes.home,
         AppRoutes.categories,
         AppRoutes.productsPrefix,
+        AppRoutes.search,
         AppRoutes.cart,
         AppRoutes.orders,
         AppRoutes.account,

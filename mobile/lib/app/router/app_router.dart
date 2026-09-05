@@ -15,6 +15,8 @@ import '../../features/cart/presentation/screens/cart_screen.dart';
 import '../../features/catalog/presentation/screens/categories_screen.dart';
 import '../../features/catalog/presentation/screens/home_screen.dart';
 import '../../features/catalog/presentation/screens/product_detail_screen.dart';
+import '../../features/catalog/presentation/screens/product_list_screen.dart';
+import '../../features/catalog/presentation/providers/product_list_controller.dart';
 import '../../features/delivery/presentation/screens/delivery_home_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
 import '../../features/settings/presentation/screens/account_screen.dart';
@@ -177,6 +179,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) =>
             ProductDetailScreen(productId: state.pathParameters['id']!),
+      ),
+
+      // Product search / listing. Seeds the initial filter from query params
+      // (?q=…&category_id=…), then the screen drives search/sort/filters.
+      GoRoute(
+        path: AppRoutes.search,
+        name: AppRoutes.searchName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => ProductListScreen(
+          initialQuery: ProductQuery(
+            text: state.uri.queryParameters['q'] ?? '',
+            categoryId: state.uri.queryParameters['category_id'],
+          ),
+        ),
       ),
 
       // Shared full-screen pages any signed-in role reaches with a back button:

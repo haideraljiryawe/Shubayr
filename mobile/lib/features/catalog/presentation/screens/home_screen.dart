@@ -31,7 +31,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final feed = ref.watch(categoryFeedProvider(_departmentId));
 
     return Scaffold(
-      appBar: AppBar(title: Text(brand.name ?? l10n.storeFallbackName)),
+      appBar: AppBar(
+        title: Text(brand.name ?? l10n.storeFallbackName),
+        actions: [
+          IconButton(
+            onPressed: () => context.pushNamed(AppRoutes.searchName),
+            icon: const Icon(Icons.search),
+            tooltip: l10n.searchHint,
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () => ref.refresh(categoryFeedProvider(_departmentId).future),
         child: ListView(
