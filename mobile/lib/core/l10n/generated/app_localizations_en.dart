@@ -326,5 +326,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your account and its data will be permanently deleted. This cannot be undone.';
 
   @override
+  String galleryCounter(String current, String total) {
+    return '$current from $total';
+  }
+
+  @override
   String get routeNotFoundTitle => 'Page not found';
 }

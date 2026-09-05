@@ -323,5 +323,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'سيتم حذف حسابك وبياناته نهائيًا. لا يمكن التراجع عن هذا الإجراء.';
 
   @override
+  String galleryCounter(String current, String total) {
+    return '$current من $total';
+  }
+
+  @override
   String get routeNotFoundTitle => 'الصفحة غير موجودة';
 }

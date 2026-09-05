@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/features/catalog/presentation/widgets/product_gallery.dart';
 
 void main() {
@@ -9,8 +10,19 @@ void main() {
     'https://example.test/c.jpg',
   ];
 
-  Widget host(List<String> urls) =>
-      MaterialApp(home: Scaffold(body: ProductGallery(images: urls)));
+  Widget host(List<String> urls, {Locale locale = const Locale('en')}) =>
+      MaterialApp(
+        locale: locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: ProductGallery(images: urls)),
+      );
+
+  Future<void> openViewer(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('gallery-main')));
+    await tester.pump(); // start the route transition
+    await tester.pump(const Duration(milliseconds: 300)); // let it settle in
+  }
 
   testWidgets('shows one page dot per image', (tester) async {
     await tester.pumpWidget(host(images));
@@ -31,17 +43,21 @@ void main() {
     expect(find.byKey(const ValueKey('gallery-dot-0')), findsNothing);
   });
 
-  testWidgets('tapping the image opens the full-screen viewer with a counter', (
-    tester,
-  ) async {
-    await tester.pumpWidget(host(images));
+  testWidgets('English counter reads "1 from 3"', (tester) async {
+    await tester.pumpWidget(host(images, locale: const Locale('en')));
     await tester.pump();
 
-    await tester.tap(find.byKey(const ValueKey('gallery-main')));
-    await tester.pump(); // start the route transition
-    await tester.pump(const Duration(milliseconds: 300)); // let it settle in
+    await openViewer(tester);
 
-    // Counter reads current / total, left-to-right, starting on the first.
-    expect(find.text('1 / 3'), findsOneWidget);
+    expect(find.text('1 from 3'), findsOneWidget);
+  });
+
+  testWidgets('Arabic counter reads "1 من 3"', (tester) async {
+    await tester.pumpWidget(host(images, locale: const Locale('ar')));
+    await tester.pump();
+
+    await openViewer(tester);
+
+    expect(find.text('1 من 3'), findsOneWidget);
   });
 }

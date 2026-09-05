@@ -120,5 +120,8 @@
   "profileDeleteTitle": "Delete account?",
   "profileDeleteMessage": "Your account and its data will be permanently deleted. This cannot be undone.",
 
+  "galleryCounter": "{current} from {total}",
+  "@galleryCounter": { "description": "Image position in the full-screen product gallery, e.g. '1 from 5'. Digits are passed as strings so they stay Western Arabic numerals like the rest of the app.", "placeholders": { "current": { "type": "String" }, "total": { "type": "String" } } },
+
   "routeNotFoundTitle": "Page not found"
 }

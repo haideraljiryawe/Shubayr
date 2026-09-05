@@ -117,5 +117,7 @@
   "profileDeleteTitle": "حذف الحساب؟",
   "profileDeleteMessage": "سيتم حذف حسابك وبياناته نهائيًا. لا يمكن التراجع عن هذا الإجراء.",
 
+  "galleryCounter": "{current} من {total}",
+
   "routeNotFoundTitle": "الصفحة غير موجودة"
 }

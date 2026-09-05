@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
+import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_motion.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
@@ -240,8 +241,10 @@ class _FullScreenGalleryState extends State<_FullScreenGallery> {
   }
 }
 
-/// `n / total`, forced left-to-right so the current image always reads on the
-/// left even in an Arabic (RTL) layout.
+/// The image counter, localized and laid out in the reading direction of the
+/// active language: "1 من 5" in Arabic (reads right-to-left, current image on
+/// the right) and "1 from 5" in English (left-to-right, current on the left).
+/// Digits stay Western Arabic (passed as strings) to match the rest of the app.
 class _Counter extends StatelessWidget {
   const _Counter({required this.current, required this.total});
 
@@ -250,23 +253,20 @@ class _Counter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: 6,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.45),
-          borderRadius: AppRadii.pillAll,
-        ),
-        child: Text(
-          '$current / $total',
-          style: context.text.labelLarge?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: AppRadii.pillAll,
+      ),
+      child: Text(
+        context.l10n.galleryCounter('$current', '$total'),
+        style: context.text.labelLarge?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
