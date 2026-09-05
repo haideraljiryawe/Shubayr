@@ -61,5 +61,10 @@ void main() {
     expect(find.byType(SignInScreen), findsNothing);
     expect(find.byType(VerifyOtpScreen), findsNothing);
     expect(find.byType(HomeScreen), findsOneWidget);
+
+    // The signed-in tab bar now exposes Cart and Orders alongside the public
+    // destinations (they are hidden for guests).
+    expect(find.byIcon(Icons.shopping_cart_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
   }, timeout: const Timeout(Duration(seconds: 30)));
 }

@@ -33,6 +33,8 @@ final _homeBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-home');
 final _categoriesBranchKey = GlobalKey<NavigatorState>(
   debugLabel: 'branch-categories',
 );
+final _cartBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-cart');
+final _ordersBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-orders');
 final _accountBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-account');
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -96,9 +98,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      // Customer shell. The branches are the guest (signed-out) destinations:
-      // Home · Categories · Account. Navigation for authenticated customers
-      // and for the delivery/staff roles is not designed yet.
+      // Customer shell. Branch order is fixed: Home · Categories · Cart ·
+      // Orders · Account. A signed-out guest sees only Home · Categories ·
+      // Account (Cart and Orders are guarded); CustomerShell hides those two
+      // destinations and maps the visible tabs back to these branch indices.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             CustomerShell(navigationShell: navigationShell),
@@ -124,6 +127,26 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: _cartBranchKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.cart,
+                name: AppRoutes.cartName,
+                builder: (context, state) => const CartScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: _ordersBranchKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.orders,
+                name: AppRoutes.ordersName,
+                builder: (context, state) => const OrdersScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
             navigatorKey: _accountBranchKey,
             routes: [
               GoRoute(
@@ -136,19 +159,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Reachable by path and still covered by the role guard, but not part of
-      // the guest tab bar. They move into a shell branch when the authenticated
-      // customer navigation is designed.
-      GoRoute(
-        path: AppRoutes.cart,
-        name: AppRoutes.cartName,
-        builder: (context, state) => const CartScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.orders,
-        name: AppRoutes.ordersName,
-        builder: (context, state) => const OrdersScreen(),
-      ),
       GoRoute(
         path: AppRoutes.delivery,
         name: AppRoutes.deliveryName,
