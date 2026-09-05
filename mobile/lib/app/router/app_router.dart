@@ -22,6 +22,19 @@ import '../splash_screen.dart';
 import 'app_routes.dart';
 import 'role_guard.dart';
 
+// Stable navigator keys. Without them go_router derives branch navigator keys
+// implicitly; when `refreshListenable` fires mid-transition (e.g. the session
+// flips to signed-in while the sign-in route is on top), the shell can be
+// rebuilt with a fresh key while the old one is still mounted, tripping
+// Navigator's duplicate-page-key assertion. Fixed keys keep each navigator's
+// identity stable across those rebuilds.
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final _homeBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-home');
+final _categoriesBranchKey = GlobalKey<NavigatorState>(
+  debugLabel: 'branch-categories',
+);
+final _accountBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-account');
+
 final routerProvider = Provider<GoRouter>((ref) {
   // Bridges Riverpod state changes to go_router's refresh mechanism.
   final refresh = ValueNotifier<int>(0);
@@ -30,6 +43,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     ..onDispose(refresh.dispose);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     refreshListenable: refresh,
     redirect: (context, state) {
@@ -66,6 +80,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.signIn,
         name: AppRoutes.signInName,
+        // Full-screen over the shell: pin it to the root navigator so a guest
+        // tapping Account pushes it above the tab bar (not inside the active
+        // branch). Pushing into a branch and then redirecting back to that
+        // branch on sign-in produced two shell matches with the same page key.
+        parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const SignInScreen(),
         routes: [
           GoRoute(
@@ -85,6 +104,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             CustomerShell(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(
+            navigatorKey: _homeBranchKey,
             routes: [
               GoRoute(
                 path: AppRoutes.home,
@@ -94,6 +114,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: _categoriesBranchKey,
             routes: [
               GoRoute(
                 path: AppRoutes.categories,
@@ -103,6 +124,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: _accountBranchKey,
             routes: [
               GoRoute(
                 path: AppRoutes.account,

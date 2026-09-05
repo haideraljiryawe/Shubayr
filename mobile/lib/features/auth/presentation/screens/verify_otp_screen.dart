@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
@@ -56,6 +58,18 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
           .read(sessionControllerProvider.notifier)
           .verifyOtp(phone: widget.phone, code: _codeController.text.trim()),
     );
+
+    // On success, reset the stack with a clean declarative navigation. The
+    // sign-in and verify screens are reached by imperative `push`; letting the
+    // session-change redirect fire on top of those pushed pages made go_router
+    // rebuild the navigator with a duplicated shell page key and crash. Going
+    // to a role-neutral entry clears the pushed pages first; the router's
+    // redirect then routes each role to its own home from a clean stack.
+    if (!mounted) return;
+    final session = ref.read(sessionControllerProvider).valueOrNull;
+    if (session != null && session.isSignedIn) {
+      context.go(AppRoutes.home);
+    }
   }
 
   Future<void> _resend() => _run(
