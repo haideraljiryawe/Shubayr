@@ -17,9 +17,13 @@ import '../order_status.dart';
 import '../providers/order_providers.dart';
 import '../widgets/order_status_pill.dart';
 
-/// The statuses offered as filter chips, in order after "All". Kept to the
-/// lifecycle stages a customer's orders actually sit in day-to-day.
-const _filterStatuses = ['processing', 'out_for_delivery', 'delivered'];
+/// The statuses offered as filter chips, in lifecycle order after "All".
+const _filterStatuses = [
+  'pending',
+  'processing',
+  'out_for_delivery',
+  'delivered',
+];
 
 /// The customer's orders, newest first, with a status-filter chip bar on top.
 /// Each card opens the order's details and tracking. Pull to refresh re-reads
