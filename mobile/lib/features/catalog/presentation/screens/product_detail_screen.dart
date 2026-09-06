@@ -142,7 +142,7 @@ class _NegotiableBadge extends StatelessWidget {
         ),
         child: Text(
           context.l10n.productNegotiable,
-          style: context.text.labelMedium?.copyWith(color: colors.onAccent),
+          style: context.text.labelMedium?.copyWith(color: colors.textPrimary),
         ),
       ),
     );
