@@ -8,6 +8,7 @@ import '../../data/category.dart';
 import '../../data/product.dart';
 import '../../data/product_availability.dart';
 import '../../data/product_page.dart';
+import '../../data/review.dart';
 import '../../domain/catalog_repository.dart';
 
 /// Mock ⇄ remote switch, overridable globally (`DATA_SOURCE`) or per test.
@@ -43,4 +44,9 @@ final productProvider = FutureProvider.family<Product, String>(
 /// whole product.
 final availabilityProvider = FutureProvider.family<ProductAvailability, String>(
   (ref, id) => ref.watch(catalogRepositoryProvider).fetchAvailability(id),
+);
+
+/// First page of published reviews for a product, for the detail screen.
+final productReviewsProvider = FutureProvider.family<ReviewPage, String>(
+  (ref, id) => ref.watch(catalogRepositoryProvider).fetchReviews(id),
 );

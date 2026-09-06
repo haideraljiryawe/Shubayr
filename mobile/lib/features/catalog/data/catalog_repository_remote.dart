@@ -4,6 +4,7 @@ import 'category.dart';
 import 'product.dart';
 import 'product_availability.dart';
 import 'product_page.dart';
+import 'review.dart';
 
 class CatalogRepositoryRemote implements CatalogRepository {
   const CatalogRepositoryRemote(this._api);
@@ -53,5 +54,18 @@ class CatalogRepositoryRemote implements CatalogRepository {
       '/products/$id/availability',
     );
     return ProductAvailability.fromJson(json);
+  }
+
+  @override
+  Future<ReviewPage> fetchReviews(
+    String id, {
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final json = await _api.get<Map<String, dynamic>>(
+      '/products/$id/reviews',
+      query: {'page': page, 'per_page': perPage},
+    );
+    return ReviewPage.fromJson(json);
   }
 }

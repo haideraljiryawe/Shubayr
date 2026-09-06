@@ -243,6 +243,20 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get productReviews => 'التقييمات';
+
+  @override
+  String get productNoReviews => 'لا توجد تقييمات بعد';
+
+  @override
+  String productReviewsCount(String count) {
+    return '$count تقييم';
+  }
+
+  @override
+  String get productVerifiedPurchase => 'شراء موثّق';
+
+  @override
   String get productReviewsSoon => 'التقييمات قريبًا.';
 
   @override

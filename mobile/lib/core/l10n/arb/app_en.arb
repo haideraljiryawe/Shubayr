@@ -90,6 +90,11 @@
   "productInStock": "In stock",
   "productLowStock": "Only {count} left",
   "@productLowStock": { "description": "Low-stock hint on product detail; count is passed as a string so it stays Western-Arabic.", "placeholders": { "count": { "type": "String" } } },
+  "productReviews": "Reviews",
+  "productNoReviews": "No reviews yet",
+  "productReviewsCount": "{count} reviews",
+  "@productReviewsCount": { "description": "Number of reviews shown in the product detail summary; count is a string to stay Western-Arabic.", "placeholders": { "count": { "type": "String" } } },
+  "productVerifiedPurchase": "Verified purchase",
   "productReviewsSoon": "Reviews are coming soon.",
 
   "searchHint": "Search products",

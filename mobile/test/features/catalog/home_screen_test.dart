@@ -8,6 +8,7 @@ import 'package:shubayr/features/catalog/data/category.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
 import 'package:shubayr/features/catalog/data/product_availability.dart';
 import 'package:shubayr/features/catalog/data/product_page.dart';
+import 'package:shubayr/features/catalog/data/review.dart';
 import 'package:shubayr/features/catalog/domain/catalog_repository.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:shubayr/features/catalog/presentation/screens/product_detail_screen.dart';
@@ -68,6 +69,10 @@ class _FakeCatalog implements CatalogRepository {
         inStock: id != 'p2',
         availableQty: id == 'p2' ? 0 : 5,
       );
+
+  @override
+  Future<ReviewPage> fetchReviews(String id, {int page = 1, int perPage = 20}) async =>
+      const ReviewPage();
 }
 
 Future<ProviderContainer> _container() async {

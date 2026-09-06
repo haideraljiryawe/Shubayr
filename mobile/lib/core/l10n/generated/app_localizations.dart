@@ -548,6 +548,30 @@ abstract class AppLocalizations {
   /// **'Only {count} left'**
   String productLowStock(String count);
 
+  /// No description provided for @productReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews'**
+  String get productReviews;
+
+  /// No description provided for @productNoReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'No reviews yet'**
+  String get productNoReviews;
+
+  /// Number of reviews shown in the product detail summary; count is a string to stay Western-Arabic.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} reviews'**
+  String productReviewsCount(String count);
+
+  /// No description provided for @productVerifiedPurchase.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified purchase'**
+  String get productVerifiedPurchase;
+
   /// No description provided for @productReviewsSoon.
   ///
   /// In en, this message translates to:

@@ -3,6 +3,7 @@ import 'category.dart';
 import 'product.dart';
 import 'product_availability.dart';
 import 'product_page.dart';
+import 'review.dart';
 
 /// In-memory catalog for development before the backend is live.
 ///
@@ -343,6 +344,54 @@ class CatalogRepositoryMock implements CatalogRepository {
       inStock: total > 0,
       availableQty: total,
       variants: variants,
+    );
+  }
+
+  // Sample review bodies: (comment, rating, verifiedPurchase).
+  static const _reviewPool = <(String, int, bool)>[
+    ('ممتاز وجودته عالية، أنصح به بشدة.', 5, true),
+    ('جيّد جدًا لكن التوصيل تأخّر يومًا.', 4, true),
+    ('مقبول مقابل السعر.', 3, false),
+    ('المنتج مطابق للوصف تمامًا، شكرًا.', 5, true),
+    ('لم يعجبني كثيرًا، الجودة أقل من المتوقّع.', 2, true),
+  ];
+
+  /// Deterministic reviews per product — a couple of products land on zero so
+  /// the empty state shows too.
+  List<Review> _reviewsFor(String id) {
+    final count = id.codeUnits.fold<int>(0, (a, b) => a + b) % 6;
+    final now = DateTime.now();
+    return [
+      for (var i = 0; i < count; i++)
+        Review(
+          id: '$id-r$i',
+          productId: id,
+          userId: 'user-$i',
+          rating: _reviewPool[i % _reviewPool.length].$2,
+          comment: _reviewPool[i % _reviewPool.length].$1,
+          verifiedPurchase: _reviewPool[i % _reviewPool.length].$3,
+          createdAt: now.subtract(Duration(days: i * 5 + 2)),
+        ),
+    ];
+  }
+
+  @override
+  Future<ReviewPage> fetchReviews(
+    String id, {
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    await Future<void>.delayed(delay);
+    final all = _reviewsFor(id);
+    final start = (page - 1) * perPage;
+    final data = start >= all.length
+        ? <Review>[]
+        : all.sublist(start, (start + perPage).clamp(0, all.length));
+    return ReviewPage(
+      page: page,
+      perPage: perPage,
+      total: all.length,
+      data: data,
     );
   }
 }

@@ -13,6 +13,7 @@ import '../../data/product.dart';
 import '../../data/product_availability.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/product_gallery.dart';
+import '../widgets/reviews_section.dart';
 
 /// Product detail: gallery, price, selectable variants with live availability
 /// and description, with a sticky add-to-cart bar. Reviews and wishlist arrive
@@ -169,6 +170,11 @@ class _DetailState extends ConsumerState<_Detail> {
                         ),
                       ),
                     ],
+                    const SizedBox(height: AppSpacing.lg),
+                    ReviewsSection(
+                      productId: product.id,
+                      ratingAvg: product.ratingAvg,
+                    ),
                   ],
                 ),
               ),

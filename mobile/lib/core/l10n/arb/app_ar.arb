@@ -86,6 +86,10 @@
   "productVariants": "الخيارات",
   "productInStock": "متوفّر",
   "productLowStock": "باقٍ {count}",
+  "productReviews": "التقييمات",
+  "productNoReviews": "لا توجد تقييمات بعد",
+  "productReviewsCount": "{count} تقييم",
+  "productVerifiedPurchase": "شراء موثّق",
   "productReviewsSoon": "التقييمات قريبًا.",
 
   "searchHint": "ابحث عن منتج",

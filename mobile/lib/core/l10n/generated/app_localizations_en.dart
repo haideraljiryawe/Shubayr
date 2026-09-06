@@ -246,6 +246,20 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get productReviews => 'Reviews';
+
+  @override
+  String get productNoReviews => 'No reviews yet';
+
+  @override
+  String productReviewsCount(String count) {
+    return '$count reviews';
+  }
+
+  @override
+  String get productVerifiedPurchase => 'Verified purchase';
+
+  @override
   String get productReviewsSoon => 'Reviews are coming soon.';
 
   @override
