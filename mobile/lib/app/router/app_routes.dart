@@ -12,6 +12,9 @@ abstract final class AppRoutes {
   static const orders = '/orders';
   static const account = '/account';
 
+  // A single order's details + tracking, pushed full-screen over the shell.
+  static const orderDetail = '/orders/:id';
+
   // Role areas.
   static const delivery = '/delivery';
   static const admin = '/admin';
@@ -46,6 +49,7 @@ abstract final class AppRoutes {
   static const categoriesName = 'categories';
   static const cartName = 'cart';
   static const ordersName = 'orders';
+  static const orderDetailName = 'order-detail';
   static const accountName = 'account';
   static const deliveryName = 'delivery';
   static const adminName = 'admin';

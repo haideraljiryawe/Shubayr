@@ -97,8 +97,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final order = await ref
           .read(orderRepositoryProvider)
           .placeOrder(addressId: addressId, couponCode: _coupon?.code);
-      // The order consumed the cart; refresh so the badge and cart clear.
+      // The order consumed the cart; refresh so the badge and cart clear, and
+      // refresh the orders list so the new order appears there.
       ref.invalidate(cartControllerProvider);
+      ref.invalidate(ordersProvider);
       if (!mounted) return;
       setState(() {
         _placed = order;
@@ -624,7 +626,13 @@ class _SuccessView extends StatelessWidget {
               ),
               const Spacer(),
               AppButton(
+                label: l10n.checkoutViewOrders,
+                onPressed: () => context.go(AppRoutes.orders),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppButton(
                 label: l10n.checkoutBackHome,
+                variant: AppButtonVariant.secondary,
                 onPressed: () => context.go(AppRoutes.home),
               ),
             ],

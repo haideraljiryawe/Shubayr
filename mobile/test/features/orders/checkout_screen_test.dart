@@ -9,6 +9,7 @@ import 'package:shubayr/features/cart/data/cart.dart';
 import 'package:shubayr/features/cart/presentation/providers/cart_providers.dart';
 import 'package:shubayr/features/orders/data/coupon.dart';
 import 'package:shubayr/features/orders/data/order.dart';
+import 'package:shubayr/features/orders/data/order_tracking.dart';
 import 'package:shubayr/features/orders/domain/order_repository.dart';
 import 'package:shubayr/features/orders/presentation/providers/order_providers.dart';
 import 'package:shubayr/features/orders/presentation/screens/checkout_screen.dart';
@@ -38,6 +39,24 @@ class _FakeOrders implements OrderRepository {
     required String addressId,
     String? couponCode,
   }) async => const Order(id: 'o1', orderNumber: 'SH-1', total: 55000);
+
+  @override
+  Future<OrderPage> fetchOrders({
+    String? status,
+    int page = 1,
+    int perPage = 20,
+  }) async => const OrderPage();
+
+  @override
+  Future<Order> fetchOrder(String id) async => Order(id: id);
+
+  @override
+  Future<OrderTracking> fetchTracking(String id) async =>
+      OrderTracking(orderId: id);
+
+  @override
+  Future<Order> cancelOrder(String id) async =>
+      Order(id: id, status: 'cancelled');
 }
 
 Widget _host() => ProviderScope(

@@ -313,7 +313,83 @@ class AppLocalizationsAr extends AppLocalizations {
   String get checkoutBackHome => 'العودة للتسوّق';
 
   @override
+  String get checkoutViewOrders => 'عرض طلباتي';
+
+  @override
   String get ordersTitle => 'الطلبات';
+
+  @override
+  String get ordersEmptyTitle => 'لا طلبات بعد';
+
+  @override
+  String get ordersEmptyMessage => 'ابدأ التسوّق وستظهر طلباتك هنا.';
+
+  @override
+  String orderItemsCount(String count) {
+    return '$count منتجات';
+  }
+
+  @override
+  String get orderDetailTitle => 'تفاصيل الطلب';
+
+  @override
+  String get orderItemsSection => 'المنتجات';
+
+  @override
+  String orderLineQuantity(String count) {
+    return 'الكمية: $count';
+  }
+
+  @override
+  String get orderSummary => 'ملخّص الطلب';
+
+  @override
+  String get orderDate => 'تاريخ الطلب';
+
+  @override
+  String get orderTrackingTitle => 'تتبّع الطلب';
+
+  @override
+  String get orderCancel => 'إلغاء الطلب';
+
+  @override
+  String get orderCancelTitle => 'إلغاء هذا الطلب؟';
+
+  @override
+  String get orderCancelMessage => 'لا يمكن التراجع بعد الإلغاء.';
+
+  @override
+  String get orderKeepOrder => 'تراجع';
+
+  @override
+  String get orderCancelledDone => 'تم إلغاء الطلب.';
+
+  @override
+  String get orderStatusPending => 'قيد الانتظار';
+
+  @override
+  String get orderStatusConfirmed => 'مؤكّد';
+
+  @override
+  String get orderStatusProcessing => 'قيد التجهيز';
+
+  @override
+  String get orderStatusOutForDelivery => 'قيد التوصيل';
+
+  @override
+  String get orderStatusDelivered => 'تم التوصيل';
+
+  @override
+  String get orderStatusFailedDelivery => 'تعذّر التوصيل';
+
+  @override
+  String get orderStatusCancelled => 'ملغى';
+
+  @override
+  String get orderStatusReturnRequested => 'طلب إرجاع';
+
+  @override
+  String get orderStatusReturned => 'مُرجَع';
 
   @override
   String get deliveryTitle => 'التوصيل';

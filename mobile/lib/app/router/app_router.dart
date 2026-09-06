@@ -8,6 +8,7 @@ import '../../core/widgets/state_views.dart';
 import '../../features/address/presentation/screens/addresses_screen.dart';
 import '../../features/admin/presentation/screens/admin_home_screen.dart';
 import '../../features/orders/presentation/screens/checkout_screen.dart';
+import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/dev/presentation/screens/design_gallery_screen.dart';
 import '../../features/auth/domain/user_role.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
@@ -223,6 +224,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.checkoutName,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const CheckoutScreen(),
+      ),
+      // A single order's details + tracking — full-screen over the shell,
+      // reached from the orders tab (matches the product-detail pattern).
+      GoRoute(
+        path: AppRoutes.orderDetail,
+        name: AppRoutes.orderDetailName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) =>
+            OrderDetailScreen(orderId: state.pathParameters['id']!),
       ),
 
       GoRoute(

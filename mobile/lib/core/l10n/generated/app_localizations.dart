@@ -692,11 +692,155 @@ abstract class AppLocalizations {
   /// **'Back to shopping'**
   String get checkoutBackHome;
 
+  /// No description provided for @checkoutViewOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'View my orders'**
+  String get checkoutViewOrders;
+
   /// No description provided for @ordersTitle.
   ///
   /// In en, this message translates to:
   /// **'Orders'**
   String get ordersTitle;
+
+  /// No description provided for @ordersEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders yet'**
+  String get ordersEmptyTitle;
+
+  /// No description provided for @ordersEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Start shopping and your orders will appear here.'**
+  String get ordersEmptyMessage;
+
+  /// Item count on an order card; count is a string so it stays Western-Arabic.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String orderItemsCount(String count);
+
+  /// No description provided for @orderDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order details'**
+  String get orderDetailTitle;
+
+  /// No description provided for @orderItemsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get orderItemsSection;
+
+  /// Quantity of an order line; count is a string so it stays Western-Arabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Qty: {count}'**
+  String orderLineQuantity(String count);
+
+  /// No description provided for @orderSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Order summary'**
+  String get orderSummary;
+
+  /// No description provided for @orderDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Order date'**
+  String get orderDate;
+
+  /// No description provided for @orderTrackingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order tracking'**
+  String get orderTrackingTitle;
+
+  /// No description provided for @orderCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel order'**
+  String get orderCancel;
+
+  /// No description provided for @orderCancelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel this order?'**
+  String get orderCancelTitle;
+
+  /// No description provided for @orderCancelMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This can\'t be undone once cancelled.'**
+  String get orderCancelMessage;
+
+  /// No description provided for @orderKeepOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep order'**
+  String get orderKeepOrder;
+
+  /// No description provided for @orderCancelledDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Order cancelled.'**
+  String get orderCancelledDone;
+
+  /// No description provided for @orderStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get orderStatusPending;
+
+  /// No description provided for @orderStatusConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get orderStatusConfirmed;
+
+  /// No description provided for @orderStatusProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get orderStatusProcessing;
+
+  /// No description provided for @orderStatusOutForDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Out for delivery'**
+  String get orderStatusOutForDelivery;
+
+  /// No description provided for @orderStatusDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get orderStatusDelivered;
+
+  /// No description provided for @orderStatusFailedDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery failed'**
+  String get orderStatusFailedDelivery;
+
+  /// No description provided for @orderStatusCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get orderStatusCancelled;
+
+  /// No description provided for @orderStatusReturnRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Return requested'**
+  String get orderStatusReturnRequested;
+
+  /// No description provided for @orderStatusReturned.
+  ///
+  /// In en, this message translates to:
+  /// **'Returned'**
+  String get orderStatusReturned;
 
   /// No description provided for @deliveryTitle.
   ///

@@ -318,7 +318,84 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutBackHome => 'Back to shopping';
 
   @override
+  String get checkoutViewOrders => 'View my orders';
+
+  @override
   String get ordersTitle => 'Orders';
+
+  @override
+  String get ordersEmptyTitle => 'No orders yet';
+
+  @override
+  String get ordersEmptyMessage =>
+      'Start shopping and your orders will appear here.';
+
+  @override
+  String orderItemsCount(String count) {
+    return '$count items';
+  }
+
+  @override
+  String get orderDetailTitle => 'Order details';
+
+  @override
+  String get orderItemsSection => 'Items';
+
+  @override
+  String orderLineQuantity(String count) {
+    return 'Qty: $count';
+  }
+
+  @override
+  String get orderSummary => 'Order summary';
+
+  @override
+  String get orderDate => 'Order date';
+
+  @override
+  String get orderTrackingTitle => 'Order tracking';
+
+  @override
+  String get orderCancel => 'Cancel order';
+
+  @override
+  String get orderCancelTitle => 'Cancel this order?';
+
+  @override
+  String get orderCancelMessage => 'This can\'t be undone once cancelled.';
+
+  @override
+  String get orderKeepOrder => 'Keep order';
+
+  @override
+  String get orderCancelledDone => 'Order cancelled.';
+
+  @override
+  String get orderStatusPending => 'Pending';
+
+  @override
+  String get orderStatusConfirmed => 'Confirmed';
+
+  @override
+  String get orderStatusProcessing => 'Processing';
+
+  @override
+  String get orderStatusOutForDelivery => 'Out for delivery';
+
+  @override
+  String get orderStatusDelivered => 'Delivered';
+
+  @override
+  String get orderStatusFailedDelivery => 'Delivery failed';
+
+  @override
+  String get orderStatusCancelled => 'Cancelled';
+
+  @override
+  String get orderStatusReturnRequested => 'Return requested';
+
+  @override
+  String get orderStatusReturned => 'Returned';
 
   @override
   String get deliveryTitle => 'Deliveries';

@@ -70,3 +70,25 @@ class OrderItem {
 
   Map<String, dynamic> toJson() => _$OrderItemToJson(this);
 }
+
+/// One page of orders. Matches `OrderPage` in `api/openapi.yaml`.
+@JsonSerializable(explicitToJson: true)
+class OrderPage {
+  const OrderPage({
+    this.page = 1,
+    this.perPage = 20,
+    this.total = 0,
+    this.data = const [],
+  });
+
+  final int page;
+  @JsonKey(name: 'per_page')
+  final int perPage;
+  final int total;
+  final List<Order> data;
+
+  factory OrderPage.fromJson(Map<String, dynamic> json) =>
+      _$OrderPageFromJson(json);
+
+  Map<String, dynamic> toJson() => _$OrderPageToJson(this);
+}

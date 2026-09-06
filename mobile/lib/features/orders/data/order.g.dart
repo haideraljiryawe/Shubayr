@@ -57,3 +57,21 @@ Map<String, dynamic> _$OrderItemToJson(OrderItem instance) => <String, dynamic>{
   'unit_price': instance.unitPrice,
   'line_total': instance.lineTotal,
 };
+
+OrderPage _$OrderPageFromJson(Map<String, dynamic> json) => OrderPage(
+  page: (json['page'] as num?)?.toInt() ?? 1,
+  perPage: (json['per_page'] as num?)?.toInt() ?? 20,
+  total: (json['total'] as num?)?.toInt() ?? 0,
+  data:
+      (json['data'] as List<dynamic>?)
+          ?.map((e) => Order.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
+);
+
+Map<String, dynamic> _$OrderPageToJson(OrderPage instance) => <String, dynamic>{
+  'page': instance.page,
+  'per_page': instance.perPage,
+  'total': instance.total,
+  'data': instance.data.map((e) => e.toJson()).toList(),
+};
