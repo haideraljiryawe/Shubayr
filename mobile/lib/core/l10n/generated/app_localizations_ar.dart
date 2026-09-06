@@ -371,7 +371,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get orderCancelledDone => 'تم إلغاء الطلب.';
 
   @override
-  String get orderStatusPending => 'قيد الانتظار';
+  String get orderStatusPending => 'بانتظار القبول';
 
   @override
   String get orderStatusConfirmed => 'مؤكّد';

@@ -126,7 +126,7 @@
   "orderCancelMessage": "لا يمكن التراجع بعد الإلغاء.",
   "orderKeepOrder": "تراجع",
   "orderCancelledDone": "تم إلغاء الطلب.",
-  "orderStatusPending": "قيد الانتظار",
+  "orderStatusPending": "بانتظار القبول",
   "orderStatusConfirmed": "مؤكّد",
   "orderStatusProcessing": "قيد التجهيز",
   "orderStatusOutForDelivery": "قيد التوصيل",

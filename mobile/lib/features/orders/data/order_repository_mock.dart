@@ -36,6 +36,12 @@ class OrderRepositoryMock implements OrderRepository {
     final now = DateTime.now();
     _orders.addAll([
       _demoOrder(
+        number: 1063,
+        status: 'pending',
+        placedAt: now.subtract(const Duration(minutes: 20)),
+        lines: const [('p2', null, 1)],
+      ),
+      _demoOrder(
         number: 1061,
         status: 'processing',
         placedAt: now.subtract(const Duration(hours: 3)),
