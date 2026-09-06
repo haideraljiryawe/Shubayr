@@ -12,6 +12,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
+import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../catalog/data/product.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
@@ -34,6 +35,10 @@ class CartScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l10n.cartTitle)),
       body: AsyncValueView(
         value: cart,
+        loading: const Padding(
+          padding: EdgeInsets.all(AppSpacing.screenH),
+          child: SkeletonList(),
+        ),
         onRetry: () => ref.invalidate(cartControllerProvider),
         builder: (context, c) {
           if (c.isEmpty) {

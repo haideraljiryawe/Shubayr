@@ -79,7 +79,8 @@ class _SkeletonState extends State<Skeleton>
   }
 }
 
-/// A stack of skeleton lines — the default "list is loading" placeholder.
+/// A stack of media rows (thumbnail + two lines) — the "list is loading"
+/// placeholder for lists that show a leading image, e.g. the cart.
 class SkeletonList extends StatelessWidget {
   const SkeletonList({super.key, this.itemCount = 4});
 
@@ -87,31 +88,63 @@ class SkeletonList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < itemCount; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Skeleton.box(width: 72, height: 72),
-                SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Skeleton.line(width: 180),
-                      SizedBox(height: AppSpacing.sm),
-                      Skeleton.line(width: 120),
-                    ],
+    // A non-scrolling scroll view so a placeholder taller than its slot clips
+    // rather than overflowing (e.g. on short screens or in tests).
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < itemCount; i++)
+            const Padding(
+              padding: EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Skeleton.box(width: 72, height: 72),
+                  SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Skeleton.line(width: 180),
+                        SizedBox(height: AppSpacing.sm),
+                        Skeleton.line(width: 120),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A stack of full-width card-shaped placeholders — the "list is loading"
+/// placeholder for [AppCard]-based lists with no leading thumbnail (orders,
+/// addresses, and the sections of a detail screen).
+class SkeletonCardList extends StatelessWidget {
+  const SkeletonCardList({super.key, this.itemCount = 5, this.height = 96});
+
+  final int itemCount;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < itemCount; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: Skeleton(height: height, borderRadius: AppRadii.lgAll),
+            ),
+        ],
+      ),
     );
   }
 }

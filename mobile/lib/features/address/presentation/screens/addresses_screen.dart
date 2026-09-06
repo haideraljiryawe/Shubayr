@@ -9,6 +9,7 @@ import '../../../../core/theme/tokens/app_radii.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../data/address.dart';
 import '../providers/address_providers.dart';
@@ -32,6 +33,10 @@ class AddressesScreen extends ConsumerWidget {
       ),
       body: AsyncValueView(
         value: addresses,
+        loading: const Padding(
+          padding: EdgeInsets.all(AppSpacing.screenH),
+          child: SkeletonCardList(itemCount: 3),
+        ),
         onRetry: () => ref.invalidate(addressesControllerProvider),
         builder: (context, list) {
           if (list.isEmpty) {

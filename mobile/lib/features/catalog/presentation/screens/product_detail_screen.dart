@@ -13,6 +13,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
+import '../../../../core/widgets/skeleton.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
@@ -41,12 +42,44 @@ class ProductDetailScreen extends ConsumerWidget {
         appBar: AppBar(),
         body: AsyncValueView(
           value: product,
+          loading: const _DetailSkeleton(),
           onRetry: () => ref.invalidate(productProvider(productId)),
           builder: (context, p) => _Detail(product: p),
         ),
       ),
     );
   }
+}
+
+/// Loading placeholder mirroring the detail layout: gallery, then name/price
+/// and the action area.
+class _DetailSkeleton extends StatelessWidget {
+  const _DetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: EdgeInsets.zero,
+    children: const [
+      Skeleton(width: double.infinity, height: 320, borderRadius: BorderRadius.zero),
+      Padding(
+        padding: EdgeInsets.all(AppSpacing.screenH),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Skeleton.line(width: 220, height: 24),
+            SizedBox(height: AppSpacing.md),
+            Skeleton.line(width: 120, height: 20),
+            SizedBox(height: AppSpacing.lg),
+            Skeleton(width: double.infinity, height: 52, borderRadius: AppRadii.lgAll),
+            SizedBox(height: AppSpacing.lg),
+            Skeleton.line(width: 140, height: 16),
+            SizedBox(height: AppSpacing.sm),
+            Skeleton(width: double.infinity, height: 72, borderRadius: AppRadii.lgAll),
+          ],
+        ),
+      ),
+    ],
+  );
 }
 
 /// Stock resolved for what the shopper currently has selected.

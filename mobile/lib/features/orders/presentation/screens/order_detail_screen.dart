@@ -13,6 +13,7 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/widgets/skeleton.dart';
 import '../../../catalog/data/product.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
@@ -96,6 +97,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       appBar: AppBar(title: Text(l10n.orderDetailTitle)),
       body: AsyncValueView(
         value: order,
+        loading: const Padding(
+          padding: EdgeInsets.all(AppSpacing.screenH),
+          child: SkeletonCardList(itemCount: 4, height: 120),
+        ),
         onRetry: () => ref.invalidate(orderProvider(widget.orderId)),
         builder: (context, o) => ListView(
           padding: const EdgeInsets.all(AppSpacing.screenH),

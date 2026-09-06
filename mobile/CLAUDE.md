@@ -40,6 +40,13 @@ them briefly, recommend one, and ask when the choice shapes the project's future
 - Text/background pairs must read in **both** light and dark mode: use the matching
   on-token (`onPrimary` on `primary`; `textPrimary` on `accentSoft`/`primarySoft`;
   `onAccent` only on the solid `accent`).
+- **Loading states use a skeleton, not a bare spinner.** Every list/grid/detail data load
+  passes a layout-matching skeleton to `AsyncValueView(loading:)`, built from the central
+  skeleton system (`Skeleton`/`Skeleton.line`/`Skeleton.box`, `SkeletonList` for media
+  lists, `SkeletonCardList` for `AppCard`-based lists, or a small local composition for a
+  unique layout). The skeleton must mirror the real layout so content swaps in place. Keep
+  the default centered spinner (`AppLoadingView`) only for tiny or inline loads (a small
+  sheet, a button). When you add a new data screen, add its skeleton in the same change.
 - When several screens genuinely need the same rich behaviour, build one **configurable
   shared widget/service** instead of copying it — but don't abstract for a few similar
   lines, don't drown a shared component in flags just to be DRY, and let an abstraction
