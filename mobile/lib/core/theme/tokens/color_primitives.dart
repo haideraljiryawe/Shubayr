@@ -7,7 +7,8 @@ import 'package:flutter/painting.dart';
 /// tokens from `AppColors` (a [ThemeExtension]) instead.
 abstract final class ColorPrimitives {
   // Brand — muted modern green (bundled default; overridable at runtime).
-  static const Color green500 = Color(0xFF5B8F6B);
+  //static const Color green500 = Color(0xFF5B8F6B);
+  static const Color green500 = Color(0xFF438C59);
 
   // Warm neutrals — the app sits on warm off-white, not pure white.
   static const Color sand50 = Color(0xFFFAF7F2); // app background
@@ -23,6 +24,12 @@ abstract final class ColorPrimitives {
 
   // Accent — warm amber, pairs with the green without reading "botanical".
   static const Color amber500 = Color(0xFFC98A3C);
+
+  // Dark green "confirmation" surface for positive snackbars/toasts. Kept the
+  // same in light and dark themes: like other transient overlay chrome, it is a
+  // fixed dark surface rather than a themed one, so an "added to cart" toast
+  // reads the same everywhere and never inverts to a light fill in dark mode.
+  static const Color confirmSurface = Color(0xFF1F2922);
 
   // Status.
   static const Color success500 = Color(0xFF2E7D4F);

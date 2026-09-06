@@ -28,6 +28,8 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.textSecondary,
     required this.textMuted,
     required this.onDark,
+    required this.confirmSurface,
+    required this.onConfirmSurface,
     required this.border,
     required this.divider,
     required this.success,
@@ -81,6 +83,8 @@ class AppColors extends ThemeExtension<AppColors> {
       textSecondary: ColorPrimitives.ink600,
       textMuted: ColorPrimitives.ink400,
       onDark: ColorPrimitives.white,
+      confirmSurface: ColorPrimitives.confirmSurface,
+      onConfirmSurface: ColorPrimitives.mist100,
       border: ColorPrimitives.sand200,
       divider: ColorPrimitives.sand150,
       success: ColorPrimitives.success500,
@@ -121,6 +125,8 @@ class AppColors extends ThemeExtension<AppColors> {
       textSecondary: ColorPrimitives.mist300,
       textMuted: ColorPrimitives.mist500,
       onDark: ColorPrimitives.white,
+      confirmSurface: ColorPrimitives.confirmSurface,
+      onConfirmSurface: ColorPrimitives.mist100,
       border: ColorPrimitives.charcoal600,
       divider: ColorPrimitives.charcoal650,
       success: ColorPrimitives.successDark,
@@ -160,6 +166,12 @@ class AppColors extends ThemeExtension<AppColors> {
 
   /// Text/icon colour on top of dark or saturated fills.
   final Color onDark;
+
+  /// Dark surface for positive/confirmation snackbars (e.g. "added to cart");
+  /// fixed across light and dark themes. [onConfirmSurface] is its off-white
+  /// text colour.
+  final Color confirmSurface;
+  final Color onConfirmSurface;
 
   final Color border;
   final Color divider;
@@ -220,6 +232,8 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? textSecondary,
     Color? textMuted,
     Color? onDark,
+    Color? confirmSurface,
+    Color? onConfirmSurface,
     Color? border,
     Color? divider,
     Color? success,
@@ -244,6 +258,8 @@ class AppColors extends ThemeExtension<AppColors> {
       textSecondary: textSecondary ?? this.textSecondary,
       textMuted: textMuted ?? this.textMuted,
       onDark: onDark ?? this.onDark,
+      confirmSurface: confirmSurface ?? this.confirmSurface,
+      onConfirmSurface: onConfirmSurface ?? this.onConfirmSurface,
       border: border ?? this.border,
       divider: divider ?? this.divider,
       success: success ?? this.success,
@@ -275,6 +291,8 @@ class AppColors extends ThemeExtension<AppColors> {
       textSecondary: mix(textSecondary, other.textSecondary),
       textMuted: mix(textMuted, other.textMuted),
       onDark: mix(onDark, other.onDark),
+      confirmSurface: mix(confirmSurface, other.confirmSurface),
+      onConfirmSurface: mix(onConfirmSurface, other.onConfirmSurface),
       border: mix(border, other.border),
       divider: mix(divider, other.divider),
       success: mix(success, other.success),

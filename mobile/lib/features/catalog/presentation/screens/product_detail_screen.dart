@@ -406,11 +406,21 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
       _showSnack(SnackBar(content: Text(l10n.stateErrorTitle)));
       return;
     }
+    // The positive "added" state gets its own dark-green confirmation surface
+    // (a design-system token), distinct from the neutral error/prompt snackbars.
+    final colors = context.colors;
     _showSnack(
       SnackBar(
-        content: Text(l10n.cartAdded),
+        backgroundColor: colors.confirmSurface,
+        content: Text(
+          l10n.cartAdded,
+          style: context.text.bodyMedium?.copyWith(
+            color: colors.onConfirmSurface,
+          ),
+        ),
         action: SnackBarAction(
           label: l10n.cartViewCart,
+          textColor: colors.primaryLight,
           onPressed: () => router.go(AppRoutes.cart),
         ),
       ),
