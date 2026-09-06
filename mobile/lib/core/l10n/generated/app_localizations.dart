@@ -584,6 +584,12 @@ abstract class AppLocalizations {
   /// **'Options'**
   String get productVariants;
 
+  /// No description provided for @productQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity'**
+  String get productQuantity;
+
   /// No description provided for @productInStock.
   ///
   /// In en, this message translates to:

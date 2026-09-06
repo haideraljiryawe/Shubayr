@@ -95,6 +95,7 @@
   "productNegotiable": "Negotiable",
   "productAddToCart": "Add to cart",
   "productVariants": "Options",
+  "productQuantity": "Quantity",
   "productInStock": "In stock",
   "productLowStock": "Only {count} left",
   "@productLowStock": { "description": "Low-stock hint on product detail; count is passed as a string so it stays Western-Arabic.", "placeholders": { "count": { "type": "String" } } },

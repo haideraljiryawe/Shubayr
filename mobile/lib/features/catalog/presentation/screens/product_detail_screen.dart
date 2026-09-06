@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/widgets/quantity_stepper.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
@@ -31,12 +34,16 @@ class ProductDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final product = ref.watch(productProvider(productId));
 
-    return Scaffold(
-      appBar: AppBar(),
-      body: AsyncValueView(
-        value: product,
-        onRetry: () => ref.invalidate(productProvider(productId)),
-        builder: (context, p) => _Detail(product: p),
+    // A screen-local messenger so the add-to-cart snackbar animates in place and
+    // disappears the instant the user leaves, instead of lingering on the root.
+    return ScaffoldMessenger(
+      child: Scaffold(
+        appBar: AppBar(),
+        body: AsyncValueView(
+          value: product,
+          onRetry: () => ref.invalidate(productProvider(productId)),
+          builder: (context, p) => _Detail(product: p),
+        ),
       ),
     );
   }
@@ -56,6 +63,7 @@ class _Detail extends ConsumerStatefulWidget {
 
 class _DetailState extends ConsumerState<_Detail> {
   String? _selectedVariantId;
+  int _quantity = 1;
 
   @override
   void initState() {
@@ -160,6 +168,22 @@ class _DetailState extends ConsumerState<_Detail> {
                             setState(() => _selectedVariantId = id),
                       ),
                     ],
+                    if (stock.inStock) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      Row(
+                        children: [
+                          Text(
+                            l10n.productQuantity,
+                            style: context.text.titleSmall,
+                          ),
+                          const Spacer(),
+                          QuantityStepper(
+                            quantity: _quantity,
+                            onChanged: (q) => setState(() => _quantity = q),
+                          ),
+                        ],
+                      ),
+                    ],
                     if (product.description.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.lg),
                       Text(
@@ -188,6 +212,7 @@ class _DetailState extends ConsumerState<_Detail> {
         _AddToCartBar(
           productId: product.id,
           variantId: _selectedVariantId,
+          quantity: _quantity,
           inStock: stock.inStock,
         ),
       ],
@@ -310,11 +335,13 @@ class _AddToCartBar extends ConsumerStatefulWidget {
   const _AddToCartBar({
     required this.productId,
     required this.variantId,
+    required this.quantity,
     required this.inStock,
   });
 
   final String productId;
   final String? variantId;
+  final int quantity;
   final bool inStock;
 
   @override
@@ -323,17 +350,36 @@ class _AddToCartBar extends ConsumerStatefulWidget {
 
 class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
   bool _busy = false;
+  Timer? _snackTimer;
+
+  @override
+  void dispose() {
+    _snackTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Shows a snackbar that slides out again after 3 seconds. We drive the
+  /// dismissal ourselves so the timing is reliable, and it also disappears with
+  /// the screen (this bar lives under the detail's own [ScaffoldMessenger]).
+  void _showSnack(SnackBar snack) {
+    _snackTimer?.cancel();
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(snack);
+    _snackTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    });
+  }
 
   Future<void> _onPressed() async {
     final l10n = context.l10n;
-    final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
 
     // The cart is server-side; a guest must sign in first.
     final signedIn =
         ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ?? false;
     if (!signedIn) {
-      messenger.showSnackBar(
+      _showSnack(
         SnackBar(
           content: Text(l10n.cartSignInPrompt),
           action: SnackBarAction(
@@ -348,15 +394,19 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     setState(() => _busy = true);
     await ref
         .read(cartControllerProvider.notifier)
-        .add(productId: widget.productId, variantId: widget.variantId);
+        .add(
+          productId: widget.productId,
+          variantId: widget.variantId,
+          quantity: widget.quantity,
+        );
     if (!mounted) return;
     setState(() => _busy = false);
 
     if (ref.read(cartControllerProvider).hasError) {
-      messenger.showSnackBar(SnackBar(content: Text(l10n.stateErrorTitle)));
+      _showSnack(SnackBar(content: Text(l10n.stateErrorTitle)));
       return;
     }
-    messenger.showSnackBar(
+    _showSnack(
       SnackBar(
         content: Text(l10n.cartAdded),
         action: SnackBarAction(

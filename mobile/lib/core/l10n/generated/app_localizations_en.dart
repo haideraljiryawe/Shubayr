@@ -262,6 +262,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productVariants => 'Options';
 
   @override
+  String get productQuantity => 'Quantity';
+
+  @override
   String get productInStock => 'In stock';
 
   @override

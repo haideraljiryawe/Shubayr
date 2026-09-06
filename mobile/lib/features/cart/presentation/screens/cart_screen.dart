@@ -9,6 +9,7 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/widgets/quantity_stepper.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../catalog/data/product.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
@@ -118,7 +119,7 @@ class _CartLine extends ConsumerWidget {
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
-                  _QtyStepper(
+                  QuantityStepper(
                     quantity: item.quantity,
                     onChanged: (q) => ref
                         .read(cartControllerProvider.notifier)
@@ -172,63 +173,6 @@ class _Thumb extends StatelessWidget {
                 placeholder: (_, _) => ColoredBox(color: colors.surfaceAlt),
                 errorWidget: (_, _, _) => fallback(),
               ),
-      ),
-    );
-  }
-}
-
-class _QtyStepper extends StatelessWidget {
-  const _QtyStepper({required this.quantity, required this.onChanged});
-
-  final int quantity;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.border),
-        borderRadius: AppRadii.controlAll,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _StepButton(
-            icon: Icons.remove,
-            // Minimum is 1; removing entirely uses the × button.
-            onTap: quantity > 1 ? () => onChanged(quantity - 1) : null,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Text('$quantity', style: context.text.labelLarge),
-          ),
-          _StepButton(icon: Icons.add, onTap: () => onChanged(quantity + 1)),
-        ],
-      ),
-    );
-  }
-}
-
-class _StepButton extends StatelessWidget {
-  const _StepButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppRadii.controlAll,
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: Icon(
-          icon,
-          size: 18,
-          color: onTap == null ? colors.textMuted : colors.textPrimary,
-        ),
       ),
     );
   }

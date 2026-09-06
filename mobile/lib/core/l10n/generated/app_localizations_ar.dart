@@ -211,7 +211,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get cartRemove => 'إزالة';
 
   @override
-  String get cartAdded => 'أُضيف إلى السلة';
+  String get cartAdded => 'تمت إضافته إلى السلة';
 
   @override
   String get cartViewCart => 'عرض السلة';
@@ -257,6 +257,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get productVariants => 'الخيارات';
+
+  @override
+  String get productQuantity => 'الكمية';
 
   @override
   String get productInStock => 'متوفّر';

@@ -119,6 +119,19 @@ void main() {
     expect(find.text('In stock'), findsOneWidget);
   });
 
+  testWidgets('the detail quantity stepper adjusts the amount', (tester) async {
+    sizePhone(tester);
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quantity'), findsOneWidget);
+    final add = find.byIcon(Icons.add);
+    await tester.ensureVisible(add);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    expect(find.text('2'), findsOneWidget);
+  });
+
   testWidgets('a sold-out variant cannot be selected', (tester) async {
     sizePhone(tester);
     await tester.pumpWidget(_host());
