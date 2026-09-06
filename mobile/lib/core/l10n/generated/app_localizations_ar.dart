@@ -211,13 +211,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get cartRemove => 'إزالة';
 
   @override
-  String get cartAdded => 'تمت إضافته إلى السلة';
+  String get cartAdded => 'تمت الإضافة إلى السلة';
 
   @override
   String get cartViewCart => 'عرض السلة';
 
   @override
-  String get cartSignInPrompt => 'سجّل الدخول لإضافة إلى السلة';
+  String get cartSignInPrompt => 'سجّل الدخول للإضافة إلى السلة';
 
   @override
   String get ordersTitle => 'الطلبات';
