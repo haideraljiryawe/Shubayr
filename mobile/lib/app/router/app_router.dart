@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/l10n/l10n_context.dart';
 import '../../core/widgets/state_views.dart';
+import '../../features/address/presentation/screens/addresses_screen.dart';
 import '../../features/admin/presentation/screens/admin_home_screen.dart';
 import '../../features/dev/presentation/screens/design_gallery_screen.dart';
 import '../../features/auth/domain/user_role.dart';
@@ -209,6 +210,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.profileName,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addresses,
+        name: AppRoutes.addressesName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AddressesScreen(),
       ),
 
       GoRoute(

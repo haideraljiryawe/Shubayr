@@ -31,6 +31,9 @@ abstract final class AppRoutes {
   static const settings = '/settings';
   static const profile = '/profile';
 
+  // The customer's saved delivery addresses (auth required).
+  static const addresses = '/addresses';
+
   // Developer-only design gallery (reachable in debug builds only).
   static const design = '/design';
 
@@ -47,5 +50,6 @@ abstract final class AppRoutes {
   static const searchName = 'search';
   static const settingsName = 'settings';
   static const profileName = 'profile';
+  static const addressesName = 'addresses';
   static const designName = 'design';
 }

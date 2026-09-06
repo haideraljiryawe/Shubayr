@@ -37,6 +37,18 @@ class AccountView extends ConsumerWidget {
       children: [
         isSignedIn ? _ProfileCard(session: session!) : const _SignInCard(),
         const SizedBox(height: AppSpacing.lg),
+        if (isSignedIn) ...[
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: Text(l10n.addressesTitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.pushNamed(AppRoutes.addressesName),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
         _SectionLabel(l10n.accountPreferences),
         const _PreferencesCard(),
         const SizedBox(height: AppSpacing.lg),

@@ -223,6 +223,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cartSignInPrompt => 'Sign in to add to cart';
 
   @override
+  String get addressesTitle => 'Addresses';
+
+  @override
+  String get addressAdd => 'Add address';
+
+  @override
+  String get addressEdit => 'Edit address';
+
+  @override
+  String get addressEmptyTitle => 'No saved addresses';
+
+  @override
+  String get addressEmptyMessage =>
+      'Add a delivery address to speed up checkout.';
+
+  @override
+  String get addressLabel => 'Label';
+
+  @override
+  String get addressCity => 'City';
+
+  @override
+  String get addressArea => 'Area';
+
+  @override
+  String get addressStreet => 'Street';
+
+  @override
+  String get addressDetails => 'More details';
+
+  @override
+  String get addressCityRequired => 'Enter the city.';
+
+  @override
+  String get addressSetDefault => 'Set as default';
+
+  @override
+  String get addressDefault => 'Default';
+
+  @override
+  String get addressDeleteTitle => 'Delete this address?';
+
+  @override
   String get ordersTitle => 'Orders';
 
   @override

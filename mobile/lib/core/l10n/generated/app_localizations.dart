@@ -506,6 +506,90 @@ abstract class AppLocalizations {
   /// **'Sign in to add to cart'**
   String get cartSignInPrompt;
 
+  /// No description provided for @addressesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Addresses'**
+  String get addressesTitle;
+
+  /// No description provided for @addressAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add address'**
+  String get addressAdd;
+
+  /// No description provided for @addressEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit address'**
+  String get addressEdit;
+
+  /// No description provided for @addressEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved addresses'**
+  String get addressEmptyTitle;
+
+  /// No description provided for @addressEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a delivery address to speed up checkout.'**
+  String get addressEmptyMessage;
+
+  /// No description provided for @addressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Label'**
+  String get addressLabel;
+
+  /// No description provided for @addressCity.
+  ///
+  /// In en, this message translates to:
+  /// **'City'**
+  String get addressCity;
+
+  /// No description provided for @addressArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Area'**
+  String get addressArea;
+
+  /// No description provided for @addressStreet.
+  ///
+  /// In en, this message translates to:
+  /// **'Street'**
+  String get addressStreet;
+
+  /// No description provided for @addressDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'More details'**
+  String get addressDetails;
+
+  /// No description provided for @addressCityRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the city.'**
+  String get addressCityRequired;
+
+  /// No description provided for @addressSetDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as default'**
+  String get addressSetDefault;
+
+  /// No description provided for @addressDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get addressDefault;
+
+  /// No description provided for @addressDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this address?'**
+  String get addressDeleteTitle;
+
   /// No description provided for @ordersTitle.
   ///
   /// In en, this message translates to:

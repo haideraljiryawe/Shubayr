@@ -54,7 +54,11 @@ void main() {
     });
 
     test('signed-out visitors are sent to sign-in for private routes', () {
-      for (final route in [AppRoutes.cart, AppRoutes.orders]) {
+      for (final route in [
+        AppRoutes.cart,
+        AppRoutes.orders,
+        AppRoutes.addresses,
+      ]) {
         expect(
           redirect(SessionStatus.signedOut, UserRole.customer, route),
           AppRoutes.signIn,
@@ -96,6 +100,14 @@ void main() {
     test('roles stay put inside their own area', () {
       expect(
         redirect(SessionStatus.signedIn, UserRole.customer, AppRoutes.cart),
+        isNull,
+      );
+      expect(
+        redirect(
+          SessionStatus.signedIn,
+          UserRole.customer,
+          AppRoutes.addresses,
+        ),
         isNull,
       );
       expect(

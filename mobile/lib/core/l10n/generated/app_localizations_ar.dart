@@ -220,6 +220,48 @@ class AppLocalizationsAr extends AppLocalizations {
   String get cartSignInPrompt => 'سجّل الدخول للإضافة إلى السلة';
 
   @override
+  String get addressesTitle => 'العناوين';
+
+  @override
+  String get addressAdd => 'إضافة عنوان';
+
+  @override
+  String get addressEdit => 'تعديل العنوان';
+
+  @override
+  String get addressEmptyTitle => 'لا عناوين محفوظة';
+
+  @override
+  String get addressEmptyMessage => 'أضِف عنوان توصيل لتسريع الدفع.';
+
+  @override
+  String get addressLabel => 'الاسم المختصر';
+
+  @override
+  String get addressCity => 'المدينة';
+
+  @override
+  String get addressArea => 'المنطقة';
+
+  @override
+  String get addressStreet => 'الشارع';
+
+  @override
+  String get addressDetails => 'تفاصيل إضافية';
+
+  @override
+  String get addressCityRequired => 'أدخل المدينة.';
+
+  @override
+  String get addressSetDefault => 'تعيين افتراضياً';
+
+  @override
+  String get addressDefault => 'افتراضي';
+
+  @override
+  String get addressDeleteTitle => 'حذف هذا العنوان؟';
+
+  @override
   String get ordersTitle => 'الطلبات';
 
   @override
