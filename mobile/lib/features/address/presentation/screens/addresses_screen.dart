@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
@@ -10,7 +12,6 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../data/address.dart';
 import '../providers/address_providers.dart';
-import '../widgets/address_form_sheet.dart';
 
 /// The user's delivery addresses: list, add, edit, delete and set-default.
 /// Reached from the account page and (later) from checkout.
@@ -25,7 +26,7 @@ class AddressesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.addressesTitle)),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showAddressForm(context),
+        onPressed: () => context.pushNamed(AppRoutes.addressFormName),
         icon: const Icon(Icons.add),
         label: Text(l10n.addressAdd),
       ),
@@ -76,7 +77,10 @@ class _AddressCard extends ConsumerWidget {
     final title = address.label.isNotEmpty ? address.label : address.city;
 
     return AppCard(
-      onTap: () => showAddressForm(context, address: address),
+      onTap: () => context.pushNamed(
+        AppRoutes.addressFormName,
+        extra: address,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

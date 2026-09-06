@@ -37,6 +37,10 @@ abstract final class AppRoutes {
   // The customer's saved delivery addresses (auth required).
   static const addresses = '/addresses';
 
+  // Add/edit an address — full-screen over the shell (edit passes the Address
+  // as the route's `extra`).
+  static const addressForm = '/addresses/form';
+
   // Cash-on-Delivery checkout (auth required).
   static const checkout = '/checkout';
 
@@ -58,6 +62,7 @@ abstract final class AppRoutes {
   static const settingsName = 'settings';
   static const profileName = 'profile';
   static const addressesName = 'addresses';
+  static const addressFormName = 'address-form';
   static const checkoutName = 'checkout';
   static const designName = 'design';
 }

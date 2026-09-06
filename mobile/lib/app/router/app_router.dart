@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/l10n/l10n_context.dart';
 import '../../core/widgets/state_views.dart';
+import '../../features/address/data/address.dart';
+import '../../features/address/presentation/screens/address_form_screen.dart';
 import '../../features/address/presentation/screens/addresses_screen.dart';
 import '../../features/admin/presentation/screens/admin_home_screen.dart';
 import '../../features/orders/presentation/screens/checkout_screen.dart';
@@ -218,6 +220,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.addressesName,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const AddressesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addressForm,
+        name: AppRoutes.addressFormName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) =>
+            AddressFormScreen(address: state.extra as Address?),
       ),
       GoRoute(
         path: AppRoutes.checkout,
