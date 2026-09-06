@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
@@ -222,10 +224,7 @@ class _CartFooter extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               AppButton(
                 label: l10n.cartCheckout,
-                // Checkout is the next slice; keep the CTA honest until then.
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.comingSoonTitle)),
-                ),
+                onPressed: () => context.pushNamed(AppRoutes.checkoutName),
               ),
             ],
           ),

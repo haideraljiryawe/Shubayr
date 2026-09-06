@@ -7,6 +7,7 @@ import '../../core/l10n/l10n_context.dart';
 import '../../core/widgets/state_views.dart';
 import '../../features/address/presentation/screens/addresses_screen.dart';
 import '../../features/admin/presentation/screens/admin_home_screen.dart';
+import '../../features/orders/presentation/screens/checkout_screen.dart';
 import '../../features/dev/presentation/screens/design_gallery_screen.dart';
 import '../../features/auth/domain/user_role.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
@@ -216,6 +217,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.addressesName,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const AddressesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.checkout,
+        name: AppRoutes.checkoutName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const CheckoutScreen(),
       ),
 
       GoRoute(

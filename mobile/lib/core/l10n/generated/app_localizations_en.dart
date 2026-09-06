@@ -266,6 +266,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addressDeleteTitle => 'Delete this address?';
 
   @override
+  String get checkoutTitle => 'Checkout';
+
+  @override
+  String get checkoutAddress => 'Delivery address';
+
+  @override
+  String get checkoutChangeAddress => 'Change';
+
+  @override
+  String get checkoutCoupon => 'Discount coupon';
+
+  @override
+  String get checkoutCouponHint => 'Enter code';
+
+  @override
+  String get checkoutCouponInvalid => 'Invalid coupon code';
+
+  @override
+  String get checkoutDiscount => 'Discount';
+
+  @override
+  String get checkoutDelivery => 'Delivery fee';
+
+  @override
+  String get checkoutDeliveryNote => 'Calculated at confirmation';
+
+  @override
+  String get checkoutTotal => 'Total';
+
+  @override
+  String get checkoutPayment => 'Payment method';
+
+  @override
+  String get checkoutCod => 'Cash on delivery';
+
+  @override
+  String get checkoutPlaceOrder => 'Place order';
+
+  @override
+  String get checkoutSuccessTitle => 'Order placed';
+
+  @override
+  String get checkoutSuccessMessage =>
+      'The courier will contact you to confirm delivery.';
+
+  @override
+  String get checkoutOrderNumber => 'Order number';
+
+  @override
+  String get checkoutBackHome => 'Back to shopping';
+
+  @override
   String get ordersTitle => 'Orders';
 
   @override

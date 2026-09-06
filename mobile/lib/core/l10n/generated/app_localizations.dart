@@ -590,6 +590,108 @@ abstract class AppLocalizations {
   /// **'Delete this address?'**
   String get addressDeleteTitle;
 
+  /// No description provided for @checkoutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout'**
+  String get checkoutTitle;
+
+  /// No description provided for @checkoutAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery address'**
+  String get checkoutAddress;
+
+  /// No description provided for @checkoutChangeAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get checkoutChangeAddress;
+
+  /// No description provided for @checkoutCoupon.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount coupon'**
+  String get checkoutCoupon;
+
+  /// No description provided for @checkoutCouponHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter code'**
+  String get checkoutCouponHint;
+
+  /// No description provided for @checkoutCouponInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid coupon code'**
+  String get checkoutCouponInvalid;
+
+  /// No description provided for @checkoutDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount'**
+  String get checkoutDiscount;
+
+  /// No description provided for @checkoutDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fee'**
+  String get checkoutDelivery;
+
+  /// No description provided for @checkoutDeliveryNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculated at confirmation'**
+  String get checkoutDeliveryNote;
+
+  /// No description provided for @checkoutTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get checkoutTotal;
+
+  /// No description provided for @checkoutPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment method'**
+  String get checkoutPayment;
+
+  /// No description provided for @checkoutCod.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash on delivery'**
+  String get checkoutCod;
+
+  /// No description provided for @checkoutPlaceOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Place order'**
+  String get checkoutPlaceOrder;
+
+  /// No description provided for @checkoutSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order placed'**
+  String get checkoutSuccessTitle;
+
+  /// No description provided for @checkoutSuccessMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The courier will contact you to confirm delivery.'**
+  String get checkoutSuccessMessage;
+
+  /// No description provided for @checkoutOrderNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Order number'**
+  String get checkoutOrderNumber;
+
+  /// No description provided for @checkoutBackHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to shopping'**
+  String get checkoutBackHome;
+
   /// No description provided for @ordersTitle.
   ///
   /// In en, this message translates to:

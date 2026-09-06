@@ -34,6 +34,9 @@ abstract final class AppRoutes {
   // The customer's saved delivery addresses (auth required).
   static const addresses = '/addresses';
 
+  // Cash-on-Delivery checkout (auth required).
+  static const checkout = '/checkout';
+
   // Developer-only design gallery (reachable in debug builds only).
   static const design = '/design';
 
@@ -51,5 +54,6 @@ abstract final class AppRoutes {
   static const settingsName = 'settings';
   static const profileName = 'profile';
   static const addressesName = 'addresses';
+  static const checkoutName = 'checkout';
   static const designName = 'design';
 }

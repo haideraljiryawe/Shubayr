@@ -262,6 +262,57 @@ class AppLocalizationsAr extends AppLocalizations {
   String get addressDeleteTitle => 'حذف هذا العنوان؟';
 
   @override
+  String get checkoutTitle => 'الدفع';
+
+  @override
+  String get checkoutAddress => 'عنوان التوصيل';
+
+  @override
+  String get checkoutChangeAddress => 'تغيير';
+
+  @override
+  String get checkoutCoupon => 'كوبون الخصم';
+
+  @override
+  String get checkoutCouponHint => 'أدخل الرمز';
+
+  @override
+  String get checkoutCouponInvalid => 'رمز الكوبون غير صالح';
+
+  @override
+  String get checkoutDiscount => 'الخصم';
+
+  @override
+  String get checkoutDelivery => 'رسوم التوصيل';
+
+  @override
+  String get checkoutDeliveryNote => 'تُحتسب عند التأكيد';
+
+  @override
+  String get checkoutTotal => 'الإجمالي';
+
+  @override
+  String get checkoutPayment => 'طريقة الدفع';
+
+  @override
+  String get checkoutCod => 'الدفع عند الاستلام';
+
+  @override
+  String get checkoutPlaceOrder => 'تأكيد الطلب';
+
+  @override
+  String get checkoutSuccessTitle => 'تم تقديم طلبك';
+
+  @override
+  String get checkoutSuccessMessage => 'سيتواصل معك المندوب لتأكيد التوصيل.';
+
+  @override
+  String get checkoutOrderNumber => 'رقم الطلب';
+
+  @override
+  String get checkoutBackHome => 'العودة للتسوّق';
+
+  @override
   String get ordersTitle => 'الطلبات';
 
   @override
