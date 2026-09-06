@@ -86,6 +86,10 @@
   "productDescription": "Description",
   "productNegotiable": "Negotiable",
   "productAddToCart": "Add to cart",
+  "productVariants": "Options",
+  "productInStock": "In stock",
+  "productLowStock": "Only {count} left",
+  "@productLowStock": { "description": "Low-stock hint on product detail; count is passed as a string so it stays Western-Arabic.", "placeholders": { "count": { "type": "String" } } },
   "productReviewsSoon": "Reviews are coming soon.",
 
   "searchHint": "Search products",

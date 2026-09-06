@@ -10,6 +10,7 @@ import 'package:shubayr/core/storage/token_store.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
+import 'package:shubayr/features/catalog/data/product_availability.dart';
 import 'package:shubayr/features/catalog/data/product_page.dart';
 import 'package:shubayr/features/catalog/domain/catalog_repository.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
@@ -34,6 +35,10 @@ class _EmptyCatalog implements CatalogRepository {
   @override
   Future<Product> fetchProduct(String id) async =>
       const Product(id: 'x', categoryId: 'c', nameEn: 'x', nameAr: 'x');
+
+  @override
+  Future<ProductAvailability> fetchAvailability(String id) async =>
+      ProductAvailability(productId: id, inStock: true, availableQty: 5);
 }
 
 Future<ProviderContainer> _container() async {

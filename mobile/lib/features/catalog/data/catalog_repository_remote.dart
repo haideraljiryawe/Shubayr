@@ -2,6 +2,7 @@ import '../../../core/network/api_client.dart';
 import '../domain/catalog_repository.dart';
 import 'category.dart';
 import 'product.dart';
+import 'product_availability.dart';
 import 'product_page.dart';
 
 class CatalogRepositoryRemote implements CatalogRepository {
@@ -44,5 +45,13 @@ class CatalogRepositoryRemote implements CatalogRepository {
   Future<Product> fetchProduct(String id) async {
     final json = await _api.get<Map<String, dynamic>>('/products/$id');
     return Product.fromJson(json);
+  }
+
+  @override
+  Future<ProductAvailability> fetchAvailability(String id) async {
+    final json = await _api.get<Map<String, dynamic>>(
+      '/products/$id/availability',
+    );
+    return ProductAvailability.fromJson(json);
   }
 }

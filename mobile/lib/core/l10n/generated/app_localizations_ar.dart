@@ -232,6 +232,17 @@ class AppLocalizationsAr extends AppLocalizations {
   String get productAddToCart => 'أضف إلى السلة';
 
   @override
+  String get productVariants => 'الخيارات';
+
+  @override
+  String get productInStock => 'متوفّر';
+
+  @override
+  String productLowStock(String count) {
+    return 'باقٍ $count';
+  }
+
+  @override
   String get productReviewsSoon => 'التقييمات قريبًا.';
 
   @override

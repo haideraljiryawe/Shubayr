@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
+import 'package:shubayr/features/catalog/data/product_availability.dart';
 import 'package:shubayr/features/catalog/data/product_page.dart';
 import 'package:shubayr/features/catalog/domain/catalog_repository.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
@@ -32,6 +33,10 @@ class _FakeCatalog implements CatalogRepository {
   @override
   Future<Product> fetchProduct(String id) async =>
       _all.firstWhere((p) => p.id == id);
+
+  @override
+  Future<ProductAvailability> fetchAvailability(String id) async =>
+      ProductAvailability(productId: id, inStock: true, availableQty: 5);
 
   @override
   Future<ProductPage> fetchProducts({

@@ -6,6 +6,7 @@ import 'package:shubayr/core/storage/prefs_store.dart';
 import 'package:shubayr/core/storage/token_store.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
+import 'package:shubayr/features/catalog/data/product_availability.dart';
 import 'package:shubayr/features/catalog/data/product_page.dart';
 import 'package:shubayr/features/catalog/domain/catalog_repository.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
@@ -59,6 +60,14 @@ class _FakeCatalog implements CatalogRepository {
 
   @override
   Future<Product> fetchProduct(String id) async => id == 'p2' ? _p2 : _p1;
+
+  @override
+  Future<ProductAvailability> fetchAvailability(String id) async =>
+      ProductAvailability(
+        productId: id,
+        inStock: id != 'p2',
+        availableQty: id == 'p2' ? 0 : 5,
+      );
 }
 
 Future<ProviderContainer> _container() async {

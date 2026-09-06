@@ -83,6 +83,9 @@
   "productDescription": "الوصف",
   "productNegotiable": "قابل للتفاوض",
   "productAddToCart": "أضف إلى السلة",
+  "productVariants": "الخيارات",
+  "productInStock": "متوفّر",
+  "productLowStock": "باقٍ {count}",
   "productReviewsSoon": "التقييمات قريبًا.",
 
   "searchHint": "ابحث عن منتج",

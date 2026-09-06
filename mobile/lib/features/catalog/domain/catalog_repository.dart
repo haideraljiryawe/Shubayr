@@ -1,5 +1,6 @@
 import '../data/category.dart';
 import '../data/product.dart';
+import '../data/product_availability.dart';
 import '../data/product_page.dart';
 
 /// Read side of the catalog. Implemented by a mock and a Dio repository;
@@ -21,4 +22,7 @@ abstract interface class CatalogRepository {
 
   /// `GET /products/{id}` — product detail (public).
   Future<Product> fetchProduct(String id);
+
+  /// `GET /products/{id}/availability` — live per-variant stock (public).
+  Future<ProductAvailability> fetchAvailability(String id);
 }

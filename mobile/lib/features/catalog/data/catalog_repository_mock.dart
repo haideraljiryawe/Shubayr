@@ -1,6 +1,7 @@
 import '../domain/catalog_repository.dart';
 import 'category.dart';
 import 'product.dart';
+import 'product_availability.dart';
 import 'product_page.dart';
 
 /// In-memory catalog for development before the backend is live.
@@ -304,5 +305,44 @@ class CatalogRepositoryMock implements CatalogRepository {
     final product = _products.firstWhere((p) => p.id == id);
     // List fixtures carry one image; the detail view shows a small gallery.
     return product.copyWith(images: _gallery(id));
+  }
+
+  @override
+  Future<ProductAvailability> fetchAvailability(String id) async {
+    await Future<void>.delayed(delay);
+    final p = _products.firstWhere((p) => p.id == id);
+    if (p.variants.isEmpty) {
+      return ProductAvailability(
+        productId: id,
+        inStock: p.inStock,
+        availableQty: p.availableQty,
+        variants: const [],
+      );
+    }
+    // Mock per-variant stock: first runs low, second is sold out, third is in
+    // stock — so the detail screen exercises the low / out / in-stock states
+    // (and on p7 the in-stock one carries a price delta, showing the price move).
+    const qtys = [4, 0, 25];
+    var total = 0;
+    final variants = <VariantAvailability>[];
+    for (var i = 0; i < p.variants.length; i++) {
+      final v = p.variants[i];
+      final qty = qtys[i % qtys.length];
+      total += qty;
+      variants.add(
+        VariantAvailability(
+          variantId: v.id,
+          sku: v.sku,
+          availableQty: qty,
+          inStock: qty > 0,
+        ),
+      );
+    }
+    return ProductAvailability(
+      productId: id,
+      inStock: total > 0,
+      availableQty: total,
+      variants: variants,
+    );
   }
 }

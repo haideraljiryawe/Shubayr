@@ -530,6 +530,24 @@ abstract class AppLocalizations {
   /// **'Add to cart'**
   String get productAddToCart;
 
+  /// No description provided for @productVariants.
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get productVariants;
+
+  /// No description provided for @productInStock.
+  ///
+  /// In en, this message translates to:
+  /// **'In stock'**
+  String get productInStock;
+
+  /// Low-stock hint on product detail; count is passed as a string so it stays Western-Arabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Only {count} left'**
+  String productLowStock(String count);
+
   /// No description provided for @productReviewsSoon.
   ///
   /// In en, this message translates to:

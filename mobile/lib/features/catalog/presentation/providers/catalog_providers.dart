@@ -6,6 +6,7 @@ import '../../data/catalog_repository_mock.dart';
 import '../../data/catalog_repository_remote.dart';
 import '../../data/category.dart';
 import '../../data/product.dart';
+import '../../data/product_availability.dart';
 import '../../data/product_page.dart';
 import '../../domain/catalog_repository.dart';
 
@@ -35,4 +36,11 @@ final categoryFeedProvider = FutureProvider.family<ProductPage, String?>(
 /// A single product by id, for the detail screen.
 final productProvider = FutureProvider.family<Product, String>(
   (ref, id) => ref.watch(catalogRepositoryProvider).fetchProduct(id),
+);
+
+/// Live per-variant availability for a product, for the detail screen. Kept
+/// separate from [productProvider] so stock can refresh without refetching the
+/// whole product.
+final availabilityProvider = FutureProvider.family<ProductAvailability, String>(
+  (ref, id) => ref.watch(catalogRepositoryProvider).fetchAvailability(id),
 );

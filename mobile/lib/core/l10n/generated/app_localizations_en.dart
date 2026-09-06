@@ -235,6 +235,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productAddToCart => 'Add to cart';
 
   @override
+  String get productVariants => 'Options';
+
+  @override
+  String get productInStock => 'In stock';
+
+  @override
+  String productLowStock(String count) {
+    return 'Only $count left';
+  }
+
+  @override
   String get productReviewsSoon => 'Reviews are coming soon.';
 
   @override
