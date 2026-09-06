@@ -7,6 +7,7 @@ import '../../core/theme/components/navigation_themes.dart';
 import '../../core/theme/theme_context.dart';
 import '../../core/theme/tokens/app_motion.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
+import '../../features/cart/presentation/providers/cart_providers.dart';
 
 /// A single navigation destination bound to a shell branch.
 typedef _Destination = ({
@@ -14,7 +15,22 @@ typedef _Destination = ({
   IconData selectedIcon,
   String label,
   bool guestVisible,
+  // Count shown as a badge on the icon (0 = none). Only the cart uses it.
+  int badge,
 });
+
+/// Wraps a destination's icon in a count badge (Material's standard, RTL-aware
+/// [Badge]). The amber accent reads on both the muted and active icon states.
+Widget _badged(BuildContext context, Widget child, int count) {
+  if (count <= 0) return child;
+  final colors = context.colors;
+  return Badge(
+    label: Text('$count'),
+    backgroundColor: colors.accent,
+    textColor: colors.onAccent,
+    child: child,
+  );
+}
 
 /// Customer navigation shell.
 ///
@@ -39,6 +55,12 @@ class CustomerShell extends ConsumerWidget {
     final isSignedIn =
         ref.watch(sessionControllerProvider).valueOrNull?.isSignedIn ?? false;
 
+    // Cart badge counts distinct products (lines), not total units — rebuilds
+    // the bar only when a line is added or removed.
+    final cartCount = ref.watch(
+      cartControllerProvider.select((c) => c.valueOrNull?.items.length ?? 0),
+    );
+
     // Every destination, in branch order. In Arabic the first entry lays out on
     // the right automatically — the bar follows the ambient Directionality, so
     // no mirroring logic is needed here.
@@ -48,30 +70,35 @@ class CustomerShell extends ConsumerWidget {
         selectedIcon: Icons.home,
         label: l10n.navHome,
         guestVisible: true,
+        badge: 0,
       ),
       (
         icon: Icons.grid_view_outlined,
         selectedIcon: Icons.grid_view_rounded,
         label: l10n.navCategories,
         guestVisible: true,
+        badge: 0,
       ),
       (
         icon: Icons.shopping_cart_outlined,
         selectedIcon: Icons.shopping_cart,
         label: l10n.navCart,
         guestVisible: false,
+        badge: cartCount,
       ),
       (
         icon: Icons.receipt_long_outlined,
         selectedIcon: Icons.receipt_long,
         label: l10n.navOrders,
         guestVisible: false,
+        badge: 0,
       ),
       (
         icon: Icons.person_outline,
         selectedIcon: Icons.person,
         label: l10n.navAccount,
         guestVisible: true,
+        badge: 0,
       ),
     ];
 
@@ -113,8 +140,12 @@ class CustomerShell extends ConsumerWidget {
                   destinations: [
                     for (final d in destinations)
                       NavigationRailDestination(
-                        icon: Icon(d.icon),
-                        selectedIcon: Icon(d.selectedIcon),
+                        icon: _badged(context, Icon(d.icon), d.badge),
+                        selectedIcon: _badged(
+                          context,
+                          Icon(d.selectedIcon),
+                          d.badge,
+                        ),
                         label: Text(d.label),
                       ),
                   ],
@@ -227,10 +258,14 @@ class _BottomNavItem extends StatelessWidget {
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                selected ? destination.selectedIcon : destination.icon,
-                color: iconColor,
-                size: NavigationThemes.bottomBarIconSize,
+              _badged(
+                context,
+                Icon(
+                  selected ? destination.selectedIcon : destination.icon,
+                  color: iconColor,
+                  size: NavigationThemes.bottomBarIconSize,
+                ),
+                destination.badge,
               ),
               Padding(
                 padding: NavigationThemes.bottomBarLabelPadding,
