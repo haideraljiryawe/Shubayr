@@ -13,8 +13,13 @@ override default behaviour. Ahmed owns this app and communicates in Arabic.
   files unless explicitly asked.
 
 ## Change only what was asked
-- Touch only what the request names, with the fewest changes that do it well. Don't
-  improve, restyle, re-space, or refactor anything nearby that wasn't asked.
+- Make the fewest changes that implement the task well — this **includes** the small,
+  necessary dependent edits that clearly belong to it, even when the request didn't name
+  every file or function. Don't extend into other existing screens/components for cleanup,
+  restyle, refactor, DRY, or polish that wasn't asked. If doing it well needs extracting a
+  shared component/service or editing code outside the task's scope, propose it first with
+  a brief reason — unless that edit is technically required for the same behaviour,
+  low-risk, and changes nothing elsewhere.
 - **Never change already-calibrated values** — sizes, colours, radii, spacing, font
   weights — unless the request names that exact thing. On-screen values are deliberate.
 - Spot an unrelated bug? Point it out and ask — don't fix it silently in the same change.
