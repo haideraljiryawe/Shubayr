@@ -331,6 +331,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Start shopping and your orders will appear here.';
 
   @override
+  String get ordersFilterAll => 'All';
+
+  @override
+  String get ordersFilterEmpty => 'No orders with this status';
+
+  @override
   String orderItemsCount(String count) {
     return '$count items';
   }

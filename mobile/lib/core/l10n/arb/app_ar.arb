@@ -112,6 +112,8 @@
   "ordersTitle": "الطلبات",
   "ordersEmptyTitle": "لا طلبات بعد",
   "ordersEmptyMessage": "ابدأ التسوّق وستظهر طلباتك هنا.",
+  "ordersFilterAll": "الكل",
+  "ordersFilterEmpty": "لا طلبات بهذه الحالة",
   "orderItemsCount": "{count} منتجات",
   "orderDetailTitle": "تفاصيل الطلب",
   "orderItemsSection": "المنتجات",

@@ -325,6 +325,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get ordersEmptyMessage => 'ابدأ التسوّق وستظهر طلباتك هنا.';
 
   @override
+  String get ordersFilterAll => 'الكل';
+
+  @override
+  String get ordersFilterEmpty => 'لا طلبات بهذه الحالة';
+
+  @override
   String orderItemsCount(String count) {
     return '$count منتجات';
   }

@@ -716,6 +716,18 @@ abstract class AppLocalizations {
   /// **'Start shopping and your orders will appear here.'**
   String get ordersEmptyMessage;
 
+  /// No description provided for @ordersFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get ordersFilterAll;
+
+  /// No description provided for @ordersFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders with this status'**
+  String get ordersFilterEmpty;
+
   /// Item count on an order card; count is a string so it stays Western-Arabic.
   ///
   /// In en, this message translates to:

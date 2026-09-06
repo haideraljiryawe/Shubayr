@@ -115,6 +115,8 @@
   "ordersTitle": "Orders",
   "ordersEmptyTitle": "No orders yet",
   "ordersEmptyMessage": "Start shopping and your orders will appear here.",
+  "ordersFilterAll": "All",
+  "ordersFilterEmpty": "No orders with this status",
   "orderItemsCount": "{count} items",
   "@orderItemsCount": { "description": "Item count on an order card; count is a string so it stays Western-Arabic.", "placeholders": { "count": { "type": "String" } } },
   "orderDetailTitle": "Order details",
