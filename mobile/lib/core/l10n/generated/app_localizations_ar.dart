@@ -196,6 +196,30 @@ class AppLocalizationsAr extends AppLocalizations {
   String get cartTitle => 'السلة';
 
   @override
+  String get cartEmptyTitle => 'سلتك فارغة';
+
+  @override
+  String get cartEmptyMessage => 'أضِف منتجات لتبدأ التسوّق.';
+
+  @override
+  String get cartSubtotal => 'المجموع الفرعي';
+
+  @override
+  String get cartCheckout => 'متابعة الدفع';
+
+  @override
+  String get cartRemove => 'إزالة';
+
+  @override
+  String get cartAdded => 'أُضيف إلى السلة';
+
+  @override
+  String get cartViewCart => 'عرض السلة';
+
+  @override
+  String get cartSignInPrompt => 'سجّل الدخول لإضافة إلى السلة';
+
+  @override
   String get ordersTitle => 'الطلبات';
 
   @override

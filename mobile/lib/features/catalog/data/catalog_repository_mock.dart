@@ -21,6 +21,18 @@ class CatalogRepositoryMock implements CatalogRepository {
   static List<String> _gallery(String id) =>
       [for (var i = 1; i <= 4; i++) _img('$id-$i')];
 
+  /// Unit price for a product/variant — the mock cart prices its lines with
+  /// this, mirroring the server computing `unit_price` when an item is added.
+  static num unitPrice(String productId, String? variantId) {
+    final p = _products.firstWhere((p) => p.id == productId);
+    if (variantId == null) return p.salePrice;
+    final v = p.variants.firstWhere(
+      (v) => v.id == variantId,
+      orElse: () => const ProductVariant(id: ''),
+    );
+    return p.salePrice + v.priceDelta;
+  }
+
   static const _cElectronics = 'cat-electronics';
   static const _cGrocery = 'cat-grocery';
   static const _cClothing = 'cat-clothing';

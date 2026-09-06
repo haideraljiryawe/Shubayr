@@ -29,6 +29,16 @@ class ApiClient {
 
   Future<T> delete<T>(String path) => _guard(() => dio.delete<T>(path));
 
+  /// DELETE that expects no body (e.g. a `204 No Content`), so an empty
+  /// response is success rather than a [FailureKind.server] error.
+  Future<void> deleteVoid(String path) async {
+    try {
+      await dio.delete<void>(path);
+    } on DioException catch (e) {
+      throw mapDioException(e);
+    }
+  }
+
   Future<T> _guard<T>(Future<Response<T>> Function() send) async {
     try {
       final response = await send();

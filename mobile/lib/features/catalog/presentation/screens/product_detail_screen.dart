@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
@@ -8,6 +10,8 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/async_value_view.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/product.dart';
 import '../../data/product_availability.dart';
@@ -181,7 +185,11 @@ class _DetailState extends ConsumerState<_Detail> {
             ],
           ),
         ),
-        _AddToCartBar(inStock: stock.inStock),
+        _AddToCartBar(
+          productId: product.id,
+          variantId: _selectedVariantId,
+          inStock: stock.inStock,
+        ),
       ],
     );
   }
@@ -298,10 +306,66 @@ class _NegotiableBadge extends StatelessWidget {
   }
 }
 
-class _AddToCartBar extends StatelessWidget {
-  const _AddToCartBar({required this.inStock});
+class _AddToCartBar extends ConsumerStatefulWidget {
+  const _AddToCartBar({
+    required this.productId,
+    required this.variantId,
+    required this.inStock,
+  });
 
+  final String productId;
+  final String? variantId;
   final bool inStock;
+
+  @override
+  ConsumerState<_AddToCartBar> createState() => _AddToCartBarState();
+}
+
+class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
+  bool _busy = false;
+
+  Future<void> _onPressed() async {
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+
+    // The cart is server-side; a guest must sign in first.
+    final signedIn =
+        ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ?? false;
+    if (!signedIn) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.cartSignInPrompt),
+          action: SnackBarAction(
+            label: l10n.authSignInTitle,
+            onPressed: () => router.pushNamed(AppRoutes.signInName),
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _busy = true);
+    await ref
+        .read(cartControllerProvider.notifier)
+        .add(productId: widget.productId, variantId: widget.variantId);
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    if (ref.read(cartControllerProvider).hasError) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.stateErrorTitle)));
+      return;
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l10n.cartAdded),
+        action: SnackBarAction(
+          label: l10n.cartViewCart,
+          onPressed: () => router.go(AppRoutes.cart),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -311,14 +375,10 @@ class _AddToCartBar extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.screenH),
         child: AppButton(
-          label: inStock ? l10n.productAddToCart : l10n.commonOutOfStock,
-          icon: inStock ? Icons.add_shopping_cart_outlined : null,
-          // Cart wiring lands in the cart phase; keep the CTA honest until then.
-          onPressed: inStock
-              ? () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.comingSoonTitle)),
-                )
-              : null,
+          label: widget.inStock ? l10n.productAddToCart : l10n.commonOutOfStock,
+          icon: widget.inStock ? Icons.add_shopping_cart_outlined : null,
+          isLoading: _busy,
+          onPressed: widget.inStock ? _onPressed : null,
         ),
       ),
     );
