@@ -2,9 +2,10 @@
 
 ## Current status
 
-- Last reviewed: 2026-09-07, against the `mobile` implementation at `78ff1ec` and OpenAPI contract 1.1.0.
+- Last reviewed: 2026-09-07, against the `mobile` implementation at `dbd9fac` plus the completed order-history and UI corrections and OpenAPI contract 1.1.0.
 - Current phase: **1 — Complete the guest and customer experience with mock data**; the core journey exists, but production integration is not complete.
-- Proposed next objective, not yet started: complete order-history pagination and repository-level status filtering, rather than filtering only the first page.
+- Completed objective: order-history pagination and repository-level status filtering with mock data; technical verification passed and Ahmed confirmed final manual acceptance on 2026-09-07, including the checkout and UI corrections made during review.
+- Next objective: complete wishlist pagination, followed by addresses; neither is started in this increment.
 - Next phase: **2 — Delivery Agent**, after completing the ready customer items; isolated contract gaps do not prevent moving on.
 - Main blockers: order-to-delivery linkage, after-sales data retrieval, delivery-agent and cash-collection data, and inventory links; details in B1–B10.
 
@@ -22,7 +23,8 @@
 - [x] Guest → sign-in → original destination journey, with correct back navigation and no automatic replay of add or purchase actions.
 - [x] Cart, wishlist and address operations, and cash-on-delivery checkout with an address and coupon; mock and remote repositories exist. Completion of large lists remains below.
 - [x] Order details, status timeline and cancellation, and product reviews and partial returns after delivery. Mock reviews are `pending`, and returns produce receipts only; no approval, refund, or stock adjustment.
-- [ ] Complete order pagination and filtering, then wishlist and addresses. Orders and wishlist read the first page; addresses read up to 100 items without fetching subsequent pages.
+- [x] Order-history pagination and repository-level status filtering: implemented with mock data, including all contract statuses, refresh, append retry and stale-response protection; technical checks and Ahmed’s final manual verification passed. See the [order-history progress record](docs/order-history-mock-progress.md).
+- [ ] Complete wishlist and address pagination. Wishlist reads the first page; addresses read up to 100 items without fetching subsequent pages.
 - [ ] Loyalty balance and points ledger via `GET /loyalty`; the contract is available, but the feature is not implemented.
 - [ ] Automatic tracking updates; currently read only on load. The read contract and mock data are sufficient to start, without assuming WebSocket.
 - [!] Delivery rating B1, after-sales history/status retrieval B2, account completion B3, and help and privacy B4.
@@ -84,5 +86,6 @@ These conditions apply to feature completion; do not defer the rest of the phase
 
 - Sources: `lib/` and `test/`, [API](../api/openapi.yaml), [Flutter requirements](../prompts/MOBILE_CLAUDE_FULL.md), [Architecture](../docs/ARCHITECTURE.md), [Database schema](../infra/db/schema.sql). A table's existence does not prove API availability.
 - The [customer progress record](docs/customer-mock-progress.md) documents 115 passing tests, successful analysis, and simulator checks of selected journeys; these are previous results, not rerun during the planning task. `[x]` does not imply production or comprehensive visual verification.
+- Completed increment, including checkout-to-pending navigation, dark snackbar contrast, and responsive product cards with two-line name slots: all 176 Flutter tests passed; `flutter analyze` reports no issues. Widget coverage includes repository filters, later-page loading/retry, refresh, empty states, Arabic/English layouts, light/dark modes, and enlarged text. Ahmed confirmed manual acceptance on 2026-09-07; no live backend was contacted.
 - Deployed backend and SMS/FCM readiness, successful remote operation against a live server, and store-release approval are **unverified**; this does not mean the team's work does not exist.
 - Update when a feature/phase is completed or a significant dependency changes: status, next objective, and completion evidence or blocking condition. Execution rules belong in [AGENTS.md](AGENTS.md), not this roadmap.

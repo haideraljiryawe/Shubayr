@@ -570,14 +570,14 @@ class _AddressPickerSheet extends StatelessWidget {
   }
 }
 
-class _SuccessView extends StatelessWidget {
+class _SuccessView extends ConsumerWidget {
   const _SuccessView({required this.order, required this.money});
 
   final Order order;
   final String Function(num) money;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final colors = context.colors;
     return Scaffold(
@@ -633,7 +633,11 @@ class _SuccessView extends StatelessWidget {
               const Spacer(),
               AppButton(
                 label: l10n.checkoutViewOrders,
-                onPressed: () => context.go(AppRoutes.orders),
+                onPressed: () {
+                  ref.read(orderStatusFilterProvider.notifier).state =
+                      'pending';
+                  context.go(AppRoutes.orders);
+                },
               ),
               const SizedBox(height: AppSpacing.sm),
               AppButton(

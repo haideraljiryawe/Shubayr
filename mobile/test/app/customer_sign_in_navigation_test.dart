@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shubayr/app/app.dart';
 import 'package:shubayr/core/storage/prefs_store.dart';
 import 'package:shubayr/core/storage/token_store.dart';
+import 'package:shubayr/core/l10n/generated/app_localizations.dart';
+import 'package:shubayr/core/theme/theme_mode_controller.dart';
 import 'package:shubayr/features/auth/presentation/screens/sign_in_screen.dart';
 import 'package:shubayr/features/auth/presentation/screens/verify_otp_screen.dart';
 import 'package:shubayr/features/settings/presentation/screens/account_view.dart';
@@ -48,6 +50,59 @@ Future<void> _pumpApp(WidgetTester tester, ProviderContainer container) async {
 }
 
 void main() {
+  for (final mode in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets(
+      'guest add-to-cart snackbar stays dark and readable in ${mode.name} mode',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final container = await _guestContainer();
+        addTearDown(container.dispose);
+        await container
+            .read(themeModeControllerProvider.notifier)
+            .setMode(mode);
+        await _pumpApp(tester, container);
+        container.read(routerProvider).go('/products/p5');
+        await tester.pumpAndSettle();
+        final context = tester.element(find.byType(ProductDetailScreen));
+        final l10n = AppLocalizations.of(context);
+        expect(Directionality.of(context), TextDirection.rtl);
+        await tester.tap(find.text(l10n.productAddToCart));
+        await tester.pumpAndSettle();
+
+        expect(find.text(l10n.cartSignInPrompt), findsOneWidget);
+        final surface = tester
+            .widget<Material>(
+              find
+                  .descendant(
+                    of: find.byType(SnackBar),
+                    matching: find.byType(Material),
+                  )
+                  .first,
+            )
+            .color!;
+        final messageColor = DefaultTextStyle.of(
+          tester.element(find.text(l10n.cartSignInPrompt)),
+        ).style.color!;
+        final actionColor = DefaultTextStyle.of(
+          tester.element(find.text(l10n.authSignInTitle)),
+        ).style.color!;
+        expect(surface.computeLuminance(), lessThan(0.1));
+        expect(_contrast(surface, messageColor), greaterThanOrEqualTo(4.5));
+        expect(_contrast(surface, actionColor), greaterThanOrEqualTo(4.5));
+
+        await tester.tap(find.text(l10n.authSignInTitle));
+        await tester.pumpAndSettle();
+        expect(find.byType(SignInScreen), findsOneWidget);
+        expect(
+          tester.widget<SignInScreen>(find.byType(SignInScreen)).returnTo,
+          '/products/p5',
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets(
     'OTP flow returns a customer to Account without duplicate pages',
     (tester) async {
@@ -134,4 +189,10 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+}
+
+double _contrast(Color first, Color second) {
+  final a = first.computeLuminance();
+  final b = second.computeLuminance();
+  return a > b ? (a + 0.05) / (b + 0.05) : (b + 0.05) / (a + 0.05);
 }

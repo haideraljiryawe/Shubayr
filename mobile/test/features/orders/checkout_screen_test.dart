@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shubayr/app/router/app_routes.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/theme/brand.dart';
 import 'package:shubayr/features/address/data/address.dart';
@@ -13,6 +15,7 @@ import 'package:shubayr/features/orders/data/order_tracking.dart';
 import 'package:shubayr/features/orders/domain/order_repository.dart';
 import 'package:shubayr/features/orders/presentation/providers/order_providers.dart';
 import 'package:shubayr/features/orders/presentation/screens/checkout_screen.dart';
+import 'package:shubayr/features/orders/presentation/screens/orders_screen.dart';
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 
 class _FixedCart extends CartController {
@@ -30,6 +33,9 @@ class _FixedAddresses extends AddressesController {
 }
 
 class _FakeOrders implements OrderRepository {
+  final queries = <({String? status, int page})>[];
+  Order? placed;
+
   @override
   Future<Coupon> validateCoupon(String code) async =>
       Coupon(code: code, type: 'percentage', value: 10);
@@ -38,14 +44,26 @@ class _FakeOrders implements OrderRepository {
   Future<Order> placeOrder({
     required String addressId,
     String? couponCode,
-  }) async => const Order(id: 'o1', orderNumber: 'SH-1', total: 55000);
+  }) async => placed = const Order(id: 'o1', orderNumber: 'SH-1', total: 55000);
 
   @override
   Future<OrderPage> fetchOrders({
     String? status,
     int page = 1,
     int perPage = 20,
-  }) async => const OrderPage();
+  }) async {
+    queries.add((status: status, page: page));
+    final order = placed;
+    final data = [
+      if (order != null && (status == null || status == order.status)) order,
+    ];
+    return OrderPage(
+      page: page,
+      perPage: perPage,
+      total: data.length,
+      data: data,
+    );
+  }
 
   @override
   Future<Order> fetchOrder(String id) async => Order(id: id);
@@ -59,7 +77,11 @@ class _FakeOrders implements OrderRepository {
       Order(id: id, status: 'cancelled');
 }
 
-Widget _host() => ProviderScope(
+Widget _host({
+  GoRouter? router,
+  _FakeOrders? repository,
+  String? initialStatus,
+}) => ProviderScope(
   overrides: [
     cartControllerProvider.overrideWith(
       () => _FixedCart(
@@ -76,15 +98,23 @@ Widget _host() => ProviderScope(
         Address(id: 'a1', label: 'Home', city: 'Baghdad', isDefault: true),
       ]),
     ),
-    orderRepositoryProvider.overrideWithValue(_FakeOrders()),
+    orderRepositoryProvider.overrideWithValue(repository ?? _FakeOrders()),
+    orderStatusFilterProvider.overrideWith((ref) => initialStatus),
     brandProvider.overrideWithValue(const Brand.bundled()),
   ],
-  child: const MaterialApp(
-    locale: Locale('en'),
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: CheckoutScreen(),
-  ),
+  child: router != null
+      ? MaterialApp.router(
+          routerConfig: router,
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        )
+      : const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: CheckoutScreen(),
+        ),
 );
 
 void main() {
@@ -103,4 +133,88 @@ void main() {
     expect(find.text('Order placed'), findsOneWidget);
     expect(find.text('SH-1'), findsOneWidget);
   });
+
+  testWidgets(
+    'view orders after checkout selects pending instead of the previous filter',
+    (tester) async {
+      final repository = _FakeOrders();
+      final router = GoRouter(
+        initialLocation: AppRoutes.checkout,
+        routes: [
+          GoRoute(
+            path: AppRoutes.checkout,
+            builder: (_, _) => const CheckoutScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.orders,
+            builder: (_, _) => const OrdersScreen(),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        _host(
+          router: router,
+          repository: repository,
+          initialStatus: 'delivered',
+        ),
+      );
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CheckoutScreen)),
+      );
+      await container.read(ordersProvider.future);
+      expect(repository.queries.last.status, 'delivered');
+
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+      expect(find.text('Order placed'), findsOneWidget);
+      await tester.tap(find.text('View my orders'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OrdersScreen), findsOneWidget);
+      expect(
+        tester
+            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Pending'))
+            .selected,
+        isTrue,
+      );
+      expect(find.text('SH-1'), findsOneWidget);
+      expect(repository.queries.last, (status: 'pending', page: 1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'return to shopping after checkout keeps the previous order filter',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: AppRoutes.checkout,
+        routes: [
+          GoRoute(
+            path: AppRoutes.checkout,
+            builder: (_, _) => const CheckoutScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.home,
+            builder: (_, _) => const Scaffold(body: Text('Shopping')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        _host(router: router, initialStatus: 'delivered'),
+      );
+      await tester.pumpAndSettle();
+      final context = tester.element(find.byType(CheckoutScreen));
+      final container = ProviderScope.containerOf(context);
+      final l10n = AppLocalizations.of(context);
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.checkoutBackHome));
+      await tester.pumpAndSettle();
+      expect(find.text('Shopping'), findsOneWidget);
+      expect(container.read(orderStatusFilterProvider), 'delivered');
+    },
+  );
 }
