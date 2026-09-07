@@ -27,6 +27,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get actionClose => 'إغلاق';
 
   @override
+  String get actionDelete => 'حذف';
+
+  @override
   String get navHome => 'الرئيسية';
 
   @override
@@ -139,6 +142,34 @@ class AppLocalizationsAr extends AppLocalizations {
   String get accountCurrency => 'العملة';
 
   @override
+  String get accountGuestPrompt =>
+      'سجّل الدخول للوصول إلى سلّتك وطلباتك ونقاط الولاء.';
+
+  @override
+  String get accountPreferences => 'التفضيلات';
+
+  @override
+  String get accountSupport => 'المساعدة والدعم';
+
+  @override
+  String get accountHelp => 'المساعدة';
+
+  @override
+  String get accountPrivacy => 'سياسة الخصوصية';
+
+  @override
+  String get accountTheme => 'المظهر';
+
+  @override
+  String get accountThemeSystem => 'النظام';
+
+  @override
+  String get accountThemeLight => 'فاتح';
+
+  @override
+  String get accountThemeDark => 'داكن';
+
+  @override
   String accountSignedInAs(String role) {
     return 'مسجّل الدخول بصفة $role';
   }
@@ -159,10 +190,230 @@ class AppLocalizationsAr extends AppLocalizations {
   String get categoriesTitle => 'الأقسام';
 
   @override
+  String get categoriesBrowseAll => 'تصفّح الكل';
+
+  @override
   String get cartTitle => 'السلة';
 
   @override
+  String get cartEmptyTitle => 'سلتك فارغة';
+
+  @override
+  String get cartEmptyMessage => 'أضِف منتجات لتبدأ التسوّق.';
+
+  @override
+  String get cartSubtotal => 'المجموع الفرعي';
+
+  @override
+  String get cartCheckout => 'متابعة الدفع';
+
+  @override
+  String get cartRemove => 'إزالة';
+
+  @override
+  String get cartAdded => 'تمت الإضافة إلى السلة';
+
+  @override
+  String get cartViewCart => 'عرض السلة';
+
+  @override
+  String get cartSignInPrompt => 'سجّل الدخول للإضافة إلى السلة';
+
+  @override
+  String get addressesTitle => 'العناوين';
+
+  @override
+  String get addressAdd => 'إضافة عنوان';
+
+  @override
+  String get addressEdit => 'تعديل العنوان';
+
+  @override
+  String get addressEmptyTitle => 'لا عناوين محفوظة';
+
+  @override
+  String get addressEmptyMessage => 'أضِف عنوان توصيل لتسريع الدفع.';
+
+  @override
+  String get addressLabel => 'الاسم المختصر';
+
+  @override
+  String get addressCity => 'المدينة';
+
+  @override
+  String get addressArea => 'المنطقة';
+
+  @override
+  String get addressStreet => 'الشارع';
+
+  @override
+  String get addressDetails => 'تفاصيل إضافية';
+
+  @override
+  String get addressCityRequired => 'أدخل المدينة.';
+
+  @override
+  String get addressSetDefault => 'تعيين افتراضياً';
+
+  @override
+  String get addressDefault => 'افتراضي';
+
+  @override
+  String get addressDeleteTitle => 'حذف هذا العنوان؟';
+
+  @override
+  String get checkoutTitle => 'الدفع';
+
+  @override
+  String get checkoutAddress => 'عنوان التوصيل';
+
+  @override
+  String get checkoutChangeAddress => 'تغيير';
+
+  @override
+  String get checkoutCoupon => 'كوبون الخصم';
+
+  @override
+  String get checkoutCouponHint => 'أدخل الرمز';
+
+  @override
+  String get checkoutCouponInvalid => 'رمز الكوبون غير صالح';
+
+  @override
+  String get checkoutDiscount => 'الخصم';
+
+  @override
+  String get checkoutDelivery => 'رسوم التوصيل';
+
+  @override
+  String get checkoutDeliveryNote => 'تُحتسب عند التأكيد';
+
+  @override
+  String get checkoutTotal => 'الإجمالي';
+
+  @override
+  String get checkoutPayment => 'طريقة الدفع';
+
+  @override
+  String get checkoutCod => 'الدفع عند الاستلام';
+
+  @override
+  String get checkoutPlaceOrder => 'تأكيد الطلب';
+
+  @override
+  String get checkoutSuccessTitle => 'تم تقديم طلبك';
+
+  @override
+  String get checkoutSuccessMessage => 'سيتواصل معك المندوب لتأكيد التوصيل.';
+
+  @override
+  String get checkoutOrderNumber => 'رقم الطلب';
+
+  @override
+  String get checkoutBackHome => 'العودة للتسوّق';
+
+  @override
+  String get checkoutViewOrders => 'عرض طلباتي';
+
+  @override
+  String get wishlistTitle => 'المفضّلة';
+
+  @override
+  String get wishlistEmptyTitle => 'قائمتك فارغة';
+
+  @override
+  String get wishlistEmptyMessage => 'احفظ المنتجات التي تعجبك لتجدها هنا.';
+
+  @override
+  String get wishlistAdd => 'أضف إلى المفضّلة';
+
+  @override
+  String get wishlistRemove => 'إزالة من المفضّلة';
+
+  @override
+  String get wishlistSignInPrompt => 'سجّل الدخول للحفظ في المفضّلة';
+
+  @override
   String get ordersTitle => 'الطلبات';
+
+  @override
+  String get ordersEmptyTitle => 'لا طلبات بعد';
+
+  @override
+  String get ordersEmptyMessage => 'ابدأ التسوّق وستظهر طلباتك هنا.';
+
+  @override
+  String get ordersFilterAll => 'الكل';
+
+  @override
+  String get ordersFilterEmpty => 'لا طلبات بهذه الحالة';
+
+  @override
+  String orderItemsCount(String count) {
+    return '$count منتجات';
+  }
+
+  @override
+  String get orderDetailTitle => 'تفاصيل الطلب';
+
+  @override
+  String get orderItemsSection => 'المنتجات';
+
+  @override
+  String orderLineQuantity(String count) {
+    return 'الكمية: $count';
+  }
+
+  @override
+  String get orderSummary => 'ملخّص الطلب';
+
+  @override
+  String get orderDate => 'تاريخ الطلب';
+
+  @override
+  String get orderTrackingTitle => 'تتبّع الطلب';
+
+  @override
+  String get orderCancel => 'إلغاء الطلب';
+
+  @override
+  String get orderCancelTitle => 'إلغاء هذا الطلب؟';
+
+  @override
+  String get orderCancelMessage => 'لا يمكن التراجع بعد الإلغاء.';
+
+  @override
+  String get orderKeepOrder => 'تراجع';
+
+  @override
+  String get orderCancelledDone => 'تم إلغاء الطلب.';
+
+  @override
+  String get orderStatusPending => 'بانتظار القبول';
+
+  @override
+  String get orderStatusConfirmed => 'مؤكّد';
+
+  @override
+  String get orderStatusProcessing => 'قيد التجهيز';
+
+  @override
+  String get orderStatusOutForDelivery => 'قيد التوصيل';
+
+  @override
+  String get orderStatusDelivered => 'تم التوصيل';
+
+  @override
+  String get orderStatusFailedDelivery => 'تعذّر التوصيل';
+
+  @override
+  String get orderStatusCancelled => 'ملغى';
+
+  @override
+  String get orderStatusReturnRequested => 'طلب إرجاع';
+
+  @override
+  String get orderStatusReturned => 'مُرجَع';
 
   @override
   String get deliveryTitle => 'التوصيل';
@@ -175,6 +426,227 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get comingSoonMessage => 'هذا الجزء من التطبيق قيد التطوير.';
+
+  @override
+  String get commonOutOfStock => 'غير متوفر';
+
+  @override
+  String get homeSectionDepartments => 'تسوّق حسب القسم';
+
+  @override
+  String get homeAllDepartments => 'الكل';
+
+  @override
+  String get homeSectionProducts => 'منتجات';
+
+  @override
+  String get productDescription => 'الوصف';
+
+  @override
+  String get productNegotiable => 'قابل للتفاوض';
+
+  @override
+  String get productAddToCart => 'أضف إلى السلة';
+
+  @override
+  String get productVariants => 'الخيارات';
+
+  @override
+  String get productQuantity => 'الكمية';
+
+  @override
+  String get productInStock => 'متوفّر';
+
+  @override
+  String productLowStock(String count) {
+    return 'باقٍ $count';
+  }
+
+  @override
+  String get productReviews => 'التقييمات';
+
+  @override
+  String get productNoReviews => 'لا توجد تقييمات بعد';
+
+  @override
+  String productReviewsCount(String count) {
+    return '$count تقييم';
+  }
+
+  @override
+  String get productVerifiedPurchase => 'شراء موثّق';
+
+  @override
+  String get productReviewsSoon => 'التقييمات قريبًا.';
+
+  @override
+  String get searchHint => 'ابحث عن منتج';
+
+  @override
+  String get searchNoResults => 'لا توجد منتجات مطابقة.';
+
+  @override
+  String get sortNewest => 'الأحدث';
+
+  @override
+  String get sortCheapest => 'الأقل سعرًا';
+
+  @override
+  String get sortDearest => 'الأعلى سعرًا';
+
+  @override
+  String get sortTopRated => 'الأعلى تقييمًا';
+
+  @override
+  String get filtersTitle => 'الفلاتر';
+
+  @override
+  String get filterPrice => 'السعر';
+
+  @override
+  String get filterMin => 'من';
+
+  @override
+  String get filterMax => 'إلى';
+
+  @override
+  String get filterApply => 'تطبيق';
+
+  @override
+  String get filterClear => 'مسح';
+
+  @override
+  String get adminSectionCatalog => 'الكتالوج';
+
+  @override
+  String get adminSectionOrders => 'الطلبات';
+
+  @override
+  String get adminSectionInventory => 'المخزون';
+
+  @override
+  String get adminSectionPicking => 'الانتقاء';
+
+  @override
+  String get adminSectionPurchasing => 'المشتريات';
+
+  @override
+  String get adminSectionReturns => 'المرتجعات';
+
+  @override
+  String get adminSectionReports => 'التقارير';
+
+  @override
+  String get adminSectionUsers => 'المستخدمون والأدوار';
+
+  @override
+  String get adminSectionSettings => 'الإعدادات';
+
+  @override
+  String get adminNoAccess => 'لا توجد صلاحيات مسندة لحسابك.';
+
+  @override
+  String get profileTitle => 'الملف الشخصي';
+
+  @override
+  String get profileName => 'الاسم';
+
+  @override
+  String get profileNameRequired => 'أدخل اسمك.';
+
+  @override
+  String get profileChangePhoto => 'تغيير الصورة';
+
+  @override
+  String get profileSaved => 'تم حفظ التغييرات.';
+
+  @override
+  String get profileDeleteAccount => 'حذف الحساب';
+
+  @override
+  String get profileDeleteTitle => 'حذف الحساب؟';
+
+  @override
+  String get profileDeleteMessage =>
+      'سيتم حذف حسابك وبياناته نهائيًا. لا يمكن التراجع عن هذا الإجراء.';
+
+  @override
+  String galleryCounter(String current, String total) {
+    return '$current من $total';
+  }
+
+  @override
+  String get afterSalesDeliveredOnly => 'تتوفر هذه الخدمات بعد استلام الطلب.';
+
+  @override
+  String get reviewOrderTitle => 'تقييم المنتجات';
+
+  @override
+  String get reviewOrderHint =>
+      'اختر منتجًا من هذا الطلب المستلم. تقييم المنتج مستقل عن تقييم التوصيل.';
+
+  @override
+  String get reviewChooseProduct => 'المنتج المراد تقييمه';
+
+  @override
+  String get reviewRating => 'تقييمك';
+
+  @override
+  String reviewStars(String count) {
+    return '$count من 5 نجوم';
+  }
+
+  @override
+  String get reviewComment => 'التعليق (اختياري)';
+
+  @override
+  String get reviewSubmit => 'إرسال التقييم';
+
+  @override
+  String get reviewSubmitted => 'تم إرسال التقييم. يخضع النشر للمراجعة.';
+
+  @override
+  String get reviewAllSubmitted =>
+      'أرسلت تقييمات لجميع المنتجات خلال هذه الجلسة.';
+
+  @override
+  String get returnOrderTitle => 'طلب إرجاع';
+
+  @override
+  String get returnOrderHint =>
+      'حدد كميات المنتجات المراد إرجاعها، واترك كمية المنتجات التي تريد الاحتفاظ بها على 0.';
+
+  @override
+  String returnAvailable(String count) {
+    return 'الكمية المتاحة لطلب الإرجاع: $count';
+  }
+
+  @override
+  String get returnIncrease => 'زيادة كمية الإرجاع';
+
+  @override
+  String get returnDecrease => 'تقليل كمية الإرجاع';
+
+  @override
+  String get returnReason => 'سبب الإرجاع (اختياري)';
+
+  @override
+  String get returnSubmit => 'إرسال طلب الإرجاع';
+
+  @override
+  String get returnSubmitted => 'تم إرسال طلب الإرجاع.';
+
+  @override
+  String returnReference(String id) {
+    return 'رقم طلب الإرجاع: $id';
+  }
+
+  @override
+  String get returnRequestOnly =>
+      'هذا طلب إرجاع وليس موافقة أو استردادًا للمبلغ. سيراجعه المتجر.';
+
+  @override
+  String get returnAllRequested => 'طلبت إرجاع جميع الكميات خلال هذه الجلسة.';
 
   @override
   String get routeNotFoundTitle => 'الصفحة غير موجودة';

@@ -28,6 +28,12 @@ abstract final class NavigationThemes {
     top: 3,
   );
 
+  /// Active-tab top indicator — the thick bar shown at the top edge of the
+  /// selected destination, in the active (primary) colour. Tune its size here;
+  /// never hard-code these in CustomerShell.
+  static const double bottomBarIndicatorWidth = 50;
+  static const double bottomBarIndicatorThickness = 5;
+
   /// Icon size in the wide-layout navigation rail (left untouched by the
   /// phone-oriented refinement above).
   static const double railIconSize = 24;
@@ -96,7 +102,7 @@ abstract final class NavigationThemes {
     surfaceTintColor: Colors.transparent,
     labelStyle: text.labelMedium ?? const TextStyle(),
     side: BorderSide(color: c.border),
-    shape: const RoundedRectangleBorder(borderRadius: AppRadii.pillAll),
+    shape: const RoundedRectangleBorder(borderRadius: AppRadii.smAll),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
   );
 

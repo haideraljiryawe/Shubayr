@@ -134,6 +134,12 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get actionClose;
 
+  /// No description provided for @actionDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get actionDelete;
+
   /// No description provided for @navHome.
   ///
   /// In en, this message translates to:
@@ -350,6 +356,60 @@ abstract class AppLocalizations {
   /// **'Currency'**
   String get accountCurrency;
 
+  /// No description provided for @accountGuestPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to reach your cart, orders and loyalty points.'**
+  String get accountGuestPrompt;
+
+  /// No description provided for @accountPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences'**
+  String get accountPreferences;
+
+  /// No description provided for @accountSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Help & support'**
+  String get accountSupport;
+
+  /// No description provided for @accountHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Help'**
+  String get accountHelp;
+
+  /// No description provided for @accountPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get accountPrivacy;
+
+  /// No description provided for @accountTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get accountTheme;
+
+  /// No description provided for @accountThemeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get accountThemeSystem;
+
+  /// No description provided for @accountThemeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get accountThemeLight;
+
+  /// No description provided for @accountThemeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get accountThemeDark;
+
   /// No description provided for @accountSignedInAs.
   ///
   /// In en, this message translates to:
@@ -386,17 +446,449 @@ abstract class AppLocalizations {
   /// **'Categories'**
   String get categoriesTitle;
 
+  /// No description provided for @categoriesBrowseAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse all'**
+  String get categoriesBrowseAll;
+
   /// No description provided for @cartTitle.
   ///
   /// In en, this message translates to:
   /// **'Cart'**
   String get cartTitle;
 
+  /// No description provided for @cartEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your cart is empty'**
+  String get cartEmptyTitle;
+
+  /// No description provided for @cartEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Add products to start shopping.'**
+  String get cartEmptyMessage;
+
+  /// No description provided for @cartSubtotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtotal'**
+  String get cartSubtotal;
+
+  /// No description provided for @cartCheckout.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout'**
+  String get cartCheckout;
+
+  /// No description provided for @cartRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get cartRemove;
+
+  /// No description provided for @cartAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to cart'**
+  String get cartAdded;
+
+  /// No description provided for @cartViewCart.
+  ///
+  /// In en, this message translates to:
+  /// **'View cart'**
+  String get cartViewCart;
+
+  /// No description provided for @cartSignInPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to add to cart'**
+  String get cartSignInPrompt;
+
+  /// No description provided for @addressesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Addresses'**
+  String get addressesTitle;
+
+  /// No description provided for @addressAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add address'**
+  String get addressAdd;
+
+  /// No description provided for @addressEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit address'**
+  String get addressEdit;
+
+  /// No description provided for @addressEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved addresses'**
+  String get addressEmptyTitle;
+
+  /// No description provided for @addressEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a delivery address to speed up checkout.'**
+  String get addressEmptyMessage;
+
+  /// No description provided for @addressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Label'**
+  String get addressLabel;
+
+  /// No description provided for @addressCity.
+  ///
+  /// In en, this message translates to:
+  /// **'City'**
+  String get addressCity;
+
+  /// No description provided for @addressArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Area'**
+  String get addressArea;
+
+  /// No description provided for @addressStreet.
+  ///
+  /// In en, this message translates to:
+  /// **'Street'**
+  String get addressStreet;
+
+  /// No description provided for @addressDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'More details'**
+  String get addressDetails;
+
+  /// No description provided for @addressCityRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the city.'**
+  String get addressCityRequired;
+
+  /// No description provided for @addressSetDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as default'**
+  String get addressSetDefault;
+
+  /// No description provided for @addressDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get addressDefault;
+
+  /// No description provided for @addressDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this address?'**
+  String get addressDeleteTitle;
+
+  /// No description provided for @checkoutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout'**
+  String get checkoutTitle;
+
+  /// No description provided for @checkoutAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery address'**
+  String get checkoutAddress;
+
+  /// No description provided for @checkoutChangeAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get checkoutChangeAddress;
+
+  /// No description provided for @checkoutCoupon.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount coupon'**
+  String get checkoutCoupon;
+
+  /// No description provided for @checkoutCouponHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter code'**
+  String get checkoutCouponHint;
+
+  /// No description provided for @checkoutCouponInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid coupon code'**
+  String get checkoutCouponInvalid;
+
+  /// No description provided for @checkoutDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount'**
+  String get checkoutDiscount;
+
+  /// No description provided for @checkoutDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fee'**
+  String get checkoutDelivery;
+
+  /// No description provided for @checkoutDeliveryNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculated at confirmation'**
+  String get checkoutDeliveryNote;
+
+  /// No description provided for @checkoutTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get checkoutTotal;
+
+  /// No description provided for @checkoutPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment method'**
+  String get checkoutPayment;
+
+  /// No description provided for @checkoutCod.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash on delivery'**
+  String get checkoutCod;
+
+  /// No description provided for @checkoutPlaceOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Place order'**
+  String get checkoutPlaceOrder;
+
+  /// No description provided for @checkoutSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order placed'**
+  String get checkoutSuccessTitle;
+
+  /// No description provided for @checkoutSuccessMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The courier will contact you to confirm delivery.'**
+  String get checkoutSuccessMessage;
+
+  /// No description provided for @checkoutOrderNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Order number'**
+  String get checkoutOrderNumber;
+
+  /// No description provided for @checkoutBackHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to shopping'**
+  String get checkoutBackHome;
+
+  /// No description provided for @checkoutViewOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'View my orders'**
+  String get checkoutViewOrders;
+
+  /// No description provided for @wishlistTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Wishlist'**
+  String get wishlistTitle;
+
+  /// No description provided for @wishlistEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved products'**
+  String get wishlistEmptyTitle;
+
+  /// No description provided for @wishlistEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Save products you like to find them here.'**
+  String get wishlistEmptyMessage;
+
+  /// No description provided for @wishlistAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to wishlist'**
+  String get wishlistAdd;
+
+  /// No description provided for @wishlistRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from wishlist'**
+  String get wishlistRemove;
+
+  /// No description provided for @wishlistSignInPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to save to your wishlist'**
+  String get wishlistSignInPrompt;
+
   /// No description provided for @ordersTitle.
   ///
   /// In en, this message translates to:
   /// **'Orders'**
   String get ordersTitle;
+
+  /// No description provided for @ordersEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders yet'**
+  String get ordersEmptyTitle;
+
+  /// No description provided for @ordersEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Start shopping and your orders will appear here.'**
+  String get ordersEmptyMessage;
+
+  /// No description provided for @ordersFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get ordersFilterAll;
+
+  /// No description provided for @ordersFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders with this status'**
+  String get ordersFilterEmpty;
+
+  /// Item count on an order card; count is a string so it stays Western-Arabic.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String orderItemsCount(String count);
+
+  /// No description provided for @orderDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order details'**
+  String get orderDetailTitle;
+
+  /// No description provided for @orderItemsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get orderItemsSection;
+
+  /// Quantity of an order line; count is a string so it stays Western-Arabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Qty: {count}'**
+  String orderLineQuantity(String count);
+
+  /// No description provided for @orderSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Order summary'**
+  String get orderSummary;
+
+  /// No description provided for @orderDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Order date'**
+  String get orderDate;
+
+  /// No description provided for @orderTrackingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order tracking'**
+  String get orderTrackingTitle;
+
+  /// No description provided for @orderCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel order'**
+  String get orderCancel;
+
+  /// No description provided for @orderCancelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel this order?'**
+  String get orderCancelTitle;
+
+  /// No description provided for @orderCancelMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This can\'t be undone once cancelled.'**
+  String get orderCancelMessage;
+
+  /// No description provided for @orderKeepOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep order'**
+  String get orderKeepOrder;
+
+  /// No description provided for @orderCancelledDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Order cancelled.'**
+  String get orderCancelledDone;
+
+  /// No description provided for @orderStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get orderStatusPending;
+
+  /// No description provided for @orderStatusConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get orderStatusConfirmed;
+
+  /// No description provided for @orderStatusProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get orderStatusProcessing;
+
+  /// No description provided for @orderStatusOutForDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Out for delivery'**
+  String get orderStatusOutForDelivery;
+
+  /// No description provided for @orderStatusDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get orderStatusDelivered;
+
+  /// No description provided for @orderStatusFailedDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery failed'**
+  String get orderStatusFailedDelivery;
+
+  /// No description provided for @orderStatusCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get orderStatusCancelled;
+
+  /// No description provided for @orderStatusReturnRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Return requested'**
+  String get orderStatusReturnRequested;
+
+  /// No description provided for @orderStatusReturned.
+  ///
+  /// In en, this message translates to:
+  /// **'Returned'**
+  String get orderStatusReturned;
 
   /// No description provided for @deliveryTitle.
   ///
@@ -421,6 +913,414 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This part of the app is not built yet.'**
   String get comingSoonMessage;
+
+  /// No description provided for @commonOutOfStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of stock'**
+  String get commonOutOfStock;
+
+  /// No description provided for @homeSectionDepartments.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop by department'**
+  String get homeSectionDepartments;
+
+  /// No description provided for @homeAllDepartments.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get homeAllDepartments;
+
+  /// No description provided for @homeSectionProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Products'**
+  String get homeSectionProducts;
+
+  /// No description provided for @productDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get productDescription;
+
+  /// No description provided for @productNegotiable.
+  ///
+  /// In en, this message translates to:
+  /// **'Negotiable'**
+  String get productNegotiable;
+
+  /// No description provided for @productAddToCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to cart'**
+  String get productAddToCart;
+
+  /// No description provided for @productVariants.
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get productVariants;
+
+  /// No description provided for @productQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity'**
+  String get productQuantity;
+
+  /// No description provided for @productInStock.
+  ///
+  /// In en, this message translates to:
+  /// **'In stock'**
+  String get productInStock;
+
+  /// Low-stock hint on product detail; count is passed as a string so it stays Western-Arabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Only {count} left'**
+  String productLowStock(String count);
+
+  /// No description provided for @productReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews'**
+  String get productReviews;
+
+  /// No description provided for @productNoReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'No reviews yet'**
+  String get productNoReviews;
+
+  /// Number of reviews shown in the product detail summary; count is a string to stay Western-Arabic.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} reviews'**
+  String productReviewsCount(String count);
+
+  /// No description provided for @productVerifiedPurchase.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified purchase'**
+  String get productVerifiedPurchase;
+
+  /// No description provided for @productReviewsSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews are coming soon.'**
+  String get productReviewsSoon;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search products'**
+  String get searchHint;
+
+  /// No description provided for @searchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching products.'**
+  String get searchNoResults;
+
+  /// No description provided for @sortNewest.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest'**
+  String get sortNewest;
+
+  /// No description provided for @sortCheapest.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest price'**
+  String get sortCheapest;
+
+  /// No description provided for @sortDearest.
+  ///
+  /// In en, this message translates to:
+  /// **'Highest price'**
+  String get sortDearest;
+
+  /// No description provided for @sortTopRated.
+  ///
+  /// In en, this message translates to:
+  /// **'Top rated'**
+  String get sortTopRated;
+
+  /// No description provided for @filtersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Filters'**
+  String get filtersTitle;
+
+  /// No description provided for @filterPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Price'**
+  String get filterPrice;
+
+  /// No description provided for @filterMin.
+  ///
+  /// In en, this message translates to:
+  /// **'Min'**
+  String get filterMin;
+
+  /// No description provided for @filterMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get filterMax;
+
+  /// No description provided for @filterApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get filterApply;
+
+  /// No description provided for @filterClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get filterClear;
+
+  /// No description provided for @adminSectionCatalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Catalog'**
+  String get adminSectionCatalog;
+
+  /// No description provided for @adminSectionOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get adminSectionOrders;
+
+  /// No description provided for @adminSectionInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'Inventory'**
+  String get adminSectionInventory;
+
+  /// No description provided for @adminSectionPicking.
+  ///
+  /// In en, this message translates to:
+  /// **'Picking'**
+  String get adminSectionPicking;
+
+  /// No description provided for @adminSectionPurchasing.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchasing'**
+  String get adminSectionPurchasing;
+
+  /// No description provided for @adminSectionReturns.
+  ///
+  /// In en, this message translates to:
+  /// **'Returns'**
+  String get adminSectionReturns;
+
+  /// No description provided for @adminSectionReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get adminSectionReports;
+
+  /// No description provided for @adminSectionUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'Users & roles'**
+  String get adminSectionUsers;
+
+  /// No description provided for @adminSectionSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get adminSectionSettings;
+
+  /// No description provided for @adminNoAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'No permissions are assigned to your account.'**
+  String get adminNoAccess;
+
+  /// No description provided for @profileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profileTitle;
+
+  /// No description provided for @profileName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get profileName;
+
+  /// No description provided for @profileNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your name.'**
+  String get profileNameRequired;
+
+  /// No description provided for @profileChangePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Change photo'**
+  String get profileChangePhoto;
+
+  /// No description provided for @profileSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes saved.'**
+  String get profileSaved;
+
+  /// No description provided for @profileDeleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get profileDeleteAccount;
+
+  /// No description provided for @profileDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account?'**
+  String get profileDeleteTitle;
+
+  /// No description provided for @profileDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account and its data will be permanently deleted. This cannot be undone.'**
+  String get profileDeleteMessage;
+
+  /// Image position in the full-screen product gallery, e.g. '1 of 5'. Digits are passed as strings so they stay Western Arabic numerals like the rest of the app.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {total}'**
+  String galleryCounter(String current, String total);
+
+  /// No description provided for @afterSalesDeliveredOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'These services are available after the order is delivered.'**
+  String get afterSalesDeliveredOnly;
+
+  /// No description provided for @reviewOrderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review products'**
+  String get reviewOrderTitle;
+
+  /// No description provided for @reviewOrderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an item from this delivered order. Product reviews are separate from delivery ratings.'**
+  String get reviewOrderHint;
+
+  /// No description provided for @reviewChooseProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Product to review'**
+  String get reviewChooseProduct;
+
+  /// No description provided for @reviewRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Your rating'**
+  String get reviewRating;
+
+  /// No description provided for @reviewStars.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} out of 5 stars'**
+  String reviewStars(String count);
+
+  /// No description provided for @reviewComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment (optional)'**
+  String get reviewComment;
+
+  /// No description provided for @reviewSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit review'**
+  String get reviewSubmit;
+
+  /// No description provided for @reviewSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Review submitted. Publication is subject to review.'**
+  String get reviewSubmitted;
+
+  /// No description provided for @reviewAllSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'You have submitted reviews for all items in this session.'**
+  String get reviewAllSubmitted;
+
+  /// No description provided for @returnOrderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request a return'**
+  String get returnOrderTitle;
+
+  /// No description provided for @returnOrderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose quantities to return. Leave items you want to keep at 0.'**
+  String get returnOrderHint;
+
+  /// No description provided for @returnAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity available to request: {count}'**
+  String returnAvailable(String count);
+
+  /// No description provided for @returnIncrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase return quantity'**
+  String get returnIncrease;
+
+  /// No description provided for @returnDecrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease return quantity'**
+  String get returnDecrease;
+
+  /// No description provided for @returnReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for return (optional)'**
+  String get returnReason;
+
+  /// No description provided for @returnSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit return request'**
+  String get returnSubmit;
+
+  /// No description provided for @returnSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Return request submitted.'**
+  String get returnSubmitted;
+
+  /// No description provided for @returnReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Request reference: {id}'**
+  String returnReference(String id);
+
+  /// No description provided for @returnRequestOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a request, not an approval or a refund. The store will review it.'**
+  String get returnRequestOnly;
+
+  /// No description provided for @returnAllRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'All item quantities have been requested for return in this session.'**
+  String get returnAllRequested;
 
   /// No description provided for @routeNotFoundTitle.
   ///

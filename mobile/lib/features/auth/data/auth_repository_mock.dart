@@ -1,5 +1,6 @@
 import '../../../core/error/failure.dart';
 import '../domain/auth_repository.dart';
+import '../domain/permissions.dart';
 import 'auth_result.dart';
 import 'user.dart';
 
@@ -32,11 +33,13 @@ class AuthRepositoryMock implements AuthRepository {
     if (code.length != 6) {
       throw const AppFailure(FailureKind.validation);
     }
+    final role = _roleForPhone(phone);
     final user = User(
       id: 'mock-user',
       name: null,
       phone: phone,
-      role: _roleForPhone(phone),
+      role: role,
+      permissions: Permissions.byRole[role] ?? const [],
     );
     _signedIn = user;
     return AuthResult(

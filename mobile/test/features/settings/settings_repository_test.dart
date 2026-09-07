@@ -110,7 +110,7 @@ void main() {
       addTearDown(container.dispose);
 
       final brand = container.read(brandProvider);
-      expect(brand.primaryColor, const Color(0xFF5B8F6B));
+      expect(brand.primaryColor, const Color(0xFF438C59));
       expect(brand.currencyCode, 'IQD');
       expect(brand.name, isNull);
     });
@@ -144,7 +144,7 @@ void main() {
         await container.read(storeSettingsProvider.notifier).refresh();
 
         final brand = container.read(brandProvider);
-        expect(brand.primaryColor, const Color(0xFF5B8F6B));
+        expect(brand.primaryColor, const Color(0xFF438C59));
         expect(brand.currencyCode, 'IQD');
       },
     );

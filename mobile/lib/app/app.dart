@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/l10n/generated/app_localizations.dart';
 import '../core/l10n/locale_controller.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/theme_mode_controller.dart';
 import '../core/theme/tokens/app_motion.dart';
 import '../features/settings/presentation/providers/settings_providers.dart';
 import 'router/app_router.dart';
@@ -20,6 +21,7 @@ class ShubayrApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final brand = ref.watch(brandProvider);
     final locale = ref.watch(localeControllerProvider);
+    final themeMode = ref.watch(themeModeControllerProvider);
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
@@ -27,6 +29,8 @@ class ShubayrApp extends ConsumerWidget {
           brand.name ?? AppLocalizations.of(context).storeFallbackName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(brand),
+      darkTheme: AppTheme.dark(brand),
+      themeMode: themeMode,
       themeAnimationDuration: AppMotion.medium,
       themeAnimationCurve: AppMotion.standard,
       locale: locale,

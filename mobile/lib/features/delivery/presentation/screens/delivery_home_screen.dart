@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/widgets/state_views.dart';
-import '../../../settings/presentation/screens/account_screen.dart';
 
 /// Delivery agent area — routing shell only.
 ///
@@ -17,7 +18,7 @@ class DeliveryHomeScreen extends StatelessWidget {
       title: Text(context.l10n.deliveryTitle),
       actions: [
         IconButton(
-          onPressed: () => showAccountSheet(context),
+          onPressed: () => context.push(AppRoutes.settings),
           icon: const Icon(Icons.person_outline),
           tooltip: context.l10n.accountTitle,
         ),

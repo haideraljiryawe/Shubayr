@@ -8,16 +8,18 @@ abstract final class InputTheme {
   static InputDecorationThemeData build(AppColors c, TextTheme text) {
     OutlineInputBorder border(Color color, {double width = 1}) =>
         OutlineInputBorder(
-          borderRadius: AppRadii.mdAll,
+          borderRadius: AppRadii.controlAll,
           borderSide: BorderSide(color: color, width: width),
         );
 
     return InputDecorationThemeData(
       filled: true,
       fillColor: c.surface,
+      // Vertical padding sets the field height — the single place to retune it
+      // app-wide, kept close to the button height for a consistent control bar.
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
-        vertical: AppSpacing.lg,
+        vertical: AppSpacing.md,
       ),
       hintStyle: text.bodyMedium?.copyWith(color: c.textMuted),
       labelStyle: text.bodyMedium?.copyWith(color: c.textSecondary),

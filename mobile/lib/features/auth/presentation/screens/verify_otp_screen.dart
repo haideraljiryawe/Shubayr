@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/sign_in_destination.dart';
+import '../../../../app/router/app_routes.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
@@ -11,12 +14,13 @@ import '../providers/auth_providers.dart';
 
 /// Step 2 of the OTP flow — `POST /auth/verify-otp`.
 ///
-/// On success the session opens and the router redirects to the area that
-/// matches the user's role; this screen does not navigate itself.
+/// On success, clears the authentication stack and restores a validated
+/// customer destination, or the appropriate home for another role.
 class VerifyOtpScreen extends ConsumerStatefulWidget {
-  const VerifyOtpScreen({super.key, required this.phone});
+  const VerifyOtpScreen({super.key, required this.phone, this.returnTo});
 
   final String phone;
+  final String? returnTo;
 
   @override
   ConsumerState<VerifyOtpScreen> createState() => _VerifyOtpScreenState();
@@ -56,6 +60,38 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
           .read(sessionControllerProvider.notifier)
           .verifyOtp(phone: widget.phone, code: _codeController.text.trim()),
     );
+
+    // On success, reset the stack with a clean declarative navigation. The
+    // sign-in and verify screens are reached by imperative `push`; letting the
+    // session-change redirect fire on top of those pushed pages made go_router
+    // rebuild the navigator with a duplicated shell page key and crash. Going
+    // to a root page clears those matches before restoring a detail page.
+    if (!mounted) return;
+    final session = ref.read(sessionControllerProvider).valueOrNull;
+    if (session != null && session.isSignedIn) {
+      final router = GoRouter.of(context);
+      final destination = SignInDestination.resolve(
+        widget.returnTo,
+        session.role,
+      );
+      const rootPages = {
+        AppRoutes.home,
+        AppRoutes.categories,
+        AppRoutes.account,
+        AppRoutes.cart,
+        AppRoutes.orders,
+        AppRoutes.delivery,
+        AppRoutes.admin,
+      };
+      if (rootPages.contains(Uri.parse(destination).path)) {
+        router.go(destination);
+      } else {
+        // Full-screen routes need a customer shell underneath them so Back
+        // remains available after clearing the authentication stack.
+        router.go(AppRoutes.home);
+        router.push(destination);
+      }
+    }
   }
 
   Future<void> _resend() => _run(

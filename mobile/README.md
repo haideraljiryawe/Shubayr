@@ -1,5 +1,10 @@
 # Shubayr — Mobile & Admin (Flutter)
 
+> Current guest sign-in and customer after-sales mock workflows are documented in
+> [Customer mock journeys](docs/customer-mock-progress.md). The older feature and
+> API-blocker inventory below predates those implementations and must not be used
+> as the current backlog; check the code and root OpenAPI contract.
+
 One Flutter codebase for **Customer + Delivery + Admin**, also building for
 **Flutter Web** (admin dashboard). See
 [`../docs/setup/SETUP_MOBILE.md`](../docs/setup/SETUP_MOBILE.md) for full
@@ -169,5 +174,6 @@ phase, not a contract gap.
 
 ## Working agreement
 
-All work stays inside `mobile/`. Branch off `develop`, use Conventional Commits,
-open a PR into `develop` — see the repository `CONTRIBUTING.md`.
+All app work stays inside `mobile/`. Branch off the latest `main`, use Conventional
+Commits, and open a PR into `main`. Delete the task branch after merge — see the
+repository `CONTRIBUTING.md`.

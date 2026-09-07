@@ -27,6 +27,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionClose => 'Close';
 
   @override
+  String get actionDelete => 'Delete';
+
+  @override
   String get navHome => 'Home';
 
   @override
@@ -142,6 +145,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountCurrency => 'Currency';
 
   @override
+  String get accountGuestPrompt =>
+      'Sign in to reach your cart, orders and loyalty points.';
+
+  @override
+  String get accountPreferences => 'Preferences';
+
+  @override
+  String get accountSupport => 'Help & support';
+
+  @override
+  String get accountHelp => 'Help';
+
+  @override
+  String get accountPrivacy => 'Privacy policy';
+
+  @override
+  String get accountTheme => 'Appearance';
+
+  @override
+  String get accountThemeSystem => 'System';
+
+  @override
+  String get accountThemeLight => 'Light';
+
+  @override
+  String get accountThemeDark => 'Dark';
+
+  @override
   String accountSignedInAs(String role) {
     return 'Signed in as $role';
   }
@@ -162,10 +193,234 @@ class AppLocalizationsEn extends AppLocalizations {
   String get categoriesTitle => 'Categories';
 
   @override
+  String get categoriesBrowseAll => 'Browse all';
+
+  @override
   String get cartTitle => 'Cart';
 
   @override
+  String get cartEmptyTitle => 'Your cart is empty';
+
+  @override
+  String get cartEmptyMessage => 'Add products to start shopping.';
+
+  @override
+  String get cartSubtotal => 'Subtotal';
+
+  @override
+  String get cartCheckout => 'Checkout';
+
+  @override
+  String get cartRemove => 'Remove';
+
+  @override
+  String get cartAdded => 'Added to cart';
+
+  @override
+  String get cartViewCart => 'View cart';
+
+  @override
+  String get cartSignInPrompt => 'Sign in to add to cart';
+
+  @override
+  String get addressesTitle => 'Addresses';
+
+  @override
+  String get addressAdd => 'Add address';
+
+  @override
+  String get addressEdit => 'Edit address';
+
+  @override
+  String get addressEmptyTitle => 'No saved addresses';
+
+  @override
+  String get addressEmptyMessage =>
+      'Add a delivery address to speed up checkout.';
+
+  @override
+  String get addressLabel => 'Label';
+
+  @override
+  String get addressCity => 'City';
+
+  @override
+  String get addressArea => 'Area';
+
+  @override
+  String get addressStreet => 'Street';
+
+  @override
+  String get addressDetails => 'More details';
+
+  @override
+  String get addressCityRequired => 'Enter the city.';
+
+  @override
+  String get addressSetDefault => 'Set as default';
+
+  @override
+  String get addressDefault => 'Default';
+
+  @override
+  String get addressDeleteTitle => 'Delete this address?';
+
+  @override
+  String get checkoutTitle => 'Checkout';
+
+  @override
+  String get checkoutAddress => 'Delivery address';
+
+  @override
+  String get checkoutChangeAddress => 'Change';
+
+  @override
+  String get checkoutCoupon => 'Discount coupon';
+
+  @override
+  String get checkoutCouponHint => 'Enter code';
+
+  @override
+  String get checkoutCouponInvalid => 'Invalid coupon code';
+
+  @override
+  String get checkoutDiscount => 'Discount';
+
+  @override
+  String get checkoutDelivery => 'Delivery fee';
+
+  @override
+  String get checkoutDeliveryNote => 'Calculated at confirmation';
+
+  @override
+  String get checkoutTotal => 'Total';
+
+  @override
+  String get checkoutPayment => 'Payment method';
+
+  @override
+  String get checkoutCod => 'Cash on delivery';
+
+  @override
+  String get checkoutPlaceOrder => 'Place order';
+
+  @override
+  String get checkoutSuccessTitle => 'Order placed';
+
+  @override
+  String get checkoutSuccessMessage =>
+      'The courier will contact you to confirm delivery.';
+
+  @override
+  String get checkoutOrderNumber => 'Order number';
+
+  @override
+  String get checkoutBackHome => 'Back to shopping';
+
+  @override
+  String get checkoutViewOrders => 'View my orders';
+
+  @override
+  String get wishlistTitle => 'Wishlist';
+
+  @override
+  String get wishlistEmptyTitle => 'No saved products';
+
+  @override
+  String get wishlistEmptyMessage =>
+      'Save products you like to find them here.';
+
+  @override
+  String get wishlistAdd => 'Add to wishlist';
+
+  @override
+  String get wishlistRemove => 'Remove from wishlist';
+
+  @override
+  String get wishlistSignInPrompt => 'Sign in to save to your wishlist';
+
+  @override
   String get ordersTitle => 'Orders';
+
+  @override
+  String get ordersEmptyTitle => 'No orders yet';
+
+  @override
+  String get ordersEmptyMessage =>
+      'Start shopping and your orders will appear here.';
+
+  @override
+  String get ordersFilterAll => 'All';
+
+  @override
+  String get ordersFilterEmpty => 'No orders with this status';
+
+  @override
+  String orderItemsCount(String count) {
+    return '$count items';
+  }
+
+  @override
+  String get orderDetailTitle => 'Order details';
+
+  @override
+  String get orderItemsSection => 'Items';
+
+  @override
+  String orderLineQuantity(String count) {
+    return 'Qty: $count';
+  }
+
+  @override
+  String get orderSummary => 'Order summary';
+
+  @override
+  String get orderDate => 'Order date';
+
+  @override
+  String get orderTrackingTitle => 'Order tracking';
+
+  @override
+  String get orderCancel => 'Cancel order';
+
+  @override
+  String get orderCancelTitle => 'Cancel this order?';
+
+  @override
+  String get orderCancelMessage => 'This can\'t be undone once cancelled.';
+
+  @override
+  String get orderKeepOrder => 'Keep order';
+
+  @override
+  String get orderCancelledDone => 'Order cancelled.';
+
+  @override
+  String get orderStatusPending => 'Pending';
+
+  @override
+  String get orderStatusConfirmed => 'Confirmed';
+
+  @override
+  String get orderStatusProcessing => 'Processing';
+
+  @override
+  String get orderStatusOutForDelivery => 'Out for delivery';
+
+  @override
+  String get orderStatusDelivered => 'Delivered';
+
+  @override
+  String get orderStatusFailedDelivery => 'Delivery failed';
+
+  @override
+  String get orderStatusCancelled => 'Cancelled';
+
+  @override
+  String get orderStatusReturnRequested => 'Return requested';
+
+  @override
+  String get orderStatusReturned => 'Returned';
 
   @override
   String get deliveryTitle => 'Deliveries';
@@ -178,6 +433,230 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get comingSoonMessage => 'This part of the app is not built yet.';
+
+  @override
+  String get commonOutOfStock => 'Out of stock';
+
+  @override
+  String get homeSectionDepartments => 'Shop by department';
+
+  @override
+  String get homeAllDepartments => 'All';
+
+  @override
+  String get homeSectionProducts => 'Products';
+
+  @override
+  String get productDescription => 'Description';
+
+  @override
+  String get productNegotiable => 'Negotiable';
+
+  @override
+  String get productAddToCart => 'Add to cart';
+
+  @override
+  String get productVariants => 'Options';
+
+  @override
+  String get productQuantity => 'Quantity';
+
+  @override
+  String get productInStock => 'In stock';
+
+  @override
+  String productLowStock(String count) {
+    return 'Only $count left';
+  }
+
+  @override
+  String get productReviews => 'Reviews';
+
+  @override
+  String get productNoReviews => 'No reviews yet';
+
+  @override
+  String productReviewsCount(String count) {
+    return '$count reviews';
+  }
+
+  @override
+  String get productVerifiedPurchase => 'Verified purchase';
+
+  @override
+  String get productReviewsSoon => 'Reviews are coming soon.';
+
+  @override
+  String get searchHint => 'Search products';
+
+  @override
+  String get searchNoResults => 'No matching products.';
+
+  @override
+  String get sortNewest => 'Newest';
+
+  @override
+  String get sortCheapest => 'Lowest price';
+
+  @override
+  String get sortDearest => 'Highest price';
+
+  @override
+  String get sortTopRated => 'Top rated';
+
+  @override
+  String get filtersTitle => 'Filters';
+
+  @override
+  String get filterPrice => 'Price';
+
+  @override
+  String get filterMin => 'Min';
+
+  @override
+  String get filterMax => 'Max';
+
+  @override
+  String get filterApply => 'Apply';
+
+  @override
+  String get filterClear => 'Clear';
+
+  @override
+  String get adminSectionCatalog => 'Catalog';
+
+  @override
+  String get adminSectionOrders => 'Orders';
+
+  @override
+  String get adminSectionInventory => 'Inventory';
+
+  @override
+  String get adminSectionPicking => 'Picking';
+
+  @override
+  String get adminSectionPurchasing => 'Purchasing';
+
+  @override
+  String get adminSectionReturns => 'Returns';
+
+  @override
+  String get adminSectionReports => 'Reports';
+
+  @override
+  String get adminSectionUsers => 'Users & roles';
+
+  @override
+  String get adminSectionSettings => 'Settings';
+
+  @override
+  String get adminNoAccess => 'No permissions are assigned to your account.';
+
+  @override
+  String get profileTitle => 'Profile';
+
+  @override
+  String get profileName => 'Name';
+
+  @override
+  String get profileNameRequired => 'Enter your name.';
+
+  @override
+  String get profileChangePhoto => 'Change photo';
+
+  @override
+  String get profileSaved => 'Changes saved.';
+
+  @override
+  String get profileDeleteAccount => 'Delete account';
+
+  @override
+  String get profileDeleteTitle => 'Delete account?';
+
+  @override
+  String get profileDeleteMessage =>
+      'Your account and its data will be permanently deleted. This cannot be undone.';
+
+  @override
+  String galleryCounter(String current, String total) {
+    return '$current of $total';
+  }
+
+  @override
+  String get afterSalesDeliveredOnly =>
+      'These services are available after the order is delivered.';
+
+  @override
+  String get reviewOrderTitle => 'Review products';
+
+  @override
+  String get reviewOrderHint =>
+      'Choose an item from this delivered order. Product reviews are separate from delivery ratings.';
+
+  @override
+  String get reviewChooseProduct => 'Product to review';
+
+  @override
+  String get reviewRating => 'Your rating';
+
+  @override
+  String reviewStars(String count) {
+    return '$count out of 5 stars';
+  }
+
+  @override
+  String get reviewComment => 'Comment (optional)';
+
+  @override
+  String get reviewSubmit => 'Submit review';
+
+  @override
+  String get reviewSubmitted =>
+      'Review submitted. Publication is subject to review.';
+
+  @override
+  String get reviewAllSubmitted =>
+      'You have submitted reviews for all items in this session.';
+
+  @override
+  String get returnOrderTitle => 'Request a return';
+
+  @override
+  String get returnOrderHint =>
+      'Choose quantities to return. Leave items you want to keep at 0.';
+
+  @override
+  String returnAvailable(String count) {
+    return 'Quantity available to request: $count';
+  }
+
+  @override
+  String get returnIncrease => 'Increase return quantity';
+
+  @override
+  String get returnDecrease => 'Decrease return quantity';
+
+  @override
+  String get returnReason => 'Reason for return (optional)';
+
+  @override
+  String get returnSubmit => 'Submit return request';
+
+  @override
+  String get returnSubmitted => 'Return request submitted.';
+
+  @override
+  String returnReference(String id) {
+    return 'Request reference: $id';
+  }
+
+  @override
+  String get returnRequestOnly =>
+      'This is a request, not an approval or a refund. The store will review it.';
+
+  @override
+  String get returnAllRequested =>
+      'All item quantities have been requested for return in this session.';
 
   @override
   String get routeNotFoundTitle => 'Page not found';

@@ -16,6 +16,10 @@ abstract final class AppTheme {
   static ThemeData light(Brand brand) =>
       fromColors(AppColors.fromSeed(brand.primaryColor));
 
+  static ThemeData dark(Brand brand) => fromColors(
+    AppColors.fromSeed(brand.primaryColor, brightness: Brightness.dark),
+  );
+
   static ThemeData fromColors(AppColors c) {
     final text = AppTypography.textTheme(c.textPrimary, c.textSecondary);
 

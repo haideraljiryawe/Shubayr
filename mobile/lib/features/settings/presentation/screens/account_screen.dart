@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import 'account_view.dart';
 
+/// The account & app-settings page.
+///
+/// The customer reaches it as a tab (no back button); delivery and staff open
+/// it as a pushed full-screen page (`/settings`, with a back button) instead of
+/// a bottom sheet, so drilling into the profile editor stays consistent.
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
 
@@ -12,14 +17,3 @@ class AccountScreen extends StatelessWidget {
     body: const AccountView(),
   );
 }
-
-/// Opens the same account controls from areas that have no account tab.
-Future<void> showAccountSheet(BuildContext context) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => FractionallySizedBox(
-        heightFactor: 0.75,
-        child: SafeArea(child: AccountView()),
-      ),
-    );
