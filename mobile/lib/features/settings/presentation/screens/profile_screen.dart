@@ -7,6 +7,7 @@ import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 /// The signed-in user's profile editor.
@@ -56,9 +57,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _initialName = _name;
       _saving = false;
     });
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(context.l10n.profileSaved)));
+    showAppSnackBarMessage(context, message: context.l10n.profileSaved);
   }
 
   Future<void> _signOut() async {
@@ -92,9 +91,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
     if (confirmed == true && mounted) {
       // Account deletion has no endpoint in the contract yet; keep it honest.
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l10n.comingSoonTitle)));
+      showAppSnackBarMessage(context, message: l10n.comingSoonTitle);
     }
   }
 
@@ -113,11 +110,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: AppSpacing.sm),
           Center(
             child: TextButton.icon(
-              onPressed: () => ScaffoldMessenger.of(context)
-                ..hideCurrentSnackBar()
-                ..showSnackBar(
-                  SnackBar(content: Text(l10n.comingSoonTitle)),
-                ),
+              onPressed: () => showAppSnackBarMessage(
+                context,
+                message: l10n.comingSoonTitle,
+              ),
               icon: const Icon(Icons.photo_camera_outlined, size: 18),
               label: Text(l10n.profileChangePhoto),
             ),
@@ -183,7 +179,10 @@ class _Avatar extends StatelessWidget {
           width: 96,
           height: 96,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: colors.primary, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: colors.primary,
+            shape: BoxShape.circle,
+          ),
           child: child,
         ),
         PositionedDirectional(
@@ -196,7 +195,11 @@ class _Avatar extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: colors.border),
             ),
-            child: Icon(Icons.photo_camera_outlined, size: 18, color: colors.textSecondary),
+            child: Icon(
+              Icons.photo_camera_outlined,
+              size: 18,
+              color: colors.textSecondary,
+            ),
           ),
         ),
       ],

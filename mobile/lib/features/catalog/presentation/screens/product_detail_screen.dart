@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +9,7 @@ import '../../../../core/theme/tokens/app_radii.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
 import '../../../../core/widgets/skeleton.dart';
@@ -36,13 +35,13 @@ class ProductDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final product = ref.watch(productProvider(productId));
 
-    // A screen-local messenger so the add-to-cart snackbar animates in place and
-    // disappears the instant the user leaves, instead of lingering on the root.
+    // A screen-local messenger so snackbars anchor to THIS full-screen route
+    // (the root messenger anchors to the shell behind it, hiding them) and
+    // vanish when the user leaves. Animation/timing are handled by the shared
+    // showAppSnackBar helper.
     return ScaffoldMessenger(
       child: Scaffold(
-        appBar: AppBar(
-          actions: [WishlistButton(productId: productId)],
-        ),
+        appBar: AppBar(actions: [WishlistButton(productId: productId)]),
         body: AsyncValueView(
           value: product,
           loading: const _DetailSkeleton(),
@@ -63,7 +62,11 @@ class _DetailSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: EdgeInsets.zero,
     children: const [
-      Skeleton(width: double.infinity, height: 320, borderRadius: BorderRadius.zero),
+      Skeleton(
+        width: double.infinity,
+        height: 320,
+        borderRadius: BorderRadius.zero,
+      ),
       Padding(
         padding: EdgeInsets.all(AppSpacing.screenH),
         child: Column(
@@ -73,11 +76,19 @@ class _DetailSkeleton extends StatelessWidget {
             SizedBox(height: AppSpacing.md),
             Skeleton.line(width: 120, height: 20),
             SizedBox(height: AppSpacing.lg),
-            Skeleton(width: double.infinity, height: 52, borderRadius: AppRadii.lgAll),
+            Skeleton(
+              width: double.infinity,
+              height: 52,
+              borderRadius: AppRadii.lgAll,
+            ),
             SizedBox(height: AppSpacing.lg),
             Skeleton.line(width: 140, height: 16),
             SizedBox(height: AppSpacing.sm),
-            Skeleton(width: double.infinity, height: 72, borderRadius: AppRadii.lgAll),
+            Skeleton(
+              width: double.infinity,
+              height: 72,
+              borderRadius: AppRadii.lgAll,
+            ),
           ],
         ),
       ),
@@ -136,7 +147,9 @@ class _DetailState extends ConsumerState<_Detail> {
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
     final brand = ref.watch(brandProvider);
-    final availability = ref.watch(availabilityProvider(product.id)).valueOrNull;
+    final availability = ref
+        .watch(availabilityProvider(product.id))
+        .valueOrNull;
 
     final selectedVariant = _selectedVariant;
     final price = formatMoney(
@@ -194,7 +207,10 @@ class _DetailState extends ConsumerState<_Detail> {
                     _AvailabilityBadge(inStock: stock.inStock, qty: stock.qty),
                     if (product.variants.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.lg),
-                      Text(l10n.productVariants, style: context.text.titleSmall),
+                      Text(
+                        l10n.productVariants,
+                        style: context.text.titleSmall,
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                       _VariantSelector(
                         variants: product.variants,
@@ -386,26 +402,6 @@ class _AddToCartBar extends ConsumerStatefulWidget {
 
 class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
   bool _busy = false;
-  Timer? _snackTimer;
-
-  @override
-  void dispose() {
-    _snackTimer?.cancel();
-    super.dispose();
-  }
-
-  /// Shows a snackbar that slides out again after 3 seconds. We drive the
-  /// dismissal ourselves so the timing is reliable, and it also disappears with
-  /// the screen (this bar lives under the detail's own [ScaffoldMessenger]).
-  void _showSnack(SnackBar snack) {
-    _snackTimer?.cancel();
-    ScaffoldMessenger.of(context)
-      ..removeCurrentSnackBar()
-      ..showSnackBar(snack);
-    _snackTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    });
-  }
 
   Future<void> _onPressed() async {
     final l10n = context.l10n;
@@ -415,14 +411,11 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     final signedIn =
         ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ?? false;
     if (!signedIn) {
-      _showSnack(
-        SnackBar(
-          content: Text(l10n.cartSignInPrompt),
-          action: SnackBarAction(
-            label: l10n.authSignInTitle,
-            onPressed: () => router.pushNamed(AppRoutes.signInName),
-          ),
-        ),
+      showAppSnackBarMessage(
+        context,
+        message: l10n.cartSignInPrompt,
+        actionLabel: l10n.authSignInTitle,
+        onAction: () => router.pushNamed(AppRoutes.signInName),
       );
       return;
     }
@@ -439,14 +432,16 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     setState(() => _busy = false);
 
     if (ref.read(cartControllerProvider).hasError) {
-      _showSnack(SnackBar(content: Text(l10n.stateErrorTitle)));
+      showAppSnackBarMessage(context, message: l10n.stateErrorTitle);
       return;
     }
     // The positive "added" state gets its own dark-green confirmation surface
     // (a design-system token), distinct from the neutral error/prompt snackbars.
     final colors = context.colors;
-    _showSnack(
+    showAppSnackBar(
+      context,
       SnackBar(
+        duration: const Duration(seconds: 3),
         backgroundColor: colors.confirmSurface,
         content: Text(
           l10n.cartAdded,

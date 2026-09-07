@@ -6,13 +6,18 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../auth/domain/permissions.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 /// One admin section entry, gated by a single RBAC permission.
-typedef _Section = ({IconData icon, String Function(BuildContext) label, String permission});
+typedef _Section = ({
+  IconData icon,
+  String Function(BuildContext) label,
+  String permission,
+});
 
 /// Admin / staff dashboard (also the Flutter Web target).
 ///
@@ -24,21 +29,59 @@ class AdminHomeScreen extends ConsumerWidget {
   const AdminHomeScreen({super.key});
 
   static final List<_Section> _sections = [
-    (icon: Icons.category_outlined, label: (c) => c.l10n.adminSectionCatalog, permission: Permissions.catalogManage),
-    (icon: Icons.receipt_long_outlined, label: (c) => c.l10n.adminSectionOrders, permission: Permissions.ordersView),
-    (icon: Icons.inventory_2_outlined, label: (c) => c.l10n.adminSectionInventory, permission: Permissions.inventoryView),
-    (icon: Icons.checklist_outlined, label: (c) => c.l10n.adminSectionPicking, permission: Permissions.inventoryPick),
-    (icon: Icons.local_shipping_outlined, label: (c) => c.l10n.adminSectionPurchasing, permission: Permissions.purchasingView),
-    (icon: Icons.assignment_return_outlined, label: (c) => c.l10n.adminSectionReturns, permission: Permissions.returnsView),
-    (icon: Icons.bar_chart_outlined, label: (c) => c.l10n.adminSectionReports, permission: Permissions.reportsView),
-    (icon: Icons.group_outlined, label: (c) => c.l10n.adminSectionUsers, permission: Permissions.usersManage),
-    (icon: Icons.settings_outlined, label: (c) => c.l10n.adminSectionSettings, permission: Permissions.settingsManage),
+    (
+      icon: Icons.category_outlined,
+      label: (c) => c.l10n.adminSectionCatalog,
+      permission: Permissions.catalogManage,
+    ),
+    (
+      icon: Icons.receipt_long_outlined,
+      label: (c) => c.l10n.adminSectionOrders,
+      permission: Permissions.ordersView,
+    ),
+    (
+      icon: Icons.inventory_2_outlined,
+      label: (c) => c.l10n.adminSectionInventory,
+      permission: Permissions.inventoryView,
+    ),
+    (
+      icon: Icons.checklist_outlined,
+      label: (c) => c.l10n.adminSectionPicking,
+      permission: Permissions.inventoryPick,
+    ),
+    (
+      icon: Icons.local_shipping_outlined,
+      label: (c) => c.l10n.adminSectionPurchasing,
+      permission: Permissions.purchasingView,
+    ),
+    (
+      icon: Icons.assignment_return_outlined,
+      label: (c) => c.l10n.adminSectionReturns,
+      permission: Permissions.returnsView,
+    ),
+    (
+      icon: Icons.bar_chart_outlined,
+      label: (c) => c.l10n.adminSectionReports,
+      permission: Permissions.reportsView,
+    ),
+    (
+      icon: Icons.group_outlined,
+      label: (c) => c.l10n.adminSectionUsers,
+      permission: Permissions.usersManage,
+    ),
+    (
+      icon: Icons.settings_outlined,
+      label: (c) => c.l10n.adminSectionSettings,
+      permission: Permissions.settingsManage,
+    ),
   ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final held = ref.watch(permissionsProvider);
-    final visible = _sections.where((s) => held.contains(s.permission)).toList();
+    final visible = _sections
+        .where((s) => held.contains(s.permission))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -67,8 +110,9 @@ class AdminHomeScreen extends ConsumerWidget {
                   _SectionTile(
                     icon: s.icon,
                     label: s.label(context),
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(context.l10n.comingSoonTitle)),
+                    onTap: () => showAppSnackBarMessage(
+                      context,
+                      message: context.l10n.comingSoonTitle,
                     ),
                   ),
               ],

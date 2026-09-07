@@ -105,5 +105,9 @@ void main() {
     expect(tester.widget<ElevatedButton>(save).onPressed, isNull);
     // The isolated delete action is present.
     expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+
+    // Let the "saved" snackbar's auto-dismiss timer fire so no timer is left
+    // pending when the test ends.
+    await tester.pump(const Duration(seconds: 4));
   }, timeout: const Timeout(Duration(seconds: 25)));
 }

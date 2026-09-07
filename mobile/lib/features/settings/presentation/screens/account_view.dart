@@ -7,6 +7,7 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/l10n/locale_controller.dart';
 import '../../../../core/theme/theme_context.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/theme/theme_mode_controller.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -287,9 +288,8 @@ class _SupportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    void soon() => ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.comingSoonTitle)),
-    );
+    void soon() =>
+        showAppSnackBarMessage(context, message: l10n.comingSoonTitle);
     return AppCard(
       padding: EdgeInsets.zero,
       child: Column(

@@ -12,6 +12,7 @@ import '../../../../core/theme/tokens/app_radii.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../catalog/data/product.dart';
@@ -48,7 +49,6 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
   Future<void> _cancel() async {
     final l10n = context.l10n;
-    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -61,9 +61,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: context.colors.danger,
-            ),
+            style: TextButton.styleFrom(foregroundColor: context.colors.danger),
             child: Text(l10n.orderCancel),
           ),
         ],
@@ -80,11 +78,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         ..invalidate(ordersProvider);
       if (!mounted) return;
       setState(() => _cancelling = false);
-      messenger.showSnackBar(SnackBar(content: Text(l10n.orderCancelledDone)));
+      showAppSnackBarMessage(context, message: l10n.orderCancelledDone);
     } on AppFailure catch (e) {
       if (!mounted) return;
       setState(() => _cancelling = false);
-      messenger.showSnackBar(SnackBar(content: Text(e.localizedMessage(l10n))));
+      showAppSnackBarMessage(context, message: e.localizedMessage(l10n));
     }
   }
 
@@ -176,11 +174,7 @@ class _Header extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                Icon(
-                  Icons.event_outlined,
-                  size: 16,
-                  color: colors.textMuted,
-                ),
+                Icon(Icons.event_outlined, size: 16, color: colors.textMuted),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
                   '${l10n.orderDate}: ${DateFormat('yyyy/MM/dd').format(placedAt)}',
@@ -267,12 +261,14 @@ class _TimelineRow extends StatelessWidget {
                   color: color.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(orderStatusIcon(event.status), size: 16, color: color),
+                child: Icon(
+                  orderStatusIcon(event.status),
+                  size: 16,
+                  color: color,
+                ),
               ),
               if (!isLast)
-                Expanded(
-                  child: Container(width: 2, color: colors.divider),
-                ),
+                Expanded(child: Container(width: 2, color: colors.divider)),
             ],
           ),
           const SizedBox(width: AppSpacing.md),
@@ -492,8 +488,9 @@ class _SummaryRow extends StatelessWidget {
         ),
         Text(
           value,
-          style: (emphasize ? context.text.titleMedium : context.text.bodyMedium)
-              ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
+          style:
+              (emphasize ? context.text.titleMedium : context.text.bodyMedium)
+                  ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
         ),
       ],
     );

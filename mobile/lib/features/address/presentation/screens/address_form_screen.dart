@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/address.dart';
 import '../providers/address_providers.dart';
 
@@ -25,7 +26,9 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   late final _label = TextEditingController(text: widget.address?.label ?? '');
   late final _city = TextEditingController(text: widget.address?.city ?? '');
   late final _area = TextEditingController(text: widget.address?.area ?? '');
-  late final _street = TextEditingController(text: widget.address?.street ?? '');
+  late final _street = TextEditingController(
+    text: widget.address?.street ?? '',
+  );
   late final _details = TextEditingController(
     text: widget.address?.details ?? '',
   );
@@ -44,7 +47,6 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
     setState(() => _busy = true);
@@ -67,9 +69,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
     setState(() => _busy = false);
 
     if (ref.read(addressesControllerProvider).hasError) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(context.l10n.stateErrorTitle)),
-      );
+      showAppSnackBarMessage(context, message: context.l10n.stateErrorTitle);
       return;
     }
     navigator.pop();

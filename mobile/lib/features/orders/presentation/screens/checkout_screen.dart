@@ -10,6 +10,7 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../address/data/address.dart';
 import '../../../address/presentation/providers/address_providers.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
@@ -91,7 +92,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Future<void> _placeOrder(String addressId) async {
     final l10n = context.l10n;
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _placing = true);
     try {
       final order = await ref
@@ -109,9 +109,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } on AppFailure catch (e) {
       if (!mounted) return;
       setState(() => _placing = false);
-      messenger.showSnackBar(
-        SnackBar(content: Text(e.localizedMessage(l10n))),
-      );
+      showAppSnackBarMessage(context, message: e.localizedMessage(l10n));
     }
   }
 
@@ -356,7 +354,9 @@ class _CouponSection extends StatelessWidget {
                   controller: controller,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => onApply(),
-                  decoration: InputDecoration(hintText: l10n.checkoutCouponHint),
+                  decoration: InputDecoration(
+                    hintText: l10n.checkoutCouponHint,
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -462,8 +462,9 @@ class _SummaryRow extends StatelessWidget {
         ),
         Text(
           value,
-          style: (emphasize ? context.text.titleMedium : context.text.bodyMedium)
-              ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
+          style:
+              (emphasize ? context.text.titleMedium : context.text.bodyMedium)
+                  ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
         ),
       ],
     );
@@ -528,7 +529,10 @@ class _PlaceOrderBar extends StatelessWidget {
 }
 
 class _AddressPickerSheet extends StatelessWidget {
-  const _AddressPickerSheet({required this.addresses, required this.selectedId});
+  const _AddressPickerSheet({
+    required this.addresses,
+    required this.selectedId,
+  });
 
   final List<Address> addresses;
   final String selectedId;
@@ -553,9 +557,11 @@ class _AddressPickerSheet extends StatelessWidget {
               ),
               title: Text(a.label.isNotEmpty ? a.label : a.city),
               subtitle: Text(
-                [a.city, a.area, a.street]
-                    .where((s) => s.trim().isNotEmpty)
-                    .join('، '),
+                [
+                  a.city,
+                  a.area,
+                  a.street,
+                ].where((s) => s.trim().isNotEmpty).join('، '),
               ),
             ),
         ],

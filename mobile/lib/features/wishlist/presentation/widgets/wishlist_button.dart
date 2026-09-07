@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../providers/wishlist_providers.dart';
 
@@ -35,17 +36,12 @@ class WishlistButton extends ConsumerWidget {
             ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ??
             false;
         if (!signedIn) {
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(l10n.wishlistSignInPrompt),
-                action: SnackBarAction(
-                  label: l10n.authSignInTitle,
-                  onPressed: () => context.pushNamed(AppRoutes.signInName),
-                ),
-              ),
-            );
+          showAppSnackBarMessage(
+            context,
+            message: l10n.wishlistSignInPrompt,
+            actionLabel: l10n.authSignInTitle,
+            onAction: () => context.pushNamed(AppRoutes.signInName),
+          );
           return;
         }
         ref.read(wishlistControllerProvider.notifier).toggle(productId);
