@@ -101,9 +101,25 @@ CREATE TABLE categories (
     parent_id       UUID REFERENCES categories(id) ON DELETE SET NULL,
     name_en         VARCHAR(120) NOT NULL,
     name_ar         VARCHAR(120) NOT NULL,
+    slug            VARCHAR(140),
     icon            VARCHAR(160),
     sort_order      INT NOT NULL DEFAULT 0,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- Home hero banners; public reads return active banners ordered by sort_order.
+CREATE TABLE banners (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title           VARCHAR(200) NOT NULL,
+    subtitle        TEXT,
+    image_url       TEXT NOT NULL,
+    cta_text        VARCHAR(120),
+    link_url        TEXT,
+    sort_order      INT NOT NULL DEFAULT 0,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    starts_at       TIMESTAMPTZ,
+    ends_at         TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE products (
@@ -113,6 +129,7 @@ CREATE TABLE products (
     name_ar         VARCHAR(200) NOT NULL,
     description     TEXT,
     sale_price      NUMERIC(12,2) NOT NULL DEFAULT 0,   -- selling price (separate from purchase cost)
+    compare_at_price NUMERIC(12,2),                       -- original/was price; NULL or <= sale_price means no discount
     is_negotiable   BOOLEAN NOT NULL DEFAULT FALSE,     -- points negotiation support
     floor_price     NUMERIC(12,2),                      -- lowest acceptable negotiated price
     points_price    INT,                                -- cost in loyalty points, if redeemable
@@ -445,6 +462,8 @@ CREATE TABLE audit_logs (
 -- ---------------------------------------------------------------------
 CREATE INDEX idx_products_category      ON products(category_id);
 CREATE INDEX idx_products_status        ON products(status);
+CREATE UNIQUE INDEX idx_categories_slug ON categories(slug);
+CREATE INDEX idx_banners_active_sort    ON banners(is_active, sort_order);
 CREATE INDEX idx_batches_product        ON inventory_batches(product_id);
 CREATE INDEX idx_batches_expiry         ON inventory_batches(expiry_date);      -- FEFO
 CREATE INDEX idx_batch_stock_batch      ON batch_stock(batch_id);

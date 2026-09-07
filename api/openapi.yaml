@@ -20,6 +20,7 @@ servers:
 tags:
   - name: Auth
   - name: Catalog
+  - name: Banners
   - name: Addresses
   - name: Cart
   - name: Wishlist
@@ -206,6 +207,21 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Category" }
+
+  /banners:
+    get:
+      tags: [Banners]
+      summary: List active home hero banners ordered by sort order
+      description: Active means is_active is true and the current time is within the optional starts_at and ends_at window.
+      security: []
+      responses:
+        "200":
+          description: Active banners ordered by sort_order ascending
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Banner" }
   /products:
     get:
       tags: [Catalog]
@@ -213,9 +229,10 @@ paths:
       security: []
       parameters:
         - { name: q, in: query, schema: { type: string }, description: search text }
-        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid }, description: "Category UUID; products remain filtered by category_id, not slug." }
         - { name: min_price, in: query, schema: { type: number } }
         - { name: max_price, in: query, schema: { type: number } }
+        - { name: on_sale, in: query, schema: { type: boolean }, description: "When true, return products where compare_at_price is greater than sale_price." }
         - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating] } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -1083,6 +1100,82 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  # ---------------- ADMIN: BANNERS CRUD ----------------
+  /admin/banners:
+    get:
+      tags: [Admin]
+      summary: List all home hero banners (including inactive and scheduled banners)
+      x-permission: catalog.manage
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated banners
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BannerPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Admin]
+      summary: Create a home hero banner
+      x-permission: catalog.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BannerInput" }
+      responses:
+        "201":
+          description: Created banner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Banner" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/banners/{id}:
+    get:
+      tags: [Admin]
+      summary: Get one home hero banner
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Banner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Banner" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Admin]
+      summary: Update a home hero banner
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BannerInput" }
+      responses:
+        "200":
+          description: Updated banner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Banner" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Admin]
+      summary: Delete a home hero banner
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   # ---------------- ADMIN: USERS CRUD ----------------
   /admin/users:
     get:
@@ -1345,6 +1438,7 @@ components:
         parent_id: { type: [string, "null"], format: uuid }
         name_en: { type: string }
         name_ar: { type: string }
+        slug: { type: string, description: "SEO URL slug. Products are still filtered by category_id." }
         icon: { type: [string, "null"] }
         sort_order: { type: integer }
         is_active: { type: boolean }
@@ -1373,6 +1467,8 @@ components:
         name_ar: { type: string }
         description: { type: string }
         sale_price: { type: number }
+        compare_at_price: { type: [number, "null"], description: "Original/was price. Null or less than or equal to sale_price means no discount." }
+        discount_percent: { type: [integer, "null"], readOnly: true, description: "Computed as round((compare_at_price - sale_price) / compare_at_price * 100) when compare_at_price is greater than sale_price; otherwise null." }
         is_negotiable: { type: boolean }
         floor_price: { type: [number, "null"] }
         points_price: { type: [integer, "null"] }
@@ -1393,6 +1489,7 @@ components:
         name_ar: { type: string }
         description: { type: string }
         sale_price: { type: number }
+        compare_at_price: { type: [number, "null"], description: "Original/was price; set to null or no more than sale_price to remove the discount." }
         is_negotiable: { type: boolean, default: false }
         floor_price: { type: [number, "null"] }
         points_price: { type: [integer, "null"] }
@@ -1407,6 +1504,45 @@ components:
               sku: { type: string }
               attributes: { type: object, additionalProperties: true }
               price_delta: { type: number }
+
+    Banner:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        subtitle: { type: [string, "null"] }
+        image_url: { type: string, format: uri }
+        cta_text: { type: [string, "null"] }
+        link_url: { type: [string, "null"], format: uri }
+        sort_order: { type: integer }
+        is_active: { type: boolean }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    BannerInput:
+      type: object
+      required: [title, image_url]
+      properties:
+        title: { type: string }
+        subtitle: { type: [string, "null"] }
+        image_url: { type: string, format: uri }
+        cta_text: { type: [string, "null"] }
+        link_url: { type: [string, "null"], format: uri }
+        sort_order: { type: integer, default: 0 }
+        is_active: { type: boolean, default: true }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+
+    BannerPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/Banner" }
 
     ProductVariant:
       type: object
