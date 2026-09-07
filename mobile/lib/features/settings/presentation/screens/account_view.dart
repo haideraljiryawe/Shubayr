@@ -191,7 +191,10 @@ class _SignInCard extends ConsumerWidget {
           AppButton(
             label: l10n.authSignInTitle,
             icon: Icons.login,
-            onPressed: () => context.pushNamed(AppRoutes.signInName),
+            onPressed: () => context.pushNamed(
+              AppRoutes.signInName,
+              queryParameters: {'returnTo': AppRoutes.account},
+            ),
           ),
         ],
       ),

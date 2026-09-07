@@ -405,11 +405,15 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     final signedIn =
         ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ?? false;
     if (!signedIn) {
+      final returnTo = GoRouterState.of(context).uri.toString();
       showAppSnackBarMessage(
         context,
         message: l10n.cartSignInPrompt,
         actionLabel: l10n.authSignInTitle,
-        onAction: () => router.pushNamed(AppRoutes.signInName),
+        onAction: () => router.pushNamed(
+          AppRoutes.signInName,
+          queryParameters: {'returnTo': returnTo},
+        ),
       );
       return;
     }

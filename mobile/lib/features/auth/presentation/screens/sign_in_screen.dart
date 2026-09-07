@@ -15,7 +15,9 @@ import '../providers/auth_providers.dart';
 
 /// Step 1 of the OTP flow — `POST /auth/request-otp`.
 class SignInScreen extends ConsumerStatefulWidget {
-  const SignInScreen({super.key});
+  const SignInScreen({super.key, this.returnTo});
+
+  final String? returnTo;
 
   @override
   ConsumerState<SignInScreen> createState() => _SignInScreenState();
@@ -61,7 +63,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       if (!mounted) return;
       context.pushNamed(
         AppRoutes.verifyOtpName,
-        queryParameters: {'phone': phone},
+        queryParameters: {'phone': phone, 'returnTo': ?widget.returnTo},
       );
     } on AppFailure catch (failure) {
       if (!mounted) return;

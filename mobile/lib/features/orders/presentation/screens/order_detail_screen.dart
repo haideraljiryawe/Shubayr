@@ -12,6 +12,7 @@ import '../../../../core/theme/tokens/app_radii.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/skeleton.dart';
@@ -122,6 +123,28 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
             const SizedBox(height: AppSpacing.lg),
             _SectionTitle(l10n.orderSummary),
             _Summary(order: o, money: _money),
+            if (o.status == 'delivered' && o.items.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                label: l10n.reviewOrderTitle,
+                icon: Icons.star_outline,
+                variant: AppButtonVariant.secondary,
+                onPressed: () => context.pushNamed(
+                  AppRoutes.orderReviewName,
+                  pathParameters: {'id': o.id},
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              AppButton(
+                label: l10n.returnOrderTitle,
+                icon: Icons.assignment_return_outlined,
+                variant: AppButtonVariant.secondary,
+                onPressed: () => context.pushNamed(
+                  AppRoutes.orderReturnName,
+                  pathParameters: {'id': o.id},
+                ),
+              ),
+            ],
             if (isOrderCancellable(o.status)) ...[
               const SizedBox(height: AppSpacing.lg),
               Center(

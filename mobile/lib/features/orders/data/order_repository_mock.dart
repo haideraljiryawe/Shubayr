@@ -12,7 +12,10 @@ import 'order_tracking.dart';
 /// them back; a few demo orders are seeded so the list isn't empty for a fresh
 /// account. Two demo coupons: SAVE10 (10%) and WELCOME (fixed 5,000).
 class OrderRepositoryMock implements OrderRepository {
-  OrderRepositoryMock(this._cart, {this.delay = const Duration(milliseconds: 300)}) {
+  OrderRepositoryMock(
+    this._cart, {
+    this.delay = const Duration(milliseconds: 300),
+  }) {
     _seed();
   }
 
@@ -57,7 +60,7 @@ class OrderRepositoryMock implements OrderRepository {
         number: 1042,
         status: 'delivered',
         placedAt: now.subtract(const Duration(days: 6)),
-        lines: const [('p5', null, 1), ('p11', null, 1)],
+        lines: const [('p5', null, 3), ('p11', null, 1)],
       ),
     ]);
   }
@@ -169,8 +172,9 @@ class OrderRepositoryMock implements OrderRepository {
         if (at == null || bt == null) return 0;
         return bt.compareTo(at); // newest first
       });
-    final filtered =
-        status == null ? all : all.where((o) => o.status == status).toList();
+    final filtered = status == null
+        ? all
+        : all.where((o) => o.status == status).toList();
     final start = (page - 1) * perPage;
     final slice = start >= filtered.length
         ? const <Order>[]
@@ -213,7 +217,10 @@ class OrderRepositoryMock implements OrderRepository {
       orderId: order.id,
       events: [
         for (var i = 0; i < path.length; i++)
-          OrderEvent(status: path[i], at: placedAt.add(Duration(hours: i * 6))),
+          OrderEvent(
+            status: path[i],
+            at: placedAt.add(Duration(hours: i * 6)),
+          ),
       ],
     );
   }

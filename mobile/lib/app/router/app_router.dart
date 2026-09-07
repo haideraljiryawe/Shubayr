@@ -11,6 +11,7 @@ import '../../features/address/presentation/screens/addresses_screen.dart';
 import '../../features/admin/presentation/screens/admin_home_screen.dart';
 import '../../features/orders/presentation/screens/checkout_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
+import '../../features/orders/presentation/screens/after_sales_screens.dart';
 import '../../features/dev/presentation/screens/design_gallery_screen.dart';
 import '../../features/auth/domain/user_role.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
@@ -31,6 +32,7 @@ import '../shell/customer_shell.dart';
 import '../splash_screen.dart';
 import 'app_routes.dart';
 import 'role_guard.dart';
+import 'sign_in_destination.dart';
 
 // Stable navigator keys. Without them go_router derives branch navigator keys
 // implicitly; when `refreshListenable` fires mid-transition (e.g. the session
@@ -45,7 +47,9 @@ final _categoriesBranchKey = GlobalKey<NavigatorState>(
 );
 final _cartBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-cart');
 final _ordersBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-orders');
-final _accountBranchKey = GlobalKey<NavigatorState>(debugLabel: 'branch-account');
+final _accountBranchKey = GlobalKey<NavigatorState>(
+  debugLabel: 'branch-account',
+);
 
 final routerProvider = Provider<GoRouter>((ref) {
   // Bridges Riverpod state changes to go_router's refresh mechanism. Only
@@ -56,7 +60,11 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref
     ..listen(
       sessionControllerProvider.select(
-        (s) => (s.isLoading, s.valueOrNull?.isSignedIn ?? false, s.valueOrNull?.role),
+        (s) => (
+          s.isLoading,
+          s.valueOrNull?.isSignedIn ?? false,
+          s.valueOrNull?.role,
+        ),
       ),
       (_, _) => refresh.value++,
     )
@@ -78,11 +86,40 @@ final routerProvider = Provider<GoRouter>((ref) {
         AsyncData(:final value) when value.isSignedIn => SessionStatus.signedIn,
         _ => SessionStatus.signedOut,
       };
-      return RoleGuard.redirect(
+      if (status == SessionStatus.restoring &&
+          state.matchedLocation != AppRoutes.splash) {
+        return Uri(
+          path: AppRoutes.splash,
+          queryParameters: {'returnTo': state.uri.toString()},
+        ).toString();
+      }
+      if (status != SessionStatus.restoring &&
+          state.matchedLocation == AppRoutes.splash &&
+          state.uri.queryParameters.containsKey('returnTo')) {
+        return SignInDestination.resolve(
+          state.uri.queryParameters['returnTo'],
+          session.valueOrNull?.role ?? UserRole.customer,
+        );
+      }
+      if (status == SessionStatus.signedIn &&
+          state.matchedLocation.startsWith(AppRoutes.signIn)) {
+        return SignInDestination.resolve(
+          state.uri.queryParameters['returnTo'],
+          session.valueOrNull!.role,
+        );
+      }
+      final redirect = RoleGuard.redirect(
         status: status,
         role: session.valueOrNull?.role ?? UserRole.customer,
         location: state.matchedLocation,
       );
+      if (redirect == AppRoutes.signIn) {
+        return Uri(
+          path: AppRoutes.signIn,
+          queryParameters: {'returnTo': state.uri.toString()},
+        ).toString();
+      }
+      return redirect;
     },
     errorBuilder: (context, state) => Scaffold(
       appBar: AppBar(title: Text(context.l10n.routeNotFoundTitle)),
@@ -105,13 +142,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         // branch). Pushing into a branch and then redirecting back to that
         // branch on sign-in produced two shell matches with the same page key.
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const SignInScreen(),
+        builder: (context, state) =>
+            SignInScreen(returnTo: state.uri.queryParameters['returnTo']),
         routes: [
           GoRoute(
             path: 'verify',
             name: AppRoutes.verifyOtpName,
             builder: (context, state) => VerifyOtpScreen(
               phone: state.uri.queryParameters['phone'] ?? '',
+              returnTo: state.uri.queryParameters['returnTo'],
             ),
           ),
         ],
@@ -249,6 +288,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) =>
             OrderDetailScreen(orderId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: AppRoutes.orderReview,
+        name: AppRoutes.orderReviewName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) =>
+            ReviewOrderScreen(orderId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: AppRoutes.orderReturn,
+        name: AppRoutes.orderReturnName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) =>
+            ReturnOrderScreen(orderId: state.pathParameters['id']!),
       ),
 
       GoRoute(

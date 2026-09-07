@@ -1196,6 +1196,132 @@ abstract class AppLocalizations {
   /// **'{current} of {total}'**
   String galleryCounter(String current, String total);
 
+  /// No description provided for @afterSalesDeliveredOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'These services are available after the order is delivered.'**
+  String get afterSalesDeliveredOnly;
+
+  /// No description provided for @reviewOrderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review products'**
+  String get reviewOrderTitle;
+
+  /// No description provided for @reviewOrderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an item from this delivered order. Product reviews are separate from delivery ratings.'**
+  String get reviewOrderHint;
+
+  /// No description provided for @reviewChooseProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Product to review'**
+  String get reviewChooseProduct;
+
+  /// No description provided for @reviewRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Your rating'**
+  String get reviewRating;
+
+  /// No description provided for @reviewStars.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} out of 5 stars'**
+  String reviewStars(String count);
+
+  /// No description provided for @reviewComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment (optional)'**
+  String get reviewComment;
+
+  /// No description provided for @reviewSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit review'**
+  String get reviewSubmit;
+
+  /// No description provided for @reviewSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Review submitted. Publication is subject to review.'**
+  String get reviewSubmitted;
+
+  /// No description provided for @reviewAllSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'You have submitted reviews for all items in this session.'**
+  String get reviewAllSubmitted;
+
+  /// No description provided for @returnOrderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request a return'**
+  String get returnOrderTitle;
+
+  /// No description provided for @returnOrderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose quantities to return. Leave items you want to keep at 0.'**
+  String get returnOrderHint;
+
+  /// No description provided for @returnAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity available to request: {count}'**
+  String returnAvailable(String count);
+
+  /// No description provided for @returnIncrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase return quantity'**
+  String get returnIncrease;
+
+  /// No description provided for @returnDecrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease return quantity'**
+  String get returnDecrease;
+
+  /// No description provided for @returnReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for return (optional)'**
+  String get returnReason;
+
+  /// No description provided for @returnSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit return request'**
+  String get returnSubmit;
+
+  /// No description provided for @returnSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Return request submitted.'**
+  String get returnSubmitted;
+
+  /// No description provided for @returnReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Request reference: {id}'**
+  String returnReference(String id);
+
+  /// No description provided for @returnRequestOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a request, not an approval or a refund. The store will review it.'**
+  String get returnRequestOnly;
+
+  /// No description provided for @returnAllRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'All item quantities have been requested for return in this session.'**
+  String get returnAllRequested;
+
   /// No description provided for @routeNotFoundTitle.
   ///
   /// In en, this message translates to:

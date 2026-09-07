@@ -199,5 +199,26 @@
 
   "galleryCounter": "{current} من {total}",
 
+  "afterSalesDeliveredOnly": "تتوفر هذه الخدمات بعد استلام الطلب.",
+  "reviewOrderTitle": "تقييم المنتجات",
+  "reviewOrderHint": "اختر منتجًا من هذا الطلب المستلم. تقييم المنتج مستقل عن تقييم التوصيل.",
+  "reviewChooseProduct": "المنتج المراد تقييمه",
+  "reviewRating": "تقييمك",
+  "reviewStars": "{count} من 5 نجوم",
+  "reviewComment": "التعليق (اختياري)",
+  "reviewSubmit": "إرسال التقييم",
+  "reviewSubmitted": "تم إرسال التقييم. يخضع النشر للمراجعة.",
+  "reviewAllSubmitted": "أرسلت تقييمات لجميع المنتجات خلال هذه الجلسة.",
+  "returnOrderTitle": "طلب إرجاع",
+  "returnOrderHint": "حدد كميات المنتجات المراد إرجاعها، واترك كمية المنتجات التي تريد الاحتفاظ بها على 0.",
+  "returnAvailable": "الكمية المتاحة لطلب الإرجاع: {count}",
+  "returnIncrease": "زيادة كمية الإرجاع",
+  "returnDecrease": "تقليل كمية الإرجاع",
+  "returnReason": "سبب الإرجاع (اختياري)",
+  "returnSubmit": "إرسال طلب الإرجاع",
+  "returnSubmitted": "تم إرسال طلب الإرجاع.",
+  "returnReference": "رقم طلب الإرجاع: {id}",
+  "returnRequestOnly": "هذا طلب إرجاع وليس موافقة أو استردادًا للمبلغ. سيراجعه المتجر.",
+  "returnAllRequested": "طلبت إرجاع جميع الكميات خلال هذه الجلسة.",
   "routeNotFoundTitle": "الصفحة غير موجودة"
 }

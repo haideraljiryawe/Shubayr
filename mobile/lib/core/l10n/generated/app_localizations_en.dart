@@ -583,5 +583,81 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get afterSalesDeliveredOnly =>
+      'These services are available after the order is delivered.';
+
+  @override
+  String get reviewOrderTitle => 'Review products';
+
+  @override
+  String get reviewOrderHint =>
+      'Choose an item from this delivered order. Product reviews are separate from delivery ratings.';
+
+  @override
+  String get reviewChooseProduct => 'Product to review';
+
+  @override
+  String get reviewRating => 'Your rating';
+
+  @override
+  String reviewStars(String count) {
+    return '$count out of 5 stars';
+  }
+
+  @override
+  String get reviewComment => 'Comment (optional)';
+
+  @override
+  String get reviewSubmit => 'Submit review';
+
+  @override
+  String get reviewSubmitted =>
+      'Review submitted. Publication is subject to review.';
+
+  @override
+  String get reviewAllSubmitted =>
+      'You have submitted reviews for all items in this session.';
+
+  @override
+  String get returnOrderTitle => 'Request a return';
+
+  @override
+  String get returnOrderHint =>
+      'Choose quantities to return. Leave items you want to keep at 0.';
+
+  @override
+  String returnAvailable(String count) {
+    return 'Quantity available to request: $count';
+  }
+
+  @override
+  String get returnIncrease => 'Increase return quantity';
+
+  @override
+  String get returnDecrease => 'Decrease return quantity';
+
+  @override
+  String get returnReason => 'Reason for return (optional)';
+
+  @override
+  String get returnSubmit => 'Submit return request';
+
+  @override
+  String get returnSubmitted => 'Return request submitted.';
+
+  @override
+  String returnReference(String id) {
+    return 'Request reference: $id';
+  }
+
+  @override
+  String get returnRequestOnly =>
+      'This is a request, not an approval or a refund. The store will review it.';
+
+  @override
+  String get returnAllRequested =>
+      'All item quantities have been requested for return in this session.';
+
+  @override
   String get routeNotFoundTitle => 'Page not found';
 }

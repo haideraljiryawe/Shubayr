@@ -576,5 +576,78 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get afterSalesDeliveredOnly => 'تتوفر هذه الخدمات بعد استلام الطلب.';
+
+  @override
+  String get reviewOrderTitle => 'تقييم المنتجات';
+
+  @override
+  String get reviewOrderHint =>
+      'اختر منتجًا من هذا الطلب المستلم. تقييم المنتج مستقل عن تقييم التوصيل.';
+
+  @override
+  String get reviewChooseProduct => 'المنتج المراد تقييمه';
+
+  @override
+  String get reviewRating => 'تقييمك';
+
+  @override
+  String reviewStars(String count) {
+    return '$count من 5 نجوم';
+  }
+
+  @override
+  String get reviewComment => 'التعليق (اختياري)';
+
+  @override
+  String get reviewSubmit => 'إرسال التقييم';
+
+  @override
+  String get reviewSubmitted => 'تم إرسال التقييم. يخضع النشر للمراجعة.';
+
+  @override
+  String get reviewAllSubmitted =>
+      'أرسلت تقييمات لجميع المنتجات خلال هذه الجلسة.';
+
+  @override
+  String get returnOrderTitle => 'طلب إرجاع';
+
+  @override
+  String get returnOrderHint =>
+      'حدد كميات المنتجات المراد إرجاعها، واترك كمية المنتجات التي تريد الاحتفاظ بها على 0.';
+
+  @override
+  String returnAvailable(String count) {
+    return 'الكمية المتاحة لطلب الإرجاع: $count';
+  }
+
+  @override
+  String get returnIncrease => 'زيادة كمية الإرجاع';
+
+  @override
+  String get returnDecrease => 'تقليل كمية الإرجاع';
+
+  @override
+  String get returnReason => 'سبب الإرجاع (اختياري)';
+
+  @override
+  String get returnSubmit => 'إرسال طلب الإرجاع';
+
+  @override
+  String get returnSubmitted => 'تم إرسال طلب الإرجاع.';
+
+  @override
+  String returnReference(String id) {
+    return 'رقم طلب الإرجاع: $id';
+  }
+
+  @override
+  String get returnRequestOnly =>
+      'هذا طلب إرجاع وليس موافقة أو استردادًا للمبلغ. سيراجعه المتجر.';
+
+  @override
+  String get returnAllRequested => 'طلبت إرجاع جميع الكميات خلال هذه الجلسة.';
+
+  @override
   String get routeNotFoundTitle => 'الصفحة غير موجودة';
 }

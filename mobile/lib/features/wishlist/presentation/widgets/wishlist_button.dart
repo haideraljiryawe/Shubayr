@@ -36,11 +36,16 @@ class WishlistButton extends ConsumerWidget {
             ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ??
             false;
         if (!signedIn) {
+          final router = GoRouter.of(context);
+          final returnTo = GoRouterState.of(context).uri.toString();
           showAppSnackBarMessage(
             context,
             message: l10n.wishlistSignInPrompt,
             actionLabel: l10n.authSignInTitle,
-            onAction: () => context.pushNamed(AppRoutes.signInName),
+            onAction: () => router.pushNamed(
+              AppRoutes.signInName,
+              queryParameters: {'returnTo': returnTo},
+            ),
           );
           return;
         }
