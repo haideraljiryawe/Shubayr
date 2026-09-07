@@ -122,6 +122,36 @@ class SkeletonList extends StatelessWidget {
   }
 }
 
+/// A grid of card placeholders — the "grid is loading" placeholder for product
+/// grids (wishlist, and reusable by any 2-column catalog grid).
+class SkeletonGrid extends StatelessWidget {
+  const SkeletonGrid({
+    super.key,
+    this.itemCount = 6,
+    this.crossAxisCount = 2,
+    this.childAspectRatio = 0.62,
+  });
+
+  final int itemCount;
+  final int crossAxisCount;
+  final double childAspectRatio;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: crossAxisCount,
+      mainAxisSpacing: AppSpacing.md,
+      crossAxisSpacing: AppSpacing.md,
+      childAspectRatio: childAspectRatio,
+      children: [
+        for (var i = 0; i < itemCount; i++)
+          const Skeleton(borderRadius: AppRadii.lgAll),
+      ],
+    );
+  }
+}
+
 /// A stack of full-width card-shaped placeholders — the "list is loading"
 /// placeholder for [AppCard]-based lists with no leading thumbnail (orders,
 /// addresses, and the sections of a detail screen).

@@ -17,6 +17,7 @@ import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../../features/auth/presentation/screens/verify_otp_screen.dart';
 import '../../features/cart/presentation/screens/cart_screen.dart';
+import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
 import '../../features/catalog/presentation/screens/categories_screen.dart';
 import '../../features/catalog/presentation/screens/home_screen.dart';
 import '../../features/catalog/presentation/screens/product_detail_screen.dart';
@@ -233,6 +234,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.checkoutName,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const CheckoutScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.wishlist,
+        name: AppRoutes.wishlistName,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const WishlistScreen(),
       ),
       // A single order's details + tracking — full-screen over the shell,
       // reached from the orders tab (matches the product-detail pattern).

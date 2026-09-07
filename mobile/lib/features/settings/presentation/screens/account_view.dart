@@ -41,6 +41,16 @@ class AccountView extends ConsumerWidget {
           AppCard(
             padding: EdgeInsets.zero,
             child: ListTile(
+              leading: const Icon(Icons.favorite_border),
+              title: Text(l10n.wishlistTitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.pushNamed(AppRoutes.wishlistName),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
               leading: const Icon(Icons.location_on_outlined),
               title: Text(l10n.addressesTitle),
               trailing: const Icon(Icons.chevron_right),

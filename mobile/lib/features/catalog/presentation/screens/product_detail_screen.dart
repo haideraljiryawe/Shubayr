@@ -22,10 +22,11 @@ import '../../data/product_availability.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/product_gallery.dart';
 import '../widgets/reviews_section.dart';
+import '../../../wishlist/presentation/widgets/wishlist_button.dart';
 
 /// Product detail: gallery, price, selectable variants with live availability
-/// and description, with a sticky add-to-cart bar. Reviews and wishlist arrive
-/// in a later phase.
+/// and description, with a sticky add-to-cart bar, a wishlist heart in the app
+/// bar, and product reviews below.
 class ProductDetailScreen extends ConsumerWidget {
   const ProductDetailScreen({super.key, required this.productId});
 
@@ -39,7 +40,9 @@ class ProductDetailScreen extends ConsumerWidget {
     // disappears the instant the user leaves, instead of lingering on the root.
     return ScaffoldMessenger(
       child: Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(
+          actions: [WishlistButton(productId: productId)],
+        ),
         body: AsyncValueView(
           value: product,
           loading: const _DetailSkeleton(),

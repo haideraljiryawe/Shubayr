@@ -52,6 +52,7 @@ abstract final class RoleGuard {
         AppRoutes.account,
         AppRoutes.addresses,
         AppRoutes.checkout,
+        AppRoutes.wishlist,
       ],
       // Delivery and staff reach the account controls from a sheet inside
       // their own area, so they never enter the customer shell.

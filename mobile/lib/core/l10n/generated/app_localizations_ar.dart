@@ -316,6 +316,24 @@ class AppLocalizationsAr extends AppLocalizations {
   String get checkoutViewOrders => 'عرض طلباتي';
 
   @override
+  String get wishlistTitle => 'المفضّلة';
+
+  @override
+  String get wishlistEmptyTitle => 'قائمتك فارغة';
+
+  @override
+  String get wishlistEmptyMessage => 'احفظ المنتجات التي تعجبك لتجدها هنا.';
+
+  @override
+  String get wishlistAdd => 'أضف إلى المفضّلة';
+
+  @override
+  String get wishlistRemove => 'إزالة من المفضّلة';
+
+  @override
+  String get wishlistSignInPrompt => 'سجّل الدخول للحفظ في المفضّلة';
+
+  @override
   String get ordersTitle => 'الطلبات';
 
   @override

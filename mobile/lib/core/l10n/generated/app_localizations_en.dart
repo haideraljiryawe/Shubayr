@@ -321,6 +321,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutViewOrders => 'View my orders';
 
   @override
+  String get wishlistTitle => 'Wishlist';
+
+  @override
+  String get wishlistEmptyTitle => 'No saved products';
+
+  @override
+  String get wishlistEmptyMessage =>
+      'Save products you like to find them here.';
+
+  @override
+  String get wishlistAdd => 'Add to wishlist';
+
+  @override
+  String get wishlistRemove => 'Remove from wishlist';
+
+  @override
+  String get wishlistSignInPrompt => 'Sign in to save to your wishlist';
+
+  @override
   String get ordersTitle => 'Orders';
 
   @override

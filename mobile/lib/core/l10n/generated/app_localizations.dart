@@ -698,6 +698,42 @@ abstract class AppLocalizations {
   /// **'View my orders'**
   String get checkoutViewOrders;
 
+  /// No description provided for @wishlistTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Wishlist'**
+  String get wishlistTitle;
+
+  /// No description provided for @wishlistEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved products'**
+  String get wishlistEmptyTitle;
+
+  /// No description provided for @wishlistEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Save products you like to find them here.'**
+  String get wishlistEmptyMessage;
+
+  /// No description provided for @wishlistAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to wishlist'**
+  String get wishlistAdd;
+
+  /// No description provided for @wishlistRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from wishlist'**
+  String get wishlistRemove;
+
+  /// No description provided for @wishlistSignInPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to save to your wishlist'**
+  String get wishlistSignInPrompt;
+
   /// No description provided for @ordersTitle.
   ///
   /// In en, this message translates to:
