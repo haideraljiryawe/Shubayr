@@ -35,19 +35,13 @@ class ProductDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final product = ref.watch(productProvider(productId));
 
-    // A screen-local messenger so snackbars anchor to THIS full-screen route
-    // (the root messenger anchors to the shell behind it, hiding them) and
-    // vanish when the user leaves. Animation/timing are handled by the shared
-    // showAppSnackBar helper.
-    return ScaffoldMessenger(
-      child: Scaffold(
-        appBar: AppBar(actions: [WishlistButton(productId: productId)]),
-        body: AsyncValueView(
-          value: product,
-          loading: const _DetailSkeleton(),
-          onRetry: () => ref.invalidate(productProvider(productId)),
-          builder: (context, p) => _Detail(product: p),
-        ),
+    return Scaffold(
+      appBar: AppBar(actions: [WishlistButton(productId: productId)]),
+      body: AsyncValueView(
+        value: product,
+        loading: const _DetailSkeleton(),
+        onRetry: () => ref.invalidate(productProvider(productId)),
+        builder: (context, p) => _Detail(product: p),
       ),
     );
   }

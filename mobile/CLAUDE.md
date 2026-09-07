@@ -48,12 +48,9 @@ them briefly, recommend one, and ask when the choice shapes the project's future
   the default centered spinner (`AppLoadingView`) only for tiny or inline loads (a small
   sheet, a button). When you add a new data screen, add its skeleton in the same change.
 - **Snackbars go through `showAppSnackBar` / `showAppSnackBarMessage`** (in
-  `core/widgets/app_snackbar.dart`), never `ScaffoldMessenger` directly. They slide up,
-  auto-dismiss after 3s (the framework's own timer stalls in some environments, so the
-  helper closes them), and swipe down to dismiss. Never call `hideCurrentSnackBar()` right
-  before showing — it cancels the new one's entrance and it never appears. A snackbar shown
-  from a full-screen route pushed over the shell needs a screen-local `ScaffoldMessenger`
-  (the root one anchors to the shell behind it), as on the product detail.
+  `core/widgets/app_snackbar.dart`), never `ScaffoldMessenger` directly. The helper uses the
+  nearest route overlay for a true bottom-to-top slide, queues messages, auto-dismisses
+  after 3s, and supports swipe-down dismissal. Do not add a second timer or pre-hide call.
 - When several screens genuinely need the same rich behaviour, build one **configurable
   shared widget/service** instead of copying it — but don't abstract for a few similar
   lines, don't drown a shared component in flags just to be DRY, and let an abstraction
