@@ -1,9 +1,8 @@
 # Shubayr — Web Storefront (Next.js)
 
-Public, SEO-friendly, **Arabic-first** storefront for Shubayr. Phase 1 is the
-foundation: design tokens, the base component library, the app shell, and a
-`/style-guide` page to verify the theme against the design sheet. Real
-storefront pages land in phase 2.
+Public, SEO-friendly, **Arabic-first** storefront for Shubayr. The foundation,
+home page, and Phase 3 catalog reuse the same design tokens and component
+library. `/style-guide` documents the theme against the design sheet.
 
 ## Run
 
@@ -20,6 +19,7 @@ npm run dev            # http://localhost:3000
 | `npm run lint` | ESLint (flat config, `eslint-config-next`) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run gen:api` | Regenerate `src/types/api.d.ts` from `../api/openapi.yaml` |
+| `npm test` | Catalog browser/data tests and mobile/desktop screenshots |
 
 ## Stack
 
@@ -90,7 +90,44 @@ Until the backend is live, `NEXT_PUBLIC_USE_MOCKS=true` resolves every call from
 `src/lib/mock-data.ts` without touching the network. Set it to `false` to hit the
 real API at `NEXT_PUBLIC_API_URL`.
 
-## Layout
+## Catalog (Phase 3)
+
+- `/categories`: active departments, linking by contract `slug`.
+- `/category/electronics`: server-rendered products resolved by category ID.
+- `/search?q=...`: the same listing, wired to the header's GET search form.
+- Price, minimum rating, subcategory, sale status, sort and pagination live in
+  the URL. Mobile filters use a keyboard-accessible modal sheet; desktop uses
+  a left sidebar. Wishlist selections persist locally without a backend write.
+- ProductCard consumes `compare_at_price` and `discount_percent`; numbers and
+  prices remain direction-isolated in Arabic. Missing artwork has a fallback.
+
+The current contract has no `min_rating` query parameter. When selected, the
+server fetches all matching API pages in bounded batches, filters `rating_avg`,
+then paginates the filtered set with an accurate total. This is a temporary,
+potentially expensive fallback for large catalogs; backend support should
+replace it when the contract adds the filter. Review counts come from the
+reviews endpoint's pagination total because Product has no review-count field.
+Failures omit unavailable counts, never invent them.
+
+Run `npx playwright install chromium` once, then `npm test`. Tests start their
+own mock-backed dev server on port 3100 and check SSR HTML, responsive layout,
+filters, pagination, search, empty states, wishlist persistence and query
+normalization. To test API outages separately:
+
+```powershell
+$env:CATALOG_ERROR_TESTS = 'true'
+npm test
+Remove-Item Env:CATALOG_ERROR_TESTS
+```
+
+Screenshots: [categories mobile](docs/screenshots/categories-mobile.png),
+[categories desktop](docs/screenshots/categories-desktop.png),
+[listing mobile](docs/screenshots/electronics-mobile.png),
+[listing desktop](docs/screenshots/electronics-desktop.png).
+They follow the reference sheet's Arabic RTL, cream/sage palette, two-column
+mobile tiles and discount treatment, using fixture photography and category icons.
+
+## Source layout
 
 ```
 src/

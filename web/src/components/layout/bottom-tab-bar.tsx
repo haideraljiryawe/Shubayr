@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
-import { NAV_ITEMS } from "./nav-items";
+import { isNavItemActive, NAV_ITEMS } from "./nav-items";
 
 /**
  * Mobile bottom tab bar, matching the mockup: five tabs with «السلة» lifted
@@ -27,7 +27,7 @@ export function BottomTabBar() {
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isCart = item.key === "cart";
-          const isActive = !isCart && pathname === item.href;
+          const isActive = !isCart && isNavItemActive(item, pathname);
 
           if (isCart) {
             return (
@@ -59,7 +59,7 @@ export function BottomTabBar() {
                 className={cn(
                   "flex flex-col items-center gap-1 px-2 py-1 rounded-md",
                   "transition-colors",
-                  isActive ? "text-primary" : "text-text-muted",
+                  isActive ? "text-primary-dark" : "text-text-muted",
                 )}
               >
                 <Icon className="size-5.5" aria-hidden />

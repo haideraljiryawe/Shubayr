@@ -367,6 +367,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active home hero banners ordered by sort order
+         * @description Active means is_active is true and the current time is within the optional starts_at and ends_at window.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Active banners ordered by sort_order ascending */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Banner"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products": {
         parameters: {
             query?: never;
@@ -380,9 +419,12 @@ export interface paths {
                 query?: {
                     /** @description search text */
                     q?: string;
+                    /** @description Category UUID; products remain filtered by category_id, not slug. */
                     category_id?: string;
                     min_price?: number;
                     max_price?: number;
+                    /** @description When true, return products where compare_at_price is greater than sale_price. */
+                    on_sale?: boolean;
                     sort?: "newest" | "price_asc" | "price_desc" | "rating";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
@@ -2304,6 +2346,163 @@ export interface paths {
         };
         trace?: never;
     };
+    "/admin/banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all home hero banners (including inactive and scheduled banners) */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated banners */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BannerPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Create a home hero banner */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BannerInput"];
+                };
+            };
+            responses: {
+                /** @description Created banner */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Banner"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/banners/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one home hero banner */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Banner */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Banner"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Delete a home hero banner */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update a home hero banner */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BannerInput"];
+                };
+            };
+            responses: {
+                /** @description Updated banner */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Banner"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
     "/admin/users": {
         parameters: {
             query?: never;
@@ -2705,6 +2904,8 @@ export interface components {
             parent_id?: string | null;
             name_en?: string;
             name_ar?: string;
+            /** @description SEO URL slug. Products are still filtered by category_id. */
+            slug?: string;
             icon?: string | null;
             sort_order?: number;
             is_active?: boolean;
@@ -2731,6 +2932,10 @@ export interface components {
             name_ar?: string;
             description?: string;
             sale_price?: number;
+            /** @description Original/was price. Null or less than or equal to sale_price means no discount. */
+            compare_at_price?: number | null;
+            /** @description Computed as round((compare_at_price - sale_price) / compare_at_price * 100) when compare_at_price is greater than sale_price; otherwise null. */
+            readonly discount_percent?: number | null;
             is_negotiable?: boolean;
             floor_price?: number | null;
             points_price?: number | null;
@@ -2752,6 +2957,8 @@ export interface components {
             name_ar: string;
             description?: string;
             sale_price: number;
+            /** @description Original/was price; set to null or no more than sale_price to remove the discount. */
+            compare_at_price?: number | null;
             /** @default false */
             is_negotiable: boolean;
             floor_price?: number | null;
@@ -2771,6 +2978,45 @@ export interface components {
                 };
                 price_delta?: number;
             }[];
+        };
+        Banner: {
+            /** Format: uuid */
+            id?: string;
+            title?: string;
+            subtitle?: string | null;
+            /** Format: uri */
+            image_url?: string;
+            cta_text?: string | null;
+            /** Format: uri */
+            link_url?: string | null;
+            sort_order?: number;
+            is_active?: boolean;
+            /** Format: date-time */
+            starts_at?: string | null;
+            /** Format: date-time */
+            ends_at?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        BannerInput: {
+            title: string;
+            subtitle?: string | null;
+            /** Format: uri */
+            image_url: string;
+            cta_text?: string | null;
+            /** Format: uri */
+            link_url?: string | null;
+            /** @default 0 */
+            sort_order: number;
+            /** @default true */
+            is_active: boolean;
+            /** Format: date-time */
+            starts_at?: string | null;
+            /** Format: date-time */
+            ends_at?: string | null;
+        };
+        BannerPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["Banner"][];
         };
         ProductVariant: {
             /** Format: uuid */

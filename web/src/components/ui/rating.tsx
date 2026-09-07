@@ -27,7 +27,11 @@ export function Rating({
 
   return (
     <span
-      className={cn("inline-flex items-center gap-1", className)}
+      dir="ltr"
+      className={cn(
+        "inline-flex items-center gap-1 [unicode-bidi:isolate]",
+        className,
+      )}
       aria-label={`${formatRating(value, locale)} / 5`}
     >
       {showStars ? (
