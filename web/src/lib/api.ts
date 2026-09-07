@@ -1,6 +1,8 @@
 import type { components, paths } from "@/types/api";
 import {
   demoProducts,
+  mockAvailabilityFor,
+  mockReviewsFor,
   mockBanners,
   mockCategories,
   mockProducts,
@@ -20,6 +22,10 @@ export type Product = Schemas["Product"];
 export type Category = Schemas["Category"];
 export type ProductPage = Schemas["ProductPage"];
 export type Cart = Schemas["Cart"];
+export type ProductVariant = Schemas["ProductVariant"];
+export type ProductAvailability = Schemas["ProductAvailability"];
+export type Review = Schemas["Review"];
+export type ReviewPage = Schemas["ReviewPage"];
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
@@ -200,6 +206,42 @@ export const api = {
       if (!found) throw new ApiError(404, `Product ${id} not found`);
       return found;
     }
-    return request<Product>(`/products/${id}`);
+    return request<Product>(`/products/${encodeURIComponent(id)}`);
+  },
+
+  /**
+   * Per-variant sellable quantity. Kept separate from getProduct because the
+   * contract computes it at read time — it is the volatile half of the page and
+   * the part that must not be cached with the catalog copy.
+   */
+  async getProductAvailability(id: string): Promise<ProductAvailability> {
+    if (USE_MOCKS) {
+      const product = demoProducts.find((item) => item.id === id);
+      if (!product) throw new ApiError(404, `Product ${id} not found`);
+      return mockAvailabilityFor(product);
+    }
+    return request<ProductAvailability>(
+      `/products/${encodeURIComponent(id)}/availability`,
+    );
+  },
+
+  /** Published reviews, paginated with the shared Pagination envelope. */
+  async listReviews(
+    id: string,
+    { page = 1, per_page = 5 }: { page?: number; per_page?: number } = {},
+  ): Promise<ReviewPage> {
+    if (USE_MOCKS) {
+      const all = mockReviewsFor(id);
+      return {
+        page,
+        per_page,
+        total: all.length,
+        data: all.slice((page - 1) * per_page, page * per_page),
+      };
+    }
+    return request<ReviewPage>(
+      `/products/${encodeURIComponent(id)}/reviews`,
+      { query: { page, per_page } },
+    );
   },
 };

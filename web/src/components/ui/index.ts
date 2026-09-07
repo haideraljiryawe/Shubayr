@@ -21,5 +21,6 @@ export { SearchInput } from "./search-input";
 export { SectionHeader } from "./section-header";
 export { Select } from "./select";
 export { Textarea } from "./textarea";
+export { ToastProvider, useToast } from "./toast";
 export { Toggle } from "./toggle";
 export { WishlistButton } from "./wishlist-button";

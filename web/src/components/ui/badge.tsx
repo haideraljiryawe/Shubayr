@@ -17,10 +17,10 @@ const TONES: Record<BadgeTone, string> = {
   sale: "bg-error-dark text-white",
   primary: "bg-primary text-on-primary",
   accent: "bg-accent text-white",
-  success: "bg-success/12 text-success",
-  warning: "bg-warning/12 text-warning",
-  error: "bg-error/12 text-error",
-  info: "bg-info/12 text-info",
+  success: "bg-success/12 text-success-dark",
+  warning: "bg-warning/12 text-warning-dark",
+  error: "bg-error/12 text-error-dark",
+  info: "bg-info/12 text-info-dark",
   neutral: "bg-card text-text-muted",
 };
 
