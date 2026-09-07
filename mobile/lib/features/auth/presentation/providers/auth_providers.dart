@@ -65,6 +65,18 @@ class SessionController extends AsyncNotifier<Session> {
     state = AsyncData(Session.signedIn(user));
   }
 
+  /// Updates the signed-in user's editable profile fields.
+  ///
+  /// The contract has no "update own profile" endpoint yet, so this updates the
+  /// in-memory session only (which is real in mock mode). When the backend adds
+  /// `PATCH /me`, call it here before setting the state. No-op if signed out.
+  Future<void> updateProfile({required String name}) async {
+    final current = state.valueOrNull;
+    final user = current?.user;
+    if (user == null) return;
+    state = AsyncData(Session.signedIn(user.copyWith(name: name.trim())));
+  }
+
   Future<void> signOut() async {
     await ref.read(tokenStoreProvider).clear();
     state = const AsyncData(Session.signedOut());
@@ -73,3 +85,12 @@ class SessionController extends AsyncNotifier<Session> {
 
 final sessionControllerProvider =
     AsyncNotifierProvider<SessionController, Session>(SessionController.new);
+
+/// The current session's RBAC permission keys (empty for guests and
+/// customers). Screens read this — or use `PermissionGate` — to hide actions
+/// the user's role does not grant.
+final permissionsProvider = Provider<List<String>>(
+  (ref) =>
+      ref.watch(sessionControllerProvider).valueOrNull?.permissions ??
+      const [],
+);

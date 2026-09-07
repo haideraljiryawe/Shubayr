@@ -9,8 +9,8 @@ import 'package:shubayr/core/theme/tokens/app_typography.dart';
 void main() {
   group('AppColors', () {
     test('bundled brand is the muted green', () {
-      expect(AppColors.bundled().primary, const Color(0xFF5B8F6B));
-      expect(const Brand.bundled().primaryColor, const Color(0xFF5B8F6B));
+      expect(AppColors.bundled().primary, const Color(0xFF438C59));
+      expect(const Brand.bundled().primaryColor, const Color(0xFF438C59));
     });
 
     test('background is warm off-white, not pure white', () {
@@ -58,7 +58,7 @@ void main() {
       final colors = theme.extension<AppColors>();
 
       expect(colors, isNotNull);
-      expect(colors!.primary, const Color(0xFF5B8F6B));
+      expect(colors!.primary, const Color(0xFF438C59));
       expect(theme.scaffoldBackgroundColor, colors.background);
       expect(theme.colorScheme.primary, colors.primary);
       expect(theme.useMaterial3, isTrue);

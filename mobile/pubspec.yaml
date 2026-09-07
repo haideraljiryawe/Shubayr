@@ -34,6 +34,10 @@ dependencies:
   # Media
   cached_network_image: ^3.4.1
 
+  # Full-screen image viewer: pinch/double-tap zoom + swipe between images.
+  # The de-facto standard for this in Flutter; used only by the product gallery.
+  photo_view: ^0.15.0
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

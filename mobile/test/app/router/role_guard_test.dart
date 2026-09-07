@@ -35,38 +35,29 @@ void main() {
       );
     });
 
-    test('signed-out visitors may browse home and sign in', () {
-      expect(
-        redirect(SessionStatus.signedOut, UserRole.customer, AppRoutes.home),
-        isNull,
-      );
-      expect(
-        redirect(SessionStatus.signedOut, UserRole.customer, AppRoutes.signIn),
-        isNull,
-      );
-      expect(
-        redirect(
-          SessionStatus.signedOut,
-          UserRole.customer,
-          AppRoutes.categories,
-        ),
-        isNull,
-      );
-      expect(
-        redirect(
-          SessionStatus.signedOut,
-          UserRole.customer,
-          AppRoutes.verifyOtp,
-        ),
-        isNull,
-      );
+    test('signed-out visitors may browse home, account settings and sign in', () {
+      // Account is public for a guest: it is the app-settings screen (language,
+      // appearance, sign-in prompt), not account data.
+      for (final route in [
+        AppRoutes.home,
+        AppRoutes.categories,
+        AppRoutes.account,
+        AppRoutes.signIn,
+        AppRoutes.verifyOtp,
+      ]) {
+        expect(
+          redirect(SessionStatus.signedOut, UserRole.customer, route),
+          isNull,
+          reason: route,
+        );
+      }
     });
 
     test('signed-out visitors are sent to sign-in for private routes', () {
       for (final route in [
         AppRoutes.cart,
         AppRoutes.orders,
-        AppRoutes.account,
+        AppRoutes.addresses,
       ]) {
         expect(
           redirect(SessionStatus.signedOut, UserRole.customer, route),
@@ -109,6 +100,14 @@ void main() {
     test('roles stay put inside their own area', () {
       expect(
         redirect(SessionStatus.signedIn, UserRole.customer, AppRoutes.cart),
+        isNull,
+      );
+      expect(
+        redirect(
+          SessionStatus.signedIn,
+          UserRole.customer,
+          AppRoutes.addresses,
+        ),
         isNull,
       );
       expect(

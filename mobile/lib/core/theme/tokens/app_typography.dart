@@ -36,9 +36,9 @@ abstract final class AppTypography {
       titleSmall: style(14, FontWeight.w600, 1.4, primaryText),
       bodyLarge: style(16, FontWeight.w400, 1.5, primaryText),
       bodyMedium: style(14, FontWeight.w400, 1.5, primaryText),
-      bodySmall: style(12, FontWeight.w400, 1.45, secondaryText),
+      bodySmall: style(12, FontWeight.w600, 1.45, secondaryText),
       labelLarge: style(14, FontWeight.w600, 1.2, primaryText),
-      labelMedium: style(12, FontWeight.w600, 1.2, secondaryText),
+      labelMedium: style(12, FontWeight.w700, 1.2, secondaryText),
       labelSmall: style(11, FontWeight.w500, 1.2, secondaryText),
     );
   }

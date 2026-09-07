@@ -7,6 +7,7 @@ class PrefsStore {
   const PrefsStore(this._prefs);
 
   static const _localeKey = 'app.locale';
+  static const _themeModeKey = 'app.theme_mode';
   static const _settingsKey = 'store.settings_json';
 
   final SharedPreferences _prefs;
@@ -18,6 +19,17 @@ class PrefsStore {
       await _prefs.remove(_localeKey);
     } else {
       await _prefs.setString(_localeKey, code);
+    }
+  }
+
+  /// One of `system` / `light` / `dark`; null before the user has chosen.
+  String? readThemeMode() => _prefs.getString(_themeModeKey);
+
+  Future<void> writeThemeMode(String? mode) async {
+    if (mode == null) {
+      await _prefs.remove(_themeModeKey);
+    } else {
+      await _prefs.setString(_themeModeKey, mode);
     }
   }
 

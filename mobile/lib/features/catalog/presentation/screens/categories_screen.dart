@@ -1,18 +1,328 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/theme/tokens/app_motion.dart';
+import '../../../../core/theme/tokens/app_radii.dart';
+import '../../../../core/theme/tokens/app_spacing.dart';
+import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/state_views.dart';
+import '../../data/category.dart';
+import '../providers/catalog_providers.dart';
+import '../widgets/category_icon.dart';
 
-/// Departments / categories browse.
-///
-/// Placeholder for now — the catalog is its own feature phase. This exists so
-/// the guest bottom navigation has three destinations that route correctly.
-class CategoriesScreen extends StatelessWidget {
+/// Departments browse — the two-pane master/detail pattern shoppers know from
+/// large retail apps: a rail of top-level departments on one side, and the
+/// selected department's subcategories on the other. Selecting a department
+/// only swaps the detail pane; tapping "browse all" or a subcategory opens the
+/// product list filtered to it.
+class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.l10n.categoriesTitle)),
-    body: const ComingSoonView(icon: Icons.grid_view_outlined),
+  ConsumerState<CategoriesScreen> createState() => _CategoriesScreenState();
+}
+
+class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
+  String? _selectedId;
+
+  void _openList(String categoryId) => context.pushNamed(
+    AppRoutes.searchName,
+    queryParameters: {'category_id': categoryId},
   );
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = ref.watch(categoriesProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(context.l10n.categoriesTitle)),
+      body: AsyncValueView(
+        value: categories,
+        onRetry: () => ref.invalidate(categoriesProvider),
+        builder: (context, list) {
+          if (list.isEmpty) return const AppEmptyView();
+
+          // Keep the selection valid even if the list changes underneath us.
+          final selected = list.firstWhere(
+            (c) => c.id == _selectedId,
+            orElse: () => list.first,
+          );
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _CategoryRail(
+                categories: list,
+                selectedId: selected.id,
+                onSelected: (id) => setState(() => _selectedId = id),
+              ),
+              Expanded(
+                child: _CategoryDetail(
+                  category: selected,
+                  onBrowseAll: () => _openList(selected.id),
+                  onSubcategory: _openList,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The vertical rail of top-level departments.
+class _CategoryRail extends StatelessWidget {
+  const _CategoryRail({
+    required this.categories,
+    required this.selectedId,
+    required this.onSelected,
+  });
+
+  final List<Category> categories;
+  final String selectedId;
+  final ValueChanged<String> onSelected;
+
+  static const double width = 100;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      color: context.colors.surfaceAlt,
+      child: ListView.builder(
+        padding: EdgeInsets.zero,
+        itemCount: categories.length,
+        itemBuilder: (context, i) {
+          final c = categories[i];
+          return _RailItem(
+            key: ValueKey('cat-rail-${c.id}'),
+            category: c,
+            selected: c.id == selectedId,
+            onTap: () => onSelected(c.id),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RailItem extends StatelessWidget {
+  const _RailItem({
+    super.key,
+    required this.category,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Category category;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final lang = Localizations.localeOf(context).languageCode;
+    return InkWell(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: AppMotion.fast,
+        curve: AppMotion.standard,
+        // The selected item lifts onto the detail pane's surface colour and
+        // carries a primary accent bar on its detail-facing (inner) edge.
+        decoration: BoxDecoration(
+          color: selected ? colors.surface : colors.surfaceAlt,
+          border: BorderDirectional(
+            end: BorderSide(
+              color: selected ? colors.primary : Colors.transparent,
+              width: 3,
+            ),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.lg,
+          horizontal: AppSpacing.sm,
+        ),
+        child: Column(
+          children: [
+            Icon(
+              categoryIconFor(category.icon),
+              size: 26,
+              color: selected ? colors.primary : colors.textMuted,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              category.localizedName(lang),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.text.labelMedium?.copyWith(
+                height: 1.2,
+                color: selected ? colors.primaryDark : colors.textSecondary,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The detail pane: the selected department's name, a browse-all action and a
+/// grid of its subcategories.
+class _CategoryDetail extends StatelessWidget {
+  const _CategoryDetail({
+    required this.category,
+    required this.onBrowseAll,
+    required this.onSubcategory,
+  });
+
+  final Category category;
+  final VoidCallback onBrowseAll;
+  final ValueChanged<String> onSubcategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final lang = Localizations.localeOf(context).languageCode;
+    return ColoredBox(
+      color: colors.surface,
+      child: ListView(
+        // A key so switching department resets the scroll to the top.
+        key: ValueKey('cat-detail-${category.id}'),
+        padding: const EdgeInsets.all(AppSpacing.screenH),
+        children: [
+          Text(category.localizedName(lang), style: context.text.titleLarge),
+          const SizedBox(height: AppSpacing.md),
+          _BrowseAllTile(label: context.l10n.categoriesBrowseAll, onTap: onBrowseAll),
+          if (category.children.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.md,
+              children: [
+                for (final sub in category.children)
+                  _SubcategoryTile(
+                    key: ValueKey('cat-sub-${sub.id}'),
+                    category: sub,
+                    onTap: () => onSubcategory(sub.id),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BrowseAllTile extends StatelessWidget {
+  const _BrowseAllTile({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Material(
+      color: colors.primarySoft,
+      borderRadius: AppRadii.mdAll,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.grid_view_rounded, size: 20, color: colors.primaryDark),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  label,
+                  style: context.text.labelLarge?.copyWith(
+                    color: colors.primaryDark,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Icon(
+                context.isRtl ? Icons.chevron_left : Icons.chevron_right,
+                size: 20,
+                color: colors.primaryDark,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SubcategoryTile extends StatelessWidget {
+  const _SubcategoryTile({super.key, required this.category, required this.onTap});
+
+  final Category category;
+  final VoidCallback onTap;
+
+  static const double width = 96;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final lang = Localizations.localeOf(context).languageCode;
+    return SizedBox(
+      width: width,
+      child: Material(
+        color: colors.surfaceAlt,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadii.mdAll,
+          side: BorderSide(color: colors.border),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: AppSpacing.md,
+              horizontal: AppSpacing.sm,
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: colors.primarySoft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    categoryIconFor(category.icon),
+                    size: 24,
+                    color: colors.primaryDark,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  category.localizedName(lang),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.labelMedium,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

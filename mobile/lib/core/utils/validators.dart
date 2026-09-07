@@ -3,15 +3,35 @@ abstract final class Validators {
   /// Loose international phone check — the backend owns the real rule, this
   /// only stops obviously malformed input before an OTP is requested.
   static bool isPhone(String value) {
-    final trimmed = value.replaceAll(RegExp(r'[\s\-()]'), '');
+    final trimmed = foldDigits(value).replaceAll(RegExp(r'[\s\-()]'), '');
     return RegExp(r'^\+?[0-9]{8,15}$').hasMatch(trimmed);
   }
 
   /// `POST /auth/verify-otp` documents a 6-digit code.
   static bool isOtp(String value) =>
-      RegExp(r'^[0-9]{6}$').hasMatch(value.trim());
+      RegExp(r'^[0-9]{6}$').hasMatch(foldDigits(value).trim());
 
-  /// Strips spaces and separators before sending to the API.
+  /// Strips spaces and separators before sending to the API, and folds any
+  /// Arabic-Indic digits to ASCII so the backend always receives 0-9.
   static String normalizePhone(String value) =>
-      value.replaceAll(RegExp(r'[\s\-()]'), '');
+      foldDigits(value).replaceAll(RegExp(r'[\s\-()]'), '');
+
+  /// Converts Arabic-Indic (٠-٩) and Extended/Persian (۰-۹) digits to ASCII.
+  /// This is an Arabic-first app, so an Arabic keyboard's numerals must be
+  /// accepted everywhere a number is entered.
+  static String foldDigits(String value) {
+    const arabicIndicZero = 0x0660; // ٠
+    const persianZero = 0x06F0; // ۰
+    final buffer = StringBuffer();
+    for (final rune in value.runes) {
+      if (rune >= arabicIndicZero && rune <= arabicIndicZero + 9) {
+        buffer.writeCharCode(0x30 + (rune - arabicIndicZero));
+      } else if (rune >= persianZero && rune <= persianZero + 9) {
+        buffer.writeCharCode(0x30 + (rune - persianZero));
+      } else {
+        buffer.writeCharCode(rune);
+      }
+    }
+    return buffer.toString();
+  }
 }
