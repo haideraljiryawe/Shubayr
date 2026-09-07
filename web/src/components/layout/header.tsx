@@ -1,15 +1,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Bell, ScanLine, ShoppingCart } from "lucide-react";
+import { Bell, ShoppingCart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
-import { SearchInput } from "@/components/ui/search-input";
 import { cn } from "@/lib/cn";
 import { DesktopNav } from "./desktop-nav";
 import { LocaleSwitcher } from "./locale-switcher";
 import { LocationSelector } from "./location-selector";
 import { Logo } from "./logo";
+import { SearchForm } from "./search-form";
 
 /**
  * Responsive adaptation of the mockup header. On mobile the search drops to its
@@ -31,11 +31,7 @@ export function Header({ cartCount = 0 }: { cartCount?: number }) {
               className lands on the <input>, which would hide the field but
               leave its icons floating in the header. */}
           <div className="hidden flex-1 md:block">
-            <SearchInput
-              aria-label={t("search")}
-              placeholder={t("searchPlaceholder")}
-              endIcon={<ScanLine className="size-4.5" aria-hidden />}
-            />
+            <SearchForm />
           </div>
 
           <div className="ms-auto flex items-center gap-1">
@@ -66,11 +62,7 @@ export function Header({ cartCount = 0 }: { cartCount?: number }) {
 
         {/* Mobile: search on its own row, like the phone mockups. */}
         <div className="pb-3 md:hidden">
-          <SearchInput
-            aria-label={t("search")}
-            placeholder={t("searchPlaceholder")}
-            endIcon={<ScanLine className="size-4.5" aria-hidden />}
-          />
+          <SearchForm />
         </div>
       </div>
 

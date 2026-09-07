@@ -48,7 +48,7 @@ async function Categories({ locale }: { locale: Locale }) {
       <SectionHeader
         title={t("categoriesTitle")}
         actionLabel={tc("viewAll")}
-        href="/category/c1"
+        href="/categories"
       />
       <div className="mt-4">
         {categories === null ? (
@@ -98,7 +98,7 @@ export default async function HomePage({
       >
         <ProductSection
           title={t("featuredTitle")}
-          viewAllHref="/category/c1"
+          viewAllHref="/search?sort=rating"
           locale={typedLocale}
           priority
           load={async () =>
@@ -116,7 +116,7 @@ export default async function HomePage({
       >
         <ProductSection
           title={t("newArrivalsTitle")}
-          viewAllHref="/category/c1"
+          viewAllHref="/search?sort=newest"
           locale={typedLocale}
           load={async () =>
             (await api.listProducts({ sort: "newest", per_page: 5 })).data
@@ -133,7 +133,7 @@ export default async function HomePage({
       >
         <ProductSection
           title={t("dealsTitle")}
-          viewAllHref="/category/c1"
+          viewAllHref="/search?on_sale=true"
           locale={typedLocale}
           load={() => api.listDeals(5)}
         />

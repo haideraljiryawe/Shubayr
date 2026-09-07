@@ -1,4 +1,4 @@
-import type { components } from "@/types/api";
+import type { components, paths } from "@/types/api";
 import {
   demoProducts,
   mockBanners,
@@ -57,6 +57,7 @@ async function request<T>(
 ): Promise<T> {
   const response = await fetch(buildUrl(path, query), {
     ...init,
+    signal: init.signal ?? AbortSignal.timeout(10_000),
     headers: { "Content-Type": "application/json", ...init.headers },
   });
 
@@ -70,15 +71,9 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
-export interface ProductQuery {
-  q?: string;
-  category_id?: string;
-  min_price?: number;
-  max_price?: number;
-  sort?: "newest" | "price_asc" | "price_desc" | "rating";
-  page?: number;
-  per_page?: number;
-}
+export type ProductQuery = NonNullable<
+  paths["/products"]["get"]["parameters"]["query"]
+>;
 
 /** Mirrors the `sort` values the contract allows on GET /products. */
 function sortMockProducts(
@@ -126,11 +121,26 @@ export const api = {
         matches = matches.filter((p) => p.category_id === query.category_id);
       }
       if (query.q) {
-        const needle = query.q.toLowerCase();
+        const needle = query.q.trim().toLowerCase();
         matches = matches.filter(
           (p) =>
-            p.name_ar?.includes(query.q!) ||
+            p.name_ar?.toLowerCase().includes(needle) ||
             p.name_en?.toLowerCase().includes(needle),
+        );
+      }
+      if (query.min_price !== undefined) {
+        matches = matches.filter(
+          (p) => (p.sale_price ?? 0) >= query.min_price!,
+        );
+      }
+      if (query.max_price !== undefined) {
+        matches = matches.filter(
+          (p) => (p.sale_price ?? 0) <= query.max_price!,
+        );
+      }
+      if (query.on_sale) {
+        matches = matches.filter(
+          (p) => (p.compare_at_price ?? 0) > (p.sale_price ?? 0),
         );
       }
 
@@ -148,32 +158,40 @@ export const api = {
     return request<ProductPage>("/products", { query: { ...query } });
   },
 
-  /**
-   * Home hero banners.
-   *
-   * NOT in api/openapi.yaml yet — see the note on `mockBanners`. This resolves
-   * from fixtures regardless of USE_MOCKS, because there is no endpoint to call.
-   * Once the contract gains `GET /banners`, this becomes a normal request() and
-   * every caller stays unchanged.
-   */
+  /** Map the shared banner contract into the existing home carousel view. */
   async getBanners(): Promise<Banner[]> {
-    return mockBanners;
+    if (USE_MOCKS) return mockBanners;
+    const banners = await request<Schemas["Banner"][]>("/banners");
+    return banners.map((banner, index) => ({
+      id: banner.id ?? `banner-${index}`,
+      title_ar: banner.title ?? "",
+      title_en: banner.title ?? "",
+      subtitle_ar: banner.subtitle ?? "",
+      subtitle_en: banner.subtitle ?? "",
+      cta_ar: banner.cta_text ?? "تسوق الآن",
+      cta_en: banner.cta_text ?? "Shop now",
+      href: banner.link_url ?? "/categories",
+      image_url: banner.image_url ?? null,
+    }));
   },
 
-  /**
-   * Discounted products for the deals strip.
-   *
-   * CONTRACT GAP: Product has no "was" price or discount flag, so a real API
-   * cannot express this yet. Until `compare_at_price` (or similar) is added to
-   * api/openapi.yaml, this reads the fixtures directly; with mocks off it
-   * returns an empty list rather than inventing a filter the backend does not
-   * support, and the section renders its empty state.
-   */
+  /** Discounted products use the same typed endpoint as catalog filters. */
   async listDeals(limit = 6): Promise<Product[]> {
-    if (!USE_MOCKS) return [];
-    return demoProducts
-      .filter((p) => p.compare_at_price && p.compare_at_price > p.sale_price)
-      .slice(0, limit);
+    return (await api.listProducts({ on_sale: true, per_page: limit })).data;
+  },
+
+  /** Product has no review count field; the published reviews envelope does. */
+  async getProductReviewCount(id: string): Promise<number> {
+    if (USE_MOCKS) {
+      const product = demoProducts.find((item) => item.id === id);
+      if (!product) throw new ApiError(404, `Product ${id} not found`);
+      return product.review_count;
+    }
+    const reviews = await request<Schemas["ReviewPage"]>(
+      `/products/${encodeURIComponent(id)}/reviews`,
+      { query: { page: 1, per_page: 1 } },
+    );
+    return reviews.total;
   },
 
   async getProduct(id: string): Promise<Product> {

@@ -33,12 +33,20 @@ export function Price({
   return (
     // dir="ltr": a currency symbol is a neutral character, so in an RTL
     // paragraph it drifts to the wrong side of the number without isolation.
-    <span dir="ltr" className={cn("inline-flex items-baseline gap-2", className)}>
-      <span className={cn("font-bold text-text", SIZES[size])}>
+    <span
+      dir="ltr"
+      className={cn(
+        "inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5 [unicode-bidi:isolate]",
+        className,
+      )}
+    >
+      <span
+        className={cn("whitespace-nowrap font-bold text-text", SIZES[size])}
+      >
         {formatPrice(amount, currency, locale)}
       </span>
       {compareAt && compareAt > amount ? (
-        <span className="text-xs font-medium text-text-muted line-through">
+        <span className="whitespace-nowrap text-xs font-medium text-text-muted line-through">
           {formatPrice(compareAt, currency, locale)}
         </span>
       ) : null}
