@@ -19,11 +19,11 @@ class OrderStatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
+        vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: AppRadii.pillAll,
+        color: color.withValues(alpha: 0.20),
+        borderRadius: AppRadii.smAll,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -34,7 +34,7 @@ class OrderStatusPill extends StatelessWidget {
             orderStatusLabel(context.l10n, status),
             style: context.text.labelMedium?.copyWith(
               color: color,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

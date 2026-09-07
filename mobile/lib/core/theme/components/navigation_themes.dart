@@ -102,7 +102,7 @@ abstract final class NavigationThemes {
     surfaceTintColor: Colors.transparent,
     labelStyle: text.labelMedium ?? const TextStyle(),
     side: BorderSide(color: c.border),
-    shape: const RoundedRectangleBorder(borderRadius: AppRadii.pillAll),
+    shape: const RoundedRectangleBorder(borderRadius: AppRadii.smAll),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
   );
 

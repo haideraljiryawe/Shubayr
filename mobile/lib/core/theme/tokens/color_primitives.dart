@@ -29,7 +29,7 @@ abstract final class ColorPrimitives {
   // same in light and dark themes: like other transient overlay chrome, it is a
   // fixed dark surface rather than a themed one, so an "added to cart" toast
   // reads the same everywhere and never inverts to a light fill in dark mode.
-  static const Color confirmSurface = Color(0xFF1F2922);
+  static const Color confirmSurface = Color(0xFF183326);
 
   // Status.
   static const Color success500 = Color(0xFF2E7D4F);
