@@ -1,4 +1,10 @@
-import type { Category, Product, StoreSettings } from "./api";
+import type {
+  Category,
+  Product,
+  ProductAvailability,
+  Review,
+  StoreSettings,
+} from "./api";
 
 /* ---------------------------------------------------------------------------
  * Phase-1 fixtures. Contents mirror the design sheet's mockup screens so the
@@ -547,3 +553,139 @@ export const mockBanners: Banner[] = [
     image_url: null,
   },
 ];
+
+/* ---------------------------------------------------------------------------
+ * Product-detail fixtures: variants, per-variant availability, and reviews.
+ *
+ * These stand in for GET /products/{id}, /availability and /reviews until the
+ * backend is live. Shapes follow the contract exactly so swapping USE_MOCKS off
+ * changes nothing but the data source.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Variant attributes are a free-form object in the contract
+ * (`additionalProperties: true`). The storefront reads two conventional keys:
+ * `color` (rendered as a swatch, with `color_hex` for the chip) and `size`
+ * (rendered as a labelled option). Anything else falls back to a plain chip, so
+ * a new attribute the backend invents still renders sensibly.
+ */
+type VariantSeed = {
+  id: string;
+  sku: string;
+  price_delta: number;
+  qty: number;
+  attributes: Record<string, string>;
+};
+
+const VARIANT_SEEDS: Record<string, VariantSeed[]> = {
+  // The design sheet's product screen: three colour swatches, black selected.
+  p1: [
+    { id: "p1-black", sku: "WH-BLK", price_delta: 0, qty: 12, attributes: { color: "أسود", color_en: "Black", color_hex: "#1F2937" } },
+    { id: "p1-green", sku: "WH-GRN", price_delta: 0, qty: 4, attributes: { color: "أخضر", color_en: "Green", color_hex: "#558464" } },
+    { id: "p1-gray", sku: "WH-GRY", price_delta: 10, qty: 0, attributes: { color: "رمادي", color_en: "Gray", color_hex: "#9CA3AF" } },
+  ],
+  p11: [
+    { id: "p11-40", sku: "SH-40", price_delta: 0, qty: 6, attributes: { size: "40" } },
+    { id: "p11-42", sku: "SH-42", price_delta: 0, qty: 2, attributes: { size: "42" } },
+    { id: "p11-44", sku: "SH-44", price_delta: 5, qty: 0, attributes: { size: "44" } },
+  ],
+};
+
+/** Attach the seeded variants to their products. */
+for (const product of demoProducts) {
+  const seeds = VARIANT_SEEDS[product.id ?? ""];
+  if (!seeds) continue;
+  // `qty` belongs to availability, not to the variant itself — build the
+  // contract shape explicitly rather than destructuring it away.
+  product.variants = seeds.map((seed) => ({
+    id: seed.id,
+    sku: seed.sku,
+    price_delta: seed.price_delta,
+    attributes: seed.attributes,
+  }));
+}
+
+// p1 is the design-sheet product: give it a small gallery and the extras the
+// detail page renders (points price, negotiable flag).
+const headphones = demoProducts.find((p) => p.id === "p1");
+if (headphones) {
+  headphones.images = [
+    "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=1200&q=80",
+  ];
+  headphones.points_price = 8900;
+  headphones.is_negotiable = true;
+  headphones.description =
+    "سماعات لاسلكية عالية الجودة مع عزل ضوضاء ووقت تشغيل طويل للبطارية.";
+}
+
+/** Availability derived from the seeds, matching ProductAvailability. */
+export function mockAvailabilityFor(
+  product: DemoProduct,
+): ProductAvailability {
+  const seeds = VARIANT_SEEDS[product.id ?? ""];
+  if (!seeds) {
+    return {
+      product_id: product.id,
+      in_stock: product.in_stock ?? true,
+      available_qty: product.available_qty ?? 0,
+      variants: [],
+    };
+  }
+  const total = seeds.reduce((sum, seed) => sum + seed.qty, 0);
+  return {
+    product_id: product.id,
+    in_stock: total > 0,
+    available_qty: total,
+    variants: seeds.map((seed) => ({
+      variant_id: seed.id,
+      sku: seed.sku,
+      available_qty: seed.qty,
+      in_stock: seed.qty > 0,
+    })),
+  };
+}
+
+const REVIEW_COMMENTS = [
+  "جودة الصوت ممتازة وعزل الضوضاء يعمل بشكل رائع. البطارية تدوم طوال اليوم.",
+  "المنتج مطابق للوصف والتوصيل كان سريعًا. أنصح به.",
+  "مريحة جدًا للاستخدام الطويل، لكن السعر مرتفع قليلًا.",
+  "استخدمها يوميًا في العمل ولم أواجه أي مشكلة حتى الآن.",
+  "التغليف ممتاز والجودة تستحق السعر.",
+  "جيدة بشكل عام، لكن كنت أتوقع صوتًا أعمق قليلًا.",
+  "أفضل شراء هذا العام. الصوت نقي جدًا.",
+];
+
+/**
+ * Deterministic reviews so the page renders the same set on every request —
+ * a random fixture would make the server and client markup disagree.
+ */
+export function mockReviewsFor(productId: string): Review[] {
+  const product = demoProducts.find((item) => item.id === productId);
+  if (!product) return [];
+
+  const count = Math.min(product.review_count, 12);
+  return Array.from({ length: count }, (_, index) => {
+    // Skew toward the product's average so the distribution bars look real.
+    const offset = [0, 0, 0, -1, 1, -2][index % 6];
+    const rating = Math.max(1, Math.min(5, Math.round(product.rating_avg) + offset));
+    const daysAgo = index * 6 + 2;
+    return {
+      id: `${productId}-r${index + 1}`,
+      product_id: productId,
+      user_id: `u${(index % 7) + 1}`,
+      order_item_id: index % 4 === 3 ? null : `oi-${productId}-${index}`,
+      rating,
+      comment: REVIEW_COMMENTS[index % REVIEW_COMMENTS.length],
+      // Only reviews tied to a real order item count as verified purchases,
+      // which is the rule the contract enforces on POST.
+      verified_purchase: index % 4 !== 3,
+      status: "published" as const,
+      created_at: new Date(
+        Date.UTC(2026, 7, 1) - daysAgo * 86_400_000,
+      ).toISOString(),
+    };
+  });
+}

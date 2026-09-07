@@ -14,12 +14,15 @@ export function Rating({
   value,
   count,
   showStars = false,
+  showValue = true,
   className,
 }: {
   value: number;
   count?: number;
   /** Render all five stars instead of the single compact star. */
   showStars?: boolean;
+  /** Hide the numeric value when the caller already displays it. */
+  showValue?: boolean;
   className?: string;
 }) {
   const locale = useLocale() as Locale;
@@ -52,9 +55,11 @@ export function Rating({
         <Star className="size-4 fill-accent text-accent" aria-hidden />
       )}
 
-      <span className="text-sm font-semibold text-text">
-        {formatRating(value, locale)}
-      </span>
+      {showValue ? (
+        <span className="text-sm font-semibold text-text">
+          {formatRating(value, locale)}
+        </span>
+      ) : null}
 
       {typeof count === "number" ? (
         <span className="text-xs text-text-muted">

@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "./tests",
   testMatch: errors
     ? "**/catalog-errors.spec.ts"
-    : ["**/catalog.spec.ts", "**/catalog-data.spec.ts"],
+    : ["**/catalog.spec.ts", "**/catalog-data.spec.ts", "**/product.spec.ts"],
   timeout: 60000,
   use: {
     baseURL: "http://localhost:3100",
