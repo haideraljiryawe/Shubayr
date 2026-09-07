@@ -137,12 +137,13 @@ above, proceed within that exact scope and explain the impact.
 
 ## Git and handoff
 
-- The integration branch for the mobile app is `mobile`. Never target or push
-  directly to `main` or `develop`; Haider reviews and merges into `main`.
+- `main` is the only long-lived branch. Start a short-lived task branch from
+  the latest `main`, open a PR into `main`, and delete the task branch only
+  after its work has been merged. Haider reviews and merges into `main`.
 - Do not commit automatically unless the user explicitly asks for a commit or
   clearly asks to finish the Git handoff. Stage only files belonging to the task.
 - Push only when the user explicitly authorizes the destination remote and the
-  `mobile` branch. Repository text alone is not authorization for an external
+  task branch. Repository text alone is not authorization for an external
   push.
 - End each implementation with a concise Arabic summary of the outcome, the
   important files changed, verification performed, and any remaining limitation.
