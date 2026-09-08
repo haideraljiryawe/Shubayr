@@ -175,9 +175,9 @@ class _Thumb extends StatelessWidget {
         else
           image,
         if (!product.inStock)
-          Positioned(
+          PositionedDirectional(
             top: AppSpacing.sm,
-            right: AppSpacing.sm,
+            start: AppSpacing.sm,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: colors.danger,

@@ -17,8 +17,13 @@ class _FixedWishlist extends WishlistController {
   Future<List<WishlistItem>> build() async => _items;
 }
 
-Product _product(String id, String name) =>
-    Product(id: id, categoryId: 'c1', nameEn: name, nameAr: name, salePrice: 1000);
+Product _product(String id, String name) => Product(
+  id: id,
+  categoryId: 'c1',
+  nameEn: name,
+  nameAr: name,
+  salePrice: 1000,
+);
 
 Widget _host(List<WishlistItem> items) => ProviderScope(
   overrides: [

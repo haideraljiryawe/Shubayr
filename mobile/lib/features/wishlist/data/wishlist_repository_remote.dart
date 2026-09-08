@@ -8,9 +8,13 @@ class WishlistRepositoryRemote implements WishlistRepository {
   final ApiClient _api;
 
   @override
-  Future<WishlistPage> fetchWishlist() async => WishlistPage.fromJson(
-    await _api.get<Map<String, dynamic>>('/wishlist'),
-  );
+  Future<WishlistPage> fetchWishlist({int page = 1, int perPage = 20}) async =>
+      WishlistPage.fromJson(
+        await _api.get<Map<String, dynamic>>(
+          '/wishlist',
+          query: {'page': '$page', 'per_page': '$perPage'},
+        ),
+      );
 
   @override
   Future<WishlistItem> add(String productId) async => WishlistItem.fromJson(

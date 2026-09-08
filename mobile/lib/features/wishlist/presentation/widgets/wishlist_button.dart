@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
+import '../../../../core/error/failure.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -31,7 +32,7 @@ class WishlistButton extends ConsumerWidget {
         wished ? Icons.favorite : Icons.favorite_border,
         color: wished ? colors.danger : color,
       ),
-      onPressed: () {
+      onPressed: () async {
         final signedIn =
             ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ??
             false;
@@ -49,7 +50,17 @@ class WishlistButton extends ConsumerWidget {
           );
           return;
         }
-        ref.read(wishlistControllerProvider.notifier).toggle(productId);
+        try {
+          await ref.read(wishlistControllerProvider.notifier).toggle(productId);
+        } catch (error) {
+          if (!context.mounted) return;
+          showAppSnackBarMessage(
+            context,
+            message: error is AppFailure
+                ? error.localizedMessage(l10n)
+                : l10n.errorUnknown,
+          );
+        }
       },
     );
   }

@@ -2,10 +2,12 @@
 
 ## Current status
 
-- Last reviewed: 2026-09-07, against the `mobile` implementation at `dbd9fac` plus the completed order-history and UI corrections and OpenAPI contract 1.1.0.
+- Last reviewed: 2026-09-08, against the `mobile` implementation at `6cc4e17` plus the wishlist and address increments and OpenAPI contract 1.1.0.
 - Current phase: **1 — Complete the guest and customer experience with mock data**; the core journey exists, but production integration is not complete.
 - Completed objective: order-history pagination and repository-level status filtering with mock data; technical verification passed and Ahmed confirmed final manual acceptance on 2026-09-07, including the checkout and UI corrections made during review.
-- Next objective: complete wishlist pagination, followed by addresses; neither is started in this increment.
+- Completed objective: wishlist pagination with mock data, including the stock-badge direction correction during review; technical verification passed and Ahmed confirmed final manual acceptance on 2026-09-08.
+- Latest completed objective: address pagination with mock data; technical verification passed and Ahmed confirmed final manual acceptance on 2026-09-08.
+- Next objective: loyalty balance and points ledger.
 - Next phase: **2 — Delivery Agent**, after completing the ready customer items; isolated contract gaps do not prevent moving on.
 - Main blockers: order-to-delivery linkage, after-sales data retrieval, delivery-agent and cash-collection data, and inventory links; details in B1–B10.
 
@@ -24,7 +26,8 @@
 - [x] Cart, wishlist and address operations, and cash-on-delivery checkout with an address and coupon; mock and remote repositories exist. Completion of large lists remains below.
 - [x] Order details, status timeline and cancellation, and product reviews and partial returns after delivery. Mock reviews are `pending`, and returns produce receipts only; no approval, refund, or stock adjustment.
 - [x] Order-history pagination and repository-level status filtering: implemented with mock data, including all contract statuses, refresh, append retry and stale-response protection; technical checks and Ahmed’s final manual verification passed. See the [order-history progress record](docs/order-history-mock-progress.md).
-- [ ] Complete wishlist and address pagination. Wishlist reads the first page; addresses read up to 100 items without fetching subsequent pages.
+- [x] Wishlist pagination: all repository pages are loaded before publishing the complete saved-product set, keeping heart buttons correct for later-page products. Refresh, retry, mutations and session changes are covered; technical checks and Ahmed’s final manual verification passed. See the [wishlist progress record](docs/wishlist-mock-progress.md).
+- [x] Address pagination: all repository pages load for address management and checkout, including later-page default selection, refresh/retry, consistent mutations and stale-response protection. Technical checks and Ahmed’s final manual verification passed. See the [address progress record](docs/address-mock-progress.md).
 - [ ] Loyalty balance and points ledger via `GET /loyalty`; the contract is available, but the feature is not implemented.
 - [ ] Automatic tracking updates; currently read only on load. The read contract and mock data are sufficient to start, without assuming WebSocket.
 - [!] Delivery rating B1, after-sales history/status retrieval B2, account completion B3, and help and privacy B4.
@@ -87,5 +90,7 @@ These conditions apply to feature completion; do not defer the rest of the phase
 - Sources: `lib/` and `test/`, [API](../api/openapi.yaml), [Flutter requirements](../prompts/MOBILE_CLAUDE_FULL.md), [Architecture](../docs/ARCHITECTURE.md), [Database schema](../infra/db/schema.sql). A table's existence does not prove API availability.
 - The [customer progress record](docs/customer-mock-progress.md) documents 115 passing tests, successful analysis, and simulator checks of selected journeys; these are previous results, not rerun during the planning task. `[x]` does not imply production or comprehensive visual verification.
 - Completed increment, including checkout-to-pending navigation, dark snackbar contrast, and responsive product cards with two-line name slots: all 176 Flutter tests passed; `flutter analyze` reports no issues. Widget coverage includes repository filters, later-page loading/retry, refresh, empty states, Arabic/English layouts, light/dark modes, and enlarged text. Ahmed confirmed manual acceptance on 2026-09-07; no live backend was contacted.
+- Wishlist increment, 2026-09-08: formatting completed, `flutter analyze` reports no issues, and all 200 Flutter tests passed after the shared product-card stock-badge direction correction. Coverage includes later-page membership, retry without partial data, mutation failures, refresh sequencing, session changes, narrow Arabic layouts in light/dark modes, and badge placement opposite the wishlist heart in both languages. Ahmed confirmed final manual acceptance on 2026-09-08; no live backend was contacted.
+- Address increment, 2026-09-08: formatting completed, `flutter analyze` reports no issues, all 30 focused address/checkout tests and all 224 Flutter tests passed. Coverage includes 105 addresses beyond the old limit, later-page default selection and checkout submission, retry, mutations, session changes, empty refresh, and 320-pixel Arabic/English layouts in light/dark modes. Ahmed confirmed final manual acceptance on 2026-09-08; no live backend was contacted.
 - Deployed backend and SMS/FCM readiness, successful remote operation against a live server, and store-release approval are **unverified**; this does not mean the team's work does not exist.
 - Update when a feature/phase is completed or a significant dependency changes: status, next objective, and completion evidence or blocking condition. Execution rules belong in [AGENTS.md](AGENTS.md), not this roadmap.

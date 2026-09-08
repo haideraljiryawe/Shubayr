@@ -151,6 +151,12 @@ void main() {
               final third = tester.getRect(cards.at(2));
               expect(badge.left, greaterThanOrEqualTo(third.left));
               expect(badge.right, lessThanOrEqualTo(third.right));
+              expect(
+                locale == 'ar'
+                    ? third.right - badge.right
+                    : badge.left - third.left,
+                closeTo(AppSpacing.sm * 2, 0.01),
+              );
               await tester.tap(
                 find.text(_products.first.localizedName(locale)),
               );

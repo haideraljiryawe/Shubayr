@@ -8,12 +8,12 @@ class AddressRepositoryRemote implements AddressRepository {
   final ApiClient _api;
 
   @override
-  Future<List<Address>> fetchAddresses() async {
+  Future<AddressPage> fetchAddresses({int page = 1, int perPage = 20}) async {
     final json = await _api.get<Map<String, dynamic>>(
       '/addresses',
-      query: {'per_page': 100},
+      query: {'page': page, 'per_page': perPage},
     );
-    return AddressPage.fromJson(json).data;
+    return AddressPage.fromJson(json);
   }
 
   @override

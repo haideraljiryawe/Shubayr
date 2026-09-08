@@ -2,13 +2,13 @@ import '../domain/address_repository.dart';
 import 'address.dart';
 
 /// In-memory addresses for development. Enforces a single default (setting one
-/// clears the others), the same invariant the server keeps. Seeded with one
-/// address so the list — and later checkout — has something to show.
+/// clears the others), the same invariant the server keeps. Ten addresses
+/// exercise multiple pages in the address list and checkout picker.
 class AddressRepositoryMock implements AddressRepository {
   AddressRepositoryMock({this.delay = const Duration(milliseconds: 250)});
 
   final Duration delay;
-  var _seq = 1;
+  var _seq = 10;
 
   final List<Address> _items = [
     const Address(
@@ -19,6 +19,14 @@ class AddressRepositoryMock implements AddressRepository {
       street: 'شارع ٦٢',
       isDefault: true,
     ),
+    for (var i = 1; i < 10; i++)
+      Address(
+        id: 'addr-$i',
+        label: 'عنوان $i',
+        city: 'بغداد',
+        area: 'الكرادة',
+        street: 'شارع $i',
+      ),
   ];
 
   Address _fromInput(String id, String? userId, AddressInput input) => Address(
@@ -44,9 +52,14 @@ class AddressRepositoryMock implements AddressRepository {
   }
 
   @override
-  Future<List<Address>> fetchAddresses() async {
+  Future<AddressPage> fetchAddresses({int page = 1, int perPage = 20}) async {
     await Future<void>.delayed(delay);
-    return List.unmodifiable(_items);
+    return AddressPage(
+      page: page,
+      perPage: perPage,
+      total: _items.length,
+      data: List.unmodifiable(_items.skip((page - 1) * perPage).take(perPage)),
+    );
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/failure.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -60,19 +61,23 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
       isDefault: _isDefault,
     );
     final controller = ref.read(addressesControllerProvider.notifier);
-    if (widget.address == null) {
-      await controller.add(input);
-    } else {
-      await controller.edit(widget.address!.id, input);
+    try {
+      if (widget.address == null) {
+        await controller.add(input);
+      } else {
+        await controller.edit(widget.address!.id, input);
+      }
+      if (mounted) navigator.pop();
+    } catch (error) {
+      if (!mounted) return;
+      final failure = error is AppFailure ? error : const AppFailure.unknown();
+      showAppSnackBarMessage(
+        context,
+        message: failure.localizedMessage(context.l10n),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    if (!mounted) return;
-    setState(() => _busy = false);
-
-    if (ref.read(addressesControllerProvider).hasError) {
-      showAppSnackBarMessage(context, message: context.l10n.stateErrorTitle);
-      return;
-    }
-    navigator.pop();
   }
 
   @override

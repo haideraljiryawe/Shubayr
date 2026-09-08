@@ -42,26 +42,31 @@ class WishlistScreen extends ConsumerWidget {
             ),
           ],
         ),
-        onRetry: () => ref.invalidate(wishlistControllerProvider),
+        onRetry: () => ref.read(wishlistControllerProvider.notifier).refresh(),
         builder: (context, items) {
-          if (items.isEmpty) {
-            return AppEmptyView(
-              icon: Icons.favorite_border,
-              title: l10n.wishlistEmptyTitle,
-              message: l10n.wishlistEmptyMessage,
-            );
-          }
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(wishlistControllerProvider),
+            onRefresh: () =>
+                ref.read(wishlistControllerProvider.notifier).refresh(),
             child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                SliverPadding(
-                  padding: const EdgeInsets.all(AppSpacing.screenH),
-                  sliver: ProductGridSliver(
-                    itemCount: items.length,
-                    itemBuilder: (_, i) => _WishlistCell(item: items[i]),
+                if (items.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: AppEmptyView(
+                      icon: Icons.favorite_border,
+                      title: l10n.wishlistEmptyTitle,
+                      message: l10n.wishlistEmptyMessage,
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.all(AppSpacing.screenH),
+                    sliver: ProductGridSliver(
+                      itemCount: items.length,
+                      itemBuilder: (_, i) => _WishlistCell(item: items[i]),
+                    ),
                   ),
-                ),
               ],
             ),
           );

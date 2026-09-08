@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shubayr/app/router/app_routes.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
+import 'package:shubayr/core/error/failure.dart';
+import 'package:shubayr/core/widgets/app_button.dart';
+import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/core/theme/brand.dart';
 import 'package:shubayr/features/address/data/address.dart';
 import 'package:shubayr/features/address/presentation/providers/address_providers.dart';
@@ -17,6 +22,8 @@ import 'package:shubayr/features/orders/presentation/providers/order_providers.d
 import 'package:shubayr/features/orders/presentation/screens/checkout_screen.dart';
 import 'package:shubayr/features/orders/presentation/screens/orders_screen.dart';
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
+
+import '../address/support/address_fakes.dart';
 
 class _FixedCart extends CartController {
   _FixedCart(this._cart);
@@ -35,6 +42,7 @@ class _FixedAddresses extends AddressesController {
 class _FakeOrders implements OrderRepository {
   final queries = <({String? status, int page})>[];
   Order? placed;
+  String? placedAddressId;
 
   @override
   Future<Coupon> validateCoupon(String code) async =>
@@ -44,7 +52,10 @@ class _FakeOrders implements OrderRepository {
   Future<Order> placeOrder({
     required String addressId,
     String? couponCode,
-  }) async => placed = const Order(id: 'o1', orderNumber: 'SH-1', total: 55000);
+  }) async {
+    placedAddressId = addressId;
+    return placed = const Order(id: 'o1', orderNumber: 'SH-1', total: 55000);
+  }
 
   @override
   Future<OrderPage> fetchOrders({
@@ -81,6 +92,7 @@ Widget _host({
   GoRouter? router,
   _FakeOrders? repository,
   String? initialStatus,
+  RecordingAddresses? addresses,
 }) => ProviderScope(
   overrides: [
     cartControllerProvider.overrideWith(
@@ -93,11 +105,15 @@ Widget _host({
         ),
       ),
     ),
-    addressesControllerProvider.overrideWith(
-      () => _FixedAddresses(const [
-        Address(id: 'a1', label: 'Home', city: 'Baghdad', isDefault: true),
-      ]),
-    ),
+    if (addresses != null) ...[
+      sessionControllerProvider.overrideWith(AddressTestSession.new),
+      addressRepositoryProvider.overrideWithValue(addresses),
+    ] else
+      addressesControllerProvider.overrideWith(
+        () => _FixedAddresses(const [
+          Address(id: 'a1', label: 'Home', city: 'Baghdad', isDefault: true),
+        ]),
+      ),
     orderRepositoryProvider.overrideWithValue(repository ?? _FakeOrders()),
     orderStatusFilterProvider.overrideWith((ref) => initialStatus),
     brandProvider.overrideWithValue(const Brand.bundled()),
@@ -118,6 +134,71 @@ Widget _host({
 );
 
 void main() {
+  testWidgets('checkout waits for all address pages and uses a later default', (
+    tester,
+  ) async {
+    final repo = RecordingAddresses();
+    final orders = _FakeOrders();
+    final last = Completer<AddressPage>();
+    repo.onFetch = (r) async =>
+        r.page == 2 ? last.future : addressPage(r, defaultIndex: 9);
+    await tester.pumpWidget(_host(addresses: repo, repository: orders));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(
+      tester
+          .widget<AppButton>(find.widgetWithText(AppButton, 'Place order'))
+          .onPressed,
+      isNull,
+    );
+    expect(find.text('Address 0'), findsNothing);
+    last.complete(addressPage((page: 2, perPage: 8), defaultIndex: 9));
+    await tester.pumpAndSettle();
+    expect(find.text('Address 9'), findsOneWidget);
+    await tester.tap(find.text('Place order'));
+    await tester.pumpAndSettle();
+    expect(orders.placedAddressId, 'addr-9');
+  });
+
+  testWidgets(
+    'checkout retries a failed later address page and selects it from the picker',
+    (tester) async {
+      final repo = RecordingAddresses()
+        ..onFetch = (r) async {
+          if (r.page == 2) throw const AppFailure.network();
+          return addressPage(r, defaultIndex: 0);
+        };
+      final orders = _FakeOrders();
+      await tester.pumpWidget(_host(addresses: repo, repository: orders));
+      await tester.pumpAndSettle();
+      expect(find.text('Retry'), findsOneWidget);
+      expect(
+        tester
+            .widget<AppButton>(find.widgetWithText(AppButton, 'Place order'))
+            .onPressed,
+        isNull,
+      );
+      repo.onFetch = (r) async => addressPage(r, defaultIndex: 0);
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Change'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Address 9'),
+        250,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Address 9'));
+      await tester.pumpAndSettle();
+      expect(find.text('Address 9'), findsOneWidget);
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+      expect(orders.placedAddressId, 'addr-9');
+      expect(repo.requests.map((r) => r.page), [1, 2, 1, 2]);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('shows the address and places a COD order', (tester) async {
     await tester.pumpWidget(_host());
     await tester.pumpAndSettle();
