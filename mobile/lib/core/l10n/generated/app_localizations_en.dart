@@ -660,4 +660,305 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get routeNotFoundTitle => 'Page not found';
+
+  @override
+  String get deliveryAssigned => 'Assigned';
+
+  @override
+  String get deliveryOutForDelivery => 'Out for delivery';
+
+  @override
+  String get deliveryDelivered => 'Delivered';
+
+  @override
+  String get deliveryFailed => 'Delivery failed';
+
+  @override
+  String get deliveryReturned => 'Returned';
+
+  @override
+  String get deliveryUnknownStatus => 'Unknown status';
+
+  @override
+  String get deliveryEmptyTitle => 'No assigned deliveries';
+
+  @override
+  String get deliveryEmptyMessage =>
+      'Your deliveries will appear here when assigned to you.';
+
+  @override
+  String get deliveryNoAccess =>
+      'Your account does not have access to assigned deliveries.';
+
+  @override
+  String get deliveryOrderId => 'Order reference';
+
+  @override
+  String get deliveryFee => 'Delivery fee';
+
+  @override
+  String get deliveryDispatchedAt => 'Dispatched';
+
+  @override
+  String get deliveryDeliveredAt => 'Delivered';
+
+  @override
+  String get deliveryUpdateStatus => 'Update status';
+
+  @override
+  String get deliverySelectStatus => 'Choose a status';
+
+  @override
+  String get deliveryStatusUpdated => 'Delivery status updated';
+
+  @override
+  String get adminProducts => 'Products';
+
+  @override
+  String get adminCategories => 'Categories';
+
+  @override
+  String get adminRoles => 'Roles';
+
+  @override
+  String get adminSuppliers => 'Suppliers';
+
+  @override
+  String get adminWarehouses => 'Warehouses';
+
+  @override
+  String get adminLocations => 'Storage locations';
+
+  @override
+  String get adminAdd => 'Add';
+
+  @override
+  String get adminEdit => 'Edit';
+
+  @override
+  String get adminDeleteConfirm => 'Delete this record?';
+
+  @override
+  String get adminArchiveConfirm => 'Archive this product?';
+
+  @override
+  String get adminSaved => 'Saved';
+
+  @override
+  String get adminDeleted => 'Deleted';
+
+  @override
+  String get adminEmpty => 'No matching records';
+
+  @override
+  String get adminFieldName => 'Name';
+
+  @override
+  String get adminFieldNameAr => 'Arabic name';
+
+  @override
+  String get adminFieldNameEn => 'English name';
+
+  @override
+  String get adminFieldPhone => 'Phone';
+
+  @override
+  String get adminFieldEmail => 'Email';
+
+  @override
+  String get adminFieldAddress => 'Address';
+
+  @override
+  String get adminFieldDescription => 'Description';
+
+  @override
+  String get adminFieldPrice => 'Sale price';
+
+  @override
+  String get adminFieldFloorPrice => 'Negotiation floor price';
+
+  @override
+  String get adminFieldPointsPrice => 'Redemption points cost';
+
+  @override
+  String get adminFieldIcon => 'Icon name';
+
+  @override
+  String get adminFieldSort => 'Display order';
+
+  @override
+  String get adminFieldActive => 'Active';
+
+  @override
+  String get adminInactive => 'Inactive';
+
+  @override
+  String get adminFieldPassword => 'Password (optional)';
+
+  @override
+  String get adminFieldParent => 'Parent category';
+
+  @override
+  String get adminFieldCategory => 'Category';
+
+  @override
+  String get adminFieldRole => 'Role';
+
+  @override
+  String get adminFieldStatus => 'Product status';
+
+  @override
+  String get adminStatusActive => 'Active';
+
+  @override
+  String get adminStatusHidden => 'Hidden';
+
+  @override
+  String get adminStatusArchived => 'Archived';
+
+  @override
+  String get adminFieldExpiry => 'Track expiry';
+
+  @override
+  String get adminFieldNegotiable => 'Negotiable';
+
+  @override
+  String get adminImages => 'Image URLs — one per line';
+
+  @override
+  String get adminVariants => 'Product variants';
+
+  @override
+  String get adminAddVariant => 'Add variant';
+
+  @override
+  String get adminSku => 'SKU';
+
+  @override
+  String get adminPriceDelta => 'Price difference';
+
+  @override
+  String get adminAttributes => 'Attributes';
+
+  @override
+  String get adminAttributeName => 'Attribute';
+
+  @override
+  String get adminAttributeValue => 'Value';
+
+  @override
+  String get adminAddAttribute => 'Add attribute';
+
+  @override
+  String get adminPermissions => 'Permissions';
+
+  @override
+  String get adminRequired => 'This field is required';
+
+  @override
+  String get adminInvalidNumber => 'Enter a valid number';
+
+  @override
+  String get adminInvalidEmail => 'Enter a valid email';
+
+  @override
+  String get adminInvalidUrl => 'Enter image URLs starting with https or http';
+
+  @override
+  String get adminAllRoles => 'All roles';
+
+  @override
+  String get adminNoParent => 'No parent category';
+
+  @override
+  String get adminSelect => 'Select';
+
+  @override
+  String get adminSelected => 'Selected';
+
+  @override
+  String get adminSelectedWarehouse => 'Selected warehouse';
+
+  @override
+  String get adminSelectedLocation => 'Selected location';
+
+  @override
+  String get adminZone => 'Zone';
+
+  @override
+  String get adminAisle => 'Aisle';
+
+  @override
+  String get adminShelf => 'Shelf';
+
+  @override
+  String get adminBin => 'Bin';
+
+  @override
+  String get adminNoLocation => 'No location selected';
+
+  @override
+  String get adminCatalogHub => 'Manage products and categories';
+
+  @override
+  String get adminUsersHub => 'Manage users and roles';
+
+  @override
+  String get adminPermissionHint => 'Choose the operations this role may use';
+
+  @override
+  String get adminPermissionCatalogView => 'View catalog';
+
+  @override
+  String get adminPermissionCatalogManage => 'Manage catalog';
+
+  @override
+  String get adminPermissionOrdersView => 'View orders';
+
+  @override
+  String get adminPermissionOrdersConfirm => 'Confirm orders';
+
+  @override
+  String get adminPermissionOrdersUpdate => 'Update orders';
+
+  @override
+  String get adminPermissionInventoryView => 'View inventory';
+
+  @override
+  String get adminPermissionInventoryPick => 'Pick orders';
+
+  @override
+  String get adminPermissionInventoryAdjust => 'Adjust inventory';
+
+  @override
+  String get adminPermissionInventoryTransfer => 'Transfer inventory';
+
+  @override
+  String get adminPermissionPurchasingView => 'View purchases and suppliers';
+
+  @override
+  String get adminPermissionPurchasingManage =>
+      'Manage purchases and suppliers';
+
+  @override
+  String get adminPermissionReturnsView => 'View returns';
+
+  @override
+  String get adminPermissionReturnsProcess => 'Process returns';
+
+  @override
+  String get adminPermissionDeliveryAssigned =>
+      'View and update assigned deliveries';
+
+  @override
+  String get adminPermissionLoyaltyManage => 'Manage loyalty points';
+
+  @override
+  String get adminPermissionUsersManage => 'Manage users and roles';
+
+  @override
+  String get adminPermissionReportsView => 'View reports';
+
+  @override
+  String get adminPermissionSettingsManage => 'Manage store settings';
 }

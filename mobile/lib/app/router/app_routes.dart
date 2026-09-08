@@ -20,6 +20,9 @@ abstract final class AppRoutes {
   // Role areas.
   static const delivery = '/delivery';
   static const admin = '/admin';
+  static const adminCatalog = '/admin/catalog';
+  static const adminUsers = '/admin/users';
+  static const adminManage = '/admin/manage/:resource';
 
   // Product detail, pushed full-screen over the shell.
   static const product = '/products/:id';

@@ -650,4 +650,304 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get routeNotFoundTitle => 'الصفحة غير موجودة';
+
+  @override
+  String get deliveryAssigned => 'تم الإسناد';
+
+  @override
+  String get deliveryOutForDelivery => 'خرج للتوصيل';
+
+  @override
+  String get deliveryDelivered => 'تم التسليم';
+
+  @override
+  String get deliveryFailed => 'تعذّر التسليم';
+
+  @override
+  String get deliveryReturned => 'تم الإرجاع';
+
+  @override
+  String get deliveryUnknownStatus => 'حالة غير معروفة';
+
+  @override
+  String get deliveryEmptyTitle => 'لا توجد توصيلات مسندة إليك';
+
+  @override
+  String get deliveryEmptyMessage => 'ستظهر مهام التوصيل هنا عند إسنادها إليك.';
+
+  @override
+  String get deliveryNoAccess =>
+      'ليس لدى حسابك صلاحية الوصول إلى التوصيلات المسندة.';
+
+  @override
+  String get deliveryOrderId => 'معرّف الطلب';
+
+  @override
+  String get deliveryFee => 'رسوم التوصيل';
+
+  @override
+  String get deliveryDispatchedAt => 'وقت الإرسال';
+
+  @override
+  String get deliveryDeliveredAt => 'وقت التسليم';
+
+  @override
+  String get deliveryUpdateStatus => 'تحديث الحالة';
+
+  @override
+  String get deliverySelectStatus => 'اختر الحالة';
+
+  @override
+  String get deliveryStatusUpdated => 'تم تحديث حالة التوصيل';
+
+  @override
+  String get adminProducts => 'المنتجات';
+
+  @override
+  String get adminCategories => 'الأصناف';
+
+  @override
+  String get adminRoles => 'الأدوار';
+
+  @override
+  String get adminSuppliers => 'الموردون';
+
+  @override
+  String get adminWarehouses => 'المخازن';
+
+  @override
+  String get adminLocations => 'مواقع التخزين';
+
+  @override
+  String get adminAdd => 'إضافة';
+
+  @override
+  String get adminEdit => 'تعديل';
+
+  @override
+  String get adminDeleteConfirm => 'هل تريد حذف هذا السجل؟';
+
+  @override
+  String get adminArchiveConfirm => 'هل تريد أرشفة هذا المنتج؟';
+
+  @override
+  String get adminSaved => 'تم الحفظ';
+
+  @override
+  String get adminDeleted => 'تم الحذف';
+
+  @override
+  String get adminEmpty => 'لا توجد سجلات مطابقة';
+
+  @override
+  String get adminFieldName => 'الاسم';
+
+  @override
+  String get adminFieldNameAr => 'الاسم بالعربية';
+
+  @override
+  String get adminFieldNameEn => 'الاسم بالإنجليزية';
+
+  @override
+  String get adminFieldPhone => 'رقم الهاتف';
+
+  @override
+  String get adminFieldEmail => 'البريد الإلكتروني';
+
+  @override
+  String get adminFieldAddress => 'العنوان';
+
+  @override
+  String get adminFieldDescription => 'الوصف';
+
+  @override
+  String get adminFieldPrice => 'سعر البيع';
+
+  @override
+  String get adminFieldFloorPrice => 'أقل سعر قابل للتفاوض';
+
+  @override
+  String get adminFieldPointsPrice => 'تكلفة الاستبدال بالنقاط';
+
+  @override
+  String get adminFieldIcon => 'رمز الأيقونة';
+
+  @override
+  String get adminFieldSort => 'ترتيب العرض';
+
+  @override
+  String get adminFieldActive => 'نشط';
+
+  @override
+  String get adminInactive => 'غير نشط';
+
+  @override
+  String get adminFieldPassword => 'كلمة المرور (اختيارية)';
+
+  @override
+  String get adminFieldParent => 'الصنف الأب';
+
+  @override
+  String get adminFieldCategory => 'الصنف';
+
+  @override
+  String get adminFieldRole => 'الدور';
+
+  @override
+  String get adminFieldStatus => 'حالة المنتج';
+
+  @override
+  String get adminStatusActive => 'ظاهر';
+
+  @override
+  String get adminStatusHidden => 'مخفي';
+
+  @override
+  String get adminStatusArchived => 'مؤرشف';
+
+  @override
+  String get adminFieldExpiry => 'تتبع انتهاء الصلاحية';
+
+  @override
+  String get adminFieldNegotiable => 'قابل للتفاوض';
+
+  @override
+  String get adminImages => 'روابط الصور — رابط في كل سطر';
+
+  @override
+  String get adminVariants => 'خيارات المنتج';
+
+  @override
+  String get adminAddVariant => 'إضافة خيار';
+
+  @override
+  String get adminSku => 'رمز SKU';
+
+  @override
+  String get adminPriceDelta => 'فرق السعر';
+
+  @override
+  String get adminAttributes => 'الخصائص';
+
+  @override
+  String get adminAttributeName => 'الخاصية';
+
+  @override
+  String get adminAttributeValue => 'القيمة';
+
+  @override
+  String get adminAddAttribute => 'إضافة خاصية';
+
+  @override
+  String get adminPermissions => 'الصلاحيات';
+
+  @override
+  String get adminRequired => 'هذا الحقل مطلوب';
+
+  @override
+  String get adminInvalidNumber => 'أدخل رقمًا صحيحًا';
+
+  @override
+  String get adminInvalidEmail => 'أدخل بريدًا إلكترونيًا صحيحًا';
+
+  @override
+  String get adminInvalidUrl => 'أدخل روابط صور تبدأ بـ https أو http';
+
+  @override
+  String get adminAllRoles => 'كل الأدوار';
+
+  @override
+  String get adminNoParent => 'بدون صنف أب';
+
+  @override
+  String get adminSelect => 'اختيار';
+
+  @override
+  String get adminSelected => 'تم الاختيار';
+
+  @override
+  String get adminSelectedWarehouse => 'المخزن المختار';
+
+  @override
+  String get adminSelectedLocation => 'الموقع المختار';
+
+  @override
+  String get adminZone => 'المنطقة';
+
+  @override
+  String get adminAisle => 'الممر';
+
+  @override
+  String get adminShelf => 'الرف';
+
+  @override
+  String get adminBin => 'الخانة';
+
+  @override
+  String get adminNoLocation => 'لم يُختر موقع بعد';
+
+  @override
+  String get adminCatalogHub => 'إدارة المنتجات والأصناف';
+
+  @override
+  String get adminUsersHub => 'إدارة المستخدمين والأدوار';
+
+  @override
+  String get adminPermissionHint =>
+      'حدد العمليات التي يسمح لهذا الدور باستخدامها';
+
+  @override
+  String get adminPermissionCatalogView => 'عرض الكتالوج';
+
+  @override
+  String get adminPermissionCatalogManage => 'إدارة الكتالوج';
+
+  @override
+  String get adminPermissionOrdersView => 'عرض الطلبات';
+
+  @override
+  String get adminPermissionOrdersConfirm => 'قبول الطلبات';
+
+  @override
+  String get adminPermissionOrdersUpdate => 'تحديث الطلبات';
+
+  @override
+  String get adminPermissionInventoryView => 'عرض المخزون';
+
+  @override
+  String get adminPermissionInventoryPick => 'تجهيز الطلبات';
+
+  @override
+  String get adminPermissionInventoryAdjust => 'تسوية المخزون';
+
+  @override
+  String get adminPermissionInventoryTransfer => 'نقل المخزون';
+
+  @override
+  String get adminPermissionPurchasingView => 'عرض المشتريات والموردين';
+
+  @override
+  String get adminPermissionPurchasingManage => 'إدارة المشتريات والموردين';
+
+  @override
+  String get adminPermissionReturnsView => 'عرض المرتجعات';
+
+  @override
+  String get adminPermissionReturnsProcess => 'معالجة المرتجعات';
+
+  @override
+  String get adminPermissionDeliveryAssigned =>
+      'عرض التوصيلات المسندة وتحديثها';
+
+  @override
+  String get adminPermissionLoyaltyManage => 'إدارة نقاط الولاء';
+
+  @override
+  String get adminPermissionUsersManage => 'إدارة المستخدمين والأدوار';
+
+  @override
+  String get adminPermissionReportsView => 'عرض التقارير';
+
+  @override
+  String get adminPermissionSettingsManage => 'إدارة إعدادات المتجر';
 }
