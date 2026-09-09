@@ -12,10 +12,14 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../providers/product_list_controller.dart';
 import '../widgets/product_card.dart';
+import '../widgets/product_grid.dart';
 
 /// Search + filter + sort listing with infinite pagination.
 class ProductListScreen extends ConsumerStatefulWidget {
-  const ProductListScreen({super.key, this.initialQuery = const ProductQuery()});
+  const ProductListScreen({
+    super.key,
+    this.initialQuery = const ProductQuery(),
+  });
 
   final ProductQuery initialQuery;
 
@@ -109,7 +113,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           preferredSize: const Size.fromHeight(52),
           child: _SortBar(
             sort: state.query.sort,
-            onSelected: (s) => _controller.updateQuery(_query.copyWith(sort: s)),
+            onSelected: (s) =>
+                _controller.updateQuery(_query.copyWith(sort: s)),
           ),
         ),
       ),
@@ -135,7 +140,20 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (state.loadingInitial) return const AppLoadingView();
+    if (state.loadingInitial) {
+      return CustomScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.all(AppSpacing.screenH),
+            sliver: ProductGridSliver(
+              itemCount: 6,
+              itemBuilder: (_, _) => const ProductCardSkeleton(),
+            ),
+          ),
+        ],
+      );
+    }
     if (state.error != null && state.items.isEmpty) {
       return AppErrorView(error: state.error, onRetry: onRetry);
     }
@@ -152,14 +170,9 @@ class _Body extends StatelessWidget {
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(AppSpacing.screenH),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: AppSpacing.md,
-                crossAxisSpacing: AppSpacing.md,
-                childAspectRatio: 0.62,
-              ),
-              delegate: SliverChildBuilderDelegate((context, i) {
+            sliver: ProductGridSliver(
+              itemCount: state.items.length,
+              itemBuilder: (context, i) {
                 final product = state.items[i];
                 return ProductCard(
                   product: product,
@@ -168,7 +181,7 @@ class _Body extends StatelessWidget {
                     pathParameters: {'id': product.id},
                   ),
                 );
-              }, childCount: state.items.length),
+              },
             ),
           ),
           if (state.loadingMore)
@@ -301,10 +314,10 @@ class _PriceFilterSheetState extends State<_PriceFilterSheet> {
                 Expanded(
                   child: AppButton(
                     label: l10n.filterApply,
-                    onPressed: () => Navigator.pop(
-                      context,
-                      (min: _parse(_min.text), max: _parse(_max.text)),
-                    ),
+                    onPressed: () => Navigator.pop(context, (
+                      min: _parse(_min.text),
+                      max: _parse(_max.text),
+                    )),
                   ),
                 ),
               ],

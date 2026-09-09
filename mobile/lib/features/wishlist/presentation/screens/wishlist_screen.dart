@@ -5,14 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
-import '../../../../core/theme/tokens/app_radii.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/async_value_view.dart';
-import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../catalog/data/product.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../catalog/presentation/widgets/product_card.dart';
+import '../../../catalog/presentation/widgets/product_grid.dart';
 import '../../data/wishlist_item.dart';
 import '../providers/wishlist_providers.dart';
 import '../widgets/wishlist_button.dart';
@@ -31,31 +30,44 @@ class WishlistScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l10n.wishlistTitle)),
       body: AsyncValueView(
         value: wishlist,
-        loading: const Padding(
-          padding: EdgeInsets.all(AppSpacing.screenH),
-          child: SkeletonGrid(),
-        ),
-        onRetry: () => ref.invalidate(wishlistControllerProvider),
-        builder: (context, items) {
-          if (items.isEmpty) {
-            return AppEmptyView(
-              icon: Icons.favorite_border,
-              title: l10n.wishlistEmptyTitle,
-              message: l10n.wishlistEmptyMessage,
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(wishlistControllerProvider),
-            child: GridView.builder(
+        loading: CustomScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          slivers: [
+            SliverPadding(
               padding: const EdgeInsets.all(AppSpacing.screenH),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: AppSpacing.md,
-                crossAxisSpacing: AppSpacing.md,
-                childAspectRatio: 0.62,
+              sliver: ProductGridSliver(
+                itemCount: 6,
+                itemBuilder: (_, _) => const ProductCardSkeleton(),
               ),
-              itemCount: items.length,
-              itemBuilder: (_, i) => _WishlistCell(item: items[i]),
+            ),
+          ],
+        ),
+        onRetry: () => ref.read(wishlistControllerProvider.notifier).refresh(),
+        builder: (context, items) {
+          return RefreshIndicator(
+            onRefresh: () =>
+                ref.read(wishlistControllerProvider.notifier).refresh(),
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                if (items.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: AppEmptyView(
+                      icon: Icons.favorite_border,
+                      title: l10n.wishlistEmptyTitle,
+                      message: l10n.wishlistEmptyMessage,
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.all(AppSpacing.screenH),
+                    sliver: ProductGridSliver(
+                      itemCount: items.length,
+                      itemBuilder: (_, i) => _WishlistCell(item: items[i]),
+                    ),
+                  ),
+              ],
             ),
           );
         },
@@ -74,19 +86,17 @@ class _WishlistCell extends ConsumerWidget {
     final Product? product =
         item.product ?? ref.watch(productProvider(item.productId)).valueOrNull;
     if (product == null) {
-      return const Skeleton(borderRadius: AppRadii.lgAll);
+      return const ProductCardSkeleton();
     }
 
     final colors = context.colors;
     return Stack(
       children: [
-        Positioned.fill(
-          child: ProductCard(
-            product: product,
-            onTap: () => context.pushNamed(
-              AppRoutes.productName,
-              pathParameters: {'id': product.id},
-            ),
+        ProductCard(
+          product: product,
+          onTap: () => context.pushNamed(
+            AppRoutes.productName,
+            pathParameters: {'id': product.id},
           ),
         ),
         // A tinted circle so the heart stays legible over any product image.

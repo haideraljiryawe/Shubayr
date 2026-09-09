@@ -18,8 +18,9 @@ class CatalogRepositoryMock implements CatalogRepository {
   static String _img(String seed) => 'https://picsum.photos/seed/$seed/500/500';
 
   /// A few distinct images for a product's detail gallery.
-  static List<String> _gallery(String id) =>
-      [for (var i = 1; i <= 4; i++) _img('$id-$i')];
+  static List<String> _gallery(String id) => [
+    for (var i = 1; i <= 4; i++) _img('$id-$i'),
+  ];
 
   /// Unit price for a product/variant — the mock cart prices its lines with
   /// this, mirroring the server computing `unit_price` when an item is added.
@@ -46,10 +47,38 @@ class CatalogRepositoryMock implements CatalogRepository {
       icon: 'devices',
       sortOrder: 1,
       children: const [
-        Category(id: 'cat-phones', parentId: _cElectronics, nameEn: 'Phones', nameAr: 'هواتف', icon: 'smartphone', sortOrder: 1),
-        Category(id: 'cat-audio', parentId: _cElectronics, nameEn: 'Audio', nameAr: 'صوتيات', icon: 'headphones', sortOrder: 2),
-        Category(id: 'cat-wearables', parentId: _cElectronics, nameEn: 'Wearables', nameAr: 'أجهزة الارتداء', icon: 'watch', sortOrder: 3),
-        Category(id: 'cat-accessories', parentId: _cElectronics, nameEn: 'Accessories', nameAr: 'ملحقات', icon: 'cable', sortOrder: 4),
+        Category(
+          id: 'cat-phones',
+          parentId: _cElectronics,
+          nameEn: 'Phones',
+          nameAr: 'هواتف',
+          icon: 'smartphone',
+          sortOrder: 1,
+        ),
+        Category(
+          id: 'cat-audio',
+          parentId: _cElectronics,
+          nameEn: 'Audio',
+          nameAr: 'صوتيات',
+          icon: 'headphones',
+          sortOrder: 2,
+        ),
+        Category(
+          id: 'cat-wearables',
+          parentId: _cElectronics,
+          nameEn: 'Wearables',
+          nameAr: 'أجهزة الارتداء',
+          icon: 'watch',
+          sortOrder: 3,
+        ),
+        Category(
+          id: 'cat-accessories',
+          parentId: _cElectronics,
+          nameEn: 'Accessories',
+          nameAr: 'ملحقات',
+          icon: 'cable',
+          sortOrder: 4,
+        ),
       ],
     ),
     Category(
@@ -59,9 +88,30 @@ class CatalogRepositoryMock implements CatalogRepository {
       icon: 'basket',
       sortOrder: 2,
       children: const [
-        Category(id: 'cat-pantry', parentId: _cGrocery, nameEn: 'Pantry', nameAr: 'مؤن', icon: 'kitchen', sortOrder: 1),
-        Category(id: 'cat-beverages', parentId: _cGrocery, nameEn: 'Beverages', nameAr: 'مشروبات', icon: 'coffee', sortOrder: 2),
-        Category(id: 'cat-staples', parentId: _cGrocery, nameEn: 'Staples', nameAr: 'أساسيات', icon: 'rice', sortOrder: 3),
+        Category(
+          id: 'cat-pantry',
+          parentId: _cGrocery,
+          nameEn: 'Pantry',
+          nameAr: 'مؤن',
+          icon: 'kitchen',
+          sortOrder: 1,
+        ),
+        Category(
+          id: 'cat-beverages',
+          parentId: _cGrocery,
+          nameEn: 'Beverages',
+          nameAr: 'مشروبات',
+          icon: 'coffee',
+          sortOrder: 2,
+        ),
+        Category(
+          id: 'cat-staples',
+          parentId: _cGrocery,
+          nameEn: 'Staples',
+          nameAr: 'أساسيات',
+          icon: 'rice',
+          sortOrder: 3,
+        ),
       ],
     ),
     Category(
@@ -71,9 +121,30 @@ class CatalogRepositoryMock implements CatalogRepository {
       icon: 'checkroom',
       sortOrder: 3,
       children: const [
-        Category(id: 'cat-men', parentId: _cClothing, nameEn: 'Men', nameAr: 'رجالي', icon: 'man', sortOrder: 1),
-        Category(id: 'cat-women', parentId: _cClothing, nameEn: 'Women', nameAr: 'نسائي', icon: 'woman', sortOrder: 2),
-        Category(id: 'cat-kids', parentId: _cClothing, nameEn: 'Kids', nameAr: 'أطفال', icon: 'child', sortOrder: 3),
+        Category(
+          id: 'cat-men',
+          parentId: _cClothing,
+          nameEn: 'Men',
+          nameAr: 'رجالي',
+          icon: 'man',
+          sortOrder: 1,
+        ),
+        Category(
+          id: 'cat-women',
+          parentId: _cClothing,
+          nameEn: 'Women',
+          nameAr: 'نسائي',
+          icon: 'woman',
+          sortOrder: 2,
+        ),
+        Category(
+          id: 'cat-kids',
+          parentId: _cClothing,
+          nameEn: 'Kids',
+          nameAr: 'أطفال',
+          icon: 'child',
+          sortOrder: 3,
+        ),
       ],
     ),
     Category(
@@ -83,9 +154,30 @@ class CatalogRepositoryMock implements CatalogRepository {
       icon: 'home',
       sortOrder: 4,
       children: const [
-        Category(id: 'cat-cookware', parentId: _cHome, nameEn: 'Cookware', nameAr: 'أواني طهي', icon: 'cookware', sortOrder: 1),
-        Category(id: 'cat-tableware', parentId: _cHome, nameEn: 'Tableware', nameAr: 'أدوات المائدة', icon: 'tableware', sortOrder: 2),
-        Category(id: 'cat-lighting', parentId: _cHome, nameEn: 'Lighting', nameAr: 'إضاءة', icon: 'lighting', sortOrder: 3),
+        Category(
+          id: 'cat-cookware',
+          parentId: _cHome,
+          nameEn: 'Cookware',
+          nameAr: 'أواني طهي',
+          icon: 'cookware',
+          sortOrder: 1,
+        ),
+        Category(
+          id: 'cat-tableware',
+          parentId: _cHome,
+          nameEn: 'Tableware',
+          nameAr: 'أدوات المائدة',
+          icon: 'tableware',
+          sortOrder: 2,
+        ),
+        Category(
+          id: 'cat-lighting',
+          parentId: _cHome,
+          nameEn: 'Lighting',
+          nameAr: 'إضاءة',
+          icon: 'lighting',
+          sortOrder: 3,
+        ),
       ],
     ),
   ];
@@ -94,13 +186,67 @@ class CatalogRepositoryMock implements CatalogRepository {
   /// on a department returns everything under it, while a leaf returns just its
   /// own products. Mirrors how the real backend scopes a category filter.
   static Set<String> _categorySubtree(String id) {
-    for (final top in _categories) {
-      if (top.id == id) return {top.id, for (final c in top.children) c.id};
-      for (final c in top.children) {
-        if (c.id == id) return {c.id};
+    Set<String>? visit(Category node) {
+      if (node.id == id) {
+        Set<String> descendants(Category c) => {
+          c.id,
+          for (final child in c.children) ...descendants(child),
+        };
+        return descendants(node);
       }
+      for (final child in node.children) {
+        final found = visit(child);
+        if (found != null) return found;
+      }
+      return null;
+    }
+
+    for (final root in _categories) {
+      final found = visit(root);
+      if (found != null) return found;
     }
     return {id};
+  }
+
+  static final _adminEditedProducts = <String>{};
+
+  /// The admin mock and customer mock share catalog data during this app run.
+  /// Writes contain the already validated admin snapshot; stock is preserved.
+  void applyAdminCatalog({
+    required List<Map<String, dynamic>> products,
+    required List<Map<String, dynamic>> categories,
+  }) {
+    for (final value in products) {
+      final old = _products.where((p) => p.id == value['id']).firstOrNull;
+      if (old == null || old.toJson().toString() != value.toString()) {
+        _adminEditedProducts.add(value['id'] as String);
+      }
+    }
+    _products
+      ..clear()
+      ..addAll(products.map(Product.fromJson));
+    final ordered = [...categories]
+      ..sort((a, b) {
+        final order = ((a['sort_order'] as num?) ?? 0).compareTo(
+          (b['sort_order'] as num?) ?? 0,
+        );
+        return order != 0
+            ? order
+            : (a['id'] as String).compareTo(b['id'] as String);
+      });
+    Category node(Map<String, dynamic> value) => Category.fromJson({
+      ...value,
+      'children': [
+        for (final child in ordered)
+          if (child['parent_id'] == value['id']) node(child).toJson(),
+      ],
+    });
+    _categories
+      ..clear()
+      ..addAll([
+        for (final value in ordered)
+          if (value['parent_id'] == null) node(value),
+      ]);
   }
 
   static final List<Product> _products = [
@@ -258,7 +404,19 @@ class CatalogRepositoryMock implements CatalogRepository {
   @override
   Future<List<Category>> fetchCategories() async {
     await Future<void>.delayed(delay);
-    return _categories;
+    Category? visible(Category category) => !category.isActive
+        ? null
+        : Category.fromJson({
+            ...category.toJson(),
+            'children': [
+              for (final child in category.children)
+                if (visible(child) case final Category shown) shown.toJson(),
+            ],
+          });
+    return [
+      for (final category in _categories)
+        if (visible(category) case final Category shown) shown,
+    ];
   }
 
   @override
@@ -274,9 +432,12 @@ class CatalogRepositoryMock implements CatalogRepository {
     await Future<void>.delayed(delay);
 
     // A department filter matches the whole subtree; a leaf matches just itself.
-    final categoryIds = categoryId == null ? null : _categorySubtree(categoryId);
+    final categoryIds = categoryId == null
+        ? null
+        : _categorySubtree(categoryId);
 
     var items = _products.where((p) {
+      if (p.status != 'active') return false;
       if (categoryIds != null && !categoryIds.contains(p.categoryId)) {
         return false;
       }
@@ -317,7 +478,9 @@ class CatalogRepositoryMock implements CatalogRepository {
     await Future<void>.delayed(delay);
     final product = _products.firstWhere((p) => p.id == id);
     // List fixtures carry one image; the detail view shows a small gallery.
-    return product.copyWith(images: _gallery(id));
+    return _adminEditedProducts.contains(id)
+        ? product
+        : product.copyWith(images: _gallery(id));
   }
 
   @override

@@ -108,7 +108,11 @@ abstract final class NavigationThemes {
 
   static SnackBarThemeData snackBar(AppColors c, TextTheme text) =>
       SnackBarThemeData(
-        backgroundColor: c.textPrimary,
+        // Primary text becomes near-white in dark mode; neutral snackbars
+        // still need a dark surface behind their light content and action.
+        backgroundColor: c.brightness == Brightness.dark
+            ? c.surfaceAlt
+            : c.textPrimary,
         contentTextStyle: text.bodyMedium?.copyWith(color: c.onDark),
         actionTextColor: c.primaryLight,
         behavior: SnackBarBehavior.floating,

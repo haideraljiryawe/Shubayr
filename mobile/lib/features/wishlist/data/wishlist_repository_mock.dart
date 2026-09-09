@@ -2,7 +2,7 @@ import '../domain/wishlist_repository.dart';
 import 'wishlist_item.dart';
 
 /// In-memory wishlist for development. Stores product ids (the screen looks
-/// each product up from the catalog, like the cart does) and seeds a couple so
+/// each product up from the catalog, like the cart does) and seeds ten so
 /// the list isn't empty on a fresh account.
 class WishlistRepositoryMock implements WishlistRepository {
   WishlistRepositoryMock({this.delay = const Duration(milliseconds: 300)}) {
@@ -18,6 +18,21 @@ class WishlistRepositoryMock implements WishlistRepository {
         productId: 'p5',
         addedAt: now.subtract(const Duration(days: 3)),
       ),
+      for (final (index, productId) in [
+        'p3',
+        'p4',
+        'p6',
+        'p7',
+        'p8',
+        'p9',
+        'p10',
+        'p11',
+      ].indexed)
+        WishlistItem(
+          id: 'wl-$productId',
+          productId: productId,
+          addedAt: now.subtract(Duration(days: 4 + index)),
+        ),
     ]);
   }
 
@@ -25,14 +40,20 @@ class WishlistRepositoryMock implements WishlistRepository {
   final List<WishlistItem> _items = [];
 
   @override
-  Future<WishlistPage> fetchWishlist() async {
+  Future<WishlistPage> fetchWishlist({int page = 1, int perPage = 20}) async {
     await Future<void>.delayed(delay);
-    final data = [..._items]..sort((a, b) {
-      final at = a.addedAt, bt = b.addedAt;
-      if (at == null || bt == null) return 0;
-      return bt.compareTo(at); // newest first
-    });
-    return WishlistPage(total: data.length, data: data);
+    final data = [..._items]
+      ..sort((a, b) {
+        final at = a.addedAt, bt = b.addedAt;
+        if (at == null || bt == null) return 0;
+        return bt.compareTo(at); // newest first
+      });
+    return WishlistPage(
+      page: page,
+      perPage: perPage,
+      total: data.length,
+      data: data.skip((page - 1) * perPage).take(perPage).toList(),
+    );
   }
 
   @override

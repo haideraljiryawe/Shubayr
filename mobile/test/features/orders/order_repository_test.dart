@@ -14,31 +14,34 @@ void main() {
     expect(coupon.type, 'percentage');
     expect(coupon.value, 10);
 
-    expect(
-      () => repo.validateCoupon('nope'),
-      throwsA(isA<AppFailure>()),
-    );
+    expect(() => repo.validateCoupon('nope'), throwsA(isA<AppFailure>()));
   });
 
-  test('places a COD order from the cart, applies the coupon, clears the cart', () async {
-    final cart = CartRepositoryMock(delay: Duration.zero);
-    await cart.addItem(productId: 'p1', quantity: 2);
-    final subtotal = (await cart.fetchCart()).subtotal;
-    final repo = OrderRepositoryMock(cart, delay: Duration.zero);
+  test(
+    'places a COD order from the cart, applies the coupon, clears the cart',
+    () async {
+      final cart = CartRepositoryMock(delay: Duration.zero);
+      await cart.addItem(productId: 'p1', quantity: 2);
+      final subtotal = (await cart.fetchCart()).subtotal;
+      final repo = OrderRepositoryMock(cart, delay: Duration.zero);
 
-    final order = await repo.placeOrder(addressId: 'a1', couponCode: 'SAVE10');
+      final order = await repo.placeOrder(
+        addressId: 'a1',
+        couponCode: 'SAVE10',
+      );
 
-    expect(order.addressId, 'a1');
-    expect(order.subtotal, subtotal);
-    expect(order.discount, subtotal * 10 / 100);
-    expect(order.deliveryFee, 5000);
-    expect(order.total, subtotal + 5000 - subtotal * 10 / 100);
-    expect(order.items, isNotEmpty);
-    expect(order.paymentMethod, 'cod');
+      expect(order.addressId, 'a1');
+      expect(order.subtotal, subtotal);
+      expect(order.discount, subtotal * 10 / 100);
+      expect(order.deliveryFee, 5000);
+      expect(order.total, subtotal + 5000 - subtotal * 10 / 100);
+      expect(order.items, isNotEmpty);
+      expect(order.paymentMethod, 'cod');
 
-    // Placing the order consumed the cart.
-    expect((await cart.fetchCart()).items, isEmpty);
-  });
+      // Placing the order consumed the cart.
+      expect((await cart.fetchCart()).items, isEmpty);
+    },
+  );
 
   test('seeds demo orders and lists them newest first', () async {
     final repo = OrderRepositoryMock(
@@ -48,13 +51,37 @@ void main() {
 
     final page = await repo.fetchOrders();
     expect(page.data, isNotEmpty);
-    expect(page.total, page.data.length);
+    expect(page.data, hasLength(20));
+    expect(page.total, greaterThan(page.data.length));
     for (var i = 1; i < page.data.length; i++) {
       final prev = page.data[i - 1].placedAt!;
       final curr = page.data[i].placedAt!;
       expect(prev.isAfter(curr) || prev.isAtSameMomentAs(curr), isTrue);
     }
   });
+
+  test(
+    'mock filters before slicing and returns filtered pagination metadata',
+    () async {
+      final repo = OrderRepositoryMock(
+        CartRepositoryMock(delay: Duration.zero),
+        delay: Duration.zero,
+      );
+      final first = await repo.fetchOrders(status: 'delivered');
+      final second = await repo.fetchOrders(status: 'delivered', page: 2);
+      final beyond = await repo.fetchOrders(status: 'delivered', page: 3);
+      expect(first.total, 25);
+      expect(first.data, hasLength(20));
+      expect(second.data, hasLength(5));
+      expect(second.page, 2);
+      expect(second.perPage, 20);
+      expect(second.total, first.total);
+      final all = [...first.data, ...second.data];
+      expect(all.every((o) => o.status == 'delivered'), isTrue);
+      expect(all.map((o) => o.id).toSet(), hasLength(25));
+      expect(beyond.data, isEmpty);
+    },
+  );
 
   test('a placed order appears at the top of the list', () async {
     final cart = CartRepositoryMock(delay: Duration.zero);
@@ -67,16 +94,19 @@ void main() {
     expect(page.data.first.id, placed.id);
   });
 
-  test('fetchOrder returns a known order and throws for an unknown id', () async {
-    final repo = OrderRepositoryMock(
-      CartRepositoryMock(delay: Duration.zero),
-      delay: Duration.zero,
-    );
-    final id = (await repo.fetchOrders()).data.first.id;
+  test(
+    'fetchOrder returns a known order and throws for an unknown id',
+    () async {
+      final repo = OrderRepositoryMock(
+        CartRepositoryMock(delay: Duration.zero),
+        delay: Duration.zero,
+      );
+      final id = (await repo.fetchOrders()).data.first.id;
 
-    expect((await repo.fetchOrder(id)).id, id);
-    expect(() => repo.fetchOrder('nope'), throwsA(isA<AppFailure>()));
-  });
+      expect((await repo.fetchOrder(id)).id, id);
+      expect(() => repo.fetchOrder('nope'), throwsA(isA<AppFailure>()));
+    },
+  );
 
   test('tracking builds the lifecycle path up to the current status', () async {
     final repo = OrderRepositoryMock(

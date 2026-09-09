@@ -11,6 +11,8 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/widgets/skeleton.dart';
 import '../../../address/data/address.dart';
 import '../../../address/presentation/providers/address_providers.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
@@ -131,13 +133,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     final cart = ref.watch(cartControllerProvider).valueOrNull;
-    final addresses = ref.watch(addressesControllerProvider).valueOrNull;
+    final addressState = ref.watch(addressesControllerProvider);
+    final addresses = addressState.valueOrNull;
     final subtotal = cart?.subtotal ?? 0;
     final discount = _coupon?.discountOn(subtotal) ?? 0;
     final estimatedTotal = subtotal - discount;
     final address = addresses == null ? null : _resolveAddress(addresses);
     final canPlace =
-        address != null && (cart?.items.isNotEmpty ?? false) && !_placing;
+        address != null &&
+        !addressState.isLoading &&
+        !addressState.hasError &&
+        (cart?.items.isNotEmpty ?? false) &&
+        !_placing;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.checkoutTitle)),
@@ -145,12 +152,34 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         padding: const EdgeInsets.all(AppSpacing.screenH),
         children: [
           _SectionTitle(l10n.checkoutAddress),
-          _AddressSection(
-            addresses: addresses,
-            selected: address,
-            onChange: address == null
-                ? null
-                : () => _pickAddress(addresses!, address.id),
+          AsyncValueView<List<Address>>(
+            value: addressState,
+            loading: const AppCard(
+              child: Row(
+                children: [
+                  Skeleton.box(width: AppSpacing.lg, height: AppSpacing.lg),
+                  SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Skeleton.line(),
+                        SizedBox(height: AppSpacing.xxs),
+                        Skeleton.line(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            onRetry: () =>
+                ref.read(addressesControllerProvider.notifier).refresh(),
+            builder: (context, loaded) => _AddressSection(
+              selected: address,
+              onChange: address == null
+                  ? null
+                  : () => _pickAddress(loaded, address.id),
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           _SectionTitle(l10n.checkoutCoupon),
@@ -214,33 +243,14 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _AddressSection extends StatelessWidget {
-  const _AddressSection({
-    required this.addresses,
-    required this.selected,
-    required this.onChange,
-  });
+  const _AddressSection({required this.selected, required this.onChange});
 
-  final List<Address>? addresses;
   final Address? selected;
   final VoidCallback? onChange;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    if (addresses == null) {
-      return const AppCard(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.sm),
-            child: SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-        ),
-      );
-    }
     if (selected == null) {
       return AppCard(
         child: Column(
@@ -570,14 +580,14 @@ class _AddressPickerSheet extends StatelessWidget {
   }
 }
 
-class _SuccessView extends StatelessWidget {
+class _SuccessView extends ConsumerWidget {
   const _SuccessView({required this.order, required this.money});
 
   final Order order;
   final String Function(num) money;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final colors = context.colors;
     return Scaffold(
@@ -633,7 +643,11 @@ class _SuccessView extends StatelessWidget {
               const Spacer(),
               AppButton(
                 label: l10n.checkoutViewOrders,
-                onPressed: () => context.go(AppRoutes.orders),
+                onPressed: () {
+                  ref.read(orderStatusFilterProvider.notifier).state =
+                      'pending';
+                  context.go(AppRoutes.orders);
+                },
               ),
               const SizedBox(height: AppSpacing.sm),
               AppButton(

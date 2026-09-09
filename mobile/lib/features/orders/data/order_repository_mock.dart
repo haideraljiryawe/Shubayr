@@ -62,6 +62,26 @@ class OrderRepositoryMock implements OrderRepository {
         placedAt: now.subtract(const Duration(days: 6)),
         lines: const [('p5', null, 3), ('p11', null, 1)],
       ),
+      // Older history exercises multiple pages, including a filtered history
+      // longer than one page. Keep the original four demo orders at the top.
+      for (var i = 0; i < 48; i++)
+        _demoOrder(
+          number: 1041 - i,
+          status: i.isEven
+              ? 'delivered'
+              : const [
+                  'pending',
+                  'confirmed',
+                  'processing',
+                  'out_for_delivery',
+                  'failed_delivery',
+                  'cancelled',
+                  'return_requested',
+                  'returned',
+                ][(i ~/ 2) % 8],
+          placedAt: now.subtract(Duration(days: 7 + i)),
+          lines: const [('p2', null, 1)],
+        ),
     ]);
   }
 

@@ -11,6 +11,7 @@ import '../../../../core/widgets/state_views.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/product_card.dart';
+import '../widgets/product_grid.dart';
 
 /// Customer home: shop-by-department chips over a product grid. Selecting a
 /// department filters the grid in place; tapping a product opens its detail.
@@ -42,7 +43,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.refresh(categoryFeedProvider(_departmentId).future),
+        onRefresh: () =>
+            ref.refresh(categoryFeedProvider(_departmentId).future),
         child: ListView(
           padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
           children: [
@@ -54,36 +56,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             _SectionTitle(l10n.homeSectionProducts),
             AsyncValueView(
               value: feed,
-              onRetry: () => ref.invalidate(categoryFeedProvider(_departmentId)),
+              onRetry: () =>
+                  ref.invalidate(categoryFeedProvider(_departmentId)),
               loading: const _GridSkeleton(),
               builder: (context, page) {
                 if (page.data.isEmpty) {
                   return const SizedBox(height: 220, child: AppEmptyView());
                 }
-                return GridView.builder(
+                return CustomScrollView(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screenH,
-                  ),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: AppSpacing.md,
-                        crossAxisSpacing: AppSpacing.md,
-                        childAspectRatio: 0.62,
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.screenH,
                       ),
-                  itemCount: page.data.length,
-                  itemBuilder: (context, i) {
-                    final product = page.data[i];
-                    return ProductCard(
-                      product: product,
-                      onTap: () => context.pushNamed(
-                        AppRoutes.productName,
-                        pathParameters: {'id': product.id},
+                      sliver: ProductGridSliver(
+                        itemCount: page.data.length,
+                        itemBuilder: (context, i) {
+                          final product = page.data[i];
+                          return ProductCard(
+                            product: product,
+                            onTap: () => context.pushNamed(
+                              AppRoutes.productName,
+                              pathParameters: {'id': product.id},
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 );
               },
             ),
@@ -177,25 +179,17 @@ class _GridSkeleton extends StatelessWidget {
   const _GridSkeleton();
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-      crossAxisCount: 2,
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
-      childAspectRatio: 0.62,
-      children: List.generate(
-        4,
-        (_) => DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.surfaceAlt,
-            borderRadius: BorderRadius.circular(18),
-          ),
+  Widget build(BuildContext context) => CustomScrollView(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    slivers: [
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+        sliver: ProductGridSliver(
+          itemCount: 4,
+          itemBuilder: (_, _) => const ProductCardSkeleton(),
         ),
       ),
-    );
-  }
+    ],
+  );
 }

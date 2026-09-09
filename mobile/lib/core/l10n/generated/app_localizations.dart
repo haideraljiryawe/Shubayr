@@ -1327,6 +1327,600 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Page not found'**
   String get routeNotFoundTitle;
+
+  /// No description provided for @deliveryAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned'**
+  String get deliveryAssigned;
+
+  /// No description provided for @deliveryOutForDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Out for delivery'**
+  String get deliveryOutForDelivery;
+
+  /// No description provided for @deliveryDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get deliveryDelivered;
+
+  /// No description provided for @deliveryFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery failed'**
+  String get deliveryFailed;
+
+  /// No description provided for @deliveryReturned.
+  ///
+  /// In en, this message translates to:
+  /// **'Returned'**
+  String get deliveryReturned;
+
+  /// No description provided for @deliveryUnknownStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown status'**
+  String get deliveryUnknownStatus;
+
+  /// No description provided for @deliveryEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No assigned deliveries'**
+  String get deliveryEmptyTitle;
+
+  /// No description provided for @deliveryEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your deliveries will appear here when assigned to you.'**
+  String get deliveryEmptyMessage;
+
+  /// No description provided for @deliveryNoAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account does not have access to assigned deliveries.'**
+  String get deliveryNoAccess;
+
+  /// No description provided for @deliveryOrderId.
+  ///
+  /// In en, this message translates to:
+  /// **'Order reference'**
+  String get deliveryOrderId;
+
+  /// No description provided for @deliveryFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fee'**
+  String get deliveryFee;
+
+  /// No description provided for @deliveryDispatchedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatched'**
+  String get deliveryDispatchedAt;
+
+  /// No description provided for @deliveryDeliveredAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get deliveryDeliveredAt;
+
+  /// No description provided for @deliveryUpdateStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Update status'**
+  String get deliveryUpdateStatus;
+
+  /// No description provided for @deliverySelectStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a status'**
+  String get deliverySelectStatus;
+
+  /// No description provided for @deliveryStatusUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery status updated'**
+  String get deliveryStatusUpdated;
+
+  /// No description provided for @adminProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Products'**
+  String get adminProducts;
+
+  /// No description provided for @adminCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get adminCategories;
+
+  /// No description provided for @adminRoles.
+  ///
+  /// In en, this message translates to:
+  /// **'Roles'**
+  String get adminRoles;
+
+  /// No description provided for @adminSuppliers.
+  ///
+  /// In en, this message translates to:
+  /// **'Suppliers'**
+  String get adminSuppliers;
+
+  /// No description provided for @adminWarehouses.
+  ///
+  /// In en, this message translates to:
+  /// **'Warehouses'**
+  String get adminWarehouses;
+
+  /// No description provided for @adminLocations.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage locations'**
+  String get adminLocations;
+
+  /// No description provided for @adminAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get adminAdd;
+
+  /// No description provided for @adminEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get adminEdit;
+
+  /// No description provided for @adminDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this record?'**
+  String get adminDeleteConfirm;
+
+  /// No description provided for @adminArchiveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive this product?'**
+  String get adminArchiveConfirm;
+
+  /// No description provided for @adminSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get adminSaved;
+
+  /// No description provided for @adminDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get adminDeleted;
+
+  /// No description provided for @adminEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching records'**
+  String get adminEmpty;
+
+  /// No description provided for @adminFieldName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get adminFieldName;
+
+  /// No description provided for @adminFieldNameAr.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic name'**
+  String get adminFieldNameAr;
+
+  /// No description provided for @adminFieldNameEn.
+  ///
+  /// In en, this message translates to:
+  /// **'English name'**
+  String get adminFieldNameEn;
+
+  /// No description provided for @adminFieldPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get adminFieldPhone;
+
+  /// No description provided for @adminFieldEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get adminFieldEmail;
+
+  /// No description provided for @adminFieldAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get adminFieldAddress;
+
+  /// No description provided for @adminFieldDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get adminFieldDescription;
+
+  /// No description provided for @adminFieldPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Sale price'**
+  String get adminFieldPrice;
+
+  /// No description provided for @adminFieldFloorPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Negotiation floor price'**
+  String get adminFieldFloorPrice;
+
+  /// No description provided for @adminFieldPointsPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Redemption points cost'**
+  String get adminFieldPointsPrice;
+
+  /// No description provided for @adminFieldIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon name'**
+  String get adminFieldIcon;
+
+  /// No description provided for @adminFieldSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Display order'**
+  String get adminFieldSort;
+
+  /// No description provided for @adminFieldActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get adminFieldActive;
+
+  /// No description provided for @adminInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get adminInactive;
+
+  /// No description provided for @adminFieldPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password (optional)'**
+  String get adminFieldPassword;
+
+  /// No description provided for @adminFieldParent.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent category'**
+  String get adminFieldParent;
+
+  /// No description provided for @adminFieldCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get adminFieldCategory;
+
+  /// No description provided for @adminFieldRole.
+  ///
+  /// In en, this message translates to:
+  /// **'Role'**
+  String get adminFieldRole;
+
+  /// No description provided for @adminFieldStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Product status'**
+  String get adminFieldStatus;
+
+  /// No description provided for @adminStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get adminStatusActive;
+
+  /// No description provided for @adminStatusHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden'**
+  String get adminStatusHidden;
+
+  /// No description provided for @adminStatusArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get adminStatusArchived;
+
+  /// No description provided for @adminFieldExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Track expiry'**
+  String get adminFieldExpiry;
+
+  /// No description provided for @adminFieldNegotiable.
+  ///
+  /// In en, this message translates to:
+  /// **'Negotiable'**
+  String get adminFieldNegotiable;
+
+  /// No description provided for @adminImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Image URLs — one per line'**
+  String get adminImages;
+
+  /// No description provided for @adminVariants.
+  ///
+  /// In en, this message translates to:
+  /// **'Product variants'**
+  String get adminVariants;
+
+  /// No description provided for @adminAddVariant.
+  ///
+  /// In en, this message translates to:
+  /// **'Add variant'**
+  String get adminAddVariant;
+
+  /// No description provided for @adminSku.
+  ///
+  /// In en, this message translates to:
+  /// **'SKU'**
+  String get adminSku;
+
+  /// No description provided for @adminPriceDelta.
+  ///
+  /// In en, this message translates to:
+  /// **'Price difference'**
+  String get adminPriceDelta;
+
+  /// No description provided for @adminAttributes.
+  ///
+  /// In en, this message translates to:
+  /// **'Attributes'**
+  String get adminAttributes;
+
+  /// No description provided for @adminAttributeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Attribute'**
+  String get adminAttributeName;
+
+  /// No description provided for @adminAttributeValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get adminAttributeValue;
+
+  /// No description provided for @adminAddAttribute.
+  ///
+  /// In en, this message translates to:
+  /// **'Add attribute'**
+  String get adminAddAttribute;
+
+  /// No description provided for @adminPermissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions'**
+  String get adminPermissions;
+
+  /// No description provided for @adminRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'This field is required'**
+  String get adminRequired;
+
+  /// No description provided for @adminInvalidNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid number'**
+  String get adminInvalidNumber;
+
+  /// No description provided for @adminInvalidEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email'**
+  String get adminInvalidEmail;
+
+  /// No description provided for @adminInvalidUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter image URLs starting with https or http'**
+  String get adminInvalidUrl;
+
+  /// No description provided for @adminAllRoles.
+  ///
+  /// In en, this message translates to:
+  /// **'All roles'**
+  String get adminAllRoles;
+
+  /// No description provided for @adminNoParent.
+  ///
+  /// In en, this message translates to:
+  /// **'No parent category'**
+  String get adminNoParent;
+
+  /// No description provided for @adminSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get adminSelect;
+
+  /// No description provided for @adminSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get adminSelected;
+
+  /// No description provided for @adminSelectedWarehouse.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected warehouse'**
+  String get adminSelectedWarehouse;
+
+  /// No description provided for @adminSelectedLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected location'**
+  String get adminSelectedLocation;
+
+  /// No description provided for @adminZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Zone'**
+  String get adminZone;
+
+  /// No description provided for @adminAisle.
+  ///
+  /// In en, this message translates to:
+  /// **'Aisle'**
+  String get adminAisle;
+
+  /// No description provided for @adminShelf.
+  ///
+  /// In en, this message translates to:
+  /// **'Shelf'**
+  String get adminShelf;
+
+  /// No description provided for @adminBin.
+  ///
+  /// In en, this message translates to:
+  /// **'Bin'**
+  String get adminBin;
+
+  /// No description provided for @adminNoLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'No location selected'**
+  String get adminNoLocation;
+
+  /// No description provided for @adminCatalogHub.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage products and categories'**
+  String get adminCatalogHub;
+
+  /// No description provided for @adminUsersHub.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage users and roles'**
+  String get adminUsersHub;
+
+  /// No description provided for @adminPermissionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the operations this role may use'**
+  String get adminPermissionHint;
+
+  /// No description provided for @adminPermissionCatalogView.
+  ///
+  /// In en, this message translates to:
+  /// **'View catalog'**
+  String get adminPermissionCatalogView;
+
+  /// No description provided for @adminPermissionCatalogManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage catalog'**
+  String get adminPermissionCatalogManage;
+
+  /// No description provided for @adminPermissionOrdersView.
+  ///
+  /// In en, this message translates to:
+  /// **'View orders'**
+  String get adminPermissionOrdersView;
+
+  /// No description provided for @adminPermissionOrdersConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm orders'**
+  String get adminPermissionOrdersConfirm;
+
+  /// No description provided for @adminPermissionOrdersUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update orders'**
+  String get adminPermissionOrdersUpdate;
+
+  /// No description provided for @adminPermissionInventoryView.
+  ///
+  /// In en, this message translates to:
+  /// **'View inventory'**
+  String get adminPermissionInventoryView;
+
+  /// No description provided for @adminPermissionInventoryPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick orders'**
+  String get adminPermissionInventoryPick;
+
+  /// No description provided for @adminPermissionInventoryAdjust.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust inventory'**
+  String get adminPermissionInventoryAdjust;
+
+  /// No description provided for @adminPermissionInventoryTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer inventory'**
+  String get adminPermissionInventoryTransfer;
+
+  /// No description provided for @adminPermissionPurchasingView.
+  ///
+  /// In en, this message translates to:
+  /// **'View purchases and suppliers'**
+  String get adminPermissionPurchasingView;
+
+  /// No description provided for @adminPermissionPurchasingManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage purchases and suppliers'**
+  String get adminPermissionPurchasingManage;
+
+  /// No description provided for @adminPermissionReturnsView.
+  ///
+  /// In en, this message translates to:
+  /// **'View returns'**
+  String get adminPermissionReturnsView;
+
+  /// No description provided for @adminPermissionReturnsProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Process returns'**
+  String get adminPermissionReturnsProcess;
+
+  /// No description provided for @adminPermissionDeliveryAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'View and update assigned deliveries'**
+  String get adminPermissionDeliveryAssigned;
+
+  /// No description provided for @adminPermissionLoyaltyManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage loyalty points'**
+  String get adminPermissionLoyaltyManage;
+
+  /// No description provided for @adminPermissionUsersManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage users and roles'**
+  String get adminPermissionUsersManage;
+
+  /// No description provided for @adminPermissionReportsView.
+  ///
+  /// In en, this message translates to:
+  /// **'View reports'**
+  String get adminPermissionReportsView;
+
+  /// No description provided for @adminPermissionSettingsManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage store settings'**
+  String get adminPermissionSettingsManage;
 }
 
 class _AppLocalizationsDelegate

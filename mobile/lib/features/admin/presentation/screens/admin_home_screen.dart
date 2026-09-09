@@ -24,7 +24,8 @@ typedef _Section = ({
 /// The grid is built from the signed-in user's `permissions`, so a store
 /// manager, a warehouse worker and a full admin each see a different set of
 /// sections from the same screen — RBAC rule #3, enforced in the UI. The
-/// section screens themselves arrive in the admin build phase.
+/// catalog, people, suppliers and warehouse selection screens implement the
+/// first admin increment; other sections remain pending.
 class AdminHomeScreen extends ConsumerWidget {
   const AdminHomeScreen({super.key});
 
@@ -110,10 +111,23 @@ class AdminHomeScreen extends ConsumerWidget {
                   _SectionTile(
                     icon: s.icon,
                     label: s.label(context),
-                    onTap: () => showAppSnackBarMessage(
-                      context,
-                      message: context.l10n.comingSoonTitle,
-                    ),
+                    onTap: () {
+                      final route = switch (s.permission) {
+                        Permissions.catalogManage => AppRoutes.adminCatalog,
+                        Permissions.usersManage => AppRoutes.adminUsers,
+                        Permissions.purchasingView => '/admin/manage/suppliers',
+                        Permissions.inventoryView => '/admin/manage/warehouses',
+                        _ => null,
+                      };
+                      if (route != null) {
+                        context.push(route);
+                      } else {
+                        showAppSnackBarMessage(
+                          context,
+                          message: context.l10n.comingSoonTitle,
+                        );
+                      }
+                    },
                   ),
               ],
             ),

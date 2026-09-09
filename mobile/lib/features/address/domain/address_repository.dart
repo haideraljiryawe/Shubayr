@@ -1,10 +1,10 @@
 import '../data/address.dart';
 
 /// The user's delivery addresses (auth required). Mutations return the saved
-/// [Address]; the controller re-reads the list so defaults stay consistent.
+/// [Address], including its confirmed default flag.
 abstract interface class AddressRepository {
   /// `GET /addresses`.
-  Future<List<Address>> fetchAddresses();
+  Future<AddressPage> fetchAddresses({int page = 1, int perPage = 20});
 
   /// `POST /addresses`.
   Future<Address> createAddress(AddressInput input);

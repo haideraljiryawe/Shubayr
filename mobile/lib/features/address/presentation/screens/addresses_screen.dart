@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
+import '../../../../core/error/failure.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/widgets/state_views.dart';
@@ -15,7 +17,7 @@ import '../../data/address.dart';
 import '../providers/address_providers.dart';
 
 /// The user's delivery addresses: list, add, edit, delete and set-default.
-/// Reached from the account page and (later) from checkout.
+/// Reached from the account page and checkout.
 class AddressesScreen extends ConsumerWidget {
   const AddressesScreen({super.key});
 
@@ -37,26 +39,39 @@ class AddressesScreen extends ConsumerWidget {
           padding: EdgeInsets.all(AppSpacing.screenH),
           child: SkeletonCardList(itemCount: 3),
         ),
-        onRetry: () => ref.invalidate(addressesControllerProvider),
+        onRetry: () => ref.read(addressesControllerProvider.notifier).refresh(),
         builder: (context, list) {
-          if (list.isEmpty) {
-            return AppEmptyView(
-              icon: Icons.location_off_outlined,
-              title: l10n.addressEmptyTitle,
-              message: l10n.addressEmptyMessage,
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenH,
-              AppSpacing.screenH,
-              AppSpacing.screenH,
-              // Room so the last card clears the floating button.
-              96,
-            ),
-            itemCount: list.length,
-            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-            itemBuilder: (_, i) => _AddressCard(address: list[i]),
+          return RefreshIndicator(
+            onRefresh: () =>
+                ref.read(addressesControllerProvider.notifier).refresh(),
+            child: list.isEmpty
+                ? CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: AppEmptyView(
+                          icon: Icons.location_off_outlined,
+                          title: l10n.addressEmptyTitle,
+                          message: l10n.addressEmptyMessage,
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.screenH,
+                      AppSpacing.screenH,
+                      // Room so the last card clears the floating button.
+                      96,
+                    ),
+                    itemCount: list.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.md),
+                    itemBuilder: (_, i) => _AddressCard(address: list[i]),
+                  ),
           );
         },
       ),
@@ -82,10 +97,7 @@ class _AddressCard extends ConsumerWidget {
     final title = address.label.isNotEmpty ? address.label : address.city;
 
     return AppCard(
-      onTap: () => context.pushNamed(
-        AppRoutes.addressFormName,
-        extra: address,
-      ),
+      onTap: () => context.pushNamed(AppRoutes.addressFormName, extra: address),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -139,7 +151,10 @@ class _DefaultBadge extends StatelessWidget {
         borderRadius: AppRadii.pillAll,
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: 2,
+        ),
         child: Text(
           context.l10n.addressDefault,
           style: context.text.labelSmall?.copyWith(
@@ -156,6 +171,22 @@ class _AddressMenu extends ConsumerWidget {
   const _AddressMenu({required this.address});
 
   final Address address;
+
+  Future<void> _run(
+    BuildContext context,
+    Future<void> Function() operation,
+  ) async {
+    try {
+      await operation();
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = error is AppFailure ? error : const AppFailure.unknown();
+      showAppSnackBarMessage(
+        context,
+        message: failure.localizedMessage(context.l10n),
+      );
+    }
+  }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final l10n = context.l10n;
@@ -175,8 +206,11 @@ class _AddressMenu extends ConsumerWidget {
         ],
       ),
     );
-    if (ok ?? false) {
-      ref.read(addressesControllerProvider.notifier).remove(address.id);
+    if ((ok ?? false) && context.mounted) {
+      await _run(
+        context,
+        () => ref.read(addressesControllerProvider.notifier).remove(address.id),
+      );
     }
   }
 
@@ -188,7 +222,12 @@ class _AddressMenu extends ConsumerWidget {
       onSelected: (value) {
         switch (value) {
           case 'default':
-            ref.read(addressesControllerProvider.notifier).setDefault(address);
+            _run(
+              context,
+              () => ref
+                  .read(addressesControllerProvider.notifier)
+                  .setDefault(address),
+            );
           case 'delete':
             _confirmDelete(context, ref);
         }

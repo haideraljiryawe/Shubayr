@@ -7,8 +7,23 @@ import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/widgets/skeleton.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/product.dart';
+
+/// Measure two lines with the active font and accessibility text scaling.
+double _productNameHeight(BuildContext context) {
+  final painter = TextPainter(
+    text: TextSpan(text: '\n', style: context.text.titleSmall),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    locale: Localizations.localeOf(context),
+    maxLines: 2,
+  )..layout();
+  final height = painter.height;
+  painter.dispose();
+  return height;
+}
 
 /// A product tile for grids and lists: image, localized name, price, rating,
 /// and an out-of-stock badge. Visuals come from the theme tokens.
@@ -47,35 +62,76 @@ class ProductCard extends ConsumerWidget {
                 aspectRatio: 1,
                 child: _Thumb(product: product, dimmed: !product.inStock),
               ),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.localizedName(lang),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.text.titleSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    if (product.ratingAvg > 0) ...[
-                      _Rating(value: product.ratingAvg),
-                      const SizedBox(height: AppSpacing.xs),
-                    ],
-                    Text(
-                      price,
-                      style: context.text.titleMedium?.copyWith(
-                        color: colors.primaryDark,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: _productNameHeight(context),
+                        child: Text(
+                          product.localizedName(lang),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.text.titleSmall,
+                        ),
                       ),
-                    ),
-                  ],
+                      const Spacer(),
+                      const SizedBox(height: AppSpacing.xs),
+                      if (product.ratingAvg > 0) ...[
+                        _Rating(value: product.ratingAvg),
+                        const SizedBox(height: AppSpacing.xs),
+                      ],
+                      Text(
+                        price,
+                        style: context.text.titleMedium?.copyWith(
+                          color: colors.primaryDark,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Mirrors the square image and compact details while product data loads.
+class ProductCardSkeleton extends StatelessWidget {
+  const ProductCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    double lineHeight(TextStyle style) =>
+        MediaQuery.textScalerOf(context).scale(style.fontSize!) *
+        (style.height ?? 1);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const AspectRatio(
+          aspectRatio: 1,
+          child: Skeleton(borderRadius: AppRadii.lgAll),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Skeleton.line(height: _productNameHeight(context)),
+              const SizedBox(height: AppSpacing.xs),
+              Skeleton.line(height: lineHeight(context.text.labelMedium!)),
+              const SizedBox(height: AppSpacing.xs),
+              Skeleton.line(height: lineHeight(context.text.titleMedium!)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -93,11 +149,7 @@ class _Thumb extends StatelessWidget {
 
     Widget placeholder() => ColoredBox(
       color: colors.surfaceAlt,
-      child: Icon(
-        Icons.image_outlined,
-        color: colors.textMuted,
-        size: 32,
-      ),
+      child: Icon(Icons.image_outlined, color: colors.textMuted, size: 32),
     );
 
     final image = url == null
@@ -123,9 +175,9 @@ class _Thumb extends StatelessWidget {
         else
           image,
         if (!product.inStock)
-          Positioned(
+          PositionedDirectional(
             top: AppSpacing.sm,
-            right: AppSpacing.sm,
+            start: AppSpacing.sm,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: colors.danger,
@@ -138,7 +190,9 @@ class _Thumb extends StatelessWidget {
                 ),
                 child: Text(
                   context.l10n.commonOutOfStock,
-                  style: context.text.labelSmall?.copyWith(color: colors.onDark),
+                  style: context.text.labelSmall?.copyWith(
+                    color: colors.onDark,
+                  ),
                 ),
               ),
             ),
@@ -163,7 +217,9 @@ class _Rating extends StatelessWidget {
         const SizedBox(width: 2),
         Text(
           value.toStringAsFixed(1),
-          style: context.text.labelMedium?.copyWith(color: colors.textSecondary),
+          style: context.text.labelMedium?.copyWith(
+            color: colors.textSecondary,
+          ),
         ),
       ],
     );

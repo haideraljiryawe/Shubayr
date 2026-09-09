@@ -19,11 +19,106 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
   };
 });
 
-/// The customer's orders, newest first (first page). Invalidated after placing
-/// or cancelling an order so the list reflects the change. Not autoDispose: the
-/// orders tab is kept alive by the shell, so it must be refreshed explicitly.
-final ordersProvider = FutureProvider<OrderPage>(
-  (ref) => ref.watch(orderRepositoryProvider).fetchOrders(),
+/// null selects all orders. Kept separately so refreshing after checkout or
+/// cancellation preserves the selected filter.
+final orderStatusFilterProvider = StateProvider<String?>((ref) => null);
+
+class OrderListState {
+  const OrderListState({
+    required this.page,
+    required this.items,
+    this.loadingMore = false,
+    this.loadMoreError,
+  });
+
+  final OrderPage page;
+  final List<Order> items;
+  final bool loadingMore;
+  final Object? loadMoreError;
+
+  bool get hasMore =>
+      page.data.isNotEmpty && page.page * page.perPage < page.total;
+}
+
+/// Accumulates repository pages for the active status. Existing invalidation
+/// after checkout/cancellation restarts at page one, keeping the filter.
+class OrdersController extends AsyncNotifier<OrderListState> {
+  static const _perPage = 20;
+  int _generation = 0;
+
+  @override
+  Future<OrderListState> build() async {
+    final repository = ref.watch(orderRepositoryProvider);
+    final status = ref.watch(orderStatusFilterProvider);
+    _generation++;
+    // Invalidate in-flight append requests on refresh, filter/repository change,
+    // or disposal, including switching away from and back to the same status.
+    ref.onDispose(() => _generation++);
+    final page = await repository.fetchOrders(
+      status: status,
+      perPage: _perPage,
+    );
+    return OrderListState(page: page, items: page.data);
+  }
+
+  Future<void> refresh() async {
+    ref.invalidateSelf();
+    try {
+      await future;
+    } catch (_) {
+      // The AsyncValue exposes the initial-page error and its retry action.
+    }
+  }
+
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (state.isLoading ||
+        state.hasError ||
+        current == null ||
+        current.loadingMore ||
+        !current.hasMore) {
+      return;
+    }
+    final generation = _generation;
+    final repository = ref.read(orderRepositoryProvider);
+    final status = ref.read(orderStatusFilterProvider);
+    state = AsyncData(
+      OrderListState(
+        page: current.page,
+        items: current.items,
+        loadingMore: true,
+      ),
+    );
+    try {
+      final page = await repository.fetchOrders(
+        status: status,
+        page: current.page.page + 1,
+        perPage: current.page.perPage,
+      );
+      if (generation != _generation) return;
+      // New orders can shift page boundaries between requests.
+      final byId = {for (final order in current.items) order.id: order};
+      for (final order in page.data) {
+        byId[order.id] = order;
+      }
+      state = AsyncData(
+        OrderListState(page: page, items: List.unmodifiable(byId.values)),
+      );
+    } catch (error) {
+      if (generation != _generation) return;
+      state = AsyncData(
+        OrderListState(
+          page: current.page,
+          items: current.items,
+          loadMoreError: error,
+        ),
+      );
+    }
+  }
+}
+
+final ordersProvider = AsyncNotifierProvider<OrdersController, OrderListState>(
+  OrdersController.new,
 );
 
 /// A single order with its items.
@@ -32,7 +127,7 @@ final orderProvider = FutureProvider.autoDispose.family<Order, String>(
 );
 
 /// The status timeline for an order.
-final orderTrackingProvider =
-    FutureProvider.autoDispose.family<OrderTracking, String>(
+final orderTrackingProvider = FutureProvider.autoDispose
+    .family<OrderTracking, String>(
       (ref, id) => ref.watch(orderRepositoryProvider).fetchTracking(id),
     );

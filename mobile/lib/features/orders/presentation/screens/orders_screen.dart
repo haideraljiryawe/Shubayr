@@ -21,84 +21,124 @@ import '../widgets/order_status_pill.dart';
 /// The statuses offered as filter chips, in lifecycle order after "All".
 const _filterStatuses = [
   'pending',
+  'confirmed',
   'processing',
   'out_for_delivery',
   'delivered',
+  'failed_delivery',
+  'cancelled',
+  'return_requested',
+  'returned',
 ];
 
 /// The customer's orders, newest first, with a status-filter chip bar on top.
-/// Each card opens the order's details and tracking. Pull to refresh re-reads
-/// the list; filtering is applied to the loaded page.
-class OrdersScreen extends ConsumerStatefulWidget {
+/// Each card opens the order's details and tracking. Pull to refresh restarts
+/// the active repository query; scrolling appends subsequent pages.
+class OrdersScreen extends ConsumerWidget {
   const OrdersScreen({super.key});
 
   @override
-  ConsumerState<OrdersScreen> createState() => _OrdersScreenState();
-}
-
-class _OrdersScreenState extends ConsumerState<OrdersScreen> {
-  String? _status; // null = all
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final orders = ref.watch(ordersProvider);
+    final status = ref.watch(orderStatusFilterProvider);
+    final controller = ref.read(ordersProvider.notifier);
+
+    void loadIfNearEnd(ScrollMetrics metrics) {
+      final current = ref.read(ordersProvider).valueOrNull;
+      if (metrics.axis == Axis.vertical &&
+          metrics.extentAfter < metrics.viewportDimension &&
+          current?.loadMoreError == null) {
+        controller.loadMore();
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.ordersTitle)),
-      body: AsyncValueView(
-        value: orders,
-        loading: const Padding(
-          padding: EdgeInsets.all(AppSpacing.screenH),
-          child: SkeletonCardList(),
-        ),
-        onRetry: () => ref.invalidate(ordersProvider),
-        builder: (context, page) {
-          if (page.data.isEmpty) {
-            return AppEmptyView(
-              icon: Icons.receipt_long_outlined,
-              title: l10n.ordersEmptyTitle,
-              message: l10n.ordersEmptyMessage,
-            );
-          }
-          final filtered = _status == null
-              ? page.data
-              : page.data.where((o) => o.status == _status).toList();
-          return Column(
-            children: [
-              _StatusFilterBar(
-                selected: _status,
-                onSelected: (s) => setState(() => _status = s),
+      body: Column(
+        children: [
+          _StatusFilterBar(
+            selected: status,
+            onSelected: (value) =>
+                ref.read(orderStatusFilterProvider.notifier).state = value,
+          ),
+          Expanded(
+            child: AsyncValueView(
+              value: orders,
+              loading: const Padding(
+                padding: EdgeInsets.all(AppSpacing.screenH),
+                child: SkeletonCardList(),
               ),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(ordersProvider),
-                  child: filtered.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            SizedBox(
-                              height: 320,
-                              child: AppEmptyView(
-                                icon: Icons.inbox_outlined,
-                                title: l10n.ordersFilterEmpty,
+              onRetry: controller.refresh,
+              builder: (context, list) => RefreshIndicator(
+                onRefresh: controller.refresh,
+                child: NotificationListener<ScrollMetricsNotification>(
+                  // Also fill a viewport taller than the first page, without
+                  // requiring a scroll gesture on a list that cannot scroll.
+                  onNotification: (notification) {
+                    if (notification.depth == 0) {
+                      loadIfNearEnd(notification.metrics);
+                    }
+                    return false;
+                  },
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification.depth == 0) {
+                        loadIfNearEnd(notification.metrics);
+                      }
+                      return false;
+                    },
+                    child: list.items.isEmpty
+                        ? ListView(
+                            key: ValueKey(status),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height: 320,
+                                child: AppEmptyView(
+                                  icon: status == null
+                                      ? Icons.receipt_long_outlined
+                                      : Icons.inbox_outlined,
+                                  title: status == null
+                                      ? l10n.ordersEmptyTitle
+                                      : l10n.ordersFilterEmpty,
+                                  message: status == null
+                                      ? l10n.ordersEmptyMessage
+                                      : null,
+                                ),
                               ),
-                            ),
-                          ],
-                        )
-                      : ListView.separated(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(AppSpacing.screenH),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: AppSpacing.md),
-                          itemBuilder: (_, i) => _OrderCard(order: filtered[i]),
-                        ),
+                            ],
+                          )
+                        : ListView.separated(
+                            key: ValueKey(status),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(AppSpacing.screenH),
+                            itemCount:
+                                list.items.length +
+                                (list.loadingMore || list.loadMoreError != null
+                                    ? 1
+                                    : 0),
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: AppSpacing.md),
+                            itemBuilder: (_, i) {
+                              if (i < list.items.length) {
+                                return _OrderCard(order: list.items[i]);
+                              }
+                              if (list.loadMoreError != null) {
+                                return AppErrorView(
+                                  error: list.loadMoreError,
+                                  onRetry: controller.loadMore,
+                                );
+                              }
+                              return const SkeletonCardList(itemCount: 1);
+                            },
+                          ),
+                  ),
                 ),
               ),
-            ],
-          );
-        },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -118,9 +158,19 @@ class _StatusFilterBar extends StatelessWidget {
     final colors = context.colors;
     // (filter value, leading icon, icon colour, label)
     final filters = <(String?, IconData, Color, String)>[
-      (null, Icons.receipt_long_outlined, colors.textSecondary, l10n.ordersFilterAll),
+      (
+        null,
+        Icons.receipt_long_outlined,
+        colors.textSecondary,
+        l10n.ordersFilterAll,
+      ),
       for (final s in _filterStatuses)
-        (s, orderStatusIcon(s), orderStatusColor(colors, s), orderStatusLabel(l10n, s)),
+        (
+          s,
+          orderStatusIcon(s),
+          orderStatusColor(colors, s),
+          orderStatusLabel(l10n, s),
+        ),
     ];
 
     return SizedBox(
