@@ -880,16 +880,54 @@ paths:
     get:
       tags: [Deliveries]
       summary: Deliveries assigned to the current agent
+      description: >
+        Requires the `delivery.assigned` permission and returns deliveries scoped
+        to the current authenticated agent only. When `status` is supplied, the
+        server applies it server-side to that agent's deliveries before
+        pagination. `total`
+        is the number matching the selected status, rather than the agent's
+        unfiltered total. Results have stable ordering by `dispatched_at` DESC,
+        then `id` DESC as the unique tiebreaker, so equal timestamps do not make
+        items shift between pages. Omitting `status` returns all statuses.
       x-permission: delivery.assigned
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          required: false
+          description: Optional delivery status filter applied before pagination; omit to return all statuses.
+          schema:
+            type: string
+            enum: [assigned, out_for_delivery, delivered, failed, returned]
       responses:
         "200":
-          description: Paginated deliveries
+          description: Paginated deliveries scoped to the current agent, with a filtered total when status is supplied.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DeliveryPage" }
+              examples:
+                normal:
+                  summary: First page of assigned deliveries
+                  value:
+                    page: 1
+                    per_page: 20
+                    total: 45
+                    data:
+                      - id: "10000000-0000-4000-8000-000000000001"
+                        order_id: "20000000-0000-4000-8000-000000000001"
+                        agent_id: "30000000-0000-4000-8000-000000000001"
+                        status: assigned
+                        delivery_fee: 5
+                        dispatched_at: "2026-09-09T09:00:00Z"
+                        delivered_at: null
+                empty:
+                  summary: No deliveries match the selected status
+                  value:
+                    page: 1
+                    per_page: 20
+                    total: 0
+                    data: []
         "403": { $ref: "#/components/responses/Forbidden" }
   /deliveries/{id}:
     patch:
