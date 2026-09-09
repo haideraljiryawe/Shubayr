@@ -198,6 +198,11 @@ paths:
     get:
       tags: [Catalog]
       summary: List departments & categories (tree)
+      description: >
+        Category names are returned as `name_ar` and `name_en`. If either stored
+        value is missing, empty, or whitespace-only, that response field falls
+        back to the other language so locale-specific clients never render a
+        blank name.
       security: []
       responses:
         "200":
@@ -226,6 +231,11 @@ paths:
     get:
       tags: [Catalog]
       summary: List / filter / search products
+      description: >
+        Product names are returned as `name_ar` and `name_en`. If either stored
+        value is missing, empty, or whitespace-only, that response field falls
+        back to the other language so locale-specific clients never render a
+        blank name.
       security: []
       parameters:
         - { name: q, in: query, schema: { type: string }, description: search text }
@@ -246,6 +256,9 @@ paths:
     get:
       tags: [Catalog]
       summary: Product detail (variants, images, reviews summary, availability)
+      description: >
+        If the requested language's stored product name is missing, empty, or
+        whitespace-only, its response field falls back to the other language.
       security: []
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
@@ -1047,6 +1060,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create a product
+      description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
       x-permission: catalog.manage
       requestBody:
         required: true
@@ -1065,6 +1079,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a product
+      description: Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1095,6 +1110,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create a category
+      description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
       x-permission: catalog.manage
       requestBody:
         required: true
@@ -1113,6 +1129,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a category
+      description: Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1471,6 +1488,7 @@ components:
 
     Category:
       type: object
+      description: Category reads populate an empty or missing `name_ar`/`name_en` from the other language.
       properties:
         id: { type: string, format: uuid }
         parent_id: { type: [string, "null"], format: uuid }
@@ -1484,11 +1502,12 @@ components:
 
     CategoryInput:
       type: object
+      description: Admin create and update requests require both names after trimming; neither may be empty.
       required: [name_en, name_ar]
       properties:
         parent_id: { type: [string, "null"], format: uuid }
-        name_en: { type: string }
-        name_ar: { type: string }
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
         icon: { type: [string, "null"] }
         sort_order: { type: integer, default: 0 }
         is_active: { type: boolean, default: true }
@@ -1498,6 +1517,8 @@ components:
       description: >
         A catalog product. `in_stock` and `available_qty` are computed at read
         time (sum of batch_stock minus active reservations); they are not stored.
+        Reads populate an empty or missing `name_ar`/`name_en` from the other
+        language so locale-specific clients never receive a blank name.
       properties:
         id: { type: string, format: uuid }
         category_id: { type: string, format: uuid }
@@ -1520,11 +1541,12 @@ components:
 
     ProductInput:
       type: object
+      description: Admin create and update requests require both names after trimming; neither may be empty.
       required: [category_id, name_en, name_ar, sale_price]
       properties:
         category_id: { type: string, format: uuid }
-        name_en: { type: string }
-        name_ar: { type: string }
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
         description: { type: string }
         sale_price: { type: number }
         compare_at_price: { type: [number, "null"], description: "Original/was price; set to null or no more than sale_price to remove the discount." }
