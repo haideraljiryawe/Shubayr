@@ -89,7 +89,7 @@ export function Confirmation({
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Link
-          href={`/orders/${order.id}/track`}
+          href={`/account/orders/${order.id}`}
           data-testid="track-order"
           className={buttonClasses({
             variant: "cta",

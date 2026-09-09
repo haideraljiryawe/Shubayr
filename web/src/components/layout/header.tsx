@@ -1,10 +1,12 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Bell, ShoppingCart } from "lucide-react";
+import { Bell, LogIn, ShoppingCart } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
 import { Link } from "@/i18n/navigation";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { useCartCount } from "@/lib/use-cart";
 import { DesktopNav } from "./desktop-nav";
@@ -24,13 +26,16 @@ import { SearchForm } from "./search-form";
  */
 export function Header() {
   const t = useTranslations("header");
+  const tAuth = useTranslations("auth");
+  const tAccount = useTranslations("account");
   const cartCount = useCartCount();
+  const { user, isAuthenticated } = useAuth();
 
   return (
     <header className="sticky top-0 z-30 bg-surface/95 backdrop-blur border-b border-border">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="flex h-16 items-center gap-3 md:gap-6">
-          <Logo />
+          <Logo className="min-w-0 shrink" />
 
           <LocationSelector className="hidden lg:inline-flex" />
 
@@ -41,7 +46,7 @@ export function Header() {
             <SearchForm />
           </div>
 
-          <div className="ms-auto flex items-center gap-1">
+          <div className="ms-auto flex shrink-0 items-center gap-1">
             <IconButton label={t("notifications")} variant="ghost">
               <Bell className="size-5" aria-hidden />
             </IconButton>
@@ -68,6 +73,31 @@ export function Header() {
                 </Badge>
               ) : null}
             </span>
+
+            {/* Signed out this is the way in; signed in it is the way to the
+                account. Both render the same size, so the row never shifts. */}
+            {isAuthenticated ? (
+              <Link
+                href="/account"
+                aria-label={tAccount("title")}
+                title={user?.name || tAccount("title")}
+                data-testid="header-account"
+                className="inline-flex size-10 items-center justify-center rounded-full transition-colors duration-150 hover:bg-card"
+              >
+                <Avatar name={user?.name ?? undefined} size="sm" />
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                data-testid="header-login"
+                // Icon-only on the narrowest phones, where the header row has
+                // no room for a label beside the cart and bell.
+                className="inline-flex size-10 items-center justify-center gap-1.5 rounded-md text-sm font-semibold text-primary-dark transition-colors duration-150 hover:bg-card sm:w-auto sm:px-3"
+              >
+                <LogIn className="size-4 rtl-flip" aria-hidden />
+                <span className="hidden sm:inline">{tAuth("signIn")}</span>
+              </Link>
+            )}
 
             <LocaleSwitcher className="hidden sm:inline-flex" />
           </div>

@@ -1,5 +1,16 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+
+/**
+ * The grid that is actually on screen.
+ *
+ * During a navigation Next keeps the outgoing tree in the DOM, hidden, while
+ * the new one streams — so a bare getByTestId can briefly match two grids and
+ * trip strict mode. Every assertion here means the visible one.
+ */
+function visibleGrid(page: Page) {
+  return page.getByTestId("product-grid").filter({ visible: true });
+}
 
 for (const prefix of ["", "/en"]) {
   test(`missing category returns HTTP 404: ${prefix || "/ar"}`, async ({ page }) => {
@@ -12,7 +23,7 @@ for (const prefix of ["", "/en"]) {
   test(`valid category returns HTTP 200: ${prefix || "/ar"}`, async ({ page }) => {
     const response = await page.goto(`${prefix}/category/electronics`);
     expect(response?.status()).toBe(200);
-    await expect(page.getByTestId("product-grid")).toBeVisible();
+    await expect(visibleGrid(page)).toBeVisible();
   });
 }
 
@@ -40,17 +51,13 @@ for (const [name, width, height] of [
     await grid.getByRole("link", { name: "إلكترونيات", exact: true }).click();
     await expect(page).toHaveURL(/\/category\/electronics/);
     await expect(
-      page.getByTestId("product-grid").locator(":scope > li"),
+      visibleGrid(page).locator(":scope > li"),
     ).toHaveCount(12);
     await expect(
-      page.getByTestId("product-grid").getByText(/-\d+%/).first(),
+      visibleGrid(page).getByText(/-\d+%/).first(),
     ).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
-    await page
-      .getByTestId("product-grid")
-      .locator("li")
-      .last()
-      .scrollIntoViewIfNeeded();
+    await visibleGrid(page).locator("li").last().scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForLoadState("networkidle");
     await page.waitForFunction(() =>
@@ -90,7 +97,7 @@ for (const [name, width, height] of [
         .getByRole("button", { name: "عرض النتائج" })
         .click();
       await expect(page).toHaveURL(/on_sale=true/);
-      await expect(page.getByTestId("product-grid")).toBeVisible();
+      await expect(visibleGrid(page)).toBeVisible();
     }
   });
 }
@@ -101,7 +108,7 @@ test("SSR, pagination, search, empty reset, and persistent wishlist", async ({
   baseURL,
 }) => {
   await page.goto("/category/electronics?sort=price_asc");
-  const firstGrid = page.getByTestId("product-grid");
+  const firstGrid = visibleGrid(page);
   const firstHref = await firstGrid
     .locator("h3 a")
     .first()
@@ -115,28 +122,25 @@ test("SSR, pagination, search, empty reset, and persistent wishlist", async ({
   ).toHaveAttribute("aria-pressed", "true");
   await page.reload();
   await expect(
-    page
-      .getByTestId("product-grid")
-      .getByRole("button", { name: "إزالة من المفضلة" })
-      .first(),
+    visibleGrid(page).getByRole("button", { name: "إزالة من المفضلة" }).first(),
   ).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("link", { name: "التالي", exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
   await expect(page).toHaveURL(/sort=price_asc/);
   expect(
-    await page
-      .getByTestId("product-grid")
-      .locator("h3 a")
-      .first()
-      .getAttribute("href"),
+    await visibleGrid(page).locator("h3 a").first().getAttribute("href"),
   ).not.toBe(firstHref);
   await page.goto("/search?q=impossible-result-zz");
-  await expect(page.getByText("لم نعثر على نتائج")).toBeVisible();
+  // While the new result streams in, Next keeps the outgoing tree in the DOM
+  // hidden — so match the empty state that is actually on screen.
+  await expect(
+    page.getByText("لم نعثر على نتائج").filter({ visible: true }),
+  ).toBeVisible();
   await page
     .getByRole("link", { name: "إعادة ضبط الفلاتر", exact: true })
     .last()
     .click();
-  await expect(page.getByTestId("product-grid")).toBeVisible();
+  await expect(visibleGrid(page)).toBeVisible();
   await page.goto("/en/categories");
   await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
   const search = page.getByRole("search").filter({ visible: true });
@@ -163,7 +167,7 @@ test("subcategories, rating and prices filter the SSR result", async ({
   await page.goto(
     "/category/electronics?min_rating=4.5&min_price=50&max_price=200&on_sale=true",
   );
-  const cards = page.getByTestId("product-grid").locator(":scope > li");
+  const cards = visibleGrid(page).locator(":scope > li");
   expect(await cards.count()).toBeGreaterThan(0);
   await expect(
     page.getByRole("complementary").getByLabel("السعر من"),

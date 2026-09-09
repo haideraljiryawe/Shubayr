@@ -3,16 +3,17 @@
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { ShoppingCart } from "lucide-react";
-import { buttonClasses } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { Link } from "@/i18n/navigation";
-import { useSession } from "@/lib/auth";
-import { ApiError, api, type Order, type OrderItem } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { ApiError, api, type Address, type Order, type OrderItem } from "@/lib/api";
 import { cartTotals, lineTotal } from "@/lib/cart";
 import { cartStore, type AppliedCoupon, type CartLine } from "@/lib/cart-store";
 import { DELIVERY_FEE } from "@/lib/config";
 import { useCart } from "@/lib/use-cart";
+import { useResource } from "@/lib/use-resource";
 import {
   AddressForm,
   EMPTY_DELIVERY,
@@ -22,16 +23,18 @@ import {
 import { AuthGate } from "./auth-gate";
 import { Confirmation } from "./confirmation";
 import { PaymentMethod } from "./payment-method";
-import { ReviewStep } from "./review-step";
+import { ReviewStep, type ChosenAddress } from "./review-step";
+import { SavedAddresses } from "./saved-addresses";
 import { CheckoutSteps, type CheckoutStepKey } from "./steps";
 
 /**
  * Address → (sign-in, when needed) → Review → Confirmation.
  *
- * The sign-in step is not one of the numbered steps: the contract requires an
- * authenticated customer for POST /orders, so it appears between review and
- * placement only while the shopper is signed out. It sits behind one `if`, which
- * is what the account phase deletes when real login exists.
+ * Two address paths meet here. A signed-in customer picks from the addresses on
+ * their account, which is one tap and no typing; a guest fills the form, and
+ * that address is created on their account at the moment they sign in to place
+ * the order. The sign-in step itself only appears while signed out, because the
+ * contract requires an authenticated customer for POST /orders.
  */
 type Stage = "address" | "auth" | "review" | "done";
 
@@ -49,20 +52,74 @@ interface PlacedOrder {
   coupon: AppliedCoupon | null;
 }
 
+function summariseSaved(address: Address): ChosenAddress {
+  return {
+    id: address.id ?? null,
+    title: address.label ?? "",
+    phone: null,
+    lines: [
+      [address.city, address.area, address.street].filter(Boolean).join(" — "),
+      address.details ?? "",
+    ].filter(Boolean),
+  };
+}
+
+function summariseTyped(delivery: DeliveryDetails): ChosenAddress {
+  return {
+    id: null,
+    title: delivery.name,
+    phone: delivery.phone,
+    lines: [
+      [delivery.city, delivery.area, delivery.street].filter(Boolean).join(" — "),
+      delivery.details,
+    ].filter(Boolean),
+  };
+}
+
 export function CheckoutFlow() {
   const t = useTranslations("checkout");
   const tc = useTranslations("cart");
   const showToast = useToast();
   const { lines, coupon, hydrated } = useCart();
-  const { isAuthenticated, signIn } = useSession();
+  const { isAuthenticated, user } = useAuth();
 
   const [stage, setStage] = useState<Stage>("address");
   const [delivery, setDelivery] = useState<DeliveryDetails>(EMPTY_DELIVERY);
+  /** The saved address the customer picked, if they picked one. */
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  /** True once they choose to type a new address instead of picking. */
+  const [typingNew, setTypingNew] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
 
   const totals = cartTotals(lines, coupon, DELIVERY_FEE);
+
+  // Saved addresses belong to a signed-in customer; a guest has none to read.
+  const savedAddresses = useResource<Address[]>(
+    () => (isAuthenticated ? api.listAddresses() : Promise.resolve([])),
+    [isAuthenticated],
+  );
+  const addressBook = savedAddresses.data ?? [];
+
+  // Derived, not stored: the explicit pick, else the account default, else the
+  // first one. No effect has to reconcile a selection with a list that arrives
+  // later.
+  const saved =
+    addressBook.find((item) => item.id === chosenId) ??
+    addressBook.find((item) => item.is_default) ??
+    addressBook[0] ??
+    null;
+
+  // A signed-in shopper's own name and number are the delivery contact, so the
+  // "new address" form starts filled in rather than blank.
+  const deliveryValues: DeliveryDetails = {
+    ...delivery,
+    name: delivery.name || (user?.name ?? ""),
+    phone: delivery.phone || (user?.phone ?? ""),
+  };
+
+  const pickingSaved = isAuthenticated && !typingNew && addressBook.length > 0;
 
   async function placeOrder() {
     setPlacing(true);
@@ -80,14 +137,20 @@ export function CheckoutFlow() {
     }));
 
     try {
-      // The contract references an address by id, so a typed-in address is
-      // created first and the order is placed against what comes back.
-      const address = await api.createAddress(toAddressInput(delivery));
-      if (!address.id) throw new ApiError(422, "Address was created without an id");
+      // A saved address already has an id; a typed one is created first, which
+      // also saves it to the account for next time.
+      let addressId = pickingSaved ? (saved?.id ?? null) : null;
+      if (!addressId) {
+        const created = await api.createAddress(toAddressInput(deliveryValues));
+        if (!created.id) {
+          throw new ApiError(422, "Address was created without an id");
+        }
+        addressId = created.id;
+      }
 
       const order = await api.placeOrder(
         {
-          address_id: address.id,
+          address_id: addressId,
           payment_method: "cod",
           coupon_code: coupon?.code ?? null,
         },
@@ -191,8 +254,7 @@ export function CheckoutFlow() {
         <AuthGate
           defaultPhone={delivery.phone}
           onBack={() => setStage("review")}
-          onSignedIn={(phone) => {
-            signIn(phone);
+          onSignedIn={() => {
             setStage("review");
             showToast(t("signedIn"));
           }}
@@ -208,7 +270,11 @@ export function CheckoutFlow() {
           lines={lines}
           coupon={coupon}
           totals={totals}
-          delivery={delivery}
+          address={
+            pickingSaved && saved
+              ? summariseSaved(saved)
+              : summariseTyped(deliveryValues)
+          }
           error={error}
           placing={placing}
           onEditAddress={() => setStage("address")}
@@ -218,29 +284,56 @@ export function CheckoutFlow() {
     );
   }
 
+  // ------------------------------------------------------------ address step
   return (
     <Wrapper step="address">
-      <div className="mx-auto max-w-2xl">
-        <AddressForm
-          values={delivery}
-          onChange={setDelivery}
-          onSubmit={() => setStage("review")}
-          submitLabel={t("continue")}
-        >
-          <PaymentMethod />
-        </AddressForm>
+      <div className="mx-auto flex max-w-2xl flex-col gap-5">
+        {isAuthenticated && !typingNew ? (
+          <SavedAddresses
+            addresses={addressBook}
+            loading={savedAddresses.loading}
+            failed={savedAddresses.failed}
+            onRetry={savedAddresses.reload}
+            selectedId={saved?.id ?? null}
+            onSelect={(address) => setChosenId(address.id ?? null)}
+            onUseNew={() => setTypingNew(true)}
+          />
+        ) : null}
+
+        {pickingSaved ? (
+          <>
+            <PaymentMethod />
+            <Button
+              variant="cta"
+              size="lg"
+              block
+              disabled={!saved}
+              data-testid="address-submit"
+              onClick={() => setStage("review")}
+            >
+              {t("continue")}
+            </Button>
+          </>
+        ) : (
+          <AddressForm
+            values={deliveryValues}
+            onChange={setDelivery}
+            onSubmit={() => {
+              // A typed address wins over the book until they go back.
+              setTypingNew(true);
+              setStage("review");
+            }}
+            submitLabel={t("continue")}
+          >
+            <PaymentMethod />
+          </AddressForm>
+        )}
       </div>
     </Wrapper>
   );
 }
 
-function Wrapper({
-  step,
-  children,
-}: {
-  step: Stage;
-  children: ReactNode;
-}) {
+function Wrapper({ step, children }: { step: Stage; children: ReactNode }) {
   const t = useTranslations("checkout");
 
   return (

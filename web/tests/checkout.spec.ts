@@ -12,6 +12,17 @@ function addToCart(page: Page) {
   return page.locator('[data-testid="pdp-add-to-cart"]:visible');
 }
 
+/** The mock backend accepts this code for any valid phone number. */
+const OTP = "123456";
+
+/** Phase 6 sign-in: the gate is the real phone-OTP form. */
+async function signIn(page: Page) {
+  await expect(page.getByTestId("auth-phone")).toBeVisible();
+  await page.getByTestId("auth-send-otp").click();
+  await page.getByTestId("auth-code").fill(OTP);
+  await page.getByTestId("auth-verify").click();
+}
+
 async function fillAddress(page: Page) {
   await page.getByTestId("address-name").fill("أحمد علي");
   await page.getByTestId("address-phone").fill("07701234567");
@@ -71,7 +82,7 @@ test("review shows the order, then placing it confirms and clears the cart", asy
   await expect(page.getByTestId("auth-phone")).toBeVisible();
   // The phone from the address seeds the sign-in step.
   await expect(page.getByTestId("auth-phone")).toHaveValue("07701234567");
-  await page.getByTestId("auth-submit").click();
+  await signIn(page);
 
   await page.getByTestId("place-order").click();
 
@@ -86,11 +97,10 @@ test("review shows the order, then placing it confirms and clears the cart", asy
 
   // The order emptied the cart.
   await expect(page.getByTestId("cart-badge")).toHaveCount(0);
+  // The confirmation now links to the real order page in the account.
   await page.getByTestId("track-order").click();
-  await expect(page).toHaveURL(/\/orders\/[^/]+\/track$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "صفحة تتبّع الطلب قيد الإنشاء",
-  );
+  await expect(page).toHaveURL(/\/account\/orders\/[^/]+$/);
+  await expect(page.getByTestId("order-tracking")).toBeVisible();
 
   await page.goto("/cart");
   await expect(page.getByTestId("cart-empty")).toBeVisible();
@@ -113,7 +123,7 @@ test("a coupon applied in the cart carries into the order", async ({ page }) => 
   await expect(page.getByTestId("summary-total")).toHaveText("$89");
 
   await page.getByTestId("place-order").click();
-  await page.getByTestId("auth-submit").click();
+  await signIn(page);
   await page.getByTestId("place-order").click();
 
   await expect(page.getByTestId("order-confirmation")).toBeVisible();
@@ -165,7 +175,7 @@ for (const [name, width, height] of [
     await expect(page.getByTestId("auth-phone")).toBeVisible();
     await shoot("signin");
 
-    await page.getByTestId("auth-submit").click();
+    await signIn(page);
     await page.getByTestId("place-order").click();
     await expect(page.getByTestId("order-confirmation")).toBeVisible();
     await shoot("confirmation");

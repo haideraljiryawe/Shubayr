@@ -10,7 +10,18 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { lineName, lineTotal, type CartTotals } from "@/lib/cart";
 import type { AppliedCoupon, CartLine } from "@/lib/cart-store";
-import type { DeliveryDetails } from "./address-form";
+
+/**
+ * The address being delivered to, whichever path produced it: a saved account
+ * address (which carries an id and no phone, since the account holds it) or one
+ * typed by a guest.
+ */
+export interface ChosenAddress {
+  id: string | null;
+  title: string;
+  phone: string | null;
+  lines: string[];
+}
 
 /**
  * The last look before the order is placed: what is being bought, where it is
@@ -21,7 +32,7 @@ export function ReviewStep({
   lines,
   coupon,
   totals,
-  delivery,
+  address,
   error,
   placing,
   onEditAddress,
@@ -30,7 +41,7 @@ export function ReviewStep({
   lines: CartLine[];
   coupon: AppliedCoupon | null;
   totals: CartTotals;
-  delivery: DeliveryDetails;
+  address: ChosenAddress;
   error: string | null;
   placing: boolean;
   onEditAddress: () => void;
@@ -94,16 +105,15 @@ export function ReviewStep({
           <address className="flex gap-2 text-sm not-italic text-text-muted">
             <MapPin className="mt-0.5 size-4 shrink-0 text-primary-dark" aria-hidden />
             <span className="flex flex-col gap-0.5">
-              <span className="font-medium text-text">{delivery.name}</span>
-              <span dir="ltr" className="[unicode-bidi:isolate] self-start">
-                {delivery.phone}
-              </span>
-              <span>
-                {[delivery.city, delivery.area, delivery.street]
-                  .filter(Boolean)
-                  .join(" — ")}
-              </span>
-              {delivery.details ? <span>{delivery.details}</span> : null}
+              <span className="font-medium text-text">{address.title}</span>
+              {address.phone ? (
+                <span dir="ltr" className="[unicode-bidi:isolate] self-start">
+                  {address.phone}
+                </span>
+              ) : null}
+              {address.lines.map((line) => (
+                <span key={line}>{line}</span>
+              ))}
             </span>
           </address>
         </Card>
