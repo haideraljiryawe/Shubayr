@@ -17,14 +17,14 @@ export interface NavItem {
 /**
  * Shared between the desktop top nav and the mobile bottom tab bar, in the same
  * order as the mockup: الرئيسية · الأقسام · السلة · المفضلة · حسابي.
- * Wishlist and account are still foundation placeholders and point home.
+ * Wishlist is still a foundation placeholder and points home.
  */
 export const NAV_ITEMS: NavItem[] = [
   { key: "home", href: "/", icon: Home },
   { key: "categories", href: "/categories", icon: Grid2x2 },
   { key: "cart", href: "/cart", icon: ShoppingCart },
   { key: "wishlist", href: "/", icon: Heart },
-  { key: "account", href: "/", icon: User },
+  { key: "account", href: "/account", icon: User },
 ];
 
 export function isNavItemActive(item: NavItem, pathname: string): boolean {

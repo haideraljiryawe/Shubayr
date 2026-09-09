@@ -6,6 +6,7 @@ import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { AppShell } from "@/components/layout/app-shell";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { AuthProvider } from "@/lib/auth";
 import { localeDirection, routing, type Locale } from "@/i18n/routing";
 import { api } from "@/lib/api";
 import "../globals.css";
@@ -64,9 +65,13 @@ export default async function LocaleLayout({
     >
       <body>
         <NextIntlClientProvider messages={messages}>
-          <ThemeProvider settings={settings}>
-            <AppShell>{children}</AppShell>
-          </ThemeProvider>
+          {/* Above the shell: the header, the checkout and every account page
+              ask the same provider who is signed in. */}
+          <AuthProvider>
+            <ThemeProvider settings={settings}>
+              <AppShell>{children}</AppShell>
+            </ThemeProvider>
+          </AuthProvider>
         </NextIntlClientProvider>
       </body>
     </html>

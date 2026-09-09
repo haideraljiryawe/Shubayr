@@ -15,6 +15,7 @@ export default defineConfig({
           "**/product.spec.ts",
           "**/cart.spec.ts",
           "**/checkout.spec.ts",
+          "**/account.spec.ts",
         ],
   timeout: 60000,
   use: {
