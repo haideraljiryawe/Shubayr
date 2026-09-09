@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Package, ShoppingCart } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { cartStore } from "@/lib/cart-store";
 import { cn } from "@/lib/cn";
 import { formatDiscount } from "@/lib/format";
+import { useToast } from "./toast";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { Card } from "./card";
@@ -23,6 +25,14 @@ import { WishlistButton } from "./wishlist-button";
 export interface ProductCardProps {
   id: string;
   name: string;
+  /**
+   * Both names, so a row added from a grid still reads correctly after the
+   * shopper switches locale. Defaults to the displayed `name`.
+   */
+  nameAr?: string;
+  nameEn?: string;
+  /** Sellable stock; caps what the tile can add. Defaults to the contract max. */
+  availableQty?: number;
   price: number;
   compareAtPrice?: number | null;
   /** Explicit null means no discount; omitted supports the style guide. */
@@ -45,6 +55,9 @@ export interface ProductCardProps {
 export function ProductCard({
   id,
   name,
+  nameAr,
+  nameEn,
+  availableQty,
   price,
   compareAtPrice,
   discountPercent,
@@ -61,8 +74,18 @@ export function ProductCard({
 }: ProductCardProps) {
   const t = useTranslations("common");
   const tp = useTranslations("product");
+  const tc = useTranslations("cart");
+  const showToast = useToast();
   const [added, setAdded] = useState(false);
   const [failedImage, setFailedImage] = useState<string>();
+  const addedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (addedTimer.current) clearTimeout(addedTimer.current);
+    },
+    [],
+  );
 
   const discount =
     discountPercent !== undefined
@@ -165,8 +188,27 @@ export function ProductCard({
             disabled={!inStock}
             startIcon={<ShoppingCart className="size-4" aria-hidden />}
             onClick={() => {
-              // Optimistic: cart state lands with the cart phase.
+              // A grid tile has no variant picker, so it adds the base product;
+              // choosing a colour or size is what the product page is for.
+              cartStore.addItem({
+                product_id: id,
+                variant_id: null,
+                name_ar: nameAr ?? name,
+                name_en: nameEn ?? name,
+                image_url: imageUrl ?? null,
+                variant_label: null,
+                unit_price: price,
+                compare_at_price: hasDiscount ? (compareAtPrice ?? null) : null,
+                // The listing endpoints carry no per-variant stock, so an
+                // in-stock tile trusts the flag until the product page (which
+                // reads /availability) can be more precise.
+                available_qty: availableQty ?? (inStock ? 99 : 0),
+              });
+              showToast(tc("added"));
               setAdded(true);
+              if (addedTimer.current) clearTimeout(addedTimer.current);
+              // Revert the label so a second add still reads as an action.
+              addedTimer.current = setTimeout(() => setAdded(false), 2000);
               onAddToCart?.(id);
             }}
             className="mt-auto"

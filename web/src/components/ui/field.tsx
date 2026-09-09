@@ -2,6 +2,11 @@ import type { ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
 
+/** The id of a field's error message, for the control's aria-describedby. */
+export function fieldErrorId(htmlFor: string): string {
+  return `${htmlFor}-error`;
+}
+
 /**
  * Label + control + error wrapper. Errors render with the red border and the
  * trailing alert dot from the sheet's «حقل به خطأ».
@@ -35,7 +40,15 @@ export function Field({
       {children}
 
       {error ? (
-        <p className="flex items-center gap-1.5 text-xs font-medium text-error ps-0.5">
+        // `role="alert"` announces the message the moment validation fails;
+        // the id lets the control point at it with aria-describedby, so it is
+        // also read when the field itself takes focus. `fieldErrorId` builds
+        // the same id for the caller.
+        <p
+          id={htmlFor ? fieldErrorId(htmlFor) : undefined}
+          role="alert"
+          className="flex items-center gap-1.5 text-xs font-medium text-error ps-0.5"
+        >
           <AlertCircle className="size-3.5 shrink-0" aria-hidden />
           {error}
         </p>

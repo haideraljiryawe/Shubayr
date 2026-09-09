@@ -70,6 +70,9 @@ export async function ProductSection({
                   <ProductCard
                     id={product.id ?? ""}
                     name={name}
+                    nameAr={product.name_ar ?? ""}
+                    nameEn={product.name_en ?? ""}
+                    availableQty={product.available_qty}
                     price={product.sale_price ?? 0}
                     compareAtPrice={product.compare_at_price}
                     discountPercent={product.discount_percent ?? null}

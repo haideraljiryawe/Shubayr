@@ -63,7 +63,11 @@ for (const prefix of ["", "/en"]) {
         waitUntil: "commit",
       });
       expect(response?.status()).toBe(200);
-      const skeleton = page.getByRole("status");
+      // The app shell keeps an always-mounted toast live region, which is also
+      // a role="status"; the loading skeleton is the labelled one.
+      const skeleton = page.getByRole("status", {
+        name: prefix === "/en" ? "Loading…" : "جارٍ التحميل…",
+      });
       await expect(skeleton).toBeVisible();
       await expect(skeleton.locator(".animate-pulse, .motion-safe\\:animate-pulse")).toBeVisible();
       await expect(page.getByTestId("product-grid")).toHaveCount(0);

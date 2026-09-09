@@ -1,5 +1,6 @@
 import type {
   Category,
+  Coupon,
   Product,
   ProductAvailability,
   Review,
@@ -688,4 +689,34 @@ export function mockReviewsFor(productId: string): Review[] {
       ).toISOString(),
     };
   });
+}
+
+/* ---------------------------------------------------------------------------
+ * Checkout fixtures.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * The coupons the mock backend accepts. Every other code — unknown, mistyped or
+ * expired — comes back as a 404, which is the only failure POST
+ * /coupons/validate defines, so the UI has one rejection path to handle.
+ */
+export const mockCoupons: Coupon[] = [
+  { code: "SHUBAYR10", type: "percentage", value: 10 },
+  { code: "WELCOME5", type: "fixed", value: 5 },
+];
+
+export function mockCouponFor(code: string): Coupon | undefined {
+  const needle = code.trim().toUpperCase();
+  return mockCoupons.find((coupon) => coupon.code?.toUpperCase() === needle);
+}
+
+/**
+ * Order numbers the mockup shows as SB-1042. The counter is per browser tab,
+ * which is all a fixture needs — the backend owns the real sequence.
+ */
+let orderSequence = 1041;
+
+export function nextMockOrderNumber(): string {
+  orderSequence += 1;
+  return `SB-${orderSequence}`;
 }

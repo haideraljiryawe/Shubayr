@@ -9,7 +9,13 @@ export default defineConfig({
     ? "**/catalog-errors.spec.ts"
     : streaming
       ? "**/catalog-streaming.spec.ts"
-      : ["**/catalog.spec.ts", "**/catalog-data.spec.ts", "**/product.spec.ts"],
+      : [
+          "**/catalog.spec.ts",
+          "**/catalog-data.spec.ts",
+          "**/product.spec.ts",
+          "**/cart.spec.ts",
+          "**/checkout.spec.ts",
+        ],
   timeout: 60000,
   use: {
     baseURL: `http://localhost:${port}`,
