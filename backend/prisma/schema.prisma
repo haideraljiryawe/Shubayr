@@ -399,6 +399,9 @@ model OrderItem {
   order_id           String             @db.Uuid
   product_id         String             @db.Uuid
   variant_id         String?            @db.Uuid
+  product_name_ar    String             @db.VarChar(200)
+  product_name_en    String             @db.VarChar(200)
+  image_url          String?            @db.VarChar(400)
   quantity           Int
   unit_price         Decimal            @db.Decimal(12, 2)
   line_total         Decimal            @db.Decimal(12, 2)

@@ -125,6 +125,26 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/User" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+    patch:
+      tags: [Auth]
+      summary: Update the current user's profile
+      description: >
+        Updates only the authenticated user's name and, when supplied, email.
+        Phone numbers cannot be changed here because a phone change requires
+        re-verification through the OTP flow.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserSelfUpdate" }
+      responses:
+        "200":
+          description: Updated current user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADDRESSES ----------------
   /addresses:
@@ -1438,6 +1458,18 @@ components:
           items: { type: string, example: "orders.confirm" }
         created_at: { type: string, format: date-time }
 
+    UserSelfUpdate:
+      type: object
+      description: >
+        Fields the authenticated user may update without identity
+        re-verification. Phone is intentionally excluded; changing it requires
+        OTP re-verification.
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120, pattern: '.*\S.*' }
+        email: { type: [string, "null"], format: email, maxLength: 160 }
+
     UserInput:
       type: object
       required: [phone]
@@ -1700,6 +1732,9 @@ components:
         id: { type: string, format: uuid, description: "order_item_id — reference this from reviews & returns" }
         product_id: { type: string, format: uuid }
         variant_id: { type: [string, "null"], format: uuid }
+        product_name_ar: { type: string, description: "Arabic product name captured when the order is created." }
+        product_name_en: { type: string, description: "English product name captured when the order is created." }
+        image_url: { type: [string, "null"], format: uri, description: "Primary product image URL captured when the order is created." }
         quantity: { type: integer }
         unit_price: { type: number }
         line_total: { type: number }

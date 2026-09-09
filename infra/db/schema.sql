@@ -314,6 +314,9 @@ CREATE TABLE order_items (
     order_id        UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     product_id      UUID NOT NULL REFERENCES products(id),
     variant_id      UUID REFERENCES product_variants(id),
+    product_name_ar VARCHAR(200) NOT NULL,              -- snapshot captured at order creation
+    product_name_en VARCHAR(200) NOT NULL,              -- snapshot captured at order creation
+    image_url       VARCHAR(400),                       -- primary image snapshot; NULL when absent
     quantity        INT NOT NULL CHECK (quantity > 0),
     unit_price      NUMERIC(12,2) NOT NULL,
     line_total      NUMERIC(12,2) NOT NULL
