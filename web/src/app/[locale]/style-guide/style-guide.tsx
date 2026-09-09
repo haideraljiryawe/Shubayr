@@ -52,7 +52,7 @@ const SECONDARY_SWATCHES: Swatch[] = [
   { name: "Card", hex: "#F4F1EA", className: "bg-card", border: true },
   { name: "Border", hex: "#E5E1D8", className: "bg-border", border: true },
   { name: "Text Primary", hex: "#1F2937", className: "bg-text" },
-  { name: "Text Secondary", hex: "#6B7280", className: "bg-text-muted" },
+  { name: "Text Secondary", hex: "#4B5563", className: "bg-text-muted" },
 ];
 
 const STATUS_SWATCHES: Swatch[] = [

@@ -54,7 +54,7 @@ Defined once in `src/app/globals.css`:
 | primary-light | `#7FAE8C` | | card | `#F4F1EA` |
 | accent | `#D4A017` | | border | `#E5E1D8` |
 | success | `#22C55E` | | text | `#1F2937` |
-| warning | `#F59E0B` | | text-muted | `#6B7280` |
+| warning | `#F59E0B` | | text-muted | `#4B5563` |
 | error | `#EF4444` | | radius sm/md/lg | `8 / 12 / 20px` |
 | info | `#3B82F6` | | font | Cairo 300–700 |
 
@@ -119,6 +119,22 @@ $env:CATALOG_ERROR_TESTS = 'true'
 npm test
 Remove-Item Env:CATALOG_ERROR_TESTS
 ```
+
+To verify category HTTP status codes and skeletons while server-side product
+and review requests are pending, run the controlled API fixture on port 3101:
+
+```powershell
+$env:CATALOG_STREAMING_TESTS = 'true'
+npm test
+Remove-Item Env:CATALOG_STREAMING_TESTS
+```
+
+If those ports are reserved locally, set `PLAYWRIGHT_PORT` and
+`PLAYWRIGHT_API_PORT` to available ports before running the tests.
+
+Run `node scripts/check-contrast.mjs` to check `text-text-muted` against
+`bg-card` and `bg-background` (WCAG AA, at least 4.5:1). The script composites
+alpha before calculating luminance, including transparent ancestor surfaces.
 
 Screenshots: [categories mobile](docs/screenshots/categories-mobile.png),
 [categories desktop](docs/screenshots/categories-desktop.png),

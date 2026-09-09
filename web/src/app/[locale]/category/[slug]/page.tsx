@@ -34,6 +34,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("catalog");
+  // Keep category validation blocking, with no route-level loading.tsx:
+  // notFound() must run before a Suspense fallback can flush HTTP 200.
   const categories = await api.getCategories().catch(() => null);
   if (categories === null)
     return (
@@ -63,6 +65,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           {t("backCategories")}
         </Link>
       </nav>
+      {/* Product data and review counts stream only after category validation. */}
       <Suspense key={JSON.stringify(query)} fallback={<CatalogSkeleton />}>
         <ProductListing
           locale={locale as Locale}

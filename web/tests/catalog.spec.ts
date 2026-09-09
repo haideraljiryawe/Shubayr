@@ -1,6 +1,21 @@
 import { test, expect } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
+for (const prefix of ["", "/en"]) {
+  test(`missing category returns HTTP 404: ${prefix || "/ar"}`, async ({ page }) => {
+    const response = await page.goto(`${prefix}/category/bogus-slug`);
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByTestId("product-grid")).toHaveCount(0);
+  });
+
+  test(`valid category returns HTTP 200: ${prefix || "/ar"}`, async ({ page }) => {
+    const response = await page.goto(`${prefix}/category/electronics`);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByTestId("product-grid")).toBeVisible();
+  });
+}
+
 for (const [name, width, height] of [
   ["mobile", 390, 844],
   ["desktop", 1440, 1000],
@@ -83,6 +98,7 @@ for (const [name, width, height] of [
 test("SSR, pagination, search, empty reset, and persistent wishlist", async ({
   page,
   browser,
+  baseURL,
 }) => {
   await page.goto("/category/electronics?sort=price_asc");
   const firstGrid = page.getByTestId("product-grid");
@@ -132,7 +148,7 @@ test("SSR, pagination, search, empty reset, and persistent wishlist", async ({
   ).toBeVisible();
   const context = await browser.newContext({ javaScriptEnabled: false });
   const ssr = await context.newPage();
-  await ssr.goto("http://localhost:3100/category/electronics?on_sale=true");
+  await ssr.goto(`${baseURL}/category/electronics?on_sale=true`);
   // Streaming Suspense markup is in the server response before hydration.
   await expect(ssr.getByTestId("product-grid")).toBeAttached();
   await expect(
