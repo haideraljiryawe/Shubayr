@@ -4,7 +4,9 @@ import { useTranslations } from "next-intl";
 import { Bell, ShoppingCart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
+import { useCartCount } from "@/lib/use-cart";
 import { DesktopNav } from "./desktop-nav";
 import { LocaleSwitcher } from "./locale-switcher";
 import { LocationSelector } from "./location-selector";
@@ -15,9 +17,14 @@ import { SearchForm } from "./search-form";
  * Responsive adaptation of the mockup header. On mobile the search drops to its
  * own row (as in the phone screens); from `md` up everything sits on one line
  * and the desktop nav strip appears underneath.
+ *
+ * The cart badge reads the real cart store, so every «أضف إلى السلة» anywhere
+ * in the storefront updates it. It renders nothing until the store has read
+ * localStorage, which keeps the server markup and the hydrated markup identical.
  */
-export function Header({ cartCount = 0 }: { cartCount?: number }) {
+export function Header() {
   const t = useTranslations("header");
+  const cartCount = useCartCount();
 
   return (
     <header className="sticky top-0 z-30 bg-surface/95 backdrop-blur border-b border-border">
@@ -40,9 +47,15 @@ export function Header({ cartCount = 0 }: { cartCount?: number }) {
             </IconButton>
 
             <span className="relative inline-flex">
-              <IconButton label={t("cart")} variant="ghost">
+              <Link
+                href="/cart"
+                aria-label={t("cart")}
+                title={t("cart")}
+                data-testid="header-cart"
+                className="inline-flex size-10 items-center justify-center rounded-full text-text transition-colors duration-150 hover:bg-card"
+              >
                 <ShoppingCart className="size-5" aria-hidden />
-              </IconButton>
+              </Link>
               {cartCount > 0 ? (
                 <Badge
                   tone="sale"
@@ -51,7 +64,7 @@ export function Header({ cartCount = 0 }: { cartCount?: number }) {
                     "min-w-5 rounded-full px-1 py-0 text-[10px] leading-5",
                   )}
                 >
-                  {cartCount}
+                  <span data-testid="cart-badge">{cartCount}</span>
                 </Badge>
               ) : null}
             </span>

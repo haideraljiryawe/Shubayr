@@ -9,7 +9,7 @@ export {
 export { Card, type CardProps } from "./card";
 export { Checkbox } from "./checkbox";
 export { Chip } from "./chip";
-export { Field, controlBase, controlError } from "./field";
+export { Field, controlBase, controlError, fieldErrorId } from "./field";
 export { IconButton, type IconButtonProps } from "./icon-button";
 export { Input, type InputProps } from "./input";
 export { Price } from "./price";

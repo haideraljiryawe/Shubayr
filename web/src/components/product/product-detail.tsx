@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { Product, ProductAvailability } from "@/lib/api";
+import { cartStore } from "@/lib/cart-store";
 import { cn } from "@/lib/cn";
 import {
   availableQtyFor,
@@ -49,6 +50,7 @@ export function ProductDetail({
   initialVariantId?: string;
 }) {
   const t = useTranslations("product");
+  const tc = useTranslations("cart");
   const locale = useLocale() as Locale;
   const router = useRouter();
   const pathname = usePathname();
@@ -84,6 +86,11 @@ export function ProductDetail({
   const price = priceForVariant(product, selectedVariant);
   const compareAt = compareAtForVariant(product, selectedVariant);
   const name = (locale === "ar" ? product.name_ar : product.name_en) ?? "";
+
+  // «أسود» / «40 · أحمر» — what the cart row shows under the product name.
+  const variantLabel = selectedVariant
+    ? (Object.values(selectionForVariant(selectedVariant)).join(" · ") || null)
+    : null;
 
   // Clamp during render rather than in an effect: storing an out-of-range
   // quantity and correcting it afterwards costs an extra render and briefly
@@ -132,8 +139,23 @@ export function ProductDetail({
   const noSuchVariant = variants.length > 0 && !selectedVariant;
 
   const addToCart = () => {
-    // Phase 5 replaces this with real cart state; the toast is the seam.
-    showToast(t("addedToast"));
+    // The product page is the one place that knows the chosen variant and its
+    // real availability, so it stores both — the cart caps quantity on them.
+    cartStore.addItem(
+      {
+        product_id: product.id ?? "",
+        variant_id: selectedVariant?.id ?? null,
+        name_ar: product.name_ar ?? "",
+        name_en: product.name_en ?? "",
+        image_url: images[0] ?? null,
+        variant_label: variantLabel,
+        unit_price: price,
+        compare_at_price: compareAt,
+        available_qty: maxQty,
+      },
+      quantity,
+    );
+    showToast(tc("added"));
   };
 
   return (

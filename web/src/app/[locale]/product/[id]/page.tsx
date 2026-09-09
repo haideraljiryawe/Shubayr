@@ -15,7 +15,6 @@ import {
 } from "@/components/product/skeletons";
 import { ProductCard } from "@/components/ui/product-card";
 import { SectionHeader } from "@/components/ui/section-header";
-import { ToastProvider } from "@/components/ui/toast";
 import { api, ApiError, type Product } from "@/lib/api";
 import type { Locale } from "@/i18n/routing";
 
@@ -117,7 +116,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   ].filter((row): row is SpecRow => row !== null);
 
   return (
-    <ToastProvider>
+    <>
       {/* pb-32 clears the sticky mobile CTA bar. */}
       <div className="mx-auto max-w-7xl px-4 pb-32 pt-4 lg:px-8 lg:pb-16 lg:pt-6">
         <Breadcrumbs
@@ -154,7 +153,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
           />
         </Suspense>
       </div>
-    </ToastProvider>
+    </>
   );
 }
 
@@ -208,6 +207,9 @@ async function RelatedSection({
             <ProductCard
               id={item.id ?? ""}
               name={(locale === "ar" ? item.name_ar : item.name_en) ?? ""}
+              nameAr={item.name_ar ?? ""}
+              nameEn={item.name_en ?? ""}
+              availableQty={item.available_qty}
               price={item.sale_price ?? 0}
               compareAtPrice={item.compare_at_price}
               rating={item.rating_avg}
