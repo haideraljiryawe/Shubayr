@@ -319,5 +319,16 @@
   "adminPermissionLoyaltyManage": "إدارة نقاط الولاء",
   "adminPermissionUsersManage": "إدارة المستخدمين والأدوار",
   "adminPermissionReportsView": "عرض التقارير",
-  "adminPermissionSettingsManage": "إدارة إعدادات المتجر"
+  "adminPermissionSettingsManage": "إدارة إعدادات المتجر",
+  "adminOrderConfirm": "تأكيد الطلب",
+  "adminOrderUpdate": "تحديث الحالة",
+  "adminOrderCurrentStatus": "الحالة الحالية",
+  "adminOrderNewStatus": "الحالة الجديدة",
+  "adminOrderConfirmMessage": "هل تريد تأكيد قبول هذا الطلب؟",
+  "adminOrderUpdated": "تم تحديث حالة الطلب",
+  "adminOrderSearch": "ابحث برقم الطلب أو الزبون",
+  "adminOrderClearSearch": "مسح البحث",
+  "adminOrderDateRange": "الفترة الزمنية",
+  "adminOrderClearDates": "مسح فلتر التاريخ",
+  "adminOrderEmptyHint": "جرّب حالة أو بحثًا أو فترة زمنية أخرى."
 }

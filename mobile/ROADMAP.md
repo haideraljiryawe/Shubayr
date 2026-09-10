@@ -2,13 +2,14 @@
 
 ## Current status
 
-- Last reviewed: 2026-09-08, against the `mobile` implementation at `fe9f6ec` plus the delivery-agent and admin-foundation increments and OpenAPI contract 1.1.0.
+- Last reviewed: 2026-09-09, against the `mobile` implementation at `c2591d6` plus the admin-order increment and OpenAPI contract 1.1.0.
 - Current phase: **3 — Store Admin / Staff foundation with mock data**, selected by Ahmed; remaining phase-1 work is not implied complete.
 - Completed objective: order-history pagination and repository-level status filtering with mock data; technical verification passed and Ahmed confirmed final manual acceptance on 2026-09-07, including the checkout and UI corrections made during review.
 - Completed objective: wishlist pagination with mock data, including the stock-badge direction correction during review; technical verification passed and Ahmed confirmed final manual acceptance on 2026-09-08.
 - Completed objective: address pagination with mock data; technical verification passed and Ahmed confirmed final manual acceptance on 2026-09-08.
-- Latest completed objective: assigned-delivery list and status updates with mock data; technical checks and Ahmed’s final manual verification passed on 2026-09-08.
-- Current objective: catalog, users and roles, supplier read/create, and warehouse/location selection with mock data; implementation is ready for final manual verification. See the [admin foundation progress record](docs/admin-foundation-mock-progress.md).
+- Completed objective: assigned-delivery list and status updates with mock data; technical checks and Ahmed’s final manual verification passed on 2026-09-08.
+- Admin foundation: catalog, users and roles, supplier read/create, and warehouse/location selection are implemented with mock data; manual acceptance and Ahmed’s deferred design observations remain pending. See the [admin foundation progress record](docs/admin-foundation-mock-progress.md).
+- Latest completed objective: admin order list, confirmation and status updates with mock data; status Chips, search, dates, pagination and permission guards passed technical verification and Ahmed’s final manual acceptance on 2026-09-09. See the [admin orders progress record](docs/admin-orders-mock-progress.md).
 - Delivery follow-up: status Chips with server-side filtering and pagination, pending the contract extension in B11. Loyalty balance/ledger and automatic customer tracking updates remain outside this increment; B1–B5 and B10 remain deferred.
 - Main blockers: order-to-delivery linkage, after-sales data retrieval, delivery-agent and cash-collection data, inventory links, and delivery status filtering; details in B1–B11.
 
@@ -44,12 +45,12 @@ Role-directed sign-in now opens the assigned-delivery list. The existing `delive
 
 ## 3 — Store Admin / Staff: foundation implemented with mock data, manual verification pending
 
-The permission-aware grid opens catalog and user/role management, suppliers, and warehouse/location selection. Other operational sections remain placeholders. This phase includes Flutter Web inside `mobile/`, not the `web/` project.
+The permission-aware grid opens catalog and user/role management, suppliers, warehouse/location selection, and admin orders. Other operational sections remain placeholders. This phase includes Flutter Web inside `mobile/`, not the `web/` project.
 
 - [~] Catalog, user and role management; supplier read/create and warehouse/location selection: mock/remote repositories, contract-supported pagination/search/filtering, forms, permission guards, refresh/retry and stale-response protection are implemented. Technical verification is recorded below; Ahmed’s final manual verification is pending. See the [admin foundation progress record](docs/admin-foundation-mock-progress.md).
 - [!] Remote admin catalog visibility: confirm that authenticated `/products` and `/categories` reads include hidden/archived products and inactive categories, or provide explicit admin reads. The current contract does not guarantee this; mock management retains these records. Supplier update/delete and warehouse/location writes are not defined and are outside the implemented foundation. Existing mock login fixtures are unchanged; created accounts/custom roles need separate authentication integration.
 - [ ] Create a purchase invoice and receive it into locations, then display batches and movements, and perform adjustments and transfers. Contracts exist; invoice and balance retrieval depends on B6.
-- [ ] Admin order list, confirmation and status updates, preparing for batch- and location-guided picking.
+- [x] Admin order list, confirmation and status updates with mock data: All plus nine status Chips, repository-level search/status/date filtering before pagination, confirmation dialogs, `orders.view` / `orders.update` guards, refresh/retry and stale-response protection are implemented. Changes restart page one to avoid skipping rows after a status change. Technical checks and Ahmed’s final manual verification passed on 2026-09-09. Batch/location-guided picking remains deferred under B6. See the [admin orders progress record](docs/admin-orders-mock-progress.md).
 - [!] Complete purchase-invoice resumption, per-location batch balances, and access to pick lists B6.
 - [!] Returns processing: access and approval, then inspection and restocking/quarantine B2; an inspection contract does not complete the journey.
 - [ ] Sales and top-products reports; both are supported in `SalesReport`.
@@ -101,3 +102,5 @@ These conditions apply to feature completion; do not defer the rest of the phase
 - Update when a feature/phase is completed or a significant dependency changes: status, next objective, and completion evidence or blocking condition. Execution rules belong in [AGENTS.md](AGENTS.md), not this roadmap.
 
 - Admin-foundation increment, 2026-09-08: formatting and localization generation completed; `flutter analyze` reports no issues, all 31 focused admin tests and all 286 Flutter tests passed, and `flutter build web --dart-define=DATA_SOURCE=mock` succeeded. Coverage includes catalog/user/role CRUD, contract payloads, filtered pagination, permission/session changes, failed-save retry, confirmed deletion, second-page location selection, and Arabic/English layouts at 320/402/1280 pixels in light/dark modes. Final manual verification remains pending; no live backend was contacted.
+
+- Admin-order increment, 2026-09-09: formatting and localization generation completed; `flutter analyze` reports no issues, all 33 focused admin-order tests and all 319 Flutter tests passed, and `flutter build web --dart-define=DATA_SOURCE=mock` succeeded. Coverage includes combined repository filtering, pagination, confirmation/cancellation, read-only access, failed writes and reloads, stale filters/sessions, queued read/write consistency, and 320-pixel Arabic/English light/dark layouts with 2× text. Ahmed confirmed final manual acceptance on 2026-09-09; B6 picking and live backend integration remain outside this increment.

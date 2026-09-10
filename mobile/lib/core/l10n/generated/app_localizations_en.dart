@@ -961,4 +961,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminPermissionSettingsManage => 'Manage store settings';
+
+  @override
+  String get adminOrderConfirm => 'Confirm order';
+
+  @override
+  String get adminOrderUpdate => 'Update status';
+
+  @override
+  String get adminOrderCurrentStatus => 'Current status';
+
+  @override
+  String get adminOrderNewStatus => 'New status';
+
+  @override
+  String get adminOrderConfirmMessage => 'Confirm acceptance of this order?';
+
+  @override
+  String get adminOrderUpdated => 'Order status updated';
+
+  @override
+  String get adminOrderSearch => 'Search by order number or customer';
+
+  @override
+  String get adminOrderClearSearch => 'Clear search';
+
+  @override
+  String get adminOrderDateRange => 'Date range';
+
+  @override
+  String get adminOrderClearDates => 'Clear date filter';
+
+  @override
+  String get adminOrderEmptyHint => 'Try another status, search or date range.';
 }

@@ -1921,6 +1921,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manage store settings'**
   String get adminPermissionSettingsManage;
+
+  /// No description provided for @adminOrderConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm order'**
+  String get adminOrderConfirm;
+
+  /// No description provided for @adminOrderUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update status'**
+  String get adminOrderUpdate;
+
+  /// No description provided for @adminOrderCurrentStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Current status'**
+  String get adminOrderCurrentStatus;
+
+  /// No description provided for @adminOrderNewStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'New status'**
+  String get adminOrderNewStatus;
+
+  /// No description provided for @adminOrderConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm acceptance of this order?'**
+  String get adminOrderConfirmMessage;
+
+  /// No description provided for @adminOrderUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Order status updated'**
+  String get adminOrderUpdated;
+
+  /// No description provided for @adminOrderSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by order number or customer'**
+  String get adminOrderSearch;
+
+  /// No description provided for @adminOrderClearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get adminOrderClearSearch;
+
+  /// No description provided for @adminOrderDateRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Date range'**
+  String get adminOrderDateRange;
+
+  /// No description provided for @adminOrderClearDates.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear date filter'**
+  String get adminOrderClearDates;
+
+  /// No description provided for @adminOrderEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Try another status, search or date range.'**
+  String get adminOrderEmptyHint;
 }
 
 class _AppLocalizationsDelegate

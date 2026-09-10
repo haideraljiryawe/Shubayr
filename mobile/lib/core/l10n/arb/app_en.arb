@@ -330,5 +330,16 @@
   "adminPermissionLoyaltyManage": "Manage loyalty points",
   "adminPermissionUsersManage": "Manage users and roles",
   "adminPermissionReportsView": "View reports",
-  "adminPermissionSettingsManage": "Manage store settings"
+  "adminPermissionSettingsManage": "Manage store settings",
+  "adminOrderConfirm": "Confirm order",
+  "adminOrderUpdate": "Update status",
+  "adminOrderCurrentStatus": "Current status",
+  "adminOrderNewStatus": "New status",
+  "adminOrderConfirmMessage": "Confirm acceptance of this order?",
+  "adminOrderUpdated": "Order status updated",
+  "adminOrderSearch": "Search by order number or customer",
+  "adminOrderClearSearch": "Clear search",
+  "adminOrderDateRange": "Date range",
+  "adminOrderClearDates": "Clear date filter",
+  "adminOrderEmptyHint": "Try another status, search or date range."
 }

@@ -113,6 +113,7 @@ class AdminHomeScreen extends ConsumerWidget {
                     label: s.label(context),
                     onTap: () {
                       final route = switch (s.permission) {
+                        Permissions.ordersView => AppRoutes.adminOrders,
                         Permissions.catalogManage => AppRoutes.adminCatalog,
                         Permissions.usersManage => AppRoutes.adminUsers,
                         Permissions.purchasingView => '/admin/manage/suppliers',

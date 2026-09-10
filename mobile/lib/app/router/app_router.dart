@@ -9,6 +9,7 @@ import '../../features/address/data/address.dart';
 import '../../features/address/presentation/screens/address_form_screen.dart';
 import '../../features/address/presentation/screens/addresses_screen.dart';
 import '../../features/admin/presentation/screens/admin_home_screen.dart';
+import '../../features/admin/presentation/screens/admin_orders_screen.dart';
 import '../../features/admin/presentation/screens/admin_hub_screen.dart';
 import '../../features/admin/presentation/screens/admin_list_screen.dart';
 import '../../features/admin/domain/admin_repository.dart';
@@ -318,6 +319,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminHomeScreen(),
       ),
 
+      GoRoute(
+        path: AppRoutes.adminOrders,
+        builder: (_, _) => const AdminOrdersScreen(),
+      ),
       GoRoute(
         path: AppRoutes.adminCatalog,
         builder: (_, _) => const AdminHubScreen(catalog: true),

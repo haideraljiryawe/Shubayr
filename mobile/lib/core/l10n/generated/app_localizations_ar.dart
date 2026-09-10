@@ -950,4 +950,37 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminPermissionSettingsManage => 'إدارة إعدادات المتجر';
+
+  @override
+  String get adminOrderConfirm => 'تأكيد الطلب';
+
+  @override
+  String get adminOrderUpdate => 'تحديث الحالة';
+
+  @override
+  String get adminOrderCurrentStatus => 'الحالة الحالية';
+
+  @override
+  String get adminOrderNewStatus => 'الحالة الجديدة';
+
+  @override
+  String get adminOrderConfirmMessage => 'هل تريد تأكيد قبول هذا الطلب؟';
+
+  @override
+  String get adminOrderUpdated => 'تم تحديث حالة الطلب';
+
+  @override
+  String get adminOrderSearch => 'ابحث برقم الطلب أو الزبون';
+
+  @override
+  String get adminOrderClearSearch => 'مسح البحث';
+
+  @override
+  String get adminOrderDateRange => 'الفترة الزمنية';
+
+  @override
+  String get adminOrderClearDates => 'مسح فلتر التاريخ';
+
+  @override
+  String get adminOrderEmptyHint => 'جرّب حالة أو بحثًا أو فترة زمنية أخرى.';
 }
