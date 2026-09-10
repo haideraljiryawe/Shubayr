@@ -17,6 +17,7 @@ import '../../data/order.dart';
 import '../../data/return_request.dart';
 import '../providers/after_sales_providers.dart';
 import '../providers/order_providers.dart';
+import '../widgets/order_item_display.dart';
 
 class ReviewOrderScreen extends ConsumerStatefulWidget {
   const ReviewOrderScreen({super.key, required this.orderId});
@@ -411,8 +412,14 @@ class _AfterSalesOrderView extends ConsumerWidget {
             message: context.l10n.afterSalesDeliveredOnly,
           );
         }
+        final products = ref.watch(orderProductsProvider(orderId));
+        if (order.items.every((item) => item.snapshotName('en') != null)) {
+          // Saved names are immediately usable even if variant enrichment is
+          // slow or the current catalog has removed the product.
+          return builder(order, products.valueOrNull ?? const {});
+        }
         return AsyncValueView(
-          value: ref.watch(orderProductsProvider(orderId)),
+          value: products,
           loading: loading,
           onRetry: () {
             for (final item in order.items) {
@@ -432,15 +439,13 @@ String _itemLabel(
   OrderItem item,
   Map<String, Product> products,
 ) {
-  final product = products[item.productId]!;
-  final variant = product.variants
-      .where((v) => v.id == item.variantId)
-      .firstOrNull;
-  final name = product.localizedName(
+  final product = products[item.productId];
+  final name = item.displayName(
     Localizations.localeOf(context).languageCode,
+    product,
   );
-  final attributes = variant?.attributes.values.join(' · ') ?? '';
-  return attributes.isEmpty ? name : '$name — $attributes';
+  final variant = item.variantLabel(product);
+  return variant == null ? name : '$name — $variant';
 }
 
 class _SuccessMessage extends StatelessWidget {

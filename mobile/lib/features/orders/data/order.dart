@@ -49,26 +49,69 @@ class OrderItem {
     required this.id,
     required this.productId,
     this.variantId,
+    this.productNameAr,
+    this.productNameEn,
+    this.imageUrl,
+    bool? imageSnapshotProvided,
     this.quantity = 1,
     this.unitPrice = 0,
     this.lineTotal = 0,
-  });
+  }) : imageSnapshotProvided = imageSnapshotProvided ?? (imageUrl != null);
 
   final String id;
   @JsonKey(name: 'product_id')
   final String productId;
   @JsonKey(name: 'variant_id')
   final String? variantId;
+  @JsonKey(name: 'product_name_ar', includeIfNull: false)
+  final String? productNameAr;
+  @JsonKey(name: 'product_name_en', includeIfNull: false)
+  final String? productNameEn;
+  @JsonKey(name: 'image_url')
+  final String? imageUrl;
+
+  /// Missing (legacy) and explicit null (no image at purchase) differ.
+  /// Local decoding metadata only; never an API field.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool imageSnapshotProvided;
+
+  String? snapshotName(String language) {
+    final names = language == 'ar'
+        ? [productNameAr, productNameEn]
+        : [productNameEn, productNameAr];
+    for (final name in names) {
+      if (name != null && name.trim().isNotEmpty) return name.trim();
+    }
+    return null;
+  }
+
   final int quantity;
   @JsonKey(name: 'unit_price')
   final num unitPrice;
   @JsonKey(name: 'line_total')
   final num lineTotal;
 
-  factory OrderItem.fromJson(Map<String, dynamic> json) =>
-      _$OrderItemFromJson(json);
+  factory OrderItem.fromJson(Map<String, dynamic> json) {
+    final item = _$OrderItemFromJson(json);
+    return OrderItem(
+      id: item.id,
+      productId: item.productId,
+      variantId: item.variantId,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      lineTotal: item.lineTotal,
+      productNameAr: item.productNameAr,
+      productNameEn: item.productNameEn,
+      imageUrl: item.imageUrl,
+      imageSnapshotProvided: json.containsKey('image_url'),
+    );
+  }
 
-  Map<String, dynamic> toJson() => _$OrderItemToJson(this);
+  Map<String, dynamic> toJson() {
+    final json = _$OrderItemToJson(this);
+    if (!imageSnapshotProvided) json.remove('image_url');
+    return json;
+  }
 }
 
 /// One page of orders. Matches `OrderPage` in `api/openapi.yaml`.

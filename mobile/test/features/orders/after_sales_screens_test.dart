@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +9,7 @@ import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
 import 'package:shubayr/features/catalog/data/review.dart';
+import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:shubayr/features/orders/data/order.dart';
 import 'package:shubayr/features/orders/data/return_request.dart';
 import 'package:shubayr/features/orders/domain/after_sales_repository.dart';
@@ -69,6 +72,8 @@ Widget _host(
   String status = 'delivered',
   String locale = 'en',
   bool dark = false,
+  List<OrderItem>? items,
+  Future<Product> Function(String)? catalogLookup,
 }) => ProviderScope(
   overrides: [
     afterSalesRepositoryProvider.overrideWithValue(repository),
@@ -77,23 +82,34 @@ Widget _host(
         id: 'o1',
         orderNumber: 'SH-42',
         status: status,
-        items: const [
-          OrderItem(id: 'i1', productId: 'p1', quantity: 3),
-          OrderItem(id: 'i2', productId: 'p2', quantity: 1),
-        ],
+        items:
+            items ??
+            const [
+              OrderItem(id: 'i1', productId: 'p1', quantity: 3),
+              OrderItem(id: 'i2', productId: 'p2', quantity: 1),
+            ],
       ),
     ),
-    orderProductsProvider('o1').overrideWith(
-      (ref) async => const {
-        'p1': Product(
-          id: 'p1',
-          categoryId: 'c',
-          nameEn: 'Coffee',
-          nameAr: 'قهوة عربية',
-        ),
-        'p2': Product(id: 'p2', categoryId: 'c', nameEn: 'Cup', nameAr: 'كوب'),
-      },
-    ),
+    if (catalogLookup != null)
+      for (final id in ['p1', 'p2'])
+        productProvider(id).overrideWith((ref) => catalogLookup(id)),
+    if (catalogLookup == null)
+      orderProductsProvider('o1').overrideWith(
+        (ref) async => const {
+          'p1': Product(
+            id: 'p1',
+            categoryId: 'c',
+            nameEn: 'Coffee',
+            nameAr: 'قهوة عربية',
+          ),
+          'p2': Product(
+            id: 'p2',
+            categoryId: 'c',
+            nameEn: 'Cup',
+            nameAr: 'كوب',
+          ),
+        },
+      ),
   ],
   child: MaterialApp(
     locale: Locale(locale),
@@ -107,6 +123,148 @@ Widget _host(
 );
 
 void main() {
+  testWidgets(
+    'saved labels allow return input while variant lookup is pending',
+    (tester) async {
+      final catalog = Completer<Product>();
+      final repository = _Repository();
+      await tester.pumpWidget(
+        _host(
+          const ReturnOrderScreen(orderId: 'o1'),
+          repository,
+          items: const [
+            OrderItem(
+              id: 'i1',
+              productId: 'p1',
+              variantId: 'v1',
+              productNameEn: 'Purchase name',
+              quantity: 3,
+            ),
+          ],
+          catalogLookup: (_) => catalog.future,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Purchase name — v1'), findsOneWidget);
+      await tester.tap(find.byTooltip('Increase return quantity'));
+      await tester.pump();
+      catalog.complete(
+        const Product(
+          id: 'p1',
+          categoryId: 'c',
+          nameEn: 'Renamed',
+          nameAr: '',
+          variants: [
+            ProductVariant(id: 'v1', attributes: {'size': 'XL'}),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Purchase name — XL'), findsOneWidget);
+      await tester.ensureVisible(find.text('Submit return request'));
+      await tester.tap(find.text('Submit return request'));
+      await tester.pumpAndSettle();
+      expect(repository.lines.single.quantity, 1);
+      expect(repository.lines.single.orderItemId, 'i1');
+      expect(find.text('Return request submitted.'), findsOneWidget);
+    },
+  );
+
+  for (final saved in [false, true]) {
+    testWidgets(
+      'review submits purchased item even with deleted catalog; saved=$saved',
+      (tester) async {
+        final repository = _Repository();
+        await tester.pumpWidget(
+          _host(
+            const ReviewOrderScreen(orderId: 'o1'),
+            repository,
+            items: [
+              OrderItem(
+                id: 'i1',
+                productId: 'p1',
+                productNameEn: saved ? 'Purchase name' : null,
+              ),
+            ],
+            catalogLookup: (_) async => throw StateError('Deleted'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(DropdownButtonFormField<String>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(saved ? 'Purchase name' : 'p1').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('4 out of 5 stars'));
+        await tester.pump();
+        await tester.tap(find.text('Submit review'));
+        await tester.pumpAndSettle();
+        expect(repository.reviewedItem, 'i1');
+        expect(
+          find.text('Review submitted. Publication is subject to review.'),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'return and receipt keep item labels with deleted catalog; saved=$saved',
+      (tester) async {
+        final repository = _Repository();
+        await tester.pumpWidget(
+          _host(
+            const ReturnOrderScreen(orderId: 'o1'),
+            repository,
+            items: [
+              OrderItem(
+                id: 'i1',
+                productId: 'p1',
+                quantity: 3,
+                productNameEn: saved ? 'Purchase name' : null,
+              ),
+            ],
+            catalogLookup: (_) async => throw StateError('Deleted'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(saved ? 'Purchase name' : 'p1'), findsOneWidget);
+        await tester.tap(find.byTooltip('Increase return quantity'));
+        await tester.pump();
+        await tester.ensureVisible(find.text('Submit return request'));
+        await tester.tap(find.text('Submit return request'));
+        await tester.pumpAndSettle();
+        expect(repository.lines.single.orderItemId, 'i1');
+        expect(repository.lines.single.quantity, 1);
+        expect(find.text(saved ? 'Purchase name' : 'p1'), findsOneWidget);
+        expect(find.text('Return request submitted.'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('mixed legacy and snapshot labels use their own source', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const ReturnOrderScreen(orderId: 'o1'),
+        _Repository(),
+        items: const [
+          OrderItem(
+            id: 'i1',
+            productId: 'p1',
+            productNameEn: 'Purchase coffee',
+          ),
+          OrderItem(id: 'i2', productId: 'p2'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Purchase coffee'), findsOneWidget);
+    expect(find.text('Cup'), findsOneWidget);
+    expect(find.text('Coffee'), findsNothing);
+  });
+
   testWidgets(
     'review requires item and stars; submits once and excludes the item',
     (tester) async {

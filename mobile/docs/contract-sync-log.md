@@ -91,6 +91,22 @@ Ahmed confirmed the profile flow works and requested closing B3a plus a Git
 commit/push to `mobile`. B3a is now `[x]`; live integration, B3b and the separate
 responsive/admin-foundation acceptance states are unchanged.
 
+## Implementation follow-up — R1, 2026-09-10
+
+R1 moved from ready to implemented/manual-acceptance-pending. Order-item snapshot
+fields, mock purchase-time capture, historical order/review/return display and
+legacy/deleted-catalog compatibility are implemented. Analysis, all 75 focused
+order tests, all 407 Flutter tests and the mock Web build passed. See
+[order-item snapshots progress](order-item-snapshots-progress.md).
+This is a client increment against the already imported contract, not a new
+upstream synchronization. R2–R4 and B1/B2/B5 retain their existing scope/status.
+
+## Manual acceptance — R1, 2026-09-10
+
+Ahmed confirmed R1 is complete and requested a commit/push to `mobile`. R1 is
+now `[x]`; live integration, R2–R4 and B1/B2/B5 retain their existing states.
+The separate responsive and admin-foundation acceptance states are unchanged.
+
 ## Format for the next synchronization record
 
 Append a dated `SYNC-YYYY-MM-DD` record (add a suffix for a second review that day),

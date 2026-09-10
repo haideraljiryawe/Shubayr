@@ -1,5 +1,6 @@
 import '../../../core/error/failure.dart';
 import '../../orders/data/order.dart';
+import '../../catalog/data/catalog_repository_mock.dart';
 import '../domain/admin_order_repository.dart';
 
 /// Store-wide fixtures are separate from the customer's session-owned checkout
@@ -10,6 +11,7 @@ class AdminOrderRepositoryMock implements AdminOrderRepository {
     DateTime? now,
   }) {
     final today = now ?? DateTime.now();
+    final product = CatalogRepositoryMock.productSnapshot('p1');
     for (var i = 1; i <= 81; i++) {
       final id = 'admin-order-$i';
       _customers[id] = i.isOdd ? 'أحمد Ahmed' : 'علي Ali';
@@ -30,6 +32,10 @@ class AdminOrderRepositoryMock implements AdminOrderRepository {
             OrderItem(
               id: 'admin-item-$i',
               productId: 'p1',
+              productNameAr: product?.nameAr,
+              productNameEn: product?.nameEn,
+              imageUrl: product?.primaryImage,
+              imageSnapshotProvided: true,
               quantity: 1,
               unitPrice: 45000,
               lineTotal: 45000,

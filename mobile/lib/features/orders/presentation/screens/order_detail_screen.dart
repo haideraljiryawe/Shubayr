@@ -17,7 +17,7 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/skeleton.dart';
-import '../../../catalog/data/product.dart';
+import '../widgets/order_item_display.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/order.dart';
@@ -364,26 +364,15 @@ class _OrderItemTile extends ConsumerWidget {
   final OrderItem item;
   final String Function(num) money;
 
-  String? _variantLabel(Product? product) {
-    final variantId = item.variantId;
-    if (product == null || variantId == null) return null;
-    for (final v in product.variants) {
-      if (v.id == variantId) {
-        return v.attributes.values.isNotEmpty
-            ? v.attributes.values.join(' · ')
-            : v.sku;
-      }
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
-    final product = ref.watch(productProvider(item.productId)).valueOrNull;
-    final variantLabel = _variantLabel(product);
+    final product = item.needsCatalogDetails
+        ? ref.watch(productProvider(item.productId)).valueOrNull
+        : null;
+    final variantLabel = item.variantLabel(product);
 
     return InkWell(
       onTap: () => context.pushNamed(
@@ -394,14 +383,14 @@ class _OrderItemTile extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Thumb(url: product?.primaryImage),
+          _Thumb(url: item.displayImage(product)),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  product?.localizedName(lang) ?? '',
+                  item.displayName(lang, product),
                   style: context.text.titleSmall,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

@@ -24,6 +24,10 @@ class CatalogRepositoryMock implements CatalogRepository {
 
   /// Unit price for a product/variant — the mock cart prices its lines with
   /// this, mirroring the server computing `unit_price` when an item is added.
+  /// Synchronous access to the current mock record when capturing a purchase.
+  static Product? productSnapshot(String id) =>
+      _products.where((product) => product.id == id).firstOrNull;
+
   static num unitPrice(String productId, String? variantId) {
     final p = _products.firstWhere((p) => p.id == productId);
     if (variantId == null) return p.salePrice;
