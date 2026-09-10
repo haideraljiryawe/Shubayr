@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,49 +37,67 @@ class AccountView extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.screenH),
       children: [
-        isSignedIn ? _ProfileCard(session: session!) : const _SignInCard(),
-        const SizedBox(height: AppSpacing.lg),
-        if (isSignedIn) ...[
-          AppCard(
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              leading: const Icon(Icons.favorite_border),
-              title: Text(l10n.wishlistTitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.pushNamed(AppRoutes.wishlistName),
+        ResponsiveSections(
+          stackedSpacing: 0,
+          maxWidth: AppLayout.formWidth,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                isSignedIn
+                    ? _ProfileCard(session: session!)
+                    : const _SignInCard(),
+                const SizedBox(height: AppSpacing.lg),
+                if (isSignedIn) ...[
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      leading: const Icon(Icons.favorite_border),
+                      title: Text(l10n.wishlistTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.pushNamed(AppRoutes.wishlistName),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      leading: const Icon(Icons.location_on_outlined),
+                      title: Text(l10n.addressesTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.pushNamed(AppRoutes.addressesName),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+              ],
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppCard(
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              leading: const Icon(Icons.location_on_outlined),
-              title: Text(l10n.addressesTitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.pushNamed(AppRoutes.addressesName),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SectionLabel(l10n.accountPreferences),
+                const _PreferencesCard(),
+                const SizedBox(height: AppSpacing.lg),
+                _SectionLabel(l10n.accountSupport),
+                const _SupportCard(),
+                if (kDebugMode) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      leading: const Icon(Icons.palette_outlined),
+                      // Developer-only tool; labels are intentionally not localised.
+                      title: const Text('Design system'),
+                      subtitle: const Text('Tokens · components · light/dark'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push(AppRoutes.design),
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-        ],
-        _SectionLabel(l10n.accountPreferences),
-        const _PreferencesCard(),
-        const SizedBox(height: AppSpacing.lg),
-        _SectionLabel(l10n.accountSupport),
-        const _SupportCard(),
-        if (kDebugMode) ...[
-          const SizedBox(height: AppSpacing.lg),
-          AppCard(
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              leading: const Icon(Icons.palette_outlined),
-              // Developer-only tool; labels are intentionally not localised.
-              title: const Text('Design system'),
-              subtitle: const Text('Tokens · components · light/dark'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push(AppRoutes.design),
-            ),
-          ),
-        ],
+          ],
+        ),
       ],
     );
   }

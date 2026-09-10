@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -132,28 +133,32 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
           : null,
       body: Column(
         children: [
-          if (r.canSearch)
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.screenH),
-              child: TextField(
-                controller: _search,
-                decoration: InputDecoration(
-                  hintText: l.searchHint,
-                  prefixIcon: const Icon(Icons.search),
+          ResponsiveFields(
+            children: [
+              if (r.canSearch)
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.screenH),
+                  child: TextField(
+                    controller: _search,
+                    decoration: InputDecoration(
+                      hintText: l.searchHint,
+                      prefixIcon: const Icon(Icons.search),
+                    ),
+                    onChanged: (text) {
+                      _debounce?.cancel();
+                      _debounce = Timer(const Duration(milliseconds: 300), () {
+                        if (mounted) setState(() => _query = text.trim());
+                      });
+                    },
+                  ),
                 ),
-                onChanged: (text) {
-                  _debounce?.cancel();
-                  _debounce = Timer(const Duration(milliseconds: 300), () {
-                    if (mounted) setState(() => _query = text.trim());
-                  });
-                },
-              ),
-            ),
-          if (r == AdminResource.users)
-            _RoleFilter(
-              value: _role,
-              onChanged: (role) => setState(() => _role = role),
-            ),
+              if (r == AdminResource.users)
+                _RoleFilter(
+                  value: _role,
+                  onChanged: (role) => setState(() => _role = role),
+                ),
+            ],
+          ),
           if (r == AdminResource.warehouses || r == AdminResource.locations)
             const _SelectionSummary(),
           Expanded(
@@ -161,7 +166,7 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
               value: value,
               loading: const Padding(
                 padding: EdgeInsets.all(AppSpacing.screenH),
-                child: SkeletonCardList(),
+                child: SkeletonCardList(minItemWidth: AppLayout.cardMinWidth),
               ),
               onRetry: controller.refresh,
               builder: (context, list) => RefreshIndicator(
@@ -189,7 +194,7 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
                               ),
                             ],
                           )
-                        : ListView.separated(
+                        : ResponsiveCardList(
                             key: ValueKey(query),
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: EdgeInsets.fromLTRB(
@@ -198,22 +203,16 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
                               AppSpacing.screenH,
                               AppSpacing.xxxl * 2,
                             ),
-                            itemCount:
-                                list.items.length +
-                                (list.loadingMore || list.appendError != null
-                                    ? 1
-                                    : 0),
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: AppSpacing.md),
+                            itemCount: list.items.length,
+                            footer: list.appendError != null
+                                ? AppErrorView(
+                                    error: list.appendError,
+                                    onRetry: controller.loadMore,
+                                  )
+                                : list.loadingMore
+                                ? const SkeletonCardList(itemCount: 1)
+                                : null,
                             itemBuilder: (context, index) {
-                              if (index == list.items.length) {
-                                return list.appendError != null
-                                    ? AppErrorView(
-                                        error: list.appendError,
-                                        onRetry: controller.loadMore,
-                                      )
-                                    : const SkeletonCardList(itemCount: 1);
-                              }
                               final record = list.items[index];
                               final lang = Localizations.localeOf(
                                 context,

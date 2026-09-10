@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -56,35 +57,40 @@ class _DetailSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: EdgeInsets.zero,
     children: const [
-      Skeleton(
-        width: double.infinity,
-        height: 320,
-        borderRadius: BorderRadius.zero,
-      ),
-      Padding(
-        padding: EdgeInsets.all(AppSpacing.screenH),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Skeleton.line(width: 220, height: 24),
-            SizedBox(height: AppSpacing.md),
-            Skeleton.line(width: 120, height: 20),
-            SizedBox(height: AppSpacing.lg),
-            Skeleton(
-              width: double.infinity,
-              height: 52,
-              borderRadius: AppRadii.lgAll,
+      ResponsiveSections(
+        stackedSpacing: 0,
+        children: [
+          Skeleton(
+            width: double.infinity,
+            height: 320,
+            borderRadius: BorderRadius.zero,
+          ),
+          Padding(
+            padding: EdgeInsets.all(AppSpacing.screenH),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Skeleton.line(width: 220, height: 24),
+                SizedBox(height: AppSpacing.md),
+                Skeleton.line(width: 120, height: 20),
+                SizedBox(height: AppSpacing.lg),
+                Skeleton(
+                  width: double.infinity,
+                  height: 52,
+                  borderRadius: AppRadii.lgAll,
+                ),
+                SizedBox(height: AppSpacing.lg),
+                Skeleton.line(width: 140, height: 16),
+                SizedBox(height: AppSpacing.sm),
+                Skeleton(
+                  width: double.infinity,
+                  height: 72,
+                  borderRadius: AppRadii.lgAll,
+                ),
+              ],
             ),
-            SizedBox(height: AppSpacing.lg),
-            Skeleton.line(width: 140, height: 16),
-            SizedBox(height: AppSpacing.sm),
-            Skeleton(
-              width: double.infinity,
-              height: 72,
-              borderRadius: AppRadii.lgAll,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     ],
   );
@@ -159,107 +165,118 @@ class _DetailState extends ConsumerState<_Detail> {
           child: ListView(
             padding: const EdgeInsets.only(bottom: AppSpacing.xl),
             children: [
-              ProductGallery(images: product.images),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.screenH),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.localizedName(lang),
-                      style: context.text.headlineSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
+              ResponsiveSections(
+                stackedSpacing: 0,
+                children: [
+                  ProductGallery(images: product.images),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.screenH),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (product.ratingAvg > 0) ...[
-                          Icon(
-                            Icons.star_rounded,
-                            size: 20,
-                            color: colors.accent,
+                        Text(
+                          product.localizedName(lang),
+                          style: context.text.headlineSmall,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            if (product.ratingAvg > 0) ...[
+                              Icon(
+                                Icons.star_rounded,
+                                size: 20,
+                                color: colors.accent,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                product.ratingAvg.toStringAsFixed(1),
+                                style: context.text.labelLarge?.copyWith(
+                                  color: colors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                            ],
+                            if (product.isNegotiable) _NegotiableBadge(),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          price,
+                          style: context.text.headlineMedium?.copyWith(
+                            color: colors.primaryDark,
                           ),
-                          const SizedBox(width: 2),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _AvailabilityBadge(
+                          inStock: stock.inStock,
+                          qty: stock.qty,
+                        ),
+                        if (product.variants.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.lg),
                           Text(
-                            product.ratingAvg.toStringAsFixed(1),
-                            style: context.text.labelLarge?.copyWith(
+                            l10n.productVariants,
+                            style: context.text.titleSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _VariantSelector(
+                            variants: product.variants,
+                            selectedId: _selectedVariantId,
+                            availability: availability,
+                            onSelected: (id) =>
+                                setState(() => _selectedVariantId = id),
+                          ),
+                        ],
+                        if (stock.inStock) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          Row(
+                            children: [
+                              Text(
+                                l10n.productQuantity,
+                                style: context.text.titleSmall,
+                              ),
+                              const Spacer(),
+                              QuantityStepper(
+                                quantity: _quantity,
+                                onChanged: (q) => setState(() => _quantity = q),
+                              ),
+                            ],
+                          ),
+                        ],
+                        if (product.description.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
+                            l10n.productDescription,
+                            style: context.text.titleSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            product.description,
+                            style: context.text.bodyMedium?.copyWith(
                               color: colors.textSecondary,
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.md),
                         ],
-                        if (product.isNegotiable) _NegotiableBadge(),
+                        const SizedBox(height: AppSpacing.lg),
+                        ReviewsSection(
+                          productId: product.id,
+                          ratingAvg: product.ratingAvg,
+                        ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      price,
-                      style: context.text.headlineMedium?.copyWith(
-                        color: colors.primaryDark,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _AvailabilityBadge(inStock: stock.inStock, qty: stock.qty),
-                    if (product.variants.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
-                        l10n.productVariants,
-                        style: context.text.titleSmall,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _VariantSelector(
-                        variants: product.variants,
-                        selectedId: _selectedVariantId,
-                        availability: availability,
-                        onSelected: (id) =>
-                            setState(() => _selectedVariantId = id),
-                      ),
-                    ],
-                    if (stock.inStock) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      Row(
-                        children: [
-                          Text(
-                            l10n.productQuantity,
-                            style: context.text.titleSmall,
-                          ),
-                          const Spacer(),
-                          QuantityStepper(
-                            quantity: _quantity,
-                            onChanged: (q) => setState(() => _quantity = q),
-                          ),
-                        ],
-                      ),
-                    ],
-                    if (product.description.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
-                        l10n.productDescription,
-                        style: context.text.titleSmall,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        product.description,
-                        style: context.text.bodyMedium?.copyWith(
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.lg),
-                    ReviewsSection(
-                      productId: product.id,
-                      ratingAvg: product.ratingAvg,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-        _AddToCartBar(
-          productId: product.id,
-          variantId: _selectedVariantId,
-          quantity: _quantity,
-          inStock: stock.inStock,
+        ResponsiveContent(
+          maxWidth: AppLayout.readingWidth,
+          child: _AddToCartBar(
+            productId: product.id,
+            variantId: _selectedVariantId,
+            quantity: _quantity,
+            inStock: stock.inStock,
+          ),
         ),
       ],
     );

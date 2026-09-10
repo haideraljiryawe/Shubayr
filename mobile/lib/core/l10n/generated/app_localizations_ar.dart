@@ -552,6 +552,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profileName => 'الاسم';
 
   @override
+  String get profileEmail => 'البريد الإلكتروني (اختياري)';
+
+  @override
+  String get profileEmailInvalid =>
+      'أدخل بريدًا إلكترونيًا صحيحًا لا يتجاوز 160 حرفًا.';
+
+  @override
+  String get profileNameTooLong => 'يجب ألا يتجاوز الاسم 120 حرفًا.';
+
+  @override
   String get profileNameRequired => 'أدخل اسمك.';
 
   @override

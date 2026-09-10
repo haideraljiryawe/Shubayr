@@ -13,14 +13,16 @@ class User {
     this.id,
     this.name,
     this.phone,
+    this.email,
     this.role,
     this.permissions = const [],
   });
 
-  User copyWith({String? name}) => User(
+  User copyWith({String? name, String? email, bool clearEmail = false}) => User(
     id: id,
     name: name ?? this.name,
     phone: phone,
+    email: clearEmail ? null : email ?? this.email,
     role: role,
     permissions: permissions,
   );
@@ -30,6 +32,7 @@ class User {
   final String? id;
   final String? name;
   final String? phone;
+  final String? email;
 
   /// Raw role string from the API, e.g. `customer`, `delivery`, `admin`.
   final String? role;

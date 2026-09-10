@@ -126,27 +126,29 @@ class _DepartmentsBar extends ConsumerWidget {
     final lang = Localizations.localeOf(context).languageCode;
     final categories = ref.watch(categoriesProvider);
 
-    return SizedBox(
-      height: 44,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 44),
       child: categories.when(
         loading: () => const SizedBox.shrink(),
         error: (_, _) => const SizedBox.shrink(),
-        data: (list) => ListView(
+        data: (list) => SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-          children: [
-            _Chip(
-              label: l10n.homeAllDepartments,
-              selected: selectedId == null,
-              onTap: () => onSelected(null),
-            ),
-            for (final c in list)
+          child: Row(
+            children: [
               _Chip(
-                label: c.localizedName(lang),
-                selected: selectedId == c.id,
-                onTap: () => onSelected(c.id),
+                label: l10n.homeAllDepartments,
+                selected: selectedId == null,
+                onTap: () => onSelected(null),
               ),
-          ],
+              for (final c in list)
+                _Chip(
+                  label: c.localizedName(lang),
+                  selected: selectedId == c.id,
+                  onTap: () => onSelected(c.id),
+                ),
+            ],
+          ),
         ),
       ),
     );

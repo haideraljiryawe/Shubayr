@@ -20,6 +20,7 @@ servers:
 tags:
   - name: Auth
   - name: Catalog
+  - name: Banners
   - name: Addresses
   - name: Cart
   - name: Wishlist
@@ -124,6 +125,26 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/User" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+    patch:
+      tags: [Auth]
+      summary: Update the current user's profile
+      description: >
+        Updates only the authenticated user's name and, when supplied, email.
+        Phone numbers cannot be changed here because a phone change requires
+        re-verification through the OTP flow.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserSelfUpdate" }
+      responses:
+        "200":
+          description: Updated current user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADDRESSES ----------------
   /addresses:
@@ -197,6 +218,11 @@ paths:
     get:
       tags: [Catalog]
       summary: List departments & categories (tree)
+      description: >
+        Category names are returned as `name_ar` and `name_en`. If either stored
+        value is missing, empty, or whitespace-only, that response field falls
+        back to the other language so locale-specific clients never render a
+        blank name.
       security: []
       responses:
         "200":
@@ -206,16 +232,37 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Category" }
+
+  /banners:
+    get:
+      tags: [Banners]
+      summary: List active home hero banners ordered by sort order
+      description: Active means is_active is true and the current time is within the optional starts_at and ends_at window.
+      security: []
+      responses:
+        "200":
+          description: Active banners ordered by sort_order ascending
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Banner" }
   /products:
     get:
       tags: [Catalog]
       summary: List / filter / search products
+      description: >
+        Product names are returned as `name_ar` and `name_en`. If either stored
+        value is missing, empty, or whitespace-only, that response field falls
+        back to the other language so locale-specific clients never render a
+        blank name.
       security: []
       parameters:
         - { name: q, in: query, schema: { type: string }, description: search text }
-        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid }, description: "Category UUID; products remain filtered by category_id, not slug." }
         - { name: min_price, in: query, schema: { type: number } }
         - { name: max_price, in: query, schema: { type: number } }
+        - { name: on_sale, in: query, schema: { type: boolean }, description: "When true, return products where compare_at_price is greater than sale_price." }
         - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating] } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -229,6 +276,9 @@ paths:
     get:
       tags: [Catalog]
       summary: Product detail (variants, images, reviews summary, availability)
+      description: >
+        If the requested language's stored product name is missing, empty, or
+        whitespace-only, its response field falls back to the other language.
       security: []
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
@@ -863,16 +913,54 @@ paths:
     get:
       tags: [Deliveries]
       summary: Deliveries assigned to the current agent
+      description: >
+        Requires the `delivery.assigned` permission and returns deliveries scoped
+        to the current authenticated agent only. When `status` is supplied, the
+        server applies it server-side to that agent's deliveries before
+        pagination. `total`
+        is the number matching the selected status, rather than the agent's
+        unfiltered total. Results have stable ordering by `dispatched_at` DESC,
+        then `id` DESC as the unique tiebreaker, so equal timestamps do not make
+        items shift between pages. Omitting `status` returns all statuses.
       x-permission: delivery.assigned
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          required: false
+          description: Optional delivery status filter applied before pagination; omit to return all statuses.
+          schema:
+            type: string
+            enum: [assigned, out_for_delivery, delivered, failed, returned]
       responses:
         "200":
-          description: Paginated deliveries
+          description: Paginated deliveries scoped to the current agent, with a filtered total when status is supplied.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DeliveryPage" }
+              examples:
+                normal:
+                  summary: First page of assigned deliveries
+                  value:
+                    page: 1
+                    per_page: 20
+                    total: 45
+                    data:
+                      - id: "10000000-0000-4000-8000-000000000001"
+                        order_id: "20000000-0000-4000-8000-000000000001"
+                        agent_id: "30000000-0000-4000-8000-000000000001"
+                        status: assigned
+                        delivery_fee: 5
+                        dispatched_at: "2026-09-09T09:00:00Z"
+                        delivered_at: null
+                empty:
+                  summary: No deliveries match the selected status
+                  value:
+                    page: 1
+                    per_page: 20
+                    total: 0
+                    data: []
         "403": { $ref: "#/components/responses/Forbidden" }
   /deliveries/{id}:
     patch:
@@ -992,6 +1080,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create a product
+      description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
       x-permission: catalog.manage
       requestBody:
         required: true
@@ -1010,6 +1099,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a product
+      description: Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1040,6 +1130,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create a category
+      description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
       x-permission: catalog.manage
       requestBody:
         required: true
@@ -1058,6 +1149,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a category
+      description: Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1076,6 +1168,82 @@ paths:
     delete:
       tags: [Admin]
       summary: Delete a category
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ---------------- ADMIN: BANNERS CRUD ----------------
+  /admin/banners:
+    get:
+      tags: [Admin]
+      summary: List all home hero banners (including inactive and scheduled banners)
+      x-permission: catalog.manage
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated banners
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BannerPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Admin]
+      summary: Create a home hero banner
+      x-permission: catalog.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BannerInput" }
+      responses:
+        "201":
+          description: Created banner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Banner" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/banners/{id}:
+    get:
+      tags: [Admin]
+      summary: Get one home hero banner
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Banner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Banner" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Admin]
+      summary: Update a home hero banner
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BannerInput" }
+      responses:
+        "200":
+          description: Updated banner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Banner" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Admin]
+      summary: Delete a home hero banner
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
@@ -1290,6 +1458,18 @@ components:
           items: { type: string, example: "orders.confirm" }
         created_at: { type: string, format: date-time }
 
+    UserSelfUpdate:
+      type: object
+      description: >
+        Fields the authenticated user may update without identity
+        re-verification. Phone is intentionally excluded; changing it requires
+        OTP re-verification.
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120, pattern: '.*\S.*' }
+        email: { type: [string, "null"], format: email, maxLength: 160 }
+
     UserInput:
       type: object
       required: [phone]
@@ -1340,11 +1520,13 @@ components:
 
     Category:
       type: object
+      description: Category reads populate an empty or missing `name_ar`/`name_en` from the other language.
       properties:
         id: { type: string, format: uuid }
         parent_id: { type: [string, "null"], format: uuid }
         name_en: { type: string }
         name_ar: { type: string }
+        slug: { type: string, description: "SEO URL slug. Products are still filtered by category_id." }
         icon: { type: [string, "null"] }
         sort_order: { type: integer }
         is_active: { type: boolean }
@@ -1352,11 +1534,12 @@ components:
 
     CategoryInput:
       type: object
+      description: Admin create and update requests require both names after trimming; neither may be empty.
       required: [name_en, name_ar]
       properties:
         parent_id: { type: [string, "null"], format: uuid }
-        name_en: { type: string }
-        name_ar: { type: string }
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
         icon: { type: [string, "null"] }
         sort_order: { type: integer, default: 0 }
         is_active: { type: boolean, default: true }
@@ -1366,6 +1549,8 @@ components:
       description: >
         A catalog product. `in_stock` and `available_qty` are computed at read
         time (sum of batch_stock minus active reservations); they are not stored.
+        Reads populate an empty or missing `name_ar`/`name_en` from the other
+        language so locale-specific clients never receive a blank name.
       properties:
         id: { type: string, format: uuid }
         category_id: { type: string, format: uuid }
@@ -1373,6 +1558,8 @@ components:
         name_ar: { type: string }
         description: { type: string }
         sale_price: { type: number }
+        compare_at_price: { type: [number, "null"], description: "Original/was price. Null or less than or equal to sale_price means no discount." }
+        discount_percent: { type: [integer, "null"], readOnly: true, description: "Computed as round((compare_at_price - sale_price) / compare_at_price * 100) when compare_at_price is greater than sale_price; otherwise null." }
         is_negotiable: { type: boolean }
         floor_price: { type: [number, "null"] }
         points_price: { type: [integer, "null"] }
@@ -1386,13 +1573,15 @@ components:
 
     ProductInput:
       type: object
+      description: Admin create and update requests require both names after trimming; neither may be empty.
       required: [category_id, name_en, name_ar, sale_price]
       properties:
         category_id: { type: string, format: uuid }
-        name_en: { type: string }
-        name_ar: { type: string }
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
         description: { type: string }
         sale_price: { type: number }
+        compare_at_price: { type: [number, "null"], description: "Original/was price; set to null or no more than sale_price to remove the discount." }
         is_negotiable: { type: boolean, default: false }
         floor_price: { type: [number, "null"] }
         points_price: { type: [integer, "null"] }
@@ -1407,6 +1596,45 @@ components:
               sku: { type: string }
               attributes: { type: object, additionalProperties: true }
               price_delta: { type: number }
+
+    Banner:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        subtitle: { type: [string, "null"] }
+        image_url: { type: string, format: uri }
+        cta_text: { type: [string, "null"] }
+        link_url: { type: [string, "null"], format: uri }
+        sort_order: { type: integer }
+        is_active: { type: boolean }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    BannerInput:
+      type: object
+      required: [title, image_url]
+      properties:
+        title: { type: string }
+        subtitle: { type: [string, "null"] }
+        image_url: { type: string, format: uri }
+        cta_text: { type: [string, "null"] }
+        link_url: { type: [string, "null"], format: uri }
+        sort_order: { type: integer, default: 0 }
+        is_active: { type: boolean, default: true }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+
+    BannerPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/Banner" }
 
     ProductVariant:
       type: object
@@ -1504,6 +1732,9 @@ components:
         id: { type: string, format: uuid, description: "order_item_id — reference this from reviews & returns" }
         product_id: { type: string, format: uuid }
         variant_id: { type: [string, "null"], format: uuid }
+        product_name_ar: { type: string, description: "Arabic product name captured when the order is created." }
+        product_name_en: { type: string, description: "English product name captured when the order is created." }
+        image_url: { type: [string, "null"], format: uri, description: "Primary product image URL captured when the order is created." }
         quantity: { type: integer }
         unit_price: { type: number }
         line_total: { type: number }

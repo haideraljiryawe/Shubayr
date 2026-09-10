@@ -82,6 +82,35 @@ void main() {
     },
   );
 
+  testWidgets(
+    'delivery confirmation survives regrouping the selected card on resize',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repo = RecordingDeliveries();
+      await tester.pumpWidget(_host(repo));
+      await tester.pumpAndSettle();
+      final secondAction = find
+          .widgetWithText(AppButton, 'Update status')
+          .at(1);
+      await tester.ensureVisible(secondAction);
+      await tester.tap(secondAction);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delivered').last);
+      await tester.pumpAndSettle();
+      await tester.binding.setSurfaceSize(const Size(1200, 1200));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Save'));
+      await tester.pumpAndSettle();
+      expect(repo.updates.single.id, '10000000-0000-4000-8000-000000000002');
+      expect(repo.updates.single.status, 'delivered');
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets('status changes only after save and successful response', (
     tester,
   ) async {
@@ -118,7 +147,15 @@ void main() {
       await _chooseStatus(tester, 'Delivered');
       await tester.tap(find.widgetWithText(TextButton, 'Save'));
       await tester.pumpAndSettle();
-      expect(find.text('Assigned'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey('10000000-0000-4000-8000-000000000001'),
+          ),
+          matching: find.text('Assigned'),
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(SnackBar), findsOneWidget);
       expect(find.text('Delivery status updated'), findsNothing);
       expect(tester.takeException(), isNull);

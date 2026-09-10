@@ -190,6 +190,9 @@
 
   "profileTitle": "الملف الشخصي",
   "profileName": "الاسم",
+  "profileEmail": "البريد الإلكتروني (اختياري)",
+  "profileEmailInvalid": "أدخل بريدًا إلكترونيًا صحيحًا لا يتجاوز 160 حرفًا.",
+  "profileNameTooLong": "يجب ألا يتجاوز الاسم 120 حرفًا.",
   "profileNameRequired": "أدخل اسمك.",
   "profileChangePhoto": "تغيير الصورة",
   "profileSaved": "تم حفظ التغييرات.",

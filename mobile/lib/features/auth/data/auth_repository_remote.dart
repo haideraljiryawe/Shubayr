@@ -1,5 +1,6 @@
 import '../../../core/network/api_client.dart';
 import '../domain/auth_repository.dart';
+import '../domain/profile_update.dart';
 import 'auth_result.dart';
 import 'user.dart';
 
@@ -29,6 +30,15 @@ class AuthRepositoryRemote implements AuthRepository {
   @override
   Future<User> currentUser() async {
     final json = await _api.get<Map<String, dynamic>>('/me');
+    return User.fromJson(json);
+  }
+
+  @override
+  Future<User> updateProfile(ProfileUpdate update) async {
+    final json = await _api.patch<Map<String, dynamic>>(
+      '/me',
+      body: update.toJson(),
+    );
     return User.fromJson(json);
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../error/failure.dart';
+import '../layout/app_layout.dart';
 import '../l10n/l10n_context.dart';
 import '../theme/theme_context.dart';
 import '../theme/tokens/app_radii.dart';
@@ -42,40 +43,47 @@ class _MessageView extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              decoration: BoxDecoration(
-                color: iconBackground ?? colors.surfaceAlt,
-                borderRadius: AppRadii.xlAll,
-              ),
-              child: Icon(icon, size: 28, color: iconColor ?? colors.textMuted),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: context.text.titleMedium,
-            ),
-            if (message != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                message!,
-                textAlign: TextAlign.center,
-                style: context.text.bodySmall?.copyWith(
-                  color: colors.textSecondary,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppLayout.readingWidth),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: iconBackground ?? colors.surfaceAlt,
+                  borderRadius: AppRadii.xlAll,
+                ),
+                child: Icon(
+                  icon,
+                  size: 28,
+                  color: iconColor ?? colors.textMuted,
                 ),
               ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: context.text.titleMedium,
+              ),
+              if (message != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  message!,
+                  textAlign: TextAlign.center,
+                  style: context.text.bodySmall?.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ],
+              if (action != null) ...[
+                const SizedBox(height: AppSpacing.xl),
+                action!,
+              ],
             ],
-            if (action != null) ...[
-              const SizedBox(height: AppSpacing.xl),
-              action!,
-            ],
-          ],
+          ),
         ),
       ),
     );

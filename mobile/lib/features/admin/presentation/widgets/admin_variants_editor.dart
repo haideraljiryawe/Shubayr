@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
@@ -78,14 +79,13 @@ class _AdminVariantsEditorState extends State<AdminVariantsEditor> {
             key: ObjectKey(variant),
             padding: const EdgeInsets.only(top: AppSpacing.md),
             child: AppCard(
-              child: Column(
+              child: ResponsiveFields(
                 children: [
                   TextFormField(
                     controller: variant.sku,
                     decoration: InputDecoration(labelText: l.adminSku),
                     onChanged: (_) => _notify(),
                   ),
-                  const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: variant.delta,
                     decoration: InputDecoration(labelText: l.adminPriceDelta),
@@ -99,39 +99,42 @@ class _AdminVariantsEditorState extends State<AdminVariantsEditor> {
                     onChanged: (_) => _notify(),
                   ),
                   for (final attribute in variant.attributes)
-                    Padding(
+                    ResponsiveField(
                       key: ObjectKey(attribute.$1),
-                      padding: const EdgeInsets.only(top: AppSpacing.md),
-                      child: Column(
-                        children: [
-                          TextFormField(
-                            controller: attribute.$1,
-                            decoration: InputDecoration(
-                              labelText: l.adminAttributeName,
+                      fullWidth: true,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.md),
+                        child: ResponsiveFields(
+                          children: [
+                            TextFormField(
+                              controller: attribute.$1,
+                              decoration: InputDecoration(
+                                labelText: l.adminAttributeName,
+                              ),
+                              onChanged: (_) => _notify(),
+                              validator: (v) => (v ?? '').trim().isEmpty
+                                  ? l.adminRequired
+                                  : null,
                             ),
-                            onChanged: (_) => _notify(),
-                            validator: (v) => (v ?? '').trim().isEmpty
-                                ? l.adminRequired
-                                : null,
-                          ),
-                          TextFormField(
-                            controller: attribute.$2,
-                            decoration: InputDecoration(
-                              labelText: l.adminAttributeValue,
+                            TextFormField(
+                              controller: attribute.$2,
+                              decoration: InputDecoration(
+                                labelText: l.adminAttributeValue,
+                              ),
+                              onChanged: (_) => _notify(),
                             ),
-                            onChanged: (_) => _notify(),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(
-                                () => variant.attributes.remove(attribute),
-                              );
-                              _retiredAttributes.add(attribute);
-                              _notify();
-                            },
-                            child: Text(l.actionDelete),
-                          ),
-                        ],
+                            TextButton(
+                              onPressed: () {
+                                setState(
+                                  () => variant.attributes.remove(attribute),
+                                );
+                                _retiredAttributes.add(attribute);
+                                _notify();
+                              },
+                              child: Text(l.actionDelete),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   TextButton.icon(

@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -187,32 +188,38 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       appBar: AppBar(title: Text(l.adminSectionOrders)),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.screenH),
-            child: TextField(
-              controller: _search,
-              decoration: InputDecoration(
-                hintText: l.adminOrderSearch,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: l.adminOrderClearSearch,
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _debounce?.cancel();
-                          _search.clear();
-                          _select(search: '');
-                        },
-                      ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: ResponsiveContent(
+              maxWidth: AppLayout.readingWidth,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.screenH),
+                child: TextField(
+                  controller: _search,
+                  decoration: InputDecoration(
+                    hintText: l.adminOrderSearch,
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: l.adminOrderClearSearch,
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _debounce?.cancel();
+                              _search.clear();
+                              _select(search: '');
+                            },
+                          ),
+                  ),
+                  onChanged: (text) {
+                    setState(() {});
+                    _debounce?.cancel();
+                    _debounce = Timer(const Duration(milliseconds: 300), () {
+                      if (mounted) _select(search: text.trim());
+                    });
+                  },
+                ),
               ),
-              onChanged: (text) {
-                setState(() {});
-                _debounce?.cancel();
-                _debounce = Timer(const Duration(milliseconds: 300), () {
-                  if (mounted) _select(search: text.trim());
-                });
-              },
             ),
           ),
           SingleChildScrollView(
@@ -270,13 +277,11 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           Expanded(
             child: AsyncValueView(
               value: value,
-              loading: ListView(
-                padding: const EdgeInsets.all(AppSpacing.screenH),
-                children: const [
-                  _OrderSkeleton(),
-                  SizedBox(height: AppSpacing.md),
-                  _OrderSkeleton(),
-                ],
+              loading: ResponsiveCardList(
+                itemCount: 4,
+                minItemWidth: AppLayout.orderMinWidth,
+                physics: const NeverScrollableScrollPhysics(),
+                itemBuilder: (_, _) => const _OrderSkeleton(),
               ),
               onRetry: controller.refresh,
               builder: (_, list) => RefreshIndicator(
@@ -304,26 +309,21 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                               ),
                             ],
                           )
-                        : ListView.separated(
+                        : ResponsiveCardList(
+                            minItemWidth: AppLayout.orderMinWidth,
                             key: ValueKey(query),
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(AppSpacing.screenH),
-                            itemCount:
-                                list.items.length +
-                                (list.loadingMore || list.appendError != null
-                                    ? 1
-                                    : 0),
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: AppSpacing.md),
+                            itemCount: list.items.length,
+                            footer: list.appendError != null
+                                ? AppErrorView(
+                                    error: list.appendError,
+                                    onRetry: controller.loadMore,
+                                  )
+                                : list.loadingMore
+                                ? const _OrderSkeleton()
+                                : null,
                             itemBuilder: (_, index) {
-                              if (index == list.items.length) {
-                                return list.appendError != null
-                                    ? AppErrorView(
-                                        error: list.appendError,
-                                        onRetry: controller.loadMore,
-                                      )
-                                    : const _OrderSkeleton();
-                              }
                               final order = list.items[index];
                               final enabled =
                                   !value.isLoading &&

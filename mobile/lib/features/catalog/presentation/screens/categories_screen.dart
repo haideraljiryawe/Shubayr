@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -92,7 +93,11 @@ class _CategoryRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: width,
+      width:
+          AppBreakpoints.classify(MediaQuery.sizeOf(context).width).index >=
+              AppWindowClass.compactDesktop.index
+          ? AppLayout.categoryRailWidth
+          : width,
       color: context.colors.surfaceAlt,
       child: ListView.builder(
         padding: EdgeInsets.zero,
@@ -199,7 +204,16 @@ class _CategoryDetail extends StatelessWidget {
         children: [
           Text(category.localizedName(lang), style: context.text.titleLarge),
           const SizedBox(height: AppSpacing.md),
-          _BrowseAllTile(label: context.l10n.categoriesBrowseAll, onTap: onBrowseAll),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: ResponsiveContent(
+              maxWidth: AppLayout.readingWidth,
+              child: _BrowseAllTile(
+                label: context.l10n.categoriesBrowseAll,
+                onTap: onBrowseAll,
+              ),
+            ),
+          ),
           if (category.children.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
             Wrap(
@@ -243,7 +257,11 @@ class _BrowseAllTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(Icons.grid_view_rounded, size: 20, color: colors.primaryDark),
+              Icon(
+                Icons.grid_view_rounded,
+                size: 20,
+                color: colors.primaryDark,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
@@ -268,7 +286,11 @@ class _BrowseAllTile extends StatelessWidget {
 }
 
 class _SubcategoryTile extends StatelessWidget {
-  const _SubcategoryTile({super.key, required this.category, required this.onTap});
+  const _SubcategoryTile({
+    super.key,
+    required this.category,
+    required this.onTap,
+  });
 
   final Category category;
   final VoidCallback onTap;
@@ -280,7 +302,11 @@ class _SubcategoryTile extends StatelessWidget {
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
     return SizedBox(
-      width: width,
+      width:
+          AppBreakpoints.classify(MediaQuery.sizeOf(context).width) ==
+              AppWindowClass.mobile
+          ? width
+          : AppLayout.categoryRailWidth,
       child: Material(
         color: colors.surfaceAlt,
         shape: RoundedRectangleBorder(

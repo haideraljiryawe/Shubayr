@@ -1154,6 +1154,24 @@ abstract class AppLocalizations {
   /// **'Name'**
   String get profileName;
 
+  /// No description provided for @profileEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email (optional)'**
+  String get profileEmail;
+
+  /// No description provided for @profileEmailInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email, up to 160 characters.'**
+  String get profileEmailInvalid;
+
+  /// No description provided for @profileNameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Use no more than 120 characters.'**
+  String get profileNameTooLong;
+
   /// No description provided for @profileNameRequired.
   ///
   /// In en, this message translates to:

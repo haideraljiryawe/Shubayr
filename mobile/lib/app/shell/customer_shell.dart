@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/layout/app_layout.dart';
 import '../../core/l10n/l10n_context.dart';
 import '../../core/theme/components/navigation_themes.dart';
 import '../../core/theme/theme_context.dart';
@@ -44,7 +45,7 @@ Widget _badged(BuildContext context, Widget child, int count) {
 class CustomerShell extends ConsumerWidget {
   const CustomerShell({super.key, required this.navigationShell});
 
-  static const double railBreakpoint = 900;
+  static const double railBreakpoint = AppBreakpoints.compactDesktop;
 
   final StatefulNavigationShell navigationShell;
 

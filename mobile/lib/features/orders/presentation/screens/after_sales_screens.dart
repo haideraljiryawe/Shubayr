@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -91,94 +92,98 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
             final selected = available
                 .where((i) => i.id == _itemId)
                 .firstOrNull;
-            return ListView(
-              padding: const EdgeInsets.all(AppSpacing.screenH),
-              children: [
-                Text(order.orderNumber, style: context.text.titleMedium),
-                const SizedBox(height: AppSpacing.md),
-                Text(l10n.reviewOrderHint),
-                if (_sent) ...[
+            return ResponsiveContent(
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.screenH),
+                children: [
+                  Text(order.orderNumber, style: context.text.titleMedium),
                   const SizedBox(height: AppSpacing.md),
-                  _SuccessMessage(l10n.reviewSubmitted),
-                ],
-                const SizedBox(height: AppSpacing.lg),
-                if (available.isEmpty)
-                  Text(l10n.reviewAllSubmitted)
-                else ...[
-                  DropdownButtonFormField<String>(
-                    key: ValueKey('review-item-${receipts.reviews.length}'),
-                    initialValue: selected?.id,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: l10n.reviewChooseProduct,
-                    ),
-                    items: [
-                      for (final i in available)
-                        DropdownMenuItem(
-                          value: i.id,
-                          child: Text(
-                            _itemLabel(context, i, products),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                    onChanged: _busy
-                        ? null
-                        : (id) => setState(() {
-                            _itemId = id;
-                            _rating = 0;
-                            _error = null;
-                            _sent = false;
-                            _comment.clear();
-                          }),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(l10n.reviewRating, style: context.text.titleSmall),
-                  Wrap(
-                    children: [
-                      for (var n = 1; n <= 5; n++)
-                        Semantics(
-                          selected: _rating == n,
-                          child: IconButton(
-                            tooltip: l10n.reviewStars('$n'),
-                            onPressed: _busy
-                                ? null
-                                : () => setState(() => _rating = n),
-                            color: context.colors.primary,
-                            icon: Icon(
-                              n <= _rating ? Icons.star : Icons.star_border,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  TextField(
-                    controller: _comment,
-                    enabled: !_busy,
-                    minLines: 3,
-                    maxLines: 5,
-                    decoration: InputDecoration(labelText: l10n.reviewComment),
-                  ),
-                  if (_error != null) ...[
+                  Text(l10n.reviewOrderHint),
+                  if (_sent) ...[
                     const SizedBox(height: AppSpacing.md),
-                    Text(
-                      _error!.localizedMessage(l10n),
-                      style: context.text.bodyMedium?.copyWith(
-                        color: context.colors.danger,
-                      ),
-                    ),
+                    _SuccessMessage(l10n.reviewSubmitted),
                   ],
                   const SizedBox(height: AppSpacing.lg),
-                  AppButton(
-                    label: l10n.reviewSubmit,
-                    isLoading: _busy,
-                    onPressed: selected == null || _rating == 0 || _busy
-                        ? null
-                        : () => _submit(selected),
-                  ),
+                  if (available.isEmpty)
+                    Text(l10n.reviewAllSubmitted)
+                  else ...[
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('review-item-${receipts.reviews.length}'),
+                      initialValue: selected?.id,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: l10n.reviewChooseProduct,
+                      ),
+                      items: [
+                        for (final i in available)
+                          DropdownMenuItem(
+                            value: i.id,
+                            child: Text(
+                              _itemLabel(context, i, products),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: _busy
+                          ? null
+                          : (id) => setState(() {
+                              _itemId = id;
+                              _rating = 0;
+                              _error = null;
+                              _sent = false;
+                              _comment.clear();
+                            }),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(l10n.reviewRating, style: context.text.titleSmall),
+                    Wrap(
+                      children: [
+                        for (var n = 1; n <= 5; n++)
+                          Semantics(
+                            selected: _rating == n,
+                            child: IconButton(
+                              tooltip: l10n.reviewStars('$n'),
+                              onPressed: _busy
+                                  ? null
+                                  : () => setState(() => _rating = n),
+                              color: context.colors.primary,
+                              icon: Icon(
+                                n <= _rating ? Icons.star : Icons.star_border,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      controller: _comment,
+                      enabled: !_busy,
+                      minLines: 3,
+                      maxLines: 5,
+                      decoration: InputDecoration(
+                        labelText: l10n.reviewComment,
+                      ),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        _error!.localizedMessage(l10n),
+                        style: context.text.bodyMedium?.copyWith(
+                          color: context.colors.danger,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.lg),
+                    AppButton(
+                      label: l10n.reviewSubmit,
+                      isLoading: _busy,
+                      onPressed: selected == null || _rating == 0 || _busy
+                          ? null
+                          : () => _submit(selected),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             );
           },
         ),
@@ -253,122 +258,128 @@ class _ReturnOrderScreenState extends ConsumerState<ReturnOrderScreen> {
           builder: (order, products) {
             final submitted = _submitted;
             if (submitted != null) {
-              return ListView(
-                padding: const EdgeInsets.all(AppSpacing.screenH),
-                children: [
-                  _SuccessMessage(l10n.returnSubmitted),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(l10n.returnReference(submitted.id)),
-                  const SizedBox(height: AppSpacing.md),
-                  for (final line in submitted.items)
-                    ListTile(
-                      title: Text(
-                        _itemLabel(
-                          context,
-                          order.items.firstWhere(
-                            (i) => i.id == line.orderItemId,
+              return ResponsiveContent(
+                child: ListView(
+                  padding: const EdgeInsets.all(AppSpacing.screenH),
+                  children: [
+                    _SuccessMessage(l10n.returnSubmitted),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(l10n.returnReference(submitted.id)),
+                    const SizedBox(height: AppSpacing.md),
+                    for (final line in submitted.items)
+                      ListTile(
+                        title: Text(
+                          _itemLabel(
+                            context,
+                            order.items.firstWhere(
+                              (i) => i.id == line.orderItemId,
+                            ),
+                            products,
                           ),
-                          products,
+                        ),
+                        subtitle: Text(
+                          l10n.orderLineQuantity('${line.quantity}'),
                         ),
                       ),
-                      subtitle: Text(
-                        l10n.orderLineQuantity('${line.quantity}'),
-                      ),
-                    ),
-                  if (submitted.reason != null) Text(submitted.reason!),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(l10n.returnRequestOnly),
-                ],
+                    if (submitted.reason != null) Text(submitted.reason!),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(l10n.returnRequestOnly),
+                  ],
+                ),
               );
             }
             final available = order.items
                 .where((i) => i.quantity > receipts.returnedQuantity(i.id))
                 .toList();
-            return ListView(
-              padding: const EdgeInsets.all(AppSpacing.screenH),
-              children: [
-                Text(order.orderNumber, style: context.text.titleMedium),
-                const SizedBox(height: AppSpacing.md),
-                Text(l10n.returnOrderHint),
-                const SizedBox(height: AppSpacing.lg),
-                if (available.isEmpty) Text(l10n.returnAllRequested),
-                for (final item in available) ...[
-                  AppCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _itemLabel(context, item, products),
-                          style: context.text.titleSmall,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          l10n.returnAvailable(
-                            '${item.quantity - receipts.returnedQuantity(item.id)}',
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            IconButton(
-                              tooltip: l10n.returnDecrease,
-                              onPressed:
-                                  _busy || (_quantities[item.id] ?? 0) == 0
-                                  ? null
-                                  : () => setState(
-                                      () => _quantities[item.id] =
-                                          _quantities[item.id]! - 1,
-                                    ),
-                              icon: const Icon(Icons.remove),
-                            ),
-                            Text('${_quantities[item.id] ?? 0}'),
-                            IconButton(
-                              tooltip: l10n.returnIncrease,
-                              onPressed:
-                                  _busy ||
-                                      (_quantities[item.id] ?? 0) >=
-                                          item.quantity -
-                                              receipts.returnedQuantity(item.id)
-                                  ? null
-                                  : () => setState(
-                                      () => _quantities[item.id] =
-                                          (_quantities[item.id] ?? 0) + 1,
-                                    ),
-                              icon: const Icon(Icons.add),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+            return ResponsiveContent(
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.screenH),
+                children: [
+                  Text(order.orderNumber, style: context.text.titleMedium),
                   const SizedBox(height: AppSpacing.md),
-                ],
-                if (available.isNotEmpty) ...[
-                  TextField(
-                    controller: _reason,
-                    enabled: !_busy,
-                    minLines: 3,
-                    maxLines: 5,
-                    decoration: InputDecoration(labelText: l10n.returnReason),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      _error!.localizedMessage(l10n),
-                      style: context.text.bodyMedium?.copyWith(
-                        color: context.colors.danger,
+                  Text(l10n.returnOrderHint),
+                  const SizedBox(height: AppSpacing.lg),
+                  if (available.isEmpty) Text(l10n.returnAllRequested),
+                  for (final item in available) ...[
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _itemLabel(context, item, products),
+                            style: context.text.titleSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            l10n.returnAvailable(
+                              '${item.quantity - receipts.returnedQuantity(item.id)}',
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                tooltip: l10n.returnDecrease,
+                                onPressed:
+                                    _busy || (_quantities[item.id] ?? 0) == 0
+                                    ? null
+                                    : () => setState(
+                                        () => _quantities[item.id] =
+                                            _quantities[item.id]! - 1,
+                                      ),
+                                icon: const Icon(Icons.remove),
+                              ),
+                              Text('${_quantities[item.id] ?? 0}'),
+                              IconButton(
+                                tooltip: l10n.returnIncrease,
+                                onPressed:
+                                    _busy ||
+                                        (_quantities[item.id] ?? 0) >=
+                                            item.quantity -
+                                                receipts.returnedQuantity(
+                                                  item.id,
+                                                )
+                                    ? null
+                                    : () => setState(
+                                        () => _quantities[item.id] =
+                                            (_quantities[item.id] ?? 0) + 1,
+                                      ),
+                                icon: const Icon(Icons.add),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.md),
                   ],
-                  const SizedBox(height: AppSpacing.lg),
-                  AppButton(
-                    label: l10n.returnSubmit,
-                    isLoading: _busy,
-                    onPressed: !_busy && _quantities.values.any((n) => n > 0)
-                        ? _submit
-                        : null,
-                  ),
+                  if (available.isNotEmpty) ...[
+                    TextField(
+                      controller: _reason,
+                      enabled: !_busy,
+                      minLines: 3,
+                      maxLines: 5,
+                      decoration: InputDecoration(labelText: l10n.returnReason),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        _error!.localizedMessage(l10n),
+                        style: context.text.bodyMedium?.copyWith(
+                          color: context.colors.danger,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.lg),
+                    AppButton(
+                      label: l10n.returnSubmit,
+                      isLoading: _busy,
+                      onPressed: !_busy && _quantities.values.any((n) => n > 0)
+                          ? _submit
+                          : null,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             );
           },
         ),

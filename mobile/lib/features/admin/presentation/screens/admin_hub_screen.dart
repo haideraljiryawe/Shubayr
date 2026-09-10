@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,24 +29,31 @@ class AdminHubScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.screenH),
         children: [
-          for (final resource in resources)
-            if (session?.can(resource.readPermission) == true)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: AppCard(
-                  onTap: () => context.push('/admin/manage/${resource.name}'),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text(adminTitle(context.l10n, resource))),
-                      Icon(
-                        Directionality.of(context) == TextDirection.rtl
-                            ? Icons.chevron_left
-                            : Icons.chevron_right,
+          ResponsiveFields(
+            children: [
+              for (final resource in resources)
+                if (session?.can(resource.readPermission) == true)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: AppCard(
+                      onTap: () =>
+                          context.push('/admin/manage/${resource.name}'),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(adminTitle(context.l10n, resource)),
+                          ),
+                          Icon(
+                            Directionality.of(context) == TextDirection.rtl
+                                ? Icons.chevron_left
+                                : Icons.chevron_right,
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+            ],
+          ),
         ],
       ),
     );

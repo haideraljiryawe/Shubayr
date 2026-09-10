@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -89,58 +90,69 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
           widget.address == null ? l10n.addressAdd : l10n.addressEdit,
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.screenH),
-          children: [
-            TextFormField(
-              controller: _label,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(labelText: l10n.addressLabel),
+      body: ResponsiveContent(
+        maxWidth: AppLayout.formWidth,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.screenH),
+            child: ResponsiveFields(
+              children: [
+                TextFormField(
+                  controller: _label,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: l10n.addressLabel),
+                ),
+                TextFormField(
+                  controller: _city,
+                  textInputAction: TextInputAction.next,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? l10n.addressCityRequired
+                      : null,
+                  decoration: InputDecoration(labelText: l10n.addressCity),
+                ),
+                TextFormField(
+                  controller: _area,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: l10n.addressArea),
+                ),
+                TextFormField(
+                  controller: _street,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: l10n.addressStreet),
+                ),
+                ResponsiveField(
+                  fullWidth: true,
+                  child: TextFormField(
+                    controller: _details,
+                    maxLines: 2,
+                    decoration: InputDecoration(labelText: l10n.addressDetails),
+                  ),
+                ),
+                ResponsiveField(
+                  fullWidth: true,
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _isDefault,
+                    onChanged: (v) => setState(() => _isDefault = v),
+                    title: Text(l10n.addressSetDefault),
+                  ),
+                ),
+                ResponsiveField(
+                  fullWidth: true,
+                  child: ResponsiveContent(
+                    maxWidth: AppLayout.authWidth,
+                    child: AppButton(
+                      label: l10n.actionSave,
+                      icon: Icons.check,
+                      isLoading: _busy,
+                      onPressed: _save,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _city,
-              textInputAction: TextInputAction.next,
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? l10n.addressCityRequired
-                  : null,
-              decoration: InputDecoration(labelText: l10n.addressCity),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _area,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(labelText: l10n.addressArea),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _street,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(labelText: l10n.addressStreet),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _details,
-              maxLines: 2,
-              decoration: InputDecoration(labelText: l10n.addressDetails),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _isDefault,
-              onChanged: (v) => setState(() => _isDefault = v),
-              title: Text(l10n.addressSetDefault),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            AppButton(
-              label: l10n.actionSave,
-              icon: Icons.check,
-              isLoading: _busy,
-              onPressed: _save,
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -96,74 +97,96 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       appBar: AppBar(title: Text(l10n.orderDetailTitle)),
       body: AsyncValueView(
         value: order,
-        loading: const Padding(
-          padding: EdgeInsets.all(AppSpacing.screenH),
-          child: SkeletonCardList(itemCount: 4, height: 120),
+        loading: const ResponsiveContent(
+          maxWidth: AppLayout.detailWidth,
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.screenH),
+            child: SkeletonCardList(
+              itemCount: 4,
+              height: 120,
+              minItemWidth: AppLayout.orderMinWidth,
+            ),
+          ),
         ),
         onRetry: () => ref.invalidate(orderProvider(widget.orderId)),
         builder: (context, o) => ListView(
           padding: const EdgeInsets.all(AppSpacing.screenH),
           children: [
-            _Header(order: o),
-            const SizedBox(height: AppSpacing.lg),
-            _SectionTitle(l10n.orderTrackingTitle),
-            _TrackingCard(orderId: widget.orderId),
-            const SizedBox(height: AppSpacing.lg),
-            _SectionTitle(l10n.orderItemsSection),
-            AppCard(
-              child: Column(
-                children: [
-                  for (var i = 0; i < o.items.length; i++) ...[
-                    if (i > 0) const Divider(height: AppSpacing.xl),
-                    _OrderItemTile(item: o.items[i], money: _money),
+            ResponsiveSections(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _Header(order: o),
+                    const SizedBox(height: AppSpacing.lg),
+                    _SectionTitle(l10n.orderTrackingTitle),
+                    _TrackingCard(orderId: widget.orderId),
                   ],
-                ],
-              ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SectionTitle(l10n.orderItemsSection),
+                    AppCard(
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < o.items.length; i++) ...[
+                            if (i > 0) const Divider(height: AppSpacing.xl),
+                            _OrderItemTile(item: o.items[i], money: _money),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _SectionTitle(l10n.orderSummary),
+                    _Summary(order: o, money: _money),
+                    if (o.status == 'delivered' && o.items.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      AppButton(
+                        label: l10n.reviewOrderTitle,
+                        icon: Icons.star_outline,
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () => context.pushNamed(
+                          AppRoutes.orderReviewName,
+                          pathParameters: {'id': o.id},
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      AppButton(
+                        label: l10n.returnOrderTitle,
+                        icon: Icons.assignment_return_outlined,
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () => context.pushNamed(
+                          AppRoutes.orderReturnName,
+                          pathParameters: {'id': o.id},
+                        ),
+                      ),
+                    ],
+                    if (isOrderCancellable(o.status)) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: _cancelling ? null : _cancel,
+                          style: TextButton.styleFrom(
+                            foregroundColor: context.colors.danger,
+                          ),
+                          icon: _cancelling
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.cancel_outlined),
+                          label: Text(l10n.orderCancel),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            _SectionTitle(l10n.orderSummary),
-            _Summary(order: o, money: _money),
-            if (o.status == 'delivered' && o.items.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.lg),
-              AppButton(
-                label: l10n.reviewOrderTitle,
-                icon: Icons.star_outline,
-                variant: AppButtonVariant.secondary,
-                onPressed: () => context.pushNamed(
-                  AppRoutes.orderReviewName,
-                  pathParameters: {'id': o.id},
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppButton(
-                label: l10n.returnOrderTitle,
-                icon: Icons.assignment_return_outlined,
-                variant: AppButtonVariant.secondary,
-                onPressed: () => context.pushNamed(
-                  AppRoutes.orderReturnName,
-                  pathParameters: {'id': o.id},
-                ),
-              ),
-            ],
-            if (isOrderCancellable(o.status)) ...[
-              const SizedBox(height: AppSpacing.lg),
-              Center(
-                child: TextButton.icon(
-                  onPressed: _cancelling ? null : _cancel,
-                  style: TextButton.styleFrom(
-                    foregroundColor: context.colors.danger,
-                  ),
-                  icon: _cancelling
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.cancel_outlined),
-                  label: Text(l10n.orderCancel),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -502,20 +525,16 @@ class _SummaryRow extends StatelessWidget {
         : emphasize
         ? colors.primaryDark
         : colors.textPrimary;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: emphasize ? context.text.titleSmall : context.text.bodyMedium,
-        ),
-        Text(
-          value,
-          style:
-              (emphasize ? context.text.titleMedium : context.text.bodyMedium)
-                  ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
-        ),
-      ],
+    return ResponsiveValueRow(
+      label: Text(
+        label,
+        style: emphasize ? context.text.titleSmall : context.text.bodyMedium,
+      ),
+      value: Text(
+        value,
+        style: (emphasize ? context.text.titleMedium : context.text.bodyMedium)
+            ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }

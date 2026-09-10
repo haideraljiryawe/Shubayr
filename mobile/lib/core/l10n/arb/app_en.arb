@@ -197,6 +197,9 @@
 
   "profileTitle": "Profile",
   "profileName": "Name",
+  "profileEmail": "Email (optional)",
+  "profileEmailInvalid": "Enter a valid email, up to 160 characters.",
+  "profileNameTooLong": "Use no more than 120 characters.",
   "profileNameRequired": "Enter your name.",
   "profileChangePhoto": "Change photo",
   "profileSaved": "Changes saved.",

@@ -71,6 +71,28 @@ above, proceed within that exact scope and explain the impact.
 - Follow the final visual/interactive workflow in `Verification`; do not run
   automated Flutter Simulator/Emulator checks by default.
 
+### Responsive layout
+
+- Every new or changed UI must support Mobile, Tablet and Desktop/Web as part
+  of completion. Wider layouts should use horizontal composition and comfortable
+  information density, not simply stretch the phone UI.
+- Use the shared `core/layout/app_layout.dart` breakpoints: <600 phone,
+  600–899 tablet, 900–1199 compact desktop, 1200–1535 desktop, >=1536 large
+  desktop (logical pixels). 1200 is an important density/composition threshold,
+  not a mandatory switch for every component.
+- Derive columns from local available width, content's comfortable minimum width
+  and text scaling; breakpoints do not prescribe column counts. Reuse the shared
+  card/sliver, field and section layouts rather than scattered width arithmetic
+  or repeated MediaQuery breakpoint checks.
+- Place independent cards and suitable fields alongside each other when they
+  fit; keep multiline editors and wide content appropriately sized. Constrain
+  simple forms/reading regions by content type, never with a narrow app-wide cap.
+  Management lists, tables and reports may use the full available width.
+- Preserve RTL, theme, tokens, navigation and behavior. Prevent overflow/clipping
+  and retain form input/validation when resized. Verify near both sides of
+  600/900/1200/1536 and at phone/1920 widths; include loading/error/empty states
+  and larger text in relevant checks.
+
 ## Loading states
 
 - Use layout-matching skeletons for list, grid, and detail data loads; do not use

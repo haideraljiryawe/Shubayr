@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -37,7 +38,10 @@ class AddressesScreen extends ConsumerWidget {
         value: addresses,
         loading: const Padding(
           padding: EdgeInsets.all(AppSpacing.screenH),
-          child: SkeletonCardList(itemCount: 3),
+          child: SkeletonCardList(
+            itemCount: 3,
+            minItemWidth: AppLayout.cardMinWidth,
+          ),
         ),
         onRetry: () => ref.read(addressesControllerProvider.notifier).refresh(),
         builder: (context, list) {
@@ -58,7 +62,7 @@ class AddressesScreen extends ConsumerWidget {
                       ),
                     ],
                   )
-                : ListView.separated(
+                : ResponsiveCardList(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.screenH,
@@ -68,8 +72,6 @@ class AddressesScreen extends ConsumerWidget {
                       96,
                     ),
                     itemCount: list.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.md),
                     itemBuilder: (_, i) => _AddressCard(address: list[i]),
                   ),
           );

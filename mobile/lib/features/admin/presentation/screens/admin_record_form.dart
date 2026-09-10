@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/failure.dart';
@@ -158,9 +159,14 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
               value: ref.watch(
                 adminLookupsProvider(AdminQuery(optionsResource)),
               ),
-              loading: const Padding(
-                padding: EdgeInsets.all(AppSpacing.screenH),
-                child: SkeletonCardList(),
+              loading: const ResponsiveContent(
+                maxWidth: AppLayout.formWidth,
+                child: Padding(
+                  padding: EdgeInsets.all(AppSpacing.screenH),
+                  child: SkeletonCardList(
+                    minItemWidth: AppLayout.fieldMinWidth,
+                  ),
+                ),
               ),
               onRetry: () => ref.invalidate(
                 adminLookupsProvider(AdminQuery(optionsResource)),
@@ -172,19 +178,41 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
 
   Widget _body(List<AdminRecord> options) {
     final l = context.l10n;
-    return Form(
-      key: _form,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
-        child: Column(
-          children: [
-            for (final field in resource.fields)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: _field(field, options),
+    return ResponsiveContent(
+      maxWidth: AppLayout.formWidth,
+      child: Form(
+        key: _form,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.screenH),
+          child: ResponsiveFields(
+            children: [
+              for (final field in resource.fields)
+                ResponsiveField(
+                  key: ValueKey('layout-$field'),
+                  fullWidth: const [
+                    'description',
+                    'images',
+                    'variants',
+                    'permissions',
+                  ].contains(field),
+                  child: _field(field, options),
+                ),
+              ResponsiveField(
+                fullWidth: true,
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: ResponsiveContent(
+                    maxWidth: AppLayout.authWidth,
+                    child: AppButton(
+                      label: l.actionSave,
+                      isLoading: _busy,
+                      onPressed: _save,
+                    ),
+                  ),
+                ),
               ),
-            AppButton(label: l.actionSave, isLoading: _busy, onPressed: _save),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -213,22 +241,29 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
         children: [
           Text(l.adminPermissions, style: context.text.titleSmall),
           Text(l.adminPermissionHint, style: context.text.bodySmall),
-          for (final option in options)
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(adminPermissionLabel(l, option.text('key'))),
-              subtitle: option.text('description').isEmpty
-                  ? null
-                  : Text(option.text('description')),
-              value: selected.contains(option.id),
-              onChanged: _busy
-                  ? null
-                  : (checked) => setState(() {
-                      _draft[field] = checked == true
-                          ? {...selected, option.id}.toList()
-                          : selected.where((key) => key != option.id).toList();
-                    }),
-            ),
+          ResponsiveFields(
+            minItemWidth: AppLayout.cardMinWidth,
+            children: [
+              for (final option in options)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(adminPermissionLabel(l, option.text('key'))),
+                  subtitle: option.text('description').isEmpty
+                      ? null
+                      : Text(option.text('description')),
+                  value: selected.contains(option.id),
+                  onChanged: _busy
+                      ? null
+                      : (checked) => setState(() {
+                          _draft[field] = checked == true
+                              ? {...selected, option.id}.toList()
+                              : selected
+                                    .where((key) => key != option.id)
+                                    .toList();
+                        }),
+                ),
+            ],
+          ),
         ],
       );
     }

@@ -8,10 +8,10 @@ import '../../data/auth_repository_mock.dart';
 import '../../data/auth_repository_remote.dart';
 import '../../domain/auth_repository.dart';
 import '../../domain/session.dart';
+import '../../domain/profile_update.dart';
+import '../../data/user.dart';
 
-/// Mock ⇄ remote switch for auth. `requestOtp`, `verifyOtp` and `/me` are the
-/// only endpoints with complete request *and* response schemas, so the remote
-/// implementation is real, not a stub.
+/// Auth and self-profile operations use the selected repository.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return switch (ref.watch(dataSourceProvider)) {
     DataSource.mock => AuthRepositoryMock(),
@@ -24,10 +24,13 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// `build()` restores a previous session from the stored token, which is why
 /// the router shows the splash while this resolves.
 class SessionController extends AsyncNotifier<Session> {
+  int _sessionRevision = 0;
+  int _profileRevision = 0;
   @override
   Future<Session> build() async {
-    // A 401 anywhere in the app ends the session (there is no refresh
-    // endpoint in the contract to recover with).
+    _sessionRevision++;
+    ref.onDispose(() => _sessionRevision++);
+    // A 401 ends the session; automatic token refresh is a separate task.
     ref.listen(unauthorizedSignalProvider, (previous, next) {
       if (previous != null && next != previous) signOut();
     });
@@ -50,6 +53,7 @@ class SessionController extends AsyncNotifier<Session> {
 
   /// `POST /auth/verify-otp` — stores the token and opens the session.
   Future<void> verifyOtp({required String phone, required String code}) async {
+    _sessionRevision++;
     final repository = ref.read(authRepositoryProvider);
     final result = await repository.verifyOtp(phone: phone, code: code);
 
@@ -65,19 +69,32 @@ class SessionController extends AsyncNotifier<Session> {
     state = AsyncData(Session.signedIn(user));
   }
 
-  /// Updates the signed-in user's editable profile fields.
-  ///
-  /// The contract has no "update own profile" endpoint yet, so this updates the
-  /// in-memory session only (which is real in mock mode). When the backend adds
-  /// `PATCH /me`, call it here before setting the state. No-op if signed out.
-  Future<void> updateProfile({required String name}) async {
-    final current = state.valueOrNull;
-    final user = current?.user;
-    if (user == null) return;
-    state = AsyncData(Session.signedIn(user.copyWith(name: name.trim())));
+  /// Commit the server result only to the session that requested this edit.
+  /// A stale result returns null so its screen cannot show a false success.
+  Future<User?> updateProfile(ProfileUpdate update) async {
+    final user = state.valueOrNull?.user;
+    if (user == null) throw const AppFailure.unauthorized();
+    final sessionRevision = _sessionRevision;
+    final request = ++_profileRevision;
+    bool isCurrent() =>
+        sessionRevision == _sessionRevision &&
+        request == _profileRevision &&
+        identical(state.valueOrNull?.user, user);
+    try {
+      final saved = await ref
+          .read(authRepositoryProvider)
+          .updateProfile(update);
+      if (!isCurrent()) return null;
+      state = AsyncData(Session.signedIn(saved));
+      return saved;
+    } catch (_) {
+      if (!isCurrent()) return null;
+      rethrow;
+    }
   }
 
   Future<void> signOut() async {
+    _sessionRevision++;
     await ref.read(tokenStoreProvider).clear();
     state = const AsyncData(Session.signedOut());
   }
@@ -91,6 +108,5 @@ final sessionControllerProvider =
 /// the user's role does not grant.
 final permissionsProvider = Provider<List<String>>(
   (ref) =>
-      ref.watch(sessionControllerProvider).valueOrNull?.permissions ??
-      const [],
+      ref.watch(sessionControllerProvider).valueOrNull?.permissions ?? const [],
 );
