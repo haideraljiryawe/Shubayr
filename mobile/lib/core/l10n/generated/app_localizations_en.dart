@@ -1004,4 +1004,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminOrderEmptyHint => 'Try another status, search or date range.';
+
+  @override
+  String get filterOnSale => 'Offers';
+
+  @override
+  String promotionDiscount(String percent) {
+    return '$percent% off';
+  }
+
+  @override
+  String promotionOriginalPrice(String price) {
+    return 'Original price: $price';
+  }
+
+  @override
+  String get promotionBasePrice => 'Base product offer';
+
+  @override
+  String get adminOriginalPrice => 'Original price (optional)';
+
+  @override
+  String get adminOriginalPriceHint =>
+      'Leave empty or set no higher than the sale price to remove the offer.';
 }

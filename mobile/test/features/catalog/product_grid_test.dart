@@ -20,6 +20,8 @@ const _products = [
     nameAr: 'ساعة ذكية',
     nameEn: 'Watch',
     salePrice: 120000,
+    compareAtPrice: 150000,
+    discountPercent: 20,
     ratingAvg: 4.2,
   ),
   Product(
@@ -36,6 +38,8 @@ const _products = [
     nameAr: 'منتج',
     nameEn: 'Product',
     salePrice: 123456789,
+    compareAtPrice: 987654321,
+    discountPercent: 88,
     inStock: false,
   ),
 ];
@@ -112,6 +116,11 @@ void main() {
               );
               await tester.pumpAndSettle();
               expect(tester.takeException(), isNull);
+              final labels = AppLocalizations.of(
+                tester.element(find.byType(ProductCard).first),
+              );
+              expect(find.text(labels.promotionDiscount('20')), findsOneWidget);
+              expect(find.text(labels.promotionDiscount('88')), findsOneWidget);
               final cards = find.byType(ProductCard);
               final first = tester.getRect(cards.at(0));
               final second = tester.getRect(cards.at(1));

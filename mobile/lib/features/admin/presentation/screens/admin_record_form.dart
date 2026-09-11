@@ -70,7 +70,13 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
   Future<void> _save() async {
     if (_busy || !_form.currentState!.validate()) return;
     final input = {..._draft};
-    const numeric = {'sale_price', 'floor_price', 'points_price', 'sort_order'};
+    const numeric = {
+      'sale_price',
+      'compare_at_price',
+      'floor_price',
+      'points_price',
+      'sort_order',
+    };
     const special = {
       'category_id',
       'parent_id',
@@ -327,6 +333,7 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
     }
     final isNumeric = const [
       'sale_price',
+      'compare_at_price',
       'floor_price',
       'points_price',
       'sort_order',
@@ -350,7 +357,13 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
           : field == 'email'
           ? TextInputType.emailAddress
           : null,
-      decoration: InputDecoration(labelText: adminFieldLabel(l, field)),
+      decoration: InputDecoration(
+        labelText: adminFieldLabel(l, field),
+        helperText: field == 'compare_at_price'
+            ? l.adminOriginalPriceHint
+            : null,
+        helperMaxLines: 3,
+      ),
       validator: (value) {
         final text = value?.trim() ?? '';
         if (text.isEmpty) {

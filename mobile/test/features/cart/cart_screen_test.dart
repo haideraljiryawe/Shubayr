@@ -35,6 +35,7 @@ class _FakeCatalog implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,

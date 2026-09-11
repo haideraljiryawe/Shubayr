@@ -30,6 +30,7 @@ class ProductListScreen extends ConsumerStatefulWidget {
 class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   late final TextEditingController _search;
   Timer? _debounce;
+  final _scroll = ScrollController();
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -82,6 +84,21 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     final l10n = context.l10n;
     final colors = context.colors;
     final state = ref.watch(productListControllerProvider(widget.initialQuery));
+    // A wide grid can fit the first page without scrolling. Fill that viewport
+    // before relying on scroll notifications for subsequent pages.
+    if (state.items.isNotEmpty &&
+        state.hasMore &&
+        !state.loadingInitial &&
+        !state.loadingMore &&
+        state.error == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            _scroll.hasClients &&
+            _scroll.position.maxScrollExtent == 0) {
+          _controller.loadMore();
+        }
+      });
+    }
     final hasPriceFilter =
         state.query.minPrice != null || state.query.maxPrice != null;
 
@@ -112,6 +129,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(52),
           child: _SortBar(
+            onSale: state.query.onSale,
+            onSaleChanged: (value) =>
+                _controller.updateQuery(_query.copyWith(onSale: value)),
             sort: state.query.sort,
             onSelected: (s) =>
                 _controller.updateQuery(_query.copyWith(sort: s)),
@@ -119,6 +139,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         ),
       ),
       body: _Body(
+        scroll: _scroll,
         state: state,
         onRetry: _controller.retry,
         onScroll: _onScroll,
@@ -132,9 +153,11 @@ class _Body extends StatelessWidget {
     required this.state,
     required this.onRetry,
     required this.onScroll,
+    required this.scroll,
   });
 
   final ProductListState state;
+  final ScrollController scroll;
   final VoidCallback onRetry;
   final bool Function(ScrollNotification) onScroll;
 
@@ -167,6 +190,7 @@ class _Body extends StatelessWidget {
     return NotificationListener<ScrollNotification>(
       onNotification: onScroll,
       child: CustomScrollView(
+        controller: scroll,
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(AppSpacing.screenH),
@@ -191,6 +215,10 @@ class _Body extends StatelessWidget {
                 child: Center(child: CircularProgressIndicator()),
               ),
             ),
+          if (state.error != null)
+            SliverToBoxAdapter(
+              child: AppErrorView(error: state.error, onRetry: onRetry),
+            ),
         ],
       ),
     );
@@ -198,9 +226,16 @@ class _Body extends StatelessWidget {
 }
 
 class _SortBar extends StatelessWidget {
-  const _SortBar({required this.sort, required this.onSelected});
+  const _SortBar({
+    required this.sort,
+    required this.onSelected,
+    required this.onSale,
+    required this.onSaleChanged,
+  });
 
   final String sort;
+  final bool onSale;
+  final ValueChanged<bool> onSaleChanged;
   final ValueChanged<String> onSelected;
 
   @override
@@ -218,6 +253,14 @@ class _SortBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
         children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
+            child: FilterChip(
+              label: Text(l10n.filterOnSale),
+              selected: onSale,
+              onSelected: onSaleChanged,
+            ),
+          ),
           for (final (value, label) in options)
             Padding(
               padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),

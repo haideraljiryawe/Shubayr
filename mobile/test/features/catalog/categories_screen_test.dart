@@ -40,6 +40,7 @@ class _FakeCatalog implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
@@ -53,8 +54,11 @@ class _FakeCatalog implements CatalogRepository {
       throw UnimplementedError();
 
   @override
-  Future<ReviewPage> fetchReviews(String id, {int page = 1, int perPage = 20}) async =>
-      const ReviewPage();
+  Future<ReviewPage> fetchReviews(
+    String id, {
+    int page = 1,
+    int perPage = 20,
+  }) async => const ReviewPage();
 }
 
 Widget _host() => ProviderScope(

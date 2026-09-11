@@ -25,6 +25,7 @@ class CatalogRepositoryRemote implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
@@ -35,6 +36,7 @@ class CatalogRepositoryRemote implements CatalogRepository {
     if (minPrice != null) params['min_price'] = minPrice;
     if (maxPrice != null) params['max_price'] = maxPrice;
     if (sort != null) params['sort'] = sort;
+    if (onSale) params['on_sale'] = true;
     final json = await _api.get<Map<String, dynamic>>(
       '/products',
       query: params,

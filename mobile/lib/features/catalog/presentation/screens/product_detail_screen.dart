@@ -1,5 +1,6 @@
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
+import '../widgets/product_promotion.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -200,6 +201,14 @@ class _DetailState extends ConsumerState<_Detail> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.md),
+                        if (product.isOnSale) ...[
+                          ProductPromotion(
+                            product: product,
+                            showBasePrice:
+                                (selectedVariant?.priceDelta ?? 0) != 0,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                        ],
                         Text(
                           price,
                           style: context.text.headlineMedium?.copyWith(

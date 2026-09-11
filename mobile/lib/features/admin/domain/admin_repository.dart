@@ -42,6 +42,7 @@ enum AdminResource {
       'name_ar',
       'description',
       'sale_price',
+      'compare_at_price',
       'is_negotiable',
       'floor_price',
       'points_price',

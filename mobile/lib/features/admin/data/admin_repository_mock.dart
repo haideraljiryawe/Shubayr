@@ -1,6 +1,7 @@
 import '../../../core/error/failure.dart';
 import '../../auth/domain/permissions.dart';
 import '../../catalog/data/catalog_repository_mock.dart';
+import '../../catalog/data/product.dart';
 import '../domain/admin_repository.dart';
 
 class AdminRepositoryMock implements AdminRepository {
@@ -199,6 +200,10 @@ class AdminRepositoryMock implements AdminRepository {
       merged.remove('children');
     }
     if (resource == AdminResource.products) {
+      merged['discount_percent'] = Product.discountPercentFor(
+        merged['sale_price'] as num,
+        merged['compare_at_price'] as num?,
+      );
       merged['status'] ??= 'active';
       merged['is_negotiable'] ??= false;
       merged['tracks_expiry'] ??= false;

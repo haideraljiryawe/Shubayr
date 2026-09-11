@@ -344,5 +344,25 @@
   "adminOrderClearSearch": "Clear search",
   "adminOrderDateRange": "Date range",
   "adminOrderClearDates": "Clear date filter",
-  "adminOrderEmptyHint": "Try another status, search or date range."
+  "adminOrderEmptyHint": "Try another status, search or date range.",
+  "filterOnSale": "Offers",
+  "promotionDiscount": "{percent}% off",
+  "promotionOriginalPrice": "Original price: {price}",
+  "promotionBasePrice": "Base product offer",
+  "adminOriginalPrice": "Original price (optional)",
+  "adminOriginalPriceHint": "Leave empty or set no higher than the sale price to remove the offer.",
+  "@promotionDiscount": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "@promotionOriginalPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  }
 }

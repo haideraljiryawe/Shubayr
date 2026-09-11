@@ -333,5 +333,25 @@
   "adminOrderClearSearch": "مسح البحث",
   "adminOrderDateRange": "الفترة الزمنية",
   "adminOrderClearDates": "مسح فلتر التاريخ",
-  "adminOrderEmptyHint": "جرّب حالة أو بحثًا أو فترة زمنية أخرى."
+  "adminOrderEmptyHint": "جرّب حالة أو بحثًا أو فترة زمنية أخرى.",
+  "filterOnSale": "العروض",
+  "promotionDiscount": "خصم {percent}%",
+  "promotionOriginalPrice": "السعر الأصلي: {price}",
+  "promotionBasePrice": "عرض السعر الأساسي للمادة",
+  "adminOriginalPrice": "السعر الأصلي (اختياري)",
+  "adminOriginalPriceHint": "اتركه فارغًا أو أدخل سعرًا لا يتجاوز سعر البيع لإلغاء العرض.",
+  "@promotionDiscount": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "@promotionOriginalPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  }
 }

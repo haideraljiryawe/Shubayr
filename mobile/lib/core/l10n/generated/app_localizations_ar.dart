@@ -993,4 +993,27 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminOrderEmptyHint => 'جرّب حالة أو بحثًا أو فترة زمنية أخرى.';
+
+  @override
+  String get filterOnSale => 'العروض';
+
+  @override
+  String promotionDiscount(String percent) {
+    return 'خصم $percent%';
+  }
+
+  @override
+  String promotionOriginalPrice(String price) {
+    return 'السعر الأصلي: $price';
+  }
+
+  @override
+  String get promotionBasePrice => 'عرض السعر الأساسي للمادة';
+
+  @override
+  String get adminOriginalPrice => 'السعر الأصلي (اختياري)';
+
+  @override
+  String get adminOriginalPriceHint =>
+      'اتركه فارغًا أو أدخل سعرًا لا يتجاوز سعر البيع لإلغاء العرض.';
 }

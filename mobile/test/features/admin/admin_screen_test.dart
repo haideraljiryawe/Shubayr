@@ -59,6 +59,38 @@ void main() {
       ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf'));
     await font.load();
   });
+  testWidgets('original price validation and clearing survive a failed edit', (
+    tester,
+  ) async {
+    final repo = RecordingAdmin();
+    await tester.pumpWidget(host(repo, resource: AdminResource.products));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Edit').first);
+    await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey('compare_at_price'));
+    await tester.ensureVisible(field);
+    expect(tester.widget<TextFormField>(field).controller!.text, '60000');
+    await tester.enterText(field, '-10');
+    await save(tester);
+    expect(repo.writes, isEmpty);
+    await tester.ensureVisible(field);
+    await tester.enterText(field, '');
+    repo.onSave = (_, _, _) async => throw const AppFailure.network();
+    await save(tester);
+    expect(repo.writes.single.input['compare_at_price'], isNull);
+    expect(tester.widget<TextFormField>(field).controller!.text, isEmpty);
+    expect(find.byType(AdminRecordForm), findsOneWidget);
+    repo.onSave = null;
+    // Let the three-second failure snackbar leave the bottom action unobscured.
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    await save(tester);
+    expect(repo.writes.last.input['compare_at_price'], isNull);
+    expect(repo.writes.last.id, isNotNull);
+    expect(find.byType(AdminRecordForm), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('user search and role filter are repository queries', (
     tester,
   ) async {
@@ -261,6 +293,7 @@ void main() {
         'name_ar': 'مادة جديدة',
         'name_en': 'New product',
         'sale_price': '12500',
+        'compare_at_price': '15000',
         'points_price': '10.0',
         'images': 'https://example.com/product.jpg',
       }.entries) {
@@ -279,6 +312,7 @@ void main() {
       await save(tester);
       expect(repo.writes, hasLength(1));
       final input = repo.writes.single.input;
+      expect(input['compare_at_price'], 15000);
       expect(input['category_id'], isNotNull);
       expect(input['sale_price'], 12500);
       expect(input['points_price'], isA<int>());

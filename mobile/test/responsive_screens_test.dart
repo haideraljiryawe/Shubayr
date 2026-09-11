@@ -68,6 +68,7 @@ class _Catalog extends CatalogRepositoryMock {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
@@ -78,6 +79,7 @@ class _Catalog extends CatalogRepositoryMock {
       minPrice: minPrice,
       maxPrice: maxPrice,
       sort: sort,
+      onSale: onSale,
       page: page,
       perPage: perPage,
     );

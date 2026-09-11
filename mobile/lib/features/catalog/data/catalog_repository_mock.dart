@@ -228,7 +228,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     }
     _products
       ..clear()
-      ..addAll(products.map(Product.fromJson));
+      ..addAll(products.map(Product.fromJson).map(_withDiscount));
     final ordered = [...categories]
       ..sort((a, b) {
         final order = ((a['sort_order'] as num?) ?? 0).compareTo(
@@ -261,6 +261,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'سماعات لاسلكية',
       description: 'Compact wireless earbuds with a charging case.',
       salePrice: 45000,
+      compareAtPrice: 60000,
       ratingAvg: 4.5,
       availableQty: 30,
       images: [_img('p1')],
@@ -272,6 +273,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'ساعة ذكية',
       description: 'Fitness tracking, notifications and a week of battery.',
       salePrice: 120000,
+      compareAtPrice: 150000,
       isNegotiable: true,
       floorPrice: 100000,
       ratingAvg: 4.2,
@@ -285,6 +287,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'باور بانك ٢٠٠٠٠',
       description: 'Fast-charging power bank with two USB outputs.',
       salePrice: 32000,
+      compareAtPrice: 40000,
       pointsPrice: 320,
       ratingAvg: 4.0,
       availableQty: 0,
@@ -298,6 +301,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'زيت زيتون ١ لتر',
       description: 'Extra-virgin olive oil, cold pressed.',
       salePrice: 15000,
+      compareAtPrice: 20000,
       ratingAvg: 4.8,
       availableQty: 80,
       images: [_img('p4')],
@@ -309,6 +313,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'رز بسمتي ٥ كغم',
       description: 'Aged long-grain basmati rice.',
       salePrice: 22000,
+      compareAtPrice: 25000,
       ratingAvg: 4.6,
       availableQty: 50,
       images: [_img('p5')],
@@ -320,6 +325,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'قهوة مطحونة ٢٥٠ غم',
       description: 'Medium-roast Arabica ground coffee.',
       salePrice: 9000,
+      compareAtPrice: 10000,
       ratingAvg: 4.3,
       availableQty: 40,
       images: [_img('p6')],
@@ -331,6 +337,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'قميص قطني',
       description: 'Soft cotton t-shirt, several sizes.',
       salePrice: 12000,
+      compareAtPrice: 15000,
       ratingAvg: 4.1,
       availableQty: 60,
       images: [_img('p7')],
@@ -352,6 +359,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'جاكيت جينز',
       description: 'Classic denim jacket.',
       salePrice: 38000,
+      compareAtPrice: 45000,
       isNegotiable: true,
       floorPrice: 30000,
       ratingAvg: 4.4,
@@ -365,6 +373,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'مقلاة غير لاصقة',
       description: '28cm non-stick frying pan.',
       salePrice: 18000,
+      compareAtPrice: 20000,
       ratingAvg: 4.5,
       availableQty: 25,
       images: [_img('p9')],
@@ -403,7 +412,15 @@ class CatalogRepositoryMock implements CatalogRepository {
       availableQty: 18,
       images: [_img('p12')],
     ),
-  ];
+  ].map(_withDiscount).toList();
+
+  static Product _withDiscount(Product p) => Product.fromJson({
+    ...p.toJson(),
+    'discount_percent': Product.discountPercentFor(
+      p.salePrice,
+      p.compareAtPrice,
+    ),
+  });
 
   @override
   Future<List<Category>> fetchCategories() async {
@@ -429,6 +446,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
@@ -442,6 +460,7 @@ class CatalogRepositoryMock implements CatalogRepository {
 
     var items = _products.where((p) {
       if (p.status != 'active') return false;
+      if (onSale && !p.isOnSale) return false;
       if (categoryIds != null && !categoryIds.contains(p.categoryId)) {
         return false;
       }

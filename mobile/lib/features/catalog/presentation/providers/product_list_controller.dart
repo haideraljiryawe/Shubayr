@@ -21,6 +21,7 @@ class ProductQuery {
     this.categoryId,
     this.minPrice,
     this.maxPrice,
+    this.onSale = false,
     this.sort = ProductSort.newest,
   });
 
@@ -28,17 +29,20 @@ class ProductQuery {
   final String? categoryId;
   final num? minPrice;
   final num? maxPrice;
+  final bool onSale;
   final String sort;
 
   ProductQuery copyWith({
     String? text,
     String? sort,
+    bool? onSale,
     Object? categoryId = _keep,
     Object? minPrice = _keep,
     Object? maxPrice = _keep,
   }) => ProductQuery(
     text: text ?? this.text,
     sort: sort ?? this.sort,
+    onSale: onSale ?? this.onSale,
     categoryId: categoryId == _keep ? this.categoryId : categoryId as String?,
     minPrice: minPrice == _keep ? this.minPrice : minPrice as num?,
     maxPrice: maxPrice == _keep ? this.maxPrice : maxPrice as num?,
@@ -53,10 +57,12 @@ class ProductQuery {
       other.categoryId == categoryId &&
       other.minPrice == minPrice &&
       other.maxPrice == maxPrice &&
+      other.onSale == onSale &&
       other.sort == sort;
 
   @override
-  int get hashCode => Object.hash(text, categoryId, minPrice, maxPrice, sort);
+  int get hashCode =>
+      Object.hash(text, categoryId, minPrice, maxPrice, sort, onSale);
 }
 
 /// Accumulated listing state: the loaded page of products plus paging flags.
@@ -108,9 +114,11 @@ class ProductListState {
 class ProductListController
     extends AutoDisposeFamilyNotifier<ProductListState, ProductQuery> {
   static const _perPage = 8;
+  int _requestId = 0;
 
   @override
   ProductListState build(ProductQuery arg) {
+    ref.onDispose(() => _requestId++);
     _fetch(arg, page: 1, reset: true);
     return ProductListState(query: arg, loadingInitial: true);
   }
@@ -125,33 +133,47 @@ class ProductListController
   /// Load the next page and append it.
   void loadMore() {
     final s = state;
-    if (s.loadingInitial || s.loadingMore || !s.hasMore) return;
+    if (s.loadingInitial || s.loadingMore || !s.hasMore || s.error != null) {
+      return;
+    }
     state = s.copyWith(loadingMore: true);
     _fetch(s.query, page: s.page + 1, reset: false);
   }
 
-  void retry() => _fetch(state.query, page: 1, reset: true);
+  void retry() {
+    if (state.loadingInitial || state.loadingMore) return;
+    if (state.items.isEmpty) {
+      _fetch(state.query, page: 1, reset: true);
+    } else {
+      state = state.copyWith(clearError: true);
+      loadMore();
+    }
+  }
 
   Future<void> _fetch(
     ProductQuery query, {
     required int page,
     required bool reset,
   }) async {
+    final requestId = ++_requestId;
     if (reset) {
       state = ProductListState(query: query, loadingInitial: true);
     }
     try {
-      final result = await ref.read(catalogRepositoryProvider).fetchProducts(
-        query: query.text,
-        categoryId: query.categoryId,
-        minPrice: query.minPrice,
-        maxPrice: query.maxPrice,
-        sort: query.sort,
-        page: page,
-        perPage: _perPage,
-      );
+      final result = await ref
+          .read(catalogRepositoryProvider)
+          .fetchProducts(
+            query: query.text,
+            categoryId: query.categoryId,
+            minPrice: query.minPrice,
+            maxPrice: query.maxPrice,
+            onSale: query.onSale,
+            sort: query.sort,
+            page: page,
+            perPage: _perPage,
+          );
       // Ignore responses for a query the user has since changed.
-      if (state.query != query) return;
+      if (requestId != _requestId) return;
       state = state.copyWith(
         items: reset ? result.data : [...state.items, ...result.data],
         loadingInitial: false,
@@ -161,7 +183,7 @@ class ProductListController
         clearError: true,
       );
     } catch (error) {
-      if (state.query != query) return;
+      if (requestId != _requestId) return;
       state = state.copyWith(
         loadingInitial: false,
         loadingMore: false,
@@ -171,8 +193,9 @@ class ProductListController
   }
 }
 
-final productListControllerProvider = AutoDisposeNotifierProvider.family<
-  ProductListController,
-  ProductListState,
-  ProductQuery
->(ProductListController.new);
+final productListControllerProvider =
+    AutoDisposeNotifierProvider.family<
+      ProductListController,
+      ProductListState,
+      ProductQuery
+    >(ProductListController.new);

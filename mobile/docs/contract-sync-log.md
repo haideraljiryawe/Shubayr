@@ -107,6 +107,22 @@ Ahmed confirmed R1 is complete and requested a commit/push to `mobile`. R1 is
 now `[x]`; live integration, R2–R4 and B1/B2/B5 retain their existing states.
 The separate responsive and admin-foundation acceptance states are unchanged.
 
+## Implementation follow-up — R2, 2026-09-11
+
+Customer promotions and admin original-price editing moved from ready to
+implemented/manual-acceptance-pending. Existing contract fields/filter are now
+consumed by mock/remote repositories and UI; original-price clearing and computed
+mock percentages are covered. Analysis, all 425 Flutter tests and the mock Web
+build passed. See [promotions progress](promotions-progress.md).
+This is a client increment, not a new contract import. R3/R4, B10 and separate
+responsive/admin-foundation acceptance states remain unchanged.
+
+## Manual acceptance — R2, 2026-09-11
+
+Ahmed accepted R2 customer/admin promotions and requested commit/push to `mobile`.
+Both R2 entries are now `[x]`; live integration and separate acceptance states
+remain unchanged. R3 home banners is the next requested scope.
+
 ## Format for the next synchronization record
 
 Append a dated `SYNC-YYYY-MM-DD` record (add a suffix for a second review that day),

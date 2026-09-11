@@ -48,6 +48,7 @@ class _FakeCatalog implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
@@ -56,7 +57,12 @@ class _FakeCatalog implements CatalogRepository {
     final data = categoryId == null
         ? all
         : all.where((p) => p.categoryId == categoryId).toList();
-    return ProductPage(page: 1, perPage: perPage, total: data.length, data: data);
+    return ProductPage(
+      page: 1,
+      perPage: perPage,
+      total: data.length,
+      data: data,
+    );
   }
 
   @override
@@ -71,8 +77,11 @@ class _FakeCatalog implements CatalogRepository {
       );
 
   @override
-  Future<ReviewPage> fetchReviews(String id, {int page = 1, int perPage = 20}) async =>
-      const ReviewPage();
+  Future<ReviewPage> fetchReviews(
+    String id, {
+    int page = 1,
+    int perPage = 20,
+  }) async => const ReviewPage();
 }
 
 Future<ProviderContainer> _container() async {
@@ -88,22 +97,29 @@ Future<ProviderContainer> _container() async {
 }
 
 void main() {
-  testWidgets('home lists products and opens product detail', (tester) async {
-    final container = await _container();
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const ShubayrApp()),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'home lists products and opens product detail',
+    (tester) async {
+      final container = await _container();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const ShubayrApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    // A signed-out guest lands on Home (catalog is public) and sees products.
-    expect(find.byType(ProductCard), findsNWidgets(2));
-    expect(find.text('منتج أول'), findsOneWidget); // Arabic-first name
+      // A signed-out guest lands on Home (catalog is public) and sees products.
+      expect(find.byType(ProductCard), findsNWidgets(2));
+      expect(find.text('منتج أول'), findsOneWidget); // Arabic-first name
 
-    await tester.tap(find.byType(ProductCard).first);
-    await tester.pumpAndSettle();
+      await tester.tap(find.byType(ProductCard).first);
+      await tester.pumpAndSettle();
 
-    expect(tester.takeException(), isNull);
-    expect(find.byType(ProductDetailScreen), findsOneWidget);
-  }, timeout: const Timeout(Duration(seconds: 30)));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(ProductDetailScreen), findsOneWidget);
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
 }

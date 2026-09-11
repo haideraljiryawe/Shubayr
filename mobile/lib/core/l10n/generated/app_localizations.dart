@@ -2005,6 +2005,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try another status, search or date range.'**
   String get adminOrderEmptyHint;
+
+  /// No description provided for @filterOnSale.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers'**
+  String get filterOnSale;
+
+  /// No description provided for @promotionDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% off'**
+  String promotionDiscount(String percent);
+
+  /// No description provided for @promotionOriginalPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Original price: {price}'**
+  String promotionOriginalPrice(String price);
+
+  /// No description provided for @promotionBasePrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Base product offer'**
+  String get promotionBasePrice;
+
+  /// No description provided for @adminOriginalPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Original price (optional)'**
+  String get adminOriginalPrice;
+
+  /// No description provided for @adminOriginalPriceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty or set no higher than the sale price to remove the offer.'**
+  String get adminOriginalPriceHint;
 }
 
 class _AppLocalizationsDelegate

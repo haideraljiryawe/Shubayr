@@ -10,6 +10,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/product.dart';
+import 'product_promotion.dart';
 
 /// Measure two lines with the active font and accessibility text scaling.
 double _productNameHeight(BuildContext context) {
@@ -79,6 +80,10 @@ class ProductCard extends ConsumerWidget {
                       ),
                       const Spacer(),
                       const SizedBox(height: AppSpacing.xs),
+                      if (product.isOnSale) ...[
+                        ProductPromotion(product: product),
+                        const SizedBox(height: AppSpacing.xs),
+                      ],
                       if (product.ratingAvg > 0) ...[
                         _Rating(value: product.ratingAvg),
                         const SizedBox(height: AppSpacing.xs),

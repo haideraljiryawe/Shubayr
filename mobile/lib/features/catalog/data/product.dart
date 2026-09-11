@@ -37,6 +37,8 @@ class Product {
     required this.nameAr,
     this.description = '',
     this.salePrice = 0,
+    this.compareAtPrice,
+    this.discountPercent,
     this.isNegotiable = false,
     this.floorPrice,
     this.pointsPrice,
@@ -59,6 +61,27 @@ class Product {
   final String description;
   @JsonKey(name: 'sale_price')
   final num salePrice;
+  @JsonKey(name: 'compare_at_price')
+  final num? compareAtPrice;
+  @JsonKey(name: 'discount_percent')
+  final int? discountPercent;
+
+  bool get isOnSale =>
+      compareAtPrice != null &&
+      compareAtPrice!.isFinite &&
+      salePrice.isFinite &&
+      compareAtPrice! > 0 &&
+      compareAtPrice! > salePrice;
+
+  /// Contract calculation for mock responses; remote percentages remain read-only.
+  static int? discountPercentFor(num sale, num? original) =>
+      original != null &&
+          original.isFinite &&
+          sale.isFinite &&
+          original > 0 &&
+          original > sale
+      ? ((original - sale) / original * 100).round()
+      : null;
   @JsonKey(name: 'is_negotiable')
   final bool isNegotiable;
   @JsonKey(name: 'floor_price')
@@ -93,6 +116,8 @@ class Product {
     nameAr: nameAr,
     description: description,
     salePrice: salePrice,
+    compareAtPrice: compareAtPrice,
+    discountPercent: discountPercent,
     isNegotiable: isNegotiable,
     floorPrice: floorPrice,
     pointsPrice: pointsPrice,
