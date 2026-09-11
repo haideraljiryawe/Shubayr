@@ -123,6 +123,50 @@ Ahmed accepted R2 customer/admin promotions and requested commit/push to `mobile
 Both R2 entries are now `[x]`; live integration and separate acceptance states
 remain unchanged. R3 home banners is the next requested scope.
 
+## Implementation follow-up — R3 home banners, 2026-09-11
+
+Customer R3 moved from ready to implemented/manual-acceptance-pending. Public
+banner reads, mock active/schedule/order semantics, responsive content/image/action
+display and refresh/retry/stale-response handling are implemented. Ahmed explicitly
+approved url_launcher for external banner links; dependency and iOS lock updates
+are included. Analysis, all 36 focused tests, all 460 Flutter tests and the mock
+Web build passed. See [home banners progress](home-banners-progress.md).
+This is a client increment against the imported contract, not a new contract
+synchronization. Admin R3 remains `[ ]`; R4 and all other acceptance/dependency
+states are unchanged. No commit/push is included; final manual acceptance remains
+pending.
+
+## UI refinement — R3 image carousel, 2026-09-11
+
+Ahmed requested a full-image hero carousel with title/subtitle overlays, whole-image
+link actions, swipe looping, five-second animated autoplay and small overlay dots.
+The implementation uses Flutter SDK paging and the existing approved url_launcher;
+no new dependency or repository/API/scheduling change was needed. Missing/null
+Banner titles normalize to empty to support image-only content. Refresh preserves
+selection by ID and safely replaces controllers when list identities change.
+Analysis, all 46 focused tests, all 470 tests and mock Web build passed. Customer
+R3 stays `[~]` pending manual acceptance; admin R3 and other statuses are unchanged.
+See [home banners progress](home-banners-progress.md). No commit or push.
+
+## UI correction — R3 full-viewport paging, 2026-09-11
+
+Moved banner margins and rounded clips into full-width PageView pages, retaining
+image dimensions with `viewportFraction: 1.0`. A small brand pill indicator now
+sits below the banner and tracks logical selection during dragging. Slow-drag
+regressions cover phone/desktop and RTL/LTR. Analysis, all 51 focused tests, all
+475 tests and mock Web build passed. No contract/repository/timer change; R3
+remains `[~]` pending manual acceptance. No commit or push.
+
+## Design refinement — Wide home banners and shared chips, 2026-09-11
+
+Adjusted banner aspect ratios through AppLayout, removed Home's department heading,
+and centralized chip radii/selected outlines/shadows in NavigationThemes.chip.
+Reviewed existing choice/filter uses; no per-screen style duplication or filtering
+changes were needed. Carousel behavior, contracts and repositories are unchanged.
+Analysis, all 97 focused tests, all 481 tests and mock Web build passed. Visual
+acceptance is pending; existing completed business scopes remain completed.
+No commit or push. See [progress record](home-banners-progress.md).
+
 ## Format for the next synchronization record
 
 Append a dated `SYNC-YYYY-MM-DD` record (add a suffix for a second review that day),

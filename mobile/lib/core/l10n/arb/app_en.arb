@@ -1,6 +1,7 @@
 {
   "@@locale": "en",
 
+  "homeBrandName": "Shubayr",
   "storeFallbackName": "Store",
   "@storeFallbackName": { "description": "Neutral brand name used before store settings load." },
 
@@ -364,5 +365,19 @@
         "type": "String"
       }
     }
-  }
+  },
+  "bannerPosition": "{current} of {total}",
+  "bannerOpenFailed": "Could not open this link. Please try again.",
+  "@bannerPosition": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "startupTagline": "Everything you need, all in one place",
+  "startupLoading": "Getting the app ready"
 }

@@ -1,3 +1,12 @@
+import 'package:flutter/material.dart';
+import 'package:shubayr/core/l10n/locale_controller.dart';
+import 'package:shubayr/core/theme/tokens/app_typography.dart';
+import 'package:shubayr/core/theme/tokens/app_spacing.dart';
+import 'package:shubayr/features/catalog/presentation/screens/product_list_screen.dart';
+import 'package:shubayr/core/l10n/generated/app_localizations.dart';
+import 'package:shubayr/features/catalog/presentation/screens/home_screen.dart';
+import 'package:shubayr/features/banners/data/home_banner.dart';
+import 'package:shubayr/features/banners/presentation/providers/banner_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -92,11 +101,138 @@ Future<ProviderContainer> _container() async {
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
       catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
+      homeBannersProvider.overrideWith(
+        (ref) async => const [
+          HomeBanner(
+            id: 'test-banner',
+            title: 'بانر المتجر Store banner',
+            imageUrl: '',
+          ),
+        ],
+      ),
     ],
   );
 }
 
 void main() {
+  for (final lang in ['ar', 'en']) {
+    testWidgets(
+      'Home identity follows $lang direction and search still opens the product search',
+      (tester) async {
+        addTearDown(tester.view.reset);
+        final container = await _container();
+        addTearDown(container.dispose);
+        await container
+            .read(localeControllerProvider.notifier)
+            .setLocale(Locale(lang));
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const ShubayrApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+        for (final width in [320.0, 390.0, 1920.0]) {
+          tester.view.physicalSize = Size(width, 900);
+          tester.view.devicePixelRatio = 1;
+          await tester.pumpAndSettle();
+          final header = find.byType(AppBar);
+          final name = find.descendant(
+            of: header,
+            matching: find.text(lang == 'ar' ? 'شُبَيّر' : 'Shubayr'),
+          );
+          final logo = find.descendant(
+            of: header,
+            matching: find.byType(Image),
+          );
+          final search = find.descendant(
+            of: header,
+            matching: find.byIcon(Icons.search),
+          );
+          expect(name, findsOneWidget);
+          expect(tester.getSize(logo), const Size(32, 32));
+          expect(tester.widget<Image>(logo).fit, BoxFit.contain);
+          expect(tester.getSize(header).height, kToolbarHeight);
+          final nameRect = tester.getRect(name);
+          final logoRect = tester.getRect(logo);
+          final searchRect = tester.getRect(search);
+          expect(searchRect.size, const Size(28, 28));
+          final title = find.text(lang == 'ar' ? 'المنتجات' : 'Products');
+          expect(title, findsOneWidget);
+          final padding = find
+              .ancestor(of: title, matching: find.byType(Padding))
+              .first;
+          expect(
+            tester.widget<Padding>(padding).padding,
+            const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screenH,
+              vertical: AppSpacing.sm,
+            ),
+          );
+          expect(
+            tester.getRect(title).center.dy,
+            closeTo(tester.getRect(padding).center.dy, 0.01),
+          );
+          if (lang == 'ar') {
+            expect(logoRect.left, greaterThan(nameRect.right));
+            expect(searchRect.right, lessThan(nameRect.left));
+          } else {
+            expect(logoRect.right, lessThan(nameRect.left));
+            expect(searchRect.left, greaterThan(nameRect.right));
+          }
+          expect(
+            tester.widget<Text>(name).style!.fontFamily,
+            AppTypography.homeBrandFontFamily,
+          );
+          expect(
+            Theme.of(tester.element(name)).textTheme.titleLarge!.fontFamily,
+            'Cairo',
+          );
+          expect(tester.takeException(), isNull);
+        }
+        await tester.tap(find.byIcon(Icons.search));
+        await tester.pumpAndSettle();
+        expect(find.byType(ProductListScreen), findsOneWidget);
+        expect(find.text(lang == 'ar' ? 'شُبَيّر' : 'Shubayr'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'home omits the department heading and category selection still filters products',
+    (tester) async {
+      final container = await _container();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const ShubayrApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(tester.element(find.byType(HomeScreen)));
+      expect(find.text(l10n.homeSectionDepartments), findsNothing);
+      final banner = tester.getRect(
+        find.byKey(const ValueKey('banner-page-0')),
+      );
+      final chip = find.widgetWithText(ChoiceChip, 'قسم أول');
+      expect(tester.getRect(chip).top - banner.bottom, inInclusiveRange(8, 24));
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+      expect(tester.widget<ChoiceChip>(chip).selected, isTrue);
+      await tester.scrollUntilVisible(
+        find.text('منتج أول'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(ProductCard), findsOneWidget);
+      expect(find.text('منتج ثانٍ'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'home lists products and opens product detail',
     (tester) async {
@@ -111,9 +247,17 @@ void main() {
       await tester.pumpAndSettle();
 
       // A signed-out guest lands on Home (catalog is public) and sees products.
+      await tester.scrollUntilVisible(
+        find.text('منتج أول'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       expect(find.byType(ProductCard), findsNWidgets(2));
       expect(find.text('منتج أول'), findsOneWidget); // Arabic-first name
 
+      await tester.ensureVisible(find.byType(ProductCard).first);
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(ProductCard).first);
       await tester.pumpAndSettle();
 

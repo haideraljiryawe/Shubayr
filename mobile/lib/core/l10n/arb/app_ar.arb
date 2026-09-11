@@ -1,6 +1,7 @@
 {
   "@@locale": "ar",
 
+  "homeBrandName": "شُبَيّر",
   "storeFallbackName": "المتجر",
 
   "actionRetry": "إعادة المحاولة",
@@ -150,7 +151,7 @@
   "commonOutOfStock": "غير متوفر",
   "homeSectionDepartments": "تسوّق حسب القسم",
   "homeAllDepartments": "الكل",
-  "homeSectionProducts": "منتجات",
+  "homeSectionProducts": "المنتجات",
   "productDescription": "الوصف",
   "productNegotiable": "قابل للتفاوض",
   "productAddToCart": "أضف إلى السلة",
@@ -353,5 +354,19 @@
         "type": "String"
       }
     }
-  }
+  },
+  "bannerPosition": "{current} من {total}",
+  "bannerOpenFailed": "تعذر فتح الرابط. حاول مرة أخرى.",
+  "@bannerPosition": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "startupTagline": "كل ما تحتاجه في مكان واحد",
+  "startupLoading": "جارٍ تجهيز التطبيق"
 }

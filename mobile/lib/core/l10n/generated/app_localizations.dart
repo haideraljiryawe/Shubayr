@@ -98,6 +98,12 @@ abstract class AppLocalizations {
     Locale('en'),
   ];
 
+  /// No description provided for @homeBrandName.
+  ///
+  /// In en, this message translates to:
+  /// **'Shubayr'**
+  String get homeBrandName;
+
   /// Neutral brand name used before store settings load.
   ///
   /// In en, this message translates to:
@@ -2041,6 +2047,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Leave empty or set no higher than the sale price to remove the offer.'**
   String get adminOriginalPriceHint;
+
+  /// No description provided for @bannerPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {total}'**
+  String bannerPosition(String current, String total);
+
+  /// No description provided for @bannerOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open this link. Please try again.'**
+  String get bannerOpenFailed;
+
+  /// No description provided for @startupTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything you need, all in one place'**
+  String get startupTagline;
+
+  /// No description provided for @startupLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting the app ready'**
+  String get startupLoading;
 }
 
 class _AppLocalizationsDelegate

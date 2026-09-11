@@ -106,9 +106,13 @@ class AppColors extends ThemeExtension<AppColors> {
     return AppColors(
       brightness: Brightness.dark,
       primary: onDarkPrimary,
-      primaryDark: p.withLightness((p.lightness * 0.72).clamp(0.0, 1.0)).toColor(),
+      primaryDark: p
+          .withLightness((p.lightness * 0.72).clamp(0.0, 1.0))
+          .toColor(),
       primaryLight: p
-          .withLightness((p.lightness + (1 - p.lightness) * 0.35).clamp(0.0, 1.0))
+          .withLightness(
+            (p.lightness + (1 - p.lightness) * 0.35).clamp(0.0, 1.0),
+          )
           .toColor(),
       // A dark, desaturated brand tint for chips / selected rows / badges.
       primarySoft: p.withSaturation(0.38).withLightness(0.20).toColor(),
@@ -166,6 +170,9 @@ class AppColors extends ThemeExtension<AppColors> {
 
   /// Text/icon colour on top of dark or saturated fills.
   final Color onDark;
+
+  /// Stable dark scrim behind image-overlay copy; pairs with [onDark].
+  Color get imageScrim => ColorPrimitives.ink900;
 
   /// Dark surface for positive/confirmation snackbars (e.g. "added to cart");
   /// fixed across light and dark themes. [onConfirmSurface] is its off-white

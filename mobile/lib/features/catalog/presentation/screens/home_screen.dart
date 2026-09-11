@@ -6,9 +6,11 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
+import '../../../../core/theme/tokens/app_typography.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/state_views.dart';
-import '../../../settings/presentation/providers/settings_providers.dart';
+import '../../../banners/presentation/providers/banner_providers.dart';
+import '../../../banners/presentation/widgets/home_banners.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_grid.dart';
@@ -28,27 +30,64 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final brand = ref.watch(brandProvider);
     final feed = ref.watch(categoryFeedProvider(_departmentId));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(brand.name ?? l10n.storeFallbackName),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/branding/shubayr-logo.png',
+              width: AppSpacing.xxl,
+              height: AppSpacing.xxl,
+              fit: BoxFit.contain,
+              excludeFromSemantics: true,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Flexible(
+              // Zain's glyphs sit above the line-box center in both locales.
+              // Paint-only correction preserves all header layout metrics.
+              child: Transform.translate(
+                offset: const Offset(0, AppSpacing.xxs),
+                child: Text(
+                  l10n.homeBrandName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: AppTypography.homeBrandFontFamily,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             onPressed: () => context.pushNamed(AppRoutes.searchName),
+            iconSize: AppSpacing.xl + AppSpacing.xs,
             icon: const Icon(Icons.search),
             tooltip: l10n.searchHint,
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () =>
-            ref.refresh(categoryFeedProvider(_departmentId).future),
+        onRefresh: () async {
+          await Future.wait([
+            ref
+                .refresh(categoryFeedProvider(_departmentId).future)
+                .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+            ref
+                .refresh(homeBannersProvider.future)
+                .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+          ]);
+        },
         child: ListView(
           padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
           children: [
-            _SectionTitle(l10n.homeSectionDepartments),
+            const HomeBanners(),
+            const SizedBox(height: AppSpacing.sm),
             _DepartmentsBar(
               selectedId: _departmentId,
               onSelected: (id) => setState(() => _departmentId = id),
@@ -103,13 +142,15 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      AppSpacing.screenH,
-      AppSpacing.lg,
-      AppSpacing.screenH,
-      AppSpacing.sm,
+    // Content-driven height: title line height + symmetric vertical padding.
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.screenH,
+      vertical: AppSpacing.sm,
     ),
-    child: Text(text, style: context.text.titleMedium),
+    child: Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Text(text, style: context.text.titleMedium),
+    ),
   );
 }
 

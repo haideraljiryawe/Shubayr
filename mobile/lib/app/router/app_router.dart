@@ -34,6 +34,7 @@ import '../../features/settings/presentation/screens/account_screen.dart';
 import '../../features/settings/presentation/screens/profile_screen.dart';
 import '../shell/customer_shell.dart';
 import '../splash_screen.dart';
+import '../startup_display_controller.dart';
 import 'app_routes.dart';
 import 'role_guard.dart';
 import 'sign_in_destination.dart';
@@ -61,6 +62,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   // refresh — editing the profile name must not rebuild the navigator while a
   // route like /profile is pushed over the shell.
   final refresh = ValueNotifier<int>(0);
+  ref.listen(startupDisplayReadyProvider, (_, _) => refresh.value++);
   ref
     ..listen(
       sessionControllerProvider.select(
@@ -85,11 +87,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
       final session = ref.read(sessionControllerProvider);
-      final status = switch (session) {
-        AsyncLoading() => SessionStatus.restoring,
-        AsyncData(:final value) when value.isSignedIn => SessionStatus.signedIn,
-        _ => SessionStatus.signedOut,
-      };
+      final status = !ref.read(startupDisplayReadyProvider)
+          ? SessionStatus.restoring
+          : switch (session) {
+              AsyncLoading() => SessionStatus.restoring,
+              AsyncData(:final value) when value.isSignedIn =>
+                SessionStatus.signedIn,
+              _ => SessionStatus.signedOut,
+            };
       if (status == SessionStatus.restoring &&
           state.matchedLocation != AppRoutes.splash) {
         return Uri(
@@ -136,7 +141,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        builder: (context, state) => const SplashScreen(),
+        builder: (context, state) => SplashScreen(
+          onDisplayed: ref
+              .read(startupDisplayReadyProvider.notifier)
+              .beginDisplay,
+        ),
       ),
       GoRoute(
         path: AppRoutes.signIn,

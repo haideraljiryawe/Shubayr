@@ -21,6 +21,16 @@ abstract final class AppBreakpoints {
 
 /// Content-specific sizes; never a global cap on the application or tables.
 abstract final class AppLayout {
+  /// Wide phone artwork gradually becomes a panoramic desktop banner.
+  /// Interpolation avoids a height jump on either side of a breakpoint.
+  static double homeBannerAspectRatio(double imageWidth) {
+    final progress =
+        ((imageWidth - AppBreakpoints.tablet) /
+                (AppBreakpoints.desktop - AppBreakpoints.tablet))
+            .clamp(0.0, 1.0);
+    return 2.0 + (4.0 - 2.0) * progress;
+  }
+
   static const authWidth = 420.0;
   static const readingWidth = 760.0;
   static const formWidth = 1200.0;

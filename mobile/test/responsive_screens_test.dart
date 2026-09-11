@@ -1,3 +1,5 @@
+import 'package:shubayr/features/banners/data/home_banner.dart';
+import 'package:shubayr/features/banners/presentation/providers/banner_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -167,6 +169,15 @@ void main() {
                   ),
                 ),
                 brandProvider.overrideWithValue(const Brand.bundled()),
+                homeBannersProvider.overrideWith(
+                  (ref) async => const [
+                    HomeBanner(
+                      id: 'test-banner',
+                      title: 'بانر المتجر Store banner',
+                      imageUrl: '',
+                    ),
+                  ],
+                ),
                 adminRepositoryProvider.overrideWithValue(RecordingAdmin()),
                 adminOrderRepositoryProvider.overrideWithValue(
                   AdminOrderRepositoryMock(delay: Duration.zero),

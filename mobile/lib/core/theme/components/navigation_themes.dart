@@ -100,9 +100,29 @@ abstract final class NavigationThemes {
     backgroundColor: c.surfaceAlt,
     selectedColor: c.primarySoft,
     surfaceTintColor: Colors.transparent,
-    labelStyle: text.labelMedium ?? const TextStyle(),
-    side: BorderSide(color: c.border),
-    shape: const RoundedRectangleBorder(borderRadius: AppRadii.smAll),
+    labelStyle: (text.labelMedium ?? const TextStyle()).copyWith(
+      color: WidgetStateColor.resolveWith(
+        (states) =>
+            states.contains(WidgetState.disabled) ? c.textMuted : c.textPrimary,
+      ),
+    ),
+    checkmarkColor: c.textPrimary,
+    side: WidgetStateBorderSide.resolveWith(
+      (states) =>
+          states.contains(WidgetState.selected) &&
+              !states.contains(WidgetState.disabled)
+          ? BorderSide(color: c.primary, width: 1.25)
+          : BorderSide(color: c.border),
+    ),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(AppRadii.xs)),
+    ),
+    // RawChip chooses selectedShadowColor only for selection. Transparent
+    // resting shadows keep plain/unselected chips flat without per-screen styles.
+    elevation: 1,
+    pressElevation: 1,
+    shadowColor: Colors.transparent,
+    selectedShadowColor: c.primary.withValues(alpha: 0.16),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
   );
 

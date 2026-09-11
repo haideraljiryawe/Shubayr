@@ -9,6 +9,9 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get homeBrandName => 'Shubayr';
+
+  @override
   String get storeFallbackName => 'Store';
 
   @override
@@ -1027,4 +1030,18 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get adminOriginalPriceHint =>
       'Leave empty or set no higher than the sale price to remove the offer.';
+
+  @override
+  String bannerPosition(String current, String total) {
+    return '$current of $total';
+  }
+
+  @override
+  String get bannerOpenFailed => 'Could not open this link. Please try again.';
+
+  @override
+  String get startupTagline => 'Everything you need, all in one place';
+
+  @override
+  String get startupLoading => 'Getting the app ready';
 }

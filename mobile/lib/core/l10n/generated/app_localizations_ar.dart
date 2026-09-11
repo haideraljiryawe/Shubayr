@@ -9,6 +9,9 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
+  String get homeBrandName => 'شُبَيّر';
+
+  @override
   String get storeFallbackName => 'المتجر';
 
   @override
@@ -437,7 +440,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get homeAllDepartments => 'الكل';
 
   @override
-  String get homeSectionProducts => 'منتجات';
+  String get homeSectionProducts => 'المنتجات';
 
   @override
   String get productDescription => 'الوصف';
@@ -1016,4 +1019,18 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get adminOriginalPriceHint =>
       'اتركه فارغًا أو أدخل سعرًا لا يتجاوز سعر البيع لإلغاء العرض.';
+
+  @override
+  String bannerPosition(String current, String total) {
+    return '$current من $total';
+  }
+
+  @override
+  String get bannerOpenFailed => 'تعذر فتح الرابط. حاول مرة أخرى.';
+
+  @override
+  String get startupTagline => 'كل ما تحتاجه في مكان واحد';
+
+  @override
+  String get startupLoading => 'جارٍ تجهيز التطبيق';
 }

@@ -10,6 +10,10 @@ abstract final class AppTypography {
   /// Single place that names the font family.
   static const String fontFamily = 'Cairo';
 
+  /// Wordmark only; all other UI text keeps Cairo.
+  static const String brandFontFamily = 'Zain-Bold';
+  static const String homeBrandFontFamily = brandFontFamily;
+
   /// Line heights are generous: Arabic glyphs need more vertical room than
   /// Latin ones, and the same scale serves both locales.
   static TextTheme textTheme(Color primaryText, Color secondaryText) {

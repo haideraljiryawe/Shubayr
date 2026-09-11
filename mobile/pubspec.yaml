@@ -39,6 +39,7 @@ dependencies:
   photo_view: ^0.15.0
 
   cupertino_icons: ^1.0.8
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
@@ -52,6 +53,9 @@ flutter:
 
   # Generates AppLocalizations from the ARB files (see l10n.yaml).
   generate: true
+
+  assets:
+    - assets/images/branding/shubayr-logo.png
 
   # ---------------------------------------------------------------------------
   # Local UI font — Cairo. Bundled from assets, never fetched over the network.
@@ -68,4 +72,9 @@ flutter:
         - asset: assets/fonts/Cairo-SemiBold.ttf
           weight: 600
         - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700
+    # Brand wordmarks only; Cairo remains the app-wide UI family.
+    - family: Zain-Bold
+      fonts:
+        - asset: assets/fonts/Zain-Bold.ttf
           weight: 700
