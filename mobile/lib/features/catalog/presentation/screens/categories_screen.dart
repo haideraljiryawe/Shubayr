@@ -273,7 +273,8 @@ class _BrowseAllTile extends StatelessWidget {
                 ),
               ),
               Icon(
-                context.isRtl ? Icons.chevron_left : Icons.chevron_right,
+                // Material mirrors this forward chevron automatically in RTL.
+                Icons.chevron_right,
                 size: 20,
                 color: colors.primaryDark,
               ),

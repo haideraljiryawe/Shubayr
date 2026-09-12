@@ -43,11 +43,8 @@ class AdminHubScreen extends ConsumerWidget {
                           Expanded(
                             child: Text(adminTitle(context.l10n, resource)),
                           ),
-                          Icon(
-                            Directionality.of(context) == TextDirection.rtl
-                                ? Icons.chevron_left
-                                : Icons.chevron_right,
-                          ),
+                          // Material mirrors this forward chevron in RTL.
+                          const Icon(Icons.chevron_right),
                         ],
                       ),
                     ),

@@ -10,6 +10,7 @@ import 'package:shubayr/core/theme/brand.dart';
 import 'package:shubayr/core/widgets/app_button.dart';
 import 'package:shubayr/features/admin/domain/admin_repository.dart';
 import 'package:shubayr/features/admin/presentation/providers/admin_providers.dart';
+import 'package:shubayr/features/admin/presentation/screens/admin_hub_screen.dart';
 import 'package:shubayr/features/admin/presentation/screens/admin_list_screen.dart';
 import 'package:shubayr/features/admin/presentation/screens/admin_record_form.dart';
 import 'package:shubayr/features/auth/data/user.dart';
@@ -50,6 +51,38 @@ Future<void> save(WidgetTester tester) async {
 }
 
 void main() {
+  for (final locale in ['ar', 'en']) {
+    for (final catalog in [true, false]) {
+      testWidgets('admin hub catalog=$catalog chevrons follow $locale', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          host(
+            RecordingAdmin(),
+            locale: locale,
+            child: AdminHubScreen(catalog: catalog),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final chevrons = find.byIcon(Icons.chevron_right);
+        expect(chevrons, findsNWidgets(2));
+        expect(find.byIcon(Icons.chevron_left), findsNothing);
+        for (var i = 0; i < 2; i++) {
+          final mirror = find.descendant(
+            of: chevrons.at(i),
+            matching: find.byType(Transform),
+          );
+          if (locale == 'ar') {
+            expect(tester.widget<Transform>(mirror).transform.entry(0, 0), -1);
+          } else {
+            expect(mirror, findsNothing);
+          }
+        }
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
   TestWidgetsFlutterBinding.ensureInitialized();
   WidgetController.hitTestWarningShouldBeFatal = true;
   setUpAll(() async {

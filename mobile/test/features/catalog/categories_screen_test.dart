@@ -61,17 +61,49 @@ class _FakeCatalog implements CatalogRepository {
   }) async => const ReviewPage();
 }
 
-Widget _host() => ProviderScope(
+Widget _host({String locale = 'en'}) => ProviderScope(
   overrides: [catalogRepositoryProvider.overrideWithValue(_FakeCatalog())],
-  child: const MaterialApp(
-    locale: Locale('en'),
+  child: MaterialApp(
+    locale: Locale(locale),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
-    home: CategoriesScreen(),
+    home: const CategoriesScreen(),
   ),
 );
 
 void main() {
+  for (final locale in ['ar', 'en']) {
+    testWidgets('browse-all chevron follows $locale navigation direction', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(locale: locale));
+      await tester.pumpAndSettle();
+
+      // Check the rendered mirror, not just the selected IconData name.
+      final chevron = find.byIcon(Icons.chevron_right);
+      expect(chevron, findsOneWidget);
+      expect(find.byIcon(Icons.chevron_left), findsNothing);
+      final mirror = find.descendant(
+        of: chevron,
+        matching: find.byType(Transform),
+      );
+      if (locale == 'ar') {
+        expect(tester.widget<Transform>(mirror).transform.entry(0, 0), -1);
+      } else {
+        expect(mirror, findsNothing);
+      }
+      // The non-directional category icon is never mirrored.
+      expect(
+        find.descendant(
+          of: find.byIcon(Icons.grid_view_rounded),
+          matching: find.byType(Transform),
+        ),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('lists departments and shows the first one\'s subcategories', (
     tester,
   ) async {
