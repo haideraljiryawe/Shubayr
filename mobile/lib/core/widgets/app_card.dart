@@ -34,7 +34,12 @@ class AppCard extends StatelessWidget {
         boxShadow: elevated ? AppShadows.level1 : null,
       ),
       child: onTap == null
-          ? content
+          // Descendant controls need ink above the card's decoration too.
+          ? Material(
+              type: MaterialType.transparency,
+              textStyle: DefaultTextStyle.of(context).style,
+              child: content,
+            )
           : Material(
               color: Colors.transparent,
               child: InkWell(

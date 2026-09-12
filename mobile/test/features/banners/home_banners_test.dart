@@ -102,9 +102,13 @@ void main() {
         final size = tester.getSize(
           find.byKey(const ValueKey('banner-page-0')),
         );
-        expect(size.width / size.height, greaterThanOrEqualTo(2.25));
+        // Current artwork starts at 2:1 and becomes panoramic on wider layouts.
+        final aspectRatio = size.width / size.height;
+        expect(aspectRatio, inInclusiveRange(2.0, 4.0));
+        if (width <= 390) expect(aspectRatio, closeTo(2.0, 0.001));
         if (width <= 390) expect(size.height, lessThan(180));
-        if (width == 1920) expect(size.height, lessThanOrEqualTo(320));
+        // The current wide layout caps artwork at 1440px with a 4:1 ratio.
+        if (width == 1920) expect(size, const Size(1440, 360));
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(_host(const HomeBannerSkeleton()));
         await tester.pump();

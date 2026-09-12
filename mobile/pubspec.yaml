@@ -5,6 +5,8 @@ version: 1.0.0+1
 
 environment:
   sdk: ^3.11.5
+  # Supported toolchain; iOS deployment requires 15.0 or newer.
+  flutter: '>=3.47.4'
 
 dependencies:
   flutter:
@@ -49,6 +51,9 @@ dev_dependencies:
   json_serializable: ^6.14.1
 
 flutter:
+  config:
+    # Retain the existing CocoaPods integration when using Flutter 3.44+.
+    enable-swift-package-manager: false
   uses-material-design: true
 
   # Generates AppLocalizations from the ARB files (see l10n.yaml).
