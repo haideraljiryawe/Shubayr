@@ -75,6 +75,7 @@ Widget _host(
   List<OrderItem>? items,
   Future<Product> Function(String)? catalogLookup,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     afterSalesRepositoryProvider.overrideWithValue(repository),
     orderProvider('o1').overrideWith(

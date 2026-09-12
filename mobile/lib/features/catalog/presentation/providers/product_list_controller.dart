@@ -111,13 +111,15 @@ class ProductListState {
 /// Drives a paginated, filterable product listing. Seeded by a [ProductQuery]
 /// (the family key); further filter/sort/search changes go through
 /// [updateQuery], and [loadMore] appends the next page.
-class ProductListController
-    extends AutoDisposeFamilyNotifier<ProductListState, ProductQuery> {
+class ProductListController extends Notifier<ProductListState> {
+  ProductListController(this.arg);
+
+  final ProductQuery arg;
   static const _perPage = 8;
   int _requestId = 0;
 
   @override
-  ProductListState build(ProductQuery arg) {
+  ProductListState build() {
     ref.onDispose(() => _requestId++);
     _fetch(arg, page: 1, reset: true);
     return ProductListState(query: arg, loadingInitial: true);
@@ -193,9 +195,7 @@ class ProductListController
   }
 }
 
-final productListControllerProvider =
-    AutoDisposeNotifierProvider.family<
-      ProductListController,
-      ProductListState,
-      ProductQuery
-    >(ProductListController.new);
+final productListControllerProvider = NotifierProvider.autoDispose
+    .family<ProductListController, ProductListState, ProductQuery>(
+      ProductListController.new,
+    );

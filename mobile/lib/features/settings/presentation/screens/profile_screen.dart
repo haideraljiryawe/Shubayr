@@ -48,7 +48,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _load(ref.read(sessionControllerProvider).valueOrNull?.user);
+    _load(ref.read(sessionControllerProvider).value?.user);
     _nameController.addListener(_changed);
     _emailController.addListener(_changed);
   }
@@ -135,7 +135,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(sessionControllerProvider, (_, next) {
-      final user = next.valueOrNull?.user;
+      final user = next.value?.user;
       if (user != null &&
           (_initialUser == null ||
               user.id != _initialUser?.id ||
@@ -144,7 +144,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     });
     final signedIn =
-        ref.watch(sessionControllerProvider).valueOrNull?.isSignedIn ?? false;
+        ref.watch(sessionControllerProvider).value?.isSignedIn ?? false;
     final l10n = context.l10n;
     final colors = context.colors;
 

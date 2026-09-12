@@ -51,6 +51,7 @@ Widget _host({
   double textScale = 1,
   void Function(Product)? onTap,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [brandProvider.overrideWithValue(const Brand.bundled())],
   child: MaterialApp(
     locale: Locale(locale),

@@ -20,6 +20,7 @@ void main() {
     repository = RecordingWishlist();
     session = TestSession();
     container = ProviderContainer(
+      retry: (retryCount, error) => null,
       overrides: [
         sessionControllerProvider.overrideWith(() => session),
         wishlistRepositoryProvider.overrideWithValue(repository),
@@ -28,6 +29,70 @@ void main() {
     await container.read(sessionControllerProvider.future);
   });
   tearDown(() => container.dispose());
+
+  test('refresh retains data, reports failure and can recover', () async {
+    final previous = await container.read(wishlistControllerProvider.future);
+    final pending = Completer<WishlistPage>();
+    repository.onFetch = (_) => pending.future;
+    final notifier = container.read(wishlistControllerProvider.notifier);
+    final refresh = notifier.refresh();
+    await Future<void>.delayed(Duration.zero);
+    expect(notifier.isRefreshing, isTrue);
+    expect(container.read(wishlistControllerProvider).isLoading, isTrue);
+    expect(container.read(wishlistControllerProvider).value, same(previous));
+    pending.completeError(const AppFailure.network());
+    await refresh;
+    final failed = container.read(wishlistControllerProvider);
+    expect(notifier.isRefreshing, isFalse);
+    expect(failed.isLoading, isFalse);
+    expect(failed.error, isA<AppFailure>());
+    expect(failed.value, same(previous));
+    repository.onFetch = (_) async => const WishlistPage(
+      page: 1,
+      perPage: 8,
+      total: 1,
+      data: [WishlistItem(id: 'new', productId: 'new')],
+    );
+    await notifier.refresh();
+    expect(container.read(wishlistControllerProvider).hasError, isFalse);
+    expect(notifier.isRefreshing, isFalse);
+  });
+
+  test('session reload cancels an old refresh and queued work', () async {
+    await container.read(wishlistControllerProvider.future);
+    final oldPage = Completer<WishlistPage>();
+    repository.onFetch = (_) => oldPage.future;
+    final notifier = container.read(wishlistControllerProvider.notifier);
+    final oldRefresh = notifier.refresh();
+    final queuedRefresh = notifier.refresh();
+    await Future<void>.delayed(Duration.zero);
+    expect(notifier.isRefreshing, isTrue);
+    final newPage = Completer<WishlistPage>();
+    repository.onFetch = (_) => newPage.future;
+    session.setSession(
+      const Session.signedIn(User(id: 'next', role: 'customer')),
+    );
+    final next = container.read(wishlistControllerProvider.future);
+    expect(notifier.isRefreshing, isFalse);
+    expect(container.read(wishlistControllerProvider).isLoading, isTrue);
+    final requests = repository.requests.length;
+    oldPage.completeError(const AppFailure.network());
+    await oldRefresh;
+    await queuedRefresh;
+    expect(repository.requests, hasLength(requests));
+    expect(container.read(wishlistControllerProvider).hasError, isFalse);
+    newPage.complete(
+      const WishlistPage(
+        page: 1,
+        perPage: 8,
+        total: 1,
+        data: [WishlistItem(id: 'new', productId: 'new')],
+      ),
+    );
+    await next;
+    expect(container.read(wishlistControllerProvider).hasError, isFalse);
+    expect(notifier.isRefreshing, isFalse);
+  });
 
   test('loads all pages and marks later-page products as saved', () async {
     final items = await container.read(wishlistControllerProvider.future);

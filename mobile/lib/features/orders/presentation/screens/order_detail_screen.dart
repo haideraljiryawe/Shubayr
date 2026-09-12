@@ -370,7 +370,7 @@ class _OrderItemTile extends ConsumerWidget {
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
     final product = item.needsCatalogDetails
-        ? ref.watch(productProvider(item.productId)).valueOrNull
+        ? ref.watch(productProvider(item.productId)).value
         : null;
     final variantLabel = item.variantLabel(product);
 

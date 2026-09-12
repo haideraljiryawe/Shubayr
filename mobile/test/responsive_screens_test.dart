@@ -157,6 +157,7 @@ void main() {
         ]) {
           await tester.pumpWidget(
             ProviderScope(
+              retry: (retryCount, error) => null,
               key: UniqueKey(),
               overrides: [
                 prefsStoreProvider.overrideWithValue(prefs),

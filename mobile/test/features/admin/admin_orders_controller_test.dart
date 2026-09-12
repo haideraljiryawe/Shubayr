@@ -25,6 +25,7 @@ void main() {
     repo = RecordingAdminOrders();
     session = AdminTestSession();
     container = ProviderContainer(
+      retry: (retryCount, error) => null,
       overrides: [
         adminOrderRepositoryProvider.overrideWithValue(repo),
         sessionControllerProvider.overrideWith(() => session),
@@ -35,6 +36,17 @@ void main() {
     await ready();
   });
   tearDown(() => container.dispose());
+  test('selecting a fresh equal filter retains the existing reload', () async {
+    final query = AdminOrderQuery(search: 'Ahmed');
+    filter(query);
+    await ready();
+    await controller().loadMore();
+    final readsBefore = repo.reads.length;
+    filter(AdminOrderQuery(search: 'Ahmed'));
+    await ready();
+    expect(repo.reads, hasLength(readsBefore + 1));
+    expect(repo.reads.last.page, 1);
+  });
   test(
     'append failure preserves records, retry deduplicates requests, refresh starts page one',
     () async {

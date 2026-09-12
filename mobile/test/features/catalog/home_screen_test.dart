@@ -97,6 +97,7 @@ Future<ProviderContainer> _container() async {
   SharedPreferences.setMockInitialValues({});
   final prefs = PrefsStore(await SharedPreferences.getInstance());
   return ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),

@@ -78,6 +78,7 @@ void main() {
   setUp(() {
     repo = PendingCatalog();
     container = ProviderContainer(
+      retry: (retryCount, error) => null,
       overrides: [catalogRepositoryProvider.overrideWithValue(repo)],
     );
     container.listen(provider, (_, _) {});

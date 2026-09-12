@@ -67,6 +67,7 @@ class _Catalog extends CatalogRepositoryMock {
 }
 
 Widget _host(_Catalog repo, {bool offers = false}) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     catalogRepositoryProvider.overrideWithValue(repo),
     brandProvider.overrideWithValue(const Brand.bundled()),

@@ -166,7 +166,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       }
     });
     final session = ref.watch(adminSessionProvider);
-    final permissions = ref.watch(sessionControllerProvider).valueOrNull;
+    final permissions = ref.watch(sessionControllerProvider).value;
     if (!session.staff || permissions?.can(Permissions.ordersView) != true) {
       return Scaffold(
         appBar: AppBar(title: Text(l.adminSectionOrders)),
@@ -179,7 +179,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     void nearEnd(ScrollMetrics metrics) {
       if (metrics.axis == Axis.vertical &&
           metrics.extentAfter < metrics.viewportDimension &&
-          ref.read(adminOrdersProvider).valueOrNull?.appendError == null) {
+          ref.read(adminOrdersProvider).value?.appendError == null) {
         controller.loadMore();
       }
     }

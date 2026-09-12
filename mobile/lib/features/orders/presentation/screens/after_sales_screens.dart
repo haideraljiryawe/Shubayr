@@ -416,7 +416,7 @@ class _AfterSalesOrderView extends ConsumerWidget {
         if (order.items.every((item) => item.snapshotName('en') != null)) {
           // Saved names are immediately usable even if variant enrichment is
           // slow or the current catalog has removed the product.
-          return builder(order, products.valueOrNull ?? const {});
+          return builder(order, products.value ?? const {});
         }
         return AsyncValueView(
           value: products,

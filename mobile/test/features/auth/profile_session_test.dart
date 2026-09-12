@@ -10,6 +10,7 @@ import 'support/profile_fakes.dart';
 
 Future<ProviderContainer> start(RecordingProfile repo) async {
   final container = ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
       authRepositoryProvider.overrideWithValue(repo),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
@@ -119,7 +120,7 @@ void main() {
           expect(await save, isNull);
           if (next != 'dispose') {
             expect(
-              container.read(sessionControllerProvider).valueOrNull?.user?.name,
+              container.read(sessionControllerProvider).value?.user?.name,
               isNot('Stale'),
             );
             if (next == 'signOut') {

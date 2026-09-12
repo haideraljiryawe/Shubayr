@@ -136,7 +136,7 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
-    final session = ref.watch(sessionControllerProvider).valueOrNull;
+    final session = ref.watch(sessionControllerProvider).value;
     if (session?.role != UserRole.staff ||
         session?.can(resource.writePermission) != true) {
       return Scaffold(

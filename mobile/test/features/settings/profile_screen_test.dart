@@ -54,6 +54,7 @@ Future<ProviderContainer> _container() async {
   SharedPreferences.setMockInitialValues({});
   final prefs = PrefsStore(await SharedPreferences.getInstance());
   return ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
@@ -108,7 +109,7 @@ void main() {
 
       // The name is persisted to the session (locally, in mock mode).
       expect(
-        container.read(sessionControllerProvider).valueOrNull?.user?.name,
+        container.read(sessionControllerProvider).value?.user?.name,
         'أحمد',
       );
       // Save returns to disabled now that there are no unsaved changes.

@@ -57,7 +57,7 @@ class _DeliveriesList extends ConsumerWidget {
     final value = ref.watch(deliveriesProvider);
     final controller = ref.read(deliveriesProvider.notifier);
     void loadIfNearEnd(ScrollMetrics metrics) {
-      final list = ref.read(deliveriesProvider).valueOrNull;
+      final list = ref.read(deliveriesProvider).value;
       if (metrics.axis == Axis.vertical &&
           metrics.extentAfter < metrics.viewportDimension &&
           list?.loadMoreError == null) {
@@ -67,6 +67,7 @@ class _DeliveriesList extends ConsumerWidget {
 
     return AsyncValueView(
       value: value,
+      skipLoadingOnReload: controller.isRefreshing,
       loading: ResponsiveCardList(
         itemCount: 4,
         minItemWidth: AppLayout.orderMinWidth,

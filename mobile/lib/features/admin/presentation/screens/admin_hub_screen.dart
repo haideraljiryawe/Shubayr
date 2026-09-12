@@ -17,7 +17,7 @@ class AdminHubScreen extends ConsumerWidget {
     final resources = catalog
         ? [AdminResource.products, AdminResource.categories]
         : [AdminResource.users, AdminResource.roles];
-    final session = ref.watch(sessionControllerProvider).valueOrNull;
+    final session = ref.watch(sessionControllerProvider).value;
     return Scaffold(
       appBar: AppBar(
         title: Text(

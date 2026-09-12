@@ -88,7 +88,7 @@ class _CartLine extends ConsumerWidget {
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
     final brand = ref.watch(brandProvider);
-    final product = ref.watch(productProvider(item.productId)).valueOrNull;
+    final product = ref.watch(productProvider(item.productId)).value;
     final variantLabel = _variantLabel(product);
     final lineTotal = formatMoney(
       item.lineTotal,

@@ -19,6 +19,11 @@ final adminOrderRepositoryProvider = Provider<AdminOrderRepository>(
 );
 
 class AdminOrderFilterController extends Notifier<AdminOrderQuery> {
+  // Keep the existing reload when a fresh, equal filter is selected.
+  @override
+  bool updateShouldNotify(AdminOrderQuery previous, AdminOrderQuery next) =>
+      !identical(previous, next);
+
   @override
   AdminOrderQuery build() {
     ref.watch(adminSessionProvider);
@@ -140,7 +145,7 @@ class AdminOrdersController extends AsyncNotifier<AdminOrdersState> {
   }
 
   Future<void> loadMore() {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (state.isLoading ||
         state.hasError ||
         current == null ||
@@ -160,7 +165,7 @@ class AdminOrdersController extends AsyncNotifier<AdminOrdersState> {
     return _serialize(() async {
       if (generation != _generation) return;
       _require(Permissions.ordersView);
-      final latest = state.valueOrNull;
+      final latest = state.value;
       if (latest == null || !latest.hasMore) return;
       try {
         final page = await _fetch(
@@ -201,7 +206,7 @@ class AdminOrdersController extends AsyncNotifier<AdminOrdersState> {
     if (!adminOrderStatuses.contains(status)) {
       throw const AppFailure(FailureKind.validation);
     }
-    final current = state.valueOrNull;
+    final current = state.value;
     if (_writePending ||
         state.isLoading ||
         state.hasError ||
@@ -230,7 +235,7 @@ class AdminOrdersController extends AsyncNotifier<AdminOrdersState> {
       return await _serialize(() async {
         if (generation != _generation) return false;
         _require(Permissions.ordersUpdate);
-        final latest = state.valueOrNull;
+        final latest = state.value;
         if (state.hasError || latest == null) return false;
         final actual = latest.items.where((o) => o.id == id).firstOrNull;
         if (actual == null || actual.status != expectedStatus) {

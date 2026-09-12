@@ -94,6 +94,7 @@ Widget _host({
   String? initialStatus,
   RecordingAddresses? addresses,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     cartControllerProvider.overrideWith(
       () => _FixedCart(

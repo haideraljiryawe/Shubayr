@@ -36,6 +36,9 @@ class AddressesScreen extends ConsumerWidget {
       ),
       body: AsyncValueView(
         value: addresses,
+        skipLoadingOnReload: ref
+            .read(addressesControllerProvider.notifier)
+            .isRefreshing,
         loading: const Padding(
           padding: EdgeInsets.all(AppSpacing.screenH),
           child: SkeletonCardList(

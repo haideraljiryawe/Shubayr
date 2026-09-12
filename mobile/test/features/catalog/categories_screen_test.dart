@@ -62,6 +62,7 @@ class _FakeCatalog implements CatalogRepository {
 }
 
 Widget _host({String locale = 'en'}) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [catalogRepositoryProvider.overrideWithValue(_FakeCatalog())],
   child: MaterialApp(
     locale: Locale(locale),

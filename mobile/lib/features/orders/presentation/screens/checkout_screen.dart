@@ -133,9 +133,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return _SuccessView(order: placed, money: _money);
     }
 
-    final cart = ref.watch(cartControllerProvider).valueOrNull;
+    final cart = ref.watch(cartControllerProvider).value;
     final addressState = ref.watch(addressesControllerProvider);
-    final addresses = addressState.valueOrNull;
+    final addresses = addressState.value;
     final subtotal = cart?.subtotal ?? 0;
     final discount = _coupon?.discountOn(subtotal) ?? 0;
     final estimatedTotal = subtotal - discount;
@@ -160,6 +160,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   _SectionTitle(l10n.checkoutAddress),
                   AsyncValueView<List<Address>>(
                     value: addressState,
+                    skipLoadingOnReload: ref
+                        .read(addressesControllerProvider.notifier)
+                        .isRefreshing,
                     loading: const AppCard(
                       child: Row(
                         children: [

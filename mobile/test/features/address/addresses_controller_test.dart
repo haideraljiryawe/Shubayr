@@ -24,6 +24,7 @@ void main() {
     repo = RecordingAddresses();
     session = AddressTestSession();
     container = ProviderContainer(
+      retry: (retryCount, error) => null,
       overrides: [
         sessionControllerProvider.overrideWith(() => session),
         addressRepositoryProvider.overrideWithValue(repo),
@@ -32,6 +33,58 @@ void main() {
     await container.read(sessionControllerProvider.future);
   });
   tearDown(() => container.dispose());
+
+  test('refresh retains data, reports failure and can recover', () async {
+    final previous = await container.read(addressesControllerProvider.future);
+    final pending = Completer<AddressPage>();
+    repo.onFetch = (_) => pending.future;
+    final notifier = controller();
+    final refresh = notifier.refresh();
+    await Future<void>.delayed(Duration.zero);
+    expect(notifier.isRefreshing, isTrue);
+    expect(container.read(addressesControllerProvider).isLoading, isTrue);
+    expect(container.read(addressesControllerProvider).value, same(previous));
+    pending.completeError(const AppFailure.network());
+    await refresh;
+    final failed = container.read(addressesControllerProvider);
+    expect(notifier.isRefreshing, isFalse);
+    expect(failed.isLoading, isFalse);
+    expect(failed.error, isA<AppFailure>());
+    expect(failed.value, same(previous));
+    repo.onFetch = (_) async => addressPage((page: 1, perPage: 8), total: 1);
+    await notifier.refresh();
+    expect(container.read(addressesControllerProvider).hasError, isFalse);
+    expect(notifier.isRefreshing, isFalse);
+  });
+
+  test('session reload cancels an old refresh and queued work', () async {
+    await container.read(addressesControllerProvider.future);
+    final oldPage = Completer<AddressPage>();
+    repo.onFetch = (_) => oldPage.future;
+    final notifier = controller();
+    final oldRefresh = notifier.refresh();
+    final queuedRefresh = notifier.refresh();
+    await Future<void>.delayed(Duration.zero);
+    expect(notifier.isRefreshing, isTrue);
+    final newPage = Completer<AddressPage>();
+    repo.onFetch = (_) => newPage.future;
+    session.setSession(
+      const Session.signedIn(User(id: 'next', role: 'customer')),
+    );
+    final next = container.read(addressesControllerProvider.future);
+    expect(notifier.isRefreshing, isFalse);
+    expect(container.read(addressesControllerProvider).isLoading, isTrue);
+    final requests = repo.requests.length;
+    oldPage.completeError(const AppFailure.network());
+    await oldRefresh;
+    await queuedRefresh;
+    expect(repo.requests, hasLength(requests));
+    expect(container.read(addressesControllerProvider).hasError, isFalse);
+    newPage.complete(addressPage((page: 1, perPage: 8), total: 1));
+    await next;
+    expect(container.read(addressesControllerProvider).hasError, isFalse);
+    expect(notifier.isRefreshing, isFalse);
+  });
 
   test(
     'reads beyond the old 100-address limit and finds a later default',

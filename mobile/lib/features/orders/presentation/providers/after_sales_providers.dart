@@ -15,7 +15,7 @@ import '../widgets/order_item_display.dart';
 
 final afterSalesRepositoryProvider = Provider<AfterSalesRepository>((ref) {
   final userId = ref.watch(
-    sessionControllerProvider.select((s) => s.valueOrNull?.user?.id),
+    sessionControllerProvider.select((s) => s.value?.user?.id),
   );
   return switch (ref.watch(dataSourceProvider)) {
     DataSource.mock => AfterSalesRepositoryMock(
@@ -31,6 +31,7 @@ final afterSalesRepositoryProvider = Provider<AfterSalesRepository>((ref) {
 final orderProductsProvider = FutureProvider.autoDispose
     .family<Map<String, Product>, String>((ref, orderId) async {
       final order = await ref.watch(orderProvider(orderId).future);
+      if (!ref.mounted) return const {};
       final products = await Future.wait(
         order.items
             .where((item) => item.needsCatalogLabel)

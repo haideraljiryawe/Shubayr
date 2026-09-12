@@ -31,7 +31,7 @@ class AccountView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final session = ref.watch(sessionControllerProvider).valueOrNull;
+    final session = ref.watch(sessionControllerProvider).value;
     final isSignedIn = session?.isSignedIn ?? false;
 
     return ListView(

@@ -28,6 +28,7 @@ Widget host(
   AdminTestSession? session,
   GoRouter? router,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     adminOrderRepositoryProvider.overrideWithValue(repo),
     sessionControllerProvider.overrideWith(() => session ?? AdminTestSession()),

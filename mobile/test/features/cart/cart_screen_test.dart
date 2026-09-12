@@ -62,6 +62,7 @@ class _FixedCart extends CartController {
 }
 
 Widget _host(Cart cart) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
     brandProvider.overrideWithValue(const Brand.bundled()),

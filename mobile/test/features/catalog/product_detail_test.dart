@@ -89,6 +89,7 @@ class _FakeCatalog implements CatalogRepository {
 }
 
 Widget _host({bool promotion = false}) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     catalogRepositoryProvider.overrideWithValue(
       _FakeCatalog(promotion: promotion),

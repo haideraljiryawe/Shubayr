@@ -66,11 +66,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref
     ..listen(
       sessionControllerProvider.select(
-        (s) => (
-          s.isLoading,
-          s.valueOrNull?.isSignedIn ?? false,
-          s.valueOrNull?.role,
-        ),
+        (s) => (s.isLoading, s.value?.isSignedIn ?? false, s.value?.role),
       ),
       (_, _) => refresh.value++,
     )
@@ -107,19 +103,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           state.uri.queryParameters.containsKey('returnTo')) {
         return SignInDestination.resolve(
           state.uri.queryParameters['returnTo'],
-          session.valueOrNull?.role ?? UserRole.customer,
+          session.value?.role ?? UserRole.customer,
         );
       }
       if (status == SessionStatus.signedIn &&
           state.matchedLocation.startsWith(AppRoutes.signIn)) {
         return SignInDestination.resolve(
           state.uri.queryParameters['returnTo'],
-          session.valueOrNull!.role,
+          session.value!.role,
         );
       }
       final redirect = RoleGuard.redirect(
         status: status,
-        role: session.valueOrNull?.role ?? UserRole.customer,
+        role: session.value?.role ?? UserRole.customer,
         location: state.matchedLocation,
       );
       if (redirect == AppRoutes.signIn) {

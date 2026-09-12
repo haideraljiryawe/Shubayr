@@ -15,6 +15,7 @@ Future<ProviderContainer> _container() async {
   SharedPreferences.setMockInitialValues({});
   final prefs = PrefsStore(await SharedPreferences.getInstance());
   return ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
       // Banner networking is covered separately; keep navigation tests deterministic.
       homeBannersProvider.overrideWith((ref) async => []),

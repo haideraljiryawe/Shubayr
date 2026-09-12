@@ -30,6 +30,9 @@ class WishlistScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l10n.wishlistTitle)),
       body: AsyncValueView(
         value: wishlist,
+        skipLoadingOnReload: ref
+            .read(wishlistControllerProvider.notifier)
+            .isRefreshing,
         loading: CustomScrollView(
           physics: const NeverScrollableScrollPhysics(),
           slivers: [
@@ -84,7 +87,7 @@ class _WishlistCell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Product? product =
-        item.product ?? ref.watch(productProvider(item.productId)).valueOrNull;
+        item.product ?? ref.watch(productProvider(item.productId)).value;
     if (product == null) {
       return const ProductCardSkeleton();
     }

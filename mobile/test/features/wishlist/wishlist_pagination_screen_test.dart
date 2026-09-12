@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:shubayr/features/auth/domain/session.dart';
+import 'package:shubayr/features/auth/data/user.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,6 +42,7 @@ Widget _host(
   bool dark = false,
   Widget home = const WishlistScreen(),
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     sessionControllerProvider.overrideWith(TestSession.new),
     wishlistRepositoryProvider.overrideWithValue(repository),
@@ -57,6 +60,42 @@ Widget _host(
 );
 
 void main() {
+  testWidgets('refresh keeps content but a new session hides previous data', (
+    tester,
+  ) async {
+    final repo = RecordingWishlist(entries: _items(1));
+    await tester.pumpWidget(_host(repo));
+    await tester.pumpAndSettle();
+    expect(find.text('Product 0'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(WishlistScreen)),
+    );
+    final oldPage = Completer<WishlistPage>();
+    repo.onFetch = (_) => oldPage.future;
+    final refresh = container
+        .read(wishlistControllerProvider.notifier)
+        .refresh();
+    await tester.pump();
+    expect(find.text('Product 0'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+    final newPage = Completer<WishlistPage>();
+    repo.onFetch = (_) => newPage.future;
+    (container.read(sessionControllerProvider.notifier) as TestSession)
+        .setSession(const Session.signedIn(User(id: 'next', role: 'customer')));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Product 0'), findsNothing);
+    oldPage.completeError(const AppFailure.network());
+    await tester.pump();
+    await refresh;
+    expect(find.text('Retry'), findsNothing);
+    newPage.complete(const WishlistPage(page: 1, perPage: 8, total: 0));
+    await tester.pumpAndSettle();
+    expect(container.read(wishlistControllerProvider).hasError, isFalse);
+    expect(find.text('Product 0'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     // Measure the badge with the actual bundled font, not the test placeholder.

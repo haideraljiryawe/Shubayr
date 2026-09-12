@@ -47,6 +47,7 @@ class StoreSettingsController extends Notifier<StoreSettings?> {
   Future<void> refresh() async {
     try {
       final settings = await ref.read(settingsRepositoryProvider).fetch();
+      if (!ref.mounted) return;
       state = settings;
       await ref
           .read(prefsStoreProvider)

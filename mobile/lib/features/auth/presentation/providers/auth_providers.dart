@@ -24,6 +24,19 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// `build()` restores a previous session from the stored token, which is why
 /// the router shows the splash while this resolves.
 class SessionController extends AsyncNotifier<Session> {
+  // Preserve Riverpod 2 notifications: Session equality omits some user fields
+  // and compares permission counts, so it must not suppress permission changes.
+  @override
+  bool updateShouldNotify(
+    AsyncValue<Session> previous,
+    AsyncValue<Session> next,
+  ) {
+    if (previous.isLoading || next.isLoading) {
+      return previous.isLoading != next.isLoading;
+    }
+    return true;
+  }
+
   int _sessionRevision = 0;
   int _profileRevision = 0;
   @override
@@ -36,12 +49,14 @@ class SessionController extends AsyncNotifier<Session> {
     });
 
     final token = await ref.read(tokenStoreProvider).readAccessToken();
+    if (!ref.mounted) return const Session.signedOut();
     if (token == null || token.isEmpty) return const Session.signedOut();
 
     try {
       final user = await ref.read(authRepositoryProvider).currentUser();
       return Session.signedIn(user);
     } on AppFailure {
+      if (!ref.mounted) return const Session.signedOut();
       await ref.read(tokenStoreProvider).clear();
       return const Session.signedOut();
     }
@@ -56,6 +71,7 @@ class SessionController extends AsyncNotifier<Session> {
     _sessionRevision++;
     final repository = ref.read(authRepositoryProvider);
     final result = await repository.verifyOtp(phone: phone, code: code);
+    if (!ref.mounted) return;
 
     final accessToken = result.accessToken;
     if (accessToken == null || accessToken.isEmpty) {
@@ -64,22 +80,24 @@ class SessionController extends AsyncNotifier<Session> {
     await ref
         .read(tokenStoreProvider)
         .save(accessToken: accessToken, refreshToken: result.refreshToken);
+    if (!ref.mounted) return;
 
     final user = result.user ?? await repository.currentUser();
+    if (!ref.mounted) return;
     state = AsyncData(Session.signedIn(user));
   }
 
   /// Commit the server result only to the session that requested this edit.
   /// A stale result returns null so its screen cannot show a false success.
   Future<User?> updateProfile(ProfileUpdate update) async {
-    final user = state.valueOrNull?.user;
+    final user = state.value?.user;
     if (user == null) throw const AppFailure.unauthorized();
     final sessionRevision = _sessionRevision;
     final request = ++_profileRevision;
     bool isCurrent() =>
         sessionRevision == _sessionRevision &&
         request == _profileRevision &&
-        identical(state.valueOrNull?.user, user);
+        identical(state.value?.user, user);
     try {
       final saved = await ref
           .read(authRepositoryProvider)
@@ -96,6 +114,7 @@ class SessionController extends AsyncNotifier<Session> {
   Future<void> signOut() async {
     _sessionRevision++;
     await ref.read(tokenStoreProvider).clear();
+    if (!ref.mounted) return;
     state = const AsyncData(Session.signedOut());
   }
 }
@@ -107,6 +126,5 @@ final sessionControllerProvider =
 /// customers). Screens read this — or use `PermissionGate` — to hide actions
 /// the user's role does not grant.
 final permissionsProvider = Provider<List<String>>(
-  (ref) =>
-      ref.watch(sessionControllerProvider).valueOrNull?.permissions ?? const [],
+  (ref) => ref.watch(sessionControllerProvider).value?.permissions ?? const [],
 );

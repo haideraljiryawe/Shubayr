@@ -54,12 +54,12 @@ class CustomerShell extends ConsumerWidget {
     final l10n = context.l10n;
     final colors = context.colors;
     final isSignedIn =
-        ref.watch(sessionControllerProvider).valueOrNull?.isSignedIn ?? false;
+        ref.watch(sessionControllerProvider).value?.isSignedIn ?? false;
 
     // Cart badge counts distinct products (lines), not total units — rebuilds
     // the bar only when a line is added or removed.
     final cartCount = ref.watch(
-      cartControllerProvider.select((c) => c.valueOrNull?.items.length ?? 0),
+      cartControllerProvider.select((c) => c.value?.items.length ?? 0),
     );
 
     // Every destination, in branch order. In Arabic the first entry lays out on

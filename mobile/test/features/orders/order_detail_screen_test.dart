@@ -56,6 +56,7 @@ Widget _host(
   String locale = 'en',
   bool dark = false,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     orderProvider('o1').overrideWith((ref) async => order),
     orderTrackingProvider('o1').overrideWith((ref) async => _tracking),

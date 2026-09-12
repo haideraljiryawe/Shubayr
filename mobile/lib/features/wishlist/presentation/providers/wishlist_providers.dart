@@ -14,10 +14,8 @@ final wishlistRepositoryProvider = Provider<WishlistRepository>((ref) {
   // The mock represents the active customer's data, just like the remote API.
   ref.watch(
     sessionControllerProvider.select(
-      (s) => (
-        signedIn: s.valueOrNull?.isSignedIn ?? false,
-        userId: s.valueOrNull?.user?.id,
-      ),
+      (s) =>
+          (signedIn: s.value?.isSignedIn ?? false, userId: s.value?.user?.id),
     ),
   );
   return switch (ref.watch(dataSourceProvider)) {
@@ -31,16 +29,19 @@ final wishlistRepositoryProvider = Provider<WishlistRepository>((ref) {
 class WishlistController extends AsyncNotifier<List<WishlistItem>> {
   static const _perPage = 8;
   int _generation = 0;
+  int? _refreshGeneration;
+
+  /// A manual refresh keeps visible data; a new session/repository must reload.
+  bool get isRefreshing => _refreshGeneration == _generation && state.isLoading;
+
   Future<void> _operations = Future.value();
 
   @override
   Future<List<WishlistItem>> build() async {
     final session = ref.watch(
       sessionControllerProvider.select(
-        (s) => (
-          signedIn: s.valueOrNull?.isSignedIn ?? false,
-          userId: s.valueOrNull?.user?.id,
-        ),
+        (s) =>
+            (signedIn: s.value?.isSignedIn ?? false, userId: s.value?.user?.id),
       ),
     );
     final repository = ref.watch(wishlistRepositoryProvider);
@@ -78,7 +79,7 @@ class WishlistController extends AsyncNotifier<List<WishlistItem>> {
   }
 
   bool isWishlisted(String productId) =>
-      state.valueOrNull?.any((w) => w.productId == productId) ?? false;
+      state.value?.any((w) => w.productId == productId) ?? false;
 
   Future<void> add(String productId) => _change(productId, saved: true);
   Future<void> remove(String productId) => _change(productId, saved: false);
@@ -87,8 +88,7 @@ class WishlistController extends AsyncNotifier<List<WishlistItem>> {
   Future<void> _change(String productId, {bool? saved}) => _enqueue((
     generation,
   ) async {
-    if (!(ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ??
-        false)) {
+    if (!(ref.read(sessionControllerProvider).value?.isSignedIn ?? false)) {
       return;
     }
     final items = state.requireValue;
@@ -120,11 +120,11 @@ class WishlistController extends AsyncNotifier<List<WishlistItem>> {
   });
 
   Future<void> refresh() => _enqueue((generation) async {
-    if (!(ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ??
-        false)) {
+    if (!(ref.read(sessionControllerProvider).value?.isSignedIn ?? false)) {
       return;
     }
-    state = const AsyncLoading<List<WishlistItem>>().copyWithPrevious(state);
+    _refreshGeneration = generation;
+    state = const AsyncLoading<List<WishlistItem>>();
     try {
       final items = await _readAll(
         ref.read(wishlistRepositoryProvider),
@@ -134,10 +134,7 @@ class WishlistController extends AsyncNotifier<List<WishlistItem>> {
       state = AsyncData(items);
     } catch (error, stack) {
       if (generation != _generation) return;
-      state = AsyncError<List<WishlistItem>>(
-        error,
-        stack,
-      ).copyWithPrevious(state);
+      state = AsyncError<List<WishlistItem>>(error, stack);
     }
   }, allowLoadFailure: true);
 
@@ -178,7 +175,7 @@ final wishlistControllerProvider =
 final isWishlistedProvider = Provider.autoDispose.family<bool, String>(
   (ref, productId) => ref.watch(
     wishlistControllerProvider.select(
-      (s) => s.valueOrNull?.any((w) => w.productId == productId) ?? false,
+      (s) => s.value?.any((w) => w.productId == productId) ?? false,
     ),
   ),
 );

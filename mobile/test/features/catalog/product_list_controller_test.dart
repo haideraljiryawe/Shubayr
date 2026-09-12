@@ -91,6 +91,7 @@ const _q = ProductQuery();
 /// stays alive for the whole test, and returns (container, controller).
 (ProviderContainer, ProductListController) _setup({int count = 15}) {
   final c = ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
       catalogRepositoryProvider.overrideWithValue(_FakeCatalog(count: count)),
     ],

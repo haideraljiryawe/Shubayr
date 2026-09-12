@@ -101,7 +101,7 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
   @override
   Widget build(BuildContext context) {
     final r = widget.resource, l = context.l10n;
-    final session = ref.watch(sessionControllerProvider).valueOrNull;
+    final session = ref.watch(sessionControllerProvider).value;
     final allowed =
         session?.role == UserRole.staff &&
         session?.can(r.readPermission) == true;
@@ -117,7 +117,7 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
     void nearEnd(ScrollMetrics metrics) {
       if (metrics.axis == Axis.vertical &&
           metrics.extentAfter < metrics.viewportDimension &&
-          ref.read(adminListProvider(query)).valueOrNull?.appendError == null) {
+          ref.read(adminListProvider(query)).value?.appendError == null) {
         controller.loadMore();
       }
     }

@@ -69,6 +69,7 @@ void main() {
       addTearDown(router.dispose);
       await tester.pumpWidget(
         ProviderScope(
+          retry: (retryCount, error) => null,
           overrides: [
             catalogRepositoryProvider.overrideWithValue(repository),
             brandProvider.overrideWithValue(const Brand.bundled()),

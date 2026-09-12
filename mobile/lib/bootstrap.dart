@@ -27,6 +27,8 @@ Future<void> bootstrap() async {
   final prefs = await SharedPreferences.getInstance();
   await StartupAssets.prepare();
   final container = ProviderContainer(
+    // Preserve explicit user retries; Riverpod 3 retries failed builds by default.
+    retry: (retryCount, error) => null,
     overrides: [prefsStoreProvider.overrideWithValue(PrefsStore(prefs))],
   );
 

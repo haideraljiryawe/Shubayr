@@ -68,7 +68,7 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
     // rebuild the navigator with a duplicated shell page key and crash. Going
     // to a root page clears those matches before restoring a detail page.
     if (!mounted) return;
-    final session = ref.read(sessionControllerProvider).valueOrNull;
+    final session = ref.read(sessionControllerProvider).value;
     if (session != null && session.isSignedIn) {
       final router = GoRouter.of(context);
       final destination = SignInDestination.resolve(

@@ -46,6 +46,7 @@ Widget _host(
   _Repo? repo,
   Future<bool> Function(Uri)? launch,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     if (repo != null) bannerRepositoryProvider.overrideWithValue(repo),
     if (launch != null) bannerLinkLauncherProvider.overrideWithValue(launch),
@@ -645,6 +646,7 @@ void main() {
     var feedReads = 0;
     await tester.pumpWidget(
       ProviderScope(
+        retry: (retryCount, error) => null,
         overrides: [
           bannerRepositoryProvider.overrideWithValue(repo),
           brandProvider.overrideWithValue(const Brand.bundled()),

@@ -148,9 +148,7 @@ class _DetailState extends ConsumerState<_Detail> {
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
     final brand = ref.watch(brandProvider);
-    final availability = ref
-        .watch(availabilityProvider(product.id))
-        .valueOrNull;
+    final availability = ref.watch(availabilityProvider(product.id)).value;
 
     final selectedVariant = _selectedVariant;
     final price = formatMoney(
@@ -429,7 +427,7 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
 
     // The cart is server-side; a guest must sign in first.
     final signedIn =
-        ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ?? false;
+        ref.read(sessionControllerProvider).value?.isSignedIn ?? false;
     if (!signedIn) {
       final returnTo = GoRouterState.of(context).uri.toString();
       showAppSnackBarMessage(

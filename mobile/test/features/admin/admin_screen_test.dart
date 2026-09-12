@@ -26,6 +26,7 @@ Widget host(
   bool dark = false,
   AdminTestSession? session,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     adminRepositoryProvider.overrideWithValue(repo),
     sessionControllerProvider.overrideWith(() => session ?? AdminTestSession()),
@@ -379,6 +380,7 @@ void main() {
       addTearDown(router.dispose);
       await tester.pumpWidget(
         ProviderScope(
+          retry: (retryCount, error) => null,
           overrides: [
             adminRepositoryProvider.overrideWithValue(repo),
             sessionControllerProvider.overrideWith(AdminTestSession.new),

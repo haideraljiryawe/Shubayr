@@ -46,7 +46,7 @@ class OrdersScreen extends ConsumerWidget {
     final controller = ref.read(ordersProvider.notifier);
 
     void loadIfNearEnd(ScrollMetrics metrics) {
-      final current = ref.read(ordersProvider).valueOrNull;
+      final current = ref.read(ordersProvider).value;
       if (metrics.axis == Axis.vertical &&
           metrics.extentAfter < metrics.viewportDimension &&
           current?.loadMoreError == null) {

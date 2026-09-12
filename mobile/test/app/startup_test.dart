@@ -59,6 +59,7 @@ void main() {
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       final container = ProviderContainer(
+        retry: (retryCount, error) => null,
         overrides: [
           prefsStoreProvider.overrideWithValue(
             PrefsStore(await SharedPreferences.getInstance()),
@@ -101,7 +102,7 @@ void main() {
   testWidgets(
     'startup display timer starts once and cancels with its container',
     (tester) async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(retry: (retryCount, error) => null);
       final display = container.read(startupDisplayReadyProvider.notifier);
       display.beginDisplay();
       await tester.pump(const Duration(seconds: 1));
@@ -109,7 +110,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(container.read(startupDisplayReadyProvider), isTrue);
       container.dispose();
-      final disposed = ProviderContainer();
+      final disposed = ProviderContainer(retry: (retryCount, error) => null);
       disposed.read(startupDisplayReadyProvider.notifier).beginDisplay();
       disposed.dispose();
       await tester.pump(const Duration(seconds: 3));
@@ -259,6 +260,7 @@ void main() {
       final banners = Completer<List<Never>>();
       var bannerReads = 0;
       final container = ProviderContainer(
+        retry: (retryCount, error) => null,
         overrides: [
           prefsStoreProvider.overrideWithValue(PrefsStore(prefs)),
           tokenStoreProvider.overrideWithValue(tokens),
