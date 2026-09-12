@@ -106,10 +106,17 @@ void main() {
   test('a stored token that /me rejects clears the session', () async {
     final container = await _container(storedToken: 'stale-token');
     addTearDown(container.dispose);
+    final tokens = container.read(tokenStoreProvider) as InMemoryTokenStore;
+    expect(await tokens.readAccessToken(), 'stale-token');
+    await tokens.save(
+      accessToken: 'stale-token',
+      refreshToken: 'stale-refresh-token',
+    );
 
     final session = await container.read(sessionControllerProvider.future);
     expect(session.isSignedIn, isFalse);
-    expect(await container.read(tokenStoreProvider).readAccessToken(), isNull);
+    expect(await tokens.readAccessToken(), isNull);
+    expect(tokens.refreshToken, isNull);
   });
 
   test('verifying an OTP opens the session and stores the tokens', () async {
@@ -143,7 +150,7 @@ void main() {
     );
   });
 
-  test('signing out clears the token and the session', () async {
+  test('signing out clears both tokens and the session', () async {
     final container = await _container();
     addTearDown(container.dispose);
     await container.read(sessionControllerProvider.future);
@@ -151,12 +158,16 @@ void main() {
         .read(sessionControllerProvider.notifier)
         .verifyOtp(phone: '+9647700000000', code: '123456');
 
+    final tokens = container.read(tokenStoreProvider) as InMemoryTokenStore;
+    expect(await tokens.readAccessToken(), isNotEmpty);
+    expect(tokens.refreshToken, isNotNull);
     await container.read(sessionControllerProvider.notifier).signOut();
 
     expect(
       container.read(sessionControllerProvider).requireValue,
       const Session.signedOut(),
     );
-    expect(await container.read(tokenStoreProvider).readAccessToken(), isNull);
+    expect(await tokens.readAccessToken(), isNull);
+    expect(tokens.refreshToken, isNull);
   });
 }
