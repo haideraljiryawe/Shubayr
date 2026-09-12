@@ -368,5 +368,6 @@
     }
   },
   "startupTagline": "كل ما تحتاجه في مكان واحد",
-  "startupLoading": "جارٍ تجهيز التطبيق"
+  "startupLoading": "جارٍ تجهيز التطبيق",
+  "adminUserSearch": "ابحث عن مستخدم"
 }

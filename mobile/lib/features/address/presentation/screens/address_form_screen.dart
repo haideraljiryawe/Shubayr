@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/l10n/l10n_context.dart';
-import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/address.dart';
@@ -95,7 +94,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.screenH),
+            padding: AppLayout.pageInsets(context),
             child: ResponsiveFields(
               children: [
                 TextFormField(

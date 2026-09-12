@@ -203,6 +203,8 @@ class _FullScreenGalleryState extends State<_FullScreenGallery> {
             ),
             builder: (context, i) => PhotoViewGalleryPageOptions(
               imageProvider: CachedNetworkImageProvider(widget.images[i]),
+              errorBuilder: (context, _, _) =>
+                  const Center(child: _GalleryPlaceholder(size: 28)),
               // Fits the image, then lets it zoom to 2.5× on pinch/double-tap.
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.covered * 2.5,

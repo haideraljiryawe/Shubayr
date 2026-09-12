@@ -1,3 +1,4 @@
+import '../widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,15 +20,15 @@ class AdminHubScreen extends ConsumerWidget {
         : [AdminResource.users, AdminResource.roles];
     final session = ref.watch(sessionControllerProvider).value;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          catalog
-              ? context.l10n.adminSectionCatalog
-              : context.l10n.adminSectionUsers,
-        ),
+      appBar: adminAppBar(
+        context,
+        ref,
+        title: catalog
+            ? context.l10n.adminSectionCatalog
+            : context.l10n.adminSectionUsers,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
+        padding: AppLayout.pageInsets(context),
         children: [
           ResponsiveFields(
             children: [

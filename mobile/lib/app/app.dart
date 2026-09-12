@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/l10n/generated/app_localizations.dart';
+import '../core/layout/app_layout.dart';
+import '../core/theme/theme_context.dart';
 import '../core/l10n/locale_controller.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/theme_mode_controller.dart';
 import '../core/theme/tokens/app_motion.dart';
 import '../features/settings/presentation/providers/settings_providers.dart';
 import 'router/app_router.dart';
+import 'shell/admin_frame.dart';
 
 /// The application root.
 ///
@@ -37,6 +40,23 @@ class ShubayrApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       routerConfig: router,
+      builder: (context, child) {
+        final mobile =
+            AppBreakpoints.classify(MediaQuery.sizeOf(context).width) ==
+            AppWindowClass.mobile;
+        // Consume horizontal device insets once, before page padding. SafeArea
+        // clears those insets for descendant AppBars and page-level SafeAreas.
+        return ColoredBox(
+          color: context.colors.background,
+          child: SafeArea(
+            top: false,
+            bottom: false,
+            left: mobile,
+            right: mobile,
+            child: AdminFrame(router: router, child: child!),
+          ),
+        );
+      },
     );
   }
 }

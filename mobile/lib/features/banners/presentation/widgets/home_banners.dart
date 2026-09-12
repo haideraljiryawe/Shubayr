@@ -200,7 +200,7 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
     return LayoutBuilder(
       builder: (context, constraints) {
         final imageWidth = math.min(
-          constraints.maxWidth - AppSpacing.screenH * 2,
+          constraints.maxWidth - AppLayout.pageHorizontal(context) * 2,
           AppLayout.detailWidth,
         );
         final height = _bannerHeight(context, imageWidth, widget.banners);
@@ -289,14 +289,16 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
                             });
                           },
                           itemBuilder: (context, page) => Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.screenH,
+                            padding: AppLayout.pageInsets(
+                              context,
+                              top: 0,
+                              bottom: 0,
                             ),
                             child: ResponsiveContent(
                               maxWidth: AppLayout.detailWidth,
                               child: ClipRRect(
                                 key: ValueKey('banner-page-$page'),
-                                borderRadius: AppRadii.lgAll,
+                                borderRadius: AppRadii.bannerAll,
                                 child: SizedBox.expand(
                                   child: _BannerImageSlide(
                                     banner: widget.banners[_index(page)],
@@ -312,10 +314,10 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
                   ),
                   if (_multiple)
                     Padding(
-                      padding: const EdgeInsets.only(
+                      padding: EdgeInsetsDirectional.only(
                         top: AppSpacing.sm,
-                        left: AppSpacing.screenH,
-                        right: AppSpacing.screenH,
+                        start: AppLayout.pageHorizontal(context),
+                        end: AppLayout.pageHorizontal(context),
                       ),
                       child: Semantics(
                         label: context.l10n.bannerPosition(
@@ -495,10 +497,10 @@ class HomeBannerSkeleton extends StatelessWidget {
   const HomeBannerSkeleton({super.key});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      AppSpacing.screenH,
+    padding: EdgeInsetsDirectional.fromSTEB(
+      AppLayout.pageHorizontal(context),
       AppSpacing.lg,
-      AppSpacing.screenH,
+      AppLayout.pageHorizontal(context),
       0,
     ),
     child: ResponsiveContent(
@@ -506,7 +508,7 @@ class HomeBannerSkeleton extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) => Skeleton(
           height: _bannerHeight(context, constraints.maxWidth, const []),
-          borderRadius: AppRadii.lgAll,
+          borderRadius: AppRadii.bannerAll,
         ),
       ),
     ),

@@ -1,3 +1,4 @@
+import 'package:shubayr/core/theme/tokens/app_spacing.dart';
 import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -107,7 +108,9 @@ void main() {
         final aspectRatio = size.width / size.height;
         expect(aspectRatio, inInclusiveRange(2.0, 4.0));
         if (width <= 390) expect(aspectRatio, closeTo(2.0, 0.001));
-        if (width <= 390) expect(size.height, lessThan(180));
+        if (width <= 390) {
+          expect(size.height, (width - AppSpacing.screenMobileH * 2) / 2);
+        }
         // The current wide layout caps artwork at 1440px with a 4:1 ratio.
         if (width == 1920) expect(size, const Size(1440, 360));
         expect(tester.takeException(), isNull);
@@ -142,7 +145,10 @@ void main() {
             tester.widget<PageView>(pager).controller!.viewportFraction,
             1,
           );
-          expect(initial.width, width == 390 ? width - 32 : 1440);
+          expect(
+            initial.width,
+            width == 390 ? width - AppSpacing.screenMobileH * 2 : 1440,
+          );
           expect(initial.center.dx, viewport.center.dx);
           expect(adjacent.hitTestable(), findsNothing);
           final direction = lang == 'ar' ? 1.0 : -1.0;

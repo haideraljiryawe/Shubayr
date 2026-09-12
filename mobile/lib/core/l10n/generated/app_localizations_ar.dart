@@ -1033,4 +1033,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get startupLoading => 'جارٍ تجهيز التطبيق';
+
+  @override
+  String get adminUserSearch => 'ابحث عن مستخدم';
 }

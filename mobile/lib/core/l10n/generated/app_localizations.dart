@@ -2071,6 +2071,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Getting the app ready'**
   String get startupLoading;
+
+  /// No description provided for @adminUserSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for a user'**
+  String get adminUserSearch;
 }
 
 class _AppLocalizationsDelegate

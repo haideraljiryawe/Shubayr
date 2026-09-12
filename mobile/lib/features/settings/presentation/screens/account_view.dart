@@ -35,68 +35,72 @@ class AccountView extends ConsumerWidget {
     final isSignedIn = session?.isSignedIn ?? false;
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.screenH),
+      padding: AppLayout.pageInsets(context),
       children: [
-        ResponsiveSections(
-          stackedSpacing: 0,
-          maxWidth: AppLayout.formWidth,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                isSignedIn
-                    ? _ProfileCard(session: session!)
-                    : const _SignInCard(),
-                const SizedBox(height: AppSpacing.lg),
-                if (isSignedIn) ...[
-                  AppCard(
-                    padding: EdgeInsets.zero,
-                    child: ListTile(
-                      leading: const Icon(Icons.favorite_border),
-                      title: Text(l10n.wishlistTitle),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.pushNamed(AppRoutes.wishlistName),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  AppCard(
-                    padding: EdgeInsets.zero,
-                    child: ListTile(
-                      leading: const Icon(Icons.location_on_outlined),
-                      title: Text(l10n.addressesTitle),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.pushNamed(AppRoutes.addressesName),
-                    ),
-                  ),
+        ResponsiveContent(
+          alignment: AlignmentDirectional.topStart,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  isSignedIn
+                      ? _ProfileCard(session: session!)
+                      : const _SignInCard(),
                   const SizedBox(height: AppSpacing.lg),
-                ],
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _SectionLabel(l10n.accountPreferences),
-                const _PreferencesCard(),
-                const SizedBox(height: AppSpacing.lg),
-                _SectionLabel(l10n.accountSupport),
-                const _SupportCard(),
-                if (kDebugMode) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  AppCard(
-                    padding: EdgeInsets.zero,
-                    child: ListTile(
-                      leading: const Icon(Icons.palette_outlined),
-                      // Developer-only tool; labels are intentionally not localised.
-                      title: const Text('Design system'),
-                      subtitle: const Text('Tokens · components · light/dark'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.push(AppRoutes.design),
+                  if (isSignedIn && session?.role == UserRole.customer) ...[
+                    AppCard(
+                      padding: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: const Icon(Icons.favorite_border),
+                        title: Text(l10n.wishlistTitle),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.pushNamed(AppRoutes.wishlistName),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppCard(
+                      padding: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: const Icon(Icons.location_on_outlined),
+                        title: Text(l10n.addressesTitle),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.pushNamed(AppRoutes.addressesName),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
                 ],
-              ],
-            ),
-          ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _SectionLabel(l10n.accountPreferences),
+                  const _PreferencesCard(),
+                  const SizedBox(height: AppSpacing.lg),
+                  _SectionLabel(l10n.accountSupport),
+                  const _SupportCard(),
+                  if (kDebugMode) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    AppCard(
+                      padding: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: const Icon(Icons.palette_outlined),
+                        // Developer-only tool; labels are intentionally not localised.
+                        title: const Text('Design system'),
+                        subtitle: const Text(
+                          'Tokens · components · light/dark',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push(AppRoutes.design),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );

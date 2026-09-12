@@ -114,6 +114,10 @@ void main() {
       testWidgets('current screens fit $width $locale dark=$dark scale=$scale', (
         tester,
       ) async {
+        tester.view.physicalSize = Size(width, 1000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
         await tester.binding.setSurfaceSize(Size(width, 1000));
         addTearDown(() => tester.binding.setSurfaceSize(null));
         final cart = CartRepositoryMock(delay: Duration.zero);

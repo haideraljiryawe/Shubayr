@@ -39,8 +39,8 @@ class AddressesScreen extends ConsumerWidget {
         skipLoadingOnReload: ref
             .read(addressesControllerProvider.notifier)
             .isRefreshing,
-        loading: const Padding(
-          padding: EdgeInsets.all(AppSpacing.screenH),
+        loading: Padding(
+          padding: AppLayout.pageInsets(context),
           child: SkeletonCardList(
             itemCount: 3,
             minItemWidth: AppLayout.cardMinWidth,
@@ -67,10 +67,10 @@ class AddressesScreen extends ConsumerWidget {
                   )
                 : ResponsiveCardList(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
+                    padding: EdgeInsetsDirectional.fromSTEB(
+                      AppLayout.pageHorizontal(context),
                       AppSpacing.screenH,
-                      AppSpacing.screenH,
-                      AppSpacing.screenH,
+                      AppLayout.pageHorizontal(context),
                       // Room so the last card clears the floating button.
                       96,
                     ),

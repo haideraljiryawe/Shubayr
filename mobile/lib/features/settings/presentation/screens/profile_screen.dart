@@ -1,3 +1,4 @@
+import '../../../admin/presentation/widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -149,12 +150,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.profileTitle)),
+      appBar: adminAppBar(context, ref, title: l10n.profileTitle),
       body: ResponsiveContent(
         child: Form(
           key: _form,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.screenH),
+            padding: AppLayout.pageInsets(context),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

@@ -24,7 +24,7 @@ other card lists and forms use one there. At wider widths, the number of columns
 increases only when readable items fit.
 
 - `ResponsiveCardList` / `ResponsiveCardSliver`: lazy rows with natural heights;
-  catalog rows retain equal height and the existing two-line name/price footer.
+  catalog rows retain equal height and the compact one-line name/price footer.
   Append loading/retry stays a full-width footer outside the grid. Mounted card
   state survives row regrouping, including an open delivery confirmation.
 - `ResponsiveFields`: all form fields remain mounted for validation; resizing
@@ -53,7 +53,7 @@ increases only when readable items fit.
 | Checkout | Delivery/payment/coupon region alongside summary; bounded bottom action; long labels/values wrap |
 | Cart | List alongside desktop summary; quantity/price wrap if necessary |
 | Address form | Multiple appropriate fields per row; multiline details/default action remain full row |
-| Account and profile | Adjacent account/preferences regions; simple profile editor stays readable |
+| Account and profile | Vertical account/preferences groups at logical start within reading width; simple profile editor stays readable |
 | Review and return forms/receipts | Content-specific reading width instead of unlimited stretching |
 | Sign-in and OTP | Existing narrow form width retained and moved into central layout constants |
 | Admin home / section hubs | More independent tiles across wider layouts, natural heights for longer labels |
@@ -88,6 +88,43 @@ screen has been deferred for a separate responsive implementation.
   screen/form configurations. Widget tests do not replace visual browser/device
   acceptance; no Simulator/Emulator was started.
 
+## UI refinement — 2026-09-12
+
+- Phone page insets now use 12px horizontally below 600; vertical and wider
+  window padding retain their original values through `AppLayout.pageInsets`.
+- Product titles occupy one natural line; retail image radii use dedicated
+  16px tokens. Subcategory icons have larger targets and transparent tiles with
+  quiet green outlines; the last chosen child has a stronger outline and label.
+- Staff/delivery accounts omit customer wishlist/address links. Account groups
+  stack at logical start within the existing reading-width constraint.
+- At 900px and above, `AdminFrame` keeps the global brand/account header above
+  the existing Router. Page AppBars own titles and back navigation separately.
+  Smaller staff layouts keep account access in the page AppBar, except on the
+  account page itself. No routes or navigator keys change.
+- Resource lists share a start-aligned toolbar with create actions; smaller
+  windows keep the FAB. Order date picking is bounded on desktop.
+- Technical verification: analyze clean; 188 focused tests passed. The full
+  suite ran once: 547 passed, two home-header padding expectations needed the
+  new phone inset. After updating those expectations, all four home-screen tests
+  passed in a focused rerun; the full suite was not repeated. Final visual
+  acceptance remains with Ahmed; no browser or emulator was started.
+
+### Follow-up visual refinement verification
+
+- Measured Home banners and Home/search grids at 320/390/599px in both locales:
+  outer inset is exactly 12px, without additional page margins. At 390px with no
+  side obstruction, banner width is 366px and each two-column product card is
+  177px (12px gap). Card text padding is intentionally internal to the card.
+- The phone viewport now consumes horizontal SafeArea once at the application
+  root, then applies page padding. Asymmetric device insets are covered by tests.
+- Global header stays mounted during route/form transitions; resizing preserves
+  search input and mobile account access. Repeated account clicks avoid duplicate
+  account pages. RTL/LTR, light/dark and enlarged text are covered.
+- Follow-up verification: `flutter analyze` clean and 127 targeted tests passed.
+  No full-suite rerun, browser/emulator launch, commit or push in this follow-up.
+  Manual acceptance remains pending for Mobile AR/EN, Admin Desktop AR/EN and
+  a Web window resized to mobile width.
+
 ## Focused manual acceptance
 
 1. Run with `DATA_SOURCE=mock`. As a staff/admin user, open catalog/users,
@@ -97,8 +134,8 @@ screen has been deferred for a separate responsive implementation.
    and complete a status confirmation after resizing the window. Verify the
    selected record updates and refresh/retry remain available.
 3. As a customer, inspect home/search/wishlist, address editing, product details,
-   cart and checkout at phone and desktop widths. Product names still reserve two
-   lines; ratings/prices remain at the bottom; summaries/details split on wide
+   cart and checkout at phone and desktop widths. Product names use one line with
+   ellipsis; ratings/prices remain at the bottom; summaries/details split on wide
    screens and purchase actions remain visible.
 4. Switch Arabic/English and light/dark; repeat with larger text and a long name
    or summary value. Check chip strips, dialogs, lower form fields and both sides

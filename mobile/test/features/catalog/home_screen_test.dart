@@ -1,3 +1,5 @@
+import 'package:shubayr/app/router/app_router.dart';
+import 'package:shubayr/app/router/app_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:shubayr/core/l10n/locale_controller.dart';
 import 'package:shubayr/core/theme/tokens/app_typography.dart';
@@ -164,9 +166,14 @@ void main() {
               .ancestor(of: title, matching: find.byType(Padding))
               .first;
           expect(
-            tester.widget<Padding>(padding).padding,
-            const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenH,
+            tester
+                .widget<Padding>(padding)
+                .padding
+                .resolve(Directionality.of(tester.element(title))),
+            EdgeInsets.symmetric(
+              horizontal: width < 600
+                  ? AppSpacing.screenMobileH
+                  : AppSpacing.screenH,
               vertical: AppSpacing.sm,
             ),
           );
@@ -196,6 +203,71 @@ void main() {
         expect(find.byType(ProductListScreen), findsOneWidget);
         expect(find.text(lang == 'ar' ? 'شُبَيّر' : 'Shubayr'), findsNothing);
         expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  for (final lang in ['ar', 'en']) {
+    testWidgets(
+      'banner and grid use the central mobile inset inside the safe area $lang',
+      (tester) async {
+        addTearDown(tester.view.reset);
+        final container = await _container();
+        addTearDown(container.dispose);
+        await container
+            .read(localeControllerProvider.notifier)
+            .setLocale(Locale(lang));
+        for (final (width, safeStart, safeEnd) in [
+          (320.0, 0.0, 0.0),
+          (390.0, 0.0, 0.0),
+          (599.0, 0.0, 0.0),
+          (390.0, 24.0, 8.0),
+        ]) {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = Size(width, 1200);
+          tester.view.padding = FakeViewPadding(
+            left: safeStart,
+            right: safeEnd,
+          );
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: const ShubayrApp(),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final banner = tester.getRect(
+            find.byKey(const ValueKey('banner-page-0')),
+          );
+          final cards = find.byType(ProductCard);
+          final grid = tester
+              .getRect(cards.first)
+              .expandToInclude(tester.getRect(cards.at(1)));
+          expect(banner.left, safeStart + AppSpacing.screenMobileH);
+          expect(width - banner.right, safeEnd + AppSpacing.screenMobileH);
+          expect(grid.left, banner.left);
+          expect(grid.right, banner.right);
+          expect(
+            tester.getSize(cards.first).width,
+            (width -
+                    safeStart -
+                    safeEnd -
+                    AppSpacing.screenMobileH * 2 -
+                    AppSpacing.md) /
+                2,
+          );
+          container.read(routerProvider).pushNamed(AppRoutes.searchName);
+          await tester.pumpAndSettle();
+          final searchCards = find.byType(ProductCard);
+          final searchGrid = tester
+              .getRect(searchCards.first)
+              .expandToInclude(tester.getRect(searchCards.at(1)));
+          expect(searchGrid.left, grid.left);
+          expect(searchGrid.right, grid.right);
+          container.read(routerProvider).pop();
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        }
       },
     );
   }
@@ -234,37 +306,33 @@ void main() {
     },
   );
 
-  testWidgets(
-    'home lists products and opens product detail',
-    (tester) async {
-      final container = await _container();
-      addTearDown(container.dispose);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const ShubayrApp(),
-        ),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('home lists products and opens product detail', (tester) async {
+    final container = await _container();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const ShubayrApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      // A signed-out guest lands on Home (catalog is public) and sees products.
-      await tester.scrollUntilVisible(
-        find.text('منتج أول'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(ProductCard), findsNWidgets(2));
-      expect(find.text('منتج أول'), findsOneWidget); // Arabic-first name
+    // A signed-out guest lands on Home (catalog is public) and sees products.
+    await tester.scrollUntilVisible(
+      find.text('منتج أول'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ProductCard), findsNWidgets(2));
+    expect(find.text('منتج أول'), findsOneWidget); // Arabic-first name
 
-      await tester.ensureVisible(find.byType(ProductCard).first);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byType(ProductCard).first);
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byType(ProductCard).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(ProductCard).first);
+    await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
-      expect(find.byType(ProductDetailScreen), findsOneWidget);
-    },
-    timeout: const Timeout(Duration(seconds: 30)),
-  );
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ProductDetailScreen), findsOneWidget);
+  }, timeout: const Timeout(Duration(seconds: 30)));
 }

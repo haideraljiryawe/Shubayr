@@ -97,10 +97,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       appBar: AppBar(title: Text(l10n.orderDetailTitle)),
       body: AsyncValueView(
         value: order,
-        loading: const ResponsiveContent(
+        loading: ResponsiveContent(
           maxWidth: AppLayout.detailWidth,
           child: Padding(
-            padding: EdgeInsets.all(AppSpacing.screenH),
+            padding: AppLayout.pageInsets(context),
             child: SkeletonCardList(
               itemCount: 4,
               height: 120,
@@ -110,7 +110,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         ),
         onRetry: () => ref.invalidate(orderProvider(widget.orderId)),
         builder: (context, o) => ListView(
-          padding: const EdgeInsets.all(AppSpacing.screenH),
+          padding: AppLayout.pageInsets(context),
           children: [
             ResponsiveSections(
               children: [

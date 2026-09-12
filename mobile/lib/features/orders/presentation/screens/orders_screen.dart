@@ -66,8 +66,8 @@ class OrdersScreen extends ConsumerWidget {
           Expanded(
             child: AsyncValueView(
               value: orders,
-              loading: const Padding(
-                padding: EdgeInsets.all(AppSpacing.screenH),
+              loading: Padding(
+                padding: AppLayout.pageInsets(context),
                 child: SkeletonCardList(minItemWidth: AppLayout.cardMinWidth),
               ),
               onRetry: controller.refresh,
@@ -113,7 +113,7 @@ class OrdersScreen extends ConsumerWidget {
                         : ResponsiveCardList(
                             key: ValueKey(status),
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(AppSpacing.screenH),
+                            padding: AppLayout.pageInsets(context),
                             itemCount: list.items.length,
                             footer: list.loadMoreError != null
                                 ? AppErrorView(
@@ -171,9 +171,10 @@ class _StatusFilterBar extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 48),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.screenH,
-          vertical: AppSpacing.xs,
+        padding: AppLayout.pageInsets(
+          context,
+          top: AppSpacing.xs,
+          bottom: AppSpacing.xs,
         ),
         child: Row(
           children: [

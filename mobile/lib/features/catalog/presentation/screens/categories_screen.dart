@@ -29,6 +29,7 @@ class CategoriesScreen extends ConsumerStatefulWidget {
 
 class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   String? _selectedId;
+  String? _selectedChildId;
 
   void _openList(String categoryId) => context.pushNamed(
     AppRoutes.searchName,
@@ -59,13 +60,20 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               _CategoryRail(
                 categories: list,
                 selectedId: selected.id,
-                onSelected: (id) => setState(() => _selectedId = id),
+                onSelected: (id) => setState(() {
+                  _selectedId = id;
+                  _selectedChildId = null;
+                }),
               ),
               Expanded(
                 child: _CategoryDetail(
                   category: selected,
                   onBrowseAll: () => _openList(selected.id),
-                  onSubcategory: _openList,
+                  selectedChildId: _selectedChildId,
+                  onSubcategory: (id) {
+                    setState(() => _selectedChildId = id);
+                    _openList(id);
+                  },
                 ),
               ),
             ],
@@ -137,16 +145,10 @@ class _RailItem extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppMotion.fast,
         curve: AppMotion.standard,
-        // The selected item lifts onto the detail pane's surface colour and
-        // carries a primary accent bar on its detail-facing (inner) edge.
+        // The selected item shares the detail pane's surface; its icon and
+        // label carry the selection colour without a dividing border.
         decoration: BoxDecoration(
           color: selected ? colors.surface : colors.surfaceAlt,
-          border: BorderDirectional(
-            end: BorderSide(
-              color: selected ? colors.primary : Colors.transparent,
-              width: 3,
-            ),
-          ),
         ),
         padding: const EdgeInsets.symmetric(
           vertical: AppSpacing.lg,
@@ -156,7 +158,7 @@ class _RailItem extends StatelessWidget {
           children: [
             Icon(
               categoryIconFor(category.icon),
-              size: 26,
+              size: AppLayout.categoryIconSize,
               color: selected ? colors.primary : colors.textMuted,
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -185,11 +187,13 @@ class _CategoryDetail extends StatelessWidget {
     required this.category,
     required this.onBrowseAll,
     required this.onSubcategory,
+    required this.selectedChildId,
   });
 
   final Category category;
   final VoidCallback onBrowseAll;
   final ValueChanged<String> onSubcategory;
+  final String? selectedChildId;
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +204,7 @@ class _CategoryDetail extends StatelessWidget {
       child: ListView(
         // A key so switching department resets the scroll to the top.
         key: ValueKey('cat-detail-${category.id}'),
-        padding: const EdgeInsets.all(AppSpacing.screenH),
+        padding: AppLayout.pageInsets(context),
         children: [
           Text(category.localizedName(lang), style: context.text.titleLarge),
           const SizedBox(height: AppSpacing.md),
@@ -224,6 +228,7 @@ class _CategoryDetail extends StatelessWidget {
                   _SubcategoryTile(
                     key: ValueKey('cat-sub-${sub.id}'),
                     category: sub,
+                    selected: sub.id == selectedChildId,
                     onTap: () => onSubcategory(sub.id),
                   ),
               ],
@@ -290,10 +295,12 @@ class _SubcategoryTile extends StatelessWidget {
   const _SubcategoryTile({
     super.key,
     required this.category,
+    required this.selected,
     required this.onTap,
   });
 
   final Category category;
+  final bool selected;
   final VoidCallback onTap;
 
   static const double width = 96;
@@ -308,44 +315,48 @@ class _SubcategoryTile extends StatelessWidget {
               AppWindowClass.mobile
           ? width
           : AppLayout.categoryRailWidth,
-      child: Material(
-        color: colors.surfaceAlt,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadii.mdAll,
-          side: BorderSide(color: colors.border),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.md,
-              horizontal: AppSpacing.sm,
+      child: Semantics(
+        selected: selected,
+        child: Material(
+          color: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppRadii.mdAll,
+            side: BorderSide(
+              color: selected ? colors.primary : colors.primaryLight,
             ),
-            child: Column(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: colors.primarySoft,
-                    shape: BoxShape.circle,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: AppSpacing.md,
+                horizontal: AppSpacing.sm,
+              ),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: AppLayout.categoryIconTarget,
+                    height: AppLayout.categoryIconTarget,
+                    child: Icon(
+                      categoryIconFor(category.icon),
+                      size: AppLayout.categoryIconSize,
+                      color: colors.primary,
+                    ),
                   ),
-                  child: Icon(
-                    categoryIconFor(category.icon),
-                    size: 24,
-                    color: colors.primaryDark,
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    category.localizedName(lang),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.text.labelMedium?.copyWith(
+                      color: colors.textPrimary,
+                      fontWeight: selected ? FontWeight.w700 : null,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  category.localizedName(lang),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.text.labelMedium,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

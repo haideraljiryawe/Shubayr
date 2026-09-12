@@ -57,7 +57,7 @@ class _DetailSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListView(
     padding: EdgeInsets.zero,
-    children: const [
+    children: [
       ResponsiveSections(
         stackedSpacing: 0,
         children: [
@@ -67,7 +67,7 @@ class _DetailSkeleton extends StatelessWidget {
             borderRadius: BorderRadius.zero,
           ),
           Padding(
-            padding: EdgeInsets.all(AppSpacing.screenH),
+            padding: AppLayout.pageInsets(context),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -169,7 +169,7 @@ class _DetailState extends ConsumerState<_Detail> {
                 children: [
                   ProductGallery(images: product.images),
                   Padding(
-                    padding: const EdgeInsets.all(AppSpacing.screenH),
+                    padding: AppLayout.pageInsets(context),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -486,7 +486,7 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
+        padding: AppLayout.pageInsets(context),
         child: AppButton(
           label: widget.inStock ? l10n.productAddToCart : l10n.commonOutOfStock,
           icon: widget.inStock ? Icons.add_shopping_cart_outlined : null,

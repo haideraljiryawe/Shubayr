@@ -36,8 +36,8 @@ class CartScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l10n.cartTitle)),
       body: AsyncValueView(
         value: cart,
-        loading: const Padding(
-          padding: EdgeInsets.all(AppSpacing.screenH),
+        loading: Padding(
+          padding: AppLayout.pageInsets(context),
           child: SkeletonList(),
         ),
         onRetry: () => ref.invalidate(cartControllerProvider),
@@ -51,7 +51,7 @@ class CartScreen extends ConsumerWidget {
           }
           return ResponsiveBodyWithAside(
             body: ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.screenH),
+              padding: AppLayout.pageInsets(context),
               itemCount: c.items.length,
               separatorBuilder: (_, _) => const Divider(height: AppSpacing.xl),
               itemBuilder: (_, i) => _CartLine(item: c.items[i]),
@@ -204,7 +204,7 @@ class _CartFooter extends ConsumerWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.screenH),
+          padding: AppLayout.pageInsets(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

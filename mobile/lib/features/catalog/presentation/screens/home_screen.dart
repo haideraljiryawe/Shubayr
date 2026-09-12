@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -107,9 +108,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   slivers: [
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.screenH,
-                      ),
+                      padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
                       sliver: ProductGridSliver(
                         itemCount: page.data.length,
                         itemBuilder: (context, i) {
@@ -143,9 +142,10 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     // Content-driven height: title line height + symmetric vertical padding.
-    padding: const EdgeInsets.symmetric(
-      horizontal: AppSpacing.screenH,
-      vertical: AppSpacing.sm,
+    padding: AppLayout.pageInsets(
+      context,
+      top: AppSpacing.sm,
+      bottom: AppSpacing.sm,
     ),
     child: Align(
       alignment: AlignmentDirectional.centerStart,
@@ -174,7 +174,7 @@ class _DepartmentsBar extends ConsumerWidget {
         error: (_, _) => const SizedBox.shrink(),
         data: (list) => SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+          padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
           child: Row(
             children: [
               _Chip(
@@ -227,7 +227,7 @@ class _GridSkeleton extends StatelessWidget {
     physics: const NeverScrollableScrollPhysics(),
     slivers: [
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+        padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
         sliver: ProductGridSliver(
           itemCount: 4,
           itemBuilder: (_, _) => const ProductCardSkeleton(),

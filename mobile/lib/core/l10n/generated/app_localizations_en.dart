@@ -1044,4 +1044,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startupLoading => 'Getting the app ready';
+
+  @override
+  String get adminUserSearch => 'Search for a user';
 }

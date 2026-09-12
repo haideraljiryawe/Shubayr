@@ -109,9 +109,10 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenH,
-              vertical: AppSpacing.xl,
+            padding: AppLayout.pageInsets(
+              context,
+              top: AppSpacing.xl,
+              bottom: AppSpacing.xl,
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: AppLayout.authWidth),

@@ -21,6 +21,32 @@ abstract final class AppBreakpoints {
 
 /// Content-specific sizes; never a global cap on the application or tables.
 abstract final class AppLayout {
+  static bool isDesktop(BuildContext context) =>
+      AppBreakpoints.classify(MediaQuery.sizeOf(context).width).index >=
+      AppWindowClass.compactDesktop.index;
+
+  static double pageHorizontal(BuildContext context) =>
+      AppBreakpoints.classify(MediaQuery.sizeOf(context).width) ==
+          AppWindowClass.mobile
+      ? AppSpacing.screenMobileH
+      : AppSpacing.screenH;
+
+  static EdgeInsetsDirectional pageInsets(
+    BuildContext context, {
+    double top = AppSpacing.screenH,
+    double bottom = AppSpacing.screenH,
+  }) => EdgeInsetsDirectional.fromSTEB(
+    pageHorizontal(context),
+    top,
+    pageHorizontal(context),
+    bottom,
+  );
+
+  static const dateRangeWidth = 520.0;
+  static const dateRangeHeight = 640.0;
+  static const categoryIconSize = 32.0;
+  static const categoryIconTarget = 56.0;
+
   /// Wide phone artwork gradually becomes a panoramic desktop banner.
   /// Interpolation avoids a height jump on either side of a breakpoint.
   static double homeBannerAspectRatio(double imageWidth) {
@@ -75,12 +101,14 @@ class ResponsiveContent extends StatelessWidget {
     super.key,
     required this.child,
     this.maxWidth = AppLayout.readingWidth,
+    this.alignment = Alignment.topCenter,
   });
   final Widget child;
   final double maxWidth;
+  final AlignmentGeometry alignment;
   @override
   Widget build(BuildContext context) => Align(
-    alignment: Alignment.topCenter,
+    alignment: alignment,
     heightFactor: 1,
     child: ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
@@ -219,7 +247,7 @@ class ResponsiveCardList extends StatelessWidget {
     super.key,
     required this.itemCount,
     required this.itemBuilder,
-    this.padding = const EdgeInsets.all(AppSpacing.screenH),
+    this.padding,
     this.physics,
     this.controller,
     this.minItemWidth = AppLayout.cardMinWidth,
@@ -229,7 +257,7 @@ class ResponsiveCardList extends StatelessWidget {
   });
   final int itemCount, phoneColumns;
   final IndexedWidgetBuilder itemBuilder;
-  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? padding;
   final ScrollPhysics? physics;
   final ScrollController? controller;
   final double minItemWidth;
@@ -241,7 +269,7 @@ class ResponsiveCardList extends StatelessWidget {
     physics: physics,
     slivers: [
       SliverPadding(
-        padding: padding,
+        padding: padding ?? AppLayout.pageInsets(context),
         sliver: SliverMainAxisGroup(
           slivers: [
             ResponsiveCardSliver(

@@ -1,3 +1,4 @@
+import '../widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,16 +87,7 @@ class AdminHomeScreen extends ConsumerWidget {
         .toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.adminTitle),
-        actions: [
-          IconButton(
-            onPressed: () => context.push(AppRoutes.settings),
-            icon: const Icon(Icons.person_outline),
-            tooltip: context.l10n.accountTitle,
-          ),
-        ],
-      ),
+      appBar: adminAppBar(context, ref, title: context.l10n.adminTitle),
       body: visible.isEmpty
           ? AppEmptyView(
               icon: Icons.lock_outline,
@@ -104,7 +96,7 @@ class AdminHomeScreen extends ConsumerWidget {
           : ResponsiveCardList(
               phoneColumns: 2,
               minItemWidth: AppLayout.dashboardMinWidth,
-              padding: const EdgeInsets.all(AppSpacing.screenH),
+              padding: AppLayout.pageInsets(context),
               itemCount: visible.length,
               itemBuilder: (context, index) {
                 final s = visible[index];

@@ -104,7 +104,7 @@ class _DeliveriesList extends ConsumerWidget {
                 : ResponsiveCardList(
                     minItemWidth: AppLayout.orderMinWidth,
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(AppSpacing.screenH),
+                    padding: AppLayout.pageInsets(context),
                     itemCount: list.items.length,
                     footer: list.loadMoreError != null
                         ? AppErrorView(

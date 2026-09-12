@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -168,7 +169,7 @@ class _Body extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         slivers: [
           SliverPadding(
-            padding: const EdgeInsets.all(AppSpacing.screenH),
+            padding: AppLayout.pageInsets(context),
             sliver: ProductGridSliver(
               itemCount: 6,
               itemBuilder: (_, _) => const ProductCardSkeleton(),
@@ -193,7 +194,7 @@ class _Body extends StatelessWidget {
         controller: scroll,
         slivers: [
           SliverPadding(
-            padding: const EdgeInsets.all(AppSpacing.screenH),
+            padding: AppLayout.pageInsets(context),
             sliver: ProductGridSliver(
               itemCount: state.items.length,
               itemBuilder: (context, i) {
@@ -251,7 +252,7 @@ class _SortBar extends StatelessWidget {
       height: 52,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+        padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
         children: [
           Padding(
             padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
@@ -311,9 +312,9 @@ class _PriceFilterSheetState extends State<_PriceFilterSheet> {
     final l10n = context.l10n;
     return SafeArea(
       child: Padding(
-        padding: EdgeInsets.only(
-          left: AppSpacing.screenH,
-          right: AppSpacing.screenH,
+        padding: EdgeInsetsDirectional.only(
+          start: AppLayout.pageHorizontal(context),
+          end: AppLayout.pageHorizontal(context),
           top: AppSpacing.lg,
           bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
         ),

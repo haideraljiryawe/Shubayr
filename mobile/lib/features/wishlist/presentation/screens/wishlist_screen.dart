@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -37,7 +38,7 @@ class WishlistScreen extends ConsumerWidget {
           physics: const NeverScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.all(AppSpacing.screenH),
+              padding: AppLayout.pageInsets(context),
               sliver: ProductGridSliver(
                 itemCount: 6,
                 itemBuilder: (_, _) => const ProductCardSkeleton(),
@@ -64,7 +65,7 @@ class WishlistScreen extends ConsumerWidget {
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.all(AppSpacing.screenH),
+                    padding: AppLayout.pageInsets(context),
                     sliver: ProductGridSliver(
                       itemCount: items.length,
                       itemBuilder: (_, i) => _WishlistCell(item: items[i]),

@@ -150,7 +150,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.checkoutTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
+        padding: AppLayout.pageInsets(context),
         children: [
           ResponsiveSections(
             children: [
@@ -531,7 +531,7 @@ class _PlaceOrderBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.screenH),
+          padding: AppLayout.pageInsets(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

@@ -95,7 +95,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
                 .firstOrNull;
             return ResponsiveContent(
               child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.screenH),
+                padding: AppLayout.pageInsets(context),
                 children: [
                   Text(order.orderNumber, style: context.text.titleMedium),
                   const SizedBox(height: AppSpacing.md),
@@ -261,7 +261,7 @@ class _ReturnOrderScreenState extends ConsumerState<ReturnOrderScreen> {
             if (submitted != null) {
               return ResponsiveContent(
                 child: ListView(
-                  padding: const EdgeInsets.all(AppSpacing.screenH),
+                  padding: AppLayout.pageInsets(context),
                   children: [
                     _SuccessMessage(l10n.returnSubmitted),
                     const SizedBox(height: AppSpacing.md),
@@ -294,7 +294,7 @@ class _ReturnOrderScreenState extends ConsumerState<ReturnOrderScreen> {
                 .toList();
             return ResponsiveContent(
               child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.screenH),
+                padding: AppLayout.pageInsets(context),
                 children: [
                   Text(order.orderNumber, style: context.text.titleMedium),
                   const SizedBox(height: AppSpacing.md),
@@ -397,8 +397,8 @@ class _AfterSalesOrderView extends ConsumerWidget {
   final Widget Function(Order, Map<String, Product>) builder;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const loading = Padding(
-      padding: EdgeInsets.all(AppSpacing.screenH),
+    final loading = Padding(
+      padding: AppLayout.pageInsets(context),
       child: SkeletonCardList(),
     );
     return AsyncValueView(

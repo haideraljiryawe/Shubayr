@@ -1,3 +1,5 @@
+import '../../../../core/theme/tokens/app_radii.dart';
+import '../widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -70,6 +72,18 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       context: context,
       firstDate: DateTime(1900),
       lastDate: DateTime(now.year + 1, 12, 31),
+      builder: (context, child) => AppLayout.isDesktop(context)
+          ? Center(
+              child: ConstrainedBox(
+                key: const ValueKey('admin-date-range-dialog'),
+                constraints: const BoxConstraints(
+                  maxWidth: AppLayout.dateRangeWidth,
+                  maxHeight: AppLayout.dateRangeHeight,
+                ),
+                child: ClipRRect(borderRadius: AppRadii.lgAll, child: child!),
+              ),
+            )
+          : child!,
       initialDateRange: query.from == null || query.to == null
           ? null
           : DateTimeRange(start: query.from!, end: query.to!),
@@ -169,7 +183,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     final permissions = ref.watch(sessionControllerProvider).value;
     if (!session.staff || permissions?.can(Permissions.ordersView) != true) {
       return Scaffold(
-        appBar: AppBar(title: Text(l.adminSectionOrders)),
+        appBar: adminAppBar(context, ref, title: l.adminSectionOrders),
         body: AppEmptyView(message: l.adminNoAccess),
       );
     }
@@ -185,15 +199,17 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.adminSectionOrders)),
+      appBar: adminAppBar(context, ref, title: l.adminSectionOrders),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: ResponsiveContent(
               maxWidth: AppLayout.readingWidth,
+              alignment: AlignmentDirectional.centerStart,
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.screenH),
+                padding: AppLayout.pageInsets(context),
                 child: TextField(
                   controller: _search,
                   decoration: InputDecoration(
@@ -224,7 +240,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           ),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+            padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
             child: Row(
               children: [
                 for (final status in [null, ...adminOrderStatuses])
@@ -248,9 +264,10 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenH,
-              vertical: AppSpacing.sm,
+            padding: AppLayout.pageInsets(
+              context,
+              top: AppSpacing.sm,
+              bottom: AppSpacing.sm,
             ),
             child: Wrap(
               spacing: AppSpacing.sm,
@@ -313,7 +330,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                             minItemWidth: AppLayout.orderMinWidth,
                             key: ValueKey(query),
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(AppSpacing.screenH),
+                            padding: AppLayout.pageInsets(context),
                             itemCount: list.items.length,
                             footer: list.appendError != null
                                 ? AppErrorView(

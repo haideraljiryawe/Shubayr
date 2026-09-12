@@ -1,10 +1,10 @@
+import '../widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
-import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/async_value_view.dart';
@@ -154,10 +154,11 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
       _ => null,
     };
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          '${widget.record == null ? l.adminAdd : l.adminEdit} · ${adminTitle(l, resource)}',
-        ),
+      appBar: adminAppBar(
+        context,
+        ref,
+        title:
+            '${widget.record == null ? l.adminAdd : l.adminEdit} · ${adminTitle(l, resource)}',
       ),
       body: optionsResource == null
           ? _body(const [])
@@ -165,10 +166,10 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
               value: ref.watch(
                 adminLookupsProvider(AdminQuery(optionsResource)),
               ),
-              loading: const ResponsiveContent(
+              loading: ResponsiveContent(
                 maxWidth: AppLayout.formWidth,
                 child: Padding(
-                  padding: EdgeInsets.all(AppSpacing.screenH),
+                  padding: AppLayout.pageInsets(context),
                   child: SkeletonCardList(
                     minItemWidth: AppLayout.fieldMinWidth,
                   ),
@@ -189,7 +190,7 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
       child: Form(
         key: _form,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.screenH),
+          padding: AppLayout.pageInsets(context),
           child: ResponsiveFields(
             children: [
               for (final field in resource.fields)

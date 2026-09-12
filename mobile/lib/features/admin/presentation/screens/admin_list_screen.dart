@@ -1,3 +1,5 @@
+import '../widgets/admin_list_toolbar.dart';
+import '../widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -107,7 +109,7 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
         session?.can(r.readPermission) == true;
     if (!allowed) {
       return Scaffold(
-        appBar: AppBar(title: Text(adminTitle(l, r))),
+        appBar: adminAppBar(context, ref, title: adminTitle(l, r)),
         body: AppEmptyView(icon: Icons.lock_outline, message: l.adminNoAccess),
       );
     }
@@ -123,8 +125,9 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(adminTitle(l, r))),
-      floatingActionButton: r.canCreate && canWrite
+      appBar: adminAppBar(context, ref, title: adminTitle(l, r)),
+      floatingActionButton:
+          !AppLayout.isDesktop(context) && r.canCreate && canWrite
           ? FloatingActionButton.extended(
               onPressed: () => _form(),
               label: Text(l.adminAdd),
@@ -133,24 +136,25 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
           : null,
       body: Column(
         children: [
-          ResponsiveFields(
-            children: [
+          AdminListToolbar(
+            onAdd: r.canCreate && canWrite ? () => _form() : null,
+            fields: [
               if (r.canSearch)
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.screenH),
-                  child: TextField(
-                    controller: _search,
-                    decoration: InputDecoration(
-                      hintText: l.searchHint,
-                      prefixIcon: const Icon(Icons.search),
-                    ),
-                    onChanged: (text) {
-                      _debounce?.cancel();
-                      _debounce = Timer(const Duration(milliseconds: 300), () {
-                        if (mounted) setState(() => _query = text.trim());
-                      });
-                    },
+                TextField(
+                  controller: _search,
+                  textAlign: TextAlign.start,
+                  decoration: InputDecoration(
+                    hintText: r == AdminResource.users
+                        ? l.adminUserSearch
+                        : l.searchHint,
+                    prefixIcon: const Icon(Icons.search),
                   ),
+                  onChanged: (text) {
+                    _debounce?.cancel();
+                    _debounce = Timer(const Duration(milliseconds: 300), () {
+                      if (mounted) setState(() => _query = text.trim());
+                    });
+                  },
                 ),
               if (r == AdminResource.users)
                 _RoleFilter(
@@ -164,8 +168,8 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
           Expanded(
             child: AsyncValueView(
               value: value,
-              loading: const Padding(
-                padding: EdgeInsets.all(AppSpacing.screenH),
+              loading: Padding(
+                padding: AppLayout.pageInsets(context),
                 child: SkeletonCardList(minItemWidth: AppLayout.cardMinWidth),
               ),
               onRetry: controller.refresh,
@@ -197,10 +201,10 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
                         : ResponsiveCardList(
                             key: ValueKey(query),
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: EdgeInsets.fromLTRB(
-                              AppSpacing.screenH,
+                            padding: EdgeInsetsDirectional.fromSTEB(
+                              AppLayout.pageHorizontal(context),
                               AppSpacing.sm,
-                              AppSpacing.screenH,
+                              AppLayout.pageHorizontal(context),
                               AppSpacing.xxxl * 2,
                             ),
                             itemCount: list.items.length,
@@ -365,32 +369,30 @@ class _RoleFilter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final query = const AdminQuery(AdminResource.roles);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-      child: AsyncValueView(
-        value: ref.watch(adminLookupsProvider(query)),
-        loading: const Skeleton.line(),
-        onRetry: () => ref.invalidate(adminLookupsProvider(query)),
-        builder: (context, roles) => DropdownButtonFormField<String>(
-          key: ValueKey(value),
-          initialValue: roles.any((r) => r.text('name') == value)
-              ? value
-              : null,
-          isExpanded: true,
-          decoration: InputDecoration(labelText: context.l10n.adminFieldRole),
-          items: [
-            DropdownMenuItem<String>(
-              value: null,
-              child: Text(context.l10n.adminAllRoles),
-            ),
-            for (final role in roles)
-              DropdownMenuItem(
-                value: role.text('name'),
-                child: Text(role.text('name')),
-              ),
-          ],
-          onChanged: onChanged,
+    return AsyncValueView(
+      value: ref.watch(adminLookupsProvider(query)),
+      loading: const Skeleton.line(),
+      onRetry: () => ref.invalidate(adminLookupsProvider(query)),
+      builder: (context, roles) => DropdownButtonFormField<String>(
+        key: ValueKey(value),
+        initialValue: roles.any((r) => r.text('name') == value) ? value : null,
+        isExpanded: true,
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.badge_outlined),
+          hintText: context.l10n.adminFieldRole,
         ),
+        items: [
+          DropdownMenuItem<String>(
+            value: null,
+            child: Text(context.l10n.adminAllRoles),
+          ),
+          for (final role in roles)
+            DropdownMenuItem(
+              value: role.text('name'),
+              child: Text(role.text('name')),
+            ),
+        ],
+        onChanged: onChanged,
       ),
     );
   }
@@ -403,7 +405,7 @@ class _SelectionSummary extends ConsumerWidget {
     final selected = ref.watch(warehouseSelectionProvider), l = context.l10n;
     if (selected.warehouse == null) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.screenH),
+      padding: AppLayout.pageInsets(context),
       child: Text(
         '${l.adminSelectedWarehouse}: ${selected.warehouse!.label(Localizations.localeOf(context).languageCode)}\n${l.adminSelectedLocation}: ${selected.location == null ? l.adminNoLocation : ['zone', 'aisle', 'shelf', 'bin'].map((k) => selected.location!.text(k)).join(' / ')}',
         style: context.text.bodySmall,

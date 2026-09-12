@@ -1,3 +1,6 @@
+import 'package:go_router/go_router.dart';
+import 'package:shubayr/app/router/app_routes.dart';
+import 'package:shubayr/core/theme/theme_context.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,7 +76,91 @@ Widget _host({String locale = 'en'}) => ProviderScope(
 );
 
 void main() {
+  testWidgets(
+    'subcategory icon has no circular background and retains a large target',
+    (tester) async {
+      await tester.pumpWidget(_host());
+      await tester.pumpAndSettle();
+      final tile = find.byKey(const ValueKey('cat-sub-c1a'));
+      final material = tester.widget<Material>(
+        find.descendant(of: tile, matching: find.byType(Material)),
+      );
+      expect(material.color, Colors.transparent);
+      expect(
+        tester.getSize(tile).width,
+        greaterThanOrEqualTo(kMinInteractiveDimension),
+      );
+      expect(
+        tester.getSize(tile).height,
+        greaterThanOrEqualTo(kMinInteractiveDimension),
+      );
+      expect(
+        find.descendant(
+          of: tile,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container &&
+                widget.decoration is BoxDecoration &&
+                (widget.decoration! as BoxDecoration).shape == BoxShape.circle,
+          ),
+        ),
+        findsNothing,
+      );
+      final icon = tester.widget<Icon>(
+        find.descendant(of: tile, matching: find.byType(Icon)),
+      );
+      expect(icon.size, greaterThan(24));
+    },
+  );
+
   for (final locale in ['ar', 'en']) {
+    testWidgets(
+      'parent selection uses icon and label without a divider $locale',
+      (tester) async {
+        await tester.pumpWidget(_host(locale: locale));
+        await tester.pumpAndSettle();
+
+        void expectSelection(String selectedId) {
+          for (final id in ['c1', 'c2']) {
+            final item = find.byKey(ValueKey('cat-rail-$id'));
+            final colors = tester.element(item).colors;
+            final selected = id == selectedId;
+            final container = tester.widget<AnimatedContainer>(
+              find.descendant(
+                of: item,
+                matching: find.byType(AnimatedContainer),
+              ),
+            );
+            final decoration = container.decoration! as BoxDecoration;
+            expect(decoration.border, isNull);
+            expect(
+              decoration.color,
+              selected ? colors.surface : colors.surfaceAlt,
+            );
+            final icon = tester.widget<Icon>(
+              find.descendant(of: item, matching: find.byType(Icon)),
+            );
+            final label = tester.widget<Text>(
+              find.descendant(of: item, matching: find.byType(Text)),
+            );
+            expect(icon.color, selected ? colors.primary : colors.textMuted);
+            expect(
+              label.style!.color,
+              selected ? colors.primaryDark : colors.textSecondary,
+            );
+          }
+        }
+
+        expectSelection('c1');
+        await tester.tap(find.byKey(const ValueKey('cat-rail-c2')));
+        await tester.pumpAndSettle();
+        expectSelection('c2');
+        expect(find.byKey(const ValueKey('cat-sub-c2a')), findsOneWidget);
+        expect(find.byKey(const ValueKey('cat-sub-c1a')), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('browse-all chevron follows $locale navigation direction', (
       tester,
     ) async {
@@ -103,6 +190,78 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+  }
+
+  for (final locale in ['ar', 'en']) {
+    testWidgets(
+      'child outline selection survives navigation and resets with parent $locale',
+      (tester) async {
+        final router = GoRouter(
+          routes: [
+            GoRoute(path: '/', builder: (_, _) => const CategoriesScreen()),
+            GoRoute(
+              path: AppRoutes.search,
+              name: AppRoutes.searchName,
+              builder: (_, state) => Scaffold(
+                appBar: AppBar(),
+                body: Text(state.uri.queryParameters['category_id']!),
+              ),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
+            ],
+            child: MaterialApp.router(
+              routerConfig: router,
+              locale: Locale(locale),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final tile = find.byKey(const ValueKey('cat-sub-c1a'));
+        Material material() => tester.widget<Material>(
+          find.descendant(of: tile, matching: find.byType(Material)),
+        );
+        final colors = tester.element(tile).colors;
+        expect(
+          (material().shape! as RoundedRectangleBorder).side.color,
+          colors.primaryLight,
+        );
+        await tester.tap(tile);
+        await tester.pumpAndSettle();
+        expect(find.text('c1a'), findsOneWidget);
+        router.pop();
+        await tester.pumpAndSettle();
+        expect(
+          (material().shape! as RoundedRectangleBorder).side.color,
+          colors.primary,
+        );
+        expect(material().color, Colors.transparent);
+        final semantics = find.descendant(
+          of: tile,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Semantics && widget.properties.selected == true,
+          ),
+        );
+        expect(semantics, findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('cat-rail-c2')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('cat-rail-c1')));
+        await tester.pumpAndSettle();
+        expect(
+          (material().shape! as RoundedRectangleBorder).side.color,
+          colors.primaryLight,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   testWidgets('lists departments and shows the first one\'s subcategories', (

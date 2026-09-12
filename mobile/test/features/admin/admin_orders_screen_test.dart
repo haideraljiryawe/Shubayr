@@ -227,27 +227,33 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
-  testWidgets('date range input and clearing filter reach the query', (
-    tester,
-  ) async {
-    final repo = RecordingAdminOrders();
-    await tester.pumpWidget(host(repo));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Date range'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.edit_outlined));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).at(1), '09/01/2026');
-    await tester.enterText(find.byType(TextField).at(2), '09/09/2026');
-    await tester.tap(find.text('OK'));
-    await tester.pumpAndSettle();
-    expect(repo.reads.last.query.from, DateTime(2026, 9, 1));
-    expect(repo.reads.last.query.to, DateTime(2026, 9, 9));
-    await tester.tap(find.byTooltip('Clear date filter'));
-    await tester.pumpAndSettle();
-    expect(repo.reads.last.query.from, isNull);
-    expect(tester.takeException(), isNull);
-  });
+  for (final width in [390.0, 900.0, 1920.0]) {
+    testWidgets(
+      'date range input and clearing filter reach the query at $width',
+      (tester) async {
+        tester.view.physicalSize = Size(width, 1000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final repo = RecordingAdminOrders();
+        await tester.pumpWidget(host(repo));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Date range'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.edit_outlined));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField).at(1), '09/01/2026');
+        await tester.enterText(find.byType(TextField).at(2), '09/09/2026');
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
+        expect(repo.reads.last.query.from, DateTime(2026, 9, 1));
+        expect(repo.reads.last.query.to, DateTime(2026, 9, 9));
+        await tester.tap(find.byTooltip('Clear date filter'));
+        await tester.pumpAndSettle();
+        expect(repo.reads.last.query.from, isNull);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   testWidgets('read-only staff see orders without mutation actions', (
     tester,
   ) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/layout/app_layout.dart';
+import 'package:shubayr/core/theme/tokens/app_spacing.dart';
 
 const responsiveWidths = <double>[
   390,
@@ -141,9 +142,10 @@ void main() {
     testWidgets(
       'card grid grows without stretching cards and footer stays full width $direction',
       (tester) async {
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+        addTearDown(tester.view.reset);
+        tester.view.devicePixelRatio = 1;
         for (final width in responsiveWidths) {
-          await tester.binding.setSurfaceSize(Size(width, 1000));
+          tester.view.physicalSize = Size(width, 1000);
           await tester.pumpWidget(
             MaterialApp(
               home: Directionality(
@@ -175,10 +177,16 @@ void main() {
           } else if (width == 390) {
             expect(b.top, greaterThan(a.top));
           }
-          expect(
-            tester.getSize(find.byKey(const ValueKey('retry'))).width,
-            width - 32,
-          );
+          final inset = width < AppBreakpoints.tablet
+              ? AppSpacing.screenMobileH
+              : AppSpacing.screenH;
+          final footer = tester.getRect(find.byKey(const ValueKey('retry')));
+          expect(footer.left, inset);
+          expect(footer.right, width - inset);
+          if (width == 390) {
+            expect(a.left, footer.left);
+            expect(a.right, footer.right);
+          }
           expect(tester.takeException(), isNull);
         }
       },
