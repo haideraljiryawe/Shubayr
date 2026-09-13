@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shubayr/app/router/app_routes.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/layout/app_layout.dart';
 import 'package:shubayr/core/theme/app_colors.dart';
@@ -16,6 +19,8 @@ import 'package:shubayr/core/theme/tokens/app_shadows.dart';
 import 'package:shubayr/core/widgets/skeleton.dart';
 import 'package:shubayr/core/widgets/state_views.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
+import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
+import 'package:shubayr/features/catalog/presentation/data/mock_category_descriptions.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:shubayr/features/catalog/presentation/screens/categories_screen.dart';
 import 'package:shubayr/features/catalog/presentation/screens/subcategories_screen.dart';
@@ -55,6 +60,7 @@ Widget _host({
   String locale = 'en',
   Brightness brightness = Brightness.light,
   double scale = 1,
+  DataSource dataSource = DataSource.mock,
   Widget home = const CategoriesScreen(),
   Future<List<Category>> Function()? load,
   GoRouter? router,
@@ -70,6 +76,7 @@ Widget _host({
   return ProviderScope(
     retry: (_, _) => null,
     overrides: [
+      dataSourceProvider.overrideWithValue(dataSource),
       categoriesProvider.overrideWith(
         (ref) => load?.call() ?? Future.value(_tree),
       ),
@@ -101,7 +108,191 @@ void _size(WidgetTester tester, double width) {
 }
 
 void main() {
+  setUpAll(() async {
+    await (FontLoader('Cairo')
+          ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Cairo-SemiBold.ttf')))
+        .load();
+  });
   for (final locale in ['ar', 'en']) {
+    for (final brightness in Brightness.values) {
+      testWidgets(
+        'all Mock parents have a quiet description $locale $brightness',
+        (tester) async {
+          _size(tester, 390);
+          final parents = (await tester.runAsync(
+            CatalogRepositoryMock(delay: Duration.zero).fetchCategories,
+          ))!;
+          await tester.pumpWidget(
+            _host(
+              locale: locale,
+              brightness: brightness,
+              load: () async => parents,
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            find.text(locale == 'ar' ? 'الأقسام الرئيسية' : 'Main Categories'),
+            findsOneWidget,
+          );
+          for (final parent in parents) {
+            final card = find.byKey(ValueKey('cat-card-${parent.id}'));
+            await tester.scrollUntilVisible(card, 150);
+            await tester.pumpAndSettle();
+            final context = tester.element(card);
+            final description = mockCategoryDescription(
+              parent.id,
+              AppLocalizations.of(context),
+            );
+            expect(description, isNotNull);
+            final label = find.descendant(
+              of: card,
+              matching: find.text(description!),
+            );
+            final text = tester.widget<Text>(label);
+            expect(text.maxLines, 2);
+            expect(text.overflow, TextOverflow.ellipsis);
+            expect(text.style!.color, context.colors.textSecondary);
+            expect(
+              text.style!.fontSize,
+              lessThan(context.text.titleMedium!.fontSize!),
+            );
+            final title = find.descendant(
+              of: card,
+              matching: find.text(parent.localizedName(locale)),
+            );
+            final titleRect = tester.getRect(title);
+            final descriptionRect = tester.getRect(label);
+            final cardRect = tester.getRect(card);
+            expect(descriptionRect.top, greaterThan(titleRect.bottom));
+            expect(
+              (titleRect.top + descriptionRect.bottom) / 2,
+              closeTo(cardRect.center.dy, 0.01),
+            );
+            if (locale == 'ar') {
+              expect(descriptionRect.right, closeTo(titleRect.right, 0.01));
+            } else {
+              expect(descriptionRect.left, closeTo(titleRect.left, 0.01));
+            }
+            // One name line plus two description lines still fits the old height.
+            if (parent.id == 'cat-electronics') {
+              expect(cardRect.height, AppLayout.categoryCardHeight);
+            }
+            expect(tester.takeException(), isNull);
+          }
+        },
+      );
+    }
+
+    testWidgets('unknown and Remote categories need no description $locale', (
+      tester,
+    ) async {
+      for (final (id, source) in [
+        ('unknown', DataSource.mock),
+        ('cat-electronics', DataSource.remote),
+      ]) {
+        await tester.pumpWidget(
+          _host(
+            locale: locale,
+            dataSource: source,
+            load: () async => [
+              Category.fromJson({
+                'id': id,
+                'name_en': 'Category',
+                'name_ar': 'قسم',
+              }),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byKey(ValueKey('cat-card-$id')), findsOneWidget);
+        expect(find.byKey(ValueKey('cat-description-$id')), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    for (final brightness in Brightness.values) {
+      testWidgets(
+        'long name and description fit responsive cards $locale $brightness',
+        (tester) async {
+          _size(tester, 320);
+          const category = Category(
+            id: 'long',
+            nameEn: 'A main category with a deliberately long name',
+            nameAr: 'قسم رئيسي باسم طويل لاختبار مساحة النص',
+          );
+          final description = List.filled(
+            40,
+            locale == 'ar' ? 'وصف طويل للقسم' : 'Long category description',
+          ).join(' ');
+          for (final width in [
+            320.0,
+            599.0,
+            600.0,
+            899.0,
+            900.0,
+            1199.0,
+            1200.0,
+            1535.0,
+            1536.0,
+            1920.0,
+          ]) {
+            tester.view.physicalSize = Size(width, 1000);
+            for (final scale in [1.0, 2.0]) {
+              await tester.pumpWidget(
+                _host(
+                  locale: locale,
+                  brightness: brightness,
+                  scale: scale,
+                  home: Scaffold(
+                    body: ListView(
+                      children: [
+                        CategoryCard(
+                          key: const ValueKey('long-card'),
+                          category: category,
+                          description: description,
+                          onTap: () {},
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+              await tester.pumpAndSettle();
+              final cardRect = tester.getRect(
+                find.byKey(const ValueKey('long-card')),
+              );
+              final image = find.byKey(const ValueKey('cat-image-long'));
+              final imageRect = tester.getRect(image);
+              final subtitle = find.byKey(
+                const ValueKey('cat-description-long'),
+              );
+              final paragraph = tester.renderObject<RenderParagraph>(subtitle);
+              expect(paragraph.didExceedMaxLines, isTrue);
+              expect(
+                tester.getRect(subtitle).bottom,
+                lessThanOrEqualTo(cardRect.bottom),
+              );
+              expect(imageRect.height, cardRect.height);
+              expect(
+                imageRect.width,
+                closeTo(
+                  cardRect.width * AppLayout.categoryCardImageFraction,
+                  0.01,
+                ),
+              );
+              expect(
+                locale == 'ar' ? imageRect.left : imageRect.right,
+                locale == 'ar' ? cardRect.left : cardRect.right,
+              );
+              expect(tester.takeException(), isNull, reason: '$width $scale');
+            }
+          }
+        },
+      );
+    }
+
     testWidgets(
       'full-width vertical cards, flush directional image and no browse-all $locale',
       (tester) async {
@@ -127,7 +318,10 @@ void main() {
         final imageRect = tester.getRect(image);
         final label = find.text(locale == 'ar' ? 'إلكترونيات' : 'Electronics');
         expect(imageRect.height, rect.height);
-        expect(imageRect.width, rect.width / 2);
+        expect(
+          imageRect.width,
+          closeTo(rect.width * AppLayout.categoryCardImageFraction, 0.01),
+        );
         expect(tester.widget<CachedNetworkImage>(image).fit, BoxFit.cover);
         final decoration =
             tester
@@ -169,7 +363,13 @@ void main() {
         await tester.pumpWidget(_host(locale: locale));
         await tester.pumpAndSettle();
         expect(tester.widget<CachedNetworkImage>(image).imageUrl, url);
-        expect(tester.getSize(image).width, tester.getSize(first).width / 2);
+        expect(
+          tester.getSize(image).width,
+          closeTo(
+            tester.getSize(first).width * AppLayout.categoryCardImageFraction,
+            0.01,
+          ),
+        );
         expect(url, isNot(categoryImageUrl('c2')));
         expect(tester.takeException(), isNull);
       },

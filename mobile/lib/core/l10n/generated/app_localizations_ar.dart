@@ -1119,4 +1119,25 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get accountDeleteAcknowledgement => 'أؤكد حذف حسابي';
+
+  @override
+  String get mainCategoriesTitle => 'الأقسام الرئيسية';
+
+  @override
+  String get mockCategoryElectronicsDescription => 'هواتف، أجهزة وملحقات';
+
+  @override
+  String get mockCategoryGroceryDescription => 'مواد غذائية واحتياجات يومية';
+
+  @override
+  String get mockCategoryClothingDescription => 'أزياء للرجال والنساء والأطفال';
+
+  @override
+  String get mockCategoryHomeDescription => 'أدوات مطبخ ومستلزمات المنزل';
+
+  @override
+  String get mockCategoryBeautyDescription => 'عناية بالبشرة والشعر وعطور';
+
+  @override
+  String get mockCategorySportsDescription => 'لياقة، دراجات ولوازم رحلات';
 }

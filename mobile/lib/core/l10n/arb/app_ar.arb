@@ -394,5 +394,12 @@
   "addressContactUnavailable": "رقم التواصل غير متوفر",
   "addressContactBackendPending": "حفظ رقم التواصل غير متاح حاليًا في الخدمة.",
   "accountSignOutConfirm": "هل تريد تسجيل الخروج؟",
-  "accountDeleteAcknowledgement": "أؤكد حذف حسابي"
+  "accountDeleteAcknowledgement": "أؤكد حذف حسابي",
+  "mainCategoriesTitle": "الأقسام الرئيسية",
+  "mockCategoryElectronicsDescription": "هواتف، أجهزة وملحقات",
+  "mockCategoryGroceryDescription": "مواد غذائية واحتياجات يومية",
+  "mockCategoryClothingDescription": "أزياء للرجال والنساء والأطفال",
+  "mockCategoryHomeDescription": "أدوات مطبخ ومستلزمات المنزل",
+  "mockCategoryBeautyDescription": "عناية بالبشرة والشعر وعطور",
+  "mockCategorySportsDescription": "لياقة، دراجات ولوازم رحلات"
 }

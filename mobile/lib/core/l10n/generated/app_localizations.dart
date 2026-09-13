@@ -2227,6 +2227,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'I confirm that I want to delete my account'**
   String get accountDeleteAcknowledgement;
+
+  /// No description provided for @mainCategoriesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Main Categories'**
+  String get mainCategoriesTitle;
+
+  /// No description provided for @mockCategoryElectronicsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Phones, devices and accessories'**
+  String get mockCategoryElectronicsDescription;
+
+  /// No description provided for @mockCategoryGroceryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Food and everyday essentials'**
+  String get mockCategoryGroceryDescription;
+
+  /// No description provided for @mockCategoryClothingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Clothing for the whole family'**
+  String get mockCategoryClothingDescription;
+
+  /// No description provided for @mockCategoryHomeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Kitchenware and home essentials'**
+  String get mockCategoryHomeDescription;
+
+  /// No description provided for @mockCategoryBeautyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Skin care, hair care and fragrances'**
+  String get mockCategoryBeautyDescription;
+
+  /// No description provided for @mockCategorySportsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Fitness, cycling and outdoor gear'**
+  String get mockCategorySportsDescription;
 }
 
 class _AppLocalizationsDelegate

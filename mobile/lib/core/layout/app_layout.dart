@@ -47,6 +47,9 @@ abstract final class AppLayout {
   static const dateRangeHeight = 640.0;
   static const categoryShortcutWidth = 96.0;
   static const categoryCardHeight = 100.0;
+
+  /// Main category artwork's share of the available card width.
+  static const categoryCardImageFraction = 0.42;
   static const subcategoryMinWidth = 150.0;
   static const categoryIconSize = 32.0;
   static const categoryIconTarget = 56.0;

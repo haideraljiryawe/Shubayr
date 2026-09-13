@@ -1131,4 +1131,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get accountDeleteAcknowledgement =>
       'I confirm that I want to delete my account';
+
+  @override
+  String get mainCategoriesTitle => 'Main Categories';
+
+  @override
+  String get mockCategoryElectronicsDescription =>
+      'Phones, devices and accessories';
+
+  @override
+  String get mockCategoryGroceryDescription => 'Food and everyday essentials';
+
+  @override
+  String get mockCategoryClothingDescription => 'Clothing for the whole family';
+
+  @override
+  String get mockCategoryHomeDescription => 'Kitchenware and home essentials';
+
+  @override
+  String get mockCategoryBeautyDescription =>
+      'Skin care, hair care and fragrances';
+
+  @override
+  String get mockCategorySportsDescription =>
+      'Fitness, cycling and outdoor gear';
 }

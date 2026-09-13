@@ -408,5 +408,12 @@
   "addressContactUnavailable": "Contact phone unavailable",
   "addressContactBackendPending": "Saving a contact phone is not available in the service yet.",
   "accountSignOutConfirm": "Do you want to sign out?",
-  "accountDeleteAcknowledgement": "I confirm that I want to delete my account"
+  "accountDeleteAcknowledgement": "I confirm that I want to delete my account",
+  "mainCategoriesTitle": "Main Categories",
+  "mockCategoryElectronicsDescription": "Phones, devices and accessories",
+  "mockCategoryGroceryDescription": "Food and everyday essentials",
+  "mockCategoryClothingDescription": "Clothing for the whole family",
+  "mockCategoryHomeDescription": "Kitchenware and home essentials",
+  "mockCategoryBeautyDescription": "Skin care, hair care and fragrances",
+  "mockCategorySportsDescription": "Fitness, cycling and outdoor gear"
 }
