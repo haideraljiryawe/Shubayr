@@ -67,7 +67,9 @@ abstract final class NavigationThemes {
                   fontWeight: FontWeight.w700,
                 )
               : text.labelMedium?.copyWith(
-                  color: c.textMuted,
+                  color: states.contains(WidgetState.disabled)
+                      ? c.textDisabled
+                      : c.textMuted,
                   fontWeight: FontWeight.w500,
                 ),
         ),
@@ -76,6 +78,8 @@ abstract final class NavigationThemes {
             size: bottomBarIconSize,
             color: states.contains(WidgetState.selected)
                 ? c.primary
+                : states.contains(WidgetState.disabled)
+                ? c.textDisabled
                 : c.textMuted,
           ),
         ),
@@ -102,8 +106,9 @@ abstract final class NavigationThemes {
     surfaceTintColor: Colors.transparent,
     labelStyle: (text.labelMedium ?? const TextStyle()).copyWith(
       color: WidgetStateColor.resolveWith(
-        (states) =>
-            states.contains(WidgetState.disabled) ? c.textMuted : c.textPrimary,
+        (states) => states.contains(WidgetState.disabled)
+            ? c.textDisabled
+            : c.textPrimary,
       ),
     ),
     checkmarkColor: c.textPrimary,

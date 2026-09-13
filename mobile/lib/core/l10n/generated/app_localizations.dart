@@ -938,6 +938,18 @@ abstract class AppLocalizations {
   /// **'All'**
   String get homeAllDepartments;
 
+  /// No description provided for @homeOffersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers & Discounts'**
+  String get homeOffersTitle;
+
+  /// No description provided for @homeOffersViewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View all'**
+  String get homeOffersViewAll;
+
   /// No description provided for @homeSectionProducts.
   ///
   /// In en, this message translates to:
@@ -1051,6 +1063,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Top rated'**
   String get sortTopRated;
+
+  /// No description provided for @productFiltersSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by'**
+  String get productFiltersSort;
+
+  /// No description provided for @productFiltersOffersOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers only'**
+  String get productFiltersOffersOnly;
+
+  /// No description provided for @productFiltersClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get productFiltersClearAll;
+
+  /// No description provided for @productFiltersShowResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Show results'**
+  String get productFiltersShowResults;
+
+  /// No description provided for @productFilterPriceRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Price: {min}–{max}'**
+  String productFilterPriceRange(String min, String max);
+
+  /// No description provided for @productFilterPriceFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Price: from {min}'**
+  String productFilterPriceFrom(String min);
+
+  /// No description provided for @productFilterPriceTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Price: up to {max}'**
+  String productFilterPriceTo(String max);
 
   /// No description provided for @filtersTitle.
   ///

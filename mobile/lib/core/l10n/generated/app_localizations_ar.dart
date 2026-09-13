@@ -440,6 +440,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get homeAllDepartments => 'الكل';
 
   @override
+  String get homeOffersTitle => 'عروض وخصومات';
+
+  @override
+  String get homeOffersViewAll => 'عرض الكل';
+
+  @override
   String get homeSectionProducts => 'المنتجات';
 
   @override
@@ -499,6 +505,33 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get sortTopRated => 'الأعلى تقييمًا';
+
+  @override
+  String get productFiltersSort => 'الترتيب';
+
+  @override
+  String get productFiltersOffersOnly => 'العروض فقط';
+
+  @override
+  String get productFiltersClearAll => 'مسح الكل';
+
+  @override
+  String get productFiltersShowResults => 'عرض النتائج';
+
+  @override
+  String productFilterPriceRange(String min, String max) {
+    return 'السعر: $min–$max';
+  }
+
+  @override
+  String productFilterPriceFrom(String min) {
+    return 'السعر: من $min';
+  }
+
+  @override
+  String productFilterPriceTo(String max) {
+    return 'السعر: حتى $max';
+  }
 
   @override
   String get filtersTitle => 'الفلاتر';

@@ -447,6 +447,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeAllDepartments => 'All';
 
   @override
+  String get homeOffersTitle => 'Offers & Discounts';
+
+  @override
+  String get homeOffersViewAll => 'View all';
+
+  @override
   String get homeSectionProducts => 'Products';
 
   @override
@@ -506,6 +512,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sortTopRated => 'Top rated';
+
+  @override
+  String get productFiltersSort => 'Sort by';
+
+  @override
+  String get productFiltersOffersOnly => 'Offers only';
+
+  @override
+  String get productFiltersClearAll => 'Clear all';
+
+  @override
+  String get productFiltersShowResults => 'Show results';
+
+  @override
+  String productFilterPriceRange(String min, String max) {
+    return 'Price: $min–$max';
+  }
+
+  @override
+  String productFilterPriceFrom(String min) {
+    return 'Price: from $min';
+  }
+
+  @override
+  String productFilterPriceTo(String max) {
+    return 'Price: up to $max';
+  }
 
   @override
   String get filtersTitle => 'Filters';

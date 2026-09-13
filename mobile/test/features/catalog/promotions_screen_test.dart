@@ -1,3 +1,4 @@
+import '../../helpers/product_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,7 @@ import 'package:shubayr/features/catalog/presentation/screens/product_list_scree
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 
 class _Catalog extends CatalogRepositoryMock {
+  _Catalog() : super(delay: Duration.zero);
   bool failAppend = false;
   final calls =
       <
@@ -102,8 +104,7 @@ void main() {
     final repo = _Catalog();
     await tester.pumpWidget(_host(repo));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilterChip, 'Offers'));
-    await tester.pumpAndSettle();
+    await toggleProductOffers(tester);
     expect(repo.calls.last.offer, isTrue);
     expect(repo.calls.last.page, 1);
     expect(repo.calls.last.category, 'c');
@@ -120,23 +121,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(repo.calls.last.query, 'Product 0');
     expect(repo.calls.last.offer, isTrue);
-    await tester.ensureVisible(find.text('Lowest price'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Lowest price'));
-    await tester.pumpAndSettle();
+    await chooseProductSort(tester, ProductSort.priceAsc);
     expect(repo.calls.last.sort, 'price_asc');
     expect(repo.calls.last.query, 'Product 0');
     expect(repo.calls.last.offer, isTrue);
     await tester.enterText(find.byType(TextField), 'missing');
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView), const Offset(500, 0));
-    await tester.pumpAndSettle();
-    expect(find.byType(FilterChip), findsOneWidget);
-    await tester.ensureVisible(find.text('Offers'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Offers'));
-    await tester.pumpAndSettle();
+    await toggleProductOffers(tester);
     expect(repo.calls.last.offer, isFalse);
     expect(repo.calls.last.query, 'missing');
     expect(tester.takeException(), isNull);

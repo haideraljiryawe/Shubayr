@@ -24,6 +24,7 @@ import '../../features/auth/presentation/screens/verify_otp_screen.dart';
 import '../../features/cart/presentation/screens/cart_screen.dart';
 import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
 import '../../features/catalog/presentation/screens/categories_screen.dart';
+import '../../features/catalog/presentation/screens/subcategories_screen.dart';
 import '../../features/catalog/presentation/screens/home_screen.dart';
 import '../../features/catalog/presentation/screens/product_detail_screen.dart';
 import '../../features/catalog/presentation/screens/product_list_screen.dart';
@@ -189,6 +190,15 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.categories,
                 name: AppRoutes.categoriesName,
                 builder: (context, state) => const CategoriesScreen(),
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.subcategoriesSegment,
+                    name: AppRoutes.subcategoriesName,
+                    builder: (context, state) => SubcategoriesScreen(
+                      categoryId: state.pathParameters['categoryId']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -244,8 +254,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ProductListScreen(
           initialQuery: ProductQuery(
             text: state.uri.queryParameters['q'] ?? '',
-            categoryId: state.uri.queryParameters['category_id'],
+            onSale: state.uri.queryParameters['offers_only'] == 'true',
+            categoryId:
+                state.uri.queryParameters['parent_category_id'] ??
+                state.uri.queryParameters['category_id'],
           ),
+          parentCategoryId: state.uri.queryParameters['parent_category_id'],
+          offersOnly: state.uri.queryParameters['offers_only'] == 'true',
         ),
       ),
 

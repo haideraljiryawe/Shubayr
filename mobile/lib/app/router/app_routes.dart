@@ -8,6 +8,7 @@ abstract final class AppRoutes {
   // Customer shell branches.
   static const home = '/home';
   static const categories = '/categories';
+  static const subcategoriesSegment = ':categoryId';
   static const cart = '/cart';
   static const orders = '/orders';
   static const account = '/account';
@@ -60,6 +61,7 @@ abstract final class AppRoutes {
   static const verifyOtpName = 'verify-otp';
   static const homeName = 'home';
   static const categoriesName = 'categories';
+  static const subcategoriesName = 'subcategories';
   static const cartName = 'cart';
   static const ordersName = 'orders';
   static const orderDetailName = 'order-detail';

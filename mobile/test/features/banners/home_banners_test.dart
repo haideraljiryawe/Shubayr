@@ -657,7 +657,7 @@ void main() {
           bannerRepositoryProvider.overrideWithValue(repo),
           brandProvider.overrideWithValue(const Brand.bundled()),
           categoriesProvider.overrideWith((ref) async => []),
-          categoryFeedProvider(null).overrideWith((ref) async {
+          homeOffersProvider.overrideWith((ref) async {
             feedReads++;
             return const ProductPage();
           }),

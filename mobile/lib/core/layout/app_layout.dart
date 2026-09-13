@@ -42,8 +42,12 @@ abstract final class AppLayout {
     bottom,
   );
 
+  static const productFilterWidth = 520.0;
   static const dateRangeWidth = 520.0;
   static const dateRangeHeight = 640.0;
+  static const categoryShortcutWidth = 96.0;
+  static const categoryCardHeight = 100.0;
+  static const subcategoryMinWidth = 150.0;
   static const categoryIconSize = 32.0;
   static const categoryIconTarget = 56.0;
 
@@ -56,6 +60,13 @@ abstract final class AppLayout {
             .clamp(0.0, 1.0);
     return 2.0 + (4.0 - 2.0) * progress;
   }
+
+  /// Two compact cards and a glimpse of the next on phones; cap each card
+  /// on wide screens and allow readable growth with accessibility text sizes.
+  static double homeOfferCardWidth(
+    BuildContext context,
+    double availableWidth,
+  ) => math.min(availableWidth * 0.44, productMinWidth) * textScale(context);
 
   static const authWidth = 420.0;
   static const readingWidth = 760.0;
