@@ -13,7 +13,8 @@ import '../../../../core/theme/theme_mode_controller.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/brand_mark.dart';
+import '../../../../core/widgets/user_avatar.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../auth/domain/session.dart';
 import '../../../auth/domain/user_role.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -97,6 +98,10 @@ class AccountView extends ConsumerWidget {
                       ),
                     ),
                   ],
+                  if (isSignedIn) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    const _AccountActions(),
+                  ],
                 ],
               ),
             ],
@@ -127,99 +132,278 @@ class _SectionLabel extends StatelessWidget {
   );
 }
 
-/// Signed-in header: brand identity and the current role.
-class _ProfileCard extends ConsumerWidget {
+/// Read-only identity, using the same session as the profile editor.
+class _ProfileCard extends StatelessWidget {
   const _ProfileCard({required this.session});
-
   final Session session;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.colors;
-    final brand = ref.watch(brandProvider);
+    final user = session.user!;
     final roleLabel = switch (session.role) {
       UserRole.delivery => l10n.roleDelivery,
       UserRole.staff => l10n.roleStaff,
       _ => l10n.roleCustomer,
     };
-
     return AppCard(
-      onTap: () => context.pushNamed(AppRoutes.profileName),
-      child: Row(
-        children: [
-          BrandMark(brand: brand, size: 48),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
+      key: const ValueKey('account-summary'),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final centered = constraints.maxWidth < AppBreakpoints.tablet;
+          final alignment = centered
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start;
+          final textAlign = centered ? TextAlign.center : TextAlign.start;
+          final identity = Column(
+            crossAxisAlignment: alignment,
+            children: [
+              Text(
+                user.name?.trim().isNotEmpty == true
+                    ? user.name!
+                    : l10n.accountNoName,
+                textAlign: textAlign,
+                style: context.text.titleLarge,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                user.phone?.trim().isNotEmpty == true
+                    ? Validators.foldDigits(user.phone!)
+                    : l10n.accountNoPhone,
+                textDirection: TextDirection.ltr,
+                textAlign: textAlign,
+                style: context.text.bodyLarge,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                user.email?.trim().isNotEmpty == true
+                    ? user.email!
+                    : l10n.accountNoEmail,
+                textAlign: textAlign,
+                style: context.text.bodyLarge?.copyWith(
+                  color: context.colors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                l10n.accountSignedInAs(roleLabel),
+                textAlign: textAlign,
+                style: context.text.bodyMedium?.copyWith(
+                  color: context.colors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                label: l10n.accountEditProfile,
+                variant: AppButtonVariant.secondary,
+                expand: false,
+                icon: Icons.edit_outlined,
+                onPressed: () => context.pushNamed(AppRoutes.profileName),
+              ),
+            ],
+          );
+          if (!centered) {
+            return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  brand.name ?? l10n.storeFallbackName,
-                  style: context.text.titleMedium,
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  l10n.accountSignedInAs(roleLabel),
-                  style: context.text.bodySmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                ),
+                const UserAvatar(),
+                const SizedBox(width: AppSpacing.xl),
+                Expanded(child: identity),
               ],
-            ),
-          ),
-          Icon(Icons.chevron_right, color: colors.textMuted),
-        ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Center(child: UserAvatar()),
+              const SizedBox(height: AppSpacing.lg),
+              identity,
+            ],
+          );
+        },
       ),
     );
   }
 }
 
+class _AccountActions extends ConsumerStatefulWidget {
+  const _AccountActions();
+
+  @override
+  ConsumerState<_AccountActions> createState() => _AccountActionsState();
+}
+
+class _AccountActionsState extends ConsumerState<_AccountActions> {
+  Future<void> _signOut() async {
+    await ref.read(sessionControllerProvider.notifier).signOut();
+    if (!mounted) return;
+    // Land on the public home rather than letting the guard bounce a now-guest
+    // to the sign-in screen from this pushed route.
+    context.go(AppRoutes.home);
+  }
+
+  Future<void> _confirmSignOut() async {
+    final l10n = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.accountSignOutConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.actionCancel),
+          ),
+          AppButton(
+            key: const ValueKey('confirm-sign-out'),
+            label: l10n.authSignOut,
+            expand: false,
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) await _signOut();
+  }
+
+  Future<void> _confirmDelete() async {
+    final l10n = context.l10n;
+    final colors = context.colors;
+    var acknowledged = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(l10n.profileDeleteTitle),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.profileDeleteMessage),
+                const SizedBox(height: AppSpacing.md),
+                CheckboxListTile(
+                  key: const ValueKey('acknowledge-delete'),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: acknowledged,
+                  onChanged: (value) =>
+                      setDialogState(() => acknowledged = value ?? false),
+                  title: Text(l10n.accountDeleteAcknowledgement),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l10n.actionCancel),
+            ),
+            TextButton(
+              key: const ValueKey('confirm-delete'),
+              onPressed: acknowledged
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              style: TextButton.styleFrom(foregroundColor: colors.danger),
+              child: Text(l10n.profileDeleteAccount),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true && mounted) {
+      // Account deletion has no endpoint in the contract yet; keep it honest.
+      showAppSnackBarMessage(context, message: l10n.comingSoonTitle);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    padding: EdgeInsets.zero,
+    child: Column(
+      children: [
+        ListTile(
+          key: const ValueKey('account-sign-out'),
+          leading: const Icon(Icons.logout),
+          title: Text(context.l10n.authSignOut),
+          onTap: _confirmSignOut,
+        ),
+        const Divider(height: AppSpacing.xxs),
+        ListTile(
+          key: const ValueKey('account-delete'),
+          leading: Icon(Icons.delete_outline, color: context.colors.danger),
+          title: Text(
+            context.l10n.profileDeleteAccount,
+            style: TextStyle(color: context.colors.danger),
+          ),
+          onTap: _confirmDelete,
+        ),
+      ],
+    ),
+  );
+}
+
 /// Guest header: a sign-in prompt over the settings below it.
-class _SignInCard extends ConsumerWidget {
+class _SignInCard extends StatelessWidget {
   const _SignInCard();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.colors;
-    final brand = ref.watch(brandProvider);
-
     return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      key: const ValueKey('account-guest-summary'),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final centered = constraints.maxWidth < AppBreakpoints.tablet;
+          final identity = Column(
+            crossAxisAlignment: centered
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
             children: [
-              BrandMark(brand: brand, size: 48),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.authGuest, style: context.text.titleMedium),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      l10n.accountGuestPrompt,
-                      style: context.text.bodySmall?.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                  ],
+              Text(
+                l10n.authGuest,
+                textAlign: centered ? TextAlign.center : TextAlign.start,
+                style: context.text.titleMedium,
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                l10n.accountGuestPrompt,
+                textAlign: centered ? TextAlign.center : TextAlign.start,
+                style: context.text.bodyMedium?.copyWith(
+                  color: context.colors.textSecondary,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          AppButton(
-            label: l10n.authSignInTitle,
-            icon: Icons.login,
-            onPressed: () => context.pushNamed(
-              AppRoutes.signInName,
-              queryParameters: {'returnTo': AppRoutes.account},
-            ),
-          ),
-        ],
+          );
+          return Column(
+            crossAxisAlignment: centered
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.stretch,
+            children: [
+              if (centered) ...[
+                const UserAvatar(),
+                const SizedBox(height: AppSpacing.lg),
+                identity,
+              ] else
+                Row(
+                  children: [
+                    const UserAvatar(),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: identity),
+                  ],
+                ),
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                label: l10n.authSignInTitle,
+                icon: Icons.login,
+                expand: !centered,
+                onPressed: () => context.pushNamed(
+                  AppRoutes.signInName,
+                  queryParameters: {'returnTo': AppRoutes.account},
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

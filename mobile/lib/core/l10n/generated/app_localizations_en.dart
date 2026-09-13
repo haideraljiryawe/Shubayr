@@ -1080,4 +1080,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminUserSearch => 'Search for a user';
+
+  @override
+  String get accountEditProfile => 'Edit profile';
+
+  @override
+  String get accountNoName => 'No name added';
+
+  @override
+  String get accountNoEmail => 'No email added';
+
+  @override
+  String get accountNoPhone => 'Phone number unavailable';
+
+  @override
+  String get profilePhone => 'Phone number';
+
+  @override
+  String get profileChangePhone => 'Change';
+
+  @override
+  String get profilePhoneChangeUnavailable =>
+      'Phone changes are not available yet. The new number will need OTP verification.';
+
+  @override
+  String get addressContactPhone => 'Contact phone';
+
+  @override
+  String get addressUsePrimaryPhone => 'Use my primary number';
+
+  @override
+  String get addressUseOtherPhone => 'Use another number';
+
+  @override
+  String get addressOtherPhone => 'Other phone number';
+
+  @override
+  String get addressPrimaryPhoneBadge => 'Primary';
+
+  @override
+  String get addressContactUnavailable => 'Contact phone unavailable';
+
+  @override
+  String get addressContactBackendPending =>
+      'Saving a contact phone is not available in the service yet.';
+
+  @override
+  String get accountSignOutConfirm => 'Do you want to sign out?';
+
+  @override
+  String get accountDeleteAcknowledgement =>
+      'I confirm that I want to delete my account';
 }

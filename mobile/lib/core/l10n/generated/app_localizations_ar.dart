@@ -1069,4 +1069,54 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminUserSearch => 'ابحث عن مستخدم';
+
+  @override
+  String get accountEditProfile => 'تعديل الملف الشخصي';
+
+  @override
+  String get accountNoName => 'لم تتم إضافة اسم';
+
+  @override
+  String get accountNoEmail => 'لم تتم إضافة بريد إلكتروني';
+
+  @override
+  String get accountNoPhone => 'رقم الهاتف غير متوفر';
+
+  @override
+  String get profilePhone => 'رقم الهاتف';
+
+  @override
+  String get profileChangePhone => 'تغيير';
+
+  @override
+  String get profilePhoneChangeUnavailable =>
+      'تغيير رقم الهاتف غير متاح حاليًا. سيتطلب التحقق من الرقم الجديد برمز OTP.';
+
+  @override
+  String get addressContactPhone => 'رقم التواصل';
+
+  @override
+  String get addressUsePrimaryPhone => 'استخدام رقمي الرئيسي';
+
+  @override
+  String get addressUseOtherPhone => 'استخدام رقم آخر';
+
+  @override
+  String get addressOtherPhone => 'رقم الهاتف الآخر';
+
+  @override
+  String get addressPrimaryPhoneBadge => 'الرئيسي';
+
+  @override
+  String get addressContactUnavailable => 'رقم التواصل غير متوفر';
+
+  @override
+  String get addressContactBackendPending =>
+      'حفظ رقم التواصل غير متاح حاليًا في الخدمة.';
+
+  @override
+  String get accountSignOutConfirm => 'هل تريد تسجيل الخروج؟';
+
+  @override
+  String get accountDeleteAcknowledgement => 'أؤكد حذف حسابي';
 }

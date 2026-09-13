@@ -106,7 +106,7 @@ class AddressesController extends AsyncNotifier<List<Address>> {
               if (address.id == saved.id)
                 saved
               else if (saved.isDefault && address.isDefault)
-                Address.fromJson({...address.toJson(), 'is_default': false})
+                address.withDefault(false)
               else
                 address,
             if (!items.any((address) => address.id == saved.id)) saved,

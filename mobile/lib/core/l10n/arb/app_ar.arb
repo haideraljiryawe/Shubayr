@@ -378,5 +378,21 @@
   },
   "startupTagline": "كل ما تحتاجه في مكان واحد",
   "startupLoading": "جارٍ تجهيز التطبيق",
-  "adminUserSearch": "ابحث عن مستخدم"
+  "adminUserSearch": "ابحث عن مستخدم",
+  "accountEditProfile": "تعديل الملف الشخصي",
+  "accountNoName": "لم تتم إضافة اسم",
+  "accountNoEmail": "لم تتم إضافة بريد إلكتروني",
+  "accountNoPhone": "رقم الهاتف غير متوفر",
+  "profilePhone": "رقم الهاتف",
+  "profileChangePhone": "تغيير",
+  "profilePhoneChangeUnavailable": "تغيير رقم الهاتف غير متاح حاليًا. سيتطلب التحقق من الرقم الجديد برمز OTP.",
+  "addressContactPhone": "رقم التواصل",
+  "addressUsePrimaryPhone": "استخدام رقمي الرئيسي",
+  "addressUseOtherPhone": "استخدام رقم آخر",
+  "addressOtherPhone": "رقم الهاتف الآخر",
+  "addressPrimaryPhoneBadge": "الرئيسي",
+  "addressContactUnavailable": "رقم التواصل غير متوفر",
+  "addressContactBackendPending": "حفظ رقم التواصل غير متاح حاليًا في الخدمة.",
+  "accountSignOutConfirm": "هل تريد تسجيل الخروج؟",
+  "accountDeleteAcknowledgement": "أؤكد حذف حسابي"
 }

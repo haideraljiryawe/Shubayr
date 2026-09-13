@@ -64,63 +64,56 @@ Future<ProviderContainer> _container() async {
 }
 
 void main() {
-  testWidgets(
-    'profile Save enables on change and updates the name',
-    (tester) async {
-      final container = await _container();
-      addTearDown(container.dispose);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const ShubayrApp(),
-        ),
-      );
-      // Bounded pumps rather than pumpAndSettle: splash/loading spinners animate
-      // continuously, so pumpAndSettle never converges in this flow.
-      await tester.pump(const Duration(seconds: 1));
+  testWidgets('profile Save enables on change and updates the name', (
+    tester,
+  ) async {
+    final container = await _container();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const ShubayrApp(),
+      ),
+    );
+    // Bounded pumps rather than pumpAndSettle: splash/loading spinners animate
+    // continuously, so pumpAndSettle never converges in this flow.
+    await tester.pump(const Duration(seconds: 1));
 
-      // Fire sign-in and pump so the mock's delay timer runs under the fake
-      // clock, then await the finished future.
-      final signIn = container
-          .read(sessionControllerProvider.notifier)
-          .verifyOtp(phone: '07700000000', code: '123456');
-      await tester.pump(const Duration(seconds: 1));
-      await signIn;
+    // Fire sign-in and pump so the mock's delay timer runs under the fake
+    // clock, then await the finished future.
+    final signIn = container
+        .read(sessionControllerProvider.notifier)
+        .verifyOtp(phone: '07700000000', code: '123456');
+    await tester.pump(const Duration(seconds: 1));
+    await signIn;
 
-      container.read(routerProvider).push(AppRoutes.profile);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(ProfileScreen), findsOneWidget);
+    container.read(routerProvider).push(AppRoutes.profile);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(ProfileScreen), findsOneWidget);
 
-      // Save (the only ElevatedButton) is disabled until something changes.
-      final save = find.byType(ElevatedButton);
-      expect(tester.widget<ElevatedButton>(save).onPressed, isNull);
+    // Save (the only ElevatedButton) is disabled until something changes.
+    final save = find.byType(ElevatedButton);
+    expect(tester.widget<ElevatedButton>(save).onPressed, isNull);
 
-      await tester.enterText(
-        find.byKey(const ValueKey('profile-name')),
-        'أحمد',
-      );
-      await tester.pump();
-      expect(tester.widget<ElevatedButton>(save).onPressed, isNotNull);
+    await tester.enterText(find.byKey(const ValueKey('profile-name')), 'أحمد');
+    await tester.pump();
+    expect(tester.widget<ElevatedButton>(save).onPressed, isNotNull);
 
-      await tester.tap(save);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(save);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
-      // The name is persisted to the session (locally, in mock mode).
-      expect(
-        container.read(sessionControllerProvider).value?.user?.name,
-        'أحمد',
-      );
-      // Save returns to disabled now that there are no unsaved changes.
-      expect(tester.widget<ElevatedButton>(save).onPressed, isNull);
-      // The isolated delete action is present.
-      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    // The name is persisted to the session (locally, in mock mode).
+    expect(container.read(sessionControllerProvider).value?.user?.name, 'أحمد');
+    // Save returns to disabled now that there are no unsaved changes.
+    expect(tester.widget<ElevatedButton>(save).onPressed, isNull);
+    // Account actions no longer appear in the identity editor.
+    expect(find.byIcon(Icons.delete_outline), findsNothing);
+    expect(find.byIcon(Icons.logout), findsNothing);
 
-      // Let the "saved" snackbar's auto-dismiss timer fire so no timer is left
-      // pending when the test ends.
-      await tester.pump(const Duration(seconds: 4));
-    },
-    timeout: const Timeout(Duration(seconds: 25)),
-  );
+    // Let the "saved" snackbar's auto-dismiss timer fire so no timer is left
+    // pending when the test ends.
+    await tester.pump(const Duration(seconds: 4));
+  }, timeout: const Timeout(Duration(seconds: 25)));
 }

@@ -2131,6 +2131,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search for a user'**
   String get adminUserSearch;
+
+  /// No description provided for @accountEditProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get accountEditProfile;
+
+  /// No description provided for @accountNoName.
+  ///
+  /// In en, this message translates to:
+  /// **'No name added'**
+  String get accountNoName;
+
+  /// No description provided for @accountNoEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'No email added'**
+  String get accountNoEmail;
+
+  /// No description provided for @accountNoPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number unavailable'**
+  String get accountNoPhone;
+
+  /// No description provided for @profilePhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number'**
+  String get profilePhone;
+
+  /// No description provided for @profileChangePhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get profileChangePhone;
+
+  /// No description provided for @profilePhoneChangeUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone changes are not available yet. The new number will need OTP verification.'**
+  String get profilePhoneChangeUnavailable;
+
+  /// No description provided for @addressContactPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact phone'**
+  String get addressContactPhone;
+
+  /// No description provided for @addressUsePrimaryPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Use my primary number'**
+  String get addressUsePrimaryPhone;
+
+  /// No description provided for @addressUseOtherPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Use another number'**
+  String get addressUseOtherPhone;
+
+  /// No description provided for @addressOtherPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Other phone number'**
+  String get addressOtherPhone;
+
+  /// No description provided for @addressPrimaryPhoneBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary'**
+  String get addressPrimaryPhoneBadge;
+
+  /// No description provided for @addressContactUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact phone unavailable'**
+  String get addressContactUnavailable;
+
+  /// No description provided for @addressContactBackendPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving a contact phone is not available in the service yet.'**
+  String get addressContactBackendPending;
+
+  /// No description provided for @accountSignOutConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Do you want to sign out?'**
+  String get accountSignOutConfirm;
+
+  /// No description provided for @accountDeleteAcknowledgement.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm that I want to delete my account'**
+  String get accountDeleteAcknowledgement;
 }
 
 class _AppLocalizationsDelegate

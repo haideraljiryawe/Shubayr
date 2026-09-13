@@ -2,9 +2,7 @@ import '../../../admin/presentation/widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/error/failure.dart';
 import '../../../auth/data/user.dart';
@@ -12,14 +10,14 @@ import '../../../auth/domain/profile_update.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/user_avatar.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 /// The signed-in user's profile editor.
 ///
-/// Photo (upload arrives with the backend) → name/email → Save (enabled only when
-/// something changed) → Sign out, and a deliberately isolated Delete account
-/// action at the bottom. Shared by every role (customer, delivery, staff).
+/// Shared identity editor for every role. Account actions live in AccountView.
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -98,41 +96,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _signOut() async {
-    await ref.read(sessionControllerProvider.notifier).signOut();
-    if (!mounted) return;
-    // Land on the public home rather than letting the guard bounce a now-guest
-    // to the sign-in screen from this pushed route.
-    context.go(AppRoutes.home);
-  }
-
-  Future<void> _confirmDelete() async {
-    final l10n = context.l10n;
-    final colors = context.colors;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.profileDeleteTitle),
-        content: Text(l10n.profileDeleteMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.actionCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: colors.danger),
-            child: Text(l10n.actionDelete),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
-      // Account deletion has no endpoint in the contract yet; keep it honest.
-      showAppSnackBarMessage(context, message: l10n.comingSoonTitle);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.listen(sessionControllerProvider, (_, next) {
@@ -150,7 +113,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      appBar: adminAppBar(context, ref, title: l10n.profileTitle),
+      appBar: adminAppBar(context, ref, title: l10n.accountEditProfile),
       body: ResponsiveContent(
         child: Form(
           key: _form,
@@ -160,16 +123,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: AppSpacing.md),
-                Center(child: _Avatar(name: _initialName)),
+                const Center(child: UserAvatar()),
                 const SizedBox(height: AppSpacing.sm),
                 Center(
-                  child: TextButton.icon(
+                  child: AppButton(
+                    variant: AppButtonVariant.secondary,
+                    expand: false,
                     onPressed: () => showAppSnackBarMessage(
                       context,
                       message: l10n.comingSoonTitle,
                     ),
-                    icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                    label: Text(l10n.profileChangePhoto),
+                    icon: Icons.photo_camera_outlined,
+                    label: l10n.profileChangePhoto,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
@@ -219,6 +184,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(l10n.profilePhone, style: context.text.titleSmall),
+                Wrap(
+                  spacing: AppSpacing.md,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      _initialUser?.phone?.trim().isNotEmpty != true
+                          ? l10n.accountNoPhone
+                          : Validators.foldDigits(_initialUser!.phone!),
+                      textDirection: TextDirection.ltr,
+                      style: context.text.bodyLarge,
+                    ),
+                    TextButton(
+                      key: const ValueKey('profile-change-phone'),
+                      onPressed: signedIn && !_saving
+                          ? () => showAppSnackBarMessage(
+                              context,
+                              message: l10n.profilePhoneChangeUnavailable,
+                            )
+                          : null,
+                      child: Text(l10n.profileChangePhone),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: AppSpacing.xl),
                 if (_error != null) ...[
                   Text(
@@ -235,78 +225,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   isLoading: _saving,
                   onPressed: signedIn && _canSave ? _save : null,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                AppButton(
-                  label: l10n.authSignOut,
-                  variant: AppButtonVariant.secondary,
-                  icon: Icons.logout,
-                  onPressed: _saving ? null : _signOut,
-                ),
-                const SizedBox(height: AppSpacing.xxxl),
-                // Isolated, low-emphasis and dangerous.
-                Center(
-                  child: TextButton.icon(
-                    onPressed: _confirmDelete,
-                    style: TextButton.styleFrom(foregroundColor: colors.danger),
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: Text(l10n.profileDeleteAccount),
-                  ),
-                ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final trimmed = name.trim();
-    final child = trimmed.isEmpty
-        ? Icon(Icons.person, size: 44, color: colors.onPrimary)
-        : Text(
-            trimmed.characters.first.toUpperCase(),
-            style: context.text.displaySmall?.copyWith(color: colors.onPrimary),
-          );
-
-    return Stack(
-      children: [
-        Container(
-          width: 96,
-          height: 96,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: colors.primary,
-            shape: BoxShape.circle,
-          ),
-          child: child,
-        ),
-        PositionedDirectional(
-          end: 0,
-          bottom: 0,
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              shape: BoxShape.circle,
-              border: Border.all(color: colors.border),
-            ),
-            child: Icon(
-              Icons.photo_camera_outlined,
-              size: 18,
-              color: colors.textSecondary,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

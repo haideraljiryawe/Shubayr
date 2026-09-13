@@ -124,11 +124,21 @@ void main() {
       expect(items().singleWhere((a) => a.isDefault).id, 'addr-9');
       await controller().edit(
         'addr-9',
-        const AddressInput(city: 'Basra', isDefault: true, lat: 30, lng: 47),
+        const AddressInput(
+          contactPhone: '07700000000',
+          city: 'Basra',
+          isDefault: true,
+          lat: 30,
+          lng: 47,
+        ),
       );
       expect(items().last.city, 'Basra');
       await controller().add(
-        const AddressInput(city: 'Mosul', isDefault: true),
+        const AddressInput(
+          contactPhone: '07700000000',
+          city: 'Mosul',
+          isDefault: true,
+        ),
       );
       expect(items(), hasLength(11));
       expect(items().singleWhere((a) => a.isDefault).city, 'Mosul');
@@ -260,7 +270,9 @@ void main() {
     session.setSession(const Session.signedOut());
     await container.read(addressesControllerProvider.future);
     await expectLater(
-      controller().add(const AddressInput(city: 'Baghdad')),
+      controller().add(
+        const AddressInput(contactPhone: '07700000000', city: 'Baghdad'),
+      ),
       throwsA(isA<AppFailure>()),
     );
     expect(repo.requests, isEmpty);

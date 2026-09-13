@@ -1,11 +1,73 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
+import 'package:shubayr/core/error/failure.dart';
 import 'package:shubayr/core/network/api_client.dart';
 import 'package:shubayr/features/address/data/address.dart';
 import 'package:shubayr/features/address/data/address_repository_mock.dart';
 import 'package:shubayr/features/address/data/address_repository_remote.dart';
 
 void main() {
+  test(
+    'Mock requires and normalizes an actual contact; API serialization remains unchanged',
+    () async {
+      final repo = AddressRepositoryMock(delay: Duration.zero);
+      for (final phone in [null, '', 'bad']) {
+        await expectLater(
+          repo.createAddress(
+            AddressInput(city: 'Baghdad', contactPhone: phone),
+          ),
+          throwsA(isA<AppFailure>()),
+        );
+        await expectLater(
+          repo.updateAddress(
+            'addr-0',
+            AddressInput(city: 'Baghdad', contactPhone: phone),
+          ),
+          throwsA(isA<AppFailure>()),
+        );
+      }
+      final saved = await repo.createAddress(
+        const AddressInput(city: 'Baghdad', contactPhone: '٠٧٨١ ٢٣٤ ٥٦٧٨'),
+      );
+      expect(saved.contactPhone, '07812345678');
+      expect(saved.toInput().contactPhone, saved.contactPhone);
+      expect(saved.toInput().toJson().containsKey('contact_phone'), isFalse);
+      expect(
+        Address.fromJson({'id': 'legacy', 'city': 'Baghdad'}).contactPhone,
+        isNull,
+      );
+      expect(
+        (await repo.fetchAddresses()).data.every((a) => a.contactPhone != null),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'remote rejects unsupported contact writes before sending any request',
+    () async {
+      var requests = 0;
+      final dio = Dio()
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              requests++;
+              handler.reject(DioException(requestOptions: options));
+            },
+          ),
+        );
+      addTearDown(dio.close);
+      final remote = AddressRepositoryRemote(ApiClient(dio));
+      const input = AddressInput(city: 'Baghdad', contactPhone: '07700000000');
+      await expectLater(remote.createAddress(input), throwsUnsupportedError);
+      await expectLater(
+        remote.updateAddress('a', input),
+        throwsUnsupportedError,
+      );
+      expect(requests, 0);
+    },
+  );
+
   test('mock returns stable pages with total and paging metadata', () async {
     final repo = AddressRepositoryMock(delay: Duration.zero);
     final first = await repo.fetchAddresses(perPage: 8);
@@ -68,7 +130,11 @@ void main() {
 
     // Adding a second default clears the first.
     final created = await repo.createAddress(
-      const AddressInput(city: 'البصرة', isDefault: true),
+      const AddressInput(
+        contactPhone: '07700000000',
+        city: 'البصرة',
+        isDefault: true,
+      ),
     );
     list = (await repo.fetchAddresses()).data;
     expect(list.length, 11);
@@ -78,7 +144,11 @@ void main() {
     // Editing the first back to default clears the second.
     await repo.updateAddress(
       firstId,
-      const AddressInput(city: 'بغداد', isDefault: true),
+      const AddressInput(
+        contactPhone: '07700000000',
+        city: 'بغداد',
+        isDefault: true,
+      ),
     );
     list = (await repo.fetchAddresses()).data;
     expect(list.firstWhere((a) => a.id == firstId).isDefault, isTrue);

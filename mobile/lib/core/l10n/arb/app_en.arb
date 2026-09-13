@@ -392,5 +392,21 @@
   },
   "startupTagline": "Everything you need, all in one place",
   "startupLoading": "Getting the app ready",
-  "adminUserSearch": "Search for a user"
+  "adminUserSearch": "Search for a user",
+  "accountEditProfile": "Edit profile",
+  "accountNoName": "No name added",
+  "accountNoEmail": "No email added",
+  "accountNoPhone": "Phone number unavailable",
+  "profilePhone": "Phone number",
+  "profileChangePhone": "Change",
+  "profilePhoneChangeUnavailable": "Phone changes are not available yet. The new number will need OTP verification.",
+  "addressContactPhone": "Contact phone",
+  "addressUsePrimaryPhone": "Use my primary number",
+  "addressUseOtherPhone": "Use another number",
+  "addressOtherPhone": "Other phone number",
+  "addressPrimaryPhoneBadge": "Primary",
+  "addressContactUnavailable": "Contact phone unavailable",
+  "addressContactBackendPending": "Saving a contact phone is not available in the service yet.",
+  "accountSignOutConfirm": "Do you want to sign out?",
+  "accountDeleteAcknowledgement": "I confirm that I want to delete my account"
 }

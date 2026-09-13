@@ -15,6 +15,8 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../data/address.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../providers/address_providers.dart';
 
 /// The user's delivery addresses: list, add, edit, delete and set-default.
@@ -99,6 +101,18 @@ class _AddressCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    final phone = address.contactPhone;
+    final accountPhone = ref
+        .watch(sessionControllerProvider)
+        .value
+        ?.user
+        ?.phone;
+    final isPrimary =
+        phone != null &&
+        Validators.isPhone(phone) &&
+        accountPhone != null &&
+        Validators.normalizePhone(phone) ==
+            Validators.normalizePhone(accountPhone);
     final title = address.label.isNotEmpty ? address.label : address.city;
 
     return AppCard(
@@ -133,6 +147,40 @@ class _AddressCard extends ConsumerWidget {
                   style: context.text.bodySmall?.copyWith(
                     color: colors.textSecondary,
                   ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xxs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      phone == null
+                          ? context.l10n.addressContactUnavailable
+                          : Validators.foldDigits(phone),
+                      textDirection: phone == null ? null : TextDirection.ltr,
+                      style: context.text.bodySmall,
+                    ),
+                    if (isPrimary)
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.primarySoft,
+                          borderRadius: AppRadii.pillAll,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xxs,
+                          ),
+                          child: Text(
+                            context.l10n.addressPrimaryPhoneBadge,
+                            style: context.text.labelSmall?.copyWith(
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
