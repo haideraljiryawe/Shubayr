@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
@@ -94,6 +95,13 @@ ProviderContainer _container(_Catalog catalog) {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    await (FontLoader('Cairo')
+          ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf')))
+        .load();
+  });
   test(
     'filter count excludes scopes/default sort and counts a price range once',
     () {
@@ -127,7 +135,7 @@ void main() {
   for (final direction in TextDirection.values) {
     for (final dark in [false, true]) {
       testWidgets(
-        'filter badge stays inside button without covering icon $direction $dark',
+        'filter badge stays below center and icon remains centered $direction $dark',
         (tester) async {
           final controller = TextEditingController();
           addTearDown(controller.dispose);
@@ -177,6 +185,8 @@ void main() {
               );
               expect(button.size, Size(kMinInteractiveDimension, field.height));
               expect(icon.center, button.center);
+              expect(button.contains(icon.topLeft), isTrue);
+              expect(button.contains(icon.bottomRight), isTrue);
               expect(icon.width, greaterThan(18));
               final badgeFinder = find.byKey(
                 const ValueKey('product-filter-badge'),
@@ -186,6 +196,10 @@ void main() {
                 count > 0,
               );
               if (count > 0) {
+                expect(
+                  tester.widget<Badge>(badgeFinder).textStyle!.fontSize,
+                  greaterThanOrEqualTo(14),
+                );
                 final badge = tester.getRect(
                   find.byKey(const ValueKey('product-filter-badge-bounds')),
                 );
@@ -196,7 +210,8 @@ void main() {
                       "scale=$scale count=$count button=$button badge=$badge icon=$icon",
                 );
                 expect(button.contains(badge.bottomRight), isTrue);
-                expect(badge.overlaps(icon), isFalse);
+                expect(badge.contains(icon.center), isFalse);
+                expect(badge.top, greaterThanOrEqualTo(button.center.dy));
                 expect(
                   direction == TextDirection.rtl
                       ? badge.center.dx <= button.center.dx

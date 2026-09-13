@@ -7,11 +7,16 @@ import '../tokens/app_spacing.dart';
 abstract final class InputTheme {
   static const double productFilterIconSize = 22;
 
-  /// Keeps the compact count inside the outline, above the centered icon.
-  static const double productFilterBadgeInset = 1;
+  /// Logical end gives the requested bottom-left in RTL / bottom-right in LTR.
+  /// Increase to move the badge horizontally inward, toward the button center.
+  static const double productFilterBadgeEndInset =
+      AppSpacing.xs + AppSpacing.xxs;
+
+  /// Increase to lift the badge from the bottom edge toward the button center.
+  static const double productFilterBadgeBottomInset = AppSpacing.xs;
 
   static TextStyle? productFilterBadgeTextStyle(TextTheme text) =>
-      text.labelSmall?.copyWith(height: 1);
+      text.labelLarge?.copyWith(height: 1, fontWeight: FontWeight.w700);
 
   /// Outlined companion to product search fields; shares their control radius.
   static ButtonStyle productFilterButton(AppColors colors) =>

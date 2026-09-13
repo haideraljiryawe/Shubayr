@@ -103,28 +103,44 @@ class ProductSearchBar extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     const Center(child: Icon(Icons.filter_alt_outlined)),
-                    PositionedDirectional(
-                      top: InputTheme.productFilterBadgeInset,
-                      start: AppSpacing.xs,
-                      end: AppSpacing.xs,
+                    Positioned.fill(
                       child: Align(
-                        alignment: AlignmentDirectional.topEnd,
-                        child: FittedBox(
-                          key: const ValueKey('product-filter-badge-bounds'),
-                          fit: BoxFit.scaleDown,
-                          child: Badge.count(
-                            key: const ValueKey('product-filter-badge'),
-                            count: filterCount,
-                            isLabelVisible: filterCount > 0,
-                            largeSize: AppSpacing.md,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.xxs,
+                        alignment: Alignment.bottomCenter,
+                        child: FractionallySizedBox(
+                          // An independent overlay slot below the exact center.
+                          // Large text scales down only if it exceeds this slot.
+                          heightFactor: 0.5,
+                          widthFactor: 1,
+                          child: Padding(
+                            padding: const EdgeInsetsDirectional.only(
+                              start: InputTheme.productFilterBadgeEndInset,
+                              end: InputTheme.productFilterBadgeEndInset,
+                              bottom: InputTheme.productFilterBadgeBottomInset,
                             ),
-                            textStyle: InputTheme.productFilterBadgeTextStyle(
-                              context.text,
+                            child: Align(
+                              alignment: AlignmentDirectional.bottomEnd,
+                              child: FittedBox(
+                                key: const ValueKey(
+                                  'product-filter-badge-bounds',
+                                ),
+                                fit: BoxFit.scaleDown,
+                                child: Badge.count(
+                                  key: const ValueKey('product-filter-badge'),
+                                  count: filterCount,
+                                  isLabelVisible: filterCount > 0,
+                                  largeSize: AppSpacing.lg,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.xxs,
+                                  ),
+                                  textStyle:
+                                      InputTheme.productFilterBadgeTextStyle(
+                                        context.text,
+                                      ),
+                                  backgroundColor: context.colors.primary,
+                                  textColor: context.colors.onPrimary,
+                                ),
+                              ),
                             ),
-                            backgroundColor: context.colors.primary,
-                            textColor: context.colors.onPrimary,
                           ),
                         ),
                       ),
