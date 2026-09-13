@@ -11,7 +11,7 @@ void main() {
         'selection appearance and behavior are shared in $brightness $direction',
         (tester) async {
           final colors = AppColors.fromSeed(
-            const Color(0xFF438C59),
+            const Color(0xFF396D48),
             brightness: brightness,
           );
           var selected = 0;

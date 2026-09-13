@@ -70,7 +70,7 @@ initialization or navigate to startup.
 - Android 12+: version-qualified platform splash attributes use a static logo
   drawable with transparent safety padding (no icon animation or branding CTA).
   Android owns the system splash icon placement/exit transition.
-- Native backgrounds mirror AppColors: light `#FAF7F2`, dark `#15181A`. Native
+- Native backgrounds mirror AppColors: light `#F6F5EE`, dark `#15181A`. Native
   assets are resized copies of `assets/images/branding/shubayr-logo.png`, never
   a composite screen image. iOS/pre-12 Android place the logo slightly above
   screen center to approximate the Flutter identity group.

@@ -209,7 +209,7 @@ void main() {
 
     final theme = Theme.of(tester.element(find.byType(HomeScreen)));
     final colors = theme.extension<AppColors>()!;
-    expect(colors.primary, const Color(0xFF438C59));
-    expect(theme.scaffoldBackgroundColor, const Color(0xFFFAF7F2));
+    expect(colors.primary, const Color(0xFF396D48));
+    expect(theme.scaffoldBackgroundColor, const Color(0xFFF6F5EE));
   });
 }
