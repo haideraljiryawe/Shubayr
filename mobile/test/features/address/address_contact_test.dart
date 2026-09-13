@@ -113,7 +113,11 @@ void main() {
         await _save(tester);
         expect(repo.created, isEmpty);
         expect(find.text('Enter a valid phone number.'), findsOneWidget);
-        await tester.enterText(otherField, '٠٧٨١ ٢٣٤ ٥٦٧٨');
+        await tester.enterText(otherField, '(+٩٦٤) ٧٨١,٢٣٤-٥٦٧٨');
+        expect(
+          tester.widget<TextFormField>(otherField).controller!.text,
+          '+9647812345678',
+        );
         if (!useOther) {
           await _tap(tester, primary);
           expect(otherField, findsNothing);
@@ -121,7 +125,7 @@ void main() {
         await _save(tester);
         expect(
           repo.created.single.contactPhone,
-          useOther ? '07812345678' : '07700000000',
+          useOther ? '+9647812345678' : '07700000000',
         );
         final saved = container
             .read(addressesControllerProvider)

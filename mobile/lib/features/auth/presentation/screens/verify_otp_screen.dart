@@ -1,3 +1,4 @@
+import '../../../../core/utils/numeric_input_formatters.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -59,7 +60,10 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
     await _run(
       () => ref
           .read(sessionControllerProvider.notifier)
-          .verifyOtp(phone: widget.phone, code: _codeController.text.trim()),
+          .verifyOtp(
+            phone: widget.phone,
+            code: Validators.foldDigits(_codeController.text).trim(),
+          ),
     );
 
     // On success, reset the stack with a clean declarative navigation. The
@@ -131,6 +135,7 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
                     TextFormField(
                       controller: _codeController,
                       keyboardType: TextInputType.number,
+                      inputFormatters: const [OtpInputFormatter()],
                       textDirection: TextDirection.ltr,
                       autofillHints: const [AutofillHints.oneTimeCode],
                       decoration: InputDecoration(

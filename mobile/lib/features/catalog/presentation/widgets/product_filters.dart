@@ -1,3 +1,5 @@
+import '../../../../core/utils/numeric_input_formatters.dart';
+import '../../../../core/utils/numeric_text.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -228,10 +230,10 @@ class ProductFilterEditor extends StatefulWidget {
 class _ProductFilterEditorState extends State<ProductFilterEditor> {
   late ProductQuery _draft = widget.query;
   late final _min = TextEditingController(
-    text: widget.query.minPrice?.toString() ?? '',
+    text: MoneyText.fromNumber(widget.query.minPrice),
   );
   late final _max = TextEditingController(
-    text: widget.query.maxPrice?.toString() ?? '',
+    text: MoneyText.fromNumber(widget.query.maxPrice),
   );
 
   @override
@@ -311,7 +313,10 @@ class _ProductFilterEditorState extends State<ProductFilterEditor> {
                           child: TextField(
                             key: const ValueKey('filter-min-price'),
                             controller: _min,
-                            keyboardType: TextInputType.number,
+                            inputFormatters: const [MoneyInputFormatter()],
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
                             decoration: InputDecoration(
                               labelText: l10n.filterMin,
                             ),
@@ -322,7 +327,10 @@ class _ProductFilterEditorState extends State<ProductFilterEditor> {
                           child: TextField(
                             key: const ValueKey('filter-max-price'),
                             controller: _max,
-                            keyboardType: TextInputType.number,
+                            inputFormatters: const [MoneyInputFormatter()],
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
                             decoration: InputDecoration(
                               labelText: l10n.filterMax,
                             ),
@@ -368,8 +376,8 @@ class _ProductFilterEditorState extends State<ProductFilterEditor> {
                     onPressed: () => Navigator.pop(
                       context,
                       _draft.copyWith(
-                        minPrice: num.tryParse(_min.text.trim()),
-                        maxPrice: num.tryParse(_max.text.trim()),
+                        minPrice: MoneyText.tryParse(_min.text),
+                        maxPrice: MoneyText.tryParse(_max.text),
                         onSale: widget.offersOnly || _draft.onSale,
                       ),
                     ),

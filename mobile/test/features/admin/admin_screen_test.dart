@@ -54,6 +54,34 @@ Future<void> save(WidgetTester tester) async {
 }
 
 void main() {
+  for (final (resource, input, expected) in [
+    (AdminResource.users, '+۱ (۲۰۲) ۵۵۵,۰۱۲۳', '+12025550123'),
+    (AdminResource.suppliers, '(٠٧٧٠) ١٢٣-٤٥٦٧', '07701234567'),
+  ]) {
+    testWidgets(
+      '$resource saves a clean phone string without canonicalization',
+      (tester) async {
+        final repo = RecordingAdmin();
+        await tester.pumpWidget(host(repo, resource: resource));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(FloatingActionButton));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('name')),
+          'Phone test',
+        );
+        final phone = find.byKey(const ValueKey('phone'));
+        await tester.enterText(phone, input);
+        expect(tester.widget<TextFormField>(phone).controller!.text, expected);
+        await save(tester);
+        expect(repo.writes.single.input['phone'], expected);
+        expect(find.byType(AdminRecordForm), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+
   for (final locale in ['ar', 'en']) {
     for (final catalog in [true, false]) {
       testWidgets('admin hub catalog=$catalog chevrons follow $locale', (
@@ -105,7 +133,7 @@ void main() {
     await tester.pumpAndSettle();
     final field = find.byKey(const ValueKey('compare_at_price'));
     await tester.ensureVisible(field);
-    expect(tester.widget<TextFormField>(field).controller!.text, '60000');
+    expect(tester.widget<TextFormField>(field).controller!.text, '60,000');
     await tester.enterText(field, '-10');
     await save(tester);
     expect(repo.writes, isEmpty);
@@ -328,14 +356,27 @@ void main() {
       for (final entry in {
         'name_ar': 'مادة جديدة',
         'name_en': 'New product',
-        'sale_price': '12500',
-        'compare_at_price': '15000',
-        'points_price': '10.0',
+        'sale_price': '١٢٥٠٠',
+        'compare_at_price': '15,000',
+        'floor_price': '۱۲۵۰.۵',
+        'points_price': '۱۲۵۰.0',
         'images': 'https://example.com/product.jpg',
       }.entries) {
         final field = find.byKey(ValueKey(entry.key));
         await tester.ensureVisible(field);
         await tester.enterText(field, entry.value);
+        final expected = {
+          'sale_price': '12,500',
+          'compare_at_price': '15,000',
+          'floor_price': '1,250.5',
+          'points_price': '1250.0',
+        }[entry.key];
+        if (expected != null) {
+          expect(
+            tester.widget<TextFormField>(field).controller!.text,
+            expected,
+          );
+        }
       }
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pumpAndSettle();
@@ -345,12 +386,21 @@ void main() {
       final sku = find.widgetWithText(TextFormField, 'SKU');
       await tester.ensureVisible(sku);
       await tester.enterText(sku, 'SKU-NEW');
+      final delta = find.widgetWithText(TextFormField, 'Price difference');
+      await tester.ensureVisible(delta);
+      await tester.enterText(delta, '-١٢٥٠٫٥');
+      expect(tester.widget<TextFormField>(delta).controller!.text, '-1,250.5');
       await save(tester);
       expect(repo.writes, hasLength(1));
       final input = repo.writes.single.input;
       expect(input['compare_at_price'], 15000);
       expect(input['category_id'], isNotNull);
       expect(input['sale_price'], 12500);
+      expect(input['sale_price'], isA<num>());
+      expect(input['compare_at_price'], isA<num>());
+      expect(input['floor_price'], 1250.5);
+      expect(input['points_price'], 1250);
+      expect((input['variants'] as List).single['price_delta'], -1250.5);
       expect(input['points_price'], isA<int>());
       expect(input['images'], ['https://example.com/product.jpg']);
       expect((input['variants'] as List).single['sku'], 'SKU-NEW');

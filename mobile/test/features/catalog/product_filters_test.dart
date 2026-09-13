@@ -302,12 +302,24 @@ void main() {
           );
           await tester.enterText(
             find.byKey(const ValueKey('filter-min-price')),
-            '30000',
+            '٣٠٠٠٠',
           );
           await tester.enterText(
             find.byKey(const ValueKey('filter-max-price')),
-            '130000',
+            '۱۳۰,۰۰۰',
           );
+          for (final (key, expected) in [
+            ('filter-min-price', '30,000'),
+            ('filter-max-price', '130,000'),
+          ]) {
+            expect(
+              tester
+                  .widget<TextField>(find.byKey(ValueKey(key)))
+                  .controller!
+                  .text,
+              expected,
+            );
+          }
           final offers = find.byKey(const ValueKey('filter-offers-only'));
           await tester.ensureVisible(offers);
           await tester.pumpAndSettle();
@@ -318,6 +330,8 @@ void main() {
           expect(find.byType(ProductFilterEditor), findsOneWidget);
           await applyProductFilters(tester);
           expect(repo.requests.length, calls + 1);
+          expect(repo.requests.last.minPrice, 30000);
+          expect(repo.requests.last.maxPrice, 130000);
           expect(
             container.read(provider).query,
             seed.copyWith(
@@ -395,6 +409,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('applied-filter-offers')), findsNothing);
       await openProductFilters(tester);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('filter-min-price')))
+            .controller!
+            .text,
+        '10,000',
+      );
       expect(find.byKey(const ValueKey('filter-offers-only')), findsNothing);
       expect(
         find.descendant(

@@ -1,3 +1,4 @@
+import '../../../../core/utils/numeric_input_formatters.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -120,6 +121,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: const [PhoneInputFormatter()],
                       textDirection: TextDirection.ltr,
                       autofillHints: const [AutofillHints.telephoneNumber],
                       decoration: InputDecoration(

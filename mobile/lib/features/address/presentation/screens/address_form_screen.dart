@@ -1,3 +1,5 @@
+import '../../../../core/utils/numeric_input_formatters.dart';
+import '../../../../core/utils/numeric_text.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,12 +33,14 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final _label = TextEditingController(text: widget.address?.label ?? '');
   late final _city = TextEditingController(text: widget.address?.city ?? '');
-  late final _area = TextEditingController(text: widget.address?.area ?? '');
+  late final _area = TextEditingController(
+    text: normalizeDigits(widget.address?.area ?? ''),
+  );
   late final _street = TextEditingController(
-    text: widget.address?.street ?? '',
+    text: normalizeDigits(widget.address?.street ?? ''),
   );
   late final _details = TextEditingController(
-    text: widget.address?.details ?? '',
+    text: normalizeDigits(widget.address?.details ?? ''),
   );
   late bool _isDefault = widget.address?.isDefault ?? false;
   bool _busy = false;
@@ -54,7 +58,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
     if (widget.address != null) {
       _usePrimaryPhone =
           saved != null && Validators.normalizePhone(saved) == _accountPhone;
-      if (!_usePrimaryPhone) _otherPhone.text = saved ?? '';
+      if (!_usePrimaryPhone) _otherPhone.text = normalizeDigits(saved ?? '');
     }
   }
 
@@ -143,11 +147,13 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                 ),
                 TextFormField(
                   controller: _area,
+                  inputFormatters: const [WesternDigitsInputFormatter()],
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(labelText: l10n.addressArea),
                 ),
                 TextFormField(
                   controller: _street,
+                  inputFormatters: const [WesternDigitsInputFormatter()],
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(labelText: l10n.addressStreet),
                 ),
@@ -155,6 +161,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                   fullWidth: true,
                   child: TextFormField(
                     controller: _details,
+                    inputFormatters: const [WesternDigitsInputFormatter()],
                     maxLines: 2,
                     decoration: InputDecoration(labelText: l10n.addressDetails),
                   ),
@@ -212,6 +219,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                             controller: _otherPhone,
                             enabled: !_busy && supportsContact,
                             keyboardType: TextInputType.phone,
+                            inputFormatters: const [PhoneInputFormatter()],
                             textDirection: TextDirection.ltr,
                             autofillHints: const [
                               AutofillHints.telephoneNumber,

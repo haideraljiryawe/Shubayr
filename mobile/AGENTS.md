@@ -68,6 +68,19 @@ above, proceed within that exact scope and explain the impact.
 - Keep the application Arabic-first, RTL-correct, and bilingual Arabic/English.
   Put every user-facing string through l10n (`context.l10n`) and keep digits in
   Western-Arabic form.
+- Appropriate numeric inputs must contain Western digits (`0-9`) regardless of
+  UI or keyboard language; normalize Arabic-Indic (`٠١٢٣٤٥٦٧٨٩`) and Eastern
+  Arabic/Persian (`۰۱۲۳۴۵۶۷۸۹`) digits during typing and paste.
+- Only monetary inputs display thousands separators (`,`) while editing. Strip
+  separators before validation and keep domain/repository/API values raw and
+  numeric in the existing contract type. Never group phone numbers, OTPs,
+  quantities, identifiers, or other nonmonetary numeric inputs.
+- Phone inputs remove common formatting characters during typing and paste,
+  allowing `+` only at the start of an international number; never automatically
+  add a country code to a local number. OTP inputs contain digits only after
+  normalization; validation remains responsible for code length and validity.
+- Every new numeric, monetary, phone, or OTP input must reuse the project's
+  central normalization/formatting mechanism rather than duplicate it locally.
 - Follow the final visual/interactive workflow in `Verification`; do not run
   automated Flutter Simulator/Emulator checks by default.
 

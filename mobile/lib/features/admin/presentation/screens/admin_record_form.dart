@@ -1,3 +1,5 @@
+import '../../../../core/utils/numeric_input_formatters.dart';
+import '../../../../core/utils/numeric_text.dart';
 import '../widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +28,7 @@ class AdminRecordForm extends ConsumerStatefulWidget {
 }
 
 class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
+  static const _moneyFields = {'sale_price', 'compare_at_price', 'floor_price'};
   final _form = GlobalKey<FormState>();
   final _controllers = <String, TextEditingController>{};
   late Map<String, dynamic> _draft;
@@ -42,6 +45,8 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
             ? ''
             : field == 'images'
             ? ((value as List?) ?? []).join('\n')
+            : _moneyFields.contains(field)
+            ? MoneyText.fromNumber(value as num?)
             : value?.toString() ?? '',
       );
     }
@@ -90,7 +95,12 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
     };
     for (final field in resource.fields) {
       if (special.contains(field)) continue;
-      final text = _controllers[field]!.text.trim();
+      final entered = _controllers[field]!.text.trim();
+      final text = _moneyFields.contains(field)
+          ? MoneyText.normalize(entered)
+          : numeric.contains(field) || field == 'phone'
+          ? normalizeDigits(entered)
+          : entered;
       if (field == 'password' && text.isEmpty) {
         input.remove(field);
         continue;
@@ -351,6 +361,13 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
       enableSuggestions: field != 'password',
       autocorrect: field != 'password',
       maxLines: field == 'description' || field == 'images' ? 3 : 1,
+      inputFormatters: _moneyFields.contains(field)
+          ? const [MoneyInputFormatter()]
+          : field == 'phone'
+          ? const [PhoneInputFormatter()]
+          : isNumeric
+          ? const [WesternDigitsInputFormatter()]
+          : null,
       keyboardType: isNumeric
           ? const TextInputType.numberWithOptions(decimal: true, signed: true)
           : field == 'phone'
@@ -366,7 +383,12 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
         helperMaxLines: 3,
       ),
       validator: (value) {
-        final text = value?.trim() ?? '';
+        final entered = value?.trim() ?? '';
+        final text = _moneyFields.contains(field)
+            ? MoneyText.normalize(entered)
+            : isNumeric
+            ? normalizeDigits(entered)
+            : entered;
         if (text.isEmpty) {
           return resource.requiredFields.contains(field)
               ? l.adminRequired
