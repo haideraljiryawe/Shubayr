@@ -203,16 +203,22 @@ export type ProductQuery = NonNullable<
   paths["/products"]["get"]["parameters"]["query"]
 >;
 
+/** What the shopper pays: the contract's computed `effective_price`. */
+function paidPrice(product: Product): number {
+  return product.effective_price ?? product.price ?? 0;
+}
+
 /** Mirrors the `sort` values the contract allows on GET /products. */
 function sortMockProducts(
   items: Product[],
   sort: ProductQuery["sort"],
 ): Product[] {
   switch (sort) {
+    // The contract sorts on effective_price — what the shopper would pay now.
     case "price_asc":
-      return items.sort((a, b) => (a.sale_price ?? 0) - (b.sale_price ?? 0));
+      return items.sort((a, b) => paidPrice(a) - paidPrice(b));
     case "price_desc":
-      return items.sort((a, b) => (b.sale_price ?? 0) - (a.sale_price ?? 0));
+      return items.sort((a, b) => paidPrice(b) - paidPrice(a));
     case "rating":
       return items.sort((a, b) => (b.rating_avg ?? 0) - (a.rating_avg ?? 0));
     case "newest":
@@ -290,19 +296,15 @@ export const api = {
         );
       }
       if (query.min_price !== undefined) {
-        matches = matches.filter(
-          (p) => (p.sale_price ?? 0) >= query.min_price!,
-        );
+        matches = matches.filter((p) => paidPrice(p) >= query.min_price!);
       }
       if (query.max_price !== undefined) {
-        matches = matches.filter(
-          (p) => (p.sale_price ?? 0) <= query.max_price!,
-        );
+        matches = matches.filter((p) => paidPrice(p) <= query.max_price!);
       }
       if (query.on_sale) {
-        matches = matches.filter(
-          (p) => (p.compare_at_price ?? 0) > (p.sale_price ?? 0),
-        );
+        // "Currently discounted": the backend has already applied the
+        // scheduled window, so the flag is taken at face value.
+        matches = matches.filter((p) => p.on_sale === true);
       }
 
       // The mock honours `sort` so the home page's sections are genuinely

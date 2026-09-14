@@ -24,6 +24,7 @@ import {
   WishlistButton,
 } from "@/components/ui";
 import { contrastRatio, parseHex } from "@/lib/color";
+import { formatDiscount } from "@/lib/format";
 import { demoProducts } from "@/lib/mock-data";
 
 /* ---------------------------------------------------------------------------
@@ -329,8 +330,8 @@ export function StyleGuide() {
 
           <div className="mt-8 flex flex-wrap items-center gap-8 border-t border-border pt-6">
             <Price
-              amount={product.sale_price}
-              compareAt={product.compare_at_price}
+              amount={product.effective_price}
+              regularPrice={product.on_sale ? product.price : null}
               size="lg"
             />
             <Price amount={299} />
@@ -392,7 +393,11 @@ export function StyleGuide() {
             >
               <div className="relative aspect-square bg-card">
                 <div className="absolute start-2 top-2 z-10">
-                  {item.compare_at_price ? <Badge tone="sale">-40%</Badge> : null}
+                  {item.on_sale ? (
+                    <Badge tone="sale">
+                      {formatDiscount(item.discount_percent ?? 0)}
+                    </Badge>
+                  ) : null}
                 </div>
                 <div className="absolute end-2 top-2 z-10">
                   <WishlistButton size="sm" />
@@ -404,8 +409,8 @@ export function StyleGuide() {
                   {item.name_ar}
                 </p>
                 <Price
-                  amount={item.sale_price}
-                  compareAt={item.compare_at_price}
+                  amount={item.effective_price}
+                  regularPrice={item.on_sale ? item.price : null}
                 />
                 <Rating value={item.rating_avg} count={item.review_count} />
               </div>

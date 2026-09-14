@@ -20,7 +20,10 @@ import { WishlistButton } from "./wishlist-button";
  * The product tile used by every storefront grid.
  *
  * Flat props let home, catalog and the style guide reuse the same tile.
- * Catalog callers pass the contract's computed discount percentage directly.
+ * Pricing comes ready-made from the contract: `price` is what the shopper pays
+ * (the backend's `effective_price`), and `regularPrice`/`discountPercent` are
+ * set only when the backend reports the product as on sale. The tile does no
+ * discount arithmetic of its own.
  */
 export interface ProductCardProps {
   id: string;
@@ -33,9 +36,11 @@ export interface ProductCardProps {
   nameEn?: string;
   /** Sellable stock; caps what the tile can add. Defaults to the contract max. */
   availableQty?: number;
+  /** What the shopper pays now: the contract's `effective_price`. */
   price: number;
-  compareAtPrice?: number | null;
-  /** Explicit null means no discount; omitted supports the style guide. */
+  /** Regular price to strike through; null unless the product is on sale. */
+  regularPrice?: number | null;
+  /** Backend-computed percentage off; null unless the product is on sale. */
   discountPercent?: number | null;
   rating?: number;
   reviewCount?: number;
@@ -59,7 +64,7 @@ export function ProductCard({
   nameEn,
   availableQty,
   price,
-  compareAtPrice,
+  regularPrice,
   discountPercent,
   rating,
   reviewCount,
@@ -87,13 +92,7 @@ export function ProductCard({
     [],
   );
 
-  const discount =
-    discountPercent !== undefined
-      ? discountPercent
-      : compareAtPrice && compareAtPrice > price
-        ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
-        : null;
-  const hasDiscount = typeof discount === "number" && Number.isFinite(discount);
+  const onSale = typeof discountPercent === "number" && discountPercent > 0;
 
   return (
     <Card
@@ -128,12 +127,12 @@ export function ProductCard({
           )}
         </Link>
 
-        {hasDiscount ? (
+        {onSale ? (
           <span className="absolute start-2 top-2 z-10">
             {/* dir="ltr": the leading minus is a neutral character and hops to
                 the far side of the number in an RTL context ("40%-"). */}
             <Badge tone="sale" dir="ltr">
-              {formatDiscount(discount)}
+              {formatDiscount(discountPercent)}
             </Badge>
           </span>
         ) : null}
@@ -164,10 +163,7 @@ export function ProductCard({
         </h3>
 
         {variant === "default" ? (
-          <Price
-            amount={price}
-            compareAt={hasDiscount ? compareAtPrice : null}
-          />
+          <Price amount={price} regularPrice={regularPrice ?? null} />
         ) : null}
 
         {typeof rating === "number" ? (
@@ -177,7 +173,7 @@ export function ProductCard({
         {variant === "catalog" ? (
           <Price
             amount={price}
-            compareAt={hasDiscount ? compareAtPrice : null}
+            regularPrice={regularPrice ?? null}
             className="mt-auto pt-1"
           />
         ) : (
@@ -197,8 +193,10 @@ export function ProductCard({
                 name_en: nameEn ?? name,
                 image_url: imageUrl ?? null,
                 variant_label: null,
+                // What they pay now; the line keeps it even if the discount
+                // window closes before checkout.
                 unit_price: price,
-                compare_at_price: hasDiscount ? (compareAtPrice ?? null) : null,
+                regular_price: regularPrice ?? null,
                 // The listing endpoints carry no per-variant stock, so an
                 // in-stock tile trusts the flag until the product page (which
                 // reads /availability) can be more precise.

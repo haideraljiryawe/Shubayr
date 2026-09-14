@@ -27,9 +27,14 @@ export interface CartLine {
   image_url: string | null;
   /** Rendered under the name, e.g. «أسود» or «40». */
   variant_label: string | null;
+  /**
+   * What the shopper pays per unit, captured when the line was added: the
+   * product's `effective_price` at that moment. A discount window closing
+   * later never rewrites a line already in the cart.
+   */
   unit_price: number;
-  /** Pre-discount price, for the struck-through original on the row. */
-  compare_at_price: number | null;
+  /** Regular price when the line was added on sale, for the struck original. */
+  regular_price: number | null;
   /** Sellable stock when the line was added; caps the stepper. */
   available_qty: number;
   quantity: number;
@@ -130,6 +135,20 @@ function isLine(value: unknown): value is CartLine {
   );
 }
 
+/**
+ * Carts persisted before the pricing model changed carry `compare_at_price`.
+ * The stored `unit_price` is still what the shopper agreed to pay, so the line
+ * is kept as-is and only the struck-through price is read under its new name.
+ */
+function migrateLine(line: CartLine): CartLine {
+  if (line.regular_price !== undefined) return line;
+  const legacy = (line as { compare_at_price?: unknown }).compare_at_price;
+  return {
+    ...line,
+    regular_price: typeof legacy === "number" ? legacy : null,
+  };
+}
+
 function isCoupon(value: unknown): value is AppliedCoupon {
   const coupon = value as Partial<AppliedCoupon> | null;
   return (
@@ -158,7 +177,7 @@ function readStorage(): Omit<CartState, "hydrated"> {
     if (!raw) return { lines: [], coupon: null };
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const lines = Array.isArray(parsed.lines)
-      ? parsed.lines.filter(isLine).map(clampLine)
+      ? parsed.lines.filter(isLine).map(migrateLine).map(clampLine)
       : [];
     return { lines, coupon: isCoupon(parsed.coupon) ? parsed.coupon : null };
   } catch {

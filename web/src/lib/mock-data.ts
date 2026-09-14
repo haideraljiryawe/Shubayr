@@ -162,18 +162,20 @@ export const mockCategories: Category[] = [
 
 /**
  * review_count is fixture-only; real counts come from the reviews Pagination
- * envelope. Price and discount fields now come directly from Product.
+ * envelope. Everything else mirrors Product, including the fields the backend
+ * computes at read time.
  */
 export interface DemoProduct extends Omit<
   Product,
-  "sale_price" | "rating_avg"
+  "price" | "rating_avg" | "on_sale" | "effective_price"
 > {
   // The contract marks these optional; every fixture sets them, so narrow to
   // plain numbers and keep the display components free of null-checks.
-  sale_price: number;
+  price: number;
   rating_avg: number;
   review_count: number;
-  compare_at_price: number | null;
+  on_sale: boolean;
+  effective_price: number;
 }
 
 /** Stable public product photographs, shared by related fixture variants. */
@@ -192,24 +194,42 @@ const photographs = {
   books: "photo-1495446815901-a7297e633e8d",
 } as const;
 
+/**
+ * Stands in for the backend, so it stores the same thing the backend stores —
+ * a regular `price` plus a discount definition — and derives the four computed
+ * fields exactly as the contract describes. Fixtures are still authored as
+ * "what the shopper pays" plus an optional regular price, which is the way the
+ * catalogue reads on the page.
+ */
 function demo(
   id: string,
   category_id: string,
   name_ar: string,
   name_en: string,
-  sale_price: number,
+  /** What the shopper pays; the regular price when there is no discount. */
+  paidPrice: number,
   rating_avg: number,
   review_count: number,
-  compare_at_price: number | null = null,
+  /** Regular price when this product is discounted; null when it is not. */
+  regularPrice: number | null = null,
   photograph?: keyof typeof photographs,
 ): DemoProduct {
+  const onSale = regularPrice !== null && regularPrice > paidPrice;
+  const price = onSale ? regularPrice : paidPrice;
+
   return {
     id,
     category_id,
     name_ar,
     name_en,
     description: `${name_ar} بجودة عالية للاستخدام اليومي، من تشكيلة شبير المختارة.`,
-    sale_price,
+    price,
+    // Fixtures express the discount as a currency amount off the regular price.
+    discount_type: onSale ? "amount" : null,
+    discount_value: onSale ? Math.round((price - paidPrice) * 100) / 100 : null,
+    // No fixture schedules a discount, so both bounds stay open.
+    discount_starts_at: null,
+    discount_ends_at: null,
     is_negotiable: false,
     floor_price: null,
     points_price: null,
@@ -225,11 +245,14 @@ function demo(
       : [],
     variants: [],
     review_count,
-    compare_at_price,
-    discount_percent:
-      compare_at_price !== null && compare_at_price > sale_price
-        ? Math.round(((compare_at_price - sale_price) / compare_at_price) * 100)
-        : null,
+    // Computed at read time by the backend; mirrored here so the storefront
+    // can trust them exactly as it trusts the real API.
+    on_sale: onSale,
+    discounted_price: onSale ? paidPrice : null,
+    effective_price: onSale ? paidPrice : price,
+    discount_percent: onSale
+      ? Math.round(((price - paidPrice) / price) * 100)
+      : null,
   };
 }
 

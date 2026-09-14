@@ -45,17 +45,21 @@ test("mocks filter the complete catalog before sorting and pagination", async ()
   };
   const whole = await api.listProducts({ ...query, per_page: 100 });
   expect(whole.total).toBeGreaterThan(1);
+  // Price filters and price sorting both act on effective_price, and on_sale
+  // means "currently discounted" — the backend has already applied the window.
   expect(
     whole.data.every(
       (p) =>
         p.category_id === "c1" &&
-        p.sale_price! >= 50 &&
-        p.sale_price! <= 200 &&
-        p.compare_at_price! > p.sale_price!,
+        p.effective_price! >= 50 &&
+        p.effective_price! <= 200 &&
+        p.on_sale === true &&
+        p.effective_price! < p.price! &&
+        p.discount_percent! > 0,
     ),
   ).toBe(true);
-  expect(whole.data.map((p) => p.sale_price)).toEqual(
-    whole.data.map((p) => p.sale_price).sort((a, b) => a! - b!),
+  expect(whole.data.map((p) => p.effective_price)).toEqual(
+    whole.data.map((p) => p.effective_price).sort((a, b) => a! - b!),
   );
   const page = await api.listProducts({ ...query, page: 2, per_page: 1 });
   expect(page.total).toBe(whole.total);

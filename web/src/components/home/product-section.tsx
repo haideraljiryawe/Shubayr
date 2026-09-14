@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { SectionHeader } from "@/components/ui/section-header";
 import { ProductCard } from "@/components/ui/product-card";
+import { pricingForVariant } from "@/lib/product";
 import type { Product } from "@/lib/api";
 import type { DemoProduct } from "@/lib/mock-data";
 import type { Locale } from "@/i18n/routing";
@@ -73,9 +74,7 @@ export async function ProductSection({
                     nameAr={product.name_ar ?? ""}
                     nameEn={product.name_en ?? ""}
                     availableQty={product.available_qty}
-                    price={product.sale_price ?? 0}
-                    compareAtPrice={product.compare_at_price}
-                    discountPercent={product.discount_percent ?? null}
+                    {...pricingForVariant(product)}
                     rating={product.rating_avg}
                     reviewCount={reviewCount}
                     imageUrl={product.images?.[0] ?? null}

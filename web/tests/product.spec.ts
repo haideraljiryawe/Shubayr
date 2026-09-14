@@ -31,6 +31,21 @@ test("renders the product with price, discount and rating", async ({ page }) => 
   await expect(page.getByText("-40%").first()).toBeVisible();
 });
 
+test("a product with no active discount shows its price alone", async ({
+  page,
+}) => {
+  // p2 carries no discount definition, so the contract reports on_sale=false
+  // and effective_price === price: no struck original, no badge.
+  await page.goto("/product/p2");
+
+  // Scoped to the product's own price block: the related rail below it does
+  // carry discounted tiles.
+  const priceBlock = page.getByTestId("pdp-price").first();
+  await expect(priceBlock.getByText("$299", { exact: true })).toBeVisible();
+  await expect(priceBlock.locator(".line-through")).toHaveCount(0);
+  await expect(priceBlock.getByText(/^-\d+%$/)).toHaveCount(0);
+});
+
 test("selecting a variant updates the URL so the choice is shareable", async ({
   page,
 }) => {

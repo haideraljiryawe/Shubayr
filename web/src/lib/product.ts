@@ -96,26 +96,42 @@ export function selectionForVariant(
   return selection;
 }
 
-/** Effective price for a variant: base sale price plus its delta. */
-export function priceForVariant(
-  product: Product,
-  variant?: ProductVariant,
-): number {
-  return (product.sale_price ?? 0) + (variant?.price_delta ?? 0);
-}
+/* ---------------------------------------------------------------------------
+ * Pricing.
+ *
+ * The backend owns every pricing decision: it stores a regular `price` plus a
+ * scheduled discount definition and computes `on_sale`, `effective_price` and
+ * `discount_percent` at read time. The storefront only adds the selected
+ * variant's `price_delta` and renders what it is given — there is deliberately
+ * no discount arithmetic here.
+ * ------------------------------------------------------------------------- */
 
-/**
- * Compare-at price shifted by the same delta, so a variant that costs more
- * still shows a truthful discount rather than an inflated one.
- */
-export function compareAtForVariant(
+export type VariantPricing = {
+  /** What the shopper pays for this variant. */
+  price: number;
+  /** Regular price to strike through, or null when the product is not on sale. */
+  regularPrice: number | null;
+  /** Backend-computed percentage off, or null when the product is not on sale. */
+  discountPercent: number | null;
+};
+
+/** Pricing for a variant: the contract's computed fields plus its delta. */
+export function pricingForVariant(
   product: Product,
   variant?: ProductVariant,
-): number | null {
-  const base = product.compare_at_price;
-  if (base === null || base === undefined) return null;
-  const shifted = base + (variant?.price_delta ?? 0);
-  return shifted > priceForVariant(product, variant) ? shifted : null;
+): VariantPricing {
+  const delta = variant?.price_delta ?? 0;
+  const regular = (product.price ?? 0) + delta;
+
+  if (!product.on_sale) {
+    return { price: regular, regularPrice: null, discountPercent: null };
+  }
+
+  return {
+    price: (product.effective_price ?? product.price ?? 0) + delta,
+    regularPrice: regular,
+    discountPercent: product.discount_percent ?? null,
+  };
 }
 
 export type StockLevel = "in_stock" | "low_stock" | "out_of_stock";

@@ -5,6 +5,7 @@ import { catalogHref, type CatalogQuery } from "@/lib/catalog-query";
 import { Link } from "@/i18n/navigation";
 import { localeDirection, type Locale } from "@/i18n/routing";
 import { ProductCard } from "@/components/ui/product-card";
+import { pricingForVariant } from "@/lib/product";
 import { buttonClasses } from "@/components/ui/button";
 import { DesktopFilters, MobileFilters, SortControl } from "./filters";
 import { CatalogEmpty, CatalogError } from "./states";
@@ -101,9 +102,7 @@ export async function ProductListing({
                         (locale === "ar" ? product.name_ar : product.name_en) ??
                         ""
                       }
-                      price={product.sale_price ?? 0}
-                      compareAtPrice={product.compare_at_price}
-                      discountPercent={product.discount_percent ?? null}
+                      {...pricingForVariant(product)}
                       rating={product.rating_avg}
                       reviewCount={counts[index]}
                       imageUrl={product.images?.[0]}

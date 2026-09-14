@@ -172,7 +172,8 @@ function orderItem(
   quantity: number,
 ): NonNullable<Order["items"]>[number] {
   const product = demoProducts.find((item) => item.id === productId);
-  const unit = product?.sale_price ?? 0;
+  // Orders capture effective_price at placement, per the contract.
+  const unit = product?.effective_price ?? 0;
   return {
     id: `oi-${productId}`,
     product_id: productId,

@@ -18,9 +18,8 @@ import { cn } from "@/lib/cn";
 import {
   availableQtyFor,
   buildAttributeGroups,
-  compareAtForVariant,
   findVariant,
-  priceForVariant,
+  pricingForVariant,
   selectionForVariant,
 } from "@/lib/product";
 import { AvailabilityBadge } from "./availability";
@@ -83,8 +82,7 @@ export function ProductDetail({
     ? availableQtyFor(availability, selectedVariant?.id)
     : (availability?.available_qty ?? product.available_qty ?? 0);
 
-  const price = priceForVariant(product, selectedVariant);
-  const compareAt = compareAtForVariant(product, selectedVariant);
+  const pricing = pricingForVariant(product, selectedVariant);
   const name = (locale === "ar" ? product.name_ar : product.name_en) ?? "";
 
   // «أسود» / «40 · أحمر» — what the cart row shows under the product name.
@@ -149,8 +147,9 @@ export function ProductDetail({
         name_en: product.name_en ?? "",
         image_url: images[0] ?? null,
         variant_label: variantLabel,
-        unit_price: price,
-        compare_at_price: compareAt,
+        // What they pay now, so the line survives the discount window closing.
+        unit_price: pricing.price,
+        regular_price: pricing.regularPrice,
         available_qty: maxQty,
       },
       quantity,
@@ -205,8 +204,9 @@ export function ProductDetail({
           </div>
 
           <PriceBlock
-            price={price}
-            compareAt={compareAt}
+            price={pricing.price}
+            regularPrice={pricing.regularPrice}
+            discountPercent={pricing.discountPercent}
             pointsPrice={product.points_price}
             isNegotiable={product.is_negotiable}
           />
@@ -273,8 +273,9 @@ export function ProductDetail({
         <div className="mx-auto flex max-w-7xl items-center gap-3">
           <div className="min-w-0">
             <PriceBlock
-              price={price}
-              compareAt={compareAt}
+              price={pricing.price}
+              regularPrice={pricing.regularPrice}
+              discountPercent={pricing.discountPercent}
               className="[&>div:first-child>span:first-child]:text-xl"
             />
           </div>

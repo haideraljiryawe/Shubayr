@@ -175,7 +175,36 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update the current user's profile
+         * @description Updates only the authenticated user's name and, when supplied, email. Phone numbers cannot be changed here because a phone change requires re-verification through the OTP flow.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UserSelfUpdate"];
+                };
+            };
+            responses: {
+                /** @description Updated current user */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["User"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                422: components["responses"]["Validation"];
+            };
+        };
         trace?: never;
     };
     "/addresses": {
@@ -338,7 +367,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List departments & categories (tree) */
+        /**
+         * List departments & categories (tree)
+         * @description Category names are returned as `name_ar` and `name_en`. If either stored value is missing, empty, or whitespace-only, that response field falls back to the other language so locale-specific clients never render a blank name.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -413,7 +445,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List / filter / search products */
+        /**
+         * List / filter / search products
+         * @description Product names are returned as `name_ar` and `name_en`. If either stored value is missing, empty, or whitespace-only, that response field falls back to the other language so locale-specific clients never render a blank name.
+         */
         get: {
             parameters: {
                 query?: {
@@ -421,10 +456,13 @@ export interface paths {
                     q?: string;
                     /** @description Category UUID; products remain filtered by category_id, not slug. */
                     category_id?: string;
+                    /** @description Lower bound on effective_price, so an active discount moves a product into range. */
                     min_price?: number;
+                    /** @description Upper bound on effective_price, so an active discount moves a product into range. */
                     max_price?: number;
-                    /** @description When true, return products where compare_at_price is greater than sale_price. */
+                    /** @description When true, return only products with an ACTIVE discount right now: discount_type is set and the server clock falls inside [discount_starts_at, discount_ends_at] (null bounds are open). Scheduled discounts that have not started, and expired ones, are excluded. */
                     on_sale?: boolean;
+                    /** @description price_asc and price_desc order by effective_price, the amount the customer would pay right now. */
                     sort?: "newest" | "price_asc" | "price_desc" | "rating";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
@@ -461,7 +499,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Product detail (variants, images, reviews summary, availability) */
+        /**
+         * Product detail (variants, images, reviews summary, availability)
+         * @description If the requested language's stored product name is missing, empty, or whitespace-only, its response field falls back to the other language.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -1856,12 +1897,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Deliveries assigned to the current agent */
+        /**
+         * Deliveries assigned to the current agent
+         * @description Requires the `delivery.assigned` permission and returns deliveries scoped to the current authenticated agent only. When `status` is supplied, the server applies it server-side to that agent's deliveries before pagination. `total` is the number matching the selected status, rather than the agent's unfiltered total. Results have stable ordering by `dispatched_at` DESC, then `id` DESC as the unique tiebreaker, so equal timestamps do not make items shift between pages. Omitting `status` returns all statuses.
+         */
         get: {
             parameters: {
                 query?: {
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
+                    /** @description Optional delivery status filter applied before pagination; omit to return all statuses. */
+                    status?: "assigned" | "out_for_delivery" | "delivered" | "failed" | "returned";
                 };
                 header?: never;
                 path?: never;
@@ -1869,7 +1915,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Paginated deliveries */
+                /** @description Paginated deliveries scoped to the current agent, with a filtered total when status is supplied. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2139,7 +2185,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a product */
+        /**
+         * Create a product
+         * @description Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -2207,7 +2256,10 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        /** Update a product */
+        /**
+         * Update a product
+         * @description Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
+         */
         patch: {
             parameters: {
                 query?: never;
@@ -2247,7 +2299,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a category */
+        /**
+         * Create a category
+         * @description Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -2315,7 +2370,10 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        /** Update a category */
+        /**
+         * Update a category
+         * @description Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
+         */
         patch: {
             parameters: {
                 query?: never;
@@ -2849,6 +2907,12 @@ export interface components {
             /** Format: date-time */
             created_at?: string;
         };
+        /** @description Fields the authenticated user may update without identity re-verification. Phone is intentionally excluded; changing it requires OTP re-verification. */
+        UserSelfUpdate: {
+            name?: string;
+            /** Format: email */
+            email?: string | null;
+        };
         UserInput: {
             name?: string;
             phone: string;
@@ -2897,6 +2961,7 @@ export interface components {
         AddressPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Address"][];
         };
+        /** @description Category reads populate an empty or missing `name_ar`/`name_en` from the other language. */
         Category: {
             /** Format: uuid */
             id?: string;
@@ -2911,10 +2976,13 @@ export interface components {
             is_active?: boolean;
             children?: components["schemas"]["Category"][];
         };
+        /** @description Admin create and update requests require both names after trimming; neither may be empty. */
         CategoryInput: {
             /** Format: uuid */
             parent_id?: string | null;
+            /** @description Required non-whitespace English name. */
             name_en: string;
+            /** @description Required non-whitespace Arabic name. */
             name_ar: string;
             icon?: string | null;
             /** @default 0 */
@@ -2922,7 +2990,7 @@ export interface components {
             /** @default true */
             is_active: boolean;
         };
-        /** @description A catalog product. `in_stock` and `available_qty` are computed at read time (sum of batch_stock minus active reservations); they are not stored. */
+        /** @description A catalog product. `in_stock` and `available_qty` are computed at read time (sum of batch_stock minus active reservations); they are not stored. Pricing works the same way: the product stores a regular `price` plus a discount DEFINITION (`discount_type`, `discount_value` and the scheduled window `discount_starts_at`/`discount_ends_at`), and the server derives `on_sale`, `discounted_price`, `effective_price` and `discount_percent` on every read. Those four are never stored, because a scheduled window changes what they mean as the clock moves. Reads populate an empty or missing `name_ar`/`name_en` from the other language so locale-specific clients never receive a blank name. */
         Product: {
             /** Format: uuid */
             id?: string;
@@ -2931,10 +2999,32 @@ export interface components {
             name_en?: string;
             name_ar?: string;
             description?: string;
-            sale_price?: number;
-            /** @description Original/was price. Null or less than or equal to sale_price means no discount. */
-            compare_at_price?: number | null;
-            /** @description Computed as round((compare_at_price - sale_price) / compare_at_price * 100) when compare_at_price is greater than sale_price; otherwise null. */
+            /** @description Regular selling price. */
+            price?: number;
+            /**
+             * @description Discount kind, or null when the product has no discount defined.
+             * @enum {string|null}
+             */
+            discount_type?: "percentage" | "amount" | null;
+            /** @description For `percentage`, the percentage off (10 means 10%). For `amount`, the currency amount subtracted from `price`. Null when `discount_type` is null. */
+            discount_value?: number | null;
+            /**
+             * Format: date-time
+             * @description Start of the scheduled discount window; null means the discount is active immediately.
+             */
+            discount_starts_at?: string | null;
+            /**
+             * Format: date-time
+             * @description End of the scheduled discount window; null means the discount never expires.
+             */
+            discount_ends_at?: string | null;
+            /** @description Computed: true when discount_type is set AND now() falls inside [discount_starts_at, discount_ends_at], treating null bounds as open. */
+            readonly on_sale?: boolean;
+            /** @description Computed when on_sale is true: for `percentage`, round(price * (1 - discount_value / 100), 2); for `amount`, max(price - discount_value, 0). Null when on_sale is false. */
+            readonly discounted_price?: number | null;
+            /** @description Computed: the price the customer actually pays - discounted_price when on_sale is true, otherwise price. Cart and order pricing use this value. */
+            readonly effective_price?: number;
+            /** @description Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false. */
             readonly discount_percent?: number | null;
             is_negotiable?: boolean;
             floor_price?: number | null;
@@ -2950,15 +3040,46 @@ export interface components {
             images?: string[];
             variants?: components["schemas"]["ProductVariant"][];
         };
+        /**
+         * @description Admin create and update requests require both names after trimming; neither may be empty. Pricing is written as a regular `price` plus an optional discount definition; the computed `on_sale`, `discounted_price`, `effective_price` and `discount_percent` fields are read-only and are never accepted on a write.
+         *
+         *     Discount validation, each breach returning 422 `validation_error`:
+         *
+         *     * `discount_type` set requires a `discount_value` greater than 0.
+         *     * `percentage`: 0 < `discount_value` <= 100.
+         *     * `amount`: 0 < `discount_value` < `price`.
+         *     * `discount_type` null clears the whole discount; `discount_value` must then be null or omitted.
+         *     * When both `discount_starts_at` and `discount_ends_at` are set, `discount_ends_at` must be strictly after `discount_starts_at`.
+         *     * Either timestamp may be sent alone: a null start means the discount is active immediately, a null end means it never expires.
+         */
         ProductInput: {
             /** Format: uuid */
             category_id: string;
+            /** @description Required non-whitespace English name. */
             name_en: string;
+            /** @description Required non-whitespace Arabic name. */
             name_ar: string;
             description?: string;
-            sale_price: number;
-            /** @description Original/was price; set to null or no more than sale_price to remove the discount. */
-            compare_at_price?: number | null;
+            /** @description Regular selling price. */
+            price: number;
+            /**
+             * @description Null (the default) means no discount and clears any discount already stored.
+             * @default null
+             * @enum {string|null}
+             */
+            discount_type: "percentage" | "amount" | null;
+            /** @description Required when discount_type is set, and must be null or omitted otherwise. percentage: at most 100. amount: strictly less than price. */
+            discount_value?: number | null;
+            /**
+             * Format: date-time
+             * @description Optional window start; null means the discount is active immediately.
+             */
+            discount_starts_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set.
+             */
+            discount_ends_at?: string | null;
             /** @default false */
             is_negotiable: boolean;
             floor_price?: number | null;
@@ -3056,6 +3177,7 @@ export interface components {
                 /** Format: uuid */
                 variant_id?: string | null;
                 quantity?: number;
+                /** @description The product's effective_price: its discounted_price while the discount window is active, otherwise its price. */
                 unit_price?: number;
             }[];
             subtotal?: number;
@@ -3093,7 +3215,17 @@ export interface components {
             product_id?: string;
             /** Format: uuid */
             variant_id?: string | null;
+            /** @description Arabic product name captured when the order is created. */
+            product_name_ar?: string;
+            /** @description English product name captured when the order is created. */
+            product_name_en?: string;
+            /**
+             * Format: uri
+             * @description Primary product image URL captured when the order is created.
+             */
+            image_url?: string | null;
             quantity?: number;
+            /** @description The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order. */
             unit_price?: number;
             line_total?: number;
         };
