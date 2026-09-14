@@ -109,8 +109,10 @@ class AdminRecord {
     if (!json.containsKey('effective_price')) return json;
     return {
       ...json,
-      'sale_price': json['effective_price'],
-      'compare_at_price': json['on_sale'] == true ? json['price'] : null,
+      if (!json.containsKey('sale_price'))
+        'sale_price': json['effective_price'],
+      if (!json.containsKey('compare_at_price'))
+        'compare_at_price': json['on_sale'] == true ? json['price'] : null,
     };
   }
 
