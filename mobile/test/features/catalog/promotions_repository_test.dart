@@ -72,7 +72,7 @@ void main() {
         product.copyWith(images: ['image']).toJson(),
       );
       expect(read.isOnSale, original == 100);
-      expect(read.compareAtPrice, original);
+      expect(read.compareAtPrice, original == 100 ? original : null);
       expect(
         Product.discountPercentFor(80, original),
         original == 100 ? 20 : null,
@@ -94,7 +94,7 @@ void main() {
   );
 
   test(
-    'remote filters before pagination and only writes original price',
+    'remote filters before pagination and maps legacy admin offer fields',
     () async {
       final requests = <RequestOptions>[];
       final dio = Dio();
@@ -158,12 +158,20 @@ void main() {
       for (final original in <num?>[100, null]) {
         await admin.save(AdminResource.products, {
           ...base.toJson(),
+          'sale_price': base.salePrice,
           'compare_at_price': original,
           'discount_percent': 99,
         }, id: original == null ? 'p1' : null);
-        expect(requests.last.data['compare_at_price'], original);
+        final data = requests.last.data as Map;
+        expect(data.containsKey('sale_price'), isFalse);
+        expect(data.containsKey('compare_at_price'), isFalse);
+        expect(data['price'], original ?? 80);
+        expect(data['discount_type'], original == null ? null : 'amount');
+        expect(data['discount_value'], original == null ? null : 20);
+        expect(data['discount_starts_at'], isNull);
+        expect(data['discount_ends_at'], isNull);
         expect(
-          (requests.last.data as Map).containsKey('discount_percent'),
+          data.containsKey('discount_percent'),
           isFalse,
         );
         expect(requests.last.method, original == null ? 'PATCH' : 'POST');

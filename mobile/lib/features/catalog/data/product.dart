@@ -199,5 +199,24 @@ class Product {
     });
   }
 
-  Map<String, dynamic> toJson() => _$ProductToJson(this);
+  Map<String, dynamic> toJson() {
+    final json = _$ProductToJson(this);
+    if (_legacySalePrice == null) return json;
+
+    final original = _legacyCompareAtPrice;
+    final discounted = isOnSale;
+    json
+      ..['price'] = discounted ? original : salePrice
+      ..['discount_type'] = discounted ? 'amount' : null
+      ..['discount_value'] = discounted ? original! - salePrice : null
+      ..['discount_starts_at'] = null
+      ..['discount_ends_at'] = null
+      ..['on_sale'] = discounted
+      ..['discounted_price'] = discounted ? salePrice : null
+      ..['effective_price'] = salePrice
+      ..['discount_percent'] = discounted
+          ? discountPercent ?? discountPercentFor(salePrice, original)
+          : null;
+    return json;
+  }
 }

@@ -99,8 +99,21 @@ enum AdminResource {
 /// A contract record retains optional fields on edit; forms expose only the
 /// resource's write fields. No API shape is synthesized by the UI.
 class AdminRecord {
-  AdminRecord(Map<String, dynamic> json) : json = Map.unmodifiable(json);
+  AdminRecord(Map<String, dynamic> json)
+    : json = Map.unmodifiable(_withPricingAliases(json));
   final Map<String, dynamic> json;
+
+  static Map<String, dynamic> _withPricingAliases(
+    Map<String, dynamic> json,
+  ) {
+    if (!json.containsKey('effective_price')) return json;
+    return {
+      ...json,
+      'sale_price': json['effective_price'],
+      'compare_at_price': json['on_sale'] == true ? json['price'] : null,
+    };
+  }
+
   String get id => (json['id'] ?? json['key']) as String;
   String text(String key) => json[key]?.toString() ?? '';
   bool flag(String key, [bool fallback = false]) =>
