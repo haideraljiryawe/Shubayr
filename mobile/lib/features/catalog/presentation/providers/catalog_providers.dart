@@ -20,9 +20,25 @@ final catalogRepositoryProvider = Provider<CatalogRepository>((ref) {
 });
 
 /// The department / category tree.
-final categoriesProvider = FutureProvider<List<Category>>(
-  (ref) => ref.watch(catalogRepositoryProvider).fetchCategories(),
-);
+final categoriesProvider = FutureProvider<List<Category>>((ref) async {
+  List<Category> visible(List<Category> nodes) {
+    final result = [
+      for (final node in nodes)
+        if (node.isActive)
+          Category.fromMock({
+            ...node.toMock(),
+            'children': visible(node.children).map((c) => c.toMock()).toList(),
+          }),
+    ];
+    result.sort((a, b) {
+      final order = a.sortOrder.compareTo(b.sortOrder);
+      return order != 0 ? order : a.id.compareTo(b.id);
+    });
+    return result;
+  }
+
+  return visible(await ref.watch(catalogRepositoryProvider).fetchCategories());
+});
 
 /// The home feed for a chosen department (null = all), newest first. Used by
 /// the home screen's selectable department chips.

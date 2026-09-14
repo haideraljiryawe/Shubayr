@@ -134,6 +134,7 @@ abstract interface class AdminRepository {
     String query = '',
     String? role,
     String? warehouseId,
+    String? categoryId,
   });
   Future<AdminRecord> save(
     AdminResource resource,

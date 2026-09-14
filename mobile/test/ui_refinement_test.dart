@@ -152,7 +152,37 @@ void main() {
                 locale == 'ar' ? width - rect.right : rect.left,
                 AppSpacing.screenH,
               );
-              expect(tester.getCenter(add).dy, closeTo(rect.center.dy, 1));
+              if (resource == AdminResource.products) {
+                final filters = find.byType(DropdownButtonFormField<String>);
+                expect(filters, findsNWidgets(2));
+                final filterRects = [
+                  tester.getRect(filters.at(0)),
+                  tester.getRect(filters.at(1)),
+                ];
+                final addRect = tester.getRect(add);
+                final rowWidth =
+                    rect.width +
+                    filterRects.fold<double>(0, (sum, r) => sum + r.width) +
+                    addRect.width +
+                    AppSpacing.md * 3;
+                if (rowWidth > width - AppSpacing.screenH * 2) {
+                  // Category filters can push Add onto its own toolbar row.
+                  expect(
+                    addRect.top,
+                    greaterThanOrEqualTo(
+                      filterRects.last.bottom + AppSpacing.md - 1,
+                    ),
+                  );
+                  expect(
+                    locale == 'ar' ? width - addRect.right : addRect.left,
+                    closeTo(AppSpacing.screenH, 1),
+                  );
+                } else {
+                  expect(addRect.center.dy, closeTo(rect.center.dy, 1));
+                }
+              } else {
+                expect(tester.getCenter(add).dy, closeTo(rect.center.dy, 1));
+              }
               if (resource == AdminResource.users) {
                 final filter = tester.getRect(
                   find.byType(DropdownButtonFormField<String>),

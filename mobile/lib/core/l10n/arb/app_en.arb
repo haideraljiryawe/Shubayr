@@ -1,28 +1,25 @@
 {
   "@@locale": "en",
-
   "homeBrandName": "Shubayr",
   "storeFallbackName": "Store",
-  "@storeFallbackName": { "description": "Neutral brand name used before store settings load." },
-
+  "@storeFallbackName": {
+    "description": "Neutral brand name used before store settings load."
+  },
   "actionRetry": "Retry",
   "actionCancel": "Cancel",
   "actionContinue": "Continue",
   "actionSave": "Save",
   "actionClose": "Close",
   "actionDelete": "Delete",
-
   "navHome": "Home",
   "navCategories": "Categories",
   "navCart": "Cart",
   "navOrders": "Orders",
   "navAccount": "Account",
-
   "stateLoading": "Loading…",
   "stateEmptyTitle": "Nothing here yet",
   "stateEmptyMessage": "Once there is something to show, it will appear here.",
   "stateErrorTitle": "Something went wrong",
-
   "errorNetwork": "No internet connection. Check your network and try again.",
   "errorTimeout": "The request took too long. Please try again.",
   "errorServer": "The server could not complete the request.",
@@ -31,7 +28,6 @@
   "errorValidation": "Please check the information you entered.",
   "errorRateLimited": "Too many attempts. Please wait a moment and try again.",
   "errorUnknown": "An unexpected error occurred.",
-
   "authSignInTitle": "Sign in",
   "authSignInSubtitle": "Enter your phone number and we will send you a verification code.",
   "authPhoneLabel": "Phone number",
@@ -40,14 +36,19 @@
   "authSendCode": "Send code",
   "authVerifyTitle": "Verification code",
   "authVerifySubtitle": "We sent a 6-digit code to {phone}.",
-  "@authVerifySubtitle": { "placeholders": { "phone": { "type": "String" } } },
+  "@authVerifySubtitle": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
   "authCodeLabel": "Verification code",
   "authCodeInvalid": "Enter the 6-digit code.",
   "authVerify": "Verify",
   "authResendCode": "Resend code",
   "authSignOut": "Sign out",
   "authGuest": "Guest",
-
   "accountTitle": "Account",
   "accountLanguage": "Language",
   "accountLanguageArabic": "العربية",
@@ -63,12 +64,16 @@
   "accountThemeLight": "Light",
   "accountThemeDark": "Dark",
   "accountSignedInAs": "Signed in as {role}",
-  "@accountSignedInAs": { "placeholders": { "role": { "type": "String" } } },
-
+  "@accountSignedInAs": {
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
   "roleCustomer": "Customer",
   "roleDelivery": "Delivery agent",
   "roleStaff": "Staff",
-
   "homeTitle": "Home",
   "categoriesTitle": "Categories",
   "categoriesBrowseAll": "Browse all",
@@ -125,11 +130,25 @@
   "ordersFilterAll": "All",
   "ordersFilterEmpty": "No orders with this status",
   "orderItemsCount": "{count} items",
-  "@orderItemsCount": { "description": "Item count on an order card; count is a string so it stays Western-Arabic.", "placeholders": { "count": { "type": "String" } } },
+  "@orderItemsCount": {
+    "description": "Item count on an order card; count is a string so it stays Western-Arabic.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "orderDetailTitle": "Order details",
   "orderItemsSection": "Items",
   "orderLineQuantity": "Qty: {count}",
-  "@orderLineQuantity": { "description": "Quantity of an order line; count is a string so it stays Western-Arabic.", "placeholders": { "count": { "type": "String" } } },
+  "@orderLineQuantity": {
+    "description": "Quantity of an order line; count is a string so it stays Western-Arabic.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "orderSummary": "Order summary",
   "orderDate": "Order date",
   "orderTrackingTitle": "Order tracking",
@@ -149,10 +168,8 @@
   "orderStatusReturned": "Returned",
   "deliveryTitle": "Deliveries",
   "adminTitle": "Dashboard",
-
   "comingSoonTitle": "Coming soon",
   "comingSoonMessage": "This part of the app is not built yet.",
-
   "commonOutOfStock": "Out of stock",
   "homeSectionDepartments": "Shop by department",
   "homeAllDepartments": "All",
@@ -166,14 +183,27 @@
   "productQuantity": "Quantity",
   "productInStock": "In stock",
   "productLowStock": "Only {count} left",
-  "@productLowStock": { "description": "Low-stock hint on product detail; count is passed as a string so it stays Western-Arabic.", "placeholders": { "count": { "type": "String" } } },
+  "@productLowStock": {
+    "description": "Low-stock hint on product detail; count is passed as a string so it stays Western-Arabic.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "productReviews": "Reviews",
   "productNoReviews": "No reviews yet",
   "productReviewsCount": "{count} reviews",
-  "@productReviewsCount": { "description": "Number of reviews shown in the product detail summary; count is a string to stay Western-Arabic.", "placeholders": { "count": { "type": "String" } } },
+  "@productReviewsCount": {
+    "description": "Number of reviews shown in the product detail summary; count is a string to stay Western-Arabic.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "productVerifiedPurchase": "Verified purchase",
   "productReviewsSoon": "Reviews are coming soon.",
-
   "searchHint": "Search products",
   "searchNoResults": "No matching products.",
   "sortNewest": "Newest",
@@ -185,18 +215,38 @@
   "productFiltersClearAll": "Clear all",
   "productFiltersShowResults": "Show results",
   "productFilterPriceRange": "Price: {min}–{max}",
-  "@productFilterPriceRange": {"placeholders": {"min": {"type": "String"}, "max": {"type": "String"}}},
+  "@productFilterPriceRange": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "productFilterPriceFrom": "Price: from {min}",
-  "@productFilterPriceFrom": {"placeholders": {"min": {"type": "String"}}},
+  "@productFilterPriceFrom": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
   "productFilterPriceTo": "Price: up to {max}",
-  "@productFilterPriceTo": {"placeholders": {"max": {"type": "String"}}},
+  "@productFilterPriceTo": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "filtersTitle": "Filters",
   "filterPrice": "Price",
   "filterMin": "Min",
   "filterMax": "Max",
   "filterApply": "Apply",
   "filterClear": "Clear",
-
   "adminSectionCatalog": "Catalog",
   "adminSectionOrders": "Orders",
   "adminSectionInventory": "Inventory",
@@ -207,7 +257,6 @@
   "adminSectionUsers": "Users & roles",
   "adminSectionSettings": "Settings",
   "adminNoAccess": "No permissions are assigned to your account.",
-
   "profileTitle": "Profile",
   "profileName": "Name",
   "profileEmail": "Email (optional)",
@@ -219,17 +268,31 @@
   "profileDeleteAccount": "Delete account",
   "profileDeleteTitle": "Delete account?",
   "profileDeleteMessage": "Your account and its data will be permanently deleted. This cannot be undone.",
-
   "galleryCounter": "{current} of {total}",
-  "@galleryCounter": { "description": "Image position in the full-screen product gallery, e.g. '1 of 5'. Digits are passed as strings so they stay Western Arabic numerals like the rest of the app.", "placeholders": { "current": { "type": "String" }, "total": { "type": "String" } } },
-
+  "@galleryCounter": {
+    "description": "Image position in the full-screen product gallery, e.g. '1 of 5'. Digits are passed as strings so they stay Western Arabic numerals like the rest of the app.",
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "afterSalesDeliveredOnly": "These services are available after the order is delivered.",
   "reviewOrderTitle": "Review products",
   "reviewOrderHint": "Choose an item from this delivered order. Product reviews are separate from delivery ratings.",
   "reviewChooseProduct": "Product to review",
   "reviewRating": "Your rating",
   "reviewStars": "{count} out of 5 stars",
-  "@reviewStars": { "placeholders": { "count": { "type": "String" } } },
+  "@reviewStars": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "reviewComment": "Comment (optional)",
   "reviewSubmit": "Submit review",
   "reviewSubmitted": "Review submitted. Publication is subject to review.",
@@ -237,14 +300,26 @@
   "returnOrderTitle": "Request a return",
   "returnOrderHint": "Choose quantities to return. Leave items you want to keep at 0.",
   "returnAvailable": "Quantity available to request: {count}",
-  "@returnAvailable": { "placeholders": { "count": { "type": "String" } } },
+  "@returnAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "returnIncrease": "Increase return quantity",
   "returnDecrease": "Decrease return quantity",
   "returnReason": "Reason for return (optional)",
   "returnSubmit": "Submit return request",
   "returnSubmitted": "Return request submitted.",
   "returnReference": "Request reference: {id}",
-  "@returnReference": { "placeholders": { "id": { "type": "String" } } },
+  "@returnReference": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
   "returnRequestOnly": "This is a request, not an approval or a refund. The store will review it.",
   "returnAllRequested": "All item quantities have been requested for return in this session.",
   "routeNotFoundTitle": "Page not found",
@@ -410,10 +485,215 @@
   "accountSignOutConfirm": "Do you want to sign out?",
   "accountDeleteAcknowledgement": "I confirm that I want to delete my account",
   "mainCategoriesTitle": "Main Categories",
-  "mockCategoryElectronicsDescription": "Phones, devices and accessories",
-  "mockCategoryGroceryDescription": "Food and everyday essentials",
-  "mockCategoryClothingDescription": "Clothing for the whole family",
-  "mockCategoryHomeDescription": "Kitchenware and home essentials",
-  "mockCategoryBeautyDescription": "Skin care, hair care and fragrances",
-  "mockCategorySportsDescription": "Fitness, cycling and outdoor gear"
+  "categoryGroupElectronics": "Electronics",
+  "categoryIconElectronicsDevices": "Devices",
+  "categoryIconElectronicsCable": "Cables",
+  "categoryIconElectronicsRouter": "Routers",
+  "categoryIconElectronicsTv": "Televisions",
+  "categoryIconElectronicsPower": "Electrical supplies",
+  "categoryIconElectronicsBattery": "Batteries",
+  "categoryGroupPhones": "Phones",
+  "categoryIconMobilePhone": "Phones",
+  "categoryIconMobileTablet": "Tablets",
+  "categoryIconMobileCharging": "Chargers",
+  "categoryIconMobileWatch": "Smart watches",
+  "categoryGroupComputers": "Computers",
+  "categoryIconComputerLaptop": "Laptops",
+  "categoryIconComputerDesktop": "Desktop computers",
+  "categoryIconComputerKeyboard": "Keyboards",
+  "categoryIconComputerMouse": "Mice",
+  "categoryIconComputerPrinter": "Printers",
+  "categoryIconComputerStorage": "Storage",
+  "categoryGroupAudio": "Audio",
+  "categoryIconAudioHeadphones": "Headphones",
+  "categoryIconAudioEarbuds": "Earbuds",
+  "categoryIconAudioSpeaker": "Speakers",
+  "categoryIconAudioMic": "Microphones",
+  "categoryIconAudioRadio": "Radios",
+  "categoryGroupCameras": "Cameras",
+  "categoryIconCameraPhoto": "Cameras",
+  "categoryIconCameraVideo": "Video cameras",
+  "categoryIconCameraLens": "Lenses",
+  "categoryIconCameraSecurity": "Security cameras",
+  "categoryGroupGaming": "Gaming",
+  "categoryIconGamingConsole": "Game consoles",
+  "categoryIconGamingController": "Controllers",
+  "categoryGroupFashion": "Fashion",
+  "categoryIconFashionClothing": "Clothing",
+  "categoryIconFashionMen": "Menswear",
+  "categoryIconFashionWomen": "Womenswear",
+  "categoryIconFashionShoes": "Footwear",
+  "categoryIconFashionUniform": "Workwear",
+  "categoryIconFashionLaundry": "Clothing care",
+  "categoryGroupAccessories": "Bags & accessories",
+  "categoryIconAccessoriesWatch": "Watches",
+  "categoryIconAccessoriesBag": "Bags",
+  "categoryIconAccessoriesBackpack": "Backpacks",
+  "categoryIconAccessoriesLuggage": "Luggage",
+  "categoryIconAccessoriesJewelry": "Jewelry",
+  "categoryIconAccessoriesUmbrella": "Umbrellas",
+  "categoryGroupHome": "Home & furniture",
+  "categoryIconHomeFurniture": "Furniture",
+  "categoryIconHomeChair": "Chairs",
+  "categoryIconHomeBed": "Beds",
+  "categoryIconHomeTable": "Tables",
+  "categoryIconHomeLighting": "Lighting",
+  "categoryIconHomeBath": "Bathroom",
+  "categoryIconHomeCurtains": "Curtains",
+  "categoryIconHomeBedding": "Bedding",
+  "categoryGroupKitchen": "Kitchen",
+  "categoryIconKitchenAppliances": "Appliances",
+  "categoryIconKitchenCooking": "Cookware",
+  "categoryIconKitchenTableware": "Tableware",
+  "categoryIconKitchenBlender": "Blenders",
+  "categoryIconKitchenMicrowave": "Microwaves",
+  "categoryIconKitchenKettle": "Coffee makers",
+  "categoryGroupCleaning": "Cleaning",
+  "categoryIconCleaningSupplies": "Cleaning supplies",
+  "categoryIconCleaningSoap": "Soap",
+  "categoryIconCleaningBins": "Waste bins",
+  "categoryIconCleaningWater": "Water care",
+  "categoryGroupFood": "Grocery & food",
+  "categoryIconGroceryFood": "Groceries",
+  "categoryIconFoodRice": "Rice & grains",
+  "categoryIconFoodBakery": "Bakery",
+  "categoryIconFoodFruit": "Fruit",
+  "categoryIconFoodVegetables": "Vegetables",
+  "categoryIconFoodMeat": "Meat",
+  "categoryIconFoodSeafood": "Seafood",
+  "categoryIconFoodPizza": "Pizza",
+  "categoryIconFoodIcecream": "Ice cream",
+  "categoryIconFoodCake": "Cakes",
+  "categoryIconFoodEggs": "Eggs",
+  "categoryIconFoodSnacks": "Snacks",
+  "categoryGroupDrinks": "Drinks",
+  "categoryIconDrinksCoffee": "Coffee",
+  "categoryIconDrinksTea": "Tea",
+  "categoryIconDrinksJuice": "Juices",
+  "categoryIconDrinksWater": "Water",
+  "categoryGroupBeauty": "Health & beauty",
+  "categoryIconBeautySpa": "Beauty care",
+  "categoryIconBeautySkin": "Skin care",
+  "categoryIconBeautyHair": "Hair care",
+  "categoryIconBeautyCosmetics": "Cosmetics",
+  "categoryIconBeautyHealth": "Health supplies",
+  "categoryIconBeautyHygiene": "Personal hygiene",
+  "categoryIconBeautyMedical": "First aid",
+  "categoryGroupSport": "Sports & fitness",
+  "categoryIconSportFitness": "Fitness",
+  "categoryIconSportCycling": "Cycling",
+  "categoryIconSportFootball": "Football",
+  "categoryIconSportBasketball": "Basketball",
+  "categoryIconSportTennis": "Tennis",
+  "categoryIconSportSwimming": "Swimming",
+  "categoryIconSportCamping": "Camping",
+  "categoryIconSportFishing": "Fishing",
+  "categoryGroupKids": "Babies & toys",
+  "categoryIconKidsBaby": "Baby care",
+  "categoryIconKidsStroller": "Strollers",
+  "categoryIconKidsToys": "Toys",
+  "categoryIconKidsPuzzle": "Puzzles",
+  "categoryIconKidsScooter": "Skates & scooters",
+  "categoryGroupAuto": "Auto supplies",
+  "categoryIconAutoCar": "Car supplies",
+  "categoryIconAutoMotorcycle": "Motorcycles",
+  "categoryIconAutoTires": "Tires",
+  "categoryIconAutoFuel": "Fuel & oils",
+  "categoryIconAutoTools": "Car tools",
+  "categoryGroupBooks": "Books & stationery",
+  "categoryIconBooksReading": "Books",
+  "categoryIconBooksNotebooks": "Notebooks",
+  "categoryIconBooksPens": "Pens",
+  "categoryIconBooksArt": "Art supplies",
+  "categoryIconBooksSchool": "School supplies",
+  "categoryGroupGarden": "Pets, garden & tools",
+  "categoryIconPetsSupplies": "Pet supplies",
+  "categoryIconGardenTrees": "Garden plants",
+  "categoryIconGardenFlowers": "Flowers",
+  "categoryIconGardenTools": "Hand tools",
+  "categoryIconGardenBuilding": "Building supplies",
+  "categoryIconGardenSolar": "Solar supplies",
+  "categoryIconGardenWatering": "Garden care",
+  "categoryGroupGifts": "Gifts & general",
+  "categoryIconGiftsPresent": "Gifts",
+  "categoryIconBeautyFragrance": "Fragrances",
+  "categoryIconGiftsParty": "Party supplies",
+  "categoryIconGeneralCrafts": "Craft supplies",
+  "categoryIconGeneralMusic": "Musical instruments",
+  "categoryIconGeneralCategory": "General products",
+  "categoryChooseIcon": "Choose icon",
+  "categorySearchIcons": "Search icons",
+  "categoryAllGroups": "All groups",
+  "categoryNoIcons": "No matching icons",
+  "categoryDescriptionEn": "Short description (English)",
+  "categoryDescriptionAr": "Short description (Arabic)",
+  "categoryDescriptionLimit": "Required · up to {words} words and {characters} characters",
+  "@categoryDescriptionLimit": {
+    "placeholders": {
+      "words": {
+        "type": "String"
+      },
+      "characters": {
+        "type": "String"
+      }
+    }
+  },
+  "categoryDescriptionInvalid": "Enter a short description within both limits",
+  "categoryImage": "Category image",
+  "mediaImages": "Product images",
+  "mediaAdd": "Add images",
+  "mediaChoose": "Choose image",
+  "mediaReplace": "Replace",
+  "mediaRemove": "Remove",
+  "mediaEarlier": "Move earlier",
+  "mediaLater": "Move later",
+  "mediaEmpty": "No image selected",
+  "mediaSessionHint": "Selected photos last only for this mock session.",
+  "mediaRemoteHint": "Photo upload awaits backend support.",
+  "mediaPickError": "Could not open or read the selected photos. Try again.",
+  "categoryVisible": "Visible to customers",
+  "adminAddMainCategory": "Add main category",
+  "adminAddSubcategory": "Add subcategory",
+  "adminBackToCategories": "Main categories",
+  "adminChooseCategory": "Choose a main category to manage its subcategories",
+  "adminSubcategoryCount": "{count} subcategories",
+  "@adminSubcategoryCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "adminDisplayOrderValue": "Display order: {order}",
+  "@adminDisplayOrderValue": {
+    "placeholders": {
+      "order": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMainCategoryFilter": "Main category",
+  "adminSubcategoryFilter": "Subcategory",
+  "adminAllProducts": "All products",
+  "adminAllSubcategories": "Whole category",
+  "adminProductScope": "Scope: {scope}",
+  "@adminProductScope": {
+    "placeholders": {
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSearchAllProducts": "Search all products",
+  "mediaPrimary": "Primary image",
+  "mediaMakePrimary": "Make primary",
+  "mediaPrimaryHint": "The first image is primary. Reordering changes the primary image.",
+  "mediaRemoveConfirm": "Remove this image?",
+  "mediaRemoveMessage": "Only this image will be removed from the draft. The category or product will remain.",
+  "mediaRemovePrimaryMessage": "Remove the primary image from the draft? The product will remain, and the first remaining image (if any) will become primary.",
+  "mediaProductGuidance": "Square (1:1) works best. Choose a clear original for zooming; the display crops edges without stretching.",
+  "mediaMainCategoryGuidance": "Use a landscape photo with the subject in the center. The crop ratio changes with the card width.",
+  "mediaSubcategoryGuidance": "Saved for future use. Current subcategory tiles show the icon, so no photo ratio is required yet.",
+  "adminViewSubcategories": "View subcategories",
+  "adminRetainedProductCategory": "The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it."
 }

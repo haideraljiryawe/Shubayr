@@ -13,6 +13,7 @@ class AdminRepositoryRemote implements AdminRepository {
     String query = '',
     String? role,
     String? warehouseId,
+    String? categoryId,
   }) async {
     if (resource == AdminResource.locations && warehouseId == null) {
       throw const AppFailure(FailureKind.validation);
@@ -44,6 +45,8 @@ class AdminRepositoryRemote implements AdminRepository {
       query: {
         'page': page,
         'per_page': perPage,
+        if (resource == AdminResource.products && categoryId != null)
+          'category_id': categoryId,
         if (resource.canSearch && query.trim().isNotEmpty) 'q': query.trim(),
         if (resource == AdminResource.users && role != null) 'role': role,
       },
@@ -66,6 +69,9 @@ class AdminRepositoryRemote implements AdminRepository {
     String? id,
   }) async {
     if (id == null ? !resource.canCreate : !resource.canEdit) {
+      throw const AppFailure(FailureKind.validation);
+    }
+    if (input.keys.any((key) => key.startsWith('mock_'))) {
       throw const AppFailure(FailureKind.validation);
     }
     final body = resource.input(input);
