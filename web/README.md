@@ -139,12 +139,76 @@ Run `node scripts/check-contrast.mjs` to check `text-text-muted` against
 `bg-card` and `bg-background` (WCAG AA, at least 4.5:1). The script composites
 alpha before calculating luminance, including transparent ancestor surfaces.
 
+Account screenshots: [wishlist](docs/screenshots/wishlist-desktop.png),
+[points](docs/screenshots/points-desktop.png),
+[return request](docs/screenshots/return-request-desktop.png),
+[reviews & delivery rating](docs/screenshots/order-reviews-desktop.png),
+[payments](docs/screenshots/payments-desktop.png),
+[notifications](docs/screenshots/notifications-desktop.png),
+[language](docs/screenshots/language-desktop.png),
+[help](docs/screenshots/help-desktop.png),
+[settings](docs/screenshots/settings-desktop.png) — each also captured at
+mobile width with the `-mobile` suffix.
+
 Screenshots: [categories mobile](docs/screenshots/categories-mobile.png),
 [categories desktop](docs/screenshots/categories-desktop.png),
 [listing mobile](docs/screenshots/electronics-mobile.png),
 [listing desktop](docs/screenshots/electronics-desktop.png).
 They follow the reference sheet's Arabic RTL, cream/sage palette, two-column
 mobile tiles and discount treatment, using fixture photography and category icons.
+
+## Account (Phases 6A & 6B)
+
+Every row of the «حسابي» menu is a real page; the 6A "coming soon" placeholder
+route is gone. Mobile shows the menu as the page and a section replaces it;
+from `lg` up the menu is a sidebar beside the section.
+
+| Section | What it does |
+| --- | --- |
+| طلباتي | Order list, detail and the status timeline |
+| المرتجعات | Return requests and their status |
+| عناويني | Address book |
+| الملف الشخصي | Name and email through `PATCH /me`; phone is read-only |
+| المفضلة | Wishlist grid, move-to-cart and remove |
+| نقاطي | Points balance and ledger from `GET /loyalty` |
+| طرق الدفع | Cash on delivery, the only method the contract supports |
+| الإشعارات | Notification toggles (device-local, see below) |
+| اللغة | AR ⇄ EN through next-intl |
+| المساعدة والدعم | Contact channels and FAQ |
+| الإعدادات | Account summary and sign-out |
+
+**Wishlist.** `src/lib/wishlist-store.ts` is the same seam as the cart store: a
+guest's hearts live in `localStorage`, and `setWishlistSync` plugs in
+`GET/POST /wishlist` and `DELETE /wishlist/{productId}` once someone signs in.
+Signing in *merges* — a product hearted as a guest is pushed up, never dropped.
+The merge carries a revision guard so a slow `GET /wishlist` cannot resurrect an
+item the shopper removed while it was in flight.
+
+**Returns and reviews** are reachable only from a delivered order, and both the
+entry point and the request page enforce that. Order lines render from the
+snapshots the contract captures at placement (`product_name_ar`/`product_name_en`
+and `image_url`), so order history never re-reads the catalogue and a renamed
+product cannot rewrite what someone bought. A product review and the delivery
+rating are deliberately separate submissions on separate endpoints.
+
+### Contract gaps this phase works around
+
+Four things the pages need do not exist in `api/openapi.yaml`. Each is mocked
+behind a typed client method shaped like the endpoint should be, and carries a
+`CONTRACT GAP` comment at the seam:
+
+- **No `delivery_id` on `Order`.** `POST /deliveries/{id}/rating` needs one, and
+  `GET /deliveries/{id}` is staff-scoped, so a customer has no route from their
+  order to its delivery. `src/lib/order-delivery.ts` is the single place the real
+  field plugs in.
+- **No customer `GET /returns`.** Only `POST /returns` and the staff
+  `POST /returns/{id}/inspect` exist, so `/account/returns` reads the fixture.
+- **No "already reviewed" signal.** Nothing reports whether the signed-in
+  customer has reviewed a given order item, and scanning every product's
+  published reviews client-side does not scale. A `reviewed` flag on `OrderItem`
+  or a `GET /me/reviews` would close it.
+- **No notification preferences.** The toggles are stored per device in
+  `localStorage` and say so on the page.
 
 ## Source layout
 
