@@ -128,8 +128,14 @@ CREATE TABLE products (
     name_en         VARCHAR(200) NOT NULL,
     name_ar         VARCHAR(200) NOT NULL,
     description     TEXT,
-    sale_price      NUMERIC(12,2) NOT NULL DEFAULT 0,   -- selling price (separate from purchase cost)
-    compare_at_price NUMERIC(12,2),                       -- original/was price; NULL or <= sale_price means no discount
+    price           NUMERIC(12,2) NOT NULL DEFAULT 0,   -- regular selling price (separate from purchase cost)
+    -- Discount DEFINITION only. The effective price, on_sale flag and
+    -- discount_percent are derived at read time because the scheduled window
+    -- below makes them change with the clock; never store them.
+    discount_type   VARCHAR(10) CHECK (discount_type IN ('percentage','amount')), -- NULL = no discount
+    discount_value  NUMERIC(12,2),                      -- percentage: 10 = 10%; amount: currency subtracted
+    discount_starts_at TIMESTAMPTZ,                     -- window start; NULL = active immediately
+    discount_ends_at   TIMESTAMPTZ,                     -- window end;   NULL = no end
     is_negotiable   BOOLEAN NOT NULL DEFAULT FALSE,     -- points negotiation support
     floor_price     NUMERIC(12,2),                      -- lowest acceptable negotiated price
     points_price    INT,                                -- cost in loyalty points, if redeemable
@@ -137,7 +143,24 @@ CREATE TABLE products (
     rating_avg      NUMERIC(3,2) NOT NULL DEFAULT 0,
     status          VARCHAR(20) NOT NULL DEFAULT 'active', -- active | hidden | archived
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- A discount is either fully defined or absent.
+    CONSTRAINT products_discount_value_present CHECK (
+        (discount_type IS NULL AND discount_value IS NULL)
+        OR (discount_type IS NOT NULL AND discount_value IS NOT NULL)
+    ),
+    -- percentage: 0 < value <= 100; amount: 0 < value < price.
+    CONSTRAINT products_discount_value_range CHECK (
+        discount_type IS NULL
+        OR (discount_type = 'percentage' AND discount_value > 0 AND discount_value <= 100)
+        OR (discount_type = 'amount'     AND discount_value > 0 AND discount_value < price)
+    ),
+    -- A bounded window must move forward in time.
+    CONSTRAINT products_discount_window CHECK (
+        discount_starts_at IS NULL
+        OR discount_ends_at IS NULL
+        OR discount_ends_at > discount_starts_at
+    )
 );
 
 CREATE TABLE product_variants (
@@ -465,6 +488,9 @@ CREATE TABLE audit_logs (
 -- ---------------------------------------------------------------------
 CREATE INDEX idx_products_category      ON products(category_id);
 CREATE INDEX idx_products_status        ON products(status);
+-- Supports GET /products?on_sale=true, which scans only discounted rows.
+CREATE INDEX idx_products_discount_window ON products(discount_starts_at, discount_ends_at)
+    WHERE discount_type IS NOT NULL;
 CREATE UNIQUE INDEX idx_categories_slug ON categories(slug);
 CREATE INDEX idx_banners_active_sort    ON banners(is_active, sort_order);
 CREATE INDEX idx_batches_product        ON inventory_batches(product_id);

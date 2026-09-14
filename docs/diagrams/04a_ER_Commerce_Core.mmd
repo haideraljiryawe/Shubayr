@@ -51,7 +51,11 @@ erDiagram
     uuid category_id FK
     string name_en
     string name_ar
-    decimal sale_price
+    decimal price
+    string discount_type
+    decimal discount_value
+    timestamp discount_starts_at
+    timestamp discount_ends_at
     bool is_negotiable
     decimal floor_price
     int points_price

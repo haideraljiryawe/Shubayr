@@ -1,3 +1,3 @@
-import { BilingualNameDto } from './bilingual-name.dto';
+import { ProductWriteDto } from './product-write.dto';
 
-export class CreateProductDto extends BilingualNameDto {}
+export class CreateProductDto extends ProductWriteDto {}
