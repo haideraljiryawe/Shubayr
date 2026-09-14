@@ -3,6 +3,8 @@ import '../../auth/domain/permissions.dart';
 import '../../catalog/data/catalog_repository_mock.dart';
 import '../../catalog/data/product.dart';
 import '../domain/admin_repository.dart';
+import '../../catalog/data/category_description_limits.dart';
+import '../../catalog/data/media/catalog_image.dart';
 
 class AdminRepositoryMock implements AdminRepository {
   AdminRepositoryMock({
@@ -17,7 +19,7 @@ class AdminRepositoryMock implements AdminRepository {
   Future<void> _ready() => _initializing ??= _seed();
   Future<void> _seed() async {
     final source = catalog ?? CatalogRepositoryMock(delay: Duration.zero);
-    final categories = await source.fetchCategories();
+    final categories = source.adminCategories;
     final flat = <AdminRecord>[];
     void flatten(Map<String, dynamic> category) {
       flat.add(AdminRecord(category));
@@ -27,21 +29,28 @@ class AdminRepositoryMock implements AdminRepository {
     }
 
     for (final category in categories) {
-      flatten(category.toJson());
+      flatten(category.toMock());
     }
     _data[AdminResource.categories] = flat;
     final products = <AdminRecord>[];
     for (var page = 1; ; page++) {
       final result = await source.fetchProducts(page: page, perPage: 100);
+      // Use the detail gallery when seeding the editor so an unrelated save
+      // cannot silently drop the extra legacy Mock gallery images.
       products.addAll(
-        result.data.map(
-          (p) => AdminRecord({
-            ...p.toJson(),
-            // The mock admin form still exercises the accepted R2 UI while
-            // Product itself follows the new scheduled-discount read shape.
-            'sale_price': p.salePrice,
-            'compare_at_price': p.compareAtPrice,
-          }),
+        await Future.wait(
+          result.data.map(
+            (p) async {
+              final detail = await source.fetchProduct(p.id);
+              return AdminRecord({
+                ...detail.toMock(),
+                // The mock form still uses legacy pricing inputs while
+                // Product follows the scheduled-discount read contract.
+                'sale_price': detail.salePrice,
+                'compare_at_price': detail.compareAtPrice,
+              });
+            },
+          ),
         ),
       );
       if (page * result.perPage >= result.total) break;
@@ -119,6 +128,7 @@ class AdminRepositoryMock implements AdminRepository {
     String query = '',
     String? role,
     String? warehouseId,
+    String? categoryId,
   }) async {
     await _ready();
     await Future<void>.delayed(delay);
@@ -126,7 +136,26 @@ class AdminRepositoryMock implements AdminRepository {
         !_data[AdminResource.warehouses]!.any((w) => w.id == warehouseId)) {
       throw const AppFailure(FailureKind.notFound);
     }
+    Set<String>? scope;
+    if (resource == AdminResource.products && categoryId != null) {
+      scope = {categoryId};
+      final children = <String, List<String>>{};
+      for (final category in _data[AdminResource.categories]!) {
+        (children[category.text('parent_id')] ??= []).add(category.id);
+      }
+      final pending = [categoryId];
+      while (pending.isNotEmpty) {
+        for (final child in children[pending.removeLast()] ?? <String>[]) {
+          if (scope.add(child)) pending.add(child);
+        }
+      }
+    }
     var values = _data[resource]!.where((record) {
+      if (resource == AdminResource.products &&
+          (record.text('status') == 'archived' ||
+              (scope != null && !scope.contains(record.text('category_id'))))) {
+        return false;
+      }
       if (resource == AdminResource.locations &&
           record.text('warehouse_id') != warehouseId) {
         return false;
@@ -180,6 +209,19 @@ class AdminRepositoryMock implements AdminRepository {
       throw const AppFailure(FailureKind.validation);
     }
     final payload = resource.input(input);
+    for (final key in switch (resource) {
+      AdminResource.categories => const [
+        'mock_icon_key',
+        'mock_description_en',
+        'mock_description_ar',
+        'mock_image',
+        'mock_image_managed',
+      ],
+      AdminResource.products => const ['mock_images'],
+      _ => const <String>[],
+    }) {
+      if (input.containsKey(key)) payload[key] = input[key];
+    }
     final values = _data[resource]!;
     final index = id == null ? -1 : values.indexWhere((v) => v.id == id);
     if (id != null && index < 0) throw const AppFailure(FailureKind.notFound);
@@ -196,6 +238,24 @@ class AdminRepositoryMock implements AdminRepository {
     }
     if (resource == AdminResource.categories) {
       merged['sort_order'] ??= 0;
+      merged['mock_icon_key'] ??= 'general_category';
+      if (merged['mock_icon_key'] is! String) {
+        throw const AppFailure(FailureKind.validation);
+      }
+      if (index < 0) merged['mock_image_managed'] = true;
+      if (merged['parent_id'] == null) {
+        for (final key in ['mock_description_en', 'mock_description_ar']) {
+          final value = merged[key];
+          if (value is! String || !CategoryDescriptionLimits.isValid(value)) {
+            throw const AppFailure(FailureKind.validation);
+          }
+          merged[key] = value.trim();
+        }
+      }
+      if (merged['mock_image'] != null &&
+          merged['mock_image'] is! CatalogImage) {
+        throw const AppFailure(FailureKind.validation);
+      }
       final parent = merged['parent_id'];
       var ancestor = parent;
       final seen = <String>{};
@@ -210,6 +270,12 @@ class AdminRepositoryMock implements AdminRepository {
       merged.remove('children');
     }
     if (resource == AdminResource.products) {
+      if (merged['mock_images'] case final List images) {
+        if (images.any((image) => image is! CatalogImage)) {
+          throw const AppFailure(FailureKind.validation);
+        }
+        merged['mock_images'] = List<CatalogImage>.unmodifiable(images);
+      }
       merged['discount_percent'] = Product.discountPercentFor(
         merged['sale_price'] as num,
         merged['compare_at_price'] as num?,

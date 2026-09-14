@@ -15,6 +15,8 @@ void main() {
       final root = await repo.save(AdminResource.categories, {
         'name_ar': 'قسم',
         'name_en': 'Department',
+        'mock_description_en': 'Daily essentials',
+        'mock_description_ar': 'احتياجات يومية',
         'parent_id': null,
       });
       final child = await repo.save(AdminResource.categories, {
@@ -63,11 +65,8 @@ void main() {
       await repo.delete(AdminResource.categories, child.id);
       await repo.delete(AdminResource.products, product.id);
       expect(
-        (await repo.fetch(
-          AdminResource.products,
-          query: 'Edited',
-        )).items.single.text('status'),
-        'archived',
+        (await repo.fetch(AdminResource.products, query: 'Edited')).items,
+        isEmpty,
       );
     },
   );
@@ -296,6 +295,8 @@ void main() {
       final repo = AdminRepositoryMock(catalog: catalog, delay: Duration.zero);
       final category = await repo.save(AdminResource.categories, {
         'name_en': 'Admin demo',
+        'mock_description_en': 'Daily essentials',
+        'mock_description_ar': 'احتياجات يومية',
         'name_ar': 'اختبار الإدارة',
         'sort_order': -1,
         'is_active': true,

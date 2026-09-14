@@ -204,6 +204,7 @@ class _DepartmentsBar extends ConsumerWidget {
                         categoryShortcutIconFor(
                           category.icon,
                           categoryId: category.id,
+                          iconKey: category.iconKey,
                         ),
                         size: AppLayout.categoryIconSize,
                         color: colors.primary,

@@ -15,6 +15,9 @@ class CatalogRepositoryMock implements CatalogRepository {
 
   final Duration delay;
 
+  /// Management reads include hidden parents and descendants.
+  List<Category> get adminCategories => List.unmodifiable(_categories);
+
   static String _img(String seed) => 'https://picsum.photos/seed/$seed/500/500';
 
   /// A few distinct images for a product's detail gallery.
@@ -47,8 +50,11 @@ class CatalogRepositoryMock implements CatalogRepository {
     Category(
       id: _cElectronics,
       nameEn: 'Electronics',
+      shortDescriptionEn: 'Devices and accessories',
+      shortDescriptionAr: 'أجهزة وملحقات',
       nameAr: 'إلكترونيات',
       icon: 'devices',
+      iconKey: 'electronics_devices',
       sortOrder: 1,
       children: const [
         Category(
@@ -57,6 +63,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Phones',
           nameAr: 'هواتف',
           icon: 'smartphone',
+          iconKey: 'mobile_phone',
           sortOrder: 1,
         ),
         Category(
@@ -65,6 +72,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Audio',
           nameAr: 'صوتيات',
           icon: 'headphones',
+          iconKey: 'audio_headphones',
           sortOrder: 2,
         ),
         Category(
@@ -73,6 +81,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Wearables',
           nameAr: 'أجهزة الارتداء',
           icon: 'watch',
+          iconKey: 'accessories_watch',
           sortOrder: 3,
         ),
         Category(
@@ -81,6 +90,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Accessories',
           nameAr: 'ملحقات',
           icon: 'cable',
+          iconKey: 'electronics_cable',
           sortOrder: 4,
         ),
       ],
@@ -88,8 +98,11 @@ class CatalogRepositoryMock implements CatalogRepository {
     Category(
       id: _cGrocery,
       nameEn: 'Grocery',
+      shortDescriptionEn: 'Food and everyday essentials',
+      shortDescriptionAr: 'غذاء واحتياجات يومية',
       nameAr: 'بقالة',
       icon: 'basket',
+      iconKey: 'grocery_food',
       sortOrder: 2,
       children: const [
         Category(
@@ -98,6 +111,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Pantry',
           nameAr: 'مؤن',
           icon: 'kitchen',
+          iconKey: 'kitchen_appliances',
           sortOrder: 1,
         ),
         Category(
@@ -106,6 +120,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Beverages',
           nameAr: 'مشروبات',
           icon: 'coffee',
+          iconKey: 'drinks_coffee',
           sortOrder: 2,
         ),
         Category(
@@ -114,6 +129,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Staples',
           nameAr: 'أساسيات',
           icon: 'rice',
+          iconKey: 'food_rice',
           sortOrder: 3,
         ),
       ],
@@ -121,8 +137,11 @@ class CatalogRepositoryMock implements CatalogRepository {
     Category(
       id: _cClothing,
       nameEn: 'Clothing',
+      shortDescriptionEn: 'Clothing for the whole family',
+      shortDescriptionAr: 'أزياء لكل العائلة',
       nameAr: 'ملابس',
       icon: 'checkroom',
+      iconKey: 'fashion_clothing',
       sortOrder: 3,
       children: const [
         Category(
@@ -131,6 +150,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Men',
           nameAr: 'رجالي',
           icon: 'man',
+          iconKey: 'fashion_men',
           sortOrder: 1,
         ),
         Category(
@@ -139,6 +159,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Women',
           nameAr: 'نسائي',
           icon: 'woman',
+          iconKey: 'fashion_women',
           sortOrder: 2,
         ),
         Category(
@@ -147,6 +168,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Kids',
           nameAr: 'أطفال',
           icon: 'child',
+          iconKey: 'kids_baby',
           sortOrder: 3,
         ),
       ],
@@ -154,8 +176,11 @@ class CatalogRepositoryMock implements CatalogRepository {
     Category(
       id: _cHome,
       nameEn: 'Home & Kitchen',
+      shortDescriptionEn: 'Kitchen and home essentials',
+      shortDescriptionAr: 'مستلزمات المنزل والمطبخ',
       nameAr: 'المنزل والمطبخ',
       icon: 'home',
+      iconKey: 'home_furniture',
       sortOrder: 4,
       children: const [
         Category(
@@ -164,6 +189,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Cookware',
           nameAr: 'أواني طهي',
           icon: 'cookware',
+          iconKey: 'kitchen_cooking',
           sortOrder: 1,
         ),
         Category(
@@ -172,6 +198,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Tableware',
           nameAr: 'أدوات المائدة',
           icon: 'tableware',
+          iconKey: 'kitchen_tableware',
           sortOrder: 2,
         ),
         Category(
@@ -180,6 +207,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Lighting',
           nameAr: 'إضاءة',
           icon: 'lighting',
+          iconKey: 'home_lighting',
           sortOrder: 3,
         ),
       ],
@@ -187,8 +215,11 @@ class CatalogRepositoryMock implements CatalogRepository {
     Category(
       id: 'cat-beauty',
       nameEn: 'Beauty & Personal Care',
+      shortDescriptionEn: 'Skin, hair and personal care',
+      shortDescriptionAr: 'عناية بالبشرة والشعر',
       nameAr: 'الجمال والعناية',
       icon: 'spa',
+      iconKey: 'beauty_spa',
       sortOrder: 5,
       children: const [
         Category(
@@ -197,6 +228,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Skin Care',
           nameAr: 'العناية بالبشرة',
           icon: 'face',
+          iconKey: 'beauty_skin',
           sortOrder: 1,
         ),
         Category(
@@ -205,6 +237,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Hair Care',
           nameAr: 'العناية بالشعر',
           icon: 'haircare',
+          iconKey: 'beauty_hair',
           sortOrder: 2,
         ),
         Category(
@@ -213,6 +246,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Fragrances',
           nameAr: 'العطور',
           icon: 'fragrance',
+          iconKey: 'beauty_fragrance',
           sortOrder: 3,
         ),
       ],
@@ -220,8 +254,11 @@ class CatalogRepositoryMock implements CatalogRepository {
     Category(
       id: 'cat-sports',
       nameEn: 'Sports & Outdoors',
+      shortDescriptionEn: 'Fitness and outdoor gear',
+      shortDescriptionAr: 'لياقة ولوازم رحلات',
       nameAr: 'الرياضة والرحلات',
       icon: 'fitness',
+      iconKey: 'sport_fitness',
       sortOrder: 6,
       children: const [
         Category(
@@ -230,6 +267,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Fitness',
           nameAr: 'اللياقة البدنية',
           icon: 'fitness',
+          iconKey: 'sport_fitness',
           sortOrder: 1,
         ),
         Category(
@@ -238,6 +276,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Camping & Outdoors',
           nameAr: 'التخييم والرحلات',
           icon: 'outdoors',
+          iconKey: 'garden_trees',
           sortOrder: 2,
         ),
         Category(
@@ -246,6 +285,7 @@ class CatalogRepositoryMock implements CatalogRepository {
           nameEn: 'Cycling',
           nameAr: 'ركوب الدراجات',
           icon: 'cycling',
+          iconKey: 'sport_cycling',
           sortOrder: 3,
         ),
       ],
@@ -288,13 +328,13 @@ class CatalogRepositoryMock implements CatalogRepository {
   }) {
     for (final value in products) {
       final old = _products.where((p) => p.id == value['id']).firstOrNull;
-      if (old == null || old.toJson().toString() != value.toString()) {
+      if (old == null || old.toMock().toString() != value.toString()) {
         _adminEditedProducts.add(value['id'] as String);
       }
     }
     _products
       ..clear()
-      ..addAll(products.map(Product.fromJson).map(_withDiscount));
+      ..addAll(products.map(Product.fromMock).map(_withDiscount));
     final ordered = [...categories]
       ..sort((a, b) {
         final order = ((a['sort_order'] as num?) ?? 0).compareTo(
@@ -304,11 +344,11 @@ class CatalogRepositoryMock implements CatalogRepository {
             ? order
             : (a['id'] as String).compareTo(b['id'] as String);
       });
-    Category node(Map<String, dynamic> value) => Category.fromJson({
+    Category node(Map<String, dynamic> value) => Category.fromMock({
       ...value,
       'children': [
         for (final child in ordered)
-          if (child['parent_id'] == value['id']) node(child).toJson(),
+          if (child['parent_id'] == value['id']) node(child).toMock(),
       ],
     });
     _categories
@@ -565,8 +605,8 @@ class CatalogRepositoryMock implements CatalogRepository {
     ),
   ].map(_withDiscount).toList();
 
-  static Product _withDiscount(Product p) => Product.fromJson({
-    ...p.toJson(),
+  static Product _withDiscount(Product p) => Product.fromMock({
+    ...p.toMock(),
     'discount_percent': Product.discountPercentFor(
       p.salePrice,
       p.compareAtPrice,
@@ -578,11 +618,11 @@ class CatalogRepositoryMock implements CatalogRepository {
     await Future<void>.delayed(delay);
     Category? visible(Category category) => !category.isActive
         ? null
-        : Category.fromJson({
-            ...category.toJson(),
+        : Category.fromMock({
+            ...category.toMock(),
             'children': [
               for (final child in category.children)
-                if (visible(child) case final Category shown) shown.toJson(),
+                if (visible(child) case final Category shown) shown.toMock(),
             ],
           });
     return [

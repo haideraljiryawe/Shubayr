@@ -1,4 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../data/media/catalog_image.dart';
+import 'catalog_image_view.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -16,9 +17,12 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 /// and an `n / total` counter. Neither view wraps around: paging stops at the
 /// first and last image.
 class ProductGallery extends StatefulWidget {
-  const ProductGallery({super.key, required this.images});
+  const ProductGallery({super.key, required this.images, this.media});
 
   final List<String> images;
+  final List<CatalogImage>? media;
+  List<CatalogImage> get displayImages =>
+      media ?? images.map(UrlCatalogImage.new).toList();
 
   /// Aspect ratio of the main image (square). Removing the old thumbnail strip
   /// gives this height back to the image.
@@ -44,8 +48,10 @@ class _ProductGalleryState extends State<ProductGallery> {
         opaque: false,
         barrierColor: Colors.black,
         transitionDuration: AppMotion.medium,
-        pageBuilder: (_, _, _) =>
-            _FullScreenGallery(images: widget.images, initialIndex: index),
+        pageBuilder: (_, _, _) => _FullScreenGallery(
+          images: widget.displayImages,
+          initialIndex: index,
+        ),
         transitionsBuilder: (_, animation, _, child) =>
             FadeTransition(opacity: animation, child: child),
       ),
@@ -54,7 +60,7 @@ class _ProductGalleryState extends State<ProductGallery> {
 
   @override
   Widget build(BuildContext context) {
-    final images = widget.images;
+    final images = widget.displayImages;
 
     if (images.isEmpty) {
       return const AspectRatio(
@@ -78,7 +84,7 @@ class _ProductGalleryState extends State<ProductGallery> {
             onPageChanged: (i) => setState(() => _current = i),
             itemBuilder: (context, i) => GestureDetector(
               onTap: () => _openFullScreen(i),
-              child: _GalleryImage(url: images[i]),
+              child: _GalleryImage(image: images[i]),
             ),
           ),
           if (images.length > 1)
@@ -160,7 +166,7 @@ class _Dot extends StatelessWidget {
 class _FullScreenGallery extends StatefulWidget {
   const _FullScreenGallery({required this.images, required this.initialIndex});
 
-  final List<String> images;
+  final List<CatalogImage> images;
   final int initialIndex;
 
   @override
@@ -202,7 +208,7 @@ class _FullScreenGalleryState extends State<_FullScreenGallery> {
               ),
             ),
             builder: (context, i) => PhotoViewGalleryPageOptions(
-              imageProvider: CachedNetworkImageProvider(widget.images[i]),
+              imageProvider: catalogImageProvider(widget.images[i]),
               errorBuilder: (context, _, _) =>
                   const Center(child: _GalleryPlaceholder(size: 28)),
               // Fits the image, then lets it zoom to 2.5× on pinch/double-tap.
@@ -297,18 +303,15 @@ class _CircleIconButton extends StatelessWidget {
 }
 
 class _GalleryImage extends StatelessWidget {
-  const _GalleryImage({required this.url});
+  const _GalleryImage({required this.image});
 
-  final String url;
+  final CatalogImage image;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return CachedNetworkImage(
-      imageUrl: url,
-      fit: BoxFit.cover,
-      placeholder: (context, _) => ColoredBox(color: colors.surfaceAlt),
-      errorWidget: (context, _, _) => const _GalleryPlaceholder(size: 28),
+    return CatalogImageView(
+      image: image,
+      placeholder: const _GalleryPlaceholder(size: 28),
     );
   }
 }

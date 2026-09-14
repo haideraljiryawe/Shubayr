@@ -1124,20 +1124,560 @@ class AppLocalizationsAr extends AppLocalizations {
   String get mainCategoriesTitle => 'الأقسام الرئيسية';
 
   @override
-  String get mockCategoryElectronicsDescription => 'هواتف، أجهزة وملحقات';
+  String get categoryGroupElectronics => 'إلكترونيات';
 
   @override
-  String get mockCategoryGroceryDescription => 'مواد غذائية واحتياجات يومية';
+  String get categoryIconElectronicsDevices => 'أجهزة';
 
   @override
-  String get mockCategoryClothingDescription => 'أزياء للرجال والنساء والأطفال';
+  String get categoryIconElectronicsCable => 'كابلات';
 
   @override
-  String get mockCategoryHomeDescription => 'أدوات مطبخ ومستلزمات المنزل';
+  String get categoryIconElectronicsRouter => 'موجهات';
 
   @override
-  String get mockCategoryBeautyDescription => 'عناية بالبشرة والشعر وعطور';
+  String get categoryIconElectronicsTv => 'تلفزيونات';
 
   @override
-  String get mockCategorySportsDescription => 'لياقة، دراجات ولوازم رحلات';
+  String get categoryIconElectronicsPower => 'كهربائيات';
+
+  @override
+  String get categoryIconElectronicsBattery => 'بطاريات';
+
+  @override
+  String get categoryGroupPhones => 'هواتف';
+
+  @override
+  String get categoryIconMobilePhone => 'هواتف';
+
+  @override
+  String get categoryIconMobileTablet => 'أجهزة لوحية';
+
+  @override
+  String get categoryIconMobileCharging => 'شواحن';
+
+  @override
+  String get categoryIconMobileWatch => 'ساعات ذكية';
+
+  @override
+  String get categoryGroupComputers => 'حواسيب';
+
+  @override
+  String get categoryIconComputerLaptop => 'حواسيب محمولة';
+
+  @override
+  String get categoryIconComputerDesktop => 'حواسيب مكتبية';
+
+  @override
+  String get categoryIconComputerKeyboard => 'لوحات مفاتيح';
+
+  @override
+  String get categoryIconComputerMouse => 'فأرات';
+
+  @override
+  String get categoryIconComputerPrinter => 'طابعات';
+
+  @override
+  String get categoryIconComputerStorage => 'وحدات تخزين';
+
+  @override
+  String get categoryGroupAudio => 'صوتيات';
+
+  @override
+  String get categoryIconAudioHeadphones => 'سماعات رأس';
+
+  @override
+  String get categoryIconAudioEarbuds => 'سماعات أذن';
+
+  @override
+  String get categoryIconAudioSpeaker => 'مكبرات صوت';
+
+  @override
+  String get categoryIconAudioMic => 'ميكروفونات';
+
+  @override
+  String get categoryIconAudioRadio => 'راديو';
+
+  @override
+  String get categoryGroupCameras => 'كاميرات';
+
+  @override
+  String get categoryIconCameraPhoto => 'كاميرات';
+
+  @override
+  String get categoryIconCameraVideo => 'كاميرات فيديو';
+
+  @override
+  String get categoryIconCameraLens => 'عدسات';
+
+  @override
+  String get categoryIconCameraSecurity => 'كاميرات مراقبة';
+
+  @override
+  String get categoryGroupGaming => 'ألعاب إلكترونية';
+
+  @override
+  String get categoryIconGamingConsole => 'أجهزة ألعاب';
+
+  @override
+  String get categoryIconGamingController => 'أذرع تحكم';
+
+  @override
+  String get categoryGroupFashion => 'أزياء';
+
+  @override
+  String get categoryIconFashionClothing => 'ملابس';
+
+  @override
+  String get categoryIconFashionMen => 'ملابس رجالية';
+
+  @override
+  String get categoryIconFashionWomen => 'ملابس نسائية';
+
+  @override
+  String get categoryIconFashionShoes => 'أحذية';
+
+  @override
+  String get categoryIconFashionUniform => 'ملابس عمل';
+
+  @override
+  String get categoryIconFashionLaundry => 'عناية بالملابس';
+
+  @override
+  String get categoryGroupAccessories => 'حقائب وإكسسوارات';
+
+  @override
+  String get categoryIconAccessoriesWatch => 'ساعات';
+
+  @override
+  String get categoryIconAccessoriesBag => 'حقائب';
+
+  @override
+  String get categoryIconAccessoriesBackpack => 'حقائب ظهر';
+
+  @override
+  String get categoryIconAccessoriesLuggage => 'حقائب سفر';
+
+  @override
+  String get categoryIconAccessoriesJewelry => 'مجوهرات';
+
+  @override
+  String get categoryIconAccessoriesUmbrella => 'مظلات';
+
+  @override
+  String get categoryGroupHome => 'منزل وأثاث';
+
+  @override
+  String get categoryIconHomeFurniture => 'أثاث';
+
+  @override
+  String get categoryIconHomeChair => 'كراسي';
+
+  @override
+  String get categoryIconHomeBed => 'أسرّة';
+
+  @override
+  String get categoryIconHomeTable => 'طاولات';
+
+  @override
+  String get categoryIconHomeLighting => 'إضاءة';
+
+  @override
+  String get categoryIconHomeBath => 'حمام';
+
+  @override
+  String get categoryIconHomeCurtains => 'ستائر';
+
+  @override
+  String get categoryIconHomeBedding => 'مفروشات';
+
+  @override
+  String get categoryGroupKitchen => 'مطبخ';
+
+  @override
+  String get categoryIconKitchenAppliances => 'أجهزة مطبخ';
+
+  @override
+  String get categoryIconKitchenCooking => 'أواني طبخ';
+
+  @override
+  String get categoryIconKitchenTableware => 'أدوات مائدة';
+
+  @override
+  String get categoryIconKitchenBlender => 'خلاطات';
+
+  @override
+  String get categoryIconKitchenMicrowave => 'مايكروويف';
+
+  @override
+  String get categoryIconKitchenKettle => 'ماكينات قهوة';
+
+  @override
+  String get categoryGroupCleaning => 'تنظيف';
+
+  @override
+  String get categoryIconCleaningSupplies => 'أدوات تنظيف';
+
+  @override
+  String get categoryIconCleaningSoap => 'صابون';
+
+  @override
+  String get categoryIconCleaningBins => 'سلال نفايات';
+
+  @override
+  String get categoryIconCleaningWater => 'معالجة المياه';
+
+  @override
+  String get categoryGroupFood => 'بقالة وأطعمة';
+
+  @override
+  String get categoryIconGroceryFood => 'بقالة';
+
+  @override
+  String get categoryIconFoodRice => 'أرز وحبوب';
+
+  @override
+  String get categoryIconFoodBakery => 'مخبوزات';
+
+  @override
+  String get categoryIconFoodFruit => 'فواكه';
+
+  @override
+  String get categoryIconFoodVegetables => 'خضروات';
+
+  @override
+  String get categoryIconFoodMeat => 'لحوم';
+
+  @override
+  String get categoryIconFoodSeafood => 'أسماك';
+
+  @override
+  String get categoryIconFoodPizza => 'بيتزا';
+
+  @override
+  String get categoryIconFoodIcecream => 'مثلجات';
+
+  @override
+  String get categoryIconFoodCake => 'كيك';
+
+  @override
+  String get categoryIconFoodEggs => 'بيض';
+
+  @override
+  String get categoryIconFoodSnacks => 'وجبات خفيفة';
+
+  @override
+  String get categoryGroupDrinks => 'مشروبات';
+
+  @override
+  String get categoryIconDrinksCoffee => 'قهوة';
+
+  @override
+  String get categoryIconDrinksTea => 'شاي';
+
+  @override
+  String get categoryIconDrinksJuice => 'عصائر';
+
+  @override
+  String get categoryIconDrinksWater => 'مياه';
+
+  @override
+  String get categoryGroupBeauty => 'صحة وجمال';
+
+  @override
+  String get categoryIconBeautySpa => 'عناية وجمال';
+
+  @override
+  String get categoryIconBeautySkin => 'عناية بالبشرة';
+
+  @override
+  String get categoryIconBeautyHair => 'عناية بالشعر';
+
+  @override
+  String get categoryIconBeautyCosmetics => 'مستحضرات تجميل';
+
+  @override
+  String get categoryIconBeautyHealth => 'مستلزمات صحية';
+
+  @override
+  String get categoryIconBeautyHygiene => 'نظافة شخصية';
+
+  @override
+  String get categoryIconBeautyMedical => 'إسعافات أولية';
+
+  @override
+  String get categoryGroupSport => 'رياضة ولياقة';
+
+  @override
+  String get categoryIconSportFitness => 'لياقة';
+
+  @override
+  String get categoryIconSportCycling => 'دراجات';
+
+  @override
+  String get categoryIconSportFootball => 'كرة قدم';
+
+  @override
+  String get categoryIconSportBasketball => 'كرة سلة';
+
+  @override
+  String get categoryIconSportTennis => 'تنس';
+
+  @override
+  String get categoryIconSportSwimming => 'سباحة';
+
+  @override
+  String get categoryIconSportCamping => 'تخييم';
+
+  @override
+  String get categoryIconSportFishing => 'صيد أسماك';
+
+  @override
+  String get categoryGroupKids => 'أطفال وألعاب';
+
+  @override
+  String get categoryIconKidsBaby => 'عناية بالطفل';
+
+  @override
+  String get categoryIconKidsStroller => 'عربات أطفال';
+
+  @override
+  String get categoryIconKidsToys => 'ألعاب أطفال';
+
+  @override
+  String get categoryIconKidsPuzzle => 'ألعاب تركيب';
+
+  @override
+  String get categoryIconKidsScooter => 'تزلج وسكوتر';
+
+  @override
+  String get categoryGroupAuto => 'سيارات وملحقاتها';
+
+  @override
+  String get categoryIconAutoCar => 'مستلزمات سيارات';
+
+  @override
+  String get categoryIconAutoMotorcycle => 'دراجات نارية';
+
+  @override
+  String get categoryIconAutoTires => 'إطارات';
+
+  @override
+  String get categoryIconAutoFuel => 'وقود وزيوت';
+
+  @override
+  String get categoryIconAutoTools => 'أدوات سيارات';
+
+  @override
+  String get categoryGroupBooks => 'كتب وقرطاسية';
+
+  @override
+  String get categoryIconBooksReading => 'كتب';
+
+  @override
+  String get categoryIconBooksNotebooks => 'دفاتر';
+
+  @override
+  String get categoryIconBooksPens => 'أقلام';
+
+  @override
+  String get categoryIconBooksArt => 'لوازم فنية';
+
+  @override
+  String get categoryIconBooksSchool => 'لوازم مدرسية';
+
+  @override
+  String get categoryGroupGarden => 'حيوانات وحدائق وأدوات';
+
+  @override
+  String get categoryIconPetsSupplies => 'مستلزمات حيوانات';
+
+  @override
+  String get categoryIconGardenTrees => 'نباتات حدائق';
+
+  @override
+  String get categoryIconGardenFlowers => 'زهور';
+
+  @override
+  String get categoryIconGardenTools => 'أدوات يدوية';
+
+  @override
+  String get categoryIconGardenBuilding => 'مواد بناء';
+
+  @override
+  String get categoryIconGardenSolar => 'طاقة شمسية';
+
+  @override
+  String get categoryIconGardenWatering => 'عناية بالحديقة';
+
+  @override
+  String get categoryGroupGifts => 'هدايا ومنتجات عامة';
+
+  @override
+  String get categoryIconGiftsPresent => 'هدايا';
+
+  @override
+  String get categoryIconBeautyFragrance => 'عطور';
+
+  @override
+  String get categoryIconGiftsParty => 'لوازم حفلات';
+
+  @override
+  String get categoryIconGeneralCrafts => 'أشغال يدوية';
+
+  @override
+  String get categoryIconGeneralMusic => 'آلات موسيقية';
+
+  @override
+  String get categoryIconGeneralCategory => 'منتجات عامة';
+
+  @override
+  String get categoryChooseIcon => 'اختيار أيقونة';
+
+  @override
+  String get categorySearchIcons => 'البحث عن أيقونة';
+
+  @override
+  String get categoryAllGroups => 'كل المجموعات';
+
+  @override
+  String get categoryNoIcons => 'لا توجد أيقونات مطابقة';
+
+  @override
+  String get categoryDescriptionEn => 'وصف قصير بالإنجليزية';
+
+  @override
+  String get categoryDescriptionAr => 'وصف قصير بالعربية';
+
+  @override
+  String categoryDescriptionLimit(String words, String characters) {
+    return 'إلزامي · حتى $words كلمات و$characters حرفًا';
+  }
+
+  @override
+  String get categoryDescriptionInvalid =>
+      'أدخل وصفًا قصيرًا ضمن حد الكلمات والأحرف';
+
+  @override
+  String get categoryImage => 'صورة القسم';
+
+  @override
+  String get mediaImages => 'صور المنتج';
+
+  @override
+  String get mediaAdd => 'إضافة صور';
+
+  @override
+  String get mediaChoose => 'اختيار صورة';
+
+  @override
+  String get mediaReplace => 'استبدال';
+
+  @override
+  String get mediaRemove => 'إزالة';
+
+  @override
+  String get mediaEarlier => 'تقديم الصورة';
+
+  @override
+  String get mediaLater => 'تأخير الصورة';
+
+  @override
+  String get mediaEmpty => 'لم تُحدد صورة';
+
+  @override
+  String get mediaSessionHint =>
+      'الصور المختارة متاحة خلال جلسة التجربة الحالية فقط.';
+
+  @override
+  String get mediaRemoteHint => 'رفع الصور بانتظار دعم الخادم.';
+
+  @override
+  String get mediaPickError =>
+      'تعذر فتح الصور المختارة أو قراءتها. حاول مجددًا.';
+
+  @override
+  String get categoryVisible => 'ظاهر للزبائن';
+
+  @override
+  String get adminAddMainCategory => 'إضافة قسم رئيسي';
+
+  @override
+  String get adminAddSubcategory => 'إضافة قسم فرعي';
+
+  @override
+  String get adminBackToCategories => 'الأقسام الرئيسية';
+
+  @override
+  String get adminChooseCategory => 'اختر قسمًا رئيسيًا لإدارة فروعه';
+
+  @override
+  String adminSubcategoryCount(String count) {
+    return '$count أقسام فرعية';
+  }
+
+  @override
+  String adminDisplayOrderValue(String order) {
+    return 'ترتيب العرض: $order';
+  }
+
+  @override
+  String get adminMainCategoryFilter => 'القسم الرئيسي';
+
+  @override
+  String get adminSubcategoryFilter => 'القسم الفرعي';
+
+  @override
+  String get adminAllProducts => 'كل المنتجات';
+
+  @override
+  String get adminAllSubcategories => 'القسم بكل فروعه';
+
+  @override
+  String adminProductScope(String scope) {
+    return 'النطاق: $scope';
+  }
+
+  @override
+  String get adminSearchAllProducts => 'البحث في كل المنتجات';
+
+  @override
+  String get mediaPrimary => 'الصورة الرئيسية';
+
+  @override
+  String get mediaMakePrimary => 'تعيين كرئيسية';
+
+  @override
+  String get mediaPrimaryHint =>
+      'أول صورة هي الرئيسية؛ تغيير الترتيب يغيّر الصورة الرئيسية.';
+
+  @override
+  String get mediaRemoveConfirm => 'إزالة هذه الصورة؟';
+
+  @override
+  String get mediaRemoveMessage =>
+      'ستُزال هذه الصورة فقط من المسودة، وسيبقى القسم أو المنتج.';
+
+  @override
+  String get mediaRemovePrimaryMessage =>
+      'إزالة الصورة الرئيسية من المسودة؟ سيبقى المنتج، وتصبح أول صورة متبقية، إن وجدت، هي الرئيسية.';
+
+  @override
+  String get mediaProductGuidance =>
+      'الأفضل صورة مربعة (1:1). اختر أصلًا واضحًا للتكبير؛ العرض يقتص الأطراف دون تمديد.';
+
+  @override
+  String get mediaMainCategoryGuidance =>
+      'استخدم صورة أفقية والعنصر المهم في الوسط؛ نسبة القص تتغيّر مع عرض البطاقة.';
+
+  @override
+  String get mediaSubcategoryGuidance =>
+      'تُحفظ لاستخدام لاحق. البلاطات الحالية تعرض الأيقونة، لذا لا تُطلب نسبة للصورة حاليًا.';
+
+  @override
+  String get adminViewSubcategories => 'عرض الفروع';
+
+  @override
+  String get adminRetainedProductCategory =>
+      'التصنيف الحالي محفوظ، لكنه غير متاح للإسناد الجديد. يمكنك إبقاؤه لهذا المنتج أو اختيار قسم فرعي لتغييره.';
 }

@@ -2234,41 +2234,1085 @@ abstract class AppLocalizations {
   /// **'Main Categories'**
   String get mainCategoriesTitle;
 
-  /// No description provided for @mockCategoryElectronicsDescription.
+  /// No description provided for @categoryGroupElectronics.
   ///
   /// In en, this message translates to:
-  /// **'Phones, devices and accessories'**
-  String get mockCategoryElectronicsDescription;
+  /// **'Electronics'**
+  String get categoryGroupElectronics;
 
-  /// No description provided for @mockCategoryGroceryDescription.
+  /// No description provided for @categoryIconElectronicsDevices.
   ///
   /// In en, this message translates to:
-  /// **'Food and everyday essentials'**
-  String get mockCategoryGroceryDescription;
+  /// **'Devices'**
+  String get categoryIconElectronicsDevices;
 
-  /// No description provided for @mockCategoryClothingDescription.
+  /// No description provided for @categoryIconElectronicsCable.
   ///
   /// In en, this message translates to:
-  /// **'Clothing for the whole family'**
-  String get mockCategoryClothingDescription;
+  /// **'Cables'**
+  String get categoryIconElectronicsCable;
 
-  /// No description provided for @mockCategoryHomeDescription.
+  /// No description provided for @categoryIconElectronicsRouter.
   ///
   /// In en, this message translates to:
-  /// **'Kitchenware and home essentials'**
-  String get mockCategoryHomeDescription;
+  /// **'Routers'**
+  String get categoryIconElectronicsRouter;
 
-  /// No description provided for @mockCategoryBeautyDescription.
+  /// No description provided for @categoryIconElectronicsTv.
   ///
   /// In en, this message translates to:
-  /// **'Skin care, hair care and fragrances'**
-  String get mockCategoryBeautyDescription;
+  /// **'Televisions'**
+  String get categoryIconElectronicsTv;
 
-  /// No description provided for @mockCategorySportsDescription.
+  /// No description provided for @categoryIconElectronicsPower.
   ///
   /// In en, this message translates to:
-  /// **'Fitness, cycling and outdoor gear'**
-  String get mockCategorySportsDescription;
+  /// **'Electrical supplies'**
+  String get categoryIconElectronicsPower;
+
+  /// No description provided for @categoryIconElectronicsBattery.
+  ///
+  /// In en, this message translates to:
+  /// **'Batteries'**
+  String get categoryIconElectronicsBattery;
+
+  /// No description provided for @categoryGroupPhones.
+  ///
+  /// In en, this message translates to:
+  /// **'Phones'**
+  String get categoryGroupPhones;
+
+  /// No description provided for @categoryIconMobilePhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phones'**
+  String get categoryIconMobilePhone;
+
+  /// No description provided for @categoryIconMobileTablet.
+  ///
+  /// In en, this message translates to:
+  /// **'Tablets'**
+  String get categoryIconMobileTablet;
+
+  /// No description provided for @categoryIconMobileCharging.
+  ///
+  /// In en, this message translates to:
+  /// **'Chargers'**
+  String get categoryIconMobileCharging;
+
+  /// No description provided for @categoryIconMobileWatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart watches'**
+  String get categoryIconMobileWatch;
+
+  /// No description provided for @categoryGroupComputers.
+  ///
+  /// In en, this message translates to:
+  /// **'Computers'**
+  String get categoryGroupComputers;
+
+  /// No description provided for @categoryIconComputerLaptop.
+  ///
+  /// In en, this message translates to:
+  /// **'Laptops'**
+  String get categoryIconComputerLaptop;
+
+  /// No description provided for @categoryIconComputerDesktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop computers'**
+  String get categoryIconComputerDesktop;
+
+  /// No description provided for @categoryIconComputerKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboards'**
+  String get categoryIconComputerKeyboard;
+
+  /// No description provided for @categoryIconComputerMouse.
+  ///
+  /// In en, this message translates to:
+  /// **'Mice'**
+  String get categoryIconComputerMouse;
+
+  /// No description provided for @categoryIconComputerPrinter.
+  ///
+  /// In en, this message translates to:
+  /// **'Printers'**
+  String get categoryIconComputerPrinter;
+
+  /// No description provided for @categoryIconComputerStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage'**
+  String get categoryIconComputerStorage;
+
+  /// No description provided for @categoryGroupAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get categoryGroupAudio;
+
+  /// No description provided for @categoryIconAudioHeadphones.
+  ///
+  /// In en, this message translates to:
+  /// **'Headphones'**
+  String get categoryIconAudioHeadphones;
+
+  /// No description provided for @categoryIconAudioEarbuds.
+  ///
+  /// In en, this message translates to:
+  /// **'Earbuds'**
+  String get categoryIconAudioEarbuds;
+
+  /// No description provided for @categoryIconAudioSpeaker.
+  ///
+  /// In en, this message translates to:
+  /// **'Speakers'**
+  String get categoryIconAudioSpeaker;
+
+  /// No description provided for @categoryIconAudioMic.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphones'**
+  String get categoryIconAudioMic;
+
+  /// No description provided for @categoryIconAudioRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Radios'**
+  String get categoryIconAudioRadio;
+
+  /// No description provided for @categoryGroupCameras.
+  ///
+  /// In en, this message translates to:
+  /// **'Cameras'**
+  String get categoryGroupCameras;
+
+  /// No description provided for @categoryIconCameraPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Cameras'**
+  String get categoryIconCameraPhoto;
+
+  /// No description provided for @categoryIconCameraVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Video cameras'**
+  String get categoryIconCameraVideo;
+
+  /// No description provided for @categoryIconCameraLens.
+  ///
+  /// In en, this message translates to:
+  /// **'Lenses'**
+  String get categoryIconCameraLens;
+
+  /// No description provided for @categoryIconCameraSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Security cameras'**
+  String get categoryIconCameraSecurity;
+
+  /// No description provided for @categoryGroupGaming.
+  ///
+  /// In en, this message translates to:
+  /// **'Gaming'**
+  String get categoryGroupGaming;
+
+  /// No description provided for @categoryIconGamingConsole.
+  ///
+  /// In en, this message translates to:
+  /// **'Game consoles'**
+  String get categoryIconGamingConsole;
+
+  /// No description provided for @categoryIconGamingController.
+  ///
+  /// In en, this message translates to:
+  /// **'Controllers'**
+  String get categoryIconGamingController;
+
+  /// No description provided for @categoryGroupFashion.
+  ///
+  /// In en, this message translates to:
+  /// **'Fashion'**
+  String get categoryGroupFashion;
+
+  /// No description provided for @categoryIconFashionClothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Clothing'**
+  String get categoryIconFashionClothing;
+
+  /// No description provided for @categoryIconFashionMen.
+  ///
+  /// In en, this message translates to:
+  /// **'Menswear'**
+  String get categoryIconFashionMen;
+
+  /// No description provided for @categoryIconFashionWomen.
+  ///
+  /// In en, this message translates to:
+  /// **'Womenswear'**
+  String get categoryIconFashionWomen;
+
+  /// No description provided for @categoryIconFashionShoes.
+  ///
+  /// In en, this message translates to:
+  /// **'Footwear'**
+  String get categoryIconFashionShoes;
+
+  /// No description provided for @categoryIconFashionUniform.
+  ///
+  /// In en, this message translates to:
+  /// **'Workwear'**
+  String get categoryIconFashionUniform;
+
+  /// No description provided for @categoryIconFashionLaundry.
+  ///
+  /// In en, this message translates to:
+  /// **'Clothing care'**
+  String get categoryIconFashionLaundry;
+
+  /// No description provided for @categoryGroupAccessories.
+  ///
+  /// In en, this message translates to:
+  /// **'Bags & accessories'**
+  String get categoryGroupAccessories;
+
+  /// No description provided for @categoryIconAccessoriesWatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Watches'**
+  String get categoryIconAccessoriesWatch;
+
+  /// No description provided for @categoryIconAccessoriesBag.
+  ///
+  /// In en, this message translates to:
+  /// **'Bags'**
+  String get categoryIconAccessoriesBag;
+
+  /// No description provided for @categoryIconAccessoriesBackpack.
+  ///
+  /// In en, this message translates to:
+  /// **'Backpacks'**
+  String get categoryIconAccessoriesBackpack;
+
+  /// No description provided for @categoryIconAccessoriesLuggage.
+  ///
+  /// In en, this message translates to:
+  /// **'Luggage'**
+  String get categoryIconAccessoriesLuggage;
+
+  /// No description provided for @categoryIconAccessoriesJewelry.
+  ///
+  /// In en, this message translates to:
+  /// **'Jewelry'**
+  String get categoryIconAccessoriesJewelry;
+
+  /// No description provided for @categoryIconAccessoriesUmbrella.
+  ///
+  /// In en, this message translates to:
+  /// **'Umbrellas'**
+  String get categoryIconAccessoriesUmbrella;
+
+  /// No description provided for @categoryGroupHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home & furniture'**
+  String get categoryGroupHome;
+
+  /// No description provided for @categoryIconHomeFurniture.
+  ///
+  /// In en, this message translates to:
+  /// **'Furniture'**
+  String get categoryIconHomeFurniture;
+
+  /// No description provided for @categoryIconHomeChair.
+  ///
+  /// In en, this message translates to:
+  /// **'Chairs'**
+  String get categoryIconHomeChair;
+
+  /// No description provided for @categoryIconHomeBed.
+  ///
+  /// In en, this message translates to:
+  /// **'Beds'**
+  String get categoryIconHomeBed;
+
+  /// No description provided for @categoryIconHomeTable.
+  ///
+  /// In en, this message translates to:
+  /// **'Tables'**
+  String get categoryIconHomeTable;
+
+  /// No description provided for @categoryIconHomeLighting.
+  ///
+  /// In en, this message translates to:
+  /// **'Lighting'**
+  String get categoryIconHomeLighting;
+
+  /// No description provided for @categoryIconHomeBath.
+  ///
+  /// In en, this message translates to:
+  /// **'Bathroom'**
+  String get categoryIconHomeBath;
+
+  /// No description provided for @categoryIconHomeCurtains.
+  ///
+  /// In en, this message translates to:
+  /// **'Curtains'**
+  String get categoryIconHomeCurtains;
+
+  /// No description provided for @categoryIconHomeBedding.
+  ///
+  /// In en, this message translates to:
+  /// **'Bedding'**
+  String get categoryIconHomeBedding;
+
+  /// No description provided for @categoryGroupKitchen.
+  ///
+  /// In en, this message translates to:
+  /// **'Kitchen'**
+  String get categoryGroupKitchen;
+
+  /// No description provided for @categoryIconKitchenAppliances.
+  ///
+  /// In en, this message translates to:
+  /// **'Appliances'**
+  String get categoryIconKitchenAppliances;
+
+  /// No description provided for @categoryIconKitchenCooking.
+  ///
+  /// In en, this message translates to:
+  /// **'Cookware'**
+  String get categoryIconKitchenCooking;
+
+  /// No description provided for @categoryIconKitchenTableware.
+  ///
+  /// In en, this message translates to:
+  /// **'Tableware'**
+  String get categoryIconKitchenTableware;
+
+  /// No description provided for @categoryIconKitchenBlender.
+  ///
+  /// In en, this message translates to:
+  /// **'Blenders'**
+  String get categoryIconKitchenBlender;
+
+  /// No description provided for @categoryIconKitchenMicrowave.
+  ///
+  /// In en, this message translates to:
+  /// **'Microwaves'**
+  String get categoryIconKitchenMicrowave;
+
+  /// No description provided for @categoryIconKitchenKettle.
+  ///
+  /// In en, this message translates to:
+  /// **'Coffee makers'**
+  String get categoryIconKitchenKettle;
+
+  /// No description provided for @categoryGroupCleaning.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleaning'**
+  String get categoryGroupCleaning;
+
+  /// No description provided for @categoryIconCleaningSupplies.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleaning supplies'**
+  String get categoryIconCleaningSupplies;
+
+  /// No description provided for @categoryIconCleaningSoap.
+  ///
+  /// In en, this message translates to:
+  /// **'Soap'**
+  String get categoryIconCleaningSoap;
+
+  /// No description provided for @categoryIconCleaningBins.
+  ///
+  /// In en, this message translates to:
+  /// **'Waste bins'**
+  String get categoryIconCleaningBins;
+
+  /// No description provided for @categoryIconCleaningWater.
+  ///
+  /// In en, this message translates to:
+  /// **'Water care'**
+  String get categoryIconCleaningWater;
+
+  /// No description provided for @categoryGroupFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Grocery & food'**
+  String get categoryGroupFood;
+
+  /// No description provided for @categoryIconGroceryFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Groceries'**
+  String get categoryIconGroceryFood;
+
+  /// No description provided for @categoryIconFoodRice.
+  ///
+  /// In en, this message translates to:
+  /// **'Rice & grains'**
+  String get categoryIconFoodRice;
+
+  /// No description provided for @categoryIconFoodBakery.
+  ///
+  /// In en, this message translates to:
+  /// **'Bakery'**
+  String get categoryIconFoodBakery;
+
+  /// No description provided for @categoryIconFoodFruit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fruit'**
+  String get categoryIconFoodFruit;
+
+  /// No description provided for @categoryIconFoodVegetables.
+  ///
+  /// In en, this message translates to:
+  /// **'Vegetables'**
+  String get categoryIconFoodVegetables;
+
+  /// No description provided for @categoryIconFoodMeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Meat'**
+  String get categoryIconFoodMeat;
+
+  /// No description provided for @categoryIconFoodSeafood.
+  ///
+  /// In en, this message translates to:
+  /// **'Seafood'**
+  String get categoryIconFoodSeafood;
+
+  /// No description provided for @categoryIconFoodPizza.
+  ///
+  /// In en, this message translates to:
+  /// **'Pizza'**
+  String get categoryIconFoodPizza;
+
+  /// No description provided for @categoryIconFoodIcecream.
+  ///
+  /// In en, this message translates to:
+  /// **'Ice cream'**
+  String get categoryIconFoodIcecream;
+
+  /// No description provided for @categoryIconFoodCake.
+  ///
+  /// In en, this message translates to:
+  /// **'Cakes'**
+  String get categoryIconFoodCake;
+
+  /// No description provided for @categoryIconFoodEggs.
+  ///
+  /// In en, this message translates to:
+  /// **'Eggs'**
+  String get categoryIconFoodEggs;
+
+  /// No description provided for @categoryIconFoodSnacks.
+  ///
+  /// In en, this message translates to:
+  /// **'Snacks'**
+  String get categoryIconFoodSnacks;
+
+  /// No description provided for @categoryGroupDrinks.
+  ///
+  /// In en, this message translates to:
+  /// **'Drinks'**
+  String get categoryGroupDrinks;
+
+  /// No description provided for @categoryIconDrinksCoffee.
+  ///
+  /// In en, this message translates to:
+  /// **'Coffee'**
+  String get categoryIconDrinksCoffee;
+
+  /// No description provided for @categoryIconDrinksTea.
+  ///
+  /// In en, this message translates to:
+  /// **'Tea'**
+  String get categoryIconDrinksTea;
+
+  /// No description provided for @categoryIconDrinksJuice.
+  ///
+  /// In en, this message translates to:
+  /// **'Juices'**
+  String get categoryIconDrinksJuice;
+
+  /// No description provided for @categoryIconDrinksWater.
+  ///
+  /// In en, this message translates to:
+  /// **'Water'**
+  String get categoryIconDrinksWater;
+
+  /// No description provided for @categoryGroupBeauty.
+  ///
+  /// In en, this message translates to:
+  /// **'Health & beauty'**
+  String get categoryGroupBeauty;
+
+  /// No description provided for @categoryIconBeautySpa.
+  ///
+  /// In en, this message translates to:
+  /// **'Beauty care'**
+  String get categoryIconBeautySpa;
+
+  /// No description provided for @categoryIconBeautySkin.
+  ///
+  /// In en, this message translates to:
+  /// **'Skin care'**
+  String get categoryIconBeautySkin;
+
+  /// No description provided for @categoryIconBeautyHair.
+  ///
+  /// In en, this message translates to:
+  /// **'Hair care'**
+  String get categoryIconBeautyHair;
+
+  /// No description provided for @categoryIconBeautyCosmetics.
+  ///
+  /// In en, this message translates to:
+  /// **'Cosmetics'**
+  String get categoryIconBeautyCosmetics;
+
+  /// No description provided for @categoryIconBeautyHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'Health supplies'**
+  String get categoryIconBeautyHealth;
+
+  /// No description provided for @categoryIconBeautyHygiene.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal hygiene'**
+  String get categoryIconBeautyHygiene;
+
+  /// No description provided for @categoryIconBeautyMedical.
+  ///
+  /// In en, this message translates to:
+  /// **'First aid'**
+  String get categoryIconBeautyMedical;
+
+  /// No description provided for @categoryGroupSport.
+  ///
+  /// In en, this message translates to:
+  /// **'Sports & fitness'**
+  String get categoryGroupSport;
+
+  /// No description provided for @categoryIconSportFitness.
+  ///
+  /// In en, this message translates to:
+  /// **'Fitness'**
+  String get categoryIconSportFitness;
+
+  /// No description provided for @categoryIconSportCycling.
+  ///
+  /// In en, this message translates to:
+  /// **'Cycling'**
+  String get categoryIconSportCycling;
+
+  /// No description provided for @categoryIconSportFootball.
+  ///
+  /// In en, this message translates to:
+  /// **'Football'**
+  String get categoryIconSportFootball;
+
+  /// No description provided for @categoryIconSportBasketball.
+  ///
+  /// In en, this message translates to:
+  /// **'Basketball'**
+  String get categoryIconSportBasketball;
+
+  /// No description provided for @categoryIconSportTennis.
+  ///
+  /// In en, this message translates to:
+  /// **'Tennis'**
+  String get categoryIconSportTennis;
+
+  /// No description provided for @categoryIconSportSwimming.
+  ///
+  /// In en, this message translates to:
+  /// **'Swimming'**
+  String get categoryIconSportSwimming;
+
+  /// No description provided for @categoryIconSportCamping.
+  ///
+  /// In en, this message translates to:
+  /// **'Camping'**
+  String get categoryIconSportCamping;
+
+  /// No description provided for @categoryIconSportFishing.
+  ///
+  /// In en, this message translates to:
+  /// **'Fishing'**
+  String get categoryIconSportFishing;
+
+  /// No description provided for @categoryGroupKids.
+  ///
+  /// In en, this message translates to:
+  /// **'Babies & toys'**
+  String get categoryGroupKids;
+
+  /// No description provided for @categoryIconKidsBaby.
+  ///
+  /// In en, this message translates to:
+  /// **'Baby care'**
+  String get categoryIconKidsBaby;
+
+  /// No description provided for @categoryIconKidsStroller.
+  ///
+  /// In en, this message translates to:
+  /// **'Strollers'**
+  String get categoryIconKidsStroller;
+
+  /// No description provided for @categoryIconKidsToys.
+  ///
+  /// In en, this message translates to:
+  /// **'Toys'**
+  String get categoryIconKidsToys;
+
+  /// No description provided for @categoryIconKidsPuzzle.
+  ///
+  /// In en, this message translates to:
+  /// **'Puzzles'**
+  String get categoryIconKidsPuzzle;
+
+  /// No description provided for @categoryIconKidsScooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Skates & scooters'**
+  String get categoryIconKidsScooter;
+
+  /// No description provided for @categoryGroupAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto supplies'**
+  String get categoryGroupAuto;
+
+  /// No description provided for @categoryIconAutoCar.
+  ///
+  /// In en, this message translates to:
+  /// **'Car supplies'**
+  String get categoryIconAutoCar;
+
+  /// No description provided for @categoryIconAutoMotorcycle.
+  ///
+  /// In en, this message translates to:
+  /// **'Motorcycles'**
+  String get categoryIconAutoMotorcycle;
+
+  /// No description provided for @categoryIconAutoTires.
+  ///
+  /// In en, this message translates to:
+  /// **'Tires'**
+  String get categoryIconAutoTires;
+
+  /// No description provided for @categoryIconAutoFuel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fuel & oils'**
+  String get categoryIconAutoFuel;
+
+  /// No description provided for @categoryIconAutoTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Car tools'**
+  String get categoryIconAutoTools;
+
+  /// No description provided for @categoryGroupBooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Books & stationery'**
+  String get categoryGroupBooks;
+
+  /// No description provided for @categoryIconBooksReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Books'**
+  String get categoryIconBooksReading;
+
+  /// No description provided for @categoryIconBooksNotebooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Notebooks'**
+  String get categoryIconBooksNotebooks;
+
+  /// No description provided for @categoryIconBooksPens.
+  ///
+  /// In en, this message translates to:
+  /// **'Pens'**
+  String get categoryIconBooksPens;
+
+  /// No description provided for @categoryIconBooksArt.
+  ///
+  /// In en, this message translates to:
+  /// **'Art supplies'**
+  String get categoryIconBooksArt;
+
+  /// No description provided for @categoryIconBooksSchool.
+  ///
+  /// In en, this message translates to:
+  /// **'School supplies'**
+  String get categoryIconBooksSchool;
+
+  /// No description provided for @categoryGroupGarden.
+  ///
+  /// In en, this message translates to:
+  /// **'Pets, garden & tools'**
+  String get categoryGroupGarden;
+
+  /// No description provided for @categoryIconPetsSupplies.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet supplies'**
+  String get categoryIconPetsSupplies;
+
+  /// No description provided for @categoryIconGardenTrees.
+  ///
+  /// In en, this message translates to:
+  /// **'Garden plants'**
+  String get categoryIconGardenTrees;
+
+  /// No description provided for @categoryIconGardenFlowers.
+  ///
+  /// In en, this message translates to:
+  /// **'Flowers'**
+  String get categoryIconGardenFlowers;
+
+  /// No description provided for @categoryIconGardenTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Hand tools'**
+  String get categoryIconGardenTools;
+
+  /// No description provided for @categoryIconGardenBuilding.
+  ///
+  /// In en, this message translates to:
+  /// **'Building supplies'**
+  String get categoryIconGardenBuilding;
+
+  /// No description provided for @categoryIconGardenSolar.
+  ///
+  /// In en, this message translates to:
+  /// **'Solar supplies'**
+  String get categoryIconGardenSolar;
+
+  /// No description provided for @categoryIconGardenWatering.
+  ///
+  /// In en, this message translates to:
+  /// **'Garden care'**
+  String get categoryIconGardenWatering;
+
+  /// No description provided for @categoryGroupGifts.
+  ///
+  /// In en, this message translates to:
+  /// **'Gifts & general'**
+  String get categoryGroupGifts;
+
+  /// No description provided for @categoryIconGiftsPresent.
+  ///
+  /// In en, this message translates to:
+  /// **'Gifts'**
+  String get categoryIconGiftsPresent;
+
+  /// No description provided for @categoryIconBeautyFragrance.
+  ///
+  /// In en, this message translates to:
+  /// **'Fragrances'**
+  String get categoryIconBeautyFragrance;
+
+  /// No description provided for @categoryIconGiftsParty.
+  ///
+  /// In en, this message translates to:
+  /// **'Party supplies'**
+  String get categoryIconGiftsParty;
+
+  /// No description provided for @categoryIconGeneralCrafts.
+  ///
+  /// In en, this message translates to:
+  /// **'Craft supplies'**
+  String get categoryIconGeneralCrafts;
+
+  /// No description provided for @categoryIconGeneralMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Musical instruments'**
+  String get categoryIconGeneralMusic;
+
+  /// No description provided for @categoryIconGeneralCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'General products'**
+  String get categoryIconGeneralCategory;
+
+  /// No description provided for @categoryChooseIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose icon'**
+  String get categoryChooseIcon;
+
+  /// No description provided for @categorySearchIcons.
+  ///
+  /// In en, this message translates to:
+  /// **'Search icons'**
+  String get categorySearchIcons;
+
+  /// No description provided for @categoryAllGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'All groups'**
+  String get categoryAllGroups;
+
+  /// No description provided for @categoryNoIcons.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching icons'**
+  String get categoryNoIcons;
+
+  /// No description provided for @categoryDescriptionEn.
+  ///
+  /// In en, this message translates to:
+  /// **'Short description (English)'**
+  String get categoryDescriptionEn;
+
+  /// No description provided for @categoryDescriptionAr.
+  ///
+  /// In en, this message translates to:
+  /// **'Short description (Arabic)'**
+  String get categoryDescriptionAr;
+
+  /// No description provided for @categoryDescriptionLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Required · up to {words} words and {characters} characters'**
+  String categoryDescriptionLimit(String words, String characters);
+
+  /// No description provided for @categoryDescriptionInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a short description within both limits'**
+  String get categoryDescriptionInvalid;
+
+  /// No description provided for @categoryImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Category image'**
+  String get categoryImage;
+
+  /// No description provided for @mediaImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Product images'**
+  String get mediaImages;
+
+  /// No description provided for @mediaAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add images'**
+  String get mediaAdd;
+
+  /// No description provided for @mediaChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose image'**
+  String get mediaChoose;
+
+  /// No description provided for @mediaReplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get mediaReplace;
+
+  /// No description provided for @mediaRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get mediaRemove;
+
+  /// No description provided for @mediaEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Move earlier'**
+  String get mediaEarlier;
+
+  /// No description provided for @mediaLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Move later'**
+  String get mediaLater;
+
+  /// No description provided for @mediaEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No image selected'**
+  String get mediaEmpty;
+
+  /// No description provided for @mediaSessionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected photos last only for this mock session.'**
+  String get mediaSessionHint;
+
+  /// No description provided for @mediaRemoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo upload awaits backend support.'**
+  String get mediaRemoteHint;
+
+  /// No description provided for @mediaPickError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open or read the selected photos. Try again.'**
+  String get mediaPickError;
+
+  /// No description provided for @categoryVisible.
+  ///
+  /// In en, this message translates to:
+  /// **'Visible to customers'**
+  String get categoryVisible;
+
+  /// No description provided for @adminAddMainCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Add main category'**
+  String get adminAddMainCategory;
+
+  /// No description provided for @adminAddSubcategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Add subcategory'**
+  String get adminAddSubcategory;
+
+  /// No description provided for @adminBackToCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Main categories'**
+  String get adminBackToCategories;
+
+  /// No description provided for @adminChooseCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a main category to manage its subcategories'**
+  String get adminChooseCategory;
+
+  /// No description provided for @adminSubcategoryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} subcategories'**
+  String adminSubcategoryCount(String count);
+
+  /// No description provided for @adminDisplayOrderValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Display order: {order}'**
+  String adminDisplayOrderValue(String order);
+
+  /// No description provided for @adminMainCategoryFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Main category'**
+  String get adminMainCategoryFilter;
+
+  /// No description provided for @adminSubcategoryFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Subcategory'**
+  String get adminSubcategoryFilter;
+
+  /// No description provided for @adminAllProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'All products'**
+  String get adminAllProducts;
+
+  /// No description provided for @adminAllSubcategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole category'**
+  String get adminAllSubcategories;
+
+  /// No description provided for @adminProductScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Scope: {scope}'**
+  String adminProductScope(String scope);
+
+  /// No description provided for @adminSearchAllProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Search all products'**
+  String get adminSearchAllProducts;
+
+  /// No description provided for @mediaPrimary.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary image'**
+  String get mediaPrimary;
+
+  /// No description provided for @mediaMakePrimary.
+  ///
+  /// In en, this message translates to:
+  /// **'Make primary'**
+  String get mediaMakePrimary;
+
+  /// No description provided for @mediaPrimaryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The first image is primary. Reordering changes the primary image.'**
+  String get mediaPrimaryHint;
+
+  /// No description provided for @mediaRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this image?'**
+  String get mediaRemoveConfirm;
+
+  /// No description provided for @mediaRemoveMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this image will be removed from the draft. The category or product will remain.'**
+  String get mediaRemoveMessage;
+
+  /// No description provided for @mediaRemovePrimaryMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the primary image from the draft? The product will remain, and the first remaining image (if any) will become primary.'**
+  String get mediaRemovePrimaryMessage;
+
+  /// No description provided for @mediaProductGuidance.
+  ///
+  /// In en, this message translates to:
+  /// **'Square (1:1) works best. Choose a clear original for zooming; the display crops edges without stretching.'**
+  String get mediaProductGuidance;
+
+  /// No description provided for @mediaMainCategoryGuidance.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a landscape photo with the subject in the center. The crop ratio changes with the card width.'**
+  String get mediaMainCategoryGuidance;
+
+  /// No description provided for @mediaSubcategoryGuidance.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved for future use. Current subcategory tiles show the icon, so no photo ratio is required yet.'**
+  String get mediaSubcategoryGuidance;
+
+  /// No description provided for @adminViewSubcategories.
+  ///
+  /// In en, this message translates to:
+  /// **'View subcategories'**
+  String get adminViewSubcategories;
+
+  /// No description provided for @adminRetainedProductCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it.'**
+  String get adminRetainedProductCategory;
 }
 
 class _AppLocalizationsDelegate

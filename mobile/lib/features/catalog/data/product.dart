@@ -1,5 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import 'media/catalog_image.dart';
+
 part 'product.g.dart';
 
 /// A purchasable variant of a product. Shapes match `ProductVariant` in
@@ -56,6 +58,7 @@ class Product {
     this.inStock = true,
     this.availableQty = 0,
     this.images = const [],
+    this.mockImages,
     this.variants = const [],
   }) : effectivePrice = effectivePrice ?? salePrice ?? price,
        _legacySalePrice = salePrice,
@@ -130,6 +133,15 @@ class Product {
   @JsonKey(name: 'available_qty')
   final int availableQty;
   final List<String> images;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final List<CatalogImage>? mockImages;
+  List<CatalogImage> get displayImages =>
+      mockImages ?? images.map(UrlCatalogImage.new).toList(growable: false);
+
+  factory Product.fromMock(Map<String, dynamic> json) => Product.fromJson(
+    json,
+  ).copyWith(mockImages: (json['mock_images'] as List?)?.cast<CatalogImage>());
+  Map<String, dynamic> toMock() => {...toJson(), 'mock_images': mockImages};
   final List<ProductVariant> variants;
 
   /// The name for the active language, falling back to the other side.
@@ -139,9 +151,16 @@ class Product {
   }
 
   /// First image, or null when the product has none (the UI shows a placeholder).
-  String? get primaryImage => images.isNotEmpty ? images.first : null;
+  CatalogImage? get primaryDisplayImage => displayImages.firstOrNull;
 
-  Product copyWith({List<String>? images}) => Product(
+  /// URL-only consumers cannot represent session-local bytes. Never return an
+  /// unrelated old URL when the current primary image is local.
+  String? get primaryImage => switch (primaryDisplayImage) {
+    UrlCatalogImage(:final url) => url,
+    _ => null,
+  };
+
+  Product copyWith({List<String>? images, List<CatalogImage>? mockImages}) => Product(
     id: id,
     categoryId: categoryId,
     nameEn: nameEn,
@@ -167,6 +186,7 @@ class Product {
     inStock: inStock,
     availableQty: availableQty,
     images: images ?? this.images,
+    mockImages: mockImages ?? this.mockImages,
     variants: variants,
   );
 

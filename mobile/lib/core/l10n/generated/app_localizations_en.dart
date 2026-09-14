@@ -1136,23 +1136,561 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mainCategoriesTitle => 'Main Categories';
 
   @override
-  String get mockCategoryElectronicsDescription =>
-      'Phones, devices and accessories';
+  String get categoryGroupElectronics => 'Electronics';
 
   @override
-  String get mockCategoryGroceryDescription => 'Food and everyday essentials';
+  String get categoryIconElectronicsDevices => 'Devices';
 
   @override
-  String get mockCategoryClothingDescription => 'Clothing for the whole family';
+  String get categoryIconElectronicsCable => 'Cables';
 
   @override
-  String get mockCategoryHomeDescription => 'Kitchenware and home essentials';
+  String get categoryIconElectronicsRouter => 'Routers';
 
   @override
-  String get mockCategoryBeautyDescription =>
-      'Skin care, hair care and fragrances';
+  String get categoryIconElectronicsTv => 'Televisions';
 
   @override
-  String get mockCategorySportsDescription =>
-      'Fitness, cycling and outdoor gear';
+  String get categoryIconElectronicsPower => 'Electrical supplies';
+
+  @override
+  String get categoryIconElectronicsBattery => 'Batteries';
+
+  @override
+  String get categoryGroupPhones => 'Phones';
+
+  @override
+  String get categoryIconMobilePhone => 'Phones';
+
+  @override
+  String get categoryIconMobileTablet => 'Tablets';
+
+  @override
+  String get categoryIconMobileCharging => 'Chargers';
+
+  @override
+  String get categoryIconMobileWatch => 'Smart watches';
+
+  @override
+  String get categoryGroupComputers => 'Computers';
+
+  @override
+  String get categoryIconComputerLaptop => 'Laptops';
+
+  @override
+  String get categoryIconComputerDesktop => 'Desktop computers';
+
+  @override
+  String get categoryIconComputerKeyboard => 'Keyboards';
+
+  @override
+  String get categoryIconComputerMouse => 'Mice';
+
+  @override
+  String get categoryIconComputerPrinter => 'Printers';
+
+  @override
+  String get categoryIconComputerStorage => 'Storage';
+
+  @override
+  String get categoryGroupAudio => 'Audio';
+
+  @override
+  String get categoryIconAudioHeadphones => 'Headphones';
+
+  @override
+  String get categoryIconAudioEarbuds => 'Earbuds';
+
+  @override
+  String get categoryIconAudioSpeaker => 'Speakers';
+
+  @override
+  String get categoryIconAudioMic => 'Microphones';
+
+  @override
+  String get categoryIconAudioRadio => 'Radios';
+
+  @override
+  String get categoryGroupCameras => 'Cameras';
+
+  @override
+  String get categoryIconCameraPhoto => 'Cameras';
+
+  @override
+  String get categoryIconCameraVideo => 'Video cameras';
+
+  @override
+  String get categoryIconCameraLens => 'Lenses';
+
+  @override
+  String get categoryIconCameraSecurity => 'Security cameras';
+
+  @override
+  String get categoryGroupGaming => 'Gaming';
+
+  @override
+  String get categoryIconGamingConsole => 'Game consoles';
+
+  @override
+  String get categoryIconGamingController => 'Controllers';
+
+  @override
+  String get categoryGroupFashion => 'Fashion';
+
+  @override
+  String get categoryIconFashionClothing => 'Clothing';
+
+  @override
+  String get categoryIconFashionMen => 'Menswear';
+
+  @override
+  String get categoryIconFashionWomen => 'Womenswear';
+
+  @override
+  String get categoryIconFashionShoes => 'Footwear';
+
+  @override
+  String get categoryIconFashionUniform => 'Workwear';
+
+  @override
+  String get categoryIconFashionLaundry => 'Clothing care';
+
+  @override
+  String get categoryGroupAccessories => 'Bags & accessories';
+
+  @override
+  String get categoryIconAccessoriesWatch => 'Watches';
+
+  @override
+  String get categoryIconAccessoriesBag => 'Bags';
+
+  @override
+  String get categoryIconAccessoriesBackpack => 'Backpacks';
+
+  @override
+  String get categoryIconAccessoriesLuggage => 'Luggage';
+
+  @override
+  String get categoryIconAccessoriesJewelry => 'Jewelry';
+
+  @override
+  String get categoryIconAccessoriesUmbrella => 'Umbrellas';
+
+  @override
+  String get categoryGroupHome => 'Home & furniture';
+
+  @override
+  String get categoryIconHomeFurniture => 'Furniture';
+
+  @override
+  String get categoryIconHomeChair => 'Chairs';
+
+  @override
+  String get categoryIconHomeBed => 'Beds';
+
+  @override
+  String get categoryIconHomeTable => 'Tables';
+
+  @override
+  String get categoryIconHomeLighting => 'Lighting';
+
+  @override
+  String get categoryIconHomeBath => 'Bathroom';
+
+  @override
+  String get categoryIconHomeCurtains => 'Curtains';
+
+  @override
+  String get categoryIconHomeBedding => 'Bedding';
+
+  @override
+  String get categoryGroupKitchen => 'Kitchen';
+
+  @override
+  String get categoryIconKitchenAppliances => 'Appliances';
+
+  @override
+  String get categoryIconKitchenCooking => 'Cookware';
+
+  @override
+  String get categoryIconKitchenTableware => 'Tableware';
+
+  @override
+  String get categoryIconKitchenBlender => 'Blenders';
+
+  @override
+  String get categoryIconKitchenMicrowave => 'Microwaves';
+
+  @override
+  String get categoryIconKitchenKettle => 'Coffee makers';
+
+  @override
+  String get categoryGroupCleaning => 'Cleaning';
+
+  @override
+  String get categoryIconCleaningSupplies => 'Cleaning supplies';
+
+  @override
+  String get categoryIconCleaningSoap => 'Soap';
+
+  @override
+  String get categoryIconCleaningBins => 'Waste bins';
+
+  @override
+  String get categoryIconCleaningWater => 'Water care';
+
+  @override
+  String get categoryGroupFood => 'Grocery & food';
+
+  @override
+  String get categoryIconGroceryFood => 'Groceries';
+
+  @override
+  String get categoryIconFoodRice => 'Rice & grains';
+
+  @override
+  String get categoryIconFoodBakery => 'Bakery';
+
+  @override
+  String get categoryIconFoodFruit => 'Fruit';
+
+  @override
+  String get categoryIconFoodVegetables => 'Vegetables';
+
+  @override
+  String get categoryIconFoodMeat => 'Meat';
+
+  @override
+  String get categoryIconFoodSeafood => 'Seafood';
+
+  @override
+  String get categoryIconFoodPizza => 'Pizza';
+
+  @override
+  String get categoryIconFoodIcecream => 'Ice cream';
+
+  @override
+  String get categoryIconFoodCake => 'Cakes';
+
+  @override
+  String get categoryIconFoodEggs => 'Eggs';
+
+  @override
+  String get categoryIconFoodSnacks => 'Snacks';
+
+  @override
+  String get categoryGroupDrinks => 'Drinks';
+
+  @override
+  String get categoryIconDrinksCoffee => 'Coffee';
+
+  @override
+  String get categoryIconDrinksTea => 'Tea';
+
+  @override
+  String get categoryIconDrinksJuice => 'Juices';
+
+  @override
+  String get categoryIconDrinksWater => 'Water';
+
+  @override
+  String get categoryGroupBeauty => 'Health & beauty';
+
+  @override
+  String get categoryIconBeautySpa => 'Beauty care';
+
+  @override
+  String get categoryIconBeautySkin => 'Skin care';
+
+  @override
+  String get categoryIconBeautyHair => 'Hair care';
+
+  @override
+  String get categoryIconBeautyCosmetics => 'Cosmetics';
+
+  @override
+  String get categoryIconBeautyHealth => 'Health supplies';
+
+  @override
+  String get categoryIconBeautyHygiene => 'Personal hygiene';
+
+  @override
+  String get categoryIconBeautyMedical => 'First aid';
+
+  @override
+  String get categoryGroupSport => 'Sports & fitness';
+
+  @override
+  String get categoryIconSportFitness => 'Fitness';
+
+  @override
+  String get categoryIconSportCycling => 'Cycling';
+
+  @override
+  String get categoryIconSportFootball => 'Football';
+
+  @override
+  String get categoryIconSportBasketball => 'Basketball';
+
+  @override
+  String get categoryIconSportTennis => 'Tennis';
+
+  @override
+  String get categoryIconSportSwimming => 'Swimming';
+
+  @override
+  String get categoryIconSportCamping => 'Camping';
+
+  @override
+  String get categoryIconSportFishing => 'Fishing';
+
+  @override
+  String get categoryGroupKids => 'Babies & toys';
+
+  @override
+  String get categoryIconKidsBaby => 'Baby care';
+
+  @override
+  String get categoryIconKidsStroller => 'Strollers';
+
+  @override
+  String get categoryIconKidsToys => 'Toys';
+
+  @override
+  String get categoryIconKidsPuzzle => 'Puzzles';
+
+  @override
+  String get categoryIconKidsScooter => 'Skates & scooters';
+
+  @override
+  String get categoryGroupAuto => 'Auto supplies';
+
+  @override
+  String get categoryIconAutoCar => 'Car supplies';
+
+  @override
+  String get categoryIconAutoMotorcycle => 'Motorcycles';
+
+  @override
+  String get categoryIconAutoTires => 'Tires';
+
+  @override
+  String get categoryIconAutoFuel => 'Fuel & oils';
+
+  @override
+  String get categoryIconAutoTools => 'Car tools';
+
+  @override
+  String get categoryGroupBooks => 'Books & stationery';
+
+  @override
+  String get categoryIconBooksReading => 'Books';
+
+  @override
+  String get categoryIconBooksNotebooks => 'Notebooks';
+
+  @override
+  String get categoryIconBooksPens => 'Pens';
+
+  @override
+  String get categoryIconBooksArt => 'Art supplies';
+
+  @override
+  String get categoryIconBooksSchool => 'School supplies';
+
+  @override
+  String get categoryGroupGarden => 'Pets, garden & tools';
+
+  @override
+  String get categoryIconPetsSupplies => 'Pet supplies';
+
+  @override
+  String get categoryIconGardenTrees => 'Garden plants';
+
+  @override
+  String get categoryIconGardenFlowers => 'Flowers';
+
+  @override
+  String get categoryIconGardenTools => 'Hand tools';
+
+  @override
+  String get categoryIconGardenBuilding => 'Building supplies';
+
+  @override
+  String get categoryIconGardenSolar => 'Solar supplies';
+
+  @override
+  String get categoryIconGardenWatering => 'Garden care';
+
+  @override
+  String get categoryGroupGifts => 'Gifts & general';
+
+  @override
+  String get categoryIconGiftsPresent => 'Gifts';
+
+  @override
+  String get categoryIconBeautyFragrance => 'Fragrances';
+
+  @override
+  String get categoryIconGiftsParty => 'Party supplies';
+
+  @override
+  String get categoryIconGeneralCrafts => 'Craft supplies';
+
+  @override
+  String get categoryIconGeneralMusic => 'Musical instruments';
+
+  @override
+  String get categoryIconGeneralCategory => 'General products';
+
+  @override
+  String get categoryChooseIcon => 'Choose icon';
+
+  @override
+  String get categorySearchIcons => 'Search icons';
+
+  @override
+  String get categoryAllGroups => 'All groups';
+
+  @override
+  String get categoryNoIcons => 'No matching icons';
+
+  @override
+  String get categoryDescriptionEn => 'Short description (English)';
+
+  @override
+  String get categoryDescriptionAr => 'Short description (Arabic)';
+
+  @override
+  String categoryDescriptionLimit(String words, String characters) {
+    return 'Required · up to $words words and $characters characters';
+  }
+
+  @override
+  String get categoryDescriptionInvalid =>
+      'Enter a short description within both limits';
+
+  @override
+  String get categoryImage => 'Category image';
+
+  @override
+  String get mediaImages => 'Product images';
+
+  @override
+  String get mediaAdd => 'Add images';
+
+  @override
+  String get mediaChoose => 'Choose image';
+
+  @override
+  String get mediaReplace => 'Replace';
+
+  @override
+  String get mediaRemove => 'Remove';
+
+  @override
+  String get mediaEarlier => 'Move earlier';
+
+  @override
+  String get mediaLater => 'Move later';
+
+  @override
+  String get mediaEmpty => 'No image selected';
+
+  @override
+  String get mediaSessionHint =>
+      'Selected photos last only for this mock session.';
+
+  @override
+  String get mediaRemoteHint => 'Photo upload awaits backend support.';
+
+  @override
+  String get mediaPickError =>
+      'Could not open or read the selected photos. Try again.';
+
+  @override
+  String get categoryVisible => 'Visible to customers';
+
+  @override
+  String get adminAddMainCategory => 'Add main category';
+
+  @override
+  String get adminAddSubcategory => 'Add subcategory';
+
+  @override
+  String get adminBackToCategories => 'Main categories';
+
+  @override
+  String get adminChooseCategory =>
+      'Choose a main category to manage its subcategories';
+
+  @override
+  String adminSubcategoryCount(String count) {
+    return '$count subcategories';
+  }
+
+  @override
+  String adminDisplayOrderValue(String order) {
+    return 'Display order: $order';
+  }
+
+  @override
+  String get adminMainCategoryFilter => 'Main category';
+
+  @override
+  String get adminSubcategoryFilter => 'Subcategory';
+
+  @override
+  String get adminAllProducts => 'All products';
+
+  @override
+  String get adminAllSubcategories => 'Whole category';
+
+  @override
+  String adminProductScope(String scope) {
+    return 'Scope: $scope';
+  }
+
+  @override
+  String get adminSearchAllProducts => 'Search all products';
+
+  @override
+  String get mediaPrimary => 'Primary image';
+
+  @override
+  String get mediaMakePrimary => 'Make primary';
+
+  @override
+  String get mediaPrimaryHint =>
+      'The first image is primary. Reordering changes the primary image.';
+
+  @override
+  String get mediaRemoveConfirm => 'Remove this image?';
+
+  @override
+  String get mediaRemoveMessage =>
+      'Only this image will be removed from the draft. The category or product will remain.';
+
+  @override
+  String get mediaRemovePrimaryMessage =>
+      'Remove the primary image from the draft? The product will remain, and the first remaining image (if any) will become primary.';
+
+  @override
+  String get mediaProductGuidance =>
+      'Square (1:1) works best. Choose a clear original for zooming; the display crops edges without stretching.';
+
+  @override
+  String get mediaMainCategoryGuidance =>
+      'Use a landscape photo with the subject in the center. The crop ratio changes with the card width.';
+
+  @override
+  String get mediaSubcategoryGuidance =>
+      'Saved for future use. Current subcategory tiles show the icon, so no photo ratio is required yet.';
+
+  @override
+  String get adminViewSubcategories => 'View subcategories';
+
+  @override
+  String get adminRetainedProductCategory =>
+      'The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it.';
 }

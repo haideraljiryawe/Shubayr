@@ -1,4 +1,6 @@
 import '../widgets/admin_list_toolbar.dart';
+import '../widgets/admin_category_hierarchy.dart';
+import '../widgets/admin_product_scope.dart';
 import '../widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'dart:async';
@@ -35,11 +37,27 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
   Timer? _debounce;
   String _query = '';
   String? _role;
+  String? _mainCategoryId;
+  String? _childCategoryId;
+  String? _categoryFocusId;
+
+  void _scope(String? mainId, String? childId) {
+    _debounce?.cancel();
+    setState(() {
+      _mainCategoryId = mainId;
+      _childCategoryId = childId;
+      _query = _search.text.trim();
+    });
+  }
+
   AdminQuery get query => AdminQuery(
     widget.resource,
     text: _query,
     role: _role,
     warehouseId: widget.warehouseId,
+    categoryId: widget.resource == AdminResource.products
+        ? _childCategoryId ?? _mainCategoryId
+        : null,
   );
   @override
   void dispose() {
@@ -48,10 +66,14 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
     super.dispose();
   }
 
-  Future<void> _form([AdminRecord? record]) async {
+  Future<void> _form({AdminRecord? record, AdminRecord? categoryParent}) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => AdminRecordForm(query: query, record: record),
+        builder: (_) => AdminRecordForm(
+          query: query,
+          record: record,
+          categoryParent: categoryParent,
+        ),
       ),
     );
   }
@@ -130,13 +152,20 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
           !AppLayout.isDesktop(context) && r.canCreate && canWrite
           ? FloatingActionButton.extended(
               onPressed: () => _form(),
-              label: Text(l.adminAdd),
+              label: Text(
+                r == AdminResource.categories
+                    ? l.adminAddMainCategory
+                    : l.adminAdd,
+              ),
               icon: const Icon(Icons.add),
             )
           : null,
       body: Column(
         children: [
           AdminListToolbar(
+            addLabel: r == AdminResource.categories
+                ? l.adminAddMainCategory
+                : null,
             onAdd: r.canCreate && canWrite ? () => _form() : null,
             fields: [
               if (r.canSearch)
@@ -156,6 +185,19 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
                     });
                   },
                 ),
+              if (r == AdminResource.products) ...[
+                AdminProductScopeField(
+                  mainId: _mainCategoryId,
+                  childId: _childCategoryId,
+                  onChanged: _scope,
+                ),
+                AdminProductScopeField(
+                  mainId: _mainCategoryId,
+                  childId: _childCategoryId,
+                  onChanged: _scope,
+                  subcategory: true,
+                ),
+              ],
               if (r == AdminResource.users)
                 _RoleFilter(
                   value: _role,
@@ -163,197 +205,253 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
                 ),
             ],
           ),
+          if (r == AdminResource.products)
+            Padding(
+              padding: AppLayout.pageInsets(
+                context,
+                top: 0,
+                bottom: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AdminProductScopeSummary(
+                      categoryId: _childCategoryId ?? _mainCategoryId,
+                    ),
+                  ),
+                  if (_mainCategoryId != null)
+                    Flexible(
+                      child: TextButton(
+                        key: const ValueKey('admin-search-all-products'),
+                        onPressed: () => _scope(null, null),
+                        child: Text(l.adminSearchAllProducts),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           if (r == AdminResource.warehouses || r == AdminResource.locations)
             const _SelectionSummary(),
           Expanded(
             child: AsyncValueView(
               value: value,
-              loading: Padding(
-                padding: AppLayout.pageInsets(context),
-                child: SkeletonCardList(minItemWidth: AppLayout.cardMinWidth),
-              ),
+              loading: r == AdminResource.categories
+                  ? const AdminCategoryHierarchySkeleton()
+                  : Padding(
+                      padding: AppLayout.pageInsets(context),
+                      child: SkeletonCardList(
+                        minItemWidth: AppLayout.cardMinWidth,
+                      ),
+                    ),
               onRetry: controller.refresh,
-              builder: (context, list) => RefreshIndicator(
-                onRefresh: controller.refresh,
-                child: NotificationListener<ScrollMetricsNotification>(
-                  onNotification: (n) {
-                    if (n.depth == 0) nearEnd(n.metrics);
-                    return false;
-                  },
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (n) {
-                      if (n.depth == 0) nearEnd(n.metrics);
-                      return false;
-                    },
-                    child: list.items.isEmpty
-                        ? CustomScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            slivers: [
-                              SliverFillRemaining(
-                                hasScrollBody: false,
-                                child: AppEmptyView(
-                                  title: l.adminEmpty,
-                                  message: '',
-                                ),
-                              ),
-                            ],
-                          )
-                        : ResponsiveCardList(
-                            key: ValueKey(query),
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: EdgeInsetsDirectional.fromSTEB(
-                              AppLayout.pageHorizontal(context),
-                              AppSpacing.sm,
-                              AppLayout.pageHorizontal(context),
-                              AppSpacing.xxxl * 2,
-                            ),
-                            itemCount: list.items.length,
-                            footer: list.appendError != null
-                                ? AppErrorView(
-                                    error: list.appendError,
-                                    onRetry: controller.loadMore,
-                                  )
-                                : list.loadingMore
-                                ? const SkeletonCardList(itemCount: 1)
-                                : null,
-                            itemBuilder: (context, index) {
-                              final record = list.items[index];
-                              final lang = Localizations.localeOf(
-                                context,
-                              ).languageCode;
-                              return AppCard(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      r == AdminResource.locations
-                                          ? ['zone', 'aisle', 'shelf', 'bin']
-                                                .where(
-                                                  (key) => record
-                                                      .text(key)
-                                                      .isNotEmpty,
-                                                )
-                                                .map(
-                                                  (key) =>
-                                                      '${adminFieldLabel(l, key)}: ${record.text(key)}',
-                                                )
-                                                .join(' · ')
-                                          : record.label(lang),
-                                      style: context.text.titleSmall,
+              builder: (context, list) => r == AdminResource.categories
+                  ? AdminCategoryHierarchy(
+                      records: list.items,
+                      selectedId: _categoryFocusId,
+                      onSelected: (id) => setState(() => _categoryFocusId = id),
+                      onRefresh: controller.refresh,
+                      onEdit: canWrite
+                          ? (record) => _form(record: record)
+                          : null,
+                      onDelete: canWrite ? _delete : null,
+                      onAddChild: canWrite
+                          ? (parent) => _form(categoryParent: parent)
+                          : null,
+                    )
+                  : RefreshIndicator(
+                      onRefresh: controller.refresh,
+                      child: NotificationListener<ScrollMetricsNotification>(
+                        onNotification: (n) {
+                          if (n.depth == 0) nearEnd(n.metrics);
+                          return false;
+                        },
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: (n) {
+                            if (n.depth == 0) nearEnd(n.metrics);
+                            return false;
+                          },
+                          child: list.items.isEmpty
+                              ? CustomScrollView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  slivers: [
+                                    SliverFillRemaining(
+                                      hasScrollBody: false,
+                                      child: AppEmptyView(
+                                        title: l.adminEmpty,
+                                        message: '',
+                                      ),
                                     ),
-                                    const SizedBox(height: AppSpacing.sm),
-                                    if (r == AdminResource.products)
-                                      Text(
-                                        '${l.adminFieldPrice}: ${record.text('sale_price')} · ${adminStatusLabel(l, record.text('status'))}',
-                                        style: context.text.bodySmall,
-                                      ),
-                                    if (r == AdminResource.users)
-                                      Text(
-                                        '${record.text('phone')} · ${record.text('role')}',
-                                      ),
-                                    if (r == AdminResource.suppliers)
-                                      Text(
-                                        [
-                                              record.text('phone'),
-                                              record.text('address'),
-                                            ]
-                                            .where((s) => s.isNotEmpty)
-                                            .join(' · '),
-                                      ),
-                                    if (record.json.containsKey('is_active'))
-                                      Text(
-                                        record.flag('is_active')
-                                            ? l.adminFieldActive
-                                            : l.adminInactive,
-                                        style: context.text.bodySmall,
-                                      ),
-                                    if (r == AdminResource.categories &&
-                                        record.text('parent_id').isNotEmpty)
-                                      Text(
-                                        '${l.adminFieldParent}: ${list.items.where((v) => v.id == record.text('parent_id')).firstOrNull?.label(lang) ?? record.text('parent_id')}',
-                                        style: context.text.bodySmall,
-                                      ),
-                                    if (r == AdminResource.roles)
-                                      Text(
-                                        '${l.adminPermissions}: ${(record.json['permissions'] as List? ?? []).length}',
-                                        style: context.text.bodySmall,
-                                      ),
-                                    if (canWrite && r.canEdit)
-                                      Wrap(
-                                        spacing: AppSpacing.sm,
+                                  ],
+                                )
+                              : ResponsiveCardList(
+                                  key: ValueKey(query),
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: EdgeInsetsDirectional.fromSTEB(
+                                    AppLayout.pageHorizontal(context),
+                                    AppSpacing.sm,
+                                    AppLayout.pageHorizontal(context),
+                                    AppSpacing.xxxl * 2,
+                                  ),
+                                  itemCount: list.items.length,
+                                  footer: list.appendError != null
+                                      ? AppErrorView(
+                                          error: list.appendError,
+                                          onRetry: controller.loadMore,
+                                        )
+                                      : list.loadingMore
+                                      ? const SkeletonCardList(itemCount: 1)
+                                      : null,
+                                  itemBuilder: (context, index) {
+                                    final record = list.items[index];
+                                    final lang = Localizations.localeOf(
+                                      context,
+                                    ).languageCode;
+                                    return AppCard(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          TextButton.icon(
-                                            onPressed: () => _form(record),
-                                            icon: const Icon(
-                                              Icons.edit_outlined,
-                                            ),
-                                            label: Text(l.adminEdit),
+                                          Text(
+                                            r == AdminResource.locations
+                                                ? [
+                                                        'zone',
+                                                        'aisle',
+                                                        'shelf',
+                                                        'bin',
+                                                      ]
+                                                      .where(
+                                                        (key) => record
+                                                            .text(key)
+                                                            .isNotEmpty,
+                                                      )
+                                                      .map(
+                                                        (key) =>
+                                                            '${adminFieldLabel(l, key)}: ${record.text(key)}',
+                                                      )
+                                                      .join(' · ')
+                                                : record.label(lang),
+                                            style: context.text.titleSmall,
                                           ),
-                                          if (!(r == AdminResource.roles &&
-                                              record.flag('is_system')))
-                                            TextButton.icon(
-                                              onPressed: () => _delete(record),
-                                              icon: const Icon(
-                                                Icons.delete_outline,
-                                              ),
-                                              label: Text(l.actionDelete),
+                                          const SizedBox(height: AppSpacing.sm),
+                                          if (r == AdminResource.products)
+                                            Text(
+                                              '${l.adminFieldPrice}: ${record.text('sale_price')} · ${adminStatusLabel(l, record.text('status'))}',
+                                              style: context.text.bodySmall,
+                                            ),
+                                          if (r == AdminResource.users)
+                                            Text(
+                                              '${record.text('phone')} · ${record.text('role')}',
+                                            ),
+                                          if (r == AdminResource.suppliers)
+                                            Text(
+                                              [
+                                                    record.text('phone'),
+                                                    record.text('address'),
+                                                  ]
+                                                  .where((s) => s.isNotEmpty)
+                                                  .join(' · '),
+                                            ),
+                                          if (record.json.containsKey(
+                                            'is_active',
+                                          ))
+                                            Text(
+                                              record.flag('is_active')
+                                                  ? l.adminFieldActive
+                                                  : l.adminInactive,
+                                              style: context.text.bodySmall,
+                                            ),
+                                          if (r == AdminResource.roles)
+                                            Text(
+                                              '${l.adminPermissions}: ${(record.json['permissions'] as List? ?? []).length}',
+                                              style: context.text.bodySmall,
+                                            ),
+                                          if (canWrite && r.canEdit)
+                                            Wrap(
+                                              spacing: AppSpacing.sm,
+                                              children: [
+                                                TextButton.icon(
+                                                  onPressed: () =>
+                                                      _form(record: record),
+                                                  icon: const Icon(
+                                                    Icons.edit_outlined,
+                                                  ),
+                                                  label: Text(l.adminEdit),
+                                                ),
+                                                if (!(r ==
+                                                        AdminResource.roles &&
+                                                    record.flag('is_system')))
+                                                  TextButton.icon(
+                                                    onPressed: () =>
+                                                        _delete(record),
+                                                    icon: const Icon(
+                                                      Icons.delete_outline,
+                                                    ),
+                                                    label: Text(l.actionDelete),
+                                                  ),
+                                              ],
+                                            ),
+                                          if (r == AdminResource.warehouses)
+                                            AppButton(
+                                              label: l.adminLocations,
+                                              variant:
+                                                  AppButtonVariant.secondary,
+                                              onPressed:
+                                                  !record.flag('is_active')
+                                                  ? null
+                                                  : () {
+                                                      ref
+                                                          .read(
+                                                            warehouseSelectionProvider
+                                                                .notifier,
+                                                          )
+                                                          .selectWarehouse(
+                                                            record,
+                                                          );
+                                                      context.push(
+                                                        '/admin/manage/locations?warehouse=${record.id}',
+                                                      );
+                                                    },
+                                            ),
+                                          if (r == AdminResource.locations)
+                                            AppButton(
+                                              label:
+                                                  ref
+                                                          .watch(
+                                                            warehouseSelectionProvider,
+                                                          )
+                                                          .location
+                                                          ?.id ==
+                                                      record.id
+                                                  ? l.adminSelected
+                                                  : l.adminSelect,
+                                              onPressed:
+                                                  ref
+                                                          .watch(
+                                                            warehouseSelectionProvider,
+                                                          )
+                                                          .warehouse
+                                                          ?.id !=
+                                                      record.text(
+                                                        'warehouse_id',
+                                                      )
+                                                  ? null
+                                                  : () => ref
+                                                        .read(
+                                                          warehouseSelectionProvider
+                                                              .notifier,
+                                                        )
+                                                        .selectLocation(record),
                                             ),
                                         ],
                                       ),
-                                    if (r == AdminResource.warehouses)
-                                      AppButton(
-                                        label: l.adminLocations,
-                                        variant: AppButtonVariant.secondary,
-                                        onPressed: !record.flag('is_active')
-                                            ? null
-                                            : () {
-                                                ref
-                                                    .read(
-                                                      warehouseSelectionProvider
-                                                          .notifier,
-                                                    )
-                                                    .selectWarehouse(record);
-                                                context.push(
-                                                  '/admin/manage/locations?warehouse=${record.id}',
-                                                );
-                                              },
-                                      ),
-                                    if (r == AdminResource.locations)
-                                      AppButton(
-                                        label:
-                                            ref
-                                                    .watch(
-                                                      warehouseSelectionProvider,
-                                                    )
-                                                    .location
-                                                    ?.id ==
-                                                record.id
-                                            ? l.adminSelected
-                                            : l.adminSelect,
-                                        onPressed:
-                                            ref
-                                                    .watch(
-                                                      warehouseSelectionProvider,
-                                                    )
-                                                    .warehouse
-                                                    ?.id !=
-                                                record.text('warehouse_id')
-                                            ? null
-                                            : () => ref
-                                                  .read(
-                                                    warehouseSelectionProvider
-                                                        .notifier,
-                                                  )
-                                                  .selectLocation(record),
-                                      ),
-                                  ],
+                                    );
+                                  },
                                 ),
-                              );
-                            },
-                          ),
-                  ),
-                ),
-              ),
+                        ),
+                      ),
+                    ),
             ),
           ),
         ],
