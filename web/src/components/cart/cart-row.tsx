@@ -118,10 +118,8 @@ export function CartRow({
           >
             <Price
               amount={lineTotal(line)}
-              compareAt={
-                line.compare_at_price
-                  ? line.compare_at_price * line.quantity
-                  : null
+              regularPrice={
+                line.regular_price ? line.regular_price * line.quantity : null
               }
             />
           </div>

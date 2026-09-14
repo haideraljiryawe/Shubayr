@@ -98,8 +98,11 @@ real API at `NEXT_PUBLIC_API_URL`.
 - Price, minimum rating, subcategory, sale status, sort and pagination live in
   the URL. Mobile filters use a keyboard-accessible modal sheet; desktop uses
   a left sidebar. Wishlist selections persist locally without a backend write.
-- ProductCard consumes `compare_at_price` and `discount_percent`; numbers and
-  prices remain direction-isolated in Arabic. Missing artwork has a fallback.
+- Pricing is entirely backend-computed: the storefront renders `effective_price`
+  as what the shopper pays, strikes through `price` and shows the
+  `discount_percent` badge only while `on_sale` is true. There is no discount
+  arithmetic in the web app. Numbers and prices remain direction-isolated in
+  Arabic. Missing artwork has a fallback.
 
 The current contract has no `min_rating` query parameter. When selected, the
 server fetches all matching API pages in bounded batches, filters `rating_avg`,

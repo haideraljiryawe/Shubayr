@@ -16,6 +16,7 @@ import {
 import { ProductCard } from "@/components/ui/product-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { api, ApiError, type Product } from "@/lib/api";
+import { pricingForVariant } from "@/lib/product";
 import type { Locale } from "@/i18n/routing";
 
 type Props = {
@@ -210,8 +211,7 @@ async function RelatedSection({
               nameAr={item.name_ar ?? ""}
               nameEn={item.name_en ?? ""}
               availableQty={item.available_qty}
-              price={item.sale_price ?? 0}
-              compareAtPrice={item.compare_at_price}
+              {...pricingForVariant(item)}
               rating={item.rating_avg}
               imageUrl={item.images?.[0] ?? null}
               inStock={item.in_stock ?? true}

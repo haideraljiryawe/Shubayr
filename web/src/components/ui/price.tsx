@@ -14,16 +14,18 @@ const SIZES = {
 
 /**
  * Currency always comes from the white-label settings, never a constant.
- * `compareAt` renders the struck-through original beside a discounted price.
+ * `regularPrice` renders the struck-through regular price beside what the
+ * shopper actually pays; pass it only when the backend says the product is on
+ * sale, since deciding that is not the storefront's job.
  */
 export function Price({
   amount,
-  compareAt,
+  regularPrice,
   size = "md",
   className,
 }: {
   amount: number;
-  compareAt?: number | null;
+  regularPrice?: number | null;
   size?: keyof typeof SIZES;
   className?: string;
 }) {
@@ -45,9 +47,9 @@ export function Price({
       >
         {formatPrice(amount, currency, locale)}
       </span>
-      {compareAt && compareAt > amount ? (
+      {regularPrice ? (
         <span className="whitespace-nowrap text-xs font-medium text-text-muted line-through">
-          {formatPrice(compareAt, currency, locale)}
+          {formatPrice(regularPrice, currency, locale)}
         </span>
       ) : null}
     </span>

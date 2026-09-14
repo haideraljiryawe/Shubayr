@@ -9,8 +9,13 @@ import { cn } from "@/lib/cn";
 import { formatCount, formatDiscount, formatPrice } from "@/lib/format";
 
 /**
- * Sale price, struck compare-at, discount badge, and the two optional signals
- * the contract carries: `points_price` and `is_negotiable`.
+ * What the shopper pays, the struck-through regular price, the discount badge,
+ * and the two optional signals the contract carries: `points_price` and
+ * `is_negotiable`.
+ *
+ * `regularPrice` and `discountPercent` are passed only when the backend reports
+ * the product as on sale; both come straight from the contract's computed
+ * fields, so there is no discount arithmetic here.
  *
  * Every money/number run is direction-isolated: in an RTL paragraph a currency
  * symbol and a leading minus are neutral characters and drift to the wrong side
@@ -18,13 +23,15 @@ import { formatCount, formatDiscount, formatPrice } from "@/lib/format";
  */
 export function PriceBlock({
   price,
-  compareAt,
+  regularPrice,
+  discountPercent,
   pointsPrice,
   isNegotiable,
   className,
 }: {
   price: number;
-  compareAt?: number | null;
+  regularPrice?: number | null;
+  discountPercent?: number | null;
   pointsPrice?: number | null;
   isNegotiable?: boolean;
   className?: string;
@@ -33,30 +40,28 @@ export function PriceBlock({
   const locale = useLocale() as Locale;
   const { currency } = useTheme();
 
-  const discount =
-    compareAt && compareAt > price
-      ? Math.round(((compareAt - price) / compareAt) * 100)
-      : null;
-
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
+    <div
+      data-testid="pdp-price"
+      className={cn("flex flex-col gap-2", className)}
+    >
       <div className="flex flex-wrap items-center gap-3">
         <span dir="ltr" className="text-3xl font-bold text-text">
           {formatPrice(price, currency, locale)}
         </span>
 
-        {compareAt && compareAt > price ? (
+        {regularPrice ? (
           <span
             dir="ltr"
             className="text-base font-medium text-text-muted line-through"
           >
-            {formatPrice(compareAt, currency, locale)}
+            {formatPrice(regularPrice, currency, locale)}
           </span>
         ) : null}
 
-        {discount ? (
+        {discountPercent ? (
           <Badge tone="sale" dir="ltr">
-            {formatDiscount(discount)}
+            {formatDiscount(discountPercent)}
           </Badge>
         ) : null}
       </div>
