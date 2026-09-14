@@ -16,7 +16,8 @@ describe('admin bilingual-name validation', () => {
     ['create category', CreateCategoryDto],
     ['update category', UpdateCategoryDto],
   ])('rejects %s with only name_ar and identifies name_en', async (_, Dto) => {
-    const input = plainToInstance(Dto, { name_ar: 'اسم عربي' });
+    // A valid price keeps the product DTOs' pricing rules out of the way.
+    const input = plainToInstance(Dto, { name_ar: 'اسم عربي', price: 10 });
     const errors = await validate(input);
     const englishName = errors.find(({ property }) => property === 'name_en');
 
@@ -32,7 +33,11 @@ describe('admin bilingual-name validation', () => {
     ['create category', CreateCategoryDto],
     ['update category', UpdateCategoryDto],
   ])('rejects blank names for %s', async (_, Dto) => {
-    const input = plainToInstance(Dto, { name_ar: '   ', name_en: '' });
+    const input = plainToInstance(Dto, {
+      name_ar: '   ',
+      name_en: '',
+      price: 10,
+    });
     const errors = await validate(input);
 
     expect(errors.map(({ property }) => property).sort()).toEqual([

@@ -78,7 +78,7 @@ through controllers.
 9. **Picking:** generate `pick_lists` and `pick_list_items` containing product,
    quantity, warehouse, location, and batch.
 10. **Costing:** retain each batch's `purchase_cost` and expose average cost.
-    `products.sale_price` remains separate and never changes automatically.
+    `products.price` remains separate and never changes automatically.
 11. **Returns:** support partial `returns` and `return_items`. Record each item
     condition and restock flag. Only sellable items re-enter stock through a
     `return_in` movement into a batch.
