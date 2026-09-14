@@ -26,6 +26,7 @@ Product _product(String id, String name) => Product(
 );
 
 Widget _host(List<WishlistItem> items) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     wishlistControllerProvider.overrideWith(() => _FixedWishlist(items)),
     productProvider('p1').overrideWith((ref) async => _product('p1', 'Alpha')),

@@ -40,8 +40,11 @@ class _FakeCatalog implements CatalogRepository {
       ProductAvailability(productId: id, inStock: true, availableQty: 5);
 
   @override
-  Future<ReviewPage> fetchReviews(String id, {int page = 1, int perPage = 20}) async =>
-      const ReviewPage();
+  Future<ReviewPage> fetchReviews(
+    String id, {
+    int page = 1,
+    int perPage = 20,
+  }) async => const ReviewPage();
 
   @override
   Future<ProductPage> fetchProducts({
@@ -49,6 +52,7 @@ class _FakeCatalog implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
@@ -87,6 +91,7 @@ const _q = ProductQuery();
 /// stays alive for the whole test, and returns (container, controller).
 (ProviderContainer, ProductListController) _setup({int count = 15}) {
   final c = ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
       catalogRepositoryProvider.overrideWithValue(_FakeCatalog(count: count)),
     ],

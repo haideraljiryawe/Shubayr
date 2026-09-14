@@ -18,6 +18,7 @@ void main() {
     repo = RecordingAdmin();
     session = AdminTestSession();
     container = ProviderContainer(
+      retry: (retryCount, error) => null,
       overrides: [
         adminRepositoryProvider.overrideWithValue(repo),
         sessionControllerProvider.overrideWith(() => session),
@@ -27,6 +28,28 @@ void main() {
     container.listen(adminListProvider(query), (_, _) {});
   });
   tearDown(() => container.dispose());
+  test(
+    'same-length permission replacement revokes existing list access',
+    () async {
+      session.change(
+        const Session.signedIn(
+          User(id: 'staff', role: 'manager', permissions: ['users.manage']),
+        ),
+      );
+      await container.read(adminListProvider(query).future);
+      expect(container.read(permissionsProvider), ['users.manage']);
+      session.change(
+        const Session.signedIn(
+          User(id: 'staff', role: 'manager', permissions: ['catalog.manage']),
+        ),
+      );
+      await expectLater(
+        container.read(adminListProvider(query).future),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(container.read(permissionsProvider), ['catalog.manage']);
+    },
+  );
   test('list appends once, retries failed page and refresh restarts', () async {
     await container.read(adminListProvider(query).future);
     final controller = container.read(adminListProvider(query).notifier);

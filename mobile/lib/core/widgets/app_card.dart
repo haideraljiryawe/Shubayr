@@ -34,10 +34,12 @@ class AppCard extends StatelessWidget {
         boxShadow: elevated ? AppShadows.level1 : null,
       ),
       // Descendant ListTiles need an ink surface above the card decoration,
-      // even when the card itself has no onTap callback.
+      // even when the card itself has no onTap callback. Preserve an inherited
+      // text style instead of replacing it with Material's default style.
       child: Material(
         color: Colors.transparent,
         borderRadius: AppRadii.lgAll,
+        textStyle: DefaultTextStyle.of(context).style,
         child: onTap == null
             ? content
             : InkWell(

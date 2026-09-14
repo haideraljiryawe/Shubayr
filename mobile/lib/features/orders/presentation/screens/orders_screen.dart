@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -45,7 +46,7 @@ class OrdersScreen extends ConsumerWidget {
     final controller = ref.read(ordersProvider.notifier);
 
     void loadIfNearEnd(ScrollMetrics metrics) {
-      final current = ref.read(ordersProvider).valueOrNull;
+      final current = ref.read(ordersProvider).value;
       if (metrics.axis == Axis.vertical &&
           metrics.extentAfter < metrics.viewportDimension &&
           current?.loadMoreError == null) {
@@ -65,9 +66,9 @@ class OrdersScreen extends ConsumerWidget {
           Expanded(
             child: AsyncValueView(
               value: orders,
-              loading: const Padding(
-                padding: EdgeInsets.all(AppSpacing.screenH),
-                child: SkeletonCardList(),
+              loading: Padding(
+                padding: AppLayout.pageInsets(context),
+                child: SkeletonCardList(minItemWidth: AppLayout.cardMinWidth),
               ),
               onRetry: controller.refresh,
               builder: (context, list) => RefreshIndicator(
@@ -109,28 +110,21 @@ class OrdersScreen extends ConsumerWidget {
                               ),
                             ],
                           )
-                        : ListView.separated(
+                        : ResponsiveCardList(
                             key: ValueKey(status),
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(AppSpacing.screenH),
-                            itemCount:
-                                list.items.length +
-                                (list.loadingMore || list.loadMoreError != null
-                                    ? 1
-                                    : 0),
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: AppSpacing.md),
+                            padding: AppLayout.pageInsets(context),
+                            itemCount: list.items.length,
+                            footer: list.loadMoreError != null
+                                ? AppErrorView(
+                                    error: list.loadMoreError,
+                                    onRetry: controller.loadMore,
+                                  )
+                                : list.loadingMore
+                                ? const SkeletonCardList(itemCount: 1)
+                                : null,
                             itemBuilder: (_, i) {
-                              if (i < list.items.length) {
-                                return _OrderCard(order: list.items[i]);
-                              }
-                              if (list.loadMoreError != null) {
-                                return AppErrorView(
-                                  error: list.loadMoreError,
-                                  onRetry: controller.loadMore,
-                                );
-                              }
-                              return const SkeletonCardList(itemCount: 1);
+                              return _OrderCard(order: list.items[i]);
                             },
                           ),
                   ),
@@ -173,27 +167,30 @@ class _StatusFilterBar extends StatelessWidget {
         ),
     ];
 
-    return SizedBox(
-      height: 48,
-      child: ListView(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.screenH,
-          vertical: AppSpacing.xs,
+        padding: AppLayout.pageInsets(
+          context,
+          top: AppSpacing.xs,
+          bottom: AppSpacing.xs,
         ),
-        children: [
-          for (final (status, icon, color, label) in filters)
-            Padding(
-              padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
-              child: ChoiceChip(
-                avatar: Icon(icon, size: 18, color: color),
-                label: Text(label),
-                selected: selected == status,
-                showCheckmark: false,
-                onSelected: (_) => onSelected(status),
+        child: Row(
+          children: [
+            for (final (status, icon, color, label) in filters)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
+                child: ChoiceChip(
+                  avatar: Icon(icon, size: 18, color: color),
+                  label: Text(label),
+                  selected: selected == status,
+                  showCheckmark: false,
+                  onSelected: (_) => onSelected(status),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

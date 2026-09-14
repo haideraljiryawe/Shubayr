@@ -9,6 +9,7 @@ import '../../features/address/data/address.dart';
 import '../../features/address/presentation/screens/address_form_screen.dart';
 import '../../features/address/presentation/screens/addresses_screen.dart';
 import '../../features/admin/presentation/screens/admin_home_screen.dart';
+import '../../features/admin/presentation/screens/admin_orders_screen.dart';
 import '../../features/admin/presentation/screens/admin_hub_screen.dart';
 import '../../features/admin/presentation/screens/admin_list_screen.dart';
 import '../../features/admin/domain/admin_repository.dart';
@@ -23,6 +24,7 @@ import '../../features/auth/presentation/screens/verify_otp_screen.dart';
 import '../../features/cart/presentation/screens/cart_screen.dart';
 import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
 import '../../features/catalog/presentation/screens/categories_screen.dart';
+import '../../features/catalog/presentation/screens/subcategories_screen.dart';
 import '../../features/catalog/presentation/screens/home_screen.dart';
 import '../../features/catalog/presentation/screens/product_detail_screen.dart';
 import '../../features/catalog/presentation/screens/product_list_screen.dart';
@@ -33,6 +35,7 @@ import '../../features/settings/presentation/screens/account_screen.dart';
 import '../../features/settings/presentation/screens/profile_screen.dart';
 import '../shell/customer_shell.dart';
 import '../splash_screen.dart';
+import '../startup_display_controller.dart';
 import 'app_routes.dart';
 import 'role_guard.dart';
 import 'sign_in_destination.dart';
@@ -60,14 +63,11 @@ final routerProvider = Provider<GoRouter>((ref) {
   // refresh — editing the profile name must not rebuild the navigator while a
   // route like /profile is pushed over the shell.
   final refresh = ValueNotifier<int>(0);
+  ref.listen(startupDisplayReadyProvider, (_, _) => refresh.value++);
   ref
     ..listen(
       sessionControllerProvider.select(
-        (s) => (
-          s.isLoading,
-          s.valueOrNull?.isSignedIn ?? false,
-          s.valueOrNull?.role,
-        ),
+        (s) => (s.isLoading, s.value?.isSignedIn ?? false, s.value?.role),
       ),
       (_, _) => refresh.value++,
     )
@@ -84,11 +84,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
       final session = ref.read(sessionControllerProvider);
-      final status = switch (session) {
-        AsyncLoading() => SessionStatus.restoring,
-        AsyncData(:final value) when value.isSignedIn => SessionStatus.signedIn,
-        _ => SessionStatus.signedOut,
-      };
+      final status = !ref.read(startupDisplayReadyProvider)
+          ? SessionStatus.restoring
+          : switch (session) {
+              AsyncLoading() => SessionStatus.restoring,
+              AsyncData(:final value) when value.isSignedIn =>
+                SessionStatus.signedIn,
+              _ => SessionStatus.signedOut,
+            };
       if (status == SessionStatus.restoring &&
           state.matchedLocation != AppRoutes.splash) {
         return Uri(
@@ -101,19 +104,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           state.uri.queryParameters.containsKey('returnTo')) {
         return SignInDestination.resolve(
           state.uri.queryParameters['returnTo'],
-          session.valueOrNull?.role ?? UserRole.customer,
+          session.value?.role ?? UserRole.customer,
         );
       }
       if (status == SessionStatus.signedIn &&
           state.matchedLocation.startsWith(AppRoutes.signIn)) {
         return SignInDestination.resolve(
           state.uri.queryParameters['returnTo'],
-          session.valueOrNull!.role,
+          session.value!.role,
         );
       }
       final redirect = RoleGuard.redirect(
         status: status,
-        role: session.valueOrNull?.role ?? UserRole.customer,
+        role: session.value?.role ?? UserRole.customer,
         location: state.matchedLocation,
       );
       if (redirect == AppRoutes.signIn) {
@@ -135,7 +138,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        builder: (context, state) => const SplashScreen(),
+        builder: (context, state) => SplashScreen(
+          onDisplayed: ref
+              .read(startupDisplayReadyProvider.notifier)
+              .beginDisplay,
+        ),
       ),
       GoRoute(
         path: AppRoutes.signIn,
@@ -183,6 +190,15 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.categories,
                 name: AppRoutes.categoriesName,
                 builder: (context, state) => const CategoriesScreen(),
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.subcategoriesSegment,
+                    name: AppRoutes.subcategoriesName,
+                    builder: (context, state) => SubcategoriesScreen(
+                      categoryId: state.pathParameters['categoryId']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -238,8 +254,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ProductListScreen(
           initialQuery: ProductQuery(
             text: state.uri.queryParameters['q'] ?? '',
-            categoryId: state.uri.queryParameters['category_id'],
+            onSale: state.uri.queryParameters['offers_only'] == 'true',
+            categoryId:
+                state.uri.queryParameters['parent_category_id'] ??
+                state.uri.queryParameters['category_id'],
           ),
+          parentCategoryId: state.uri.queryParameters['parent_category_id'],
+          offersOnly: state.uri.queryParameters['offers_only'] == 'true',
         ),
       ),
 
@@ -318,6 +339,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminHomeScreen(),
       ),
 
+      GoRoute(
+        path: AppRoutes.adminOrders,
+        builder: (_, _) => const AdminOrdersScreen(),
+      ),
       GoRoute(
         path: AppRoutes.adminCatalog,
         builder: (_, _) => const AdminHubScreen(catalog: true),

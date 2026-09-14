@@ -63,7 +63,7 @@ class _StepButton extends StatelessWidget {
         child: Icon(
           icon,
           size: 18,
-          color: onTap == null ? colors.textMuted : colors.textPrimary,
+          color: onTap == null ? colors.textDisabled : colors.textPrimary,
         ),
       ),
     );

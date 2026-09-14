@@ -1,6 +1,7 @@
 import '../../../core/error/failure.dart';
 import '../../auth/domain/permissions.dart';
 import '../../catalog/data/catalog_repository_mock.dart';
+import '../../catalog/data/product.dart';
 import '../domain/admin_repository.dart';
 
 class AdminRepositoryMock implements AdminRepository {
@@ -32,7 +33,17 @@ class AdminRepositoryMock implements AdminRepository {
     final products = <AdminRecord>[];
     for (var page = 1; ; page++) {
       final result = await source.fetchProducts(page: page, perPage: 100);
-      products.addAll(result.data.map((p) => AdminRecord(p.toJson())));
+      products.addAll(
+        result.data.map(
+          (p) => AdminRecord({
+            ...p.toJson(),
+            // The mock admin form still exercises the accepted R2 UI while
+            // Product itself follows the new scheduled-discount read shape.
+            'sale_price': p.salePrice,
+            'compare_at_price': p.compareAtPrice,
+          }),
+        ),
+      );
       if (page * result.perPage >= result.total) break;
     }
     _data[AdminResource.products] = products;
@@ -199,6 +210,10 @@ class AdminRepositoryMock implements AdminRepository {
       merged.remove('children');
     }
     if (resource == AdminResource.products) {
+      merged['discount_percent'] = Product.discountPercentFor(
+        merged['sale_price'] as num,
+        merged['compare_at_price'] as num?,
+      );
       merged['status'] ??= 'active';
       merged['is_negotiable'] ??= false;
       merged['tracks_expiry'] ??= false;

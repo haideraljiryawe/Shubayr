@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/layout/app_layout.dart';
 import '../../core/l10n/l10n_context.dart';
 import '../../core/theme/components/navigation_themes.dart';
 import '../../core/theme/theme_context.dart';
@@ -44,7 +45,7 @@ Widget _badged(BuildContext context, Widget child, int count) {
 class CustomerShell extends ConsumerWidget {
   const CustomerShell({super.key, required this.navigationShell});
 
-  static const double railBreakpoint = 900;
+  static const double railBreakpoint = AppBreakpoints.compactDesktop;
 
   final StatefulNavigationShell navigationShell;
 
@@ -53,12 +54,12 @@ class CustomerShell extends ConsumerWidget {
     final l10n = context.l10n;
     final colors = context.colors;
     final isSignedIn =
-        ref.watch(sessionControllerProvider).valueOrNull?.isSignedIn ?? false;
+        ref.watch(sessionControllerProvider).value?.isSignedIn ?? false;
 
     // Cart badge counts distinct products (lines), not total units — rebuilds
     // the bar only when a line is added or removed.
     final cartCount = ref.watch(
-      cartControllerProvider.select((c) => c.valueOrNull?.items.length ?? 0),
+      cartControllerProvider.select((c) => c.value?.items.length ?? 0),
     );
 
     // Every destination, in branch order. In Arabic the first entry lays out on

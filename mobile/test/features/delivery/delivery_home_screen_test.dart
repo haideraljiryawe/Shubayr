@@ -24,6 +24,7 @@ Widget _host(
   double textScale = 1,
   Session session = agentSession,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     sessionControllerProvider.overrideWith(
       () => DeliveryTestSession(initial: session),
@@ -58,6 +59,49 @@ Future<void> _chooseStatus(WidgetTester tester, String status) async {
 }
 
 void main() {
+  testWidgets('refresh keeps content but a new session hides previous data', (
+    tester,
+  ) async {
+    final repo = RecordingDeliveries()
+      ..onFetch = (r) async => deliveryPage(r, total: 1);
+    await tester.pumpWidget(_host(repo));
+    await tester.pumpAndSettle();
+    expect(find.text('order-0'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(DeliveryHomeScreen)),
+    );
+    final oldPage = Completer<DeliveryPage>();
+    repo.onFetch = (_) => oldPage.future;
+    final refresh = container.read(deliveriesProvider.notifier).refresh();
+    await tester.pump();
+    expect(find.text('order-0'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+    final newPage = Completer<DeliveryPage>();
+    repo.onFetch = (_) => newPage.future;
+    (container.read(sessionControllerProvider.notifier) as DeliveryTestSession)
+        .setSession(
+          const Session.signedIn(
+            User(
+              id: 'next',
+              role: 'delivery',
+              permissions: ['delivery.assigned'],
+            ),
+          ),
+        );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('order-0'), findsNothing);
+    oldPage.completeError(const AppFailure.network());
+    await tester.pump();
+    await refresh;
+    expect(find.text('Retry'), findsNothing);
+    newPage.complete(deliveryPage((page: 1, perPage: 20), total: 0));
+    await tester.pumpAndSettle();
+    expect(container.read(deliveriesProvider).hasError, isFalse);
+    expect(find.text('order-0'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     final font = FontLoader('Cairo')
@@ -79,6 +123,35 @@ void main() {
       expect(last, findsOneWidget);
       expect(repo.requests.map((r) => r.page), [1, 2, 3]);
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'delivery confirmation survives regrouping the selected card on resize',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repo = RecordingDeliveries();
+      await tester.pumpWidget(_host(repo));
+      await tester.pumpAndSettle();
+      final secondAction = find
+          .widgetWithText(AppButton, 'Update status')
+          .at(1);
+      await tester.ensureVisible(secondAction);
+      await tester.tap(secondAction);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delivered').last);
+      await tester.pumpAndSettle();
+      await tester.binding.setSurfaceSize(const Size(1200, 1200));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Save'));
+      await tester.pumpAndSettle();
+      expect(repo.updates.single.id, '10000000-0000-4000-8000-000000000002');
+      expect(repo.updates.single.status, 'delivered');
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
     },
   );
 
@@ -118,7 +191,15 @@ void main() {
       await _chooseStatus(tester, 'Delivered');
       await tester.tap(find.widgetWithText(TextButton, 'Save'));
       await tester.pumpAndSettle();
-      expect(find.text('Assigned'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey('10000000-0000-4000-8000-000000000001'),
+          ),
+          matching: find.text('Assigned'),
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(SnackBar), findsOneWidget);
       expect(find.text('Delivery status updated'), findsNothing);
       expect(tester.takeException(), isNull);

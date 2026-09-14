@@ -20,6 +20,7 @@ String adminFieldLabel(AppLocalizations l, String field) => switch (field) {
   'address' => l.adminFieldAddress,
   'description' => l.adminFieldDescription,
   'sale_price' => l.adminFieldPrice,
+  'compare_at_price' => l.adminOriginalPrice,
   'floor_price' => l.adminFieldFloorPrice,
   'points_price' => l.adminFieldPointsPrice,
   'icon' => l.adminFieldIcon,

@@ -1,23 +1,101 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/l10n/l10n_context.dart';
+import '../core/layout/app_layout.dart';
 import '../core/theme/theme_context.dart';
-import '../core/widgets/brand_mark.dart';
-import '../features/settings/presentation/providers/settings_providers.dart';
+import '../core/theme/tokens/app_spacing.dart';
+import '../core/theme/tokens/app_typography.dart';
+import 'startup_assets.dart';
 
-/// Shown only while the stored session is being restored.
-///
-/// It is not a timed splash: the router leaves it the moment the session
-/// resolves. Warm off-white ground, centred store mark, nothing else.
-class SplashScreen extends ConsumerWidget {
-  const SplashScreen({super.key});
+/// The router waits for both session readiness and the minimum display window.
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key, this.onDisplayed});
+
+  final VoidCallback? onDisplayed;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final brand = ref.watch(brandProvider);
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onDisplayed?.call();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: context.colors.background,
-      body: Center(child: BrandMark(brand: brand, size: 88)),
+      backgroundColor: colors.background,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: AppLayout.authWidth,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image(
+                          image: StartupAssets.logo,
+                          width: AppSpacing.xxxl * 2,
+                          height: AppSpacing.xxxl * 2,
+                          fit: BoxFit.contain,
+                          excludeFromSemantics: true,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          context.l10n.homeBrandName,
+                          textAlign: TextAlign.center,
+                          style: context.text.displaySmall?.copyWith(
+                            fontFamily: AppTypography.brandFontFamily,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        // Only the tagline sets this group's intrinsic width;
+                        // the progress bar takes that width without stretching it.
+                        IntrinsicWidth(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                context.l10n.startupTagline,
+                                textAlign: TextAlign.center,
+                                style: context.text.bodyMedium?.copyWith(
+                                  color: colors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              LinearProgressIndicator(
+                                minHeight: AppSpacing.xs,
+                                color: colors.primary,
+                                backgroundColor: colors.primarySoft,
+                                semanticsLabel: context.l10n.startupLoading,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

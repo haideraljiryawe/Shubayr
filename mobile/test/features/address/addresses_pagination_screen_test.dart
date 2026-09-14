@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:shubayr/features/auth/domain/session.dart';
+import 'package:shubayr/features/auth/data/user.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +25,7 @@ Widget _host(
   bool dark = false,
   Widget? home,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     sessionControllerProvider.overrideWith(AddressTestSession.new),
     addressRepositoryProvider.overrideWithValue(repository),
@@ -39,6 +42,43 @@ Widget _host(
 );
 
 void main() {
+  testWidgets('refresh keeps content but a new session hides previous data', (
+    tester,
+  ) async {
+    final repo = RecordingAddresses()
+      ..onFetch = (r) async => addressPage(r, total: 1);
+    await tester.pumpWidget(_host(repo));
+    await tester.pumpAndSettle();
+    expect(find.text('Address 0'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AddressesScreen)),
+    );
+    final oldPage = Completer<AddressPage>();
+    repo.onFetch = (_) => oldPage.future;
+    final refresh = container
+        .read(addressesControllerProvider.notifier)
+        .refresh();
+    await tester.pump();
+    expect(find.text('Address 0'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+    final newPage = Completer<AddressPage>();
+    repo.onFetch = (_) => newPage.future;
+    (container.read(sessionControllerProvider.notifier) as AddressTestSession)
+        .setSession(const Session.signedIn(User(id: 'next', role: 'customer')));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Address 0'), findsNothing);
+    oldPage.completeError(const AppFailure.network());
+    await tester.pump();
+    await refresh;
+    expect(find.text('Retry'), findsNothing);
+    newPage.complete(const AddressPage(page: 1, perPage: 8, total: 0));
+    await tester.pumpAndSettle();
+    expect(container.read(addressesControllerProvider).hasError, isFalse);
+    expect(find.text('Address 0'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     final font = FontLoader('Cairo')

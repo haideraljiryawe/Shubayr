@@ -24,6 +24,10 @@ class CatalogRepositoryMock implements CatalogRepository {
 
   /// Unit price for a product/variant — the mock cart prices its lines with
   /// this, mirroring the server computing `unit_price` when an item is added.
+  /// Synchronous access to the current mock record when capturing a purchase.
+  static Product? productSnapshot(String id) =>
+      _products.where((product) => product.id == id).firstOrNull;
+
   static num unitPrice(String productId, String? variantId) {
     final p = _products.firstWhere((p) => p.id == productId);
     if (variantId == null) return p.salePrice;
@@ -180,6 +184,72 @@ class CatalogRepositoryMock implements CatalogRepository {
         ),
       ],
     ),
+    Category(
+      id: 'cat-beauty',
+      nameEn: 'Beauty & Personal Care',
+      nameAr: 'الجمال والعناية',
+      icon: 'spa',
+      sortOrder: 5,
+      children: const [
+        Category(
+          id: 'cat-skincare',
+          parentId: 'cat-beauty',
+          nameEn: 'Skin Care',
+          nameAr: 'العناية بالبشرة',
+          icon: 'face',
+          sortOrder: 1,
+        ),
+        Category(
+          id: 'cat-haircare',
+          parentId: 'cat-beauty',
+          nameEn: 'Hair Care',
+          nameAr: 'العناية بالشعر',
+          icon: 'haircare',
+          sortOrder: 2,
+        ),
+        Category(
+          id: 'cat-fragrance',
+          parentId: 'cat-beauty',
+          nameEn: 'Fragrances',
+          nameAr: 'العطور',
+          icon: 'fragrance',
+          sortOrder: 3,
+        ),
+      ],
+    ),
+    Category(
+      id: 'cat-sports',
+      nameEn: 'Sports & Outdoors',
+      nameAr: 'الرياضة والرحلات',
+      icon: 'fitness',
+      sortOrder: 6,
+      children: const [
+        Category(
+          id: 'cat-fitness',
+          parentId: 'cat-sports',
+          nameEn: 'Fitness',
+          nameAr: 'اللياقة البدنية',
+          icon: 'fitness',
+          sortOrder: 1,
+        ),
+        Category(
+          id: 'cat-outdoors',
+          parentId: 'cat-sports',
+          nameEn: 'Camping & Outdoors',
+          nameAr: 'التخييم والرحلات',
+          icon: 'outdoors',
+          sortOrder: 2,
+        ),
+        Category(
+          id: 'cat-cycling',
+          parentId: 'cat-sports',
+          nameEn: 'Cycling',
+          nameAr: 'ركوب الدراجات',
+          icon: 'cycling',
+          sortOrder: 3,
+        ),
+      ],
+    ),
   ];
 
   /// A category id plus all of its descendants — a `GET /products?category_id=`
@@ -224,7 +294,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     }
     _products
       ..clear()
-      ..addAll(products.map(Product.fromJson));
+      ..addAll(products.map(Product.fromJson).map(_withDiscount));
     final ordered = [...categories]
       ..sort((a, b) {
         final order = ((a['sort_order'] as num?) ?? 0).compareTo(
@@ -257,6 +327,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'سماعات لاسلكية',
       description: 'Compact wireless earbuds with a charging case.',
       salePrice: 45000,
+      compareAtPrice: 60000,
       ratingAvg: 4.5,
       availableQty: 30,
       images: [_img('p1')],
@@ -268,6 +339,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'ساعة ذكية',
       description: 'Fitness tracking, notifications and a week of battery.',
       salePrice: 120000,
+      compareAtPrice: 150000,
       isNegotiable: true,
       floorPrice: 100000,
       ratingAvg: 4.2,
@@ -281,6 +353,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'باور بانك ٢٠٠٠٠',
       description: 'Fast-charging power bank with two USB outputs.',
       salePrice: 32000,
+      compareAtPrice: 40000,
       pointsPrice: 320,
       ratingAvg: 4.0,
       availableQty: 0,
@@ -294,6 +367,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'زيت زيتون ١ لتر',
       description: 'Extra-virgin olive oil, cold pressed.',
       salePrice: 15000,
+      compareAtPrice: 20000,
       ratingAvg: 4.8,
       availableQty: 80,
       images: [_img('p4')],
@@ -305,6 +379,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'رز بسمتي ٥ كغم',
       description: 'Aged long-grain basmati rice.',
       salePrice: 22000,
+      compareAtPrice: 25000,
       ratingAvg: 4.6,
       availableQty: 50,
       images: [_img('p5')],
@@ -316,6 +391,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'قهوة مطحونة ٢٥٠ غم',
       description: 'Medium-roast Arabica ground coffee.',
       salePrice: 9000,
+      compareAtPrice: 10000,
       ratingAvg: 4.3,
       availableQty: 40,
       images: [_img('p6')],
@@ -327,6 +403,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'قميص قطني',
       description: 'Soft cotton t-shirt, several sizes.',
       salePrice: 12000,
+      compareAtPrice: 15000,
       ratingAvg: 4.1,
       availableQty: 60,
       images: [_img('p7')],
@@ -348,6 +425,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'جاكيت جينز',
       description: 'Classic denim jacket.',
       salePrice: 38000,
+      compareAtPrice: 45000,
       isNegotiable: true,
       floorPrice: 30000,
       ratingAvg: 4.4,
@@ -361,6 +439,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameAr: 'مقلاة غير لاصقة',
       description: '28cm non-stick frying pan.',
       salePrice: 18000,
+      compareAtPrice: 20000,
       ratingAvg: 4.5,
       availableQty: 25,
       images: [_img('p9')],
@@ -399,7 +478,100 @@ class CatalogRepositoryMock implements CatalogRepository {
       availableQty: 18,
       images: [_img('p12')],
     ),
-  ];
+    Product(
+      id: 'p13',
+      categoryId: 'cat-skincare',
+      nameEn: 'Gentle Facial Cleanser',
+      nameAr: 'غسول لطيف للوجه',
+      salePrice: 12000,
+      compareAtPrice: 16000,
+      ratingAvg: 4.5,
+      availableQty: 30,
+      images: [_img('p13')],
+    ),
+    Product(
+      id: 'p14',
+      categoryId: 'cat-skincare',
+      nameEn: 'Daily Moisturizing Cream',
+      nameAr: 'كريم ترطيب يومي',
+      salePrice: 18000,
+      ratingAvg: 4.4,
+      availableQty: 25,
+      images: [_img('p14')],
+    ),
+    Product(
+      id: 'p15',
+      categoryId: 'cat-haircare',
+      nameEn: 'Nourishing Shampoo',
+      nameAr: 'شامبو مغذٍ للشعر',
+      salePrice: 9000,
+      compareAtPrice: 12000,
+      ratingAvg: 4.3,
+      availableQty: 40,
+      images: [_img('p15')],
+    ),
+    Product(
+      id: 'p16',
+      categoryId: 'cat-fragrance',
+      nameEn: 'Fresh Eau de Parfum',
+      nameAr: 'عطر منعش',
+      salePrice: 35000,
+      ratingAvg: 4.6,
+      availableQty: 18,
+      images: [_img('p16')],
+    ),
+    Product(
+      id: 'p17',
+      categoryId: 'cat-fitness',
+      nameEn: 'Yoga Exercise Mat',
+      nameAr: 'حصيرة تمارين يوغا',
+      salePrice: 18000,
+      compareAtPrice: 24000,
+      ratingAvg: 4.7,
+      availableQty: 20,
+      images: [_img('p17')],
+    ),
+    Product(
+      id: 'p18',
+      categoryId: 'cat-fitness',
+      nameEn: 'Sports Water Bottle',
+      nameAr: 'قارورة مياه رياضية',
+      salePrice: 8000,
+      ratingAvg: 4.2,
+      availableQty: 45,
+      images: [_img('p18')],
+    ),
+    Product(
+      id: 'p19',
+      categoryId: 'cat-outdoors',
+      nameEn: 'Rechargeable Camping Lantern',
+      nameAr: 'فانوس تخييم قابل للشحن',
+      salePrice: 22000,
+      compareAtPrice: 28000,
+      ratingAvg: 4.5,
+      availableQty: 16,
+      images: [_img('p19')],
+    ),
+    Product(
+      id: 'p20',
+      categoryId: 'cat-cycling',
+      nameEn: 'Adjustable Cycling Helmet',
+      nameAr: 'خوذة دراجة قابلة للتعديل',
+      salePrice: 30000,
+      compareAtPrice: 40000,
+      ratingAvg: 4.8,
+      availableQty: 14,
+      images: [_img('p20')],
+    ),
+  ].map(_withDiscount).toList();
+
+  static Product _withDiscount(Product p) => Product.fromJson({
+    ...p.toJson(),
+    'discount_percent': Product.discountPercentFor(
+      p.salePrice,
+      p.compareAtPrice,
+    ),
+  });
 
   @override
   Future<List<Category>> fetchCategories() async {
@@ -425,6 +597,7 @@ class CatalogRepositoryMock implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
@@ -438,6 +611,7 @@ class CatalogRepositoryMock implements CatalogRepository {
 
     var items = _products.where((p) {
       if (p.status != 'active') return false;
+      if (onSale && !p.isOnSale) return false;
       if (categoryIds != null && !categoryIds.contains(p.categoryId)) {
         return false;
       }

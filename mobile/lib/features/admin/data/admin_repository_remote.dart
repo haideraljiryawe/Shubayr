@@ -68,7 +68,10 @@ class AdminRepositoryRemote implements AdminRepository {
     if (id == null ? !resource.canCreate : !resource.canEdit) {
       throw const AppFailure(FailureKind.validation);
     }
-    final body = resource.input(input);
+    var body = resource.input(input);
+    if (resource == AdminResource.products) {
+      body = _scheduledDiscountInput(body);
+    }
     return AdminRecord(
       id == null
           ? await api.post<Map<String, dynamic>>(
@@ -86,5 +89,22 @@ class AdminRepositoryRemote implements AdminRepository {
   Future<void> delete(AdminResource resource, String id) {
     if (!resource.canDelete) throw const AppFailure(FailureKind.validation);
     return api.deleteVoid('${resource.path(write: true)}/$id');
+  }
+
+  Map<String, dynamic> _scheduledDiscountInput(Map<String, dynamic> input) {
+    final sale = input['sale_price'] as num;
+    final original = input['compare_at_price'] as num?;
+    final discounted =
+        original != null && original.isFinite && original > sale;
+    return {
+      for (final entry in input.entries)
+        if (!const {'sale_price', 'compare_at_price'}.contains(entry.key))
+          entry.key: entry.value,
+      'price': discounted ? original : sale,
+      'discount_type': discounted ? 'amount' : null,
+      'discount_value': discounted ? original - sale : null,
+      'discount_starts_at': null,
+      'discount_ends_at': null,
+    };
   }
 }

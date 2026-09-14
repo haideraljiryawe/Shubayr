@@ -12,6 +12,13 @@ abstract final class AppSpacing {
   /// Horizontal padding used by full-width screens.
   static const double screenH = 16;
 
+  /// Phone page horizontal inset, consumed by AppLayout.pageHorizontal.
+  /// Adjust this value to tune all phone page margins; SafeArea is separate.
+  static const double screenMobileH = 8;
+
+  /// Gap after Home banner/indicator and before category shortcuts.
+  static const double homeBannerToCategories = 16;
+
   /// Vertical rhythm between major sections.
   static const double section = 24;
 }

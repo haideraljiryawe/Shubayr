@@ -96,6 +96,7 @@ void main() {
     ) async {
       final prefs = await _prefs();
       return ProviderContainer(
+        retry: (retryCount, error) => null,
         overrides: [
           prefsStoreProvider.overrideWithValue(prefs),
           settingsRepositoryProvider.overrideWithValue(repository),
@@ -110,7 +111,7 @@ void main() {
       addTearDown(container.dispose);
 
       final brand = container.read(brandProvider);
-      expect(brand.primaryColor, const Color(0xFF438C59));
+      expect(brand.primaryColor, const Color(0xFF396D48));
       expect(brand.currencyCode, 'IQD');
       expect(brand.name, isNull);
     });
@@ -144,7 +145,7 @@ void main() {
         await container.read(storeSettingsProvider.notifier).refresh();
 
         final brand = container.read(brandProvider);
-        expect(brand.primaryColor, const Color(0xFF438C59));
+        expect(brand.primaryColor, const Color(0xFF396D48));
         expect(brand.currencyCode, 'IQD');
       },
     );
@@ -160,12 +161,18 @@ void main() {
           ),
         ];
 
-        final first = ProviderContainer(overrides: overrides);
+        final first = ProviderContainer(
+          retry: (retryCount, error) => null,
+          overrides: overrides,
+        );
         await first.read(storeSettingsProvider.notifier).refresh();
         first.dispose();
 
         // A fresh container reads the cache synchronously — no network needed.
-        final second = ProviderContainer(overrides: overrides);
+        final second = ProviderContainer(
+          retry: (retryCount, error) => null,
+          overrides: overrides,
+        );
         addTearDown(second.dispose);
         expect(
           second.read(brandProvider).primaryColor,
@@ -177,6 +184,7 @@ void main() {
     test('data source switch selects the repository implementation', () async {
       final prefs = await _prefs();
       final mockContainer = ProviderContainer(
+        retry: (retryCount, error) => null,
         overrides: [
           prefsStoreProvider.overrideWithValue(prefs),
           appConfigProvider.overrideWithValue(
@@ -194,6 +202,7 @@ void main() {
       );
 
       final remoteContainer = ProviderContainer(
+        retry: (retryCount, error) => null,
         overrides: [
           prefsStoreProvider.overrideWithValue(prefs),
           appConfigProvider.overrideWithValue(

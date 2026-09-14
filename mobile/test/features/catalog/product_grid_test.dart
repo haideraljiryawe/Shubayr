@@ -20,6 +20,8 @@ const _products = [
     nameAr: 'ساعة ذكية',
     nameEn: 'Watch',
     salePrice: 120000,
+    compareAtPrice: 150000,
+    discountPercent: 20,
     ratingAvg: 4.2,
   ),
   Product(
@@ -36,6 +38,8 @@ const _products = [
     nameAr: 'منتج',
     nameEn: 'Product',
     salePrice: 123456789,
+    compareAtPrice: 987654321,
+    discountPercent: 88,
     inStock: false,
   ),
 ];
@@ -47,6 +51,7 @@ Widget _host({
   double textScale = 1,
   void Function(Product)? onTap,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [brandProvider.overrideWithValue(const Brand.bundled())],
   child: MaterialApp(
     locale: Locale(locale),
@@ -112,6 +117,11 @@ void main() {
               );
               await tester.pumpAndSettle();
               expect(tester.takeException(), isNull);
+              final labels = AppLocalizations.of(
+                tester.element(find.byType(ProductCard).first),
+              );
+              expect(find.text(labels.promotionDiscount('20')), findsOneWidget);
+              expect(find.text(labels.promotionDiscount('88')), findsOneWidget);
               final cards = find.byType(ProductCard);
               final first = tester.getRect(cards.at(0));
               final second = tester.getRect(cards.at(1));
@@ -169,7 +179,7 @@ void main() {
   }
 
   testWidgets(
-    'details keep equal top and bottom padding with a two-line name slot',
+    'details keep equal top and bottom padding with a one-line name slot',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(402, 874));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -217,7 +227,7 @@ void main() {
   for (final locale in ['ar', 'en']) {
     for (final scale in [1.0, 2.0]) {
       testWidgets(
-        'short names reserve two lines across rows and long names ellipsize, $locale, scale=$scale',
+        'short names use one line across rows and long names ellipsize, $locale, scale=$scale',
         (tester) async {
           await tester.binding.setSurfaceSize(const Size(320, 1600));
           addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -243,8 +253,7 @@ void main() {
           final cards = find.byType(ProductCard);
           final shortCard = tester.getRect(cards.at(0));
           final longCard = tester.getRect(cards.at(2));
-          // Two short names in their own row must reserve the same height as
-          // another row whose names genuinely occupy both available lines.
+          // Long names must not make a row taller than short names.
           expect(shortCard.height, closeTo(longCard.height, 0.01));
           final shortName = find.text(products.first.localizedName(locale));
           final longName = find.text(products[2].localizedName(locale));
@@ -258,7 +267,21 @@ void main() {
           final longParagraph = tester.renderObject<RenderParagraph>(longName);
           expect(shortParagraph.didExceedMaxLines, isFalse);
           expect(longParagraph.didExceedMaxLines, isTrue);
-          expect(longParagraph.maxLines, 2);
+          expect(longParagraph.maxLines, 1);
+          final style = tester.widget<Text>(shortName).style!;
+          final painter = TextPainter(
+            text: TextSpan(
+              text: products.first.localizedName(locale),
+              style: style,
+            ),
+            textDirection: locale == 'ar'
+                ? TextDirection.rtl
+                : TextDirection.ltr,
+            textScaler: TextScaler.linear(scale),
+            maxLines: 1,
+          )..layout();
+          expect(shortParagraph.size.height, closeTo(painter.height, 0.01));
+          painter.dispose();
           expect(longParagraph.overflow, TextOverflow.ellipsis);
           for (var i = 0; i < products.length; i++) {
             final card = cards.at(i);
@@ -275,6 +298,23 @@ void main() {
                 )
                 .first;
             final priceRect = tester.getRect(price);
+            final imageRect = tester.getRect(
+              find.descendant(of: card, matching: find.byType(AspectRatio)),
+            );
+            expect(
+              tester.getSize(card).height,
+              closeTo(
+                imageRect.height +
+                    AppSpacing.md * 2 +
+                    shortParagraph.size.height +
+                    tester.getSize(rating).height +
+                    AppSpacing.xs * 2 +
+                    priceRect.height,
+                0.01,
+              ),
+              reason:
+                  'A naturally sized card must not reserve a second title line',
+            );
             expect(
               tester.getRect(card).bottom - priceRect.bottom,
               closeTo(AppSpacing.md, 0.01),

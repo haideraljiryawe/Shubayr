@@ -9,6 +9,9 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get homeBrandName => 'Shubayr';
+
+  @override
   String get storeFallbackName => 'Store';
 
   @override
@@ -444,6 +447,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeAllDepartments => 'All';
 
   @override
+  String get homeOffersTitle => 'Offers & Discounts';
+
+  @override
+  String get homeOffersViewAll => 'View all';
+
+  @override
   String get homeSectionProducts => 'Products';
 
   @override
@@ -505,6 +514,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sortTopRated => 'Top rated';
 
   @override
+  String get productFiltersSort => 'Sort by';
+
+  @override
+  String get productFiltersOffersOnly => 'Offers only';
+
+  @override
+  String get productFiltersClearAll => 'Clear all';
+
+  @override
+  String get productFiltersShowResults => 'Show results';
+
+  @override
+  String productFilterPriceRange(String min, String max) {
+    return 'Price: $min–$max';
+  }
+
+  @override
+  String productFilterPriceFrom(String min) {
+    return 'Price: from $min';
+  }
+
+  @override
+  String productFilterPriceTo(String max) {
+    return 'Price: up to $max';
+  }
+
+  @override
   String get filtersTitle => 'Filters';
 
   @override
@@ -557,6 +593,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileName => 'Name';
+
+  @override
+  String get profileEmail => 'Email (optional)';
+
+  @override
+  String get profileEmailInvalid =>
+      'Enter a valid email, up to 160 characters.';
+
+  @override
+  String get profileNameTooLong => 'Use no more than 120 characters.';
 
   @override
   String get profileNameRequired => 'Enter your name.';
@@ -961,4 +1007,152 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminPermissionSettingsManage => 'Manage store settings';
+
+  @override
+  String get adminOrderConfirm => 'Confirm order';
+
+  @override
+  String get adminOrderUpdate => 'Update status';
+
+  @override
+  String get adminOrderCurrentStatus => 'Current status';
+
+  @override
+  String get adminOrderNewStatus => 'New status';
+
+  @override
+  String get adminOrderConfirmMessage => 'Confirm acceptance of this order?';
+
+  @override
+  String get adminOrderUpdated => 'Order status updated';
+
+  @override
+  String get adminOrderSearch => 'Search by order number or customer';
+
+  @override
+  String get adminOrderClearSearch => 'Clear search';
+
+  @override
+  String get adminOrderDateRange => 'Date range';
+
+  @override
+  String get adminOrderClearDates => 'Clear date filter';
+
+  @override
+  String get adminOrderEmptyHint => 'Try another status, search or date range.';
+
+  @override
+  String get filterOnSale => 'Offers';
+
+  @override
+  String promotionDiscount(String percent) {
+    return '$percent% off';
+  }
+
+  @override
+  String promotionOriginalPrice(String price) {
+    return 'Original price: $price';
+  }
+
+  @override
+  String get promotionBasePrice => 'Base product offer';
+
+  @override
+  String get adminOriginalPrice => 'Original price (optional)';
+
+  @override
+  String get adminOriginalPriceHint =>
+      'Leave empty or set no higher than the sale price to remove the offer.';
+
+  @override
+  String bannerPosition(String current, String total) {
+    return '$current of $total';
+  }
+
+  @override
+  String get bannerOpenFailed => 'Could not open this link. Please try again.';
+
+  @override
+  String get startupTagline => 'Everything you need, all in one place';
+
+  @override
+  String get startupLoading => 'Getting the app ready';
+
+  @override
+  String get adminUserSearch => 'Search for a user';
+
+  @override
+  String get accountEditProfile => 'Edit profile';
+
+  @override
+  String get accountNoName => 'No name added';
+
+  @override
+  String get accountNoEmail => 'No email added';
+
+  @override
+  String get accountNoPhone => 'Phone number unavailable';
+
+  @override
+  String get profilePhone => 'Phone number';
+
+  @override
+  String get profileChangePhone => 'Change';
+
+  @override
+  String get profilePhoneChangeUnavailable =>
+      'Phone changes are not available yet. The new number will need OTP verification.';
+
+  @override
+  String get addressContactPhone => 'Contact phone';
+
+  @override
+  String get addressUsePrimaryPhone => 'Use my primary number';
+
+  @override
+  String get addressUseOtherPhone => 'Use another number';
+
+  @override
+  String get addressOtherPhone => 'Other phone number';
+
+  @override
+  String get addressPrimaryPhoneBadge => 'Primary';
+
+  @override
+  String get addressContactUnavailable => 'Contact phone unavailable';
+
+  @override
+  String get addressContactBackendPending =>
+      'Saving a contact phone is not available in the service yet.';
+
+  @override
+  String get accountSignOutConfirm => 'Do you want to sign out?';
+
+  @override
+  String get accountDeleteAcknowledgement =>
+      'I confirm that I want to delete my account';
+
+  @override
+  String get mainCategoriesTitle => 'Main Categories';
+
+  @override
+  String get mockCategoryElectronicsDescription =>
+      'Phones, devices and accessories';
+
+  @override
+  String get mockCategoryGroceryDescription => 'Food and everyday essentials';
+
+  @override
+  String get mockCategoryClothingDescription => 'Clothing for the whole family';
+
+  @override
+  String get mockCategoryHomeDescription => 'Kitchenware and home essentials';
+
+  @override
+  String get mockCategoryBeautyDescription =>
+      'Skin care, hair care and fragrances';
+
+  @override
+  String get mockCategorySportsDescription =>
+      'Fitness, cycling and outdoor gear';
 }

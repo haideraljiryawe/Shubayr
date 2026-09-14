@@ -24,9 +24,11 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.background,
     required this.surface,
     required this.surfaceAlt,
+    required this.categoryTile,
     required this.textPrimary,
     required this.textSecondary,
     required this.textMuted,
+    required this.textDisabled,
     required this.onDark,
     required this.confirmSurface,
     required this.onConfirmSurface,
@@ -79,9 +81,11 @@ class AppColors extends ThemeExtension<AppColors> {
       background: ColorPrimitives.sand50,
       surface: ColorPrimitives.white,
       surfaceAlt: ColorPrimitives.sand100,
+      categoryTile: ColorPrimitives.sand75,
       textPrimary: ColorPrimitives.ink900,
       textSecondary: ColorPrimitives.ink600,
-      textMuted: ColorPrimitives.ink400,
+      textMuted: ColorPrimitives.ink500,
+      textDisabled: ColorPrimitives.ink400,
       onDark: ColorPrimitives.white,
       confirmSurface: ColorPrimitives.confirmSurface,
       onConfirmSurface: ColorPrimitives.mist100,
@@ -106,9 +110,13 @@ class AppColors extends ThemeExtension<AppColors> {
     return AppColors(
       brightness: Brightness.dark,
       primary: onDarkPrimary,
-      primaryDark: p.withLightness((p.lightness * 0.72).clamp(0.0, 1.0)).toColor(),
+      primaryDark: p
+          .withLightness((p.lightness * 0.72).clamp(0.0, 1.0))
+          .toColor(),
       primaryLight: p
-          .withLightness((p.lightness + (1 - p.lightness) * 0.35).clamp(0.0, 1.0))
+          .withLightness(
+            (p.lightness + (1 - p.lightness) * 0.35).clamp(0.0, 1.0),
+          )
           .toColor(),
       // A dark, desaturated brand tint for chips / selected rows / badges.
       primarySoft: p.withSaturation(0.38).withLightness(0.20).toColor(),
@@ -121,9 +129,11 @@ class AppColors extends ThemeExtension<AppColors> {
       background: ColorPrimitives.charcoal900,
       surface: ColorPrimitives.charcoal800,
       surfaceAlt: ColorPrimitives.charcoal700,
+      categoryTile: ColorPrimitives.charcoal700,
       textPrimary: ColorPrimitives.mist100,
       textSecondary: ColorPrimitives.mist300,
-      textMuted: ColorPrimitives.mist500,
+      textMuted: ColorPrimitives.mist400,
+      textDisabled: ColorPrimitives.mist500,
       onDark: ColorPrimitives.white,
       confirmSurface: ColorPrimitives.confirmSurface,
       onConfirmSurface: ColorPrimitives.mist100,
@@ -160,12 +170,29 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color surface;
   final Color surfaceAlt;
 
+  /// Quiet borderless tiles in the category browser.
+  final Color categoryTile;
+
+  /// Slightly stronger brand tint for Home's circular navigation shortcuts.
+  Color get categoryShortcutBackground =>
+      Color.alphaBlend(primary.withValues(alpha: 0.10), primarySoft);
+
   final Color textPrimary;
+
+  /// Readable secondary copy, labels and metadata.
   final Color textSecondary;
+
+  /// Lower-emphasis readable hints and unselected navigation; not disabled.
   final Color textMuted;
+
+  /// Unavailable controls, independent of supporting text contrast.
+  final Color textDisabled;
 
   /// Text/icon colour on top of dark or saturated fills.
   final Color onDark;
+
+  /// Stable dark scrim behind image-overlay copy; pairs with [onDark].
+  Color get imageScrim => ColorPrimitives.ink900;
 
   /// Dark surface for positive/confirmation snackbars (e.g. "added to cart");
   /// fixed across light and dark themes. [onConfirmSurface] is its off-white
@@ -228,9 +255,11 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? background,
     Color? surface,
     Color? surfaceAlt,
+    Color? categoryTile,
     Color? textPrimary,
     Color? textSecondary,
     Color? textMuted,
+    Color? textDisabled,
     Color? onDark,
     Color? confirmSurface,
     Color? onConfirmSurface,
@@ -254,9 +283,11 @@ class AppColors extends ThemeExtension<AppColors> {
       background: background ?? this.background,
       surface: surface ?? this.surface,
       surfaceAlt: surfaceAlt ?? this.surfaceAlt,
+      categoryTile: categoryTile ?? this.categoryTile,
       textPrimary: textPrimary ?? this.textPrimary,
       textSecondary: textSecondary ?? this.textSecondary,
       textMuted: textMuted ?? this.textMuted,
+      textDisabled: textDisabled ?? this.textDisabled,
       onDark: onDark ?? this.onDark,
       confirmSurface: confirmSurface ?? this.confirmSurface,
       onConfirmSurface: onConfirmSurface ?? this.onConfirmSurface,
@@ -287,9 +318,11 @@ class AppColors extends ThemeExtension<AppColors> {
       background: mix(background, other.background),
       surface: mix(surface, other.surface),
       surfaceAlt: mix(surfaceAlt, other.surfaceAlt),
+      categoryTile: mix(categoryTile, other.categoryTile),
       textPrimary: mix(textPrimary, other.textPrimary),
       textSecondary: mix(textSecondary, other.textSecondary),
       textMuted: mix(textMuted, other.textMuted),
+      textDisabled: mix(textDisabled, other.textDisabled),
       onDark: mix(onDark, other.onDark),
       confirmSurface: mix(confirmSurface, other.confirmSurface),
       onConfirmSurface: mix(onConfirmSurface, other.onConfirmSurface),

@@ -11,10 +11,11 @@ import '../../data/after_sales_repository_remote.dart';
 import '../../data/return_request.dart';
 import '../../domain/after_sales_repository.dart';
 import 'order_providers.dart';
+import '../widgets/order_item_display.dart';
 
 final afterSalesRepositoryProvider = Provider<AfterSalesRepository>((ref) {
   final userId = ref.watch(
-    sessionControllerProvider.select((s) => s.valueOrNull?.user?.id),
+    sessionControllerProvider.select((s) => s.value?.user?.id),
   );
   return switch (ref.watch(dataSourceProvider)) {
     DataSource.mock => AfterSalesRepositoryMock(
@@ -30,13 +31,23 @@ final afterSalesRepositoryProvider = Provider<AfterSalesRepository>((ref) {
 final orderProductsProvider = FutureProvider.autoDispose
     .family<Map<String, Product>, String>((ref, orderId) async {
       final order = await ref.watch(orderProvider(orderId).future);
+      if (!ref.mounted) return const {};
       final products = await Future.wait(
         order.items
+            .where((item) => item.needsCatalogLabel)
             .map((i) => i.productId)
             .toSet()
-            .map((id) => ref.watch(productProvider(id).future)),
+            .map((id) async {
+              try {
+                return await ref.watch(productProvider(id).future);
+              } catch (_) {
+                // Catalog reads enrich historical labels; they are not an
+                // eligibility requirement for reviews or returns.
+                return null;
+              }
+            }),
       );
-      return {for (final p in products) p.id: p};
+      return {for (final p in products.whereType<Product>()) p.id: p};
     });
 
 /// Receipts obtained in THIS session, not a fabricated API history endpoint.

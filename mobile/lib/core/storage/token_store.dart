@@ -40,7 +40,7 @@ class SecureTokenStore implements TokenStore {
 
 /// Non-persistent token store for tests and widget previews.
 class InMemoryTokenStore implements TokenStore {
-  InMemoryTokenStore({String? accessToken}) : _accessToken = accessToken;
+  InMemoryTokenStore({this._accessToken});
 
   String? _accessToken;
   String? _refreshToken;

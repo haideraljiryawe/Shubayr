@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -132,9 +133,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return _SuccessView(order: placed, money: _money);
     }
 
-    final cart = ref.watch(cartControllerProvider).valueOrNull;
+    final cart = ref.watch(cartControllerProvider).value;
     final addressState = ref.watch(addressesControllerProvider);
-    final addresses = addressState.valueOrNull;
+    final addresses = addressState.value;
     final subtotal = cart?.subtotal ?? 0;
     final discount = _coupon?.discountOn(subtotal) ?? 0;
     final estimatedTotal = subtotal - discount;
@@ -149,79 +150,105 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.checkoutTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
+        padding: AppLayout.pageInsets(context),
         children: [
-          _SectionTitle(l10n.checkoutAddress),
-          AsyncValueView<List<Address>>(
-            value: addressState,
-            loading: const AppCard(
-              child: Row(
+          ResponsiveSections(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Skeleton.box(width: AppSpacing.lg, height: AppSpacing.lg),
-                  SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  _SectionTitle(l10n.checkoutAddress),
+                  AsyncValueView<List<Address>>(
+                    value: addressState,
+                    skipLoadingOnReload: ref
+                        .read(addressesControllerProvider.notifier)
+                        .isRefreshing,
+                    loading: const AppCard(
+                      child: Row(
+                        children: [
+                          Skeleton.box(
+                            width: AppSpacing.lg,
+                            height: AppSpacing.lg,
+                          ),
+                          SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Skeleton.line(),
+                                SizedBox(height: AppSpacing.xxs),
+                                Skeleton.line(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    onRetry: () => ref
+                        .read(addressesControllerProvider.notifier)
+                        .refresh(),
+                    builder: (context, loaded) => _AddressSection(
+                      selected: address,
+                      onChange: address == null
+                          ? null
+                          : () => _pickAddress(loaded, address.id),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  _SectionTitle(l10n.checkoutCoupon),
+                  _CouponSection(
+                    controller: _couponCtrl,
+                    applied: _coupon,
+                    error: _couponError,
+                    busy: _applyingCoupon,
+                    onApply: _applyCoupon,
+                    onRemove: () => setState(() {
+                      _coupon = null;
+                      _couponError = null;
+                      _couponCtrl.clear();
+                    }),
+                    money: _money,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  _SectionTitle(l10n.checkoutPayment),
+                  AppCard(
+                    child: Row(
                       children: [
-                        Skeleton.line(),
-                        SizedBox(height: AppSpacing.xxs),
-                        Skeleton.line(),
+                        Icon(
+                          Icons.payments_outlined,
+                          color: context.colors.primary,
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Text(
+                            l10n.checkoutCod,
+                            style: context.text.bodyLarge,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
-            onRetry: () =>
-                ref.read(addressesControllerProvider.notifier).refresh(),
-            builder: (context, loaded) => _AddressSection(
-              selected: address,
-              onChange: address == null
-                  ? null
-                  : () => _pickAddress(loaded, address.id),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _SectionTitle(l10n.checkoutCoupon),
-          _CouponSection(
-            controller: _couponCtrl,
-            applied: _coupon,
-            error: _couponError,
-            busy: _applyingCoupon,
-            onApply: _applyCoupon,
-            onRemove: () => setState(() {
-              _coupon = null;
-              _couponError = null;
-              _couponCtrl.clear();
-            }),
-            money: _money,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _SectionTitle(l10n.checkoutPayment),
-          AppCard(
-            child: Row(
-              children: [
-                Icon(Icons.payments_outlined, color: context.colors.primary),
-                const SizedBox(width: AppSpacing.md),
-                Text(l10n.checkoutCod, style: context.text.bodyLarge),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _Summary(
-            subtotal: subtotal,
-            discount: discount,
-            total: estimatedTotal,
-            money: _money,
+              _Summary(
+                subtotal: subtotal,
+                discount: discount,
+                total: estimatedTotal,
+                money: _money,
+              ),
+            ],
           ),
         ],
       ),
-      bottomNavigationBar: _PlaceOrderBar(
-        total: estimatedTotal,
-        money: _money,
-        enabled: canPlace,
-        busy: _placing,
-        onPlace: canPlace ? () => _placeOrder(address.id) : null,
+      bottomNavigationBar: ResponsiveContent(
+        maxWidth: AppLayout.readingWidth,
+        child: _PlaceOrderBar(
+          total: estimatedTotal,
+          money: _money,
+          enabled: canPlace,
+          busy: _placing,
+          onPlace: canPlace ? () => _placeOrder(address.id) : null,
+        ),
       ),
     );
   }
@@ -463,20 +490,16 @@ class _SummaryRow extends StatelessWidget {
         : emphasize
         ? colors.primaryDark
         : colors.textPrimary;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: emphasize ? context.text.titleSmall : context.text.bodyMedium,
-        ),
-        Text(
-          value,
-          style:
-              (emphasize ? context.text.titleMedium : context.text.bodyMedium)
-                  ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
-        ),
-      ],
+    return ResponsiveValueRow(
+      label: Text(
+        label,
+        style: emphasize ? context.text.titleSmall : context.text.bodyMedium,
+      ),
+      value: Text(
+        value,
+        style: (emphasize ? context.text.titleMedium : context.text.bodyMedium)
+            ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }
@@ -508,7 +531,7 @@ class _PlaceOrderBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.screenH),
+          padding: AppLayout.pageInsets(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

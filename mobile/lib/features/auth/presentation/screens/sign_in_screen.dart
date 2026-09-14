@@ -1,3 +1,5 @@
+import '../../../../core/utils/numeric_input_formatters.dart';
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -90,12 +92,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenH,
-              vertical: AppSpacing.xl,
+            padding: AppLayout.pageInsets(
+              context,
+              top: AppSpacing.xl,
+              bottom: AppSpacing.xl,
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: AppLayout.authWidth),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -118,6 +121,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: const [PhoneInputFormatter()],
                       textDirection: TextDirection.ltr,
                       autofillHints: const [AutofillHints.telephoneNumber],
                       decoration: InputDecoration(

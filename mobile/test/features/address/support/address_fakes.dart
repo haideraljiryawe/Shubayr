@@ -7,8 +7,9 @@ import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart
 
 class AddressTestSession extends SessionController {
   @override
-  Future<Session> build() async =>
-      const Session.signedIn(User(id: 'customer', role: 'customer'));
+  Future<Session> build() async => const Session.signedIn(
+    User(id: 'customer', role: 'customer', phone: '07700000000'),
+  );
   void setSession(Session next) => state = AsyncData(next);
 }
 
@@ -67,6 +68,7 @@ AddressPage addressPage(
     )
       Address(
         id: 'addr-$i',
+        contactPhone: '07700000000',
         label: 'Address $i',
         city: 'Baghdad',
         isDefault: i == defaultIndex,

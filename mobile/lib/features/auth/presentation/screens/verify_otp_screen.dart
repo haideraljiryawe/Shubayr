@@ -1,3 +1,5 @@
+import '../../../../core/utils/numeric_input_formatters.dart';
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -58,7 +60,10 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
     await _run(
       () => ref
           .read(sessionControllerProvider.notifier)
-          .verifyOtp(phone: widget.phone, code: _codeController.text.trim()),
+          .verifyOtp(
+            phone: widget.phone,
+            code: Validators.foldDigits(_codeController.text).trim(),
+          ),
     );
 
     // On success, reset the stack with a clean declarative navigation. The
@@ -67,7 +72,7 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
     // rebuild the navigator with a duplicated shell page key and crash. Going
     // to a root page clears those matches before restoring a detail page.
     if (!mounted) return;
-    final session = ref.read(sessionControllerProvider).valueOrNull;
+    final session = ref.read(sessionControllerProvider).value;
     if (session != null && session.isSignedIn) {
       final router = GoRouter.of(context);
       final destination = SignInDestination.resolve(
@@ -108,12 +113,13 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenH,
-              vertical: AppSpacing.xl,
+            padding: AppLayout.pageInsets(
+              context,
+              top: AppSpacing.xl,
+              bottom: AppSpacing.xl,
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: AppLayout.authWidth),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -129,6 +135,7 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
                     TextFormField(
                       controller: _codeController,
                       keyboardType: TextInputType.number,
+                      inputFormatters: const [OtpInputFormatter()],
                       textDirection: TextDirection.ltr,
                       autofillHints: const [AutofillHints.oneTimeCode],
                       decoration: InputDecoration(

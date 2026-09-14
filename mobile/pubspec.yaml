@@ -4,7 +4,9 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.11.5
+  sdk: ^3.12.0
+  # Supported toolchain; iOS deployment requires 15.0 or newer.
+  flutter: '>=3.47.4'
 
 dependencies:
   flutter:
@@ -13,7 +15,7 @@ dependencies:
     sdk: flutter
 
   # State management + dependency injection
-  flutter_riverpod: ^2.6.1
+  flutter_riverpod: ^3.4.3
 
   # Routing (role-based guards, web URL strategy)
   go_router: ^17.5.0
@@ -22,7 +24,7 @@ dependencies:
   dio: ^5.11.1
 
   # Storage
-  flutter_secure_storage: ^11.0.0
+  flutter_secure_storage: ^11.1.1
   shared_preferences: ^2.5.5
 
   # Serialization
@@ -39,19 +41,26 @@ dependencies:
   photo_view: ^0.15.0
 
   cupertino_icons: ^1.0.8
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  build_runner: ^2.15.1
+  build_runner: ^2.16.1
   json_serializable: ^6.14.1
 
 flutter:
+  config:
+    # Retain the existing CocoaPods integration when using Flutter 3.44+.
+    enable-swift-package-manager: false
   uses-material-design: true
 
   # Generates AppLocalizations from the ARB files (see l10n.yaml).
   generate: true
+
+  assets:
+    - assets/images/branding/shubayr-logo.png
 
   # ---------------------------------------------------------------------------
   # Local UI font — Cairo. Bundled from assets, never fetched over the network.
@@ -68,4 +77,9 @@ flutter:
         - asset: assets/fonts/Cairo-SemiBold.ttf
           weight: 600
         - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700
+    # Brand wordmarks only; Cairo remains the app-wide UI family.
+    - family: Zain-Bold
+      fonts:
+        - asset: assets/fonts/Zain-Bold.ttf
           weight: 700

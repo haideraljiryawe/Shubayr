@@ -18,6 +18,14 @@ come from `GET /settings` at runtime — nothing brand-specific is hard-coded.
 
 ## Run
 
+Use **Flutter 3.47.4 stable** (Dart 3.13.3), with **iOS 15.0 or newer**.
+On this machine, Terminal and VS Code use the shared SDK at
+`/Users/ahmeda.alwan/DeveloperTools/flutter`; no directory-based SDK switch is
+needed. CocoaPods remains enabled; Swift Package Manager migration is deferred.
+Flutter 3.41.9 can reuse device native assets in a simulator build. See the
+[iOS startup diagnosis](docs/startup-debug-diagnosis.md) for the original issue
+and the current upgrade verification status.
+
 ```bash
 flutter pub get
 flutter run                        # device/emulator (customer/delivery)

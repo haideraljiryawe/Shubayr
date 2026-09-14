@@ -1,6 +1,7 @@
 {
   "@@locale": "en",
 
+  "homeBrandName": "Shubayr",
   "storeFallbackName": "Store",
   "@storeFallbackName": { "description": "Neutral brand name used before store settings load." },
 
@@ -155,6 +156,8 @@
   "commonOutOfStock": "Out of stock",
   "homeSectionDepartments": "Shop by department",
   "homeAllDepartments": "All",
+  "homeOffersTitle": "Offers & Discounts",
+  "homeOffersViewAll": "View all",
   "homeSectionProducts": "Products",
   "productDescription": "Description",
   "productNegotiable": "Negotiable",
@@ -177,6 +180,16 @@
   "sortCheapest": "Lowest price",
   "sortDearest": "Highest price",
   "sortTopRated": "Top rated",
+  "productFiltersSort": "Sort by",
+  "productFiltersOffersOnly": "Offers only",
+  "productFiltersClearAll": "Clear all",
+  "productFiltersShowResults": "Show results",
+  "productFilterPriceRange": "Price: {min}–{max}",
+  "@productFilterPriceRange": {"placeholders": {"min": {"type": "String"}, "max": {"type": "String"}}},
+  "productFilterPriceFrom": "Price: from {min}",
+  "@productFilterPriceFrom": {"placeholders": {"min": {"type": "String"}}},
+  "productFilterPriceTo": "Price: up to {max}",
+  "@productFilterPriceTo": {"placeholders": {"max": {"type": "String"}}},
   "filtersTitle": "Filters",
   "filterPrice": "Price",
   "filterMin": "Min",
@@ -197,6 +210,9 @@
 
   "profileTitle": "Profile",
   "profileName": "Name",
+  "profileEmail": "Email (optional)",
+  "profileEmailInvalid": "Enter a valid email, up to 160 characters.",
+  "profileNameTooLong": "Use no more than 120 characters.",
   "profileNameRequired": "Enter your name.",
   "profileChangePhoto": "Change photo",
   "profileSaved": "Changes saved.",
@@ -330,5 +346,74 @@
   "adminPermissionLoyaltyManage": "Manage loyalty points",
   "adminPermissionUsersManage": "Manage users and roles",
   "adminPermissionReportsView": "View reports",
-  "adminPermissionSettingsManage": "Manage store settings"
+  "adminPermissionSettingsManage": "Manage store settings",
+  "adminOrderConfirm": "Confirm order",
+  "adminOrderUpdate": "Update status",
+  "adminOrderCurrentStatus": "Current status",
+  "adminOrderNewStatus": "New status",
+  "adminOrderConfirmMessage": "Confirm acceptance of this order?",
+  "adminOrderUpdated": "Order status updated",
+  "adminOrderSearch": "Search by order number or customer",
+  "adminOrderClearSearch": "Clear search",
+  "adminOrderDateRange": "Date range",
+  "adminOrderClearDates": "Clear date filter",
+  "adminOrderEmptyHint": "Try another status, search or date range.",
+  "filterOnSale": "Offers",
+  "promotionDiscount": "{percent}% off",
+  "promotionOriginalPrice": "Original price: {price}",
+  "promotionBasePrice": "Base product offer",
+  "adminOriginalPrice": "Original price (optional)",
+  "adminOriginalPriceHint": "Leave empty or set no higher than the sale price to remove the offer.",
+  "@promotionDiscount": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "@promotionOriginalPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "bannerPosition": "{current} of {total}",
+  "bannerOpenFailed": "Could not open this link. Please try again.",
+  "@bannerPosition": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "startupTagline": "Everything you need, all in one place",
+  "startupLoading": "Getting the app ready",
+  "adminUserSearch": "Search for a user",
+  "accountEditProfile": "Edit profile",
+  "accountNoName": "No name added",
+  "accountNoEmail": "No email added",
+  "accountNoPhone": "Phone number unavailable",
+  "profilePhone": "Phone number",
+  "profileChangePhone": "Change",
+  "profilePhoneChangeUnavailable": "Phone changes are not available yet. The new number will need OTP verification.",
+  "addressContactPhone": "Contact phone",
+  "addressUsePrimaryPhone": "Use my primary number",
+  "addressUseOtherPhone": "Use another number",
+  "addressOtherPhone": "Other phone number",
+  "addressPrimaryPhoneBadge": "Primary",
+  "addressContactUnavailable": "Contact phone unavailable",
+  "addressContactBackendPending": "Saving a contact phone is not available in the service yet.",
+  "accountSignOutConfirm": "Do you want to sign out?",
+  "accountDeleteAcknowledgement": "I confirm that I want to delete my account",
+  "mainCategoriesTitle": "Main Categories",
+  "mockCategoryElectronicsDescription": "Phones, devices and accessories",
+  "mockCategoryGroceryDescription": "Food and everyday essentials",
+  "mockCategoryClothingDescription": "Clothing for the whole family",
+  "mockCategoryHomeDescription": "Kitchenware and home essentials",
+  "mockCategoryBeautyDescription": "Skin care, hair care and fragrances",
+  "mockCategorySportsDescription": "Fitness, cycling and outdoor gear"
 }

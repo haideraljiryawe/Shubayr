@@ -1,3 +1,4 @@
+import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,7 @@ import 'package:shubayr/core/theme/brand.dart';
 import 'package:shubayr/core/widgets/app_button.dart';
 import 'package:shubayr/features/admin/domain/admin_repository.dart';
 import 'package:shubayr/features/admin/presentation/providers/admin_providers.dart';
+import 'package:shubayr/features/admin/presentation/screens/admin_hub_screen.dart';
 import 'package:shubayr/features/admin/presentation/screens/admin_list_screen.dart';
 import 'package:shubayr/features/admin/presentation/screens/admin_record_form.dart';
 import 'package:shubayr/features/auth/data/user.dart';
@@ -25,7 +27,9 @@ Widget host(
   bool dark = false,
   AdminTestSession? session,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
+    brandProvider.overrideWithValue(const Brand.bundled()),
     adminRepositoryProvider.overrideWithValue(repo),
     sessionControllerProvider.overrideWith(() => session ?? AdminTestSession()),
   ],
@@ -50,6 +54,66 @@ Future<void> save(WidgetTester tester) async {
 }
 
 void main() {
+  for (final (resource, input, expected) in [
+    (AdminResource.users, '+۱ (۲۰۲) ۵۵۵,۰۱۲۳', '+12025550123'),
+    (AdminResource.suppliers, '(٠٧٧٠) ١٢٣-٤٥٦٧', '07701234567'),
+  ]) {
+    testWidgets(
+      '$resource saves a clean phone string without canonicalization',
+      (tester) async {
+        final repo = RecordingAdmin();
+        await tester.pumpWidget(host(repo, resource: resource));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(FloatingActionButton));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('name')),
+          'Phone test',
+        );
+        final phone = find.byKey(const ValueKey('phone'));
+        await tester.enterText(phone, input);
+        expect(tester.widget<TextFormField>(phone).controller!.text, expected);
+        await save(tester);
+        expect(repo.writes.single.input['phone'], expected);
+        expect(find.byType(AdminRecordForm), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+
+  for (final locale in ['ar', 'en']) {
+    for (final catalog in [true, false]) {
+      testWidgets('admin hub catalog=$catalog chevrons follow $locale', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          host(
+            RecordingAdmin(),
+            locale: locale,
+            child: AdminHubScreen(catalog: catalog),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final chevrons = find.byIcon(Icons.chevron_right);
+        expect(chevrons, findsNWidgets(2));
+        expect(find.byIcon(Icons.chevron_left), findsNothing);
+        for (var i = 0; i < 2; i++) {
+          final mirror = find.descendant(
+            of: chevrons.at(i),
+            matching: find.byType(Transform),
+          );
+          if (locale == 'ar') {
+            expect(tester.widget<Transform>(mirror).transform.entry(0, 0), -1);
+          } else {
+            expect(mirror, findsNothing);
+          }
+        }
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
   TestWidgetsFlutterBinding.ensureInitialized();
   WidgetController.hitTestWarningShouldBeFatal = true;
   setUpAll(() async {
@@ -59,6 +123,38 @@ void main() {
       ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf'));
     await font.load();
   });
+  testWidgets('original price validation and clearing survive a failed edit', (
+    tester,
+  ) async {
+    final repo = RecordingAdmin();
+    await tester.pumpWidget(host(repo, resource: AdminResource.products));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Edit').first);
+    await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey('compare_at_price'));
+    await tester.ensureVisible(field);
+    expect(tester.widget<TextFormField>(field).controller!.text, '60,000');
+    await tester.enterText(field, '-10');
+    await save(tester);
+    expect(repo.writes, isEmpty);
+    await tester.ensureVisible(field);
+    await tester.enterText(field, '');
+    repo.onSave = (_, _, _) async => throw const AppFailure.network();
+    await save(tester);
+    expect(repo.writes.single.input['compare_at_price'], isNull);
+    expect(tester.widget<TextFormField>(field).controller!.text, isEmpty);
+    expect(find.byType(AdminRecordForm), findsOneWidget);
+    repo.onSave = null;
+    // Let the three-second failure snackbar leave the bottom action unobscured.
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    await save(tester);
+    expect(repo.writes.last.input['compare_at_price'], isNull);
+    expect(repo.writes.last.id, isNotNull);
+    expect(find.byType(AdminRecordForm), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('user search and role filter are repository queries', (
     tester,
   ) async {
@@ -260,13 +356,27 @@ void main() {
       for (final entry in {
         'name_ar': 'مادة جديدة',
         'name_en': 'New product',
-        'sale_price': '12500',
-        'points_price': '10.0',
+        'sale_price': '١٢٥٠٠',
+        'compare_at_price': '15,000',
+        'floor_price': '۱۲۵۰.۵',
+        'points_price': '۱۲۵۰.0',
         'images': 'https://example.com/product.jpg',
       }.entries) {
         final field = find.byKey(ValueKey(entry.key));
         await tester.ensureVisible(field);
         await tester.enterText(field, entry.value);
+        final expected = {
+          'sale_price': '12,500',
+          'compare_at_price': '15,000',
+          'floor_price': '1,250.5',
+          'points_price': '1250.0',
+        }[entry.key];
+        if (expected != null) {
+          expect(
+            tester.widget<TextFormField>(field).controller!.text,
+            expected,
+          );
+        }
       }
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pumpAndSettle();
@@ -276,11 +386,21 @@ void main() {
       final sku = find.widgetWithText(TextFormField, 'SKU');
       await tester.ensureVisible(sku);
       await tester.enterText(sku, 'SKU-NEW');
+      final delta = find.widgetWithText(TextFormField, 'Price difference');
+      await tester.ensureVisible(delta);
+      await tester.enterText(delta, '-١٢٥٠٫٥');
+      expect(tester.widget<TextFormField>(delta).controller!.text, '-1,250.5');
       await save(tester);
       expect(repo.writes, hasLength(1));
       final input = repo.writes.single.input;
+      expect(input['compare_at_price'], 15000);
       expect(input['category_id'], isNotNull);
       expect(input['sale_price'], 12500);
+      expect(input['sale_price'], isA<num>());
+      expect(input['compare_at_price'], isA<num>());
+      expect(input['floor_price'], 1250.5);
+      expect(input['points_price'], 1250);
+      expect((input['variants'] as List).single['price_delta'], -1250.5);
       expect(input['points_price'], isA<int>());
       expect(input['images'], ['https://example.com/product.jpg']);
       expect((input['variants'] as List).single['sku'], 'SKU-NEW');
@@ -312,7 +432,9 @@ void main() {
       addTearDown(router.dispose);
       await tester.pumpWidget(
         ProviderScope(
+          retry: (retryCount, error) => null,
           overrides: [
+            brandProvider.overrideWithValue(const Brand.bundled()),
             adminRepositoryProvider.overrideWithValue(repo),
             sessionControllerProvider.overrideWith(AdminTestSession.new),
           ],

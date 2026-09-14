@@ -41,6 +41,7 @@ void main() {
       for (final route in [
         AppRoutes.home,
         AppRoutes.categories,
+        "${AppRoutes.categories}/cat-electronics",
         AppRoutes.account,
         AppRoutes.signIn,
         AppRoutes.verifyOtp,

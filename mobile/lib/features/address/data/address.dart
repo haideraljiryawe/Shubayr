@@ -2,8 +2,8 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'address.g.dart';
 
-/// A saved delivery address. Shapes match `Address` in `api/openapi.yaml`. The
-/// list is user-scoped (auth required). `lat`/`lng` come from the contract but
+/// A saved delivery address. Transport fields match the OpenAPI `Address`.
+/// The list is user-scoped (auth required). `lat`/`lng` come from the contract but
 /// aren't edited here yet (no map picker); they round-trip untouched.
 @JsonSerializable(explicitToJson: true)
 class Address {
@@ -15,6 +15,7 @@ class Address {
     this.area = '',
     this.street = '',
     this.details,
+    this.contactPhone,
     this.lat,
     this.lng,
     this.isDefault = false,
@@ -28,6 +29,12 @@ class Address {
   final String area;
   final String street;
   final String? details;
+
+  /// Product requirement supported by Mock only until the contract adds
+  /// `contact_phone`. Null represents an unsupported legacy remote response,
+  /// never an implicit reference to the account phone.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final String? contactPhone;
   final num? lat;
   final num? lng;
   @JsonKey(name: 'is_default')
@@ -41,9 +48,24 @@ class Address {
     area: area,
     street: street,
     details: details,
+    contactPhone: contactPhone,
     lat: lat,
     lng: lng,
     isDefault: isDefault ?? this.isDefault,
+  );
+
+  Address withDefault(bool value) => Address(
+    id: id,
+    userId: userId,
+    label: label,
+    city: city,
+    area: area,
+    street: street,
+    details: details,
+    contactPhone: contactPhone,
+    lat: lat,
+    lng: lng,
+    isDefault: value,
   );
 
   factory Address.fromJson(Map<String, dynamic> json) =>
@@ -52,7 +74,7 @@ class Address {
   Map<String, dynamic> toJson() => _$AddressToJson(this);
 }
 
-/// Create/update payload. Matches `AddressInput` in `api/openapi.yaml`.
+/// Create/update payload with a Mock-only contact phone extension.
 @JsonSerializable(createFactory: false)
 class AddressInput {
   const AddressInput({
@@ -61,6 +83,7 @@ class AddressInput {
     this.area = '',
     this.street = '',
     this.details,
+    this.contactPhone,
     this.lat,
     this.lng,
     this.isDefault = false,
@@ -71,6 +94,12 @@ class AddressInput {
   final String area;
   final String street;
   final String? details;
+
+  /// Product requirement supported by Mock only until the contract adds
+  /// `contact_phone`. Null supports the current contact-less remote payload,
+  /// never an implicit reference to the account phone.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final String? contactPhone;
   final num? lat;
   final num? lng;
   @JsonKey(name: 'is_default')

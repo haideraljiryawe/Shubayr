@@ -1,3 +1,5 @@
+import '../widgets/admin_app_bar.dart';
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -85,51 +87,42 @@ class AdminHomeScreen extends ConsumerWidget {
         .toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.adminTitle),
-        actions: [
-          IconButton(
-            onPressed: () => context.push(AppRoutes.settings),
-            icon: const Icon(Icons.person_outline),
-            tooltip: context.l10n.accountTitle,
-          ),
-        ],
-      ),
+      appBar: adminAppBar(context, ref, title: context.l10n.adminTitle),
       body: visible.isEmpty
           ? AppEmptyView(
               icon: Icons.lock_outline,
               message: context.l10n.adminNoAccess,
             )
-          : GridView.count(
-              crossAxisCount: 2,
-              padding: const EdgeInsets.all(AppSpacing.screenH),
-              mainAxisSpacing: AppSpacing.md,
-              crossAxisSpacing: AppSpacing.md,
-              childAspectRatio: 1.3,
-              children: [
-                for (final s in visible)
-                  _SectionTile(
-                    icon: s.icon,
-                    label: s.label(context),
-                    onTap: () {
-                      final route = switch (s.permission) {
-                        Permissions.catalogManage => AppRoutes.adminCatalog,
-                        Permissions.usersManage => AppRoutes.adminUsers,
-                        Permissions.purchasingView => '/admin/manage/suppliers',
-                        Permissions.inventoryView => '/admin/manage/warehouses',
-                        _ => null,
-                      };
-                      if (route != null) {
-                        context.push(route);
-                      } else {
-                        showAppSnackBarMessage(
-                          context,
-                          message: context.l10n.comingSoonTitle,
-                        );
-                      }
-                    },
-                  ),
-              ],
+          : ResponsiveCardList(
+              phoneColumns: 2,
+              minItemWidth: AppLayout.dashboardMinWidth,
+              padding: AppLayout.pageInsets(context),
+              itemCount: visible.length,
+              itemBuilder: (context, index) {
+                final s = visible[index];
+                return _SectionTile(
+                  icon: s.icon,
+                  label: s.label(context),
+                  onTap: () {
+                    final route = switch (s.permission) {
+                      Permissions.ordersView => AppRoutes.adminOrders,
+                      Permissions.catalogManage => AppRoutes.adminCatalog,
+                      Permissions.usersManage => AppRoutes.adminUsers,
+                      Permissions.purchasingView => '/admin/manage/suppliers',
+                      Permissions.inventoryView => '/admin/manage/warehouses',
+                      _ => null,
+                    };
+                    if (route != null) {
+                      context.push(route);
+                    } else {
+                      showAppSnackBarMessage(
+                        context,
+                        message: context.l10n.comingSoonTitle,
+                      );
+                    }
+                  },
+                );
+              },
             ),
     );
   }
@@ -160,17 +153,25 @@ class _SectionTile extends StatelessWidget {
             borderRadius: AppRadii.lgAll,
             border: Border.all(color: colors.border),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 30, color: colors.primary),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: context.text.titleSmall,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: AppLayout.dashboardMinHeight,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 30, color: colors.primary),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: context.text.titleSmall,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

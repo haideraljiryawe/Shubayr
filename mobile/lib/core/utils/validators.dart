@@ -1,3 +1,5 @@
+import 'numeric_text.dart';
+
 /// Input validation shared by forms.
 abstract final class Validators {
   /// Loose international phone check — the backend owns the real rule, this
@@ -19,19 +21,5 @@ abstract final class Validators {
   /// Converts Arabic-Indic (٠-٩) and Extended/Persian (۰-۹) digits to ASCII.
   /// This is an Arabic-first app, so an Arabic keyboard's numerals must be
   /// accepted everywhere a number is entered.
-  static String foldDigits(String value) {
-    const arabicIndicZero = 0x0660; // ٠
-    const persianZero = 0x06F0; // ۰
-    final buffer = StringBuffer();
-    for (final rune in value.runes) {
-      if (rune >= arabicIndicZero && rune <= arabicIndicZero + 9) {
-        buffer.writeCharCode(0x30 + (rune - arabicIndicZero));
-      } else if (rune >= persianZero && rune <= persianZero + 9) {
-        buffer.writeCharCode(0x30 + (rune - persianZero));
-      } else {
-        buffer.writeCharCode(rune);
-      }
-    }
-    return buffer.toString();
-  }
+  static String foldDigits(String value) => normalizeDigits(value);
 }

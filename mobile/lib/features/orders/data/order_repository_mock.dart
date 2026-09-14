@@ -95,10 +95,15 @@ class OrderRepositoryMock implements OrderRepository {
       for (final (productId, variantId, qty) in lines)
         () {
           final unit = CatalogRepositoryMock.unitPrice(productId, variantId);
+          final product = CatalogRepositoryMock.productSnapshot(productId);
           return OrderItem(
             id: 'oi-$number-$productId',
             productId: productId,
             variantId: variantId,
+            productNameAr: product?.nameAr,
+            productNameEn: product?.nameEn,
+            imageUrl: product?.primaryImage,
+            imageSnapshotProvided: true,
             quantity: qty,
             unitPrice: unit,
             lineTotal: unit * qty,
@@ -158,17 +163,21 @@ class OrderRepositoryMock implements OrderRepository {
       discount: discount,
       total: total,
       placedAt: DateTime.now(),
-      items: [
-        for (final i in cart.items)
-          OrderItem(
-            id: 'oi-${i.id}',
-            productId: i.productId,
-            variantId: i.variantId,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-            lineTotal: i.lineTotal,
-          ),
-      ],
+      items: cart.items.map((i) {
+        final product = CatalogRepositoryMock.productSnapshot(i.productId);
+        return OrderItem(
+          id: 'oi-${i.id}',
+          productId: i.productId,
+          variantId: i.variantId,
+          productNameAr: product?.nameAr,
+          productNameEn: product?.nameEn,
+          imageUrl: product?.primaryImage,
+          imageSnapshotProvided: true,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          lineTotal: i.lineTotal,
+        );
+      }).toList(),
     );
     _orders.add(order);
 

@@ -1,5 +1,8 @@
-# Launch Screen Assets
+# Launch logo
 
-You can customize the launch screen with your own desired assets by replacing the image files in this directory.
+96pt, 192px and 288px copies of the shared
+`assets/images/branding/shubayr-logo.png` asset (1×, 2×, 3×). Preserve transparency
+and aspect ratio when refreshing these assets. The launch storyboard owns size
+and placement; LaunchBackground.colorset supplies light/dark backgrounds.
 
-You can also do it by opening your Flutter project's Xcode project with `open ios/Runner.xcworkspace`, selecting `Runner/Assets.xcassets` in the Project Navigator and dropping in the desired images.
+See `mobile/docs/startup-experience-progress.md` for Android parity and checks.

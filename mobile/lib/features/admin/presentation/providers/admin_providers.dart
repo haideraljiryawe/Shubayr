@@ -21,7 +21,7 @@ final adminRepositoryProvider = Provider<AdminRepository>((ref) {
 });
 
 final adminSessionProvider = Provider((ref) {
-  final session = ref.watch(sessionControllerProvider).valueOrNull;
+  final session = ref.watch(sessionControllerProvider).value;
   return (
     id: session?.user?.id,
     staff: session?.isSignedIn == true && session?.role == UserRole.staff,
@@ -30,7 +30,7 @@ final adminSessionProvider = Provider((ref) {
 });
 
 bool adminCan(Ref ref, String permission) {
-  final session = ref.read(sessionControllerProvider).valueOrNull;
+  final session = ref.read(sessionControllerProvider).value;
   return session?.isSignedIn == true &&
       session?.role == UserRole.staff &&
       session?.can(permission) == true;
@@ -70,12 +70,14 @@ class AdminList {
   final Object? appendError;
 }
 
-class AdminListController
-    extends AutoDisposeFamilyAsyncNotifier<AdminList, AdminQuery> {
+class AdminListController extends AsyncNotifier<AdminList> {
+  AdminListController(this.arg);
+
+  final AdminQuery arg;
   int _generation = 0;
   bool _saving = false;
   @override
-  Future<AdminList> build(AdminQuery arg) async {
+  Future<AdminList> build() async {
     ref.watch(adminSessionProvider);
     final repo = ref.watch(adminRepositoryProvider);
     ++_generation;
@@ -117,7 +119,7 @@ class AdminListController
   }
 
   Future<void> loadMore() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (state.isLoading ||
         state.hasError ||
         current == null ||
@@ -185,12 +187,10 @@ class AdminListController
   }
 }
 
-final adminListProvider =
-    AutoDisposeAsyncNotifierProvider.family<
-      AdminListController,
-      AdminList,
-      AdminQuery
-    >(AdminListController.new);
+final adminListProvider = AsyncNotifierProvider.autoDispose
+    .family<AdminListController, AdminList, AdminQuery>(
+      AdminListController.new,
+    );
 
 /// Complete options for pickers: a later-page role/location must be selectable.
 final adminLookupsProvider = FutureProvider.autoDispose

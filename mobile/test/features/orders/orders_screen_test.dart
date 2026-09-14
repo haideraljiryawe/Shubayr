@@ -19,7 +19,9 @@ Widget _host(
   OrderHistoryRepository repository, {
   String locale = 'en',
   bool dark = false,
+  bool active = true,
 }) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     orderRepositoryProvider.overrideWithValue(repository),
     brandProvider.overrideWithValue(const Brand.bundled()),
@@ -31,7 +33,7 @@ Widget _host(
         : AppTheme.light(const Brand.bundled()),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
-    home: const OrdersScreen(),
+    home: TickerMode(enabled: active, child: const OrdersScreen()),
   ),
 );
 
@@ -196,10 +198,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(ChoiceChip, 'Processing'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    expect(repository.requests, hasLength(1));
     repository.onFetch = null;
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     expect(find.text('SH-1063'), findsOneWidget);
+  });
+
+  testWidgets('hidden orders resume with the current filter and data', (
+    tester,
+  ) async {
+    final repository = OrderHistoryRepository(orders: twoOrders.data);
+    await tester.pumpWidget(_host(repository));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(OrdersScreen)),
+    );
+    await tester.pumpWidget(_host(repository, active: false));
+    container.read(orderStatusFilterProvider.notifier).state = 'processing';
+    await tester.pump();
+    await tester.pumpWidget(_host(repository));
+    await tester.pumpAndSettle();
+    expect(find.text('SH-1061'), findsOneWidget);
+    expect(find.text('SH-1042'), findsNothing);
+    expect(container.read(orderStatusFilterProvider), 'processing');
+    expect(repository.requests.last.status, 'processing');
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('pull refresh on an empty filter waits and keeps its status', (

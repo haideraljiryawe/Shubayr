@@ -1,6 +1,7 @@
 {
   "@@locale": "ar",
 
+  "homeBrandName": "شُبَيّر",
   "storeFallbackName": "المتجر",
 
   "actionRetry": "إعادة المحاولة",
@@ -150,7 +151,9 @@
   "commonOutOfStock": "غير متوفر",
   "homeSectionDepartments": "تسوّق حسب القسم",
   "homeAllDepartments": "الكل",
-  "homeSectionProducts": "منتجات",
+  "homeOffersTitle": "عروض وخصومات",
+  "homeOffersViewAll": "عرض الكل",
+  "homeSectionProducts": "المنتجات",
   "productDescription": "الوصف",
   "productNegotiable": "قابل للتفاوض",
   "productAddToCart": "أضف إلى السلة",
@@ -170,6 +173,13 @@
   "sortCheapest": "الأقل سعرًا",
   "sortDearest": "الأعلى سعرًا",
   "sortTopRated": "الأعلى تقييمًا",
+  "productFiltersSort": "الترتيب",
+  "productFiltersOffersOnly": "العروض فقط",
+  "productFiltersClearAll": "مسح الكل",
+  "productFiltersShowResults": "عرض النتائج",
+  "productFilterPriceRange": "السعر: {min}–{max}",
+  "productFilterPriceFrom": "السعر: من {min}",
+  "productFilterPriceTo": "السعر: حتى {max}",
   "filtersTitle": "الفلاتر",
   "filterPrice": "السعر",
   "filterMin": "من",
@@ -190,6 +200,9 @@
 
   "profileTitle": "الملف الشخصي",
   "profileName": "الاسم",
+  "profileEmail": "البريد الإلكتروني (اختياري)",
+  "profileEmailInvalid": "أدخل بريدًا إلكترونيًا صحيحًا لا يتجاوز 160 حرفًا.",
+  "profileNameTooLong": "يجب ألا يتجاوز الاسم 120 حرفًا.",
   "profileNameRequired": "أدخل اسمك.",
   "profileChangePhoto": "تغيير الصورة",
   "profileSaved": "تم حفظ التغييرات.",
@@ -319,5 +332,74 @@
   "adminPermissionLoyaltyManage": "إدارة نقاط الولاء",
   "adminPermissionUsersManage": "إدارة المستخدمين والأدوار",
   "adminPermissionReportsView": "عرض التقارير",
-  "adminPermissionSettingsManage": "إدارة إعدادات المتجر"
+  "adminPermissionSettingsManage": "إدارة إعدادات المتجر",
+  "adminOrderConfirm": "تأكيد الطلب",
+  "adminOrderUpdate": "تحديث الحالة",
+  "adminOrderCurrentStatus": "الحالة الحالية",
+  "adminOrderNewStatus": "الحالة الجديدة",
+  "adminOrderConfirmMessage": "هل تريد تأكيد قبول هذا الطلب؟",
+  "adminOrderUpdated": "تم تحديث حالة الطلب",
+  "adminOrderSearch": "ابحث برقم الطلب أو الزبون",
+  "adminOrderClearSearch": "مسح البحث",
+  "adminOrderDateRange": "الفترة الزمنية",
+  "adminOrderClearDates": "مسح فلتر التاريخ",
+  "adminOrderEmptyHint": "جرّب حالة أو بحثًا أو فترة زمنية أخرى.",
+  "filterOnSale": "العروض",
+  "promotionDiscount": "خصم {percent}%",
+  "promotionOriginalPrice": "السعر الأصلي: {price}",
+  "promotionBasePrice": "عرض السعر الأساسي للمادة",
+  "adminOriginalPrice": "السعر الأصلي (اختياري)",
+  "adminOriginalPriceHint": "اتركه فارغًا أو أدخل سعرًا لا يتجاوز سعر البيع لإلغاء العرض.",
+  "@promotionDiscount": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "@promotionOriginalPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "bannerPosition": "{current} من {total}",
+  "bannerOpenFailed": "تعذر فتح الرابط. حاول مرة أخرى.",
+  "@bannerPosition": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "startupTagline": "كل ما تحتاجه في مكان واحد",
+  "startupLoading": "جارٍ تجهيز التطبيق",
+  "adminUserSearch": "ابحث عن مستخدم",
+  "accountEditProfile": "تعديل الملف الشخصي",
+  "accountNoName": "لم تتم إضافة اسم",
+  "accountNoEmail": "لم تتم إضافة بريد إلكتروني",
+  "accountNoPhone": "رقم الهاتف غير متوفر",
+  "profilePhone": "رقم الهاتف",
+  "profileChangePhone": "تغيير",
+  "profilePhoneChangeUnavailable": "تغيير رقم الهاتف غير متاح حاليًا. سيتطلب التحقق من الرقم الجديد برمز OTP.",
+  "addressContactPhone": "رقم التواصل",
+  "addressUsePrimaryPhone": "استخدام رقمي الرئيسي",
+  "addressUseOtherPhone": "استخدام رقم آخر",
+  "addressOtherPhone": "رقم الهاتف الآخر",
+  "addressPrimaryPhoneBadge": "الرئيسي",
+  "addressContactUnavailable": "رقم التواصل غير متوفر",
+  "addressContactBackendPending": "حفظ رقم التواصل غير متاح حاليًا في الخدمة.",
+  "accountSignOutConfirm": "هل تريد تسجيل الخروج؟",
+  "accountDeleteAcknowledgement": "أؤكد حذف حسابي",
+  "mainCategoriesTitle": "الأقسام الرئيسية",
+  "mockCategoryElectronicsDescription": "هواتف، أجهزة وملحقات",
+  "mockCategoryGroceryDescription": "مواد غذائية واحتياجات يومية",
+  "mockCategoryClothingDescription": "أزياء للرجال والنساء والأطفال",
+  "mockCategoryHomeDescription": "أدوات مطبخ ومستلزمات المنزل",
+  "mockCategoryBeautyDescription": "عناية بالبشرة والشعر وعطور",
+  "mockCategorySportsDescription": "لياقة، دراجات ولوازم رحلات"
 }

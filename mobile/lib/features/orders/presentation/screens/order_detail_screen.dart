@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,7 +17,7 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/skeleton.dart';
-import '../../../catalog/data/product.dart';
+import '../widgets/order_item_display.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/order.dart';
@@ -96,74 +97,96 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       appBar: AppBar(title: Text(l10n.orderDetailTitle)),
       body: AsyncValueView(
         value: order,
-        loading: const Padding(
-          padding: EdgeInsets.all(AppSpacing.screenH),
-          child: SkeletonCardList(itemCount: 4, height: 120),
+        loading: ResponsiveContent(
+          maxWidth: AppLayout.detailWidth,
+          child: Padding(
+            padding: AppLayout.pageInsets(context),
+            child: SkeletonCardList(
+              itemCount: 4,
+              height: 120,
+              minItemWidth: AppLayout.orderMinWidth,
+            ),
+          ),
         ),
         onRetry: () => ref.invalidate(orderProvider(widget.orderId)),
         builder: (context, o) => ListView(
-          padding: const EdgeInsets.all(AppSpacing.screenH),
+          padding: AppLayout.pageInsets(context),
           children: [
-            _Header(order: o),
-            const SizedBox(height: AppSpacing.lg),
-            _SectionTitle(l10n.orderTrackingTitle),
-            _TrackingCard(orderId: widget.orderId),
-            const SizedBox(height: AppSpacing.lg),
-            _SectionTitle(l10n.orderItemsSection),
-            AppCard(
-              child: Column(
-                children: [
-                  for (var i = 0; i < o.items.length; i++) ...[
-                    if (i > 0) const Divider(height: AppSpacing.xl),
-                    _OrderItemTile(item: o.items[i], money: _money),
+            ResponsiveSections(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _Header(order: o),
+                    const SizedBox(height: AppSpacing.lg),
+                    _SectionTitle(l10n.orderTrackingTitle),
+                    _TrackingCard(orderId: widget.orderId),
                   ],
-                ],
-              ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SectionTitle(l10n.orderItemsSection),
+                    AppCard(
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < o.items.length; i++) ...[
+                            if (i > 0) const Divider(height: AppSpacing.xl),
+                            _OrderItemTile(item: o.items[i], money: _money),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _SectionTitle(l10n.orderSummary),
+                    _Summary(order: o, money: _money),
+                    if (o.status == 'delivered' && o.items.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      AppButton(
+                        label: l10n.reviewOrderTitle,
+                        icon: Icons.star_outline,
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () => context.pushNamed(
+                          AppRoutes.orderReviewName,
+                          pathParameters: {'id': o.id},
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      AppButton(
+                        label: l10n.returnOrderTitle,
+                        icon: Icons.assignment_return_outlined,
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () => context.pushNamed(
+                          AppRoutes.orderReturnName,
+                          pathParameters: {'id': o.id},
+                        ),
+                      ),
+                    ],
+                    if (isOrderCancellable(o.status)) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: _cancelling ? null : _cancel,
+                          style: TextButton.styleFrom(
+                            foregroundColor: context.colors.danger,
+                          ),
+                          icon: _cancelling
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.cancel_outlined),
+                          label: Text(l10n.orderCancel),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            _SectionTitle(l10n.orderSummary),
-            _Summary(order: o, money: _money),
-            if (o.status == 'delivered' && o.items.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.lg),
-              AppButton(
-                label: l10n.reviewOrderTitle,
-                icon: Icons.star_outline,
-                variant: AppButtonVariant.secondary,
-                onPressed: () => context.pushNamed(
-                  AppRoutes.orderReviewName,
-                  pathParameters: {'id': o.id},
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppButton(
-                label: l10n.returnOrderTitle,
-                icon: Icons.assignment_return_outlined,
-                variant: AppButtonVariant.secondary,
-                onPressed: () => context.pushNamed(
-                  AppRoutes.orderReturnName,
-                  pathParameters: {'id': o.id},
-                ),
-              ),
-            ],
-            if (isOrderCancellable(o.status)) ...[
-              const SizedBox(height: AppSpacing.lg),
-              Center(
-                child: TextButton.icon(
-                  onPressed: _cancelling ? null : _cancel,
-                  style: TextButton.styleFrom(
-                    foregroundColor: context.colors.danger,
-                  ),
-                  icon: _cancelling
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.cancel_outlined),
-                  label: Text(l10n.orderCancel),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -341,26 +364,15 @@ class _OrderItemTile extends ConsumerWidget {
   final OrderItem item;
   final String Function(num) money;
 
-  String? _variantLabel(Product? product) {
-    final variantId = item.variantId;
-    if (product == null || variantId == null) return null;
-    for (final v in product.variants) {
-      if (v.id == variantId) {
-        return v.attributes.values.isNotEmpty
-            ? v.attributes.values.join(' · ')
-            : v.sku;
-      }
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
-    final product = ref.watch(productProvider(item.productId)).valueOrNull;
-    final variantLabel = _variantLabel(product);
+    final product = item.needsCatalogDetails
+        ? ref.watch(productProvider(item.productId)).value
+        : null;
+    final variantLabel = item.variantLabel(product);
 
     return InkWell(
       onTap: () => context.pushNamed(
@@ -371,14 +383,14 @@ class _OrderItemTile extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Thumb(url: product?.primaryImage),
+          _Thumb(url: item.displayImage(product)),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  product?.localizedName(lang) ?? '',
+                  item.displayName(lang, product),
                   style: context.text.titleSmall,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -502,20 +514,16 @@ class _SummaryRow extends StatelessWidget {
         : emphasize
         ? colors.primaryDark
         : colors.textPrimary;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: emphasize ? context.text.titleSmall : context.text.bodyMedium,
-        ),
-        Text(
-          value,
-          style:
-              (emphasize ? context.text.titleMedium : context.text.bodyMedium)
-                  ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
-        ),
-      ],
+    return ResponsiveValueRow(
+      label: Text(
+        label,
+        style: emphasize ? context.text.titleSmall : context.text.bodyMedium,
+      ),
+      value: Text(
+        value,
+        style: (emphasize ? context.text.titleMedium : context.text.bodyMedium)
+            ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }

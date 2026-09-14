@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +15,8 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../data/address.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../providers/address_providers.dart';
 
 /// The user's delivery addresses: list, add, edit, delete and set-default.
@@ -35,9 +38,15 @@ class AddressesScreen extends ConsumerWidget {
       ),
       body: AsyncValueView(
         value: addresses,
-        loading: const Padding(
-          padding: EdgeInsets.all(AppSpacing.screenH),
-          child: SkeletonCardList(itemCount: 3),
+        skipLoadingOnReload: ref
+            .read(addressesControllerProvider.notifier)
+            .isRefreshing,
+        loading: Padding(
+          padding: AppLayout.pageInsets(context),
+          child: SkeletonCardList(
+            itemCount: 3,
+            minItemWidth: AppLayout.cardMinWidth,
+          ),
         ),
         onRetry: () => ref.read(addressesControllerProvider.notifier).refresh(),
         builder: (context, list) {
@@ -58,18 +67,16 @@ class AddressesScreen extends ConsumerWidget {
                       ),
                     ],
                   )
-                : ListView.separated(
+                : ResponsiveCardList(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
+                    padding: EdgeInsetsDirectional.fromSTEB(
+                      AppLayout.pageHorizontal(context),
                       AppSpacing.screenH,
-                      AppSpacing.screenH,
-                      AppSpacing.screenH,
+                      AppLayout.pageHorizontal(context),
                       // Room so the last card clears the floating button.
                       96,
                     ),
                     itemCount: list.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.md),
                     itemBuilder: (_, i) => _AddressCard(address: list[i]),
                   ),
           );
@@ -94,6 +101,18 @@ class _AddressCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    final phone = address.contactPhone;
+    final accountPhone = ref
+        .watch(sessionControllerProvider)
+        .value
+        ?.user
+        ?.phone;
+    final isPrimary =
+        phone != null &&
+        Validators.isPhone(phone) &&
+        accountPhone != null &&
+        Validators.normalizePhone(phone) ==
+            Validators.normalizePhone(accountPhone);
     final title = address.label.isNotEmpty ? address.label : address.city;
 
     return AppCard(
@@ -128,6 +147,40 @@ class _AddressCard extends ConsumerWidget {
                   style: context.text.bodySmall?.copyWith(
                     color: colors.textSecondary,
                   ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xxs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      phone == null
+                          ? context.l10n.addressContactUnavailable
+                          : Validators.foldDigits(phone),
+                      textDirection: phone == null ? null : TextDirection.ltr,
+                      style: context.text.bodySmall,
+                    ),
+                    if (isPrimary)
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.primarySoft,
+                          borderRadius: AppRadii.pillAll,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xxs,
+                          ),
+                          child: Text(
+                            context.l10n.addressPrimaryPhoneBadge,
+                            style: context.text.labelSmall?.copyWith(
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),

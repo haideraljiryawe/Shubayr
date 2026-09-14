@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../layout/app_layout.dart';
 import '../theme/theme_context.dart';
 import '../theme/tokens/app_motion.dart';
 import '../theme/tokens/app_radii.dart';
@@ -156,13 +157,29 @@ class SkeletonGrid extends StatelessWidget {
 /// placeholder for [AppCard]-based lists with no leading thumbnail (orders,
 /// addresses, and the sections of a detail screen).
 class SkeletonCardList extends StatelessWidget {
-  const SkeletonCardList({super.key, this.itemCount = 5, this.height = 96});
+  const SkeletonCardList({
+    super.key,
+    this.itemCount = 5,
+    this.height = 96,
+    this.minItemWidth,
+  });
+  final double? minItemWidth;
 
   final int itemCount;
   final double height;
 
   @override
   Widget build(BuildContext context) {
+    if (minItemWidth != null) {
+      return ResponsiveCardList(
+        padding: EdgeInsets.zero,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: itemCount,
+        minItemWidth: minItemWidth!,
+        itemBuilder: (_, _) =>
+            Skeleton(height: height, borderRadius: AppRadii.lgAll),
+      );
+    }
     return SingleChildScrollView(
       physics: const NeverScrollableScrollPhysics(),
       child: Column(

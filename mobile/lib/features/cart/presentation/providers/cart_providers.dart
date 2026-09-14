@@ -22,9 +22,7 @@ class CartController extends AsyncNotifier<Cart> {
   @override
   Future<Cart> build() async {
     final signedIn = ref.watch(
-      sessionControllerProvider.select(
-        (s) => s.valueOrNull?.isSignedIn ?? false,
-      ),
+      sessionControllerProvider.select((s) => s.value?.isSignedIn ?? false),
     );
     if (!signedIn) return const Cart();
     return ref.read(cartRepositoryProvider).fetchCart();
@@ -49,7 +47,9 @@ class CartController extends AsyncNotifier<Cart> {
 
   Future<void> _run(Future<Cart> Function(CartRepository) op) async {
     final repo = ref.read(cartRepositoryProvider);
-    state = await AsyncValue.guard(() => op(repo));
+    final result = await AsyncValue.guard(() => op(repo));
+    if (!ref.mounted) return;
+    state = result;
   }
 }
 

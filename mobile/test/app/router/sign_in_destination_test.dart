@@ -6,6 +6,7 @@ void main() {
   test('accepts only known local customer destinations', () {
     for (final path in [
       '/products/p5',
+      '/categories/cat-electronics',
       '/wishlist',
       '/search?q=coffee',
       '/orders/order-1042/review',

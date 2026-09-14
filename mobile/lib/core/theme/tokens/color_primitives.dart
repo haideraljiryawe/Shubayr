@@ -8,10 +8,11 @@ import 'package:flutter/painting.dart';
 abstract final class ColorPrimitives {
   // Brand — muted modern green (bundled default; overridable at runtime).
   //static const Color green500 = Color(0xFF5B8F6B);
-  static const Color green500 = Color(0xFF438C59);
+  static const Color green500 = Color(0xFF396D48);
 
   // Warm neutrals — the app sits on warm off-white, not pure white.
-  static const Color sand50 = Color(0xFFFAF7F2); // app background
+  static const Color sand50 = Color(0xFFF6F5EE); // app background
+  static const Color sand75 = Color(0xFFECE9E2); // category tiles
   static const Color sand100 = Color(0xFFF4F0E8); // alternate surface
   static const Color sand200 = Color(0xFFE6E1D6); // borders
   static const Color sand150 = Color(0xFFEDE9E0); // dividers
@@ -19,7 +20,8 @@ abstract final class ColorPrimitives {
 
   // Ink — warm near-black through muted grey.
   static const Color ink900 = Color(0xFF1B1F1C);
-  static const Color ink600 = Color(0xFF585F59);
+  static const Color ink600 = Color(0xFF515A53);
+  static const Color ink500 = Color(0xFF6B716D);
   static const Color ink400 = Color(0xFF8A918B);
 
   // Accent — warm amber, pairs with the green without reading "botanical".
@@ -51,8 +53,9 @@ abstract final class ColorPrimitives {
   static const Color charcoal600 = Color(0xFF3A4044); // borders
 
   static const Color mist100 = Color(0xFFECEFEC); // primary text on dark
-  static const Color mist300 = Color(0xFFB4BAB5); // secondary text on dark
-  static const Color mist500 = Color(0xFF838A85); // muted text on dark
+  static const Color mist300 = Color(0xFFBFC5C0); // secondary text on dark
+  static const Color mist400 = Color(0xFF9CA59E); // supporting text on dark
+  static const Color mist500 = Color(0xFF838A85); // disabled text on dark
 
   // Amber accent, lifted for dark surfaces.
   static const Color amber400 = Color(0xFFD79A52);

@@ -1,3 +1,6 @@
+import '../../../../core/utils/numeric_input_formatters.dart';
+import '../../../../core/utils/numeric_text.dart';
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
@@ -20,7 +23,7 @@ class _Variant {
   _Variant(Map<String, dynamic> json)
     : sku = TextEditingController(text: json['sku']?.toString() ?? ''),
       delta = TextEditingController(
-        text: json['price_delta']?.toString() ?? '0',
+        text: MoneyText.fromNumber(json['price_delta'] as num? ?? 0),
       ),
       attributes = [
         for (final entry in (json['attributes'] as Map? ?? {}).entries)
@@ -33,7 +36,7 @@ class _Variant {
   final List<(TextEditingController, TextEditingController)> attributes;
   Map<String, dynamic> json() => {
     'sku': sku.text.trim(),
-    'price_delta': num.tryParse(delta.text) ?? 0,
+    'price_delta': MoneyText.tryParse(delta.text) ?? 0,
     'attributes': {
       for (final (key, value) in attributes)
         if (key.text.trim().isNotEmpty) key.text.trim(): value.text.trim(),
@@ -78,60 +81,64 @@ class _AdminVariantsEditorState extends State<AdminVariantsEditor> {
             key: ObjectKey(variant),
             padding: const EdgeInsets.only(top: AppSpacing.md),
             child: AppCard(
-              child: Column(
+              child: ResponsiveFields(
                 children: [
                   TextFormField(
                     controller: variant.sku,
                     decoration: InputDecoration(labelText: l.adminSku),
                     onChanged: (_) => _notify(),
                   ),
-                  const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: variant.delta,
+                    inputFormatters: const [MoneyInputFormatter()],
                     decoration: InputDecoration(labelText: l.adminPriceDelta),
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                       signed: true,
                     ),
-                    validator: (v) => num.tryParse(v ?? '')?.isFinite != true
+                    validator: (v) =>
+                        MoneyText.tryParse(v ?? '')?.isFinite != true
                         ? l.adminInvalidNumber
                         : null,
                     onChanged: (_) => _notify(),
                   ),
                   for (final attribute in variant.attributes)
-                    Padding(
+                    ResponsiveField(
                       key: ObjectKey(attribute.$1),
-                      padding: const EdgeInsets.only(top: AppSpacing.md),
-                      child: Column(
-                        children: [
-                          TextFormField(
-                            controller: attribute.$1,
-                            decoration: InputDecoration(
-                              labelText: l.adminAttributeName,
+                      fullWidth: true,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.md),
+                        child: ResponsiveFields(
+                          children: [
+                            TextFormField(
+                              controller: attribute.$1,
+                              decoration: InputDecoration(
+                                labelText: l.adminAttributeName,
+                              ),
+                              onChanged: (_) => _notify(),
+                              validator: (v) => (v ?? '').trim().isEmpty
+                                  ? l.adminRequired
+                                  : null,
                             ),
-                            onChanged: (_) => _notify(),
-                            validator: (v) => (v ?? '').trim().isEmpty
-                                ? l.adminRequired
-                                : null,
-                          ),
-                          TextFormField(
-                            controller: attribute.$2,
-                            decoration: InputDecoration(
-                              labelText: l.adminAttributeValue,
+                            TextFormField(
+                              controller: attribute.$2,
+                              decoration: InputDecoration(
+                                labelText: l.adminAttributeValue,
+                              ),
+                              onChanged: (_) => _notify(),
                             ),
-                            onChanged: (_) => _notify(),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(
-                                () => variant.attributes.remove(attribute),
-                              );
-                              _retiredAttributes.add(attribute);
-                              _notify();
-                            },
-                            child: Text(l.actionDelete),
-                          ),
-                        ],
+                            TextButton(
+                              onPressed: () {
+                                setState(
+                                  () => variant.attributes.remove(attribute),
+                                );
+                                _retiredAttributes.add(attribute);
+                                _notify();
+                              },
+                              child: Text(l.actionDelete),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   TextButton.icon(

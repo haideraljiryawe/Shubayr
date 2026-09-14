@@ -14,6 +14,7 @@ class AsyncValueView<T> extends StatelessWidget {
     required this.builder,
     this.loading,
     this.onRetry,
+    this.skipLoadingOnReload = false,
   });
 
   final AsyncValue<T> value;
@@ -23,9 +24,14 @@ class AsyncValueView<T> extends StatelessWidget {
   final Widget? loading;
   final VoidCallback? onRetry;
 
+  /// Opt in only for a manual refresh of existing data. Session/dependency
+  /// reloads must keep the default so another user's previous data is hidden.
+  final bool skipLoadingOnReload;
+
   @override
   Widget build(BuildContext context) => value.when(
     skipLoadingOnRefresh: true,
+    skipLoadingOnReload: skipLoadingOnReload,
     data: (data) => builder(context, data),
     loading: () => loading ?? const AppLoadingView(),
     error: (error, _) => AppErrorView(error: error, onRetry: onRetry),

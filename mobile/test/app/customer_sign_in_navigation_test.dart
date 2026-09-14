@@ -1,3 +1,7 @@
+import 'package:shubayr/features/auth/data/auth_repository_mock.dart';
+import 'package:shubayr/features/auth/data/auth_result.dart';
+import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
+import 'package:shubayr/features/banners/presentation/providers/banner_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,11 +27,33 @@ import 'package:shubayr/features/wishlist/presentation/screens/wishlist_screen.d
 /// shell without throwing. Regression guard for the go_router duplicate
 /// page-key crash that fired when the session flipped to signed-in while the
 /// imperatively-pushed sign-in/verify routes were still on the stack.
-Future<ProviderContainer> _guestContainer() async {
+class _RecordingAuth extends AuthRepositoryMock {
+  _RecordingAuth() : super(delay: Duration.zero);
+  final requestedPhones = <String>[];
+  final verifiedCodes = <({String phone, String code})>[];
+
+  @override
+  Future<void> requestOtp(String phone) async {
+    requestedPhones.add(phone);
+    await super.requestOtp(phone);
+  }
+
+  @override
+  Future<AuthResult> verifyOtp({required String phone, required String code}) {
+    verifiedCodes.add((phone: phone, code: code));
+    return super.verifyOtp(phone: phone, code: code);
+  }
+}
+
+Future<ProviderContainer> _guestContainer({_RecordingAuth? auth}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = PrefsStore(await SharedPreferences.getInstance());
   return ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
+      if (auth != null) authRepositoryProvider.overrideWithValue(auth),
+      // Banner networking is covered separately; keep navigation tests deterministic.
+      homeBannersProvider.overrideWith((ref) async => []),
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
       productProvider('p5').overrideWith(
@@ -103,45 +129,71 @@ void main() {
     );
   }
 
-  testWidgets(
-    'OTP flow returns a customer to Account without duplicate pages',
-    (tester) async {
-      final container = await _guestContainer();
-      addTearDown(container.dispose);
-      await _pumpApp(tester, container);
+  testWidgets('OTP flow returns a customer to Account without duplicate pages', (
+    tester,
+  ) async {
+    final auth = _RecordingAuth();
+    final container = await _guestContainer(auth: auth);
+    addTearDown(container.dispose);
+    await _pumpApp(tester, container);
 
-      // Guest taps Account -> settings screen, then the sign-in prompt inside it.
-      await tester.tap(find.byIcon(Icons.person_outline).first);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.login));
-      await tester.pumpAndSettle();
-      expect(find.byType(SignInScreen), findsOneWidget);
+    // Guest taps Account -> settings screen, then the sign-in prompt inside it.
+    await tester.tap(find.byIcon(Icons.person_outline).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.login));
+    await tester.pumpAndSettle();
+    expect(find.byType(SignInScreen), findsOneWidget);
 
-      // Enter a phone and request the code -> verify screen is pushed.
-      await tester.enterText(find.byType(TextFormField), '7701234567');
-      await tester.tap(find.byType(ElevatedButton));
-      await tester.pumpAndSettle();
-      expect(find.byType(VerifyOtpScreen), findsOneWidget);
+    // Enter a phone and request the code -> verify screen is pushed.
+    await tester.enterText(find.byType(TextFormField), ' +۴۴ (۲۰) ۷۱۲۳,۴۵۶۷ ');
+    expect(
+      tester.widget<TextFormField>(find.byType(TextFormField)).controller!.text,
+      '+442071234567',
+    );
+    await tester.tap(find.byType(ElevatedButton));
+    await tester.pumpAndSettle();
+    expect(find.byType(VerifyOtpScreen), findsOneWidget);
+    expect(
+      tester.widget<VerifyOtpScreen>(find.byType(VerifyOtpScreen)).phone,
+      '+442071234567',
+    );
 
-      // Enter any 6-digit code (mock accepts it) and verify.
-      await tester.enterText(find.byType(TextFormField), '123456');
-      await tester.tap(find.byType(ElevatedButton));
-      await tester.pumpAndSettle();
+    expect(auth.requestedPhones, ['+442071234567']);
+    // Normalization must not turn a short code into a valid one or call auth.
+    await tester.enterText(find.byType(TextFormField), '12,312');
+    expect(
+      tester.widget<TextFormField>(find.byType(TextFormField)).controller!.text,
+      '12312',
+    );
+    await tester.tap(find.byType(ElevatedButton));
+    await tester.pumpAndSettle();
+    expect(auth.verifiedCodes, isEmpty);
+    expect(find.byType(VerifyOtpScreen), findsOneWidget);
+    expect(tester.state<FormState>(find.byType(Form)).validate(), isFalse);
 
-      // The customer must land in the shell, with the sign-in flow gone and no
-      // duplicate-page-key crash.
-      expect(tester.takeException(), isNull);
-      expect(find.byType(SignInScreen), findsNothing);
-      expect(find.byType(VerifyOtpScreen), findsNothing);
-      expect(find.byType(AccountView), findsOneWidget);
+    // Enter any 6-digit code (mock accepts it) and verify.
+    await tester.enterText(find.byType(TextFormField), '+۱۲۳-۴۵۶');
+    expect(
+      tester.widget<TextFormField>(find.byType(TextFormField)).controller!.text,
+      '123456',
+    );
+    await tester.tap(find.byType(ElevatedButton));
+    await tester.pumpAndSettle();
 
-      // The signed-in tab bar now exposes Cart and Orders alongside the public
-      // destinations (they are hidden for guests).
-      expect(find.byIcon(Icons.shopping_cart_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
-    },
-    timeout: const Timeout(Duration(seconds: 30)),
-  );
+    expect(auth.verifiedCodes, [(phone: '+442071234567', code: '123456')]);
+
+    // The customer must land in the shell, with the sign-in flow gone and no
+    // duplicate-page-key crash.
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SignInScreen), findsNothing);
+    expect(find.byType(VerifyOtpScreen), findsNothing);
+    expect(find.byType(AccountView), findsOneWidget);
+
+    // The signed-in tab bar now exposes Cart and Orders alongside the public
+    // destinations (they are hidden for guests).
+    expect(find.byIcon(Icons.shopping_cart_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
+  }, timeout: const Timeout(Duration(seconds: 30)));
 
   for (final destination in ['/products/p5', '/wishlist', '/search?q=coffee']) {
     testWidgets('OTP returns to $destination without replaying an action', (

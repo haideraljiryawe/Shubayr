@@ -14,10 +14,8 @@ final addressRepositoryProvider = Provider<AddressRepository>((ref) {
   // The mock represents the active customer's data, just like the remote API.
   ref.watch(
     sessionControllerProvider.select(
-      (s) => (
-        signedIn: s.valueOrNull?.isSignedIn ?? false,
-        userId: s.valueOrNull?.user?.id,
-      ),
+      (s) =>
+          (signedIn: s.value?.isSignedIn ?? false, userId: s.value?.user?.id),
     ),
   );
   return switch (ref.watch(dataSourceProvider)) {
@@ -31,16 +29,19 @@ final addressRepositoryProvider = Provider<AddressRepository>((ref) {
 class AddressesController extends AsyncNotifier<List<Address>> {
   static const _perPage = 8;
   int _generation = 0;
+  int? _refreshGeneration;
+
+  /// A manual refresh keeps visible data; a new session/repository must reload.
+  bool get isRefreshing => _refreshGeneration == _generation && state.isLoading;
+
   Future<void> _operations = Future.value();
 
   @override
   Future<List<Address>> build() async {
     final session = ref.watch(
       sessionControllerProvider.select(
-        (s) => (
-          signedIn: s.valueOrNull?.isSignedIn ?? false,
-          userId: s.valueOrNull?.user?.id,
-        ),
+        (s) =>
+            (signedIn: s.value?.isSignedIn ?? false, userId: s.value?.user?.id),
       ),
     );
     final repository = ref.watch(addressRepositoryProvider);
@@ -105,7 +106,7 @@ class AddressesController extends AsyncNotifier<List<Address>> {
               if (address.id == saved.id)
                 saved
               else if (saved.isDefault && address.isDefault)
-                Address.fromJson({...address.toJson(), 'is_default': false})
+                address.withDefault(false)
               else
                 address,
             if (!items.any((address) => address.id == saved.id)) saved,
@@ -125,18 +126,17 @@ class AddressesController extends AsyncNotifier<List<Address>> {
   });
 
   void _requireSignedIn() {
-    if (!(ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ??
-        false)) {
+    if (!(ref.read(sessionControllerProvider).value?.isSignedIn ?? false)) {
       throw const AppFailure.unauthorized();
     }
   }
 
   Future<void> refresh() => _enqueue((generation) async {
-    if (!(ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ??
-        false)) {
+    if (!(ref.read(sessionControllerProvider).value?.isSignedIn ?? false)) {
       return;
     }
-    state = const AsyncLoading<List<Address>>().copyWithPrevious(state);
+    _refreshGeneration = generation;
+    state = const AsyncLoading<List<Address>>();
     try {
       final items = await _readAll(
         ref.read(addressRepositoryProvider),
@@ -146,7 +146,7 @@ class AddressesController extends AsyncNotifier<List<Address>> {
       state = AsyncData(items);
     } catch (error, stack) {
       if (generation != _generation) return;
-      state = AsyncError<List<Address>>(error, stack).copyWithPrevious(state);
+      state = AsyncError<List<Address>>(error, stack);
     }
   }, allowLoadFailure: true);
 

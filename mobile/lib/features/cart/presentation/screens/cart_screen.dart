@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,8 +36,8 @@ class CartScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l10n.cartTitle)),
       body: AsyncValueView(
         value: cart,
-        loading: const Padding(
-          padding: EdgeInsets.all(AppSpacing.screenH),
+        loading: Padding(
+          padding: AppLayout.pageInsets(context),
           child: SkeletonList(),
         ),
         onRetry: () => ref.invalidate(cartControllerProvider),
@@ -48,18 +49,14 @@ class CartScreen extends ConsumerWidget {
               message: l10n.cartEmptyMessage,
             );
           }
-          return Column(
-            children: [
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(AppSpacing.screenH),
-                  itemCount: c.items.length,
-                  separatorBuilder: (_, _) => const Divider(height: AppSpacing.xl),
-                  itemBuilder: (_, i) => _CartLine(item: c.items[i]),
-                ),
-              ),
-              _CartFooter(subtotal: c.subtotal),
-            ],
+          return ResponsiveBodyWithAside(
+            body: ListView.separated(
+              padding: AppLayout.pageInsets(context),
+              itemCount: c.items.length,
+              separatorBuilder: (_, _) => const Divider(height: AppSpacing.xl),
+              itemBuilder: (_, i) => _CartLine(item: c.items[i]),
+            ),
+            aside: _CartFooter(subtotal: c.subtotal),
           );
         },
       ),
@@ -91,7 +88,7 @@ class _CartLine extends ConsumerWidget {
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
     final brand = ref.watch(brandProvider);
-    final product = ref.watch(productProvider(item.productId)).valueOrNull;
+    final product = ref.watch(productProvider(item.productId)).value;
     final variantLabel = _variantLabel(product);
     final lineTotal = formatMoney(
       item.lineTotal,
@@ -124,22 +121,19 @@ class _CartLine extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  QuantityStepper(
-                    quantity: item.quantity,
-                    onChanged: (q) => ref
-                        .read(cartControllerProvider.notifier)
-                        .setQuantity(item.id, q),
+              ResponsiveValueRow(
+                label: QuantityStepper(
+                  quantity: item.quantity,
+                  onChanged: (q) => ref
+                      .read(cartControllerProvider.notifier)
+                      .setQuantity(item.id, q),
+                ),
+                value: Text(
+                  lineTotal,
+                  style: context.text.titleSmall?.copyWith(
+                    color: colors.primaryDark,
                   ),
-                  const Spacer(),
-                  Text(
-                    lineTotal,
-                    style: context.text.titleSmall?.copyWith(
-                      color: colors.primaryDark,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
@@ -210,21 +204,18 @@ class _CartFooter extends ConsumerWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.screenH),
+          padding: AppLayout.pageInsets(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Text(l10n.cartSubtotal, style: context.text.titleSmall),
-                  const Spacer(),
-                  Text(
-                    total,
-                    style: context.text.titleLarge?.copyWith(
-                      color: colors.primaryDark,
-                    ),
+              ResponsiveValueRow(
+                label: Text(l10n.cartSubtotal, style: context.text.titleSmall),
+                value: Text(
+                  total,
+                  style: context.text.titleLarge?.copyWith(
+                    color: colors.primaryDark,
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               AppButton(

@@ -35,6 +35,7 @@ class _FakeCatalog implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
@@ -61,6 +62,7 @@ class _FixedCart extends CartController {
 }
 
 Widget _host(Cart cart) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
     brandProvider.overrideWithValue(const Brand.bundled()),

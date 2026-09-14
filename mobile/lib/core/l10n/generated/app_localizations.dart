@@ -98,6 +98,12 @@ abstract class AppLocalizations {
     Locale('en'),
   ];
 
+  /// No description provided for @homeBrandName.
+  ///
+  /// In en, this message translates to:
+  /// **'Shubayr'**
+  String get homeBrandName;
+
   /// Neutral brand name used before store settings load.
   ///
   /// In en, this message translates to:
@@ -932,6 +938,18 @@ abstract class AppLocalizations {
   /// **'All'**
   String get homeAllDepartments;
 
+  /// No description provided for @homeOffersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers & Discounts'**
+  String get homeOffersTitle;
+
+  /// No description provided for @homeOffersViewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View all'**
+  String get homeOffersViewAll;
+
   /// No description provided for @homeSectionProducts.
   ///
   /// In en, this message translates to:
@@ -1046,6 +1064,48 @@ abstract class AppLocalizations {
   /// **'Top rated'**
   String get sortTopRated;
 
+  /// No description provided for @productFiltersSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by'**
+  String get productFiltersSort;
+
+  /// No description provided for @productFiltersOffersOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers only'**
+  String get productFiltersOffersOnly;
+
+  /// No description provided for @productFiltersClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get productFiltersClearAll;
+
+  /// No description provided for @productFiltersShowResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Show results'**
+  String get productFiltersShowResults;
+
+  /// No description provided for @productFilterPriceRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Price: {min}–{max}'**
+  String productFilterPriceRange(String min, String max);
+
+  /// No description provided for @productFilterPriceFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Price: from {min}'**
+  String productFilterPriceFrom(String min);
+
+  /// No description provided for @productFilterPriceTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Price: up to {max}'**
+  String productFilterPriceTo(String max);
+
   /// No description provided for @filtersTitle.
   ///
   /// In en, this message translates to:
@@ -1153,6 +1213,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Name'**
   String get profileName;
+
+  /// No description provided for @profileEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email (optional)'**
+  String get profileEmail;
+
+  /// No description provided for @profileEmailInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email, up to 160 characters.'**
+  String get profileEmailInvalid;
+
+  /// No description provided for @profileNameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Use no more than 120 characters.'**
+  String get profileNameTooLong;
 
   /// No description provided for @profileNameRequired.
   ///
@@ -1921,6 +1999,276 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manage store settings'**
   String get adminPermissionSettingsManage;
+
+  /// No description provided for @adminOrderConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm order'**
+  String get adminOrderConfirm;
+
+  /// No description provided for @adminOrderUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update status'**
+  String get adminOrderUpdate;
+
+  /// No description provided for @adminOrderCurrentStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Current status'**
+  String get adminOrderCurrentStatus;
+
+  /// No description provided for @adminOrderNewStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'New status'**
+  String get adminOrderNewStatus;
+
+  /// No description provided for @adminOrderConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm acceptance of this order?'**
+  String get adminOrderConfirmMessage;
+
+  /// No description provided for @adminOrderUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Order status updated'**
+  String get adminOrderUpdated;
+
+  /// No description provided for @adminOrderSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by order number or customer'**
+  String get adminOrderSearch;
+
+  /// No description provided for @adminOrderClearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get adminOrderClearSearch;
+
+  /// No description provided for @adminOrderDateRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Date range'**
+  String get adminOrderDateRange;
+
+  /// No description provided for @adminOrderClearDates.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear date filter'**
+  String get adminOrderClearDates;
+
+  /// No description provided for @adminOrderEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Try another status, search or date range.'**
+  String get adminOrderEmptyHint;
+
+  /// No description provided for @filterOnSale.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers'**
+  String get filterOnSale;
+
+  /// No description provided for @promotionDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% off'**
+  String promotionDiscount(String percent);
+
+  /// No description provided for @promotionOriginalPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Original price: {price}'**
+  String promotionOriginalPrice(String price);
+
+  /// No description provided for @promotionBasePrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Base product offer'**
+  String get promotionBasePrice;
+
+  /// No description provided for @adminOriginalPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Original price (optional)'**
+  String get adminOriginalPrice;
+
+  /// No description provided for @adminOriginalPriceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty or set no higher than the sale price to remove the offer.'**
+  String get adminOriginalPriceHint;
+
+  /// No description provided for @bannerPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {total}'**
+  String bannerPosition(String current, String total);
+
+  /// No description provided for @bannerOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open this link. Please try again.'**
+  String get bannerOpenFailed;
+
+  /// No description provided for @startupTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything you need, all in one place'**
+  String get startupTagline;
+
+  /// No description provided for @startupLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting the app ready'**
+  String get startupLoading;
+
+  /// No description provided for @adminUserSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for a user'**
+  String get adminUserSearch;
+
+  /// No description provided for @accountEditProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get accountEditProfile;
+
+  /// No description provided for @accountNoName.
+  ///
+  /// In en, this message translates to:
+  /// **'No name added'**
+  String get accountNoName;
+
+  /// No description provided for @accountNoEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'No email added'**
+  String get accountNoEmail;
+
+  /// No description provided for @accountNoPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number unavailable'**
+  String get accountNoPhone;
+
+  /// No description provided for @profilePhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number'**
+  String get profilePhone;
+
+  /// No description provided for @profileChangePhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get profileChangePhone;
+
+  /// No description provided for @profilePhoneChangeUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone changes are not available yet. The new number will need OTP verification.'**
+  String get profilePhoneChangeUnavailable;
+
+  /// No description provided for @addressContactPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact phone'**
+  String get addressContactPhone;
+
+  /// No description provided for @addressUsePrimaryPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Use my primary number'**
+  String get addressUsePrimaryPhone;
+
+  /// No description provided for @addressUseOtherPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Use another number'**
+  String get addressUseOtherPhone;
+
+  /// No description provided for @addressOtherPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Other phone number'**
+  String get addressOtherPhone;
+
+  /// No description provided for @addressPrimaryPhoneBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary'**
+  String get addressPrimaryPhoneBadge;
+
+  /// No description provided for @addressContactUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact phone unavailable'**
+  String get addressContactUnavailable;
+
+  /// No description provided for @addressContactBackendPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving a contact phone is not available in the service yet.'**
+  String get addressContactBackendPending;
+
+  /// No description provided for @accountSignOutConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Do you want to sign out?'**
+  String get accountSignOutConfirm;
+
+  /// No description provided for @accountDeleteAcknowledgement.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm that I want to delete my account'**
+  String get accountDeleteAcknowledgement;
+
+  /// No description provided for @mainCategoriesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Main Categories'**
+  String get mainCategoriesTitle;
+
+  /// No description provided for @mockCategoryElectronicsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Phones, devices and accessories'**
+  String get mockCategoryElectronicsDescription;
+
+  /// No description provided for @mockCategoryGroceryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Food and everyday essentials'**
+  String get mockCategoryGroceryDescription;
+
+  /// No description provided for @mockCategoryClothingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Clothing for the whole family'**
+  String get mockCategoryClothingDescription;
+
+  /// No description provided for @mockCategoryHomeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Kitchenware and home essentials'**
+  String get mockCategoryHomeDescription;
+
+  /// No description provided for @mockCategoryBeautyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Skin care, hair care and fragrances'**
+  String get mockCategoryBeautyDescription;
+
+  /// No description provided for @mockCategorySportsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Fitness, cycling and outdoor gear'**
+  String get mockCategorySportsDescription;
 }
 
 class _AppLocalizationsDelegate

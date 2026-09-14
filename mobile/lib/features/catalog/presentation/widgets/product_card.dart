@@ -10,20 +10,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/product.dart';
-
-/// Measure two lines with the active font and accessibility text scaling.
-double _productNameHeight(BuildContext context) {
-  final painter = TextPainter(
-    text: TextSpan(text: '\n', style: context.text.titleSmall),
-    textDirection: Directionality.of(context),
-    textScaler: MediaQuery.textScalerOf(context),
-    locale: Localizations.localeOf(context),
-    maxLines: 2,
-  )..layout();
-  final height = painter.height;
-  painter.dispose();
-  return height;
-}
+import 'product_promotion.dart';
 
 /// A product tile for grids and lists: image, localized name, price, rating,
 /// and an out-of-stock badge. Visuals come from the theme tokens.
@@ -46,13 +33,13 @@ class ProductCard extends ConsumerWidget {
 
     return Material(
       color: colors.surface,
-      borderRadius: AppRadii.lgAll,
+      borderRadius: AppRadii.productAll,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: AppRadii.lgAll,
+            borderRadius: AppRadii.productAll,
             border: Border.all(color: colors.border),
           ),
           child: Column(
@@ -68,17 +55,18 @@ class ProductCard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(
-                        height: _productNameHeight(context),
-                        child: Text(
-                          product.localizedName(lang),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.text.titleSmall,
-                        ),
+                      Text(
+                        product.localizedName(lang),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.text.titleSmall,
                       ),
                       const Spacer(),
                       const SizedBox(height: AppSpacing.xs),
+                      if (product.isOnSale) ...[
+                        ProductPromotion(product: product),
+                        const SizedBox(height: AppSpacing.xs),
+                      ],
                       if (product.ratingAvg > 0) ...[
                         _Rating(value: product.ratingAvg),
                         const SizedBox(height: AppSpacing.xs),
@@ -116,14 +104,14 @@ class ProductCardSkeleton extends StatelessWidget {
       children: [
         const AspectRatio(
           aspectRatio: 1,
-          child: Skeleton(borderRadius: AppRadii.lgAll),
+          child: Skeleton(borderRadius: AppRadii.productAll),
         ),
         Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Skeleton.line(height: _productNameHeight(context)),
+              Skeleton.line(height: lineHeight(context.text.titleSmall!)),
               const SizedBox(height: AppSpacing.xs),
               Skeleton.line(height: lineHeight(context.text.labelMedium!)),
               const SizedBox(height: AppSpacing.xs),

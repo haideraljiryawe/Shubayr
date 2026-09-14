@@ -9,6 +9,9 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
+  String get homeBrandName => 'شُبَيّر';
+
+  @override
   String get storeFallbackName => 'المتجر';
 
   @override
@@ -437,7 +440,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get homeAllDepartments => 'الكل';
 
   @override
-  String get homeSectionProducts => 'منتجات';
+  String get homeOffersTitle => 'عروض وخصومات';
+
+  @override
+  String get homeOffersViewAll => 'عرض الكل';
+
+  @override
+  String get homeSectionProducts => 'المنتجات';
 
   @override
   String get productDescription => 'الوصف';
@@ -498,6 +507,33 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sortTopRated => 'الأعلى تقييمًا';
 
   @override
+  String get productFiltersSort => 'الترتيب';
+
+  @override
+  String get productFiltersOffersOnly => 'العروض فقط';
+
+  @override
+  String get productFiltersClearAll => 'مسح الكل';
+
+  @override
+  String get productFiltersShowResults => 'عرض النتائج';
+
+  @override
+  String productFilterPriceRange(String min, String max) {
+    return 'السعر: $min–$max';
+  }
+
+  @override
+  String productFilterPriceFrom(String min) {
+    return 'السعر: من $min';
+  }
+
+  @override
+  String productFilterPriceTo(String max) {
+    return 'السعر: حتى $max';
+  }
+
+  @override
   String get filtersTitle => 'الفلاتر';
 
   @override
@@ -550,6 +586,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileName => 'الاسم';
+
+  @override
+  String get profileEmail => 'البريد الإلكتروني (اختياري)';
+
+  @override
+  String get profileEmailInvalid =>
+      'أدخل بريدًا إلكترونيًا صحيحًا لا يتجاوز 160 حرفًا.';
+
+  @override
+  String get profileNameTooLong => 'يجب ألا يتجاوز الاسم 120 حرفًا.';
 
   @override
   String get profileNameRequired => 'أدخل اسمك.';
@@ -950,4 +996,148 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminPermissionSettingsManage => 'إدارة إعدادات المتجر';
+
+  @override
+  String get adminOrderConfirm => 'تأكيد الطلب';
+
+  @override
+  String get adminOrderUpdate => 'تحديث الحالة';
+
+  @override
+  String get adminOrderCurrentStatus => 'الحالة الحالية';
+
+  @override
+  String get adminOrderNewStatus => 'الحالة الجديدة';
+
+  @override
+  String get adminOrderConfirmMessage => 'هل تريد تأكيد قبول هذا الطلب؟';
+
+  @override
+  String get adminOrderUpdated => 'تم تحديث حالة الطلب';
+
+  @override
+  String get adminOrderSearch => 'ابحث برقم الطلب أو الزبون';
+
+  @override
+  String get adminOrderClearSearch => 'مسح البحث';
+
+  @override
+  String get adminOrderDateRange => 'الفترة الزمنية';
+
+  @override
+  String get adminOrderClearDates => 'مسح فلتر التاريخ';
+
+  @override
+  String get adminOrderEmptyHint => 'جرّب حالة أو بحثًا أو فترة زمنية أخرى.';
+
+  @override
+  String get filterOnSale => 'العروض';
+
+  @override
+  String promotionDiscount(String percent) {
+    return 'خصم $percent%';
+  }
+
+  @override
+  String promotionOriginalPrice(String price) {
+    return 'السعر الأصلي: $price';
+  }
+
+  @override
+  String get promotionBasePrice => 'عرض السعر الأساسي للمادة';
+
+  @override
+  String get adminOriginalPrice => 'السعر الأصلي (اختياري)';
+
+  @override
+  String get adminOriginalPriceHint =>
+      'اتركه فارغًا أو أدخل سعرًا لا يتجاوز سعر البيع لإلغاء العرض.';
+
+  @override
+  String bannerPosition(String current, String total) {
+    return '$current من $total';
+  }
+
+  @override
+  String get bannerOpenFailed => 'تعذر فتح الرابط. حاول مرة أخرى.';
+
+  @override
+  String get startupTagline => 'كل ما تحتاجه في مكان واحد';
+
+  @override
+  String get startupLoading => 'جارٍ تجهيز التطبيق';
+
+  @override
+  String get adminUserSearch => 'ابحث عن مستخدم';
+
+  @override
+  String get accountEditProfile => 'تعديل الملف الشخصي';
+
+  @override
+  String get accountNoName => 'لم تتم إضافة اسم';
+
+  @override
+  String get accountNoEmail => 'لم تتم إضافة بريد إلكتروني';
+
+  @override
+  String get accountNoPhone => 'رقم الهاتف غير متوفر';
+
+  @override
+  String get profilePhone => 'رقم الهاتف';
+
+  @override
+  String get profileChangePhone => 'تغيير';
+
+  @override
+  String get profilePhoneChangeUnavailable =>
+      'تغيير رقم الهاتف غير متاح حاليًا. سيتطلب التحقق من الرقم الجديد برمز OTP.';
+
+  @override
+  String get addressContactPhone => 'رقم التواصل';
+
+  @override
+  String get addressUsePrimaryPhone => 'استخدام رقمي الرئيسي';
+
+  @override
+  String get addressUseOtherPhone => 'استخدام رقم آخر';
+
+  @override
+  String get addressOtherPhone => 'رقم الهاتف الآخر';
+
+  @override
+  String get addressPrimaryPhoneBadge => 'الرئيسي';
+
+  @override
+  String get addressContactUnavailable => 'رقم التواصل غير متوفر';
+
+  @override
+  String get addressContactBackendPending =>
+      'حفظ رقم التواصل غير متاح حاليًا في الخدمة.';
+
+  @override
+  String get accountSignOutConfirm => 'هل تريد تسجيل الخروج؟';
+
+  @override
+  String get accountDeleteAcknowledgement => 'أؤكد حذف حسابي';
+
+  @override
+  String get mainCategoriesTitle => 'الأقسام الرئيسية';
+
+  @override
+  String get mockCategoryElectronicsDescription => 'هواتف، أجهزة وملحقات';
+
+  @override
+  String get mockCategoryGroceryDescription => 'مواد غذائية واحتياجات يومية';
+
+  @override
+  String get mockCategoryClothingDescription => 'أزياء للرجال والنساء والأطفال';
+
+  @override
+  String get mockCategoryHomeDescription => 'أدوات مطبخ ومستلزمات المنزل';
+
+  @override
+  String get mockCategoryBeautyDescription => 'عناية بالبشرة والشعر وعطور';
+
+  @override
+  String get mockCategorySportsDescription => 'لياقة، دراجات ولوازم رحلات';
 }

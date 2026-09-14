@@ -29,6 +29,7 @@ class _EmptyCatalog implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
@@ -42,14 +43,18 @@ class _EmptyCatalog implements CatalogRepository {
       ProductAvailability(productId: id, inStock: true, availableQty: 5);
 
   @override
-  Future<ReviewPage> fetchReviews(String id, {int page = 1, int perPage = 20}) async =>
-      const ReviewPage();
+  Future<ReviewPage> fetchReviews(
+    String id, {
+    int page = 1,
+    int perPage = 20,
+  }) async => const ReviewPage();
 }
 
 Future<ProviderContainer> _container() async {
   SharedPreferences.setMockInitialValues({});
   final prefs = PrefsStore(await SharedPreferences.getInstance());
   return ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
@@ -65,7 +70,10 @@ void main() {
     final container = await _container();
     addTearDown(container.dispose);
     await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const ShubayrApp()),
+      UncontrolledProviderScope(
+        container: container,
+        child: const ShubayrApp(),
+      ),
     );
     // Bounded pumps rather than pumpAndSettle: splash/loading spinners animate
     // continuously, so pumpAndSettle never converges in this flow.
@@ -88,7 +96,7 @@ void main() {
     final save = find.byType(ElevatedButton);
     expect(tester.widget<ElevatedButton>(save).onPressed, isNull);
 
-    await tester.enterText(find.byType(TextField), 'أحمد');
+    await tester.enterText(find.byKey(const ValueKey('profile-name')), 'أحمد');
     await tester.pump();
     expect(tester.widget<ElevatedButton>(save).onPressed, isNotNull);
 
@@ -97,14 +105,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     // The name is persisted to the session (locally, in mock mode).
-    expect(
-      container.read(sessionControllerProvider).valueOrNull?.user?.name,
-      'أحمد',
-    );
+    expect(container.read(sessionControllerProvider).value?.user?.name, 'أحمد');
     // Save returns to disabled now that there are no unsaved changes.
     expect(tester.widget<ElevatedButton>(save).onPressed, isNull);
-    // The isolated delete action is present.
-    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    // Account actions no longer appear in the identity editor.
+    expect(find.byIcon(Icons.delete_outline), findsNothing);
+    expect(find.byIcon(Icons.logout), findsNothing);
 
     // Let the "saved" snackbar's auto-dismiss timer fire so no timer is left
     // pending when the test ends.

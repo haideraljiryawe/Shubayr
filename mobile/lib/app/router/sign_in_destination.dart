@@ -30,7 +30,7 @@ abstract final class SignInDestination {
       AppRoutes.settings,
     };
     final detail =
-        RegExp(r'^/(products|orders)/[^/]+$').hasMatch(uri.path) ||
+        RegExp(r'^/(products|orders|categories)/[^/]+$').hasMatch(uri.path) ||
         RegExp(r'^/orders/[^/]+/(review|return)$').hasMatch(uri.path);
     return pages.contains(uri.path) || detail ? uri.toString() : fallback;
   }

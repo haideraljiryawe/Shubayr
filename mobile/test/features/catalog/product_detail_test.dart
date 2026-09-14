@@ -16,6 +16,8 @@ import 'package:shubayr/features/settings/presentation/providers/settings_provid
 /// A product with three variants (S=low stock, M=in stock, L=sold out) and no
 /// images, so the detail screen never touches the network.
 class _FakeCatalog implements CatalogRepository {
+  _FakeCatalog({this.promotion = false});
+  final bool promotion;
   static const _product = Product(
     id: 'v1',
     categoryId: 'c',
@@ -41,24 +43,27 @@ class _FakeCatalog implements CatalogRepository {
   );
 
   @override
-  Future<Product> fetchProduct(String id) async => _product;
+  Future<Product> fetchProduct(String id) async => promotion
+      ? Product.fromJson({
+          ..._product.toJson(),
+          'compare_at_price': 20000,
+          'discount_percent': 50,
+        })
+      : _product;
 
   @override
-  Future<ProductAvailability> fetchAvailability(String id) async =>
-      const ProductAvailability(
-        productId: 'v1',
-        inStock: true,
-        availableQty: 13,
-        variants: [
-          VariantAvailability(variantId: 'v1-s', availableQty: 3, inStock: true),
-          VariantAvailability(
-            variantId: 'v1-m',
-            availableQty: 10,
-            inStock: true,
-          ),
-          VariantAvailability(variantId: 'v1-l', availableQty: 0, inStock: false),
-        ],
-      );
+  Future<ProductAvailability> fetchAvailability(
+    String id,
+  ) async => const ProductAvailability(
+    productId: 'v1',
+    inStock: true,
+    availableQty: 13,
+    variants: [
+      VariantAvailability(variantId: 'v1-s', availableQty: 3, inStock: true),
+      VariantAvailability(variantId: 'v1-m', availableQty: 10, inStock: true),
+      VariantAvailability(variantId: 'v1-l', availableQty: 0, inStock: false),
+    ],
+  );
 
   @override
   Future<List<Category>> fetchCategories() async => const [];
@@ -69,19 +74,26 @@ class _FakeCatalog implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
   }) async => throw UnimplementedError();
 
   @override
-  Future<ReviewPage> fetchReviews(String id, {int page = 1, int perPage = 20}) async =>
-      const ReviewPage();
+  Future<ReviewPage> fetchReviews(
+    String id, {
+    int page = 1,
+    int perPage = 20,
+  }) async => const ReviewPage();
 }
 
-Widget _host() => ProviderScope(
+Widget _host({bool promotion = false}) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
-    catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
+    catalogRepositoryProvider.overrideWithValue(
+      _FakeCatalog(promotion: promotion),
+    ),
     brandProvider.overrideWithValue(const Brand.bundled()),
   ],
   child: const MaterialApp(
@@ -100,6 +112,26 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
   }
+
+  testWidgets(
+    'variant price keeps product offer explicitly tied to base price',
+    (tester) async {
+      sizePhone(tester);
+      await tester.pumpWidget(_host(promotion: true));
+      await tester.pumpAndSettle();
+      expect(find.text('50% off'), findsOneWidget);
+      expect(find.textContaining('20,000'), findsOneWidget);
+      expect(find.text('Base product offer'), findsNothing);
+      await tester.ensureVisible(find.text('M'));
+      await tester.tap(find.text('M'));
+      await tester.pumpAndSettle();
+      expect(find.text('Base product offer'), findsOneWidget);
+      expect(find.textContaining('15,000'), findsOneWidget);
+      expect(find.textContaining('10,000'), findsOneWidget);
+      expect(find.textContaining('25,000'), findsNothing);
+      expect(find.text('50% off'), findsOneWidget);
+    },
+  );
 
   testWidgets('selecting a variant updates the price and availability', (
     tester,

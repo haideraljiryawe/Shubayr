@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../admin/presentation/widgets/admin_app_bar.dart';
 
 import '../../../../core/l10n/l10n_context.dart';
 import 'account_view.dart';
@@ -8,12 +10,17 @@ import 'account_view.dart';
 /// The customer reaches it as a tab (no back button); delivery and staff open
 /// it as a pushed full-screen page (`/settings`, with a back button) instead of
 /// a bottom sheet, so drilling into the profile editor stays consistent.
-class AccountScreen extends StatelessWidget {
+class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.l10n.accountTitle)),
+  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
+    appBar: adminAppBar(
+      context,
+      ref,
+      title: context.l10n.accountTitle,
+      showAccountAction: false,
+    ),
     body: const AccountView(),
   );
 }

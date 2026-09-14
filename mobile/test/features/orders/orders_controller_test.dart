@@ -15,6 +15,7 @@ void main() {
   setUp(() {
     repository = OrderHistoryRepository();
     container = ProviderContainer(
+      retry: (retryCount, error) => null,
       overrides: [orderRepositoryProvider.overrideWithValue(repository)],
     );
   });
@@ -229,6 +230,6 @@ void main() {
     pending.complete(const OrderPage());
     await append;
     // Use a fresh container for tearDown.
-    container = ProviderContainer();
+    container = ProviderContainer(retry: (retryCount, error) => null);
   });
 }

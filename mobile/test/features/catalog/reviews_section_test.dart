@@ -37,7 +37,12 @@ class _FakeCatalog implements CatalogRepository {
         createdAt: DateTime(2026, 7, 20),
       ),
     ];
-    return ReviewPage(page: 1, perPage: perPage, total: data.length, data: data);
+    return ReviewPage(
+      page: 1,
+      perPage: perPage,
+      total: data.length,
+      data: data,
+    );
   }
 
   @override
@@ -49,6 +54,7 @@ class _FakeCatalog implements CatalogRepository {
     String? categoryId,
     num? minPrice,
     num? maxPrice,
+    bool onSale = false,
     String? sort,
     int page = 1,
     int perPage = 20,
@@ -63,14 +69,13 @@ class _FakeCatalog implements CatalogRepository {
 }
 
 Widget _host(String productId) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [catalogRepositoryProvider.overrideWithValue(_FakeCatalog())],
   child: MaterialApp(
     locale: const Locale('en'),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(
-      body: ReviewsSection(productId: productId, ratingAvg: 4.5),
-    ),
+    home: Scaffold(body: ReviewsSection(productId: productId, ratingAvg: 4.5)),
   ),
 );
 

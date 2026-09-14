@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -56,7 +57,7 @@ class _DeliveriesList extends ConsumerWidget {
     final value = ref.watch(deliveriesProvider);
     final controller = ref.read(deliveriesProvider.notifier);
     void loadIfNearEnd(ScrollMetrics metrics) {
-      final list = ref.read(deliveriesProvider).valueOrNull;
+      final list = ref.read(deliveriesProvider).value;
       if (metrics.axis == Axis.vertical &&
           metrics.extentAfter < metrics.viewportDimension &&
           list?.loadMoreError == null) {
@@ -66,16 +67,12 @@ class _DeliveriesList extends ConsumerWidget {
 
     return AsyncValueView(
       value: value,
-      loading: ListView(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
+      skipLoadingOnReload: controller.isRefreshing,
+      loading: ResponsiveCardList(
+        itemCount: 4,
+        minItemWidth: AppLayout.orderMinWidth,
         physics: const NeverScrollableScrollPhysics(),
-        children: [
-          for (var i = 0; i < 3; i++)
-            const Padding(
-              padding: EdgeInsets.only(bottom: AppSpacing.md),
-              child: _DeliverySkeleton(),
-            ),
-        ],
+        itemBuilder: (_, _) => const _DeliverySkeleton(),
       ),
       onRetry: controller.refresh,
       builder: (context, list) => RefreshIndicator(
@@ -104,32 +101,26 @@ class _DeliveriesList extends ConsumerWidget {
                       ),
                     ],
                   )
-                : ListView.separated(
+                : ResponsiveCardList(
+                    minItemWidth: AppLayout.orderMinWidth,
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(AppSpacing.screenH),
-                    itemCount:
-                        list.items.length +
-                        (list.loadingMore || list.loadMoreError != null
-                            ? 1
-                            : 0),
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.md),
+                    padding: AppLayout.pageInsets(context),
+                    itemCount: list.items.length,
+                    footer: list.loadMoreError != null
+                        ? AppErrorView(
+                            error: list.loadMoreError,
+                            onRetry: controller.loadMore,
+                          )
+                        : list.loadingMore
+                        ? const _DeliverySkeleton()
+                        : null,
                     itemBuilder: (context, index) {
-                      if (index < list.items.length) {
-                        return _DeliveryCard(
-                          key: ValueKey(list.items[index].id),
-                          delivery: list.items[index],
-                          busy: list.updatingId == list.items[index].id,
-                          enabled: !value.isLoading && list.updatingId == null,
-                        );
-                      }
-                      if (list.loadMoreError != null) {
-                        return AppErrorView(
-                          error: list.loadMoreError,
-                          onRetry: controller.loadMore,
-                        );
-                      }
-                      return const _DeliverySkeleton();
+                      return _DeliveryCard(
+                        key: ValueKey(list.items[index].id),
+                        delivery: list.items[index],
+                        busy: list.updatingId == list.items[index].id,
+                        enabled: !value.isLoading && list.updatingId == null,
+                      );
                     },
                   ),
           ),

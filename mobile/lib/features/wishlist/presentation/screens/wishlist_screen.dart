@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,11 +31,14 @@ class WishlistScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l10n.wishlistTitle)),
       body: AsyncValueView(
         value: wishlist,
+        skipLoadingOnReload: ref
+            .read(wishlistControllerProvider.notifier)
+            .isRefreshing,
         loading: CustomScrollView(
           physics: const NeverScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.all(AppSpacing.screenH),
+              padding: AppLayout.pageInsets(context),
               sliver: ProductGridSliver(
                 itemCount: 6,
                 itemBuilder: (_, _) => const ProductCardSkeleton(),
@@ -61,7 +65,7 @@ class WishlistScreen extends ConsumerWidget {
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.all(AppSpacing.screenH),
+                    padding: AppLayout.pageInsets(context),
                     sliver: ProductGridSliver(
                       itemCount: items.length,
                       itemBuilder: (_, i) => _WishlistCell(item: items[i]),
@@ -84,7 +88,7 @@ class _WishlistCell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Product? product =
-        item.product ?? ref.watch(productProvider(item.productId)).valueOrNull;
+        item.product ?? ref.watch(productProvider(item.productId)).value;
     if (product == null) {
       return const ProductCardSkeleton();
     }

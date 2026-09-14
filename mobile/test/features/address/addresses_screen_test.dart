@@ -15,6 +15,7 @@ class _FixedAddresses extends AddressesController {
 }
 
 Widget _host(List<Address> list) => ProviderScope(
+  retry: (retryCount, error) => null,
   overrides: [
     addressesControllerProvider.overrideWith(() => _FixedAddresses(list)),
   ],

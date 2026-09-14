@@ -25,7 +25,7 @@ abstract final class ButtonThemes {
           return c.primary;
         }),
         foregroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.disabled)) return c.textMuted;
+          if (states.contains(WidgetState.disabled)) return c.textDisabled;
           return c.onPrimary;
         }),
         overlayColor: WidgetStateProperty.all(
@@ -47,7 +47,7 @@ abstract final class ButtonThemes {
     return OutlinedButtonThemeData(
       style: ButtonStyle(
         foregroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.disabled)) return c.textMuted;
+          if (states.contains(WidgetState.disabled)) return c.textDisabled;
           return c.primaryDark;
         }),
         backgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -73,7 +73,7 @@ abstract final class ButtonThemes {
     return TextButtonThemeData(
       style: ButtonStyle(
         foregroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.disabled)) return c.textMuted;
+          if (states.contains(WidgetState.disabled)) return c.textDisabled;
           return c.primaryDark;
         }),
         overlayColor: WidgetStateProperty.all(c.primarySoft),

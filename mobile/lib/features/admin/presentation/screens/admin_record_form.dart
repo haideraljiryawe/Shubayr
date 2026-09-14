@@ -1,9 +1,12 @@
+import '../../../../core/utils/numeric_input_formatters.dart';
+import '../../../../core/utils/numeric_text.dart';
+import '../widgets/admin_app_bar.dart';
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
-import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/async_value_view.dart';
@@ -25,6 +28,7 @@ class AdminRecordForm extends ConsumerStatefulWidget {
 }
 
 class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
+  static const _moneyFields = {'sale_price', 'compare_at_price', 'floor_price'};
   final _form = GlobalKey<FormState>();
   final _controllers = <String, TextEditingController>{};
   late Map<String, dynamic> _draft;
@@ -41,6 +45,8 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
             ? ''
             : field == 'images'
             ? ((value as List?) ?? []).join('\n')
+            : _moneyFields.contains(field)
+            ? MoneyText.fromNumber(value as num?)
             : value?.toString() ?? '',
       );
     }
@@ -69,7 +75,13 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
   Future<void> _save() async {
     if (_busy || !_form.currentState!.validate()) return;
     final input = {..._draft};
-    const numeric = {'sale_price', 'floor_price', 'points_price', 'sort_order'};
+    const numeric = {
+      'sale_price',
+      'compare_at_price',
+      'floor_price',
+      'points_price',
+      'sort_order',
+    };
     const special = {
       'category_id',
       'parent_id',
@@ -83,7 +95,12 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
     };
     for (final field in resource.fields) {
       if (special.contains(field)) continue;
-      final text = _controllers[field]!.text.trim();
+      final entered = _controllers[field]!.text.trim();
+      final text = _moneyFields.contains(field)
+          ? MoneyText.normalize(entered)
+          : numeric.contains(field) || field == 'phone'
+          ? normalizeDigits(entered)
+          : entered;
       if (field == 'password' && text.isEmpty) {
         input.remove(field);
         continue;
@@ -129,7 +146,7 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
-    final session = ref.watch(sessionControllerProvider).valueOrNull;
+    final session = ref.watch(sessionControllerProvider).value;
     if (session?.role != UserRole.staff ||
         session?.can(resource.writePermission) != true) {
       return Scaffold(
@@ -147,10 +164,11 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
       _ => null,
     };
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          '${widget.record == null ? l.adminAdd : l.adminEdit} · ${adminTitle(l, resource)}',
-        ),
+      appBar: adminAppBar(
+        context,
+        ref,
+        title:
+            '${widget.record == null ? l.adminAdd : l.adminEdit} · ${adminTitle(l, resource)}',
       ),
       body: optionsResource == null
           ? _body(const [])
@@ -158,9 +176,14 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
               value: ref.watch(
                 adminLookupsProvider(AdminQuery(optionsResource)),
               ),
-              loading: const Padding(
-                padding: EdgeInsets.all(AppSpacing.screenH),
-                child: SkeletonCardList(),
+              loading: ResponsiveContent(
+                maxWidth: AppLayout.formWidth,
+                child: Padding(
+                  padding: AppLayout.pageInsets(context),
+                  child: SkeletonCardList(
+                    minItemWidth: AppLayout.fieldMinWidth,
+                  ),
+                ),
               ),
               onRetry: () => ref.invalidate(
                 adminLookupsProvider(AdminQuery(optionsResource)),
@@ -172,19 +195,41 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
 
   Widget _body(List<AdminRecord> options) {
     final l = context.l10n;
-    return Form(
-      key: _form,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
-        child: Column(
-          children: [
-            for (final field in resource.fields)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: _field(field, options),
+    return ResponsiveContent(
+      maxWidth: AppLayout.formWidth,
+      child: Form(
+        key: _form,
+        child: SingleChildScrollView(
+          padding: AppLayout.pageInsets(context),
+          child: ResponsiveFields(
+            children: [
+              for (final field in resource.fields)
+                ResponsiveField(
+                  key: ValueKey('layout-$field'),
+                  fullWidth: const [
+                    'description',
+                    'images',
+                    'variants',
+                    'permissions',
+                  ].contains(field),
+                  child: _field(field, options),
+                ),
+              ResponsiveField(
+                fullWidth: true,
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: ResponsiveContent(
+                    maxWidth: AppLayout.authWidth,
+                    child: AppButton(
+                      label: l.actionSave,
+                      isLoading: _busy,
+                      onPressed: _save,
+                    ),
+                  ),
+                ),
               ),
-            AppButton(label: l.actionSave, isLoading: _busy, onPressed: _save),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -213,22 +258,29 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
         children: [
           Text(l.adminPermissions, style: context.text.titleSmall),
           Text(l.adminPermissionHint, style: context.text.bodySmall),
-          for (final option in options)
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(adminPermissionLabel(l, option.text('key'))),
-              subtitle: option.text('description').isEmpty
-                  ? null
-                  : Text(option.text('description')),
-              value: selected.contains(option.id),
-              onChanged: _busy
-                  ? null
-                  : (checked) => setState(() {
-                      _draft[field] = checked == true
-                          ? {...selected, option.id}.toList()
-                          : selected.where((key) => key != option.id).toList();
-                    }),
-            ),
+          ResponsiveFields(
+            minItemWidth: AppLayout.cardMinWidth,
+            children: [
+              for (final option in options)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(adminPermissionLabel(l, option.text('key'))),
+                  subtitle: option.text('description').isEmpty
+                      ? null
+                      : Text(option.text('description')),
+                  value: selected.contains(option.id),
+                  onChanged: _busy
+                      ? null
+                      : (checked) => setState(() {
+                          _draft[field] = checked == true
+                              ? {...selected, option.id}.toList()
+                              : selected
+                                    .where((key) => key != option.id)
+                                    .toList();
+                        }),
+                ),
+            ],
+          ),
         ],
       );
     }
@@ -292,6 +344,7 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
     }
     final isNumeric = const [
       'sale_price',
+      'compare_at_price',
       'floor_price',
       'points_price',
       'sort_order',
@@ -308,6 +361,13 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
       enableSuggestions: field != 'password',
       autocorrect: field != 'password',
       maxLines: field == 'description' || field == 'images' ? 3 : 1,
+      inputFormatters: _moneyFields.contains(field)
+          ? const [MoneyInputFormatter()]
+          : field == 'phone'
+          ? const [PhoneInputFormatter()]
+          : isNumeric
+          ? const [WesternDigitsInputFormatter()]
+          : null,
       keyboardType: isNumeric
           ? const TextInputType.numberWithOptions(decimal: true, signed: true)
           : field == 'phone'
@@ -315,9 +375,20 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
           : field == 'email'
           ? TextInputType.emailAddress
           : null,
-      decoration: InputDecoration(labelText: adminFieldLabel(l, field)),
+      decoration: InputDecoration(
+        labelText: adminFieldLabel(l, field),
+        helperText: field == 'compare_at_price'
+            ? l.adminOriginalPriceHint
+            : null,
+        helperMaxLines: 3,
+      ),
       validator: (value) {
-        final text = value?.trim() ?? '';
+        final entered = value?.trim() ?? '';
+        final text = _moneyFields.contains(field)
+            ? MoneyText.normalize(entered)
+            : isNumeric
+            ? normalizeDigits(entered)
+            : entered;
         if (text.isEmpty) {
           return resource.requiredFields.contains(field)
               ? l.adminRequired

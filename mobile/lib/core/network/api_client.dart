@@ -86,8 +86,10 @@ final dioProvider = Provider<Dio>((ref) {
   dio.interceptors.add(
     AuthInterceptor(
       readToken: tokens.readAccessToken,
-      onUnauthorized: () async =>
-          ref.read(unauthorizedSignalProvider.notifier).raise(),
+      onUnauthorized: () async {
+        if (!ref.mounted) return;
+        ref.read(unauthorizedSignalProvider.notifier).raise();
+      },
     ),
   );
   if (kDebugMode) dio.interceptors.add(LoggingInterceptor());

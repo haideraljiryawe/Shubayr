@@ -12,7 +12,7 @@ import '../../data/delivery_repository_remote.dart';
 import '../../domain/delivery_repository.dart';
 
 final _agentProvider = Provider((ref) {
-  final session = ref.watch(sessionControllerProvider).valueOrNull;
+  final session = ref.watch(sessionControllerProvider).value;
   return (
     id: session?.user?.id,
     allowed:
@@ -50,6 +50,11 @@ class DeliveryListState {
 class DeliveriesController extends AsyncNotifier<DeliveryListState> {
   static const _perPage = 20;
   int _generation = 0;
+  int? _refreshGeneration;
+
+  /// A manual refresh keeps visible data; a new session/repository must reload.
+  bool get isRefreshing => _refreshGeneration == _generation && state.isLoading;
+
   Future<void> _operations = Future.value();
 
   @override
@@ -75,7 +80,8 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
   }
 
   Future<void> refresh() => _enqueue((generation) async {
-    state = const AsyncLoading<DeliveryListState>().copyWithPrevious(state);
+    _refreshGeneration = generation;
+    state = const AsyncLoading<DeliveryListState>();
     try {
       final page = await _fetch(ref.read(deliveryRepositoryProvider), 1);
       if (generation != _generation) return;
@@ -88,7 +94,7 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
   }, allowLoadFailure: true);
 
   Future<void> loadMore() {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (state.isLoading ||
         state.hasError ||
         current == null ||

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/network/api_client.dart';
@@ -71,7 +72,7 @@ class OrdersController extends AsyncNotifier<OrderListState> {
   }
 
   Future<void> loadMore() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (state.isLoading ||
         state.hasError ||
         current == null ||

@@ -8,10 +8,10 @@ import '../../data/auth_repository_mock.dart';
 import '../../data/auth_repository_remote.dart';
 import '../../domain/auth_repository.dart';
 import '../../domain/session.dart';
+import '../../domain/profile_update.dart';
+import '../../data/user.dart';
 
-/// Mock ⇄ remote switch for auth. `requestOtp`, `verifyOtp` and `/me` are the
-/// only endpoints with complete request *and* response schemas, so the remote
-/// implementation is real, not a stub.
+/// Auth and self-profile operations use the selected repository.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return switch (ref.watch(dataSourceProvider)) {
     DataSource.mock => AuthRepositoryMock(),
@@ -24,21 +24,39 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// `build()` restores a previous session from the stored token, which is why
 /// the router shows the splash while this resolves.
 class SessionController extends AsyncNotifier<Session> {
+  // Preserve Riverpod 2 notifications: Session equality omits some user fields
+  // and compares permission counts, so it must not suppress permission changes.
+  @override
+  bool updateShouldNotify(
+    AsyncValue<Session> previous,
+    AsyncValue<Session> next,
+  ) {
+    if (previous.isLoading || next.isLoading) {
+      return previous.isLoading != next.isLoading;
+    }
+    return true;
+  }
+
+  int _sessionRevision = 0;
+  int _profileRevision = 0;
   @override
   Future<Session> build() async {
-    // A 401 anywhere in the app ends the session (there is no refresh
-    // endpoint in the contract to recover with).
+    _sessionRevision++;
+    ref.onDispose(() => _sessionRevision++);
+    // A 401 ends the session; automatic token refresh is a separate task.
     ref.listen(unauthorizedSignalProvider, (previous, next) {
       if (previous != null && next != previous) signOut();
     });
 
     final token = await ref.read(tokenStoreProvider).readAccessToken();
+    if (!ref.mounted) return const Session.signedOut();
     if (token == null || token.isEmpty) return const Session.signedOut();
 
     try {
       final user = await ref.read(authRepositoryProvider).currentUser();
       return Session.signedIn(user);
     } on AppFailure {
+      if (!ref.mounted) return const Session.signedOut();
       await ref.read(tokenStoreProvider).clear();
       return const Session.signedOut();
     }
@@ -50,8 +68,10 @@ class SessionController extends AsyncNotifier<Session> {
 
   /// `POST /auth/verify-otp` — stores the token and opens the session.
   Future<void> verifyOtp({required String phone, required String code}) async {
+    _sessionRevision++;
     final repository = ref.read(authRepositoryProvider);
     final result = await repository.verifyOtp(phone: phone, code: code);
+    if (!ref.mounted) return;
 
     final accessToken = result.accessToken;
     if (accessToken == null || accessToken.isEmpty) {
@@ -60,25 +80,41 @@ class SessionController extends AsyncNotifier<Session> {
     await ref
         .read(tokenStoreProvider)
         .save(accessToken: accessToken, refreshToken: result.refreshToken);
+    if (!ref.mounted) return;
 
     final user = result.user ?? await repository.currentUser();
+    if (!ref.mounted) return;
     state = AsyncData(Session.signedIn(user));
   }
 
-  /// Updates the signed-in user's editable profile fields.
-  ///
-  /// The contract has no "update own profile" endpoint yet, so this updates the
-  /// in-memory session only (which is real in mock mode). When the backend adds
-  /// `PATCH /me`, call it here before setting the state. No-op if signed out.
-  Future<void> updateProfile({required String name}) async {
-    final current = state.valueOrNull;
-    final user = current?.user;
-    if (user == null) return;
-    state = AsyncData(Session.signedIn(user.copyWith(name: name.trim())));
+  /// Commit the server result only to the session that requested this edit.
+  /// A stale result returns null so its screen cannot show a false success.
+  Future<User?> updateProfile(ProfileUpdate update) async {
+    final user = state.value?.user;
+    if (user == null) throw const AppFailure.unauthorized();
+    final sessionRevision = _sessionRevision;
+    final request = ++_profileRevision;
+    bool isCurrent() =>
+        sessionRevision == _sessionRevision &&
+        request == _profileRevision &&
+        identical(state.value?.user, user);
+    try {
+      final saved = await ref
+          .read(authRepositoryProvider)
+          .updateProfile(update);
+      if (!isCurrent()) return null;
+      state = AsyncData(Session.signedIn(saved));
+      return saved;
+    } catch (_) {
+      if (!isCurrent()) return null;
+      rethrow;
+    }
   }
 
   Future<void> signOut() async {
+    _sessionRevision++;
     await ref.read(tokenStoreProvider).clear();
+    if (!ref.mounted) return;
     state = const AsyncData(Session.signedOut());
   }
 }
@@ -90,7 +126,5 @@ final sessionControllerProvider =
 /// customers). Screens read this — or use `PermissionGate` — to hide actions
 /// the user's role does not grant.
 final permissionsProvider = Provider<List<String>>(
-  (ref) =>
-      ref.watch(sessionControllerProvider).valueOrNull?.permissions ??
-      const [],
+  (ref) => ref.watch(sessionControllerProvider).value?.permissions ?? const [],
 );

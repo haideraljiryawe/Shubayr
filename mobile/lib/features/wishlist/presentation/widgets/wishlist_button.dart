@@ -34,8 +34,7 @@ class WishlistButton extends ConsumerWidget {
       ),
       onPressed: () async {
         final signedIn =
-            ref.read(sessionControllerProvider).valueOrNull?.isSignedIn ??
-            false;
+            ref.read(sessionControllerProvider).value?.isSignedIn ?? false;
         if (!signedIn) {
           final router = GoRouter.of(context);
           final returnTo = GoRouterState.of(context).uri.toString();

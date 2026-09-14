@@ -30,6 +30,7 @@ abstract final class RoleGuard {
   static bool isPublic(String location) =>
       location == AppRoutes.home ||
       location == AppRoutes.categories ||
+      location.startsWith('${AppRoutes.categories}/') ||
       location == AppRoutes.account ||
       location == AppRoutes.search ||
       location.startsWith(AppRoutes.productsPrefix) ||
