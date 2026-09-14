@@ -19,6 +19,34 @@ const base = Product(
 );
 
 void main() {
+  test('scheduled discount responses expose the effective customer price', () {
+    final startsAt = DateTime.utc(2026, 9, 1);
+    final endsAt = DateTime.utc(2026, 9, 30);
+    final product = Product.fromJson({
+      ...base.toJson(),
+      'price': 100,
+      'discount_type': 'percentage',
+      'discount_value': 20,
+      'discount_starts_at': startsAt.toIso8601String(),
+      'discount_ends_at': endsAt.toIso8601String(),
+      'on_sale': true,
+      'discounted_price': 80,
+      'effective_price': 80,
+      'discount_percent': 20,
+    });
+
+    expect(product.price, 100);
+    expect(product.salePrice, 80);
+    expect(product.compareAtPrice, 100);
+    expect(product.isOnSale, isTrue);
+    expect(product.discountType, 'percentage');
+    expect(product.discountValue, 20);
+    expect(product.discountStartsAt, startsAt);
+    expect(product.discountEndsAt, endsAt);
+    expect(product.toJson(), isNot(contains('sale_price')));
+    expect(product.toJson(), isNot(contains('compare_at_price')));
+  });
+
   test(
     'older catalog responses without either promotion field remain supported',
     () {

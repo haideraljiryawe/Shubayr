@@ -43,9 +43,7 @@ function resolveIcon(name?: string | null): LucideIcon {
  * category. Scroll-snaps horizontally on mobile (mirroring the app) and
  * becomes a full row/grid from `sm` up.
  *
- * The route param is the category id — the contract has no slug field on
- * Category, and `GET /products?category_id=` takes the id, so the id is what
- * the Phase 3 page will actually need.
+ * URLs use the contract's slug; the category page resolves it to an API id.
  */
 export function CategoryRail({
   categories,
@@ -68,12 +66,11 @@ export function CategoryRail({
           (locale === "ar" ? category.name_ar : category.name_en) ?? "";
 
         return (
-          <li
-            key={category.id}
-            className="w-24 shrink-0 snap-start sm:w-auto"
-          >
+          <li key={category.id} className="w-24 shrink-0 snap-start sm:w-auto">
             <Link
-              href={`/category/${category.id}`}
+              href={
+                category.slug ? `/category/${category.slug}` : "/categories"
+              }
               className="group flex flex-col items-center gap-2 rounded-md p-1 text-center"
             >
               <span

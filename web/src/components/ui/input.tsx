@@ -1,9 +1,11 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { InputHTMLAttributes, ReactNode, Ref } from "react";
 import { cn } from "@/lib/cn";
 import { controlBase, controlError } from "./field";
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   invalid?: boolean;
+  /** React 19 passes refs as a plain prop — no forwardRef wrapper needed. */
+  ref?: Ref<HTMLInputElement>;
   /** Rendered at the inline-start edge; flips automatically under RTL. */
   startIcon?: ReactNode;
   endIcon?: ReactNode;

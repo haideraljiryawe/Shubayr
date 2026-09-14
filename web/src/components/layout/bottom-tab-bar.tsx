@@ -1,9 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Badge } from "@/components/ui/badge";
 import { Link, usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
-import { NAV_ITEMS } from "./nav-items";
+import { useCartCount } from "@/lib/use-cart";
+import { isNavItemActive, NAV_ITEMS } from "./nav-items";
 
 /**
  * Mobile bottom tab bar, matching the mockup: five tabs with «السلة» lifted
@@ -13,6 +15,7 @@ import { NAV_ITEMS } from "./nav-items";
 export function BottomTabBar() {
   const t = useTranslations("nav");
   const pathname = usePathname();
+  const cartCount = useCartCount();
 
   return (
     <nav
@@ -27,14 +30,14 @@ export function BottomTabBar() {
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isCart = item.key === "cart";
-          const isActive = !isCart && pathname === item.href;
+          const isActive = !isCart && isNavItemActive(item, pathname);
 
           if (isCart) {
             return (
               <li key={item.key} className="flex justify-center">
                 <Link
                   href={item.href}
-                  className="flex flex-col items-center gap-1 -mt-7"
+                  className="relative flex flex-col items-center gap-1 -mt-7"
                 >
                   <span
                     className={cn(
@@ -45,6 +48,14 @@ export function BottomTabBar() {
                   >
                     <Icon className="size-6" aria-hidden />
                   </span>
+                  {cartCount > 0 ? (
+                    <Badge
+                      tone="sale"
+                      className="pointer-events-none absolute -top-1 -end-1 min-w-5 rounded-full px-1 py-0 text-[10px] leading-5"
+                    >
+                      {cartCount}
+                    </Badge>
+                  ) : null}
                   <span className="sr-only">{t(item.key)}</span>
                 </Link>
               </li>
@@ -59,7 +70,7 @@ export function BottomTabBar() {
                 className={cn(
                   "flex flex-col items-center gap-1 px-2 py-1 rounded-md",
                   "transition-colors",
-                  isActive ? "text-primary" : "text-text-muted",
+                  isActive ? "text-primary-dark" : "text-text-muted",
                 )}
               >
                 <Icon className="size-5.5" aria-hidden />

@@ -33,7 +33,17 @@ class AdminRepositoryMock implements AdminRepository {
     final products = <AdminRecord>[];
     for (var page = 1; ; page++) {
       final result = await source.fetchProducts(page: page, perPage: 100);
-      products.addAll(result.data.map((p) => AdminRecord(p.toJson())));
+      products.addAll(
+        result.data.map(
+          (p) => AdminRecord({
+            ...p.toJson(),
+            // The mock admin form still exercises the accepted R2 UI while
+            // Product itself follows the new scheduled-discount read shape.
+            'sale_price': p.salePrice,
+            'compare_at_price': p.compareAtPrice,
+          }),
+        ),
+      );
       if (page * result.perPage >= result.total) break;
     }
     _data[AdminResource.products] = products;

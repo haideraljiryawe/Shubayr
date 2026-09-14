@@ -37,7 +37,7 @@
 
   /* --- Text ------------------------------------------------------------- */
   --t-text: #1f2937;
-  --t-text-muted: #6b7280;
+  --t-text-muted: #4b5563;
 
   /* --- Status ----------------------------------------------------------- */
   --t-success: #22c55e;
@@ -46,7 +46,13 @@
   /* White text on --t-error is 3.76:1, below AA. This darker sibling (5.70:1)
      is used wherever red is a FILL behind white text — sale and count badges.
      The lighter --t-error stays the status/border colour. */
-  --t-error-dark: #c81e1e;
+  --t-error-dark: #a81c1c;
+  /* The bright status colours are for FILLS and icons; as TEXT they fail AA on
+     our light surfaces (--t-success is only 2.12:1, --t-warning 2.2:1). These
+     darker siblings are what status *text* uses. */
+  --t-success-dark: #166534;
+  --t-warning-dark: #92400e;
+  --t-info-dark: #1d4ed8;
   --t-info: #3b82f6;
 
   /* --- Radii (8 / 12 / 20 per the sheet) -------------------------------- */
@@ -83,6 +89,9 @@
   --color-warning: var(--t-warning);
   --color-error: var(--t-error);
   --color-error-dark: var(--t-error-dark);
+  --color-success-dark: var(--t-success-dark);
+  --color-warning-dark: var(--t-warning-dark);
+  --color-info-dark: var(--t-info-dark);
   --color-info: var(--t-info);
 
   --radius-sm: var(--t-radius-sm);

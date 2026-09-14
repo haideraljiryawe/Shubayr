@@ -1,23 +1,83 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { IconButton } from "./icon-button";
 
-/**
- * The heart that sits on every product tile. Uncontrolled by default so the
- * style guide and card grids can drop it in; pass `active`/`onToggle` to bind
- * it to real wishlist state later.
- */
+const STORAGE_KEY = "shubayr:wishlist";
+const listeners = new Set<() => void>();
+let wishlist = new Set<string>();
+let initialized = false;
+
+function parseWishlist(value: string | null): Set<string> {
+  try {
+    const parsed: unknown = JSON.parse(value ?? "[]");
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((id): id is string => typeof id === "string")
+        : [],
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+function readWishlist() {
+  if (!initialized) {
+    initialized = true;
+    try {
+      wishlist = parseWishlist(window.localStorage.getItem(STORAGE_KEY));
+    } catch {
+      // In private/blocked storage, the shared in-memory wishlist still works.
+    }
+  }
+  return wishlist;
+}
+
+function onStorage(event: StorageEvent) {
+  if (event.key !== STORAGE_KEY && event.key !== null) return;
+  wishlist = parseWishlist(event.newValue);
+  listeners.forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void) {
+  if (listeners.size === 0) {
+    // Refresh after a navigation with no mounted product cards.
+    initialized = false;
+    window.addEventListener("storage", onStorage);
+  }
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) window.removeEventListener("storage", onStorage);
+  };
+}
+
+function updateWishlist(productId: string, active: boolean) {
+  const next = new Set(readWishlist());
+  if (active) next.add(productId);
+  else next.delete(productId);
+  wishlist = next;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+  } catch {
+    // Keep the optimistic local state if browser storage is unavailable.
+  }
+  listeners.forEach((listener) => listener());
+}
+
+/** Product hearts share browser-local state; standalone examples stay local. */
 export function WishlistButton({
+  productId,
   active,
   defaultActive = false,
   onToggle,
   size = "md",
   className,
 }: {
+  productId?: string;
   active?: boolean;
   defaultActive?: boolean;
   onToggle?: (next: boolean) => void;
@@ -26,7 +86,12 @@ export function WishlistButton({
 }) {
   const t = useTranslations("common");
   const [internal, setInternal] = useState(defaultActive);
-  const isActive = active ?? internal;
+  const saved = useSyncExternalStore(
+    subscribe,
+    () => Boolean(productId && readWishlist().has(productId)),
+    () => defaultActive,
+  );
+  const isActive = active ?? (productId ? saved : internal);
 
   return (
     <IconButton
@@ -35,7 +100,10 @@ export function WishlistButton({
       size={size}
       onClick={() => {
         const next = !isActive;
-        if (active === undefined) setInternal(next);
+        if (active === undefined) {
+          if (productId) updateWishlist(productId, next);
+          else setInternal(next);
+        }
         onToggle?.(next);
       }}
       className={cn("shadow-sm", className)}

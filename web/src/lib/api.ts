@@ -1,10 +1,31 @@
-import type { components } from "@/types/api";
+import type { components, paths } from "@/types/api";
+import {
+  createMockAddress,
+  deleteMockAddress,
+  getMockOrder,
+  getMockUser,
+  isMockAccessTokenValid,
+  isMockRefreshTokenValid,
+  listMockAddresses,
+  listMockOrders,
+  mockAccessToken,
+  mockRefreshToken,
+  mockTrackingFor,
+  MOCK_OTP,
+  rememberMockOrder,
+  updateMockAddress,
+  updateMockUser,
+} from "./mock-account";
 import {
   demoProducts,
+  mockAvailabilityFor,
+  mockCouponFor,
+  mockReviewsFor,
   mockBanners,
   mockCategories,
   mockProducts,
   mockSettings,
+  nextMockOrderNumber,
   type Banner,
 } from "./mock-data";
 
@@ -20,6 +41,40 @@ export type Product = Schemas["Product"];
 export type Category = Schemas["Category"];
 export type ProductPage = Schemas["ProductPage"];
 export type Cart = Schemas["Cart"];
+export type ProductVariant = Schemas["ProductVariant"];
+export type ProductAvailability = Schemas["ProductAvailability"];
+export type Review = Schemas["Review"];
+export type ReviewPage = Schemas["ReviewPage"];
+export type Coupon = Schemas["Coupon"];
+export type User = Schemas["User"];
+export type UserInput = Schemas["UserInput"];
+export type AuthTokens = Schemas["AuthTokens"];
+export type AddressPage = Schemas["AddressPage"];
+export type OrderPage = Schemas["OrderPage"];
+export type OrderStatus = Schemas["OrderStatus"];
+export type OrderTracking = Schemas["OrderTracking"];
+export type Address = Schemas["Address"];
+export type AddressInput = Schemas["AddressInput"];
+export type Order = Schemas["Order"];
+export type OrderItem = Schemas["OrderItem"];
+
+/** Request body of POST /orders, straight from the contract. */
+export type OrderRequest =
+  paths["/orders"]["post"]["requestBody"]["content"]["application/json"];
+
+/**
+ * Mock-only companion to OrderRequest. The real endpoint prices the order from
+ * the authenticated server cart, which a guest does not have — so the fixture
+ * needs the basket handed to it to echo a believable order back. Once the
+ * backend is live this argument is ignored and can be dropped.
+ */
+export interface OrderDraft {
+  items: OrderItem[];
+  subtotal: number;
+  delivery_fee: number;
+  discount: number;
+  total: number;
+}
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
@@ -43,6 +98,74 @@ export class ApiError extends Error {
 
 type Query = Record<string, string | number | boolean | undefined>;
 
+/* ---------------------------------------------------------------------------
+ * Credentials.
+ *
+ * The session store registers itself here; the client never imports it back.
+ * Everything that touches a raw token lives in these few functions, so moving
+ * to httpOnly-cookie auth later means changing them and nothing else.
+ * ------------------------------------------------------------------------- */
+
+export interface TokenProvider {
+  getAccessToken(): string | null;
+  getRefreshToken(): string | null;
+  onTokens(tokens: { access_token: string; refresh_token: string }): void;
+  onSignedOut(): void;
+}
+
+let tokenProvider: TokenProvider | null = null;
+
+export function setTokenProvider(provider: TokenProvider | null): void {
+  tokenProvider = provider;
+}
+
+export function accessToken(): string | null {
+  return tokenProvider?.getAccessToken() ?? null;
+}
+
+/** In-flight refresh, shared so a burst of 401s produces one refresh call. */
+let refreshing: Promise<boolean> | null = null;
+
+async function runRefresh(): Promise<boolean> {
+  const refresh_token = tokenProvider?.getRefreshToken();
+  if (!refresh_token) return false;
+  try {
+    const pair = await api.refreshTokens(refresh_token);
+    tokenProvider?.onTokens(pair);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function refreshOnce(): Promise<boolean> {
+  refreshing ??= runRefresh().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+/**
+ * Run an authenticated call, retrying once behind a token refresh.
+ *
+ * This wraps the whole call rather than the fetch, so the mocked endpoints —
+ * which validate the same mock access token and answer 401 when it has expired
+ * — exercise the identical retry path. If the refresh fails, the session is
+ * cleared and the original 401 is rethrown for the caller to route on.
+ */
+export async function withFreshToken<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (cause) {
+    if (!(cause instanceof ApiError) || cause.status !== 401) throw cause;
+    if (!(await refreshOnce())) {
+      tokenProvider?.onSignedOut();
+      throw cause;
+    }
+    return run();
+  }
+}
+
 function buildUrl(path: string, query?: Query): string {
   const url = new URL(`${API_URL}${path}`);
   for (const [key, value] of Object.entries(query ?? {})) {
@@ -55,9 +178,15 @@ async function request<T>(
   path: string,
   { query, ...init }: RequestInit & { query?: Query } = {},
 ): Promise<T> {
+  const token = accessToken();
   const response = await fetch(buildUrl(path, query), {
     ...init,
-    headers: { "Content-Type": "application/json", ...init.headers },
+    signal: init.signal ?? AbortSignal.timeout(10_000),
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init.headers,
+    },
   });
 
   if (!response.ok) {
@@ -70,15 +199,9 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
-export interface ProductQuery {
-  q?: string;
-  category_id?: string;
-  min_price?: number;
-  max_price?: number;
-  sort?: "newest" | "price_asc" | "price_desc" | "rating";
-  page?: number;
-  per_page?: number;
-}
+export type ProductQuery = NonNullable<
+  paths["/products"]["get"]["parameters"]["query"]
+>;
 
 /** Mirrors the `sort` values the contract allows on GET /products. */
 function sortMockProducts(
@@ -99,6 +222,39 @@ function sortMockProducts(
     default:
       return items;
   }
+}
+
+/**
+ * Mocked writes resolve on a later tick so the UI genuinely passes through its
+ * pending state — a submit button that never disables would look fine here and
+ * break the moment a real network is behind it.
+ */
+function mockLatency(ms = 250): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Guard a mocked endpoint that the contract marks as authenticated. Rejecting
+ * an expired mock token with a real 401 is what lets `withFreshToken` prove its
+ * refresh-and-retry works without a live backend.
+ */
+function requireMockAuth(): void {
+  if (!isMockAccessTokenValid(accessToken())) {
+    throw new ApiError(401, "Access token missing or expired");
+  }
+}
+
+/**
+ * The contract writes phone numbers in E.164 ("+9647701234567"); Iraqi
+ * customers type them locally ("07701234567"). Normalising here keeps the
+ * forms in the format people actually use.
+ */
+export function toE164(phone: string): string {
+  const digits = phone.replace(/[^\d+]/g, "");
+  if (digits.startsWith("+")) return digits;
+  if (digits.startsWith("00")) return `+${digits.slice(2)}`;
+  if (digits.startsWith("0")) return `+964${digits.slice(1)}`;
+  return `+${digits}`;
 }
 
 export const api = {
@@ -126,11 +282,26 @@ export const api = {
         matches = matches.filter((p) => p.category_id === query.category_id);
       }
       if (query.q) {
-        const needle = query.q.toLowerCase();
+        const needle = query.q.trim().toLowerCase();
         matches = matches.filter(
           (p) =>
-            p.name_ar?.includes(query.q!) ||
+            p.name_ar?.toLowerCase().includes(needle) ||
             p.name_en?.toLowerCase().includes(needle),
+        );
+      }
+      if (query.min_price !== undefined) {
+        matches = matches.filter(
+          (p) => (p.sale_price ?? 0) >= query.min_price!,
+        );
+      }
+      if (query.max_price !== undefined) {
+        matches = matches.filter(
+          (p) => (p.sale_price ?? 0) <= query.max_price!,
+        );
+      }
+      if (query.on_sale) {
+        matches = matches.filter(
+          (p) => (p.compare_at_price ?? 0) > (p.sale_price ?? 0),
         );
       }
 
@@ -148,32 +319,40 @@ export const api = {
     return request<ProductPage>("/products", { query: { ...query } });
   },
 
-  /**
-   * Home hero banners.
-   *
-   * NOT in api/openapi.yaml yet — see the note on `mockBanners`. This resolves
-   * from fixtures regardless of USE_MOCKS, because there is no endpoint to call.
-   * Once the contract gains `GET /banners`, this becomes a normal request() and
-   * every caller stays unchanged.
-   */
+  /** Map the shared banner contract into the existing home carousel view. */
   async getBanners(): Promise<Banner[]> {
-    return mockBanners;
+    if (USE_MOCKS) return mockBanners;
+    const banners = await request<Schemas["Banner"][]>("/banners");
+    return banners.map((banner, index) => ({
+      id: banner.id ?? `banner-${index}`,
+      title_ar: banner.title ?? "",
+      title_en: banner.title ?? "",
+      subtitle_ar: banner.subtitle ?? "",
+      subtitle_en: banner.subtitle ?? "",
+      cta_ar: banner.cta_text ?? "تسوق الآن",
+      cta_en: banner.cta_text ?? "Shop now",
+      href: banner.link_url ?? "/categories",
+      image_url: banner.image_url ?? null,
+    }));
   },
 
-  /**
-   * Discounted products for the deals strip.
-   *
-   * CONTRACT GAP: Product has no "was" price or discount flag, so a real API
-   * cannot express this yet. Until `compare_at_price` (or similar) is added to
-   * api/openapi.yaml, this reads the fixtures directly; with mocks off it
-   * returns an empty list rather than inventing a filter the backend does not
-   * support, and the section renders its empty state.
-   */
+  /** Discounted products use the same typed endpoint as catalog filters. */
   async listDeals(limit = 6): Promise<Product[]> {
-    if (!USE_MOCKS) return [];
-    return demoProducts
-      .filter((p) => p.compare_at_price && p.compare_at_price > p.sale_price)
-      .slice(0, limit);
+    return (await api.listProducts({ on_sale: true, per_page: limit })).data;
+  },
+
+  /** Product has no review count field; the published reviews envelope does. */
+  async getProductReviewCount(id: string): Promise<number> {
+    if (USE_MOCKS) {
+      const product = demoProducts.find((item) => item.id === id);
+      if (!product) throw new ApiError(404, `Product ${id} not found`);
+      return product.review_count;
+    }
+    const reviews = await request<Schemas["ReviewPage"]>(
+      `/products/${encodeURIComponent(id)}/reviews`,
+      { query: { page: 1, per_page: 1 } },
+    );
+    return reviews.total;
   },
 
   async getProduct(id: string): Promise<Product> {
@@ -182,6 +361,295 @@ export const api = {
       if (!found) throw new ApiError(404, `Product ${id} not found`);
       return found;
     }
-    return request<Product>(`/products/${id}`);
+    return request<Product>(`/products/${encodeURIComponent(id)}`);
+  },
+
+  /**
+   * Per-variant sellable quantity. Kept separate from getProduct because the
+   * contract computes it at read time — it is the volatile half of the page and
+   * the part that must not be cached with the catalog copy.
+   */
+  async getProductAvailability(id: string): Promise<ProductAvailability> {
+    if (USE_MOCKS) {
+      const product = demoProducts.find((item) => item.id === id);
+      if (!product) throw new ApiError(404, `Product ${id} not found`);
+      return mockAvailabilityFor(product);
+    }
+    return request<ProductAvailability>(
+      `/products/${encodeURIComponent(id)}/availability`,
+    );
+  },
+
+  /* ------------------------------------------------------------- auth */
+
+  /** Ask for an OTP. Public endpoint; the contract rate-limits it with 429. */
+  async requestOtp(phone: string): Promise<{ otp_sent: boolean }> {
+    if (USE_MOCKS) {
+      await mockLatency();
+      return { otp_sent: true };
+    }
+    return request<{ otp_sent: boolean }>("/auth/request-otp", {
+      method: "POST",
+      body: JSON.stringify({ phone: toE164(phone) }),
+    });
+  },
+
+  /** Exchange phone + code for the token pair and the user. 401 = bad code. */
+  async verifyOtp(phone: string, code: string): Promise<AuthTokens> {
+    if (USE_MOCKS) {
+      await mockLatency();
+      if (code.trim() !== MOCK_OTP) {
+        throw new ApiError(401, "Invalid or expired verification code");
+      }
+      const user = updateMockUser({ phone });
+      return {
+        access_token: mockAccessToken(user.id ?? "u-1"),
+        refresh_token: mockRefreshToken(user.id ?? "u-1"),
+        user,
+      };
+    }
+    return request<AuthTokens>("/auth/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ phone: toE164(phone), code: code.trim() }),
+    });
+  },
+
+  /**
+   * Swap a refresh token for a new pair. Called only by the client's own retry
+   * path — components never touch it.
+   */
+  async refreshTokens(
+    refresh_token: string,
+  ): Promise<{ access_token: string; refresh_token: string }> {
+    if (USE_MOCKS) {
+      await mockLatency(120);
+      if (!isMockRefreshTokenValid(refresh_token)) {
+        throw new ApiError(401, "Refresh token rejected");
+      }
+      const id = refresh_token.split(".")[1] ?? "u-1";
+      return {
+        access_token: mockAccessToken(id),
+        refresh_token: mockRefreshToken(id),
+      };
+    }
+    return request<{ access_token: string; refresh_token: string }>(
+      "/auth/refresh",
+      { method: "POST", body: JSON.stringify({ refresh_token }) },
+    );
+  },
+
+  /** The signed-in customer, including the role permissions the contract flattens. */
+  async getMe(): Promise<User> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(120);
+        requireMockAuth();
+        return getMockUser();
+      }
+      return request<User>("/me");
+    });
+  },
+
+  /**
+   * Save profile edits.
+   *
+   * CONTRACT GAP: api/openapi.yaml exposes /me as GET only, so there is no
+   * endpoint for a customer to edit their own profile — the body below is the
+   * contract's UserInput and the method/path are the obvious shape, but both
+   * must be added to the contract before mocks are switched off.
+   */
+  async updateMe(input: Pick<UserInput, "name" | "email">): Promise<User> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency();
+        requireMockAuth();
+        return updateMockUser(input);
+      }
+      return request<User>("/me", {
+        method: "PUT",
+        body: JSON.stringify(input),
+      });
+    });
+  },
+
+  /* -------------------------------------------------------- addresses */
+
+  async listAddresses(): Promise<Address[]> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(120);
+        requireMockAuth();
+        return listMockAddresses();
+      }
+      const page = await request<AddressPage>("/addresses", {
+        query: { per_page: 50 },
+      });
+      return page.data;
+    });
+  },
+
+  async updateAddress(id: string, input: AddressInput): Promise<Address> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency();
+        requireMockAuth();
+        const updated = updateMockAddress(id, input);
+        if (!updated) throw new ApiError(404, `Address ${id} not found`);
+        return updated;
+      }
+      return request<Address>(`/addresses/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      });
+    });
+  },
+
+  async deleteAddress(id: string): Promise<void> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency();
+        requireMockAuth();
+        if (!deleteMockAddress(id)) {
+          throw new ApiError(404, `Address ${id} not found`);
+        }
+        return;
+      }
+      await request<void>(`/addresses/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+    });
+  },
+
+  /* ----------------------------------------------------------- orders */
+
+  async listOrders(status?: OrderStatus): Promise<Order[]> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(120);
+        requireMockAuth();
+        return listMockOrders(status);
+      }
+      const page = await request<OrderPage>("/orders", {
+        query: { status, per_page: 50 },
+      });
+      return page.data;
+    });
+  },
+
+  async getOrder(id: string): Promise<Order> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(120);
+        requireMockAuth();
+        const order = getMockOrder(id);
+        if (!order) throw new ApiError(404, `Order ${id} not found`);
+        return order;
+      }
+      return request<Order>(`/orders/${encodeURIComponent(id)}`);
+    });
+  },
+
+  async trackOrder(id: string): Promise<OrderTracking> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(120);
+        requireMockAuth();
+        const order = getMockOrder(id);
+        if (!order) throw new ApiError(404, `Order ${id} not found`);
+        return mockTrackingFor(order);
+      }
+      return request<OrderTracking>(`/orders/${encodeURIComponent(id)}/track`);
+    });
+  },
+
+  /**
+   * Validate a discount code. The contract answers 200 with the coupon or 404
+   * when the code is unknown or no longer usable, so callers treat any
+   * ApiError(404) as "invalid or expired" and everything else as a failure to
+   * reach the service.
+   */
+  async validateCoupon(code: string): Promise<Coupon> {
+    if (USE_MOCKS) {
+      await mockLatency();
+      const coupon = mockCouponFor(code);
+      if (!coupon) throw new ApiError(404, `Coupon ${code} is not valid`);
+      return coupon;
+    }
+    return request<Coupon>("/coupons/validate", {
+      method: "POST",
+      body: JSON.stringify({ code: code.trim() }),
+    });
+  },
+
+  /**
+   * Create a delivery address. POST /orders references an address by id, so a
+   * checkout that types a new address creates it first and places the order
+   * against the id that comes back.
+   */
+  async createAddress(input: AddressInput): Promise<Address> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency();
+        requireMockAuth();
+        return createMockAddress(input);
+      }
+      return request<Address>("/addresses", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+    });
+  },
+
+  /**
+   * Place a Cash-on-Delivery order. Requires an authenticated customer — the
+   * checkout gates on that before calling.
+   */
+  async placeOrder(body: OrderRequest, draft?: OrderDraft): Promise<Order> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency();
+        requireMockAuth();
+        const order: Order = {
+          id: `order-${Date.now().toString(36)}`,
+          order_number: nextMockOrderNumber(),
+          status: "pending",
+          payment_method: body.payment_method ?? "cod",
+          address_id: body.address_id,
+          subtotal: draft?.subtotal ?? 0,
+          delivery_fee: draft?.delivery_fee ?? 0,
+          discount: draft?.discount ?? 0,
+          total: draft?.total ?? 0,
+          placed_at: new Date().toISOString(),
+          items: draft?.items ?? [],
+        };
+        // So the confirmation's «تتبّع الطلب» link opens a real order page.
+        rememberMockOrder(order);
+        return order;
+      }
+      return request<Order>("/orders", {
+        method: "POST",
+        body: JSON.stringify({ payment_method: "cod", ...body }),
+      });
+    });
+  },
+
+  /** Published reviews, paginated with the shared Pagination envelope. */
+  async listReviews(
+    id: string,
+    { page = 1, per_page = 5 }: { page?: number; per_page?: number } = {},
+  ): Promise<ReviewPage> {
+    if (USE_MOCKS) {
+      const all = mockReviewsFor(id);
+      return {
+        page,
+        per_page,
+        total: all.length,
+        data: all.slice((page - 1) * per_page, page * per_page),
+      };
+    }
+    return request<ReviewPage>(
+      `/products/${encodeURIComponent(id)}/reviews`,
+      { query: { page, per_page } },
+    );
   },
 };

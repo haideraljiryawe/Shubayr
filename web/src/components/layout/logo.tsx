@@ -40,10 +40,14 @@ export function Logo({
         )}
       </span>
 
-      <span className="flex flex-col leading-tight">
-        <span className="text-lg font-bold text-text">{storeName}</span>
+      {/* min-w-0 + truncate: on a 320px header the wordmark gives way to the
+          controls rather than pushing them off the edge. */}
+      <span className="flex min-w-0 flex-col leading-tight">
+        <span className="truncate text-lg font-bold text-text">{storeName}</span>
         {showTagline ? (
-          <span className="text-[11px] text-text-muted">{t("tagline")}</span>
+          <span className="truncate text-[11px] text-text-muted">
+            {t("tagline")}
+          </span>
         ) : null}
       </span>
     </Link>

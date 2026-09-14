@@ -36,9 +36,17 @@ class Product {
     required this.nameEn,
     required this.nameAr,
     this.description = '',
-    this.salePrice = 0,
-    this.compareAtPrice,
+    this.price = 0,
+    this.discountType,
+    this.discountValue,
+    this.discountStartsAt,
+    this.discountEndsAt,
+    this.onSale = false,
+    this.discountedPrice,
+    num? effectivePrice,
     this.discountPercent,
+    num? salePrice,
+    num? compareAtPrice,
     this.isNegotiable = false,
     this.floorPrice,
     this.pointsPrice,
@@ -49,7 +57,9 @@ class Product {
     this.availableQty = 0,
     this.images = const [],
     this.variants = const [],
-  });
+  }) : effectivePrice = effectivePrice ?? salePrice ?? price,
+       _legacySalePrice = salePrice,
+       _legacyCompareAtPrice = compareAtPrice;
 
   final String id;
   @JsonKey(name: 'category_id')
@@ -59,19 +69,41 @@ class Product {
   @JsonKey(name: 'name_ar')
   final String nameAr;
   final String description;
-  @JsonKey(name: 'sale_price')
-  final num salePrice;
-  @JsonKey(name: 'compare_at_price')
-  final num? compareAtPrice;
+  final num price;
+  @JsonKey(name: 'discount_type')
+  final String? discountType;
+  @JsonKey(name: 'discount_value')
+  final num? discountValue;
+  @JsonKey(name: 'discount_starts_at')
+  final DateTime? discountStartsAt;
+  @JsonKey(name: 'discount_ends_at')
+  final DateTime? discountEndsAt;
+  @JsonKey(name: 'on_sale')
+  final bool onSale;
+  @JsonKey(name: 'discounted_price')
+  final num? discountedPrice;
+  @JsonKey(name: 'effective_price')
+  final num effectivePrice;
   @JsonKey(name: 'discount_percent')
   final int? discountPercent;
 
+  // Keep direct constructors used by the mock layer source-compatible while
+  // remote reads use the scheduled-discount contract above.
+  final num? _legacySalePrice;
+  final num? _legacyCompareAtPrice;
+
+  num get salePrice => _legacySalePrice ?? effectivePrice;
+
+  num? get compareAtPrice =>
+      _legacyCompareAtPrice ?? (onSale ? price : null);
+
   bool get isOnSale =>
-      compareAtPrice != null &&
-      compareAtPrice!.isFinite &&
-      salePrice.isFinite &&
-      compareAtPrice! > 0 &&
-      compareAtPrice! > salePrice;
+      onSale ||
+      (_legacyCompareAtPrice != null &&
+          _legacyCompareAtPrice.isFinite &&
+          salePrice.isFinite &&
+          _legacyCompareAtPrice > 0 &&
+          _legacyCompareAtPrice > salePrice);
 
   /// Contract calculation for mock responses; remote percentages remain read-only.
   static int? discountPercentFor(num sale, num? original) =>
@@ -115,9 +147,17 @@ class Product {
     nameEn: nameEn,
     nameAr: nameAr,
     description: description,
-    salePrice: salePrice,
-    compareAtPrice: compareAtPrice,
+    price: price,
+    discountType: discountType,
+    discountValue: discountValue,
+    discountStartsAt: discountStartsAt,
+    discountEndsAt: discountEndsAt,
+    onSale: onSale,
+    discountedPrice: discountedPrice,
+    effectivePrice: effectivePrice,
     discountPercent: discountPercent,
+    salePrice: _legacySalePrice,
+    compareAtPrice: _legacyCompareAtPrice,
     isNegotiable: isNegotiable,
     floorPrice: floorPrice,
     pointsPrice: pointsPrice,
@@ -130,8 +170,34 @@ class Product {
     variants: variants,
   );
 
-  factory Product.fromJson(Map<String, dynamic> json) =>
-      _$ProductFromJson(json);
+  factory Product.fromJson(Map<String, dynamic> json) {
+    if (!json.containsKey('sale_price') &&
+        !json.containsKey('compare_at_price')) {
+      return _$ProductFromJson(json);
+    }
+
+    // Compatibility for persisted fixtures produced before the scheduled
+    // discount contract. New API responses never need this normalization.
+    final sale =
+        json['sale_price'] as num? ??
+        json['effective_price'] as num? ??
+        json['price'] as num? ??
+        0;
+    final original = json['compare_at_price'] as num?;
+    final discounted =
+        original != null && original.isFinite && original > sale;
+    return _$ProductFromJson({
+      ...json,
+      'price': discounted ? original : sale,
+      'discount_type': discounted ? 'amount' : null,
+      'discount_value': discounted ? original - sale : null,
+      'discount_starts_at': null,
+      'discount_ends_at': null,
+      'on_sale': discounted,
+      'discounted_price': discounted ? sale : null,
+      'effective_price': sale,
+    });
+  }
 
   Map<String, dynamic> toJson() => _$ProductToJson(this);
 }

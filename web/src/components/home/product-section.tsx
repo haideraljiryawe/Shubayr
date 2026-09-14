@@ -7,15 +7,13 @@ import type { Locale } from "@/i18n/routing";
 import { SectionEmpty, SectionError } from "./states";
 
 /**
- * `review_count` and `compare_at_price` are fixture-only: neither is on the
- * OpenAPI Product schema. Read them defensively so the grid renders correctly
- * both today (mocks supply them) and once the real API does not.
+ * The fixture-only review count is optional; sale metadata comes directly
+ * from the shared Product contract.
  */
 function displayExtras(product: Product) {
   const extras = product as Partial<DemoProduct>;
   return {
     reviewCount: extras.review_count,
-    compareAtPrice: extras.compare_at_price ?? null,
   };
 }
 
@@ -63,7 +61,7 @@ export async function ProductSection({
         ) : (
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {products.map((product, index) => {
-              const { reviewCount, compareAtPrice } = displayExtras(product);
+              const { reviewCount } = displayExtras(product);
               const name =
                 (locale === "ar" ? product.name_ar : product.name_en) ?? "";
 
@@ -72,8 +70,12 @@ export async function ProductSection({
                   <ProductCard
                     id={product.id ?? ""}
                     name={name}
+                    nameAr={product.name_ar ?? ""}
+                    nameEn={product.name_en ?? ""}
+                    availableQty={product.available_qty}
                     price={product.sale_price ?? 0}
-                    compareAtPrice={compareAtPrice}
+                    compareAtPrice={product.compare_at_price}
+                    discountPercent={product.discount_percent ?? null}
                     rating={product.rating_avg}
                     reviewCount={reviewCount}
                     imageUrl={product.images?.[0] ?? null}
