@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.2.0 - 2026-09-18
+
+### Added
+
+- Durable validated image uploads to S3-compatible storage, stable public API
+  media URLs, persisted upload metadata, and protected deletion of unassociated
+  objects.
+- MinIO with a persistent Docker volume for local development.
+
 ## 4.1.0 - 2026-09-18
 
 ### Added
