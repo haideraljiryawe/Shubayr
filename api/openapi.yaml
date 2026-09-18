@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 4.3.0
+  version: 4.4.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1394,7 +1394,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/BannerInput" }
+            schema: { $ref: "#/components/schemas/BannerCreate" }
       responses:
         "201":
           description: Created banner
@@ -1426,7 +1426,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/BannerInput" }
+            schema: { $ref: "#/components/schemas/BannerPatch" }
       responses:
         "200":
           description: Updated banner
@@ -2003,6 +2003,8 @@ components:
 
     Banner:
       type: object
+      additionalProperties: false
+      required: [id, title, subtitle, image_url, cta_text, link_url, sort_order, is_active, starts_at, ends_at, created_at]
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
@@ -2016,17 +2018,34 @@ components:
         ends_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
 
-    BannerInput:
+    BannerCreate:
       type: object
+      additionalProperties: false
       required: [title, image_url]
       properties:
-        title: { type: string }
+        title: { type: string, minLength: 1, maxLength: 200 }
         subtitle: { type: [string, "null"] }
-        image_url: { type: string, format: uri }
-        cta_text: { type: [string, "null"] }
+        image_url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
+        cta_text: { type: [string, "null"], maxLength: 120 }
         link_url: { type: [string, "null"], format: uri }
-        sort_order: { type: integer, default: 0 }
+        sort_order: { type: integer, minimum: 0, default: 0 }
         is_active: { type: boolean, default: true }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+
+    BannerPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: Omitted properties retain their stored values; explicit null clears nullable text or schedule properties.
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        subtitle: { type: [string, "null"] }
+        image_url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
+        cta_text: { type: [string, "null"], maxLength: 120 }
+        link_url: { type: [string, "null"], format: uri }
+        sort_order: { type: integer, minimum: 0 }
+        is_active: { type: boolean }
         starts_at: { type: [string, "null"], format: date-time }
         ends_at: { type: [string, "null"], format: date-time }
 
