@@ -11,6 +11,10 @@
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto"; -- gen_random_uuid()
 
+-- Financial policy: monetary values use NUMERIC(*,2). Application calculations
+-- use integer minor units and round half away from zero once at each resulting
+-- money boundary. Percentages have at most two fractional digits.
+
 -- ---------------------------------------------------------------------
 -- 0. WHITE-LABEL / STORE SETTINGS
 -- ---------------------------------------------------------------------

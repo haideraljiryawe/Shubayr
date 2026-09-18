@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { ApiExceptionFilter } from './common/http/api-exception.filter';
+import { validationExceptionFactory } from './common/http/api-error';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -15,8 +17,10 @@ async function bootstrap(): Promise<void> {
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: validationExceptionFactory,
     }),
   );
+  app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.enableShutdownHooks();
 

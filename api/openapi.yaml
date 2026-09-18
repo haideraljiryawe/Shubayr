@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 1.1.0
+  version: 2.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -12,6 +12,19 @@ info:
     RBAC: staff/admin operations are annotated with `x-permission`, whose value
     is a permission key from infra/db/seed_rbac.sql. The backend enforces the
     permission; a missing permission returns 403.
+
+    Validation and errors: malformed or invalid request data returns HTTP 422
+    with code `VALIDATION_FAILED` and field-level errors. All non-2xx JSON
+    responses use the Error schema. PATCH distinguishes omission from null:
+    omitted fields are unchanged, while null is accepted only for explicitly
+    nullable fields and clears that field.
+
+    Money policy: API money values are decimal JSON numbers with at most two
+    fractional digits and are stored as NUMERIC(*,2). Calculations use integer
+    minor units and round once at the resulting money boundary, half away from
+    zero. Percentage values have at most two fractional digits. Cart line
+    totals, checkout totals, persisted order amounts, filters, and response
+    pricing all use this policy.
   license:
     name: Proprietary — Shubayr project
 servers:
@@ -530,6 +543,7 @@ paths:
               schema: { $ref: "#/components/schemas/Order" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- REVIEWS ----------------
   /products/{id}/reviews:
@@ -1099,14 +1113,17 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a product
-      description: Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
+      description: >
+        Omitted fields are preserved. Explicit null clears only nullable fields;
+        `discount_type: null` clears the complete stored discount definition.
+        Updating unrelated fields never changes a scheduled discount.
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/ProductInput" }
+            schema: { $ref: "#/components/schemas/ProductPatch" }
       responses:
         "200":
           description: Updated product
@@ -1115,6 +1132,7 @@ paths:
               schema: { $ref: "#/components/schemas/Product" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
     delete:
       tags: [Admin]
       summary: Delete (archive) a product
@@ -1414,17 +1432,38 @@ components:
       required: false
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
   responses:
-    Unauthorized: { description: Missing/invalid token, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-    NotFound: { description: Not found, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-    Validation: { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-    RateLimited: { description: Too many requests, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-    Forbidden: { description: Missing permission (RBAC), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Unauthorized: { description: Missing/invalid token (`UNAUTHORIZED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    NotFound: { description: Not found (`NOT_FOUND`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Validation: { description: "Invalid request data (`VALIDATION_FAILED`, HTTP 422)", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    RateLimited: { description: Too many requests (`RATE_LIMITED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Forbidden: { description: Missing permission (`FORBIDDEN`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
   schemas:
     Error:
       type: object
+      additionalProperties: false
+      required: [status, code, message, errors]
       properties:
+        status: { type: integer, example: 422 }
+        code: { type: string, example: VALIDATION_FAILED }
         message: { type: string }
-        errors: { type: object, additionalProperties: true }
+        errors:
+          type: array
+          description: Empty for non-validation errors.
+          items: { $ref: "#/components/schemas/FieldError" }
+
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, code, message]
+      properties:
+        field: { type: string, example: items.0.quantity }
+        code: { type: string, example: min }
+        message: { type: string, example: quantity must not be less than 1 }
+
+    Money:
+      type: number
+      multipleOf: 0.01
+      description: Decimal money amount with at most two fractional digits; rounded half away from zero at money boundaries.
 
     Pagination:
       type: object
@@ -1563,14 +1602,14 @@ components:
         name_en: { type: string }
         name_ar: { type: string }
         description: { type: string }
-        price: { type: number, description: "Regular selling price." }
+        price: { $ref: "#/components/schemas/Money", description: "Regular selling price." }
         discount_type: { type: [string, "null"], enum: [percentage, amount, null], description: "Discount kind, or null when the product has no discount defined." }
-        discount_value: { type: [number, "null"], description: "For `percentage`, the percentage off (10 means 10%). For `amount`, the currency amount subtracted from `price`. Null when `discount_type` is null." }
+        discount_value: { type: [number, "null"], multipleOf: 0.01, description: "For `percentage`, the percentage off (10 means 10%, at most two decimals). For `amount`, the currency amount subtracted from `price`. Null when `discount_type` is null." }
         discount_starts_at: { type: [string, "null"], format: date-time, description: "Start of the scheduled discount window; null means the discount is active immediately." }
         discount_ends_at: { type: [string, "null"], format: date-time, description: "End of the scheduled discount window; null means the discount never expires." }
         on_sale: { type: boolean, readOnly: true, description: "Computed: true when discount_type is set AND now() falls inside [discount_starts_at, discount_ends_at], treating null bounds as open." }
-        discounted_price: { type: [number, "null"], readOnly: true, description: "Computed when on_sale is true: for `percentage`, round(price * (1 - discount_value / 100), 2); for `amount`, max(price - discount_value, 0). Null when on_sale is false." }
-        effective_price: { type: number, readOnly: true, description: "Computed: the price the customer actually pays - discounted_price when on_sale is true, otherwise price. Cart and order pricing use this value." }
+        discounted_price: { type: [number, "null"], multipleOf: 0.01, readOnly: true, description: "Computed in integer minor units when on_sale is true and rounded half away from zero; null when on_sale is false." }
+        effective_price: { $ref: "#/components/schemas/Money", readOnly: true, description: "The price the customer pays. Cart and order pricing use this exact value." }
         discount_percent: { type: [integer, "null"], readOnly: true, description: "Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false." }
         is_negotiable: { type: boolean }
         floor_price: { type: [number, "null"] }
@@ -1585,6 +1624,7 @@ components:
 
     ProductInput:
       type: object
+      additionalProperties: false
       description: >
         Admin create and update requests require both names after trimming;
         neither may be empty. Pricing is written as a regular `price` plus an
@@ -1616,9 +1656,9 @@ components:
         name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
         name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
         description: { type: string }
-        price: { type: number, minimum: 0, description: "Regular selling price." }
+        price: { $ref: "#/components/schemas/Money", minimum: 0, description: "Regular selling price." }
         discount_type: { type: [string, "null"], enum: [percentage, amount, null], default: null, description: "Null (the default) means no discount and clears any discount already stored." }
-        discount_value: { type: [number, "null"], exclusiveMinimum: 0, description: "Required when discount_type is set, and must be null or omitted otherwise. percentage: at most 100. amount: strictly less than price." }
+        discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0, description: "Required when discount_type is set, and must be null or omitted otherwise. percentage: at most 100. amount: strictly less than price." }
         discount_starts_at: { type: [string, "null"], format: date-time, description: "Optional window start; null means the discount is active immediately." }
         discount_ends_at: { type: [string, "null"], format: date-time, description: "Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set." }
         is_negotiable: { type: boolean, default: false }
@@ -1635,6 +1675,37 @@ components:
               sku: { type: string }
               attributes: { type: object, additionalProperties: true }
               price_delta: { type: number }
+
+    ProductPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: All ProductInput fields are optional on PATCH. Omission preserves the stored value. Explicit null clears a nullable field; discount_type null clears discount_type, discount_value, discount_starts_at, and discount_ends_at together.
+      properties:
+        category_id: { type: string, format: uuid }
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*' }
+        description: { type: [string, "null"] }
+        price: { $ref: "#/components/schemas/Money", minimum: 0 }
+        discount_type: { type: [string, "null"], enum: [percentage, amount, null] }
+        discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0 }
+        discount_starts_at: { type: [string, "null"], format: date-time }
+        discount_ends_at: { type: [string, "null"], format: date-time }
+        is_negotiable: { type: boolean }
+        floor_price: { type: [number, "null"], multipleOf: 0.01 }
+        points_price: { type: [integer, "null"] }
+        tracks_expiry: { type: boolean }
+        status: { type: string, enum: [active, hidden, archived] }
+        images: { type: array, items: { type: string, format: uri } }
+        variants:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              sku: { type: string }
+              attributes: { type: object, additionalProperties: true }
+              price_delta: { type: number, multipleOf: 0.01 }
 
     Banner:
       type: object
@@ -1723,8 +1794,8 @@ components:
               product_id: { type: string, format: uuid }
               variant_id: { type: [string, "null"], format: uuid }
               quantity: { type: integer }
-              unit_price: { type: number, description: "The product's effective_price: its discounted_price while the discount window is active, otherwise its price." }
-        subtotal: { type: number }
+              unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured using the shared money policy." }
+        subtotal: { $ref: "#/components/schemas/Money" }
 
     WishlistItem:
       type: object
@@ -1775,8 +1846,8 @@ components:
         product_name_en: { type: string, description: "English product name captured when the order is created." }
         image_url: { type: [string, "null"], format: uri, description: "Primary product image URL captured when the order is created." }
         quantity: { type: integer }
-        unit_price: { type: number, description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order." }
-        line_total: { type: number }
+        unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order." }
+        line_total: { $ref: "#/components/schemas/Money" }
 
     Order:
       type: object
@@ -1786,10 +1857,10 @@ components:
         status: { $ref: "#/components/schemas/OrderStatus" }
         payment_method: { type: string, enum: [cod] }
         address_id: { type: [string, "null"], format: uuid }
-        subtotal: { type: number }
-        delivery_fee: { type: number }
-        discount: { type: number }
-        total: { type: number }
+        subtotal: { $ref: "#/components/schemas/Money" }
+        delivery_fee: { $ref: "#/components/schemas/Money" }
+        discount: { $ref: "#/components/schemas/Money" }
+        total: { $ref: "#/components/schemas/Money" }
         placed_at: { type: string, format: date-time }
         items:
           type: array

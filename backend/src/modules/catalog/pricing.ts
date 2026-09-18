@@ -31,15 +31,61 @@ function toNumber(value: Decimalish | null | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function decimalText(value: Decimalish): string {
+  return typeof value === 'number' ? value.toString() : value.toString();
+}
+
+/**
+ * Converts a decimal to a scaled integer without binary floating-point math.
+ * Values beyond the requested scale are rounded half away from zero.
+ */
+function decimalToScaled(value: Decimalish, scale: number): bigint {
+  const match = decimalText(value)
+    .trim()
+    .match(/^([+-]?)(\d+)(?:\.(\d+))?$/);
+  if (!match)
+    throw new TypeError(`Invalid decimal value: ${decimalText(value)}`);
+
+  const negative = match[1] === '-';
+  const fraction = match[3] ?? '';
+  const kept = fraction.slice(0, scale).padEnd(scale, '0');
+  let scaled = BigInt(`${match[2]}${kept}`);
+  const discarded = fraction.slice(scale);
+  if (discarded.length > 0 && discarded[0] >= '5') scaled += 1n;
+  return negative ? -scaled : scaled;
+}
+
+function divideRoundHalfAway(numerator: bigint, denominator: bigint): bigint {
+  if (denominator <= 0n) throw new RangeError('denominator must be positive');
+  const negative = numerator < 0n;
+  const absolute = negative ? -numerator : numerator;
+  const rounded = (absolute + denominator / 2n) / denominator;
+  return negative ? -rounded : rounded;
+}
+
+export function moneyToMinorUnits(value: Decimalish): bigint {
+  return decimalToScaled(value, 2);
+}
+
+export function minorUnitsToMoney(value: bigint): number {
+  return Number(value) / 100;
+}
+
+/** Cart/order line totals use the same integer-minor-unit policy. */
+export function calculateLineTotal(
+  unitPrice: Decimalish,
+  quantity: number,
+): number {
+  if (!Number.isSafeInteger(quantity) || quantity < 0) {
+    throw new RangeError('quantity must be a non-negative safe integer');
+  }
+  return minorUnitsToMoney(moneyToMinorUnits(unitPrice) * BigInt(quantity));
+}
+
 function toDate(value: Date | string | null | undefined): Date | null {
   if (value === null || value === undefined) return null;
   const parsed = value instanceof Date ? value : new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-/** Rounds to whole cents, away from zero, without float drift on x.xx5. */
-function roundCurrency(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export function isDiscountType(value: unknown): value is DiscountType {
@@ -76,7 +122,8 @@ export function computeProductPricing(
   product: ProductPricingInput,
   at: Date = new Date(),
 ): ComputedProductPricing {
-  const price = roundCurrency(toNumber(product.price) ?? 0);
+  const priceMinor = moneyToMinorUnits(product.price);
+  const price = minorUnitsToMoney(priceMinor);
   const onSale = isDiscountActive(product, at);
 
   if (!onSale) {
@@ -88,11 +135,17 @@ export function computeProductPricing(
     };
   }
 
-  const value = toNumber(product.discount_value) as number;
-  const discountedPrice =
+  const value = product.discount_value as Decimalish;
+  const discountedMinor =
     product.discount_type === 'percentage'
-      ? roundCurrency(price * (1 - value / 100))
-      : roundCurrency(Math.max(price - value, 0));
+      ? divideRoundHalfAway(
+          priceMinor * (10_000n - decimalToScaled(value, 2)),
+          10_000n,
+        )
+      : priceMinor > moneyToMinorUnits(value)
+        ? priceMinor - moneyToMinorUnits(value)
+        : 0n;
+  const discountedPrice = minorUnitsToMoney(discountedMinor);
 
   return {
     on_sale: true,
@@ -101,8 +154,52 @@ export function computeProductPricing(
     // A zero price cannot express a percentage off; report no percentage
     // rather than dividing by zero.
     discount_percent:
-      price > 0 ? Math.round(((price - discountedPrice) / price) * 100) : null,
+      priceMinor > 0n
+        ? Number(
+            divideRoundHalfAway(
+              (priceMinor - discountedMinor) * 100n,
+              priceMinor,
+            ),
+          )
+        : null,
   };
+}
+
+/**
+ * Applies only fields actually present in a PATCH document. Omitted discount
+ * fields are preserved; discount_type=null explicitly clears the definition.
+ */
+export function mergeProductPricingPatch<T extends ProductPricingInput>(
+  stored: T,
+  patch: Partial<ProductPricingInput>,
+): T {
+  if (
+    Object.prototype.hasOwnProperty.call(patch, 'discount_type') &&
+    patch.discount_type === null
+  ) {
+    return {
+      ...stored,
+      ...patch,
+      discount_type: null,
+      discount_value: null,
+      discount_starts_at: null,
+      discount_ends_at: null,
+    };
+  }
+
+  const merged = { ...stored };
+  for (const field of [
+    'price',
+    'discount_type',
+    'discount_value',
+    'discount_starts_at',
+    'discount_ends_at',
+  ] as const) {
+    if (Object.prototype.hasOwnProperty.call(patch, field)) {
+      Object.assign(merged, { [field]: patch[field] });
+    }
+  }
+  return merged;
 }
 
 /** Merges a product row with its computed pricing for an API response. */
