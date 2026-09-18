@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.1.0 - 2026-09-18
+
+### Added
+
+- Database-backed phone OTP login, access/rotating refresh JWTs, current-user
+  reads and updates, and development-only fixed OTP support.
+- Runtime RBAC identity is loaded from the seeded role/permission tables for
+  every authenticated request.
+
 ## 4.0.0 - 2026-09-18
 
 ### Breaking

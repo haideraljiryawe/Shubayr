@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 4.0.0
+  version: 4.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -66,9 +66,10 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [phone]
               properties:
-                phone: { type: string, example: "+9647701234567" }
+                phone: { type: string, pattern: '^\+[1-9]\d{7,14}$', example: "+9647701234567" }
       responses:
         "200":
           description: OTP sent
@@ -76,9 +77,16 @@ paths:
             application/json:
               schema:
                 type: object
+                additionalProperties: false
+                required: [otp_sent]
                 properties:
                   otp_sent: { type: boolean }
+                  dev_otp:
+                    type: string
+                    pattern: '^\d{6}$'
+                    description: Present only when APP_ENV=development; never returned in production.
         "429": { $ref: "#/components/responses/RateLimited" }
+        "422": { $ref: "#/components/responses/Validation" }
   /auth/verify-otp:
     post:
       tags: [Auth]
@@ -90,10 +98,11 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [phone, code]
               properties:
-                phone: { type: string }
-                code: { type: string, example: "123456" }
+                phone: { type: string, pattern: '^\+[1-9]\d{7,14}$' }
+                code: { type: string, pattern: '^\d{6}$', example: "000000" }
       responses:
         "200":
           description: Authenticated
@@ -101,6 +110,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AuthTokens" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
   /auth/refresh:
     post:
       tags: [Auth]
@@ -112,6 +122,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [refresh_token]
               properties:
                 refresh_token: { type: string }
@@ -127,6 +138,7 @@ paths:
                   access_token: { type: string }
                   refresh_token: { type: string }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
   /me:
     get:
       tags: [Auth]
@@ -1550,6 +1562,7 @@ components:
 
     AuthTokens:
       type: object
+      additionalProperties: false
       required: [access_token, refresh_token, user]
       properties:
         access_token: { type: string }
@@ -1558,9 +1571,11 @@ components:
 
     User:
       type: object
+      additionalProperties: false
+      required: [id, name, phone, email, is_active, role, permissions, created_at]
       properties:
         id: { type: string, format: uuid }
-        name: { type: string }
+        name: { type: [string, "null"] }
         phone: { type: string }
         email: { type: [string, "null"] }
         is_active: { type: boolean }
