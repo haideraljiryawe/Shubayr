@@ -106,9 +106,13 @@ CREATE TABLE categories (
     name_en         VARCHAR(120) NOT NULL,
     name_ar         VARCHAR(120) NOT NULL,
     slug            VARCHAR(140),
-    icon            VARCHAR(160),
+    description_en  TEXT,
+    description_ar  TEXT,
+    image_url       TEXT,
+    icon_key        VARCHAR(80),                     -- semantic key, never a UI codepoint
     sort_order      INT NOT NULL DEFAULT 0,
-    is_active       BOOLEAN NOT NULL DEFAULT TRUE
+    is_visible      BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT categories_not_self_parent CHECK (id <> parent_id)
 );
 
 -- Home hero banners; public reads return active banners ordered by sort_order.
@@ -179,7 +183,8 @@ CREATE TABLE product_images (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id      UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     url             VARCHAR(400) NOT NULL,
-    sort_order      INT NOT NULL DEFAULT 0
+    sort_order      INT NOT NULL DEFAULT 0,
+    UNIQUE (product_id, sort_order)
 );
 
 -- ---------------------------------------------------------------------

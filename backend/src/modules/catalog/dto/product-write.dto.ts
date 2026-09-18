@@ -1,17 +1,27 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsArray,
+  IsBoolean,
   IsDate,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
+  IsString,
+  IsUUID,
   Min,
   Validate,
+  ValidateNested,
   ValidationArguments,
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
 import { DISCOUNT_TYPES } from '../pricing';
 import { BilingualNameDto } from './bilingual-name.dto';
+import {
+  ProductImageInputDto,
+  ProductVariantInputDto,
+} from './product-media.dto';
 
 type PricingFields = {
   price?: number;
@@ -87,6 +97,13 @@ const toDateOrNull = ({ value }: { value: unknown }): unknown => {
  * set them.
  */
 export class ProductWriteDto extends BilingualNameDto {
+  @IsUUID()
+  category_id!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string | null;
+
   @IsNumber(
     { maxDecimalPlaces: 2 },
     { message: 'price must be a number with at most 2 decimal places' },
@@ -116,4 +133,38 @@ export class ProductWriteDto extends BilingualNameDto {
   @IsDate({ message: 'discount_ends_at must be a valid date-time' })
   @Validate(DiscountWindowOrdered)
   discount_ends_at?: Date | null;
+
+  @IsOptional()
+  @IsBoolean()
+  is_negotiable?: boolean;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  floor_price?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  points_price?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  tracks_expiry?: boolean;
+
+  @IsOptional()
+  @IsIn(['active', 'hidden', 'archived'])
+  status?: 'active' | 'hidden' | 'archived';
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductImageInputDto)
+  images?: ProductImageInputDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductVariantInputDto)
+  variants?: ProductVariantInputDto[];
 }
