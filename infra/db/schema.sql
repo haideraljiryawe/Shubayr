@@ -88,6 +88,18 @@ CREATE TABLE refresh_tokens (
 CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX idx_refresh_tokens_expiry ON refresh_tokens(expires_at);
 
+CREATE TABLE media_objects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  object_key VARCHAR(512) NOT NULL UNIQUE,
+  public_url TEXT NOT NULL UNIQUE,
+  mime_type VARCHAR(80) NOT NULL,
+  size_bytes INTEGER NOT NULL CHECK (size_bytes > 0),
+  checksum VARCHAR(64) NOT NULL,
+  uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_media_objects_uploader ON media_objects(uploaded_by);
+
 CREATE TABLE addresses (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -26,6 +26,10 @@ Start the infrastructure from the repository root:
 docker compose up -d
 ```
 
+This starts PostgreSQL, Redis, Meilisearch, and MinIO. MinIO keeps objects in
+the named `minio_data` volume, so uploaded catalog images survive container
+restarts. Its local console is `http://localhost:9001`.
+
 Then run the API:
 
 ```bash

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 4.1.0
+  version: 4.2.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -34,6 +34,7 @@ tags:
   - name: Auth
   - name: Catalog
   - name: Banners
+  - name: Media
   - name: Addresses
   - name: Cart
   - name: Wishlist
@@ -170,6 +171,60 @@ paths:
               schema: { $ref: "#/components/schemas/User" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "422": { $ref: "#/components/responses/Validation" }
+
+  # ---------------- MEDIA ----------------
+  /media/images:
+    post:
+      tags: [Media]
+      summary: Upload a durable catalog image
+      description: Accepts JPEG, PNG, WebP, or AVIF up to 8 MiB and returns a stable API URL backed by the S3-compatible object store.
+      x-permission: catalog.manage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: Stored image metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaObject" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { description: Image exceeds 8 MiB, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "415": { description: Unsupported image MIME type, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "422": { $ref: "#/components/responses/Validation" }
+  /media/{id}:
+    get:
+      tags: [Media]
+      summary: Read durable image bytes using a stable public URL
+      security: []
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Original image bytes
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+            image/avif: { schema: { type: string, format: binary } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Media]
+      summary: Delete an unassociated media object
+      description: Returns 409 while a category, product image, or banner still references the URL.
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   # ---------------- ADDRESSES ----------------
   /addresses:
@@ -1550,6 +1605,18 @@ components:
       type: number
       multipleOf: 0.01
       description: Decimal money amount with at most two fractional digits; rounded half away from zero at money boundaries.
+
+    MediaObject:
+      type: object
+      additionalProperties: false
+      required: [id, public_url, mime_type, size_bytes, checksum, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        public_url: { type: string, format: uri, description: Stable API URL used when associating the image with catalog data. }
+        mime_type: { type: string, enum: [image/jpeg, image/png, image/webp, image/avif] }
+        size_bytes: { type: integer, minimum: 1, maximum: 8388608 }
+        checksum: { type: string, pattern: '^[a-f0-9]{64}$' }
+        created_at: { type: string, format: date-time }
 
     Pagination:
       type: object

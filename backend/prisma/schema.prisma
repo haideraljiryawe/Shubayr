@@ -84,6 +84,7 @@ model User {
   device_tokens             DeviceToken[]
   notification_preferences  NotificationPreference?
   refresh_tokens            RefreshToken[]
+  uploaded_media            MediaObject[]           @relation("MediaUploadedBy")
 
   @@map("users")
 }
@@ -112,6 +113,21 @@ model RefreshToken {
   @@index([user_id], map: "idx_refresh_tokens_user")
   @@index([expires_at], map: "idx_refresh_tokens_expiry")
   @@map("refresh_tokens")
+}
+
+model MediaObject {
+  id          String   @id(map: "media_objects_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  object_key  String   @unique(map: "media_objects_object_key_key") @db.VarChar(512)
+  public_url  String   @unique(map: "media_objects_public_url_key") @db.Text
+  mime_type   String   @db.VarChar(80)
+  size_bytes  Int
+  checksum    String   @db.VarChar(64)
+  uploaded_by String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  uploader    User?    @relation("MediaUploadedBy", fields: [uploaded_by], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "media_objects_uploaded_by_fkey")
+
+  @@index([uploaded_by], map: "idx_media_objects_uploader")
+  @@map("media_objects")
 }
 
 model Address {

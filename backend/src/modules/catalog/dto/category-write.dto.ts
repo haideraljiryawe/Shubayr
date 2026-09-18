@@ -35,7 +35,7 @@ export class CategoryWriteDto extends BilingualNameDto {
   description_ar?: string | null;
 
   @IsOptional()
-  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   image_url?: string | null;
 
   @IsOptional()

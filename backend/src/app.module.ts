@@ -14,6 +14,7 @@ import { FulfilmentModule } from './modules/fulfilment/fulfilment.module';
 import { HealthModule } from './modules/health/health.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { LoyaltyModule } from './modules/loyalty/loyalty.module';
+import { MediaModule } from './modules/media/media.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PurchasingModule } from './modules/purchasing/purchasing.module';
 import { RbacModule } from './modules/rbac/rbac.module';
@@ -47,6 +48,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     FulfilmentModule,
     ReturnsModule,
     LoyaltyModule,
+    MediaModule,
     ReviewsModule,
     AuditModule,
     SettingsModule,

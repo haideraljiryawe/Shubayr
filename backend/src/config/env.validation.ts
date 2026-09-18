@@ -36,6 +36,21 @@ const schema = Joi.object({
     then: Joi.string().min(8).required(),
     otherwise: Joi.optional().allow(''),
   }),
+  PUBLIC_API_URL: Joi.string()
+    .uri({ scheme: ['http', 'https'] })
+    .default('http://localhost:8000/api/v1'),
+  S3_ENDPOINT: Joi.string()
+    .uri({ scheme: ['http', 'https'] })
+    .required(),
+  S3_REGION: Joi.string().default('us-east-1'),
+  S3_BUCKET: Joi.string().min(3).max(63).default('shubayr-media'),
+  S3_ACCESS_KEY: Joi.string().min(3).required(),
+  S3_SECRET_KEY: Joi.string().min(8).required(),
+  MEDIA_MAX_BYTES: Joi.number()
+    .integer()
+    .min(1024)
+    .max(20 * 1024 * 1024)
+    .default(8 * 1024 * 1024),
 }).unknown(true);
 
 export function validateEnvironment(

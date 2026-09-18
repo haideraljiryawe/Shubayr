@@ -17,7 +17,7 @@ import {
 } from 'class-validator';
 
 export class ProductImageInputDto {
-  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   url!: string;
 }
 
@@ -47,7 +47,7 @@ export class ProductMediaOperationDto {
     (value: ProductMediaOperationDto) =>
       value.op === 'add' || value.op === 'replace',
   )
-  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   url?: string;
 
   @ValidateIf(
