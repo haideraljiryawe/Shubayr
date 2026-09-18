@@ -12,7 +12,6 @@ import { UpdateProductDto } from './dto/update-product.dto';
 describe('admin bilingual-name validation', () => {
   it.each([
     ['create product', CreateProductDto],
-    ['update product', UpdateProductDto],
     ['create category', CreateCategoryDto],
     ['update category', UpdateCategoryDto],
   ])('rejects %s with only name_ar and identifies name_en', async (_, Dto) => {
@@ -27,13 +26,18 @@ describe('admin bilingual-name validation', () => {
     );
   });
 
+  it('allows update product to patch one language without restating the other', async () => {
+    const input = plainToInstance(UpdateProductDto, { name_ar: 'اسم محدث' });
+    await expect(validate(input)).resolves.toEqual([]);
+  });
+
   it.each([
     ['create product', CreateProductDto],
     ['update product', UpdateProductDto],
     ['create category', CreateCategoryDto],
     ['update category', UpdateCategoryDto],
   ])('rejects blank names for %s', async (_, Dto) => {
-    const input = plainToInstance(Dto, {
+    const input = plainToInstance(Dto as new () => object, {
       name_ar: '   ',
       name_en: '',
       price: 10,

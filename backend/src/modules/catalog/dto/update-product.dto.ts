@@ -1,7 +1,7 @@
+import { PartialType } from '@nestjs/swagger';
 import { ProductWriteDto } from './product-write.dto';
 
-// Product updates intentionally keep both names and the price required instead
-// of using PartialType: every admin write must preserve a complete bilingual
-// name pair, and must restate the price the discount definition is judged
-// against.
-export class UpdateProductDto extends ProductWriteDto {}
+// PATCH omission preserves the stored value. Explicit nullable fields clear
+// that value; discount_type=null clears the complete discount definition in
+// the service merge helper.
+export class UpdateProductDto extends PartialType(ProductWriteDto) {}

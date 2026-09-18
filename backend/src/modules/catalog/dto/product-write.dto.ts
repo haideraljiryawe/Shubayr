@@ -32,6 +32,9 @@ class DiscountValueInRange implements ValidatorConstraintInterface {
     if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
       return false;
     }
+    if (Math.abs(value * 100 - Math.round(value * 100)) > 1e-9) {
+      return false;
+    }
     if (discount_type === 'percentage') return value <= 100;
     // An amount discount may not swallow the whole price.
     return typeof price === 'number' ? value < price : false;
@@ -43,9 +46,9 @@ class DiscountValueInRange implements ValidatorConstraintInterface {
       return 'discount_value must be null or omitted when discount_type is not set';
     }
     if (discount_type === 'percentage') {
-      return 'discount_value must be greater than 0 and at most 100 for a percentage discount';
+      return 'discount_value must have at most 2 decimal places and be greater than 0 and at most 100 for a percentage discount';
     }
-    return 'discount_value must be greater than 0 and less than price for an amount discount';
+    return 'discount_value must have at most 2 decimal places and be greater than 0 and less than price for an amount discount';
   }
 }
 
@@ -83,7 +86,7 @@ const toDateOrNull = ({ value }: { value: unknown }): unknown => {
  * derived at read time and are deliberately absent here, so a write can never
  * set them.
  */
-export abstract class ProductWriteDto extends BilingualNameDto {
+export class ProductWriteDto extends BilingualNameDto {
   @IsNumber(
     { maxDecimalPlaces: 2 },
     { message: 'price must be a number with at most 2 decimal places' },

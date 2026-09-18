@@ -4,8 +4,10 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import {
   activeDiscountWhere,
+  calculateLineTotal,
   computeProductPricing,
   isDiscountActive,
+  mergeProductPricingPatch,
 } from './pricing';
 
 const JANUARY = new Date('2026-01-15T12:00:00Z');
@@ -35,6 +37,15 @@ describe('percentage discount math', () => {
         FEBRUARY,
       ),
     ).toMatchObject({ discounted_price: 16.99, effective_price: 16.99 });
+  });
+
+  it('rounds the known 20.15 at 50% boundary half-up to 10.08', () => {
+    expect(
+      computeProductPricing(
+        { price: 20.15, discount_type: 'percentage', discount_value: 50 },
+        FEBRUARY,
+      ),
+    ).toMatchObject({ discounted_price: 10.08, effective_price: 10.08 });
   });
 
   it('reads Prisma Decimal-style values', () => {
@@ -99,6 +110,47 @@ describe('amount discount math', () => {
         FEBRUARY,
       ),
     ).toMatchObject({ discounted_price: 6.67, discount_percent: 33 });
+  });
+});
+
+describe('financial precision policy', () => {
+  it('calculates cart and checkout line totals in minor units', () => {
+    expect(calculateLineTotal('20.15', 3)).toBe(60.45);
+  });
+
+  it('supports the minimum stored amount and rejects invalid quantities', () => {
+    expect(calculateLineTotal('0.01', 1)).toBe(0.01);
+    expect(() => calculateLineTotal('1.00', -1)).toThrow(RangeError);
+  });
+});
+
+describe('product pricing PATCH semantics', () => {
+  const scheduled = {
+    price: '20.15',
+    discount_type: 'percentage',
+    discount_value: '50.00',
+    discount_starts_at: '2026-02-01T00:00:00Z',
+    discount_ends_at: '2026-03-01T00:00:00Z',
+  };
+
+  it('does not rewrite a scheduled discount when unrelated fields are edited', () => {
+    expect(mergeProductPricingPatch(scheduled, {})).toEqual(scheduled);
+  });
+
+  it('distinguishes omission from explicit null clearing', () => {
+    expect(mergeProductPricingPatch(scheduled, { price: '25.00' })).toEqual({
+      ...scheduled,
+      price: '25.00',
+    });
+    expect(
+      mergeProductPricingPatch(scheduled, { discount_type: null }),
+    ).toEqual({
+      price: '20.15',
+      discount_type: null,
+      discount_value: null,
+      discount_starts_at: null,
+      discount_ends_at: null,
+    });
   });
 });
 
@@ -295,7 +347,15 @@ describe('admin discount validation', () => {
     await expect(propertiesOf({ price: -1 })).resolves.toEqual(['price']);
   });
 
-  it('applies the same rules to updates', async () => {
+  it('allows an unrelated partial update without requiring pricing fields', async () => {
+    const errors = await validate(
+      plainToInstance(UpdateProductDto, { name_en: 'Updated apples' }),
+    );
+
+    expect(errors).toEqual([]);
+  });
+
+  it('applies the same rules to supplied update pricing fields', async () => {
     const errors = await validate(
       plainToInstance(UpdateProductDto, {
         ...base,
@@ -306,5 +366,15 @@ describe('admin discount validation', () => {
     );
 
     expect(errors.map(({ property }) => property)).toEqual(['discount_value']);
+  });
+
+  it('rejects more than two percentage decimal places', async () => {
+    await expect(
+      propertiesOf({
+        price: 10,
+        discount_type: 'percentage',
+        discount_value: 10.001,
+      }),
+    ).resolves.toEqual(['discount_value']);
   });
 });

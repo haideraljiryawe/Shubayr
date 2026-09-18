@@ -12,6 +12,9 @@ datasource db {
   provider = "postgresql"
 }
 
+// All monetary Decimal fields use scale 2. Services calculate with integer
+// minor units and round half away from zero at the resulting money boundary.
+
 model StoreSetting {
   id         String   @id(map: "store_settings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key        String   @unique(map: "store_settings_key_key") @db.VarChar(120)
