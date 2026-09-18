@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.3.0 - 2026-09-18
+
+### Added
+
+- PostgreSQL-backed public category/product reads and permission-protected
+  category/product administration, including hierarchy enforcement, variants,
+  atomic ordered media operations, search/filter/sort, availability, and
+  server-time effective pricing.
+- Admin product list/detail reads for hidden and archived catalog records.
+
 ## 4.2.0 - 2026-09-18
 
 ### Added

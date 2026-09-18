@@ -28,4 +28,10 @@ first image is the primary image; primary is derived, not stored. Create accepts
 an ordered image list. PATCH accepts an atomic sequence of `add`, `remove`,
 `replace`, and `move` operations. Each operation is applied in request order,
 the final list is compacted to consecutive positions, and final position 0 is
-primary. The later media slice owns upload/durable storage and URL issuance.
+primary. The durable media slice owns upload, storage, and stable URL issuance.
+
+## Search implementation
+
+The first real-data slice uses case-insensitive PostgreSQL matching across the
+English name, Arabic name, and description. Meilisearch indexing, typo
+tolerance, and ranking are a follow-up once catalog write events are available.
