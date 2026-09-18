@@ -22,10 +22,26 @@ jobs:
           --health-timeout=5s --health-retries=5
     steps:
       - uses: actions/checkout@v4
-      - name: Load schema into PostgreSQL
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Deploy migrations into PostgreSQL
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:test@localhost:5432/shubayr_ci?schema=public
+        run: npm run prisma:migrate:deploy
+      - name: Load RBAC seed
         run: |
-          PGPASSWORD=test psql -h localhost -U postgres -d shubayr_ci -v ON_ERROR_STOP=1 -f infra/db/schema.sql
           PGPASSWORD=test psql -h localhost -U postgres -d shubayr_ci -v ON_ERROR_STOP=1 -f infra/db/seed_rbac.sql
+      - name: Load bootstrap reference into a clean database
+        run: |
+          PGPASSWORD=test createdb -h localhost -U postgres shubayr_bootstrap
+          PGPASSWORD=test psql -h localhost -U postgres -d shubayr_bootstrap -v ON_ERROR_STOP=1 -f infra/db/schema.sql
 
   detect:
     name: Detect project manifests
