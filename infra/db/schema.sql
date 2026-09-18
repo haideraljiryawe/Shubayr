@@ -73,6 +73,20 @@ CREATE TABLE otp_codes (
     consumed_at     TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX idx_otp_codes_phone_active ON otp_codes(phone, consumed_at, created_at);
+
+-- Refresh tokens are rotated on every use. Only a SHA-256 token digest is
+-- stored, so a database read cannot be used as a bearer credential.
+CREATE TABLE refresh_tokens (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash VARCHAR(64) NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_expiry ON refresh_tokens(expires_at);
 
 CREATE TABLE addresses (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

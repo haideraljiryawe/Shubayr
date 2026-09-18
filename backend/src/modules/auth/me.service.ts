@@ -23,6 +23,14 @@ type UserWithAccess = Awaited<
 export class MeService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getCurrentUser(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      include: profileInclude,
+    });
+    return this.toResponse(user);
+  }
+
   async updateCurrentUser(userId: string, input: UserSelfUpdateDto) {
     const data: { name?: string; email?: string | null } = {};
     if (input.name !== undefined) data.name = input.name.trim();

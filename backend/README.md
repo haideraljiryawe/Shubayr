@@ -45,6 +45,16 @@ Available scaffold endpoints:
 - `GET /api/v1/ready`: PostgreSQL readiness.
 - `GET /api/v1/settings`: public white-label settings loaded from the database.
 
+### Development OTP authentication
+
+Set `APP_ENV=development` and optionally set `DEV_OTP` (defaults to `000000`).
+`POST /api/v1/auth/request-otp` then logs and returns `dev_otp`; verify it with
+`POST /api/v1/auth/verify-otp`. The code is persisted as a keyed hash and is
+single-use. `dev_otp` is never logged or returned when `APP_ENV=production`;
+production requires `SMS_GATEWAY_URL` and `SMS_GATEWAY_TOKEN` and sends the
+code to that gateway. Refresh tokens are signed separately, stored only as a
+digest, and rotated on every use.
+
 The remaining OpenAPI endpoints are implemented phase-by-phase in the order
 specified by the backend build prompt.
 

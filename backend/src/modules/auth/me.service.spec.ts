@@ -22,12 +22,26 @@ const storedUser = {
 };
 
 describe('MeService', () => {
+  const findUniqueOrThrow = jest.fn().mockResolvedValue(storedUser);
   const update = jest.fn().mockResolvedValue(storedUser);
   const service = new MeService({
-    user: { update },
+    user: { findUniqueOrThrow, update },
   } as never);
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('loads the current profile with role permissions', async () => {
+    await expect(service.getCurrentUser('current-user')).resolves.toEqual(
+      expect.objectContaining({
+        id: 'current-user',
+        role: 'customer',
+        permissions: ['orders.create', 'returns.create'],
+      }),
+    );
+    expect(findUniqueOrThrow).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'current-user' } }),
+    );
+  });
 
   it('updates only the authenticated user and only self-service fields', async () => {
     const result = await service.updateCurrentUser('current-user', {
