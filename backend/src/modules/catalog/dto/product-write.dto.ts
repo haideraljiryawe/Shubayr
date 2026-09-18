@@ -35,7 +35,19 @@ type PricingFields = {
 class DiscountValueInRange implements ValidatorConstraintInterface {
   validate(value: unknown, args: ValidationArguments): boolean {
     const { discount_type, price } = args.object as PricingFields;
-    if (discount_type === null || discount_type === undefined) {
+    if (discount_type === undefined) {
+      // PATCH may update only the value and inherit the stored discount type;
+      // the service validates the merged definition atomically.
+      if (value === null || value === undefined) return true;
+      return (
+        args.object.constructor.name === 'UpdateProductDto' &&
+        typeof value === 'number' &&
+        Number.isFinite(value) &&
+        value > 0 &&
+        Math.abs(value * 100 - Math.round(value * 100)) <= 1e-9
+      );
+    }
+    if (discount_type === null) {
       // With no discount defined a value is meaningless, so reject stray ones.
       return value === null || value === undefined;
     }
@@ -52,7 +64,7 @@ class DiscountValueInRange implements ValidatorConstraintInterface {
 
   defaultMessage(args: ValidationArguments): string {
     const { discount_type } = args.object as PricingFields;
-    if (discount_type === null || discount_type === undefined) {
+    if (discount_type === null) {
       return 'discount_value must be null or omitted when discount_type is not set';
     }
     if (discount_type === 'percentage') {

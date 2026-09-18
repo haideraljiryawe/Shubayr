@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 4.2.0
+  version: 4.3.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -320,6 +320,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Category" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   /banners:
     get:
@@ -360,6 +361,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProductPage" }
+        "422": { $ref: "#/components/responses/Validation" }
   /products/{id}:
     get:
       tags: [Catalog]
@@ -1214,6 +1216,28 @@ paths:
 
   # ---------------- ADMIN: PRODUCTS CRUD ----------------
   /admin/products:
+    get:
+      tags: [Admin]
+      summary: List all products, including hidden and archived products
+      description: Uses the public filters and server-time pricing without public visibility restrictions.
+      x-permission: catalog.manage
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: min_price, in: query, schema: { type: number } }
+        - { name: max_price, in: query, schema: { type: number } }
+        - { name: on_sale, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated products including non-public states
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
     post:
       tags: [Admin]
       summary: Create a product
@@ -1233,6 +1257,19 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/products/{id}:
+    get:
+      tags: [Admin]
+      summary: Get any product, including hidden or archived
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Product
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Admin]
       summary: Update a product
@@ -1745,7 +1782,7 @@ components:
         slug: { type: string, description: "SEO URL slug. Products are still filtered by category_id." }
         description_en: { type: [string, "null"] }
         description_ar: { type: [string, "null"] }
-        image_url: { type: [string, "null"], format: uri }
+        image_url: { type: [string, "null"], format: uri, description: "Stable URL returned by POST /media/images." }
         icon_key: { type: [string, "null"], description: "Semantic key such as consumer_electronics; never a framework codepoint or IconData value." }
         sort_order: { type: integer }
         is_visible: { type: boolean }
@@ -1763,7 +1800,7 @@ components:
         slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 140 }
         description_en: { type: [string, "null"] }
         description_ar: { type: [string, "null"] }
-        image_url: { type: [string, "null"], format: uri }
+        image_url: { type: [string, "null"], format: uri, description: "Stable URL returned by POST /media/images." }
         icon_key: { type: [string, "null"], pattern: '^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$', maxLength: 80 }
         sort_order: { type: integer, default: 0 }
         is_visible: { type: boolean, default: true }
@@ -1780,7 +1817,7 @@ components:
         slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 140 }
         description_en: { type: [string, "null"] }
         description_ar: { type: [string, "null"] }
-        image_url: { type: [string, "null"], format: uri }
+        image_url: { type: [string, "null"], format: uri, description: "Stable URL returned by POST /media/images." }
         icon_key: { type: [string, "null"], pattern: '^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$', maxLength: 80 }
         sort_order: { type: integer, minimum: 0 }
         is_visible: { type: boolean }
@@ -1879,7 +1916,7 @@ components:
             additionalProperties: false
             required: [url]
             properties:
-              url: { type: string, format: uri }
+              url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
         variants:
           type: array
           items:
@@ -1940,7 +1977,7 @@ components:
           required: [op, url, position]
           properties:
             op: { const: add }
-            url: { type: string, format: uri }
+            url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
             position: { type: integer, minimum: 0 }
         - type: object
           additionalProperties: false
@@ -1954,7 +1991,7 @@ components:
           properties:
             op: { const: replace }
             image_id: { type: string, format: uuid }
-            url: { type: string, format: uri }
+            url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
         - type: object
           additionalProperties: false
           required: [op, image_id, position]
