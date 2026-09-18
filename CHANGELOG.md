@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.0.0 - 2026-09-18
+
+### Breaking
+
+- Address writes now require a string `contact_phone`; the former client-side
+  account-phone toggle is not part of the API contract.
+- Orders now expose immutable checkout address/contact snapshots and a current
+  `delivery_id`.
+
+### Added
+
+- Customer return listing, reviewed order-item signal, customer-owned delivery
+  rating rules, and persisted notification preferences.
+
 ## 3.0.0 - 2026-09-18
 
 ### Breaking

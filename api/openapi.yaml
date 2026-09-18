@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 3.0.0
+  version: 4.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -164,6 +164,7 @@ paths:
     get:
       tags: [Addresses]
       summary: List the current user's delivery addresses
+      description: Returns only addresses owned by the authenticated user. The first address is always made default.
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -177,11 +178,12 @@ paths:
     post:
       tags: [Addresses]
       summary: Create a delivery address
+      description: contact_phone is the recipient contact for this address and may equal or differ from the account phone. Creating the first address makes it default regardless of the supplied flag.
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/AddressInput" }
+            schema: { $ref: "#/components/schemas/AddressCreate" }
       responses:
         "201":
           description: Created
@@ -204,12 +206,13 @@ paths:
     patch:
       tags: [Addresses]
       summary: Update an address
+      description: Only the owner may update it. Setting is_default=true atomically clears the prior default. Clearing the only default while addresses remain returns 409.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/AddressInput" }
+            schema: { $ref: "#/components/schemas/AddressPatch" }
       responses:
         "200":
           description: Updated
@@ -218,9 +221,11 @@ paths:
               schema: { $ref: "#/components/schemas/Address" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
+        "409": { $ref: "#/components/responses/Conflict" }
     delete:
       tags: [Addresses]
       summary: Delete an address
+      description: Only the owner may delete it. Deleting the default promotes the oldest remaining address, ordered by created_at then id.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
@@ -465,6 +470,9 @@ paths:
       description: >
         Creates the order (status=pending) and a pending COD payment. Stock is
         validated but NOT deducted here; reservation happens on staff confirm.
+        The selected owned address and contact_phone are copied into immutable
+        order snapshot fields in the same transaction. Later address edits or
+        deletion never alter a placed order.
       requestBody:
         required: true
         content:
@@ -590,6 +598,7 @@ paths:
     post:
       tags: [Reviews]
       summary: Rate the delivery/agent (separate from product review)
+      description: Customer-scoped. The authenticated caller must own the delivery's order, the delivery must be delivered, and each caller may rate it once. Return 404 or 409 without exposing another customer's delivery.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -607,6 +616,9 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DeliveryRating" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- LOYALTY ----------------
   /loyalty:
@@ -866,6 +878,19 @@ paths:
 
   # ---------------- RETURNS ----------------
   /returns:
+    get:
+      tags: [Returns]
+      summary: List the authenticated customer's returns
+      description: Returns only rows whose user_id is the authenticated caller, newest first, with pagination applied after ownership scoping.
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Caller-owned returns
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReturnPage" }
     post:
       tags: [Returns]
       summary: Request a return (partial allowed — choose items & quantities)
@@ -1042,6 +1067,34 @@ paths:
       responses:
         "204": { description: Removed }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  /me/notification-preferences:
+    get:
+      tags: [Devices]
+      summary: Get persisted notification preferences
+      description: Returns the authenticated user's stored row or the documented defaults when no row exists yet.
+      responses:
+        "200":
+          description: Notification preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationPreferences" }
+    patch:
+      tags: [Devices]
+      summary: Update persisted notification preferences
+      description: Omitted toggles are unchanged; the update is stored per account and shared by all devices.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NotificationPreferencesPatch" }
+      responses:
+        "200":
+          description: Updated notification preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationPreferences" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADMIN: REPORTS & SETTINGS ----------------
   /admin/reports/sales:
@@ -1543,30 +1596,51 @@ components:
 
     Address:
       type: object
+      required: [id, user_id, city, contact_phone, is_default, created_at]
       properties:
         id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
-        label: { type: string, example: Home }
+        label: { type: [string, "null"], example: Home }
         city: { type: string }
-        area: { type: string }
-        street: { type: string }
+        area: { type: [string, "null"] }
+        street: { type: [string, "null"] }
         details: { type: [string, "null"] }
+        contact_phone: { type: string, minLength: 3, maxLength: 32, description: Recipient contact for this address; independent from the account phone. }
         lat: { type: [number, "null"], format: double }
         lng: { type: [number, "null"], format: double }
         is_default: { type: boolean }
+        created_at: { type: string, format: date-time }
 
-    AddressInput:
+    AddressCreate:
       type: object
-      required: [city]
+      additionalProperties: false
+      required: [city, contact_phone]
       properties:
-        label: { type: string, example: Home }
+        label: { type: [string, "null"], example: Home }
         city: { type: string }
-        area: { type: string }
-        street: { type: string }
+        area: { type: [string, "null"] }
+        street: { type: [string, "null"] }
         details: { type: [string, "null"] }
+        contact_phone: { type: string, minLength: 3, maxLength: 32 }
         lat: { type: [number, "null"], format: double }
         lng: { type: [number, "null"], format: double }
         is_default: { type: boolean, default: false }
+
+    AddressPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: Omitted fields are unchanged; null clears only nullable fields. contact_phone and city cannot be null.
+      properties:
+        label: { type: [string, "null"], maxLength: 80 }
+        city: { type: string, minLength: 1, maxLength: 80 }
+        area: { type: [string, "null"], maxLength: 120 }
+        street: { type: [string, "null"], maxLength: 160 }
+        details: { type: [string, "null"] }
+        contact_phone: { type: string, minLength: 3, maxLength: 32 }
+        lat: { type: [number, "null"], format: double }
+        lng: { type: [number, "null"], format: double }
+        is_default: { type: boolean }
 
     AddressPage:
       allOf:
@@ -1949,6 +2023,7 @@ components:
         quantity: { type: integer }
         unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order." }
         line_total: { $ref: "#/components/schemas/Money" }
+        reviewed: { type: boolean, readOnly: true, description: True when the caller already has a product review for this order item. }
 
     Order:
       type: object
@@ -1958,10 +2033,19 @@ components:
         status: { $ref: "#/components/schemas/OrderStatus" }
         payment_method: { type: string, enum: [cod] }
         address_id: { type: [string, "null"], format: uuid }
+        delivery_id: { type: [string, "null"], format: uuid, description: Current delivery reachable by this order's owner. }
         subtotal: { $ref: "#/components/schemas/Money" }
         delivery_fee: { $ref: "#/components/schemas/Money" }
         discount: { $ref: "#/components/schemas/Money" }
         total: { $ref: "#/components/schemas/Money" }
+        delivery_contact_phone: { type: string, description: Immutable checkout snapshot. }
+        delivery_address_label: { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_city: { type: string, description: Immutable checkout snapshot. }
+        delivery_area: { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_street: { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_details: { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_lat: { type: [number, "null"], format: double, description: Immutable checkout snapshot. }
+        delivery_lng: { type: [number, "null"], format: double, description: Immutable checkout snapshot. }
         placed_at: { type: string, format: date-time }
         items:
           type: array
@@ -2226,6 +2310,16 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ReturnItem" }
 
+    ReturnPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/Return" }
+
     Delivery:
       type: object
       properties:
@@ -2255,6 +2349,29 @@ components:
         token: { type: string }
         platform: { type: string, enum: [android, ios, web] }
         created_at: { type: string, format: date-time }
+
+    NotificationPreferences:
+      type: object
+      additionalProperties: false
+      required: [order_updates, delivery_updates, return_updates, loyalty_updates, promotions, updated_at]
+      properties:
+        order_updates: { type: boolean, default: true }
+        delivery_updates: { type: boolean, default: true }
+        return_updates: { type: boolean, default: true }
+        loyalty_updates: { type: boolean, default: true }
+        promotions: { type: boolean, default: false }
+        updated_at: { type: string, format: date-time, readOnly: true }
+
+    NotificationPreferencesPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        order_updates: { type: boolean }
+        delivery_updates: { type: boolean }
+        return_updates: { type: boolean }
+        loyalty_updates: { type: boolean }
+        promotions: { type: boolean }
 
     Permission:
       type: object
