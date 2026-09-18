@@ -57,31 +57,32 @@ model RolePermission {
 }
 
 model User {
-  id                        String            @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  role_id                   String            @db.Uuid
-  name                      String?           @db.VarChar(120)
-  phone                     String            @unique(map: "users_phone_key") @db.VarChar(32)
-  email                     String?           @db.VarChar(160)
-  password_hash             String?           @db.VarChar(255)
-  is_active                 Boolean           @default(true)
-  created_at                DateTime          @default(now()) @db.Timestamptz(6)
-  updated_at                DateTime          @default(now()) @db.Timestamptz(6)
-  role                      Role              @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
+  id                        String                  @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role_id                   String                  @db.Uuid
+  name                      String?                 @db.VarChar(120)
+  phone                     String                  @unique(map: "users_phone_key") @db.VarChar(32)
+  email                     String?                 @db.VarChar(160)
+  password_hash             String?                 @db.VarChar(255)
+  is_active                 Boolean                 @default(true)
+  created_at                DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                @default(now()) @db.Timestamptz(6)
+  role                      Role                    @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
   addresses                 Address[]
-  purchase_invoices         PurchaseInvoice[] @relation("PurchaseInvoiceCreatedBy")
-  stock_movements           StockMovement[]   @relation("StockMovementUser")
+  purchase_invoices         PurchaseInvoice[]       @relation("PurchaseInvoiceCreatedBy")
+  stock_movements           StockMovement[]         @relation("StockMovementUser")
   carts                     Cart[]
   wishlist_items            WishlistItem[]
   orders                    Order[]
-  assigned_pick_lists       PickList[]        @relation("PickListAssignee")
-  assigned_deliveries       Delivery[]        @relation("DeliveryAgent")
+  assigned_pick_lists       PickList[]              @relation("PickListAssignee")
+  assigned_deliveries       Delivery[]              @relation("DeliveryAgent")
   returns                   Return[]
   product_reviews           ProductReview[]
-  delivery_ratings_as_agent DeliveryRating[]  @relation("DeliveryRatingAgent")
-  delivery_ratings_as_user  DeliveryRating[]  @relation("DeliveryRatingUser")
+  delivery_ratings_as_agent DeliveryRating[]        @relation("DeliveryRatingAgent")
+  delivery_ratings_as_user  DeliveryRating[]        @relation("DeliveryRatingUser")
   loyalty_account           LoyaltyAccount?
-  audit_logs                AuditLog[]        @relation("AuditActor")
+  audit_logs                AuditLog[]              @relation("AuditActor")
   device_tokens             DeviceToken[]
+  notification_preferences  NotificationPreference?
 
   @@map("users")
 }
@@ -98,18 +99,20 @@ model OtpCode {
 }
 
 model Address {
-  id         String  @id(map: "addresses_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id    String  @db.Uuid
-  label      String? @db.VarChar(80)
-  city       String? @db.VarChar(80)
-  area       String? @db.VarChar(120)
-  street     String? @db.VarChar(160)
-  details    String? @db.Text
-  lat        Float?  @db.DoublePrecision
-  lng        Float?  @db.DoublePrecision
-  is_default Boolean @default(false)
-  user       User    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "addresses_user_id_fkey")
-  orders     Order[]
+  id            String   @id(map: "addresses_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String   @db.Uuid
+  label         String?  @db.VarChar(80)
+  city          String   @db.VarChar(80)
+  area          String?  @db.VarChar(120)
+  street        String?  @db.VarChar(160)
+  details       String?  @db.Text
+  contact_phone String   @db.VarChar(32)
+  lat           Float?   @db.DoublePrecision
+  lng           Float?   @db.DoublePrecision
+  is_default    Boolean  @default(false)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "addresses_user_id_fkey")
+  orders        Order[]
 
   @@map("addresses")
 }
@@ -125,6 +128,19 @@ model DeviceToken {
   @@unique([user_id, token], map: "device_tokens_user_id_token_key")
   @@index([user_id], map: "idx_device_tokens_user")
   @@map("device_tokens")
+}
+
+model NotificationPreference {
+  user_id          String   @id(map: "notification_preferences_pkey") @db.Uuid
+  order_updates    Boolean  @default(true)
+  delivery_updates Boolean  @default(true)
+  return_updates   Boolean  @default(true)
+  loyalty_updates  Boolean  @default(true)
+  promotions       Boolean  @default(false)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  user             User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_preferences_user_id_fkey")
+
+  @@map("notification_preferences")
 }
 
 model Category {
@@ -413,28 +429,38 @@ model Coupon {
 }
 
 model Order {
-  id                 String             @id(map: "orders_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id            String             @db.Uuid
-  address_id         String?            @db.Uuid
-  coupon_id          String?            @db.Uuid
-  order_number       String             @unique(map: "orders_order_number_key") @db.VarChar(40)
-  status             String             @default("pending") @db.VarChar(30)
-  payment_method     String             @default("cod") @db.VarChar(20)
-  subtotal           Decimal            @default(0) @db.Decimal(12, 2)
-  delivery_fee       Decimal            @default(0) @db.Decimal(12, 2)
-  discount           Decimal            @default(0) @db.Decimal(12, 2)
-  total              Decimal            @default(0) @db.Decimal(12, 2)
-  placed_at          DateTime           @default(now()) @db.Timestamptz(6)
-  user               User               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_user_id_fkey")
-  address            Address?           @relation(fields: [address_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_address_id_fkey")
-  coupon             Coupon?            @relation(fields: [coupon_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_coupon_id_fkey")
-  items              OrderItem[]
-  payments           Payment[]
-  stock_reservations StockReservation[]
-  pick_lists         PickList[]
-  deliveries         Delivery[]
-  returns            Return[]
-  loyalty_ledger     LoyaltyLedger[]
+  id                     String             @id(map: "orders_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String             @db.Uuid
+  address_id             String?            @db.Uuid
+  delivery_id            String?            @unique(map: "orders_delivery_id_key") @db.Uuid
+  coupon_id              String?            @db.Uuid
+  order_number           String             @unique(map: "orders_order_number_key") @db.VarChar(40)
+  status                 String             @default("pending") @db.VarChar(30)
+  payment_method         String             @default("cod") @db.VarChar(20)
+  subtotal               Decimal            @default(0) @db.Decimal(12, 2)
+  delivery_fee           Decimal            @default(0) @db.Decimal(12, 2)
+  discount               Decimal            @default(0) @db.Decimal(12, 2)
+  total                  Decimal            @default(0) @db.Decimal(12, 2)
+  delivery_contact_phone String             @db.VarChar(32)
+  delivery_address_label String?            @db.VarChar(80)
+  delivery_city          String             @db.VarChar(80)
+  delivery_area          String?            @db.VarChar(120)
+  delivery_street        String?            @db.VarChar(160)
+  delivery_details       String?            @db.Text
+  delivery_lat           Float?             @db.DoublePrecision
+  delivery_lng           Float?             @db.DoublePrecision
+  placed_at              DateTime           @default(now()) @db.Timestamptz(6)
+  user                   User               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_user_id_fkey")
+  address                Address?           @relation(fields: [address_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_address_id_fkey")
+  delivery               Delivery?          @relation("OrderCurrentDelivery", fields: [delivery_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_delivery_id_fkey")
+  coupon                 Coupon?            @relation(fields: [coupon_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_coupon_id_fkey")
+  items                  OrderItem[]
+  payments               Payment[]
+  stock_reservations     StockReservation[]
+  pick_lists             PickList[]
+  deliveries             Delivery[]         @relation("OrderDeliveryHistory")
+  returns                Return[]
+  loyalty_ledger         LoyaltyLedger[]
 
   @@index([user_id], map: "idx_orders_user")
   @@index([status], map: "idx_orders_status")
@@ -524,16 +550,17 @@ model PickListItem {
 }
 
 model Delivery {
-  id            String           @id(map: "deliveries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id      String           @db.Uuid
-  agent_id      String?          @db.Uuid
-  status        String           @default("assigned") @db.VarChar(30)
-  delivery_fee  Decimal          @default(0) @db.Decimal(12, 2)
-  dispatched_at DateTime?        @db.Timestamptz(6)
-  delivered_at  DateTime?        @db.Timestamptz(6)
-  order         Order            @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "deliveries_order_id_fkey")
-  agent         User?            @relation("DeliveryAgent", fields: [agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "deliveries_agent_id_fkey")
-  ratings       DeliveryRating[]
+  id                String           @id(map: "deliveries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id          String           @db.Uuid
+  agent_id          String?          @db.Uuid
+  status            String           @default("assigned") @db.VarChar(30)
+  delivery_fee      Decimal          @default(0) @db.Decimal(12, 2)
+  dispatched_at     DateTime?        @db.Timestamptz(6)
+  delivered_at      DateTime?        @db.Timestamptz(6)
+  order             Order            @relation("OrderDeliveryHistory", fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "deliveries_order_id_fkey")
+  current_for_order Order?           @relation("OrderCurrentDelivery")
+  agent             User?            @relation("DeliveryAgent", fields: [agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "deliveries_agent_id_fkey")
+  ratings           DeliveryRating[]
 
   @@map("deliveries")
 }

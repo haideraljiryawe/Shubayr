@@ -78,13 +78,15 @@ CREATE TABLE addresses (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     label           VARCHAR(80),
-    city            VARCHAR(80),
+    city            VARCHAR(80) NOT NULL,
     area            VARCHAR(120),
     street          VARCHAR(160),
     details         TEXT,
+    contact_phone   VARCHAR(32) NOT NULL,
     lat             DOUBLE PRECISION,
     lng             DOUBLE PRECISION,
-    is_default      BOOLEAN NOT NULL DEFAULT FALSE
+    is_default      BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- FCM push-notification device tokens (one row per device/token per user)
@@ -95,6 +97,16 @@ CREATE TABLE device_tokens (
     platform        VARCHAR(16) NOT NULL,   -- android | ios | web
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, token)
+);
+
+CREATE TABLE notification_preferences (
+    user_id             UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    order_updates       BOOLEAN NOT NULL DEFAULT TRUE,
+    delivery_updates    BOOLEAN NOT NULL DEFAULT TRUE,
+    return_updates      BOOLEAN NOT NULL DEFAULT TRUE,
+    loyalty_updates     BOOLEAN NOT NULL DEFAULT TRUE,
+    promotions          BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ---------------------------------------------------------------------
@@ -328,6 +340,7 @@ CREATE TABLE orders (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id),
     address_id      UUID REFERENCES addresses(id),
+    delivery_id     UUID UNIQUE,
     coupon_id       UUID REFERENCES coupons(id),
     order_number    VARCHAR(40) UNIQUE NOT NULL,
     status          VARCHAR(30) NOT NULL DEFAULT 'pending',
@@ -338,6 +351,14 @@ CREATE TABLE orders (
     delivery_fee    NUMERIC(12,2) NOT NULL DEFAULT 0,
     discount        NUMERIC(12,2) NOT NULL DEFAULT 0,
     total           NUMERIC(12,2) NOT NULL DEFAULT 0,
+    delivery_contact_phone VARCHAR(32) NOT NULL,
+    delivery_address_label VARCHAR(80),
+    delivery_city          VARCHAR(80) NOT NULL,
+    delivery_area          VARCHAR(120),
+    delivery_street        VARCHAR(160),
+    delivery_details       TEXT,
+    delivery_lat           DOUBLE PRECISION,
+    delivery_lng           DOUBLE PRECISION,
     placed_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -407,6 +428,10 @@ CREATE TABLE deliveries (
     dispatched_at   TIMESTAMPTZ,
     delivered_at    TIMESTAMPTZ
 );
+
+ALTER TABLE orders
+    ADD CONSTRAINT orders_delivery_id_fkey
+    FOREIGN KEY (delivery_id) REFERENCES deliveries(id) ON DELETE SET NULL;
 
 -- ---------------------------------------------------------------------
 -- 13. RETURNS (partial returns allowed; condition drives restock)
@@ -510,6 +535,8 @@ CREATE INDEX idx_movements_batch        ON stock_movements(batch_id);
 CREATE INDEX idx_movements_type         ON stock_movements(type);
 CREATE INDEX idx_reservations_order     ON stock_reservations(order_id);
 CREATE INDEX idx_device_tokens_user     ON device_tokens(user_id);
+CREATE UNIQUE INDEX idx_addresses_one_default_per_user ON addresses(user_id)
+    WHERE is_default;
 CREATE INDEX idx_orders_user            ON orders(user_id);
 CREATE INDEX idx_orders_status          ON orders(status);
 CREATE INDEX idx_order_items_order      ON order_items(order_id);
