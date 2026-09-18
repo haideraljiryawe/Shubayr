@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.4.0 - 2026-09-18
+
+### Added
+
+- PostgreSQL-backed public active-banner reads and permission-protected banner
+  administration with durable managed media, deterministic display order, and
+  server-time schedule enforcement.
+
+### Changed
+
+- Banner PATCH now has an explicit partial-update contract: omitted fields are
+  preserved and nullable fields can be cleared with `null`.
+
 ## 4.3.0 - 2026-09-18
 
 ### Added

@@ -9,6 +9,7 @@ import { validateEnvironment } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BannersModule } from './modules/banners/banners.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { FulfilmentModule } from './modules/fulfilment/fulfilment.module';
 import { HealthModule } from './modules/health/health.module';
@@ -41,6 +42,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     DatabaseModule,
     AuthModule,
     RbacModule,
+    BannersModule,
     CatalogModule,
     PurchasingModule,
     InventoryModule,
