@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 2.0.0
+  version: 3.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -232,11 +232,14 @@ paths:
       tags: [Catalog]
       summary: List departments & categories (tree)
       description: >
-        Category names are returned as `name_ar` and `name_en`. If either stored
-        value is missing, empty, or whitespace-only, that response field falls
-        back to the other language so locale-specific clients never render a
-        blank name.
+        Public results contain only visible categories whose complete ancestor
+        chain is visible. With parent_id omitted, returns roots; with parent_id,
+        returns direct children unless include_subtree=true. Siblings are
+        ordered by sort_order then id.
       security: []
+      parameters:
+        - { name: parent_id, in: query, schema: { type: string, format: uuid }, description: Parent whose children or subtree should be returned. }
+        - { name: include_subtree, in: query, schema: { type: boolean, default: false }, description: Include every descendant of parent_id. }
       responses:
         "200":
           description: Category tree
@@ -1145,6 +1148,21 @@ paths:
 
   # ---------------- ADMIN: CATEGORIES CRUD ----------------
   /admin/categories:
+    get:
+      tags: [Admin]
+      summary: List all categories, including hidden categories
+      description: Same parent/subtree filtering as the public route, without visibility filtering.
+      x-permission: catalog.manage
+      parameters:
+        - { name: parent_id, in: query, schema: { type: string, format: uuid } }
+        - { name: include_subtree, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "200":
+          description: Category tree including hidden nodes
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Category" } }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
       summary: Create a category
@@ -1154,7 +1172,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/CategoryInput" }
+            schema: { $ref: "#/components/schemas/CategoryCreate" }
       responses:
         "201":
           description: Created category
@@ -1167,14 +1185,14 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a category
-      description: Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
+      description: Omitted fields are unchanged. Reparenting must preserve the hierarchy depth and cycle rules.
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/CategoryInput" }
+            schema: { $ref: "#/components/schemas/CategoryPatch" }
       responses:
         "200":
           description: Updated category
@@ -1186,12 +1204,14 @@ paths:
     delete:
       tags: [Admin]
       summary: Delete a category
+      description: Deletion is allowed only for a leaf category with no products; otherwise returns 409. Use is_visible=false to hide populated categories.
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   # ---------------- ADMIN: BANNERS CRUD ----------------
   /admin/banners:
@@ -1434,6 +1454,7 @@ components:
   responses:
     Unauthorized: { description: Missing/invalid token (`UNAUTHORIZED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     NotFound: { description: Not found (`NOT_FOUND`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Conflict: { description: State conflict (`CONFLICT`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Validation: { description: "Invalid request data (`VALIDATION_FAILED`, HTTP 422)", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     RateLimited: { description: Too many requests (`RATE_LIMITED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Forbidden: { description: Missing permission (`FORBIDDEN`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
@@ -1559,29 +1580,54 @@ components:
 
     Category:
       type: object
-      description: Category reads populate an empty or missing `name_ar`/`name_en` from the other language.
+      description: Category reads populate an empty localized name or description from the other language.
       properties:
         id: { type: string, format: uuid }
         parent_id: { type: [string, "null"], format: uuid }
         name_en: { type: string }
         name_ar: { type: string }
         slug: { type: string, description: "SEO URL slug. Products are still filtered by category_id." }
-        icon: { type: [string, "null"] }
+        description_en: { type: [string, "null"] }
+        description_ar: { type: [string, "null"] }
+        image_url: { type: [string, "null"], format: uri }
+        icon_key: { type: [string, "null"], description: "Semantic key such as consumer_electronics; never a framework codepoint or IconData value." }
         sort_order: { type: integer }
-        is_active: { type: boolean }
+        is_visible: { type: boolean }
         children: { type: array, items: { $ref: "#/components/schemas/Category" } }
 
-    CategoryInput:
+    CategoryCreate:
       type: object
-      description: Admin create and update requests require both names after trimming; neither may be empty.
+      additionalProperties: false
+      description: Creates a root or child category. Maximum depth is five levels, root depth 0 through depth 4.
       required: [name_en, name_ar]
       properties:
         parent_id: { type: [string, "null"], format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
         name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
-        icon: { type: [string, "null"] }
+        slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 140 }
+        description_en: { type: [string, "null"] }
+        description_ar: { type: [string, "null"] }
+        image_url: { type: [string, "null"], format: uri }
+        icon_key: { type: [string, "null"], pattern: '^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$', maxLength: 80 }
         sort_order: { type: integer, default: 0 }
-        is_active: { type: boolean, default: true }
+        is_visible: { type: boolean, default: true }
+
+    CategoryPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: All fields are optional. parent_id null moves to root; a category cannot be its own parent or a descendant of itself, and reparenting cannot make any subtree node deeper than depth 4.
+      properties:
+        parent_id: { type: [string, "null"], format: uuid }
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*' }
+        slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 140 }
+        description_en: { type: [string, "null"] }
+        description_ar: { type: [string, "null"] }
+        image_url: { type: [string, "null"], format: uri }
+        icon_key: { type: [string, "null"], pattern: '^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$', maxLength: 80 }
+        sort_order: { type: integer, minimum: 0 }
+        is_visible: { type: boolean }
 
     Product:
       type: object
@@ -1601,7 +1647,7 @@ components:
         category_id: { type: string, format: uuid }
         name_en: { type: string }
         name_ar: { type: string }
-        description: { type: string }
+        description: { type: [string, "null"] }
         price: { $ref: "#/components/schemas/Money", description: "Regular selling price." }
         discount_type: { type: [string, "null"], enum: [percentage, amount, null], description: "Discount kind, or null when the product has no discount defined." }
         discount_value: { type: [number, "null"], multipleOf: 0.01, description: "For `percentage`, the percentage off (10 means 10%, at most two decimals). For `amount`, the currency amount subtracted from `price`. Null when `discount_type` is null." }
@@ -1619,7 +1665,10 @@ components:
         status: { type: string, enum: [active, hidden, archived] }
         in_stock: { type: boolean, description: "computed: available_qty > 0" }
         available_qty: { type: integer, description: "computed: on-hand minus active reservations" }
-        images: { type: array, items: { type: string, format: uri } }
+        images:
+          type: array
+          description: Ordered by sort_order; the first image is primary.
+          items: { $ref: "#/components/schemas/ProductImage" }
         variants: { type: array, items: { $ref: "#/components/schemas/ProductVariant" } }
 
     ProductInput:
@@ -1655,7 +1704,7 @@ components:
         category_id: { type: string, format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
         name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
-        description: { type: string }
+        description: { type: [string, "null"] }
         price: { $ref: "#/components/schemas/Money", minimum: 0, description: "Regular selling price." }
         discount_type: { type: [string, "null"], enum: [percentage, amount, null], default: null, description: "Null (the default) means no discount and clears any discount already stored." }
         discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0, description: "Required when discount_type is set, and must be null or omitted otherwise. percentage: at most 100. amount: strictly less than price." }
@@ -1666,7 +1715,15 @@ components:
         points_price: { type: [integer, "null"] }
         tracks_expiry: { type: boolean, default: false }
         status: { type: string, enum: [active, hidden, archived], default: active }
-        images: { type: array, items: { type: string, format: uri } }
+        images:
+          type: array
+          description: Ordered creation list; array index becomes sort_order and index 0 is primary.
+          items:
+            type: object
+            additionalProperties: false
+            required: [url]
+            properties:
+              url: { type: string, format: uri }
         variants:
           type: array
           items:
@@ -1696,7 +1753,10 @@ components:
         points_price: { type: [integer, "null"] }
         tracks_expiry: { type: boolean }
         status: { type: string, enum: [active, hidden, archived] }
-        images: { type: array, items: { type: string, format: uri } }
+        media_operations:
+          type: array
+          description: Applied atomically in array order; the image at final position 0 is primary.
+          items: { $ref: "#/components/schemas/ProductMediaOperation" }
         variants:
           type: array
           items:
@@ -1706,6 +1766,47 @@ components:
               sku: { type: string }
               attributes: { type: object, additionalProperties: true }
               price_delta: { type: number, multipleOf: 0.01 }
+
+    ProductImage:
+      type: object
+      additionalProperties: false
+      required: [id, url, sort_order, is_primary]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        sort_order: { type: integer, minimum: 0 }
+        is_primary: { type: boolean, readOnly: true, description: True exactly when this is the first image. }
+
+    ProductMediaOperation:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [op, url, position]
+          properties:
+            op: { const: add }
+            url: { type: string, format: uri }
+            position: { type: integer, minimum: 0 }
+        - type: object
+          additionalProperties: false
+          required: [op, image_id]
+          properties:
+            op: { const: remove }
+            image_id: { type: string, format: uuid }
+        - type: object
+          additionalProperties: false
+          required: [op, image_id, url]
+          properties:
+            op: { const: replace }
+            image_id: { type: string, format: uuid }
+            url: { type: string, format: uri }
+        - type: object
+          additionalProperties: false
+          required: [op, image_id, position]
+          properties:
+            op: { const: move }
+            image_id: { type: string, format: uuid }
+            position: { type: integer, minimum: 0 }
+      discriminator: { propertyName: op }
 
     Banner:
       type: object

@@ -1,5 +1,4 @@
-import { BilingualNameDto } from './bilingual-name.dto';
+import { PartialType } from '@nestjs/swagger';
+import { CategoryWriteDto } from './category-write.dto';
 
-// Category updates intentionally keep both names required instead of using
-// PartialType: every admin write must preserve a complete bilingual name pair.
-export class UpdateCategoryDto extends BilingualNameDto {}
+export class UpdateCategoryDto extends PartialType(CategoryWriteDto) {}

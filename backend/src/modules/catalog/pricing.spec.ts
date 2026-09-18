@@ -259,7 +259,11 @@ describe('on_sale query filter', () => {
 });
 
 describe('admin discount validation', () => {
-  const base = { category_id: 'c', name_ar: 'تفاح', name_en: 'Apples' };
+  const base = {
+    category_id: '11111111-1111-4111-8111-111111111111',
+    name_ar: 'تفاح',
+    name_en: 'Apples',
+  };
   const propertiesOf = async (payload: Record<string, unknown>) => {
     const errors = await validate(
       plainToInstance(CreateProductDto, { ...base, ...payload }),

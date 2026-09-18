@@ -13,10 +13,12 @@ describe('admin bilingual-name validation', () => {
   it.each([
     ['create product', CreateProductDto],
     ['create category', CreateCategoryDto],
-    ['update category', UpdateCategoryDto],
   ])('rejects %s with only name_ar and identifies name_en', async (_, Dto) => {
     // A valid price keeps the product DTOs' pricing rules out of the way.
-    const input = plainToInstance(Dto, { name_ar: 'اسم عربي', price: 10 });
+    const input = plainToInstance(Dto as new () => object, {
+      name_ar: 'اسم عربي',
+      price: 10,
+    });
     const errors = await validate(input);
     const englishName = errors.find(({ property }) => property === 'name_en');
 
@@ -28,6 +30,11 @@ describe('admin bilingual-name validation', () => {
 
   it('allows update product to patch one language without restating the other', async () => {
     const input = plainToInstance(UpdateProductDto, { name_ar: 'اسم محدث' });
+    await expect(validate(input)).resolves.toEqual([]);
+  });
+
+  it('allows update category to patch one language without restating the other', async () => {
+    const input = plainToInstance(UpdateCategoryDto, { name_ar: 'Updated' });
     await expect(validate(input)).resolves.toEqual([]);
   });
 
@@ -44,10 +51,12 @@ describe('admin bilingual-name validation', () => {
     });
     const errors = await validate(input);
 
-    expect(errors.map(({ property }) => property).sort()).toEqual([
-      'name_ar',
-      'name_en',
-    ]);
+    expect(
+      errors
+        .map(({ property }) => property)
+        .filter((property) => property.startsWith('name_'))
+        .sort(),
+    ).toEqual(['name_ar', 'name_en']);
   });
 });
 
