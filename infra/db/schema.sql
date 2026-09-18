@@ -4,9 +4,9 @@
 -- warehouses/locations, stock movements, FEFO, reservations, picking,
 -- returns, loyalty, split ratings, RBAC, audit trail, white-label).
 --
--- This file is the SHARED CONTRACT. Backend (NestJS/Prisma/Codex) implements
--- migrations that match these tables. Do NOT diverge without a PR that
--- updates this file first.
+-- Bootstrap/reference for clean databases. Prisma Migrate files under
+-- backend/prisma/migrations are the production upgrade path. Keep this file,
+-- schema.prisma, migrations, and OpenAPI synchronized in the same PR.
 -- =====================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto"; -- gen_random_uuid()

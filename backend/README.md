@@ -7,7 +7,10 @@ using `../prompts/BACKEND_CODEX.md`. Complete environment setup is in
 
 ## Authoritative contracts
 
-- `../infra/db/schema.sql`: all 37 PostgreSQL tables and constraints.
+- `prisma/migrations/`: the ordered, immutable production upgrade path.
+- `prisma/schema.prisma`: the runtime database model.
+- `../infra/db/schema.sql`: a synchronized clean-database bootstrap/reference;
+  never apply it as an upgrade to an existing database.
 - `../api/openapi.yaml`: endpoint paths, payloads, responses, and security.
 - `../docs/ARCHITECTURE.md`: the 18 mandatory architecture rules.
 - `../prompts/BACKEND_CODEX.md`: implementation phases and quality gates.
@@ -44,6 +47,25 @@ Available scaffold endpoints:
 
 The remaining OpenAPI endpoints are implemented phase-by-phase in the order
 specified by the backend build prompt.
+
+## Database migrations
+
+New databases are created with `npm run prisma:migrate:deploy`. Existing
+databases that were originally provisioned from `infra/db/schema.sql` must be
+backed up, checked against that reference schema, and baselined once before
+deploying later migrations:
+
+```bash
+npx prisma migrate resolve --applied 20260918000100_initial
+npm run prisma:migrate:deploy
+```
+
+Every data-changing migration must document its backfill in the migration SQL
+and in the pull request. Rollback is restore-first: take a database backup
+before deploy, stop application writes, restore that backup if verification
+fails, and redeploy the previous application version. Prisma Migrate does not
+automatically run down migrations; a reviewed compensating migration is used
+when restoring is inappropriate. Never edit an already-deployed migration.
 
 ## Docker API profile
 
