@@ -97,8 +97,7 @@ class Product {
 
   num get salePrice => _legacySalePrice ?? effectivePrice;
 
-  num? get compareAtPrice =>
-      _legacyCompareAtPrice ?? (onSale ? price : null);
+  num? get compareAtPrice => _legacyCompareAtPrice ?? (onSale ? price : null);
 
   bool get isOnSale =>
       onSale ||
@@ -160,35 +159,36 @@ class Product {
     _ => null,
   };
 
-  Product copyWith({List<String>? images, List<CatalogImage>? mockImages}) => Product(
-    id: id,
-    categoryId: categoryId,
-    nameEn: nameEn,
-    nameAr: nameAr,
-    description: description,
-    price: price,
-    discountType: discountType,
-    discountValue: discountValue,
-    discountStartsAt: discountStartsAt,
-    discountEndsAt: discountEndsAt,
-    onSale: onSale,
-    discountedPrice: discountedPrice,
-    effectivePrice: effectivePrice,
-    discountPercent: discountPercent,
-    salePrice: _legacySalePrice,
-    compareAtPrice: _legacyCompareAtPrice,
-    isNegotiable: isNegotiable,
-    floorPrice: floorPrice,
-    pointsPrice: pointsPrice,
-    tracksExpiry: tracksExpiry,
-    ratingAvg: ratingAvg,
-    status: status,
-    inStock: inStock,
-    availableQty: availableQty,
-    images: images ?? this.images,
-    mockImages: mockImages ?? this.mockImages,
-    variants: variants,
-  );
+  Product copyWith({List<String>? images, List<CatalogImage>? mockImages}) =>
+      Product(
+        id: id,
+        categoryId: categoryId,
+        nameEn: nameEn,
+        nameAr: nameAr,
+        description: description,
+        price: price,
+        discountType: discountType,
+        discountValue: discountValue,
+        discountStartsAt: discountStartsAt,
+        discountEndsAt: discountEndsAt,
+        onSale: onSale,
+        discountedPrice: discountedPrice,
+        effectivePrice: effectivePrice,
+        discountPercent: discountPercent,
+        salePrice: _legacySalePrice,
+        compareAtPrice: _legacyCompareAtPrice,
+        isNegotiable: isNegotiable,
+        floorPrice: floorPrice,
+        pointsPrice: pointsPrice,
+        tracksExpiry: tracksExpiry,
+        ratingAvg: ratingAvg,
+        status: status,
+        inStock: inStock,
+        availableQty: availableQty,
+        images: images ?? this.images,
+        mockImages: mockImages ?? this.mockImages,
+        variants: variants,
+      );
 
   factory Product.fromJson(Map<String, dynamic> json) {
     if (!json.containsKey('sale_price') &&
@@ -204,8 +204,7 @@ class Product {
         json['price'] as num? ??
         0;
     final original = json['compare_at_price'] as num?;
-    final discounted =
-        original != null && original.isFinite && original > sale;
+    final discounted = original != null && original.isFinite && original > sale;
     return _$ProductFromJson({
       ...json,
       'price': discounted ? original : sale,

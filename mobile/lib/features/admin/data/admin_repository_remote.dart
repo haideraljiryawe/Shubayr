@@ -100,8 +100,7 @@ class AdminRepositoryRemote implements AdminRepository {
   Map<String, dynamic> _scheduledDiscountInput(Map<String, dynamic> input) {
     final sale = input['sale_price'] as num;
     final original = input['compare_at_price'] as num?;
-    final discounted =
-        original != null && original.isFinite && original > sale;
+    final discounted = original != null && original.isFinite && original > sale;
     return {
       for (final entry in input.entries)
         if (!const {'sale_price', 'compare_at_price'}.contains(entry.key))
