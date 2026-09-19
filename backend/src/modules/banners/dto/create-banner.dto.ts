@@ -27,7 +27,11 @@ export class CreateBannerDto {
   @IsString()
   subtitle?: string | null;
 
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @IsUrl({
+    protocols: ['http', 'https'],
+    require_protocol: true,
+    require_tld: false,
+  })
   image_url!: string;
 
   @IsOptional()
@@ -38,7 +42,11 @@ export class CreateBannerDto {
 
   @IsOptional()
   @Transform(emptyToNull)
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @IsUrl({
+    protocols: ['http', 'https'],
+    require_protocol: true,
+    require_tld: false,
+  })
   link_url?: string | null;
 
   @IsOptional()

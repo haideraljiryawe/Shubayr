@@ -10,7 +10,7 @@ ENV NODE_ENV=development
 COPY . .
 RUN npx prisma generate
 EXPOSE 8000
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:dev"]
+CMD ["sh", "-c", "npx prisma generate && npm run prisma:migrate:deploy && npm run seed && npm run start:dev"]
 
 FROM dependencies AS build
 COPY . .
@@ -27,4 +27,4 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 EXPOSE 8000
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

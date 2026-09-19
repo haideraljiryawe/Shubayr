@@ -49,14 +49,18 @@ Copy-Item .env.example .env
 
 `.env` is ignored by Git. Never commit it.
 
-## 3. Start and verify shared infrastructure
+## 3. Start and verify the real-data stack
 
 ```bash
-docker compose up -d
+docker compose --profile full up -d --build
 docker compose ps
 ```
 
-This starts PostgreSQL, Redis, Meilisearch, Adminer, and Mailpit. If a host port
+This starts PostgreSQL, Redis, Meilisearch, MinIO, Adminer, Mailpit, and the
+NestJS API. PostgreSQL is created by the real Prisma migrations; `schema.sql`
+is reference/bootstrap documentation and is not applied as an upgrade. The API
+runs the idempotent seed on boot and is available at
+`http://localhost:8000/api/v1`. If a host port
 is busy, change only the matching `*_PORT` value in `.env`; for example:
 
 ```dotenv
@@ -73,44 +77,58 @@ Open [Adminer](http://localhost:8081) and use:
 - Username/password/database: `DB_USERNAME`, `DB_PASSWORD`, and `DB_DATABASE`
   from your local `.env`
 
-Confirm the `public` schema contains 37 tables and the `roles` table is seeded.
+Confirm `GET http://localhost:8000/api/v1/ready` returns a ready response. The
+seed supplies all six roles, eight bilingual departments plus subcategories,
+32 stocked products, durable MinIO images, discounts, and banners.
 
-## 4. Scaffold and run the API
-
-First follow the [authoritative backend build prompt](../../prompts/BACKEND_CODEX.md).
-After the NestJS package files exist:
+## 4. Run the API directly on the host
 
 ```bash
 cd backend
 npm install
 npx prisma generate
-npx prisma migrate dev
+npm run prisma:migrate:deploy
+npm run seed
 npm run start:dev
 ```
 
 For commands running directly on the host, use `localhost` in `DATABASE_URL`,
-`REDIS_URL`, and `MEILI_HOST`. For the Docker API, copy the example into the
-backend environment and retain the service names `db`, `redis`, and `search`:
+`REDIS_URL`, `MEILI_HOST`, and `S3_ENDPOINT`. The Docker profile supplies its
+own container service names, so `backend/.env` is optional. An old disposable
+local volume made from `schema.sql` should be recreated, or baselined using the
+migration guidance in `backend/README.md` when its data must be retained.
 
-macOS/Linux, from the repository root:
+## 5. Development login and client configuration
+
+`APP_ENV=development` returns and logs the fixed `DEV_OTP` (default `000000`)
+from `POST /auth/request-otp`. This never happens in production.
+
+| Role | Seed phone |
+|---|---|
+| admin | `+9647700000001` |
+| manager | `+9647700000002` |
+| purchasing | `+9647700000003` |
+| warehouse | `+9647700000004` |
+| delivery | `+9647700000005` |
+| customer | `+9647700000006` |
+
+Point both clients at the same API and disable mocks:
+
+```dotenv
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_USE_MOCKS=false
+```
 
 ```bash
-cp .env.example backend/.env
-docker compose --profile full up -d --build
+flutter run --dart-define=API_URL=http://localhost:8000/api/v1 --dart-define=DATA_SOURCE=remote
 ```
 
-Windows PowerShell, from the repository root:
-
-```powershell
-Copy-Item .env.example backend/.env
-docker compose --profile full up -d --build
-```
-
-The API must be available at `http://localhost:8000/api/v1`.
+Use `10.0.2.2` instead of `localhost` for an Android emulator.
 
 ## Contracts
 
-- [Database source of truth](../../infra/db/schema.sql)
+- [Database upgrade source of truth](../../backend/prisma/migrations)
+- [Database bootstrap/reference](../../infra/db/schema.sql)
 - [REST API source of truth](../../api/openapi.yaml)
 - [Architecture rules](../ARCHITECTURE.md)
 

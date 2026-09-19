@@ -34,40 +34,37 @@ after it merges.
 macOS/Linux:
 
 ```bash
-printf 'NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1\n' > web/.env.local
+printf 'NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1\nNEXT_PUBLIC_USE_MOCKS=false\n' > web/.env.local
 ```
 
 Windows PowerShell:
 
 ```powershell
-Set-Content web/.env.local 'NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1'
+Set-Content web/.env.local "NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1`nNEXT_PUBLIC_USE_MOCKS=false"
 ```
 
 `.env.local` is ignored by Git. Never commit it.
 
 ## 3. Run the API locally when needed
 
-Create the root environment and start shared services.
+Create the root environment and start the migration-first API with real seeded data.
 
 macOS/Linux:
 
 ```bash
 cp .env.example .env
-docker compose up -d
+docker compose --profile full up -d --build
 ```
 
 Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up -d
-```
-
-Once Abbas has scaffolded the backend and `backend/.env` exists:
-
-```bash
 docker compose --profile full up -d --build
 ```
+
+Sign in with a seeded phone from the backend setup guide and development OTP
+`000000` unless `DEV_OTP` was overridden.
 
 ## 4. Work before the backend is live
 

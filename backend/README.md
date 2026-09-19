@@ -1,7 +1,6 @@
 # Shubayr Backend API
 
-This folder holds the Node.js 24 LTS NestJS REST API, scaffolded with Codex
-using `../prompts/BACKEND_CODEX.md`. Complete environment setup is in
+This folder holds the Node.js 24 LTS NestJS REST API. Complete environment setup is in
 `../docs/setup/SETUP_BACKEND.md`. The API is served below
 `http://localhost:8000/api/v1`.
 
@@ -20,13 +19,15 @@ own reviewed pull request.
 
 ## Local development
 
-Start the infrastructure from the repository root:
+Start the complete migration-first, real-data stack from the repository root:
 
 ```bash
-docker compose up -d
+docker compose --profile full up -d --build
 ```
 
-This starts PostgreSQL, Redis, Meilisearch, and MinIO. MinIO keeps objects in
+This starts PostgreSQL, Redis, Meilisearch, MinIO, and the API. The API runs
+`prisma migrate deploy` followed by the idempotent development seed before it
+starts at `http://localhost:8000/api/v1`. MinIO keeps objects in
 the named `minio_data` volume, so uploaded catalog images survive container
 restarts. Its local console is `http://localhost:9001`.
 
@@ -37,6 +38,8 @@ cd backend
 cp .env.example .env
 npm install
 npm run prisma:generate
+npm run prisma:migrate:deploy
+npm run seed
 npm run start:dev
 ```
 
@@ -58,6 +61,22 @@ single-use. `dev_otp` is never logged or returned when `APP_ENV=production`;
 production requires `SMS_GATEWAY_URL` and `SMS_GATEWAY_TOKEN` and sends the
 code to that gateway. Refresh tokens are signed separately, stored only as a
 digest, and rotated on every use.
+
+The seed creates these development accounts; each uses the configured
+`DEV_OTP`:
+
+| Role | Phone |
+|---|---|
+| admin | `+9647700000001` |
+| manager | `+9647700000002` |
+| purchasing | `+9647700000003` |
+| warehouse | `+9647700000004` |
+| delivery | `+9647700000005` |
+| customer | `+9647700000006` |
+
+It also creates eight bilingual departments and their subcategories, 32
+stocked products with variants and ordered images, active/future discounts,
+and three banners. `npm run seed` is safe to repeat.
 
 The remaining OpenAPI endpoints are implemented phase-by-phase in the order
 specified by the backend build prompt.
@@ -81,15 +100,6 @@ fails, and redeploy the previous application version. Prisma Migrate does not
 automatically run down migrations; a reviewed compensating migration is used
 when restoring is inappropriate. Never edit an already-deployed migration.
 
-## Docker API profile
-
-From the repository root, after setting service hostnames (`db`, `redis`, and
-`search`) in `backend/.env`:
-
-```bash
-docker compose --profile full up -d --build
-```
-
 ## Quality gates
 
 ```bash
@@ -98,4 +108,5 @@ npm run typecheck
 npm run lint
 npm run build
 npm test
+npm run test:acceptance # requires the built API plus PostgreSQL and MinIO
 ```
