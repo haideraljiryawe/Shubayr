@@ -97,13 +97,17 @@ its endpoints exist without touching the ones still waiting.
 | --- | --- | --- |
 | `auth` | **LIVE** | `POST /auth/request-otp`, `/auth/verify-otp`, `/auth/refresh` |
 | `profile` | **LIVE** | `GET /me`, `PATCH /me` |
-| `catalog` | **LIVE** | `GET /settings`, `/categories`, `/products`, `/products/{id}`, `/products/{id}/availability`, `/products/{id}/reviews` |
+| `catalog` | **LIVE** | `GET /settings`, `/categories`, `/products`, `/products/{id}`, `/products/{id}/availability`, `/products/{id}/reviews` (reading) |
 | `banners` | **LIVE** | `GET /banners` |
 | `cart` | mock | client-local by design; there is no guest cart on the server |
 | `checkout` | mock | `POST /orders`, `POST /coupons/validate` — awaiting the orders slice |
 | `orders` | mock | `GET /orders`, `/orders/{id}`, `/orders/{id}/track` |
 | `addresses` | mock | `GET/POST/PATCH/DELETE /addresses` |
-| `returns` · `loyalty` · `notifications` | mock | not built in the web yet |
+| `wishlist` | mock | `GET/POST /wishlist`, `DELETE /wishlist/{productId}` |
+| `returns` | mock | `POST /returns`, and the customer list the contract still lacks |
+| `reviews` | mock | `POST /products/{id}/reviews`, `POST /deliveries/{id}/rating` — **writing** reviews, unlike the reads above |
+| `loyalty` | mock | `GET /loyalty` |
+| `notifications` | mock | device-local; the contract has no endpoint yet |
 
 Every still-mocked method carries a `// MOCK: awaiting backend slice` comment at
 its definition, so the remaining work is greppable.

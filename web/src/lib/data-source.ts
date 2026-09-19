@@ -26,7 +26,9 @@ export const DOMAINS = [
   "checkout",
   "orders",
   "addresses",
+  "wishlist",
   "returns",
+  "reviews",
   "loyalty",
   "notifications",
 ] as const;
