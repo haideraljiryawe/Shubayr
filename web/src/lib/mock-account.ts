@@ -1,6 +1,7 @@
 import type {
   Address,
-  AddressInput,
+  AddressCreate,
+  AddressPatch,
   DeliveryRating,
   DeliveryRatingRequest,
   LoyaltyAccount,
@@ -15,6 +16,8 @@ import type {
   WishlistItem,
 } from "./api";
 import { demoProducts } from "./mock-data";
+import { isLive } from "./data-source";
+import { primaryImageUrl } from "./product";
 
 /* ---------------------------------------------------------------------------
  * Account fixtures: the signed-in customer, their addresses and their orders.
@@ -91,9 +94,13 @@ let addresses: Address[] = [
     area: "الكوت — حي الزهراء",
     street: "شارع 14، دار 22",
     details: "قرب مدرسة الأمل، الطابق الأول",
+    // Required since contract v4.5.0: the recipient for this address, which is
+    // independent of the account phone.
+    contact_phone: "+9647701234567",
     lat: 32.515,
     lng: 45.8181,
     is_default: true,
+    created_at: "2026-05-05T10:30:00.000Z",
   },
   {
     id: "addr-2",
@@ -103,9 +110,11 @@ let addresses: Address[] = [
     area: "الكرادة",
     street: "شارع 62، بناية النور",
     details: null,
+    contact_phone: "+9647701234567",
     lat: null,
     lng: null,
     is_default: false,
+    created_at: "2026-07-04T10:30:00.000Z",
   },
 ];
 
@@ -118,13 +127,14 @@ export function listMockAddresses(): Address[] {
   );
 }
 
-export function createMockAddress(input: AddressInput): Address {
+export function createMockAddress(input: AddressCreate): Address {
   addressSequence += 1;
   const created: Address = {
     ...input,
     id: `addr-${addressSequence}`,
     user_id: currentUser.id,
     is_default: input.is_default ?? addresses.length === 0,
+    created_at: new Date().toISOString(),
   };
   if (created.is_default) {
     addresses = addresses.map((item) => ({ ...item, is_default: false }));
@@ -135,7 +145,7 @@ export function createMockAddress(input: AddressInput): Address {
 
 export function updateMockAddress(
   id: string,
-  input: AddressInput,
+  input: AddressPatch,
 ): Address | undefined {
   const existing = addresses.find((item) => item.id === id);
   if (!existing) return undefined;
@@ -190,7 +200,7 @@ function orderItem(
     // later rename or re-photograph never rewrites order history.
     product_name_ar: product?.name_ar ?? "",
     product_name_en: product?.name_en ?? "",
-    image_url: product?.images?.[0] ?? null,
+    image_url: product ? primaryImageUrl(product) : null,
     quantity,
     unit_price: unit,
     line_total: unit * quantity,
@@ -317,10 +327,21 @@ export function mockTrackingFor(order: Order): OrderTracking {
  * is replayed into these on sign-in, which is the same seam the cart uses.
  * ------------------------------------------------------------------------- */
 
-let wishlist: WishlistItem[] = [
-  { id: "wl-p11", product_id: "p11", added_at: isoAgo(3) },
-  { id: "wl-p17", product_id: "p17", added_at: isoAgo(11) },
-];
+/**
+ * Seeded only while the catalogue is mocked too.
+ *
+ * These ids belong to the fixture catalogue. With `catalog` live they resolve
+ * to nothing — the real API rejects a non-UUID outright — so the page would
+ * quietly drop two phantom rows and show an empty wishlist anyway. Starting
+ * empty says the same thing honestly, and anything the shopper hearts from the
+ * live catalogue is a real id that resolves.
+ */
+let wishlist: WishlistItem[] = isLive("catalog")
+  ? []
+  : [
+      { id: "wl-p11", product_id: "p11", added_at: isoAgo(3) },
+      { id: "wl-p17", product_id: "p17", added_at: isoAgo(11) },
+    ];
 
 /** Wishlist rows carry the whole product, so the page needs no second fetch. */
 function withProduct(item: WishlistItem): WishlistItem {

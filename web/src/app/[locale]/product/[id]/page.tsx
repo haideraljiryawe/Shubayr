@@ -16,7 +16,7 @@ import {
 import { ProductCard } from "@/components/ui/product-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { api, ApiError, type Product } from "@/lib/api";
-import { pricingForVariant } from "@/lib/product";
+import { pricingForVariant, primaryImageUrl } from "@/lib/product";
 import type { Locale } from "@/i18n/routing";
 
 type Props = {
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const name =
     ((locale as Locale) === "ar" ? product.name_ar : product.name_en) ?? "";
   const description = product.description ?? name;
-  const image = product.images?.[0];
+  const image = primaryImageUrl(product);
 
   return {
     title: name,
@@ -213,7 +213,7 @@ async function RelatedSection({
               availableQty={item.available_qty}
               {...pricingForVariant(item)}
               rating={item.rating_avg}
-              imageUrl={item.images?.[0] ?? null}
+              imageUrl={primaryImageUrl(item)}
               inStock={item.in_stock ?? true}
               className="w-full"
             />

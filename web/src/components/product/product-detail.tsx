@@ -20,6 +20,7 @@ import {
   buildAttributeGroups,
   findVariant,
   pricingForVariant,
+  productImageUrls,
   selectionForVariant,
 } from "@/lib/product";
 import { AvailabilityBadge } from "./availability";
@@ -76,7 +77,8 @@ export function ProductDetail({
   const [requestedQty, setRequestedQty] = useState(1);
 
   const selectedVariant = findVariant(variants, selection);
-  const images = product.images ?? [];
+  // URLs in the admin's order; the gallery renders strings, not objects.
+  const images = productImageUrls(product);
 
   const maxQty = variants.length
     ? availableQtyFor(availability, selectedVariant?.id)

@@ -10,7 +10,7 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api, type Product } from "@/lib/api";
 import { cartStore } from "@/lib/cart-store";
-import { pricingForVariant } from "@/lib/product";
+import { pricingForVariant, primaryImageUrl } from "@/lib/product";
 import { useWishlist } from "@/lib/use-wishlist";
 import { wishlistStore } from "@/lib/wishlist-store";
 import { AccountEmpty, AccountError, AccountSkeleton } from "./states";
@@ -99,7 +99,7 @@ export function WishlistGrid() {
         variant_id: null,
         name_ar: product.name_ar ?? "",
         name_en: product.name_en ?? "",
-        image_url: product.images?.[0] ?? null,
+        image_url: primaryImageUrl(product),
         variant_label: null,
         unit_price: pricing.price,
         regular_price: pricing.regularPrice,
@@ -163,7 +163,7 @@ export function WishlistGrid() {
                 availableQty={product.available_qty}
                 {...pricingForVariant(product)}
                 rating={product.rating_avg}
-                imageUrl={product.images?.[0] ?? null}
+                imageUrl={primaryImageUrl(product)}
                 inStock={inStock}
                 variant="catalog"
                 className="w-full"

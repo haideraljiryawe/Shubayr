@@ -1,4 +1,17 @@
 import { defineConfig } from "@playwright/test";
+
+/**
+ * The suite is hermetic by default.
+ *
+ * Some specs import src/lib/api directly and run in this Node process rather
+ * than in the browser, so the flag has to be set here — before any spec is
+ * imported — and not only on the dev server below. Without it those specs
+ * would inherit the per-domain default (catalog live) and hit a real API that
+ * may not be running. live-catalog.spec.ts is unaffected: it talks to the API
+ * URL directly and skips itself when nothing answers.
+ */
+process.env.NEXT_PUBLIC_USE_MOCKS ??= "true";
+
 const errors = process.env.CATALOG_ERROR_TESTS === "true";
 const streaming = process.env.CATALOG_STREAMING_TESTS === "true";
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
@@ -19,6 +32,8 @@ export default defineConfig({
           "**/account-wishlist.spec.ts",
           "**/account-returns.spec.ts",
           "**/account-reviews.spec.ts",
+          // Skips itself unless a real backend is reachable.
+          "**/live-catalog.spec.ts",
         ],
   timeout: 60000,
   use: {

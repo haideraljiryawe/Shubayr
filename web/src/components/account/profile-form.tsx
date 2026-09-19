@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,10 +46,17 @@ export function ProfileForm() {
   const [seeded, setSeeded] = useState<User | null>(null);
   if (me && me !== seeded) {
     setSeeded(me);
-    setUser(me);
     setName(me.name ?? "");
     setEmail(me.email ?? "");
   }
+
+  // Refreshing the cached session user is a write to a store *outside* this
+  // component, so it cannot happen during render — React warns that a
+  // different component is being updated mid-render, which is exactly what
+  // the live API surfaced. Pushing it into an effect is what effects are for.
+  useEffect(() => {
+    if (me) setUser(me);
+  }, [me, setUser]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

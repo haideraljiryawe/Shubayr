@@ -1,4 +1,9 @@
-import type { Product, ProductAvailability, ProductVariant } from "./api";
+import type {
+  Product,
+  ProductAvailability,
+  ProductImage,
+  ProductVariant,
+} from "./api";
 import type { Locale } from "@/i18n/routing";
 
 /* ---------------------------------------------------------------------------
@@ -94,6 +99,34 @@ export function selectionForVariant(
     selection[key] = raw;
   }
   return selection;
+}
+
+/* ---------------------------------------------------------------------------
+ * Images.
+ *
+ * Contract v4 turned `Product.images` from a bare URL list into ProductImage
+ * objects ({ id, url, sort_order, is_primary }) so the admin can reorder and
+ * replace them. The storefront only ever wants URLs in display order, so these
+ * two helpers are the single place that shape is unwrapped.
+ * ------------------------------------------------------------------------- */
+
+function bySortOrder(a: ProductImage, b: ProductImage): number {
+  return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+}
+
+/** Every image URL, in the order the admin arranged them. */
+export function productImageUrls(product: Product): string[] {
+  return [...(product.images ?? [])]
+    .sort(bySortOrder)
+    .map((image) => image.url)
+    .filter((url): url is string => Boolean(url));
+}
+
+/** The image a tile shows: the primary one, else the first, else nothing. */
+export function primaryImageUrl(product: Product): string | null {
+  const images = product.images ?? [];
+  const primary = images.find((image) => image.is_primary);
+  return primary?.url ?? productImageUrls(product)[0] ?? null;
 }
 
 /* ---------------------------------------------------------------------------

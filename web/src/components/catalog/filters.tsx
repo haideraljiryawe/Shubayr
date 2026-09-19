@@ -108,7 +108,7 @@ function FiltersForm({ basePath, query, categories, category }: FilterProps) {
               {t(category ? "allSubcategories" : "allCategories")}
             </option>
             {options
-              .filter((c) => c.is_active !== false)
+              .filter((c) => c.is_visible !== false)
               .map((c) => (
                 <option key={c.id} value={c.id}>
                   {locale === "ar" ? c.name_ar : c.name_en}

@@ -5,7 +5,7 @@ import { catalogHref, type CatalogQuery } from "@/lib/catalog-query";
 import { Link } from "@/i18n/navigation";
 import { localeDirection, type Locale } from "@/i18n/routing";
 import { ProductCard } from "@/components/ui/product-card";
-import { pricingForVariant } from "@/lib/product";
+import { pricingForVariant, primaryImageUrl } from "@/lib/product";
 import { buttonClasses } from "@/components/ui/button";
 import { DesktopFilters, MobileFilters, SortControl } from "./filters";
 import { CatalogEmpty, CatalogError } from "./states";
@@ -105,7 +105,7 @@ export async function ProductListing({
                       {...pricingForVariant(product)}
                       rating={product.rating_avg}
                       reviewCount={counts[index]}
-                      imageUrl={product.images?.[0]}
+                      imageUrl={primaryImageUrl(product)}
                       inStock={product.in_stock}
                       priority={index < 4}
                       variant="catalog"

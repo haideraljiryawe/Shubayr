@@ -1,4 +1,5 @@
 import type { components, paths } from "@/types/api";
+import { isLive } from "./data-source";
 import {
   createMockAddress,
   deleteMockAddress,
@@ -47,6 +48,7 @@ type Schemas = components["schemas"];
 
 export type StoreSettings = Schemas["StoreSettings"];
 export type Product = Schemas["Product"];
+export type ProductImage = Schemas["ProductImage"];
 export type Category = Schemas["Category"];
 export type ProductPage = Schemas["ProductPage"];
 export type Cart = Schemas["Cart"];
@@ -63,7 +65,8 @@ export type OrderPage = Schemas["OrderPage"];
 export type OrderStatus = Schemas["OrderStatus"];
 export type OrderTracking = Schemas["OrderTracking"];
 export type Address = Schemas["Address"];
-export type AddressInput = Schemas["AddressInput"];
+export type AddressCreate = Schemas["AddressCreate"];
+export type AddressPatch = Schemas["AddressPatch"];
 export type Order = Schemas["Order"];
 export type OrderItem = Schemas["OrderItem"];
 export type UserSelfUpdate = Schemas["UserSelfUpdate"];
@@ -105,11 +108,13 @@ export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 /**
- * Phase 1 ships before the backend does. With mocks on, the client resolves
- * from local fixtures and never touches the network; with mocks off it calls
- * the real API and a failure surfaces as an ApiError.
+ * The backend lands one slice at a time, so live-vs-mock is decided per domain
+ * rather than globally: each method below asks about its own domain. Slice 1
+ * has auth, profile, catalog and banners on the real API; everything else
+ * still answers from fixtures and is marked `MOCK: awaiting backend slice`.
+ * See src/lib/data-source.ts for the env contract.
  */
-export const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS !== "false";
+export { isLive, liveDomainList, type Domain } from "./data-source";
 
 export class ApiError extends Error {
   constructor(
@@ -288,12 +293,23 @@ function mockLatency(ms = 250): Promise<void> {
 }
 
 /**
- * Guard a mocked endpoint that the contract marks as authenticated. Rejecting
- * an expired mock token with a real 401 is what lets `withFreshToken` prove its
- * refresh-and-retry works without a live backend.
+ * Guard a mocked endpoint that the contract marks as authenticated.
+ *
+ * With auth mocked, rejecting an expired mock token with a real 401 is what
+ * lets `withFreshToken` prove its refresh-and-retry works without a backend.
+ *
+ * With auth LIVE, the stored token is a real JWT the API issued, so the mock
+ * token check would reject every signed-in customer and take the whole mocked
+ * half of the account down with it. The session's existence is then the only
+ * thing a fixture can meaningfully assert — the real API already validated it
+ * at sign-in, and the mocked endpoint has no signature to check against.
  */
 function requireMockAuth(): void {
-  if (!isMockAccessTokenValid(accessToken())) {
+  const token = accessToken();
+  const valid = isLive("auth")
+    ? Boolean(token)
+    : isMockAccessTokenValid(token);
+  if (!valid) {
     throw new ApiError(401, "Access token missing or expired");
   }
 }
@@ -317,17 +333,17 @@ export const api = {
    * Public endpoint — `security: []` in the contract, so no auth header.
    */
   async getSettings(init?: RequestInit): Promise<StoreSettings> {
-    if (USE_MOCKS) return mockSettings;
+    if (!isLive("catalog")) return mockSettings;
     return request<StoreSettings>("/settings", init);
   },
 
   async getCategories(init?: RequestInit): Promise<Category[]> {
-    if (USE_MOCKS) return mockCategories;
+    if (!isLive("catalog")) return mockCategories;
     return request<Category[]>("/categories", init);
   },
 
   async listProducts(query: ProductQuery = {}): Promise<ProductPage> {
-    if (USE_MOCKS) {
+    if (!isLive("catalog")) {
       const perPage = query.per_page ?? 20;
       const page = query.page ?? 1;
 
@@ -371,7 +387,7 @@ export const api = {
 
   /** Map the shared banner contract into the existing home carousel view. */
   async getBanners(): Promise<Banner[]> {
-    if (USE_MOCKS) return mockBanners;
+    if (!isLive("banners")) return mockBanners;
     const banners = await request<Schemas["Banner"][]>("/banners");
     return banners.map((banner, index) => ({
       id: banner.id ?? `banner-${index}`,
@@ -393,7 +409,7 @@ export const api = {
 
   /** Product has no review count field; the published reviews envelope does. */
   async getProductReviewCount(id: string): Promise<number> {
-    if (USE_MOCKS) {
+    if (!isLive("catalog")) {
       const product = demoProducts.find((item) => item.id === id);
       if (!product) throw new ApiError(404, `Product ${id} not found`);
       return product.review_count;
@@ -406,7 +422,7 @@ export const api = {
   },
 
   async getProduct(id: string): Promise<Product> {
-    if (USE_MOCKS) {
+    if (!isLive("catalog")) {
       const found = mockProducts.find((p) => p.id === id);
       if (!found) throw new ApiError(404, `Product ${id} not found`);
       return found;
@@ -420,7 +436,7 @@ export const api = {
    * the part that must not be cached with the catalog copy.
    */
   async getProductAvailability(id: string): Promise<ProductAvailability> {
-    if (USE_MOCKS) {
+    if (!isLive("catalog")) {
       const product = demoProducts.find((item) => item.id === id);
       if (!product) throw new ApiError(404, `Product ${id} not found`);
       return mockAvailabilityFor(product);
@@ -434,7 +450,7 @@ export const api = {
 
   /** Ask for an OTP. Public endpoint; the contract rate-limits it with 429. */
   async requestOtp(phone: string): Promise<{ otp_sent: boolean }> {
-    if (USE_MOCKS) {
+    if (!isLive("auth")) {
       await mockLatency();
       return { otp_sent: true };
     }
@@ -446,7 +462,7 @@ export const api = {
 
   /** Exchange phone + code for the token pair and the user. 401 = bad code. */
   async verifyOtp(phone: string, code: string): Promise<AuthTokens> {
-    if (USE_MOCKS) {
+    if (!isLive("auth")) {
       await mockLatency();
       if (code.trim() !== MOCK_OTP) {
         throw new ApiError(401, "Invalid or expired verification code");
@@ -471,7 +487,7 @@ export const api = {
   async refreshTokens(
     refresh_token: string,
   ): Promise<{ access_token: string; refresh_token: string }> {
-    if (USE_MOCKS) {
+    if (!isLive("auth")) {
       await mockLatency(120);
       if (!isMockRefreshTokenValid(refresh_token)) {
         throw new ApiError(401, "Refresh token rejected");
@@ -491,7 +507,7 @@ export const api = {
   /** The signed-in customer, including the role permissions the contract flattens. */
   async getMe(): Promise<User> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("profile")) {
         await mockLatency(120);
         requireMockAuth();
         return getMockUser();
@@ -508,7 +524,7 @@ export const api = {
    */
   async updateMe(input: UserSelfUpdate): Promise<User> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("profile")) {
         await mockLatency();
         requireMockAuth();
         return updateMockUser(input);
@@ -522,9 +538,10 @@ export const api = {
 
   /* -------------------------------------------------------- addresses */
 
+  // MOCK: awaiting backend slice (addresses).
   async listAddresses(): Promise<Address[]> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("addresses")) {
         await mockLatency(120);
         requireMockAuth();
         return listMockAddresses();
@@ -536,9 +553,10 @@ export const api = {
     });
   },
 
-  async updateAddress(id: string, input: AddressInput): Promise<Address> {
+  // MOCK: awaiting backend slice (addresses).
+  async updateAddress(id: string, input: AddressPatch): Promise<Address> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("addresses")) {
         await mockLatency();
         requireMockAuth();
         const updated = updateMockAddress(id, input);
@@ -552,9 +570,10 @@ export const api = {
     });
   },
 
+  // MOCK: awaiting backend slice (addresses).
   async deleteAddress(id: string): Promise<void> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("addresses")) {
         await mockLatency();
         requireMockAuth();
         if (!deleteMockAddress(id)) {
@@ -570,9 +589,10 @@ export const api = {
 
   /* ----------------------------------------------------------- orders */
 
+  // MOCK: awaiting backend slice (orders).
   async listOrders(status?: OrderStatus): Promise<Order[]> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("orders")) {
         await mockLatency(120);
         requireMockAuth();
         return listMockOrders(status);
@@ -584,9 +604,10 @@ export const api = {
     });
   },
 
+  // MOCK: awaiting backend slice (orders).
   async getOrder(id: string): Promise<Order> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("orders")) {
         await mockLatency(120);
         requireMockAuth();
         const order = getMockOrder(id);
@@ -597,9 +618,10 @@ export const api = {
     });
   },
 
+  // MOCK: awaiting backend slice (orders).
   async trackOrder(id: string): Promise<OrderTracking> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("orders")) {
         await mockLatency(120);
         requireMockAuth();
         const order = getMockOrder(id);
@@ -616,8 +638,9 @@ export const api = {
    * ApiError(404) as "invalid or expired" and everything else as a failure to
    * reach the service.
    */
+  // MOCK: awaiting backend slice (checkout).
   async validateCoupon(code: string): Promise<Coupon> {
-    if (USE_MOCKS) {
+    if (!isLive("checkout")) {
       await mockLatency();
       const coupon = mockCouponFor(code);
       if (!coupon) throw new ApiError(404, `Coupon ${code} is not valid`);
@@ -634,9 +657,10 @@ export const api = {
    * checkout that types a new address creates it first and places the order
    * against the id that comes back.
    */
-  async createAddress(input: AddressInput): Promise<Address> {
+  // MOCK: awaiting backend slice (addresses).
+  async createAddress(input: AddressCreate): Promise<Address> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("addresses")) {
         await mockLatency();
         requireMockAuth();
         return createMockAddress(input);
@@ -652,9 +676,10 @@ export const api = {
    * Place a Cash-on-Delivery order. Requires an authenticated customer — the
    * checkout gates on that before calling.
    */
+  // MOCK: awaiting backend slice (checkout).
   async placeOrder(body: OrderRequest, draft?: OrderDraft): Promise<Order> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("checkout")) {
         await mockLatency();
         requireMockAuth();
         const order: Order = {
@@ -688,9 +713,10 @@ export const api = {
    * store above this keeps one locally and replays it on sign-in; these three
    * methods are only ever reached with a session.
    */
+  // MOCK: awaiting backend slice (wishlist).
   async listWishlist(): Promise<WishlistItem[]> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("wishlist")) {
         await mockLatency(120);
         requireMockAuth();
         return listMockWishlist();
@@ -702,9 +728,10 @@ export const api = {
     });
   },
 
+  // MOCK: awaiting backend slice (wishlist).
   async addWishlistItem(productId: string): Promise<WishlistItem> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("wishlist")) {
         await mockLatency(150);
         requireMockAuth();
         return addMockWishlistItem(productId);
@@ -716,9 +743,10 @@ export const api = {
     });
   },
 
+  // MOCK: awaiting backend slice (wishlist).
   async removeWishlistItem(productId: string): Promise<void> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("wishlist")) {
         await mockLatency(150);
         requireMockAuth();
         removeMockWishlistItem(productId);
@@ -734,9 +762,10 @@ export const api = {
   /* --------------------------------------------------------- loyalty */
 
   /** Points balance plus the ledger, read-only for a customer. */
+  // MOCK: awaiting backend slice (loyalty).
   async getLoyalty(): Promise<LoyaltyAccount> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("loyalty")) {
         await mockLatency(120);
         requireMockAuth();
         return getMockLoyalty();
@@ -747,9 +776,10 @@ export const api = {
 
   /* --------------------------------------------------------- returns */
 
+  // MOCK: awaiting backend slice (returns).
   async createReturn(body: ReturnRequest): Promise<Return> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("returns")) {
         await mockLatency();
         requireMockAuth();
         return createMockReturn(body);
@@ -770,9 +800,10 @@ export const api = {
    * Return), and it must be added to the contract before mocks are switched
    * off — until then this reads the local fixture store.
    */
+  // MOCK: awaiting backend slice (returns).
   async listReturns(): Promise<Return[]> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("returns")) {
         await mockLatency(120);
         requireMockAuth();
         return listMockReturns();
@@ -787,9 +818,10 @@ export const api = {
   /* --------------------------------------------- reviews & rating */
 
   /** A product review, which the contract ties to a purchased order item. */
+  // MOCK: awaiting backend slice (reviews).
   async createReview(productId: string, body: ReviewRequest): Promise<Review> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("reviews")) {
         await mockLatency();
         requireMockAuth();
         return createMockReview(productId, body);
@@ -810,12 +842,13 @@ export const api = {
    * delivery this rates. The fixture resolves it from the order; the contract
    * needs `delivery_id` on Order before mocks are switched off.
    */
+  // MOCK: awaiting backend slice (reviews).
   async rateDelivery(
     deliveryId: string,
     body: DeliveryRatingRequest,
   ): Promise<DeliveryRating> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("reviews")) {
         await mockLatency();
         requireMockAuth();
         return createMockDeliveryRating(deliveryId, body);
@@ -837,9 +870,10 @@ export const api = {
    * fixture answers it directly. A `reviewed` flag on OrderItem, or
    * GET /me/reviews, would close this.
    */
+  // MOCK: awaiting backend slice (reviews).
   async listReviewedOrderItems(orderId: string): Promise<string[]> {
     return withFreshToken(async () => {
-      if (USE_MOCKS) {
+      if (!isLive("reviews")) {
         await mockLatency(100);
         requireMockAuth();
         return listMockReviewedOrderItems(orderId);
@@ -855,7 +889,7 @@ export const api = {
     id: string,
     { page = 1, per_page = 5 }: { page?: number; per_page?: number } = {},
   ): Promise<ReviewPage> {
-    if (USE_MOCKS) {
+    if (!isLive("catalog")) {
       const all = mockReviewsFor(id);
       return {
         page,

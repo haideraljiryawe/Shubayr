@@ -17,7 +17,7 @@ import { useResource } from "@/lib/use-resource";
 import {
   AddressForm,
   EMPTY_DELIVERY,
-  toAddressInput,
+  toAddressCreate,
   type DeliveryDetails,
 } from "./address-form";
 import { AuthGate } from "./auth-gate";
@@ -141,7 +141,7 @@ export function CheckoutFlow() {
       // also saves it to the account for next time.
       let addressId = pickingSaved ? (saved?.id ?? null) : null;
       if (!addressId) {
-        const created = await api.createAddress(toAddressInput(deliveryValues));
+        const created = await api.createAddress(toAddressCreate(deliveryValues));
         if (!created.id) {
           throw new ApiError(422, "Address was created without an id");
         }
