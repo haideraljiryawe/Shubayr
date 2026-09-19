@@ -132,7 +132,7 @@ jobs:
             --publish 9000:9000 \
             --env MINIO_ROOT_USER=shubayr \
             --env MINIO_ROOT_PASSWORD=shubayr_minio_secret \
-            minio/minio:RELEASE.2025-07-23T15-54-02Z server /data
+            quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z server /data
           for attempt in $(seq 1 30); do
             curl --fail --silent http://localhost:9000/minio/health/live && exit 0
             sleep 1
