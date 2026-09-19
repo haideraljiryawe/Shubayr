@@ -700,12 +700,14 @@ function required(name: string): string {
   return value;
 }
 
-main()
-  .catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-    s3.destroy();
-  });
+if (require.main === module) {
+  main()
+    .catch((error: unknown) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+      s3.destroy();
+    });
+}
