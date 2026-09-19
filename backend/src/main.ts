@@ -5,6 +5,7 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { ApiExceptionFilter } from './common/http/api-exception.filter';
 import { validationExceptionFactory } from './common/http/api-error';
+import { parseCorsOrigins } from './config/cors';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -13,11 +14,7 @@ async function bootstrap(): Promise<void> {
   app.useLogger(app.get(Logger));
   app.setGlobalPrefix('api/v1');
   app.enableCors({
-    origin: config
-      .get<string>('CORS_ORIGINS', 'http://localhost:3000')
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean),
+    origin: parseCorsOrigins(config.get<string>('CORS_ORIGINS')),
     credentials: true,
   });
   app.useGlobalPipes(

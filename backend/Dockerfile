@@ -8,7 +8,6 @@ RUN npm ci
 FROM dependencies AS development
 ENV NODE_ENV=development
 COPY . .
-RUN npx prisma generate
 EXPOSE 8000
 CMD ["sh", "-c", "npx prisma generate && npm run prisma:migrate:deploy && npm run seed && npm run start:dev"]
 

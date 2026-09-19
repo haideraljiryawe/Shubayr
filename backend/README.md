@@ -25,11 +25,15 @@ Start the complete migration-first, real-data stack from the repository root:
 docker compose --profile full up -d --build
 ```
 
-This starts PostgreSQL, Redis, Meilisearch, MinIO, and the API. The API runs
-`prisma migrate deploy` followed by the idempotent development seed before it
-starts at `http://localhost:8000/api/v1`. MinIO keeps objects in
-the named `minio_data` volume, so uploaded catalog images survive container
-restarts. Its local console is `http://localhost:9001`.
+This starts PostgreSQL, Redis, Meilisearch, MinIO, and the API. At startup,
+the API runs `prisma generate`, `prisma migrate deploy`, and the idempotent
+development seed before serving at `http://localhost:8000/api/v1`. MinIO keeps
+objects in the named `minio_data` volume, so uploaded catalog images survive
+container restarts. Its local console is `http://localhost:9001`.
+
+Browser CORS allows `http://localhost:3000` and `http://localhost:3100` by
+default. Override `CORS_ORIGINS` with a comma-separated list of exact origins
+for other local frontend ports; whitespace around entries is ignored.
 
 Then run the API:
 
