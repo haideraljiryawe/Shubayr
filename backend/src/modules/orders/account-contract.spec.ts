@@ -37,6 +37,18 @@ describe('account contract DTOs', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
+  it('rejects null for required address PATCH fields while allowing nullable fields to clear', async () => {
+    for (const field of ['city', 'contact_phone', 'is_default']) {
+      const invalid = await validate(
+        plainToInstance(AddressPatchDto, { [field]: null }),
+      );
+      expect(invalid.map(({ property }) => property)).toContain(field);
+    }
+    await expect(
+      validate(plainToInstance(AddressPatchDto, { area: null })),
+    ).resolves.toEqual([]);
+  });
+
   it('accepts partial persisted notification preferences and rejects non-booleans', async () => {
     await expect(
       validate(

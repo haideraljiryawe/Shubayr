@@ -44,10 +44,46 @@ function availabilityMocks() {
   return {
     batchStock: { findMany: jest.fn().mockResolvedValue([]) },
     stockReservation: { findMany: jest.fn().mockResolvedValue([]) },
+    simpleStockHold: { findMany: jest.fn().mockResolvedValue([]) },
   };
 }
 
 describe('ProductsService', () => {
+  it('subtracts active COD holds as well as batch reservations from sellable stock', async () => {
+    const prisma = {
+      product: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: product.id,
+          status: 'active',
+          category_id: product.category_id,
+          variants: [],
+        }),
+      },
+      batchStock: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ quantity: 5, batch: { variant_id: null } }]),
+      },
+      stockReservation: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ quantity: 1, batch: { variant_id: null } }]),
+      },
+      simpleStockHold: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ quantity: 2, variant_id: null }]),
+      },
+      $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
+        Promise.all(operations),
+      ),
+    };
+    const service = new ProductsService(prisma as never, {} as never);
+    const availability = await service.availability(product.id);
+    expect(availability.available_qty).toBe(2);
+    expect(availability.variants[0].available_qty).toBe(2);
+  });
+
   it('filters public queries to categories with fully visible ancestry', async () => {
     let productQuery: unknown;
     const prisma = {

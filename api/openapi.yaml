@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 4.6.0
+  version: 4.7.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -385,8 +385,9 @@ paths:
       summary: Per-variant available quantity for a product
       description: >
         Availability is computed at read time as on-hand (sum of batch_stock)
-        minus active reservations (stock_reservations with status=reserved).
-        Nothing is persisted; the number reflects current sellable quantity.
+        minus active batch reservations (stock_reservations with status=reserved)
+        and temporary product/variant-level simple_stock_holds from COD orders.
+        The computed number reflects current sellable quantity.
       security: []
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
@@ -547,11 +548,21 @@ paths:
       tags: [Orders]
       summary: Place a Cash-on-Delivery order
       description: >
-        Creates the order (status=pending) and a pending COD payment. Stock is
-        validated but NOT deducted here; reservation happens on staff confirm.
+        Atomically reprices and consumes the caller's server cart using server-time
+        effective prices, creates status=pending, a pending COD payment and a
+        minimal delivery record. Sellable stock is reduced by a product/variant
+        hold; FEFO batch assignment and picking are reserved for the inventory
+        slice. A repeated Idempotency-Key with the same checkout request returns
+        the original order, even after the cart is cleared; a different request
+        with that key returns 409. Without a key, retries can create a new order.
         The selected owned address and contact_phone are copied into immutable
-        order snapshot fields in the same transaction. Later address edits or
-        deletion never alter a placed order.
+        order snapshot fields in the same transaction. Later address edits do
+        not alter snapshots; deletion clears address_id but retains snapshots.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Optional printable ASCII key, 1-128 characters, unique per customer.
+          schema: { type: string, minLength: 1, maxLength: 128 }
       requestBody:
         required: true
         content:
@@ -570,7 +581,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Order" }
         "409":
-          description: One or more items unavailable
+          description: Cart empty, item unavailable, coupon invalid, or idempotency conflict
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -586,6 +597,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Order" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /orders/{id}/track:
     get:
       tags: [Orders]
@@ -598,10 +610,11 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/OrderTracking" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /orders/{id}/cancel:
     post:
       tags: [Orders]
-      summary: Cancel an order (releases any reservations)
+      summary: Cancel a pending or confirmed order (releases its simple stock holds)
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "200":
@@ -610,11 +623,19 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Order" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { description: Status does not allow cancellation }
   /orders/{id}/status:
     patch:
       tags: [Admin]
-      summary: Update order status (staff) — confirm triggers FEFO reservation + pick list
+      summary: Update order status (staff); FEFO picking is a later inventory slice
       x-permission: orders.update
+      description: >
+        Allowed transitions are pending to confirmed/cancelled; confirmed to
+        processing/cancelled; processing to out_for_delivery; out_for_delivery
+        to delivered/failed_delivery; failed_delivery to out_for_delivery/cancelled;
+        delivered to return_requested; return_requested to returned. Cancellation
+        releases the simple stock hold. Every transition appends a tracking event.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -625,6 +646,7 @@ paths:
               required: [status]
               properties:
                 status: { $ref: "#/components/schemas/OrderStatus" }
+                note: { type: [string, "null"], maxLength: 500 }
       responses:
         "200":
           description: Updated order
@@ -633,6 +655,7 @@ paths:
               schema: { $ref: "#/components/schemas/Order" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Invalid status transition }
         "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- REVIEWS ----------------
@@ -1836,7 +1859,8 @@ components:
       type: object
       description: >
         A catalog product. `in_stock` and `available_qty` are computed at read
-        time (sum of batch_stock minus active reservations); they are not stored.
+        time (sum of batch_stock minus active batch reservations and temporary
+        COD order holds); they are not stored on the product.
         Pricing works the same way: the product stores a regular `price` plus a
         discount DEFINITION (`discount_type`, `discount_value` and the scheduled
         window `discount_starts_at`/`discount_ends_at`), and the server derives
@@ -1867,7 +1891,7 @@ components:
         rating_avg: { type: number }
         status: { type: string, enum: [active, hidden, archived] }
         in_stock: { type: boolean, description: "computed: available_qty > 0" }
-        available_qty: { type: integer, description: "computed: on-hand minus active reservations" }
+        available_qty: { type: integer, description: "computed: on-hand minus active batch reservations and temporary COD holds" }
         images:
           type: array
           description: Ordered by sort_order; the first image is primary.
@@ -2079,7 +2103,7 @@ components:
 
     ProductAvailability:
       type: object
-      description: Computed availability (on-hand minus active reservations) per product & variant.
+      description: Computed availability (on-hand minus active batch reservations and temporary COD holds) per product & variant.
       properties:
         product_id: { type: string, format: uuid }
         in_stock: { type: boolean }
@@ -2189,7 +2213,7 @@ components:
         order_number: { type: string }
         status: { $ref: "#/components/schemas/OrderStatus" }
         payment_method: { type: string, enum: [cod] }
-        address_id: { type: [string, "null"], format: uuid }
+        address_id: { type: [string, "null"], format: uuid, description: "Original address reference; null if that address was later deleted. Delivery snapshots remain unchanged." }
         delivery_id: { type: [string, "null"], format: uuid, description: Current delivery reachable by this order's owner. }
         subtotal: { $ref: "#/components/schemas/Money" }
         delivery_fee: { $ref: "#/components/schemas/Money" }

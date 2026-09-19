@@ -172,7 +172,7 @@ export class ProductsService {
         throw new NotFoundException('Product not found');
       }
     }
-    const [stock, reservations] = await this.prisma.$transaction([
+    const [stock, reservations, simpleHolds] = await this.prisma.$transaction([
       this.prisma.batchStock.findMany({
         where: { batch: { product_id: id } },
         select: { quantity: true, batch: { select: { variant_id: true } } },
@@ -180,6 +180,10 @@ export class ProductsService {
       this.prisma.stockReservation.findMany({
         where: { batch: { product_id: id }, status: 'reserved' },
         select: { quantity: true, batch: { select: { variant_id: true } } },
+      }),
+      this.prisma.simpleStockHold.findMany({
+        where: { product_id: id, released_at: null },
+        select: { quantity: true, variant_id: true },
       }),
     ]);
     const quantities = new Map<string | null, number>();
@@ -189,6 +193,10 @@ export class ProductsService {
     }
     for (const item of reservations) {
       const key = item.batch.variant_id;
+      quantities.set(key, (quantities.get(key) ?? 0) - item.quantity);
+    }
+    for (const item of simpleHolds) {
+      const key = item.variant_id;
       quantities.set(key, (quantities.get(key) ?? 0) - item.quantity);
     }
     const variants = [
