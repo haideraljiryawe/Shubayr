@@ -369,10 +369,12 @@ ALTER TABLE carts ADD CONSTRAINT carts_coupon_id_fkey
 CREATE TABLE orders (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id),
-    address_id      UUID REFERENCES addresses(id),
+    address_id      UUID REFERENCES addresses(id) ON DELETE SET NULL,
     delivery_id     UUID UNIQUE,
     coupon_id       UUID REFERENCES coupons(id),
     order_number    VARCHAR(40) UNIQUE NOT NULL,
+    idempotency_key VARCHAR(128),
+    idempotency_fingerprint VARCHAR(64),
     status          VARCHAR(30) NOT NULL DEFAULT 'pending',
         -- pending | confirmed | processing | out_for_delivery | delivered
         -- | failed_delivery | cancelled | return_requested | returned
@@ -391,6 +393,7 @@ CREATE TABLE orders (
     delivery_lng           DOUBLE PRECISION,
     placed_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE UNIQUE INDEX orders_user_id_idempotency_key_key ON orders(user_id, idempotency_key);
 
 CREATE TABLE order_items (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -404,6 +407,27 @@ CREATE TABLE order_items (
     unit_price      NUMERIC(12,2) NOT NULL,
     line_total      NUMERIC(12,2) NOT NULL
 );
+
+CREATE TABLE order_status_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    status VARCHAR(30) NOT NULL,
+    note TEXT,
+    at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX order_status_events_order_id_at_idx ON order_status_events(order_id, at);
+
+CREATE TABLE simple_stock_holds (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    order_item_id UUID NOT NULL UNIQUE REFERENCES order_items(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES products(id),
+    variant_id UUID REFERENCES product_variants(id),
+    quantity INT NOT NULL CHECK (quantity > 0),
+    released_at TIMESTAMPTZ
+);
+CREATE INDEX simple_stock_holds_product_id_variant_id_released_at_idx
+    ON simple_stock_holds(product_id, variant_id, released_at);
 
 CREATE TABLE payments (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

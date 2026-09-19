@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.7.0 - 2026-09-20
+
+### Added
+
+- COD checkout from the server cart, with immutable catalog/address snapshots,
+  per-customer idempotency, a minimal delivery record, and a tracked status
+  timeline.
+- User-scoped paginated order reads, tracking, cancellation, and staff-guarded
+  status transitions.
+- Owned address CRUD, including first/default-address behavior, to make the
+  checkout address selection usable.
+- Temporary product/variant sellable-stock holds, released on cancellation.
+  FEFO batch reservation and picking remain in the inventory slice.
+
+### Changed
+
+- Order placement now reduces sellable stock immediately; confirmation no longer
+  claims to perform FEFO allocation. The OpenAPI status rules and errors match
+  the implemented HTTP behavior.
+- Deleting an address clears the order's optional address reference while
+  preserving immutable delivery snapshots.
+
 ## 4.6.0 - 2026-09-19
 
 ### Added

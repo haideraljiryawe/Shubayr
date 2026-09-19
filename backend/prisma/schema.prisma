@@ -241,6 +241,7 @@ model Product {
   wishlist_items         WishlistItem[]
   order_items            OrderItem[]
   product_reviews        ProductReview[]
+  simple_stock_holds     SimpleStockHold[]
 
   @@index([category_id], map: "idx_products_category")
   @@index([status], map: "idx_products_status")
@@ -261,6 +262,7 @@ model ProductVariant {
   inventory_batches      InventoryBatch[]
   cart_items             CartItem[]
   order_items            OrderItem[]
+  simple_stock_holds     SimpleStockHold[]
 
   @@map("product_variants")
 }
@@ -470,6 +472,8 @@ model Order {
   delivery_id            String?            @unique(map: "orders_delivery_id_key") @db.Uuid
   coupon_id              String?            @db.Uuid
   order_number           String             @unique(map: "orders_order_number_key") @db.VarChar(40)
+  idempotency_key        String?            @db.VarChar(128)
+  idempotency_fingerprint String?           @db.VarChar(64)
   status                 String             @default("pending") @db.VarChar(30)
   payment_method         String             @default("cod") @db.VarChar(20)
   subtotal               Decimal            @default(0) @db.Decimal(12, 2)
@@ -486,7 +490,7 @@ model Order {
   delivery_lng           Float?             @db.DoublePrecision
   placed_at              DateTime           @default(now()) @db.Timestamptz(6)
   user                   User               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_user_id_fkey")
-  address                Address?           @relation(fields: [address_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_address_id_fkey")
+  address                Address?           @relation(fields: [address_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_address_id_fkey")
   delivery               Delivery?          @relation("OrderCurrentDelivery", fields: [delivery_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_delivery_id_fkey")
   coupon                 Coupon?            @relation(fields: [coupon_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_coupon_id_fkey")
   items                  OrderItem[]
@@ -496,7 +500,10 @@ model Order {
   deliveries             Delivery[]         @relation("OrderDeliveryHistory")
   returns                Return[]
   loyalty_ledger         LoyaltyLedger[]
+  status_events          OrderStatusEvent[]
+  simple_stock_holds     SimpleStockHold[]
 
+  @@unique([user_id, idempotency_key], map: "orders_user_id_idempotency_key_key")
   @@index([user_id], map: "idx_orders_user")
   @@index([status], map: "idx_orders_status")
   @@map("orders")
@@ -520,9 +527,41 @@ model OrderItem {
   pick_list_items    PickListItem[]
   return_items       ReturnItem[]
   product_reviews    ProductReview[]
+  simple_stock_hold  SimpleStockHold?
 
   @@index([order_id], map: "idx_order_items_order")
   @@map("order_items")
+}
+
+model OrderStatusEvent {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id String   @db.Uuid
+  status   String   @db.VarChar(30)
+  note     String?  @db.Text
+  at       DateTime @default(now()) @db.Timestamptz(6)
+  order    Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id, at])
+  @@map("order_status_events")
+}
+
+/// Temporary sellable-stock decrement. The inventory slice will replace this
+/// with FEFO batch reservations and picking, without pretending to allocate batches here.
+model SimpleStockHold {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id      String    @db.Uuid
+  order_item_id String    @unique @db.Uuid
+  product_id    String    @db.Uuid
+  variant_id    String?   @db.Uuid
+  quantity      Int
+  released_at   DateTime? @db.Timestamptz(6)
+  order         Order     @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  order_item    OrderItem @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
+  product       Product   @relation(fields: [product_id], references: [id], onDelete: NoAction)
+  variant       ProductVariant? @relation(fields: [variant_id], references: [id], onDelete: NoAction)
+
+  @@index([product_id, variant_id, released_at])
+  @@map("simple_stock_holds")
 }
 
 model Payment {

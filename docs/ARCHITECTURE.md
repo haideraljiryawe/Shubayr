@@ -44,6 +44,14 @@ Public storefront (Next.js) ─┘      NestJS + TypeScript + Prisma
 
 ## Order & stock lifecycle (how the rules combine)
 
+Current COD-slice implementation note: placement atomically creates a
+product/variant-level `simple_stock_holds` row, reducing sellable availability
+without selecting a batch. Cancellation releases that hold. The FEFO
+reservation, pick-list, movement, payment collection, and loyalty steps below
+are the intended inventory/delivery slices, not claims about the current COD
+endpoint behavior. The inventory slice must reconcile/replace simple holds as
+it introduces batch-specific allocation.
+
 1. Purchasing receives a **Purchase Invoice** → creates **batches** → places quantities into **locations** (`batch_stock`) → writes `purchase` **movements**.
 2. Customer places a **COD order** → items validated against available (unreserved) stock.
 3. Staff **confirm** → **FEFO reservation** picks nearest-expiry batches → `stock_reservations` (reserved, not deducted) → a **pick list** is generated.
