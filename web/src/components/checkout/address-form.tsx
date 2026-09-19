@@ -8,12 +8,12 @@ import { Card } from "@/components/ui/card";
 import { Field, fieldErrorId } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { AddressInput } from "@/lib/api";
+import { toE164, type AddressCreate } from "@/lib/api";
 
 /* ---------------------------------------------------------------------------
  * Delivery address.
  *
- * The contract's AddressInput has no recipient name or phone — those live on
+ * The contract's AddressCreate has no recipient name — that lives on
  * the user account — so a guest supplies them here: the name rides in the
  * address `label`, and the phone seeds the sign-in step. When saved addresses
  * arrive with authentication, this form becomes the "new address" half of a
@@ -70,8 +70,8 @@ export function validateDelivery(
   return errors;
 }
 
-/** Map the form onto the contract's AddressInput. */
-export function toAddressInput(values: DeliveryDetails): AddressInput {
+/** Map the form onto the contract's AddressCreate. */
+export function toAddressCreate(values: DeliveryDetails): AddressCreate {
   const point = values.mapPoint.trim().match(MAP_POINT_PATTERN);
 
   return {
@@ -80,6 +80,10 @@ export function toAddressInput(values: DeliveryDetails): AddressInput {
     area: values.area.trim(),
     street: values.street.trim(),
     details: values.details.trim() || null,
+    // Contract v4.5.0 carries the recipient's number on the address itself,
+    // independent of the account phone, so the value the form already asks
+    // for now reaches the API instead of only seeding sign-in.
+    contact_phone: toE164(values.phone),
     lat: point ? Number(point[1]) : null,
     lng: point ? Number(point[3]) : null,
     // Saved-address management arrives with authentication; a guest's one-off

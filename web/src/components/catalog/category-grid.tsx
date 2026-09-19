@@ -25,7 +25,7 @@ export function CategoryGrid({
             className="group flex h-full min-h-36 flex-col items-center justify-center gap-4 rounded-md border border-border/60 bg-card px-3 py-6 text-center transition-colors hover:bg-primary-light/20 sm:min-h-44 sm:py-8 lg:min-h-52"
           >
             <CategoryIcon
-              name={category.icon}
+              iconKey={category.icon_key}
               className="size-14 transition-transform motion-safe:group-hover:scale-105 sm:size-16"
             />
             <span className="text-sm font-semibold text-text [overflow-wrap:anywhere] sm:text-base">

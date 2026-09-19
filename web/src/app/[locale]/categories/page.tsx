@@ -40,7 +40,7 @@ export default async function CategoriesPage({ params }: CategoriesPageProps) {
     ?.filter(
       (category) =>
         !category.parent_id &&
-        category.is_active !== false &&
+        category.is_visible !== false &&
         Boolean(category.slug) &&
         Boolean(category.name_ar || category.name_en),
     )

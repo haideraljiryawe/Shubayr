@@ -9,12 +9,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, fieldErrorId } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { Address, AddressInput } from "@/lib/api";
+import type { Address, AddressCreate } from "@/lib/api";
 
 /* ---------------------------------------------------------------------------
  * Create / edit one saved address.
  *
- * The fields are the contract's AddressInput — no recipient name or phone,
+ * The fields are the contract's AddressCreate — no recipient name or phone,
  * because a signed-in customer's contact details live on their profile. That is
  * the difference from the guest checkout form, which has to collect them.
  * ------------------------------------------------------------------------- */
@@ -48,13 +48,23 @@ export function valuesFromAddress(address: Address): AddressValues {
   };
 }
 
-export function toAddressInput(values: AddressValues): AddressInput {
+/**
+ * `contact_phone` is required by contract v4.5.0 and is the recipient's number
+ * for this address, not the account's. The account editor has no field for it
+ * yet — that arrives with the addresses backend slice — so it defaults to the
+ * signed-in phone, which is what a customer's own address would carry anyway.
+ */
+export function toAddressCreate(
+  values: AddressValues,
+  contactPhone: string,
+): AddressCreate {
   return {
     label: values.label.trim(),
     city: values.city.trim(),
     area: values.area.trim(),
     street: values.street.trim(),
     details: values.details.trim() || null,
+    contact_phone: contactPhone,
     is_default: values.is_default,
   };
 }

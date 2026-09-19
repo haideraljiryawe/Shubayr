@@ -44,12 +44,12 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       </div>
     );
   const category = findCategoryBySlug(categories, slug);
-  if (!category || category.is_active === false) notFound();
+  if (!category || category.is_visible === false) notFound();
   const query = parseCatalogQuery(await searchParams);
   const allowedIds = [
     category.id,
     ...(category.children ?? [])
-      .filter((c) => c.is_active !== false)
+      .filter((c) => c.is_visible !== false)
       .map((c) => c.id),
   ];
   if (!query.category_id || !allowedIds.includes(query.category_id))

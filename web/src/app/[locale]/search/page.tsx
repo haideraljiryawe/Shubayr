@@ -34,7 +34,7 @@ export default async function SearchPage({ params, searchParams }: Props) {
   const query = parseCatalogQuery(await searchParams);
   const categories = await api.getCategories().catch(() => null);
   const options = flattenCategories(categories ?? []).filter(
-    (c) => c.is_active !== false,
+    (c) => c.is_visible !== false,
   );
   if (
     query.category_id &&

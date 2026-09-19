@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { api, type Address } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useResource } from "@/lib/use-resource";
 import { AccountEmpty, AccountError, AccountSkeleton } from "./states";
 import {
   AddressEditor,
   EMPTY_ADDRESS,
-  toAddressInput,
+  toAddressCreate,
   valuesFromAddress,
   type AddressValues,
 } from "./address-editor";
@@ -22,6 +23,7 @@ import {
 export function AddressList() {
   const t = useTranslations("addresses");
   const showToast = useToast();
+  const { user } = useAuth();
 
   const {
     data: addresses,
@@ -52,7 +54,7 @@ export function AddressList() {
     setSaving(true);
     setFormError(null);
     try {
-      const input = toAddressInput(values);
+      const input = toAddressCreate(values, user?.phone ?? "");
       if (editing === "new") {
         await api.createAddress(input);
         showToast(t("saved"));
@@ -84,7 +86,7 @@ export function AddressList() {
     if (!address.id) return;
     try {
       await api.updateAddress(address.id, {
-        ...toAddressInput(valuesFromAddress(address)),
+        ...toAddressCreate(valuesFromAddress(address), address.contact_phone),
         is_default: true,
       });
       showToast(t("defaultSet"));

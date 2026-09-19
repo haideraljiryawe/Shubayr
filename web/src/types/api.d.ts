@@ -37,10 +37,13 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            otp_sent?: boolean;
+                            otp_sent: boolean;
+                            /** @description Present only when APP_ENV=development; never returned in production. */
+                            dev_otp?: string;
                         };
                     };
                 };
+                422: components["responses"]["Validation"];
                 429: components["responses"]["RateLimited"];
             };
         };
@@ -71,7 +74,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         phone: string;
-                        /** @example 123456 */
+                        /** @example 000000 */
                         code: string;
                     };
                 };
@@ -87,6 +90,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -133,6 +137,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -207,6 +212,140 @@ export interface paths {
         };
         trace?: never;
     };
+    "/media/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a durable catalog image
+         * @description Accepts JPEG, PNG, WebP, or AVIF up to 8 MiB and returns a stable API URL backed by the S3-compatible object store.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Stored image metadata */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MediaObject"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                /** @description Image exceeds 8 MiB */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unsupported image MIME type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read durable image bytes using a stable public URL */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Original image bytes */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "image/jpeg": string;
+                        "image/png": string;
+                        "image/webp": string;
+                        "image/avif": string;
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete an unassociated media object
+         * @description Returns 409 while a category, product image, or banner still references the URL.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/addresses": {
         parameters: {
             query?: never;
@@ -214,7 +353,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the current user's delivery addresses */
+        /**
+         * List the current user's delivery addresses
+         * @description Returns only addresses owned by the authenticated user. The first address is always made default.
+         */
         get: {
             parameters: {
                 query?: {
@@ -240,7 +382,10 @@ export interface paths {
             };
         };
         put?: never;
-        /** Create a delivery address */
+        /**
+         * Create a delivery address
+         * @description contact_phone is the recipient contact for this address and may equal or differ from the account phone. Creating the first address makes it default regardless of the supplied flag.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -250,7 +395,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["AddressInput"];
+                    "application/json": components["schemas"]["AddressCreate"];
                 };
             };
             responses: {
@@ -305,7 +450,10 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /** Delete an address */
+        /**
+         * Delete an address
+         * @description Only the owner may delete it. Deleting the default promotes the oldest remaining address, ordered by created_at then id.
+         */
         delete: {
             parameters: {
                 query?: never;
@@ -329,7 +477,10 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        /** Update an address */
+        /**
+         * Update an address
+         * @description Only the owner may update it. Setting is_default=true atomically clears the prior default. Clearing the only default while addresses remain returns 409.
+         */
         patch: {
             parameters: {
                 query?: never;
@@ -341,7 +492,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["AddressInput"];
+                    "application/json": components["schemas"]["AddressPatch"];
                 };
             };
             responses: {
@@ -355,6 +506,7 @@ export interface paths {
                     };
                 };
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -369,11 +521,16 @@ export interface paths {
         };
         /**
          * List departments & categories (tree)
-         * @description Category names are returned as `name_ar` and `name_en`. If either stored value is missing, empty, or whitespace-only, that response field falls back to the other language so locale-specific clients never render a blank name.
+         * @description Public results contain only visible categories whose complete ancestor chain is visible. With parent_id omitted, returns roots; with parent_id, returns direct children unless include_subtree=true. Siblings are ordered by sort_order then id.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Parent whose children or subtree should be returned. */
+                    parent_id?: string;
+                    /** @description Include every descendant of parent_id. */
+                    include_subtree?: boolean;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -389,6 +546,7 @@ export interface paths {
                         "application/json": components["schemas"]["Category"][];
                     };
                 };
+                422: components["responses"]["Validation"];
             };
         };
         put?: never;
@@ -482,6 +640,7 @@ export interface paths {
                         "application/json": components["schemas"]["ProductPage"];
                     };
                 };
+                422: components["responses"]["Validation"];
             };
         };
         put?: never;
@@ -903,7 +1062,7 @@ export interface paths {
         put?: never;
         /**
          * Place a Cash-on-Delivery order
-         * @description Creates the order (status=pending) and a pending COD payment. Stock is validated but NOT deducted here; reservation happens on staff confirm.
+         * @description Creates the order (status=pending) and a pending COD payment. Stock is validated but NOT deducted here; reservation happens on staff confirm. The selected owned address and contact_phone are copied into immutable order snapshot fields in the same transaction. Later address edits or deletion never alter a placed order.
          */
         post: {
             parameters: {
@@ -1112,6 +1271,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
             };
         };
         trace?: never;
@@ -1198,7 +1358,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Rate the delivery/agent (separate from product review) */
+        /**
+         * Rate the delivery/agent (separate from product review)
+         * @description Customer-scoped. The authenticated caller must own the delivery's order, the delivery must be delivered, and each caller may rate it once. Return 404 or 409 without exposing another customer's delivery.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -1226,6 +1389,9 @@ export interface paths {
                         "application/json": components["schemas"]["DeliveryRating"];
                     };
                 };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -1793,7 +1959,33 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List the authenticated customer's returns
+         * @description Returns only rows whose user_id is the authenticated caller, newest first, with pagination applied after ownership scoping.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Caller-owned returns */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReturnPage"];
+                    };
+                };
+            };
+        };
         put?: never;
         /** Request a return (partial allowed — choose items & quantities) */
         post: {
@@ -2055,6 +2247,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get persisted notification preferences
+         * @description Returns the authenticated user's stored row or the documented defaults when no row exists yet.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Notification preferences */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationPreferences"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update persisted notification preferences
+         * @description Omitted toggles are unchanged; the update is stored per account and shared by all devices.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferencesPatch"];
+                };
+            };
+            responses: {
+                /** @description Updated notification preferences */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationPreferences"];
+                    };
+                };
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
     "/admin/reports/sales": {
         parameters: {
             query?: never;
@@ -2183,7 +2442,41 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List all products, including hidden and archived products
+         * @description Uses the public filters and server-time pricing without public visibility restrictions.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    category_id?: string;
+                    min_price?: number;
+                    max_price?: number;
+                    on_sale?: boolean;
+                    sort?: "newest" | "price_asc" | "price_desc" | "rating";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated products including non-public states */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
         put?: never;
         /**
          * Create a product
@@ -2228,7 +2521,31 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get any product, including hidden or archived */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Product */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Product"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
         put?: never;
         post?: never;
         /** Delete (archive) a product */
@@ -2258,7 +2575,7 @@ export interface paths {
         head?: never;
         /**
          * Update a product
-         * @description Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
+         * @description Omitted fields are preserved. Explicit null clears only nullable fields; `discount_type: null` clears the complete stored discount definition. Updating unrelated fields never changes a scheduled discount.
          */
         patch: {
             parameters: {
@@ -2271,7 +2588,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ProductInput"];
+                    "application/json": components["schemas"]["ProductPatch"];
                 };
             };
             responses: {
@@ -2286,6 +2603,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
             };
         };
         trace?: never;
@@ -2297,7 +2615,34 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List all categories, including hidden categories
+         * @description Same parent/subtree filtering as the public route, without visibility filtering.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    parent_id?: string;
+                    include_subtree?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Category tree including hidden nodes */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Category"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
         put?: never;
         /**
          * Create a category
@@ -2312,7 +2657,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["CategoryInput"];
+                    "application/json": components["schemas"]["CategoryCreate"];
                 };
             };
             responses: {
@@ -2345,7 +2690,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete a category */
+        /**
+         * Delete a category
+         * @description Deletion is allowed only for a leaf category with no products; otherwise returns 409. Use is_visible=false to hide populated categories.
+         */
         delete: {
             parameters: {
                 query?: never;
@@ -2366,13 +2714,14 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
             };
         };
         options?: never;
         head?: never;
         /**
          * Update a category
-         * @description Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
+         * @description Omitted fields are unchanged. Reparenting must preserve the hierarchy depth and cycle rules.
          */
         patch: {
             parameters: {
@@ -2385,7 +2734,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["CategoryInput"];
+                    "application/json": components["schemas"]["CategoryPatch"];
                 };
             };
             responses: {
@@ -2447,7 +2796,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["BannerInput"];
+                    "application/json": components["schemas"]["BannerCreate"];
                 };
             };
             responses: {
@@ -2541,7 +2890,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["BannerInput"];
+                    "application/json": components["schemas"]["BannerPatch"];
                 };
             };
             responses: {
@@ -2871,10 +3220,38 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         Error: {
-            message?: string;
-            errors?: {
-                [key: string]: unknown;
-            };
+            /** @example 422 */
+            status: number;
+            /** @example VALIDATION_FAILED */
+            code: string;
+            message: string;
+            /** @description Empty for non-validation errors. */
+            errors: components["schemas"]["FieldError"][];
+        };
+        FieldError: {
+            /** @example items.0.quantity */
+            field: string;
+            /** @example min */
+            code: string;
+            /** @example quantity must not be less than 1 */
+            message: string;
+        };
+        /** @description Decimal money amount with at most two fractional digits; rounded half away from zero at money boundaries. */
+        Money: number;
+        MediaObject: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uri
+             * @description Stable API URL used when associating the image with catalog data.
+             */
+            public_url: string;
+            /** @enum {string} */
+            mime_type: "image/jpeg" | "image/png" | "image/webp" | "image/avif";
+            size_bytes: number;
+            checksum: string;
+            /** Format: date-time */
+            created_at: string;
         };
         /** @description Reusable pagination envelope. List endpoints add a `data` array of the resource. */
         Pagination: {
@@ -2892,20 +3269,20 @@ export interface components {
         };
         User: {
             /** Format: uuid */
-            id?: string;
-            name?: string;
-            phone?: string;
-            email?: string | null;
-            is_active?: boolean;
+            id: string;
+            name: string | null;
+            phone: string;
+            email: string | null;
+            is_active: boolean;
             /**
              * @description role name
              * @example customer
              */
-            role?: string;
+            role: string;
             /** @description Flattened permission keys granted to the user's role. */
-            permissions?: string[];
+            permissions: string[];
             /** Format: date-time */
-            created_at?: string;
+            created_at: string;
         };
         /** @description Fields the authenticated user may update without identity re-verification. Phone is intentionally excluded; changing it requires OTP re-verification. */
         UserSelfUpdate: {
@@ -2929,28 +3306,33 @@ export interface components {
         };
         Address: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** Format: uuid */
-            user_id?: string;
+            user_id: string;
             /** @example Home */
-            label?: string;
-            city?: string;
-            area?: string;
-            street?: string;
+            label?: string | null;
+            city: string;
+            area?: string | null;
+            street?: string | null;
             details?: string | null;
+            /** @description Recipient contact for this address; independent from the account phone. */
+            contact_phone: string;
             /** Format: double */
             lat?: number | null;
             /** Format: double */
             lng?: number | null;
-            is_default?: boolean;
+            is_default: boolean;
+            /** Format: date-time */
+            created_at: string;
         };
-        AddressInput: {
+        AddressCreate: {
             /** @example Home */
-            label?: string;
+            label?: string | null;
             city: string;
-            area?: string;
-            street?: string;
+            area?: string | null;
+            street?: string | null;
             details?: string | null;
+            contact_phone: string;
             /** Format: double */
             lat?: number | null;
             /** Format: double */
@@ -2958,10 +3340,24 @@ export interface components {
             /** @default false */
             is_default: boolean;
         };
+        /** @description Omitted fields are unchanged; null clears only nullable fields. contact_phone and city cannot be null. */
+        AddressPatch: {
+            label?: string | null;
+            city?: string;
+            area?: string | null;
+            street?: string | null;
+            details?: string | null;
+            contact_phone?: string;
+            /** Format: double */
+            lat?: number | null;
+            /** Format: double */
+            lng?: number | null;
+            is_default?: boolean;
+        };
         AddressPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Address"][];
         };
-        /** @description Category reads populate an empty or missing `name_ar`/`name_en` from the other language. */
+        /** @description Category reads populate an empty localized name or description from the other language. */
         Category: {
             /** Format: uuid */
             id?: string;
@@ -2971,24 +3367,58 @@ export interface components {
             name_ar?: string;
             /** @description SEO URL slug. Products are still filtered by category_id. */
             slug?: string;
-            icon?: string | null;
+            description_en?: string | null;
+            description_ar?: string | null;
+            /**
+             * Format: uri
+             * @description Stable URL returned by POST /media/images.
+             */
+            image_url?: string | null;
+            /** @description Semantic key such as consumer_electronics; never a framework codepoint or IconData value. */
+            icon_key?: string | null;
             sort_order?: number;
-            is_active?: boolean;
+            is_visible?: boolean;
             children?: components["schemas"]["Category"][];
         };
-        /** @description Admin create and update requests require both names after trimming; neither may be empty. */
-        CategoryInput: {
+        /** @description Creates a root or child category. Maximum depth is five levels, root depth 0 through depth 4. */
+        CategoryCreate: {
             /** Format: uuid */
             parent_id?: string | null;
             /** @description Required non-whitespace English name. */
             name_en: string;
             /** @description Required non-whitespace Arabic name. */
             name_ar: string;
-            icon?: string | null;
+            slug?: string;
+            description_en?: string | null;
+            description_ar?: string | null;
+            /**
+             * Format: uri
+             * @description Stable URL returned by POST /media/images.
+             */
+            image_url?: string | null;
+            icon_key?: string | null;
             /** @default 0 */
             sort_order: number;
             /** @default true */
-            is_active: boolean;
+            is_visible: boolean;
+        };
+        /** @description All fields are optional. parent_id null moves to root; a category cannot be its own parent or a descendant of itself, and reparenting cannot make any subtree node deeper than depth 4. */
+        CategoryPatch: {
+            /** Format: uuid */
+            parent_id?: string | null;
+            name_en?: string;
+            name_ar?: string;
+            slug?: string;
+            description_en?: string | null;
+            description_ar?: string | null;
+            /**
+             * Format: uri
+             * @description Stable URL returned by POST /media/images.
+             */
+            image_url?: string | null;
+            icon_key?: string | null;
+            sort_order?: number;
+            is_visible?: boolean;
         };
         /** @description A catalog product. `in_stock` and `available_qty` are computed at read time (sum of batch_stock minus active reservations); they are not stored. Pricing works the same way: the product stores a regular `price` plus a discount DEFINITION (`discount_type`, `discount_value` and the scheduled window `discount_starts_at`/`discount_ends_at`), and the server derives `on_sale`, `discounted_price`, `effective_price` and `discount_percent` on every read. Those four are never stored, because a scheduled window changes what they mean as the clock moves. Reads populate an empty or missing `name_ar`/`name_en` from the other language so locale-specific clients never receive a blank name. */
         Product: {
@@ -2998,15 +3428,15 @@ export interface components {
             category_id?: string;
             name_en?: string;
             name_ar?: string;
-            description?: string;
+            description?: string | null;
             /** @description Regular selling price. */
-            price?: number;
+            price?: components["schemas"]["Money"];
             /**
              * @description Discount kind, or null when the product has no discount defined.
              * @enum {string|null}
              */
             discount_type?: "percentage" | "amount" | null;
-            /** @description For `percentage`, the percentage off (10 means 10%). For `amount`, the currency amount subtracted from `price`. Null when `discount_type` is null. */
+            /** @description For `percentage`, the percentage off (10 means 10%, at most two decimals). For `amount`, the currency amount subtracted from `price`. Null when `discount_type` is null. */
             discount_value?: number | null;
             /**
              * Format: date-time
@@ -3020,10 +3450,10 @@ export interface components {
             discount_ends_at?: string | null;
             /** @description Computed: true when discount_type is set AND now() falls inside [discount_starts_at, discount_ends_at], treating null bounds as open. */
             readonly on_sale?: boolean;
-            /** @description Computed when on_sale is true: for `percentage`, round(price * (1 - discount_value / 100), 2); for `amount`, max(price - discount_value, 0). Null when on_sale is false. */
+            /** @description Computed in integer minor units when on_sale is true and rounded half away from zero; null when on_sale is false. */
             readonly discounted_price?: number | null;
-            /** @description Computed: the price the customer actually pays - discounted_price when on_sale is true, otherwise price. Cart and order pricing use this value. */
-            readonly effective_price?: number;
+            /** @description The price the customer pays. Cart and order pricing use this exact value. */
+            readonly effective_price?: components["schemas"]["Money"];
             /** @description Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false. */
             readonly discount_percent?: number | null;
             is_negotiable?: boolean;
@@ -3037,7 +3467,8 @@ export interface components {
             in_stock?: boolean;
             /** @description computed: on-hand minus active reservations */
             available_qty?: number;
-            images?: string[];
+            /** @description Ordered by sort_order; the first image is primary. */
+            images?: components["schemas"]["ProductImage"][];
             variants?: components["schemas"]["ProductVariant"][];
         };
         /**
@@ -3059,9 +3490,9 @@ export interface components {
             name_en: string;
             /** @description Required non-whitespace Arabic name. */
             name_ar: string;
-            description?: string;
+            description?: string | null;
             /** @description Regular selling price. */
-            price: number;
+            price: components["schemas"]["Money"];
             /**
              * @description Null (the default) means no discount and clears any discount already stored.
              * @default null
@@ -3091,7 +3522,14 @@ export interface components {
              * @enum {string}
              */
             status: "active" | "hidden" | "archived";
-            images?: string[];
+            /** @description Ordered creation list; array index becomes sort_order and index 0 is primary. */
+            images?: {
+                /**
+                 * Format: uri
+                 * @description Stable URL returned by POST /media/images.
+                 */
+                url: string;
+            }[];
             variants?: {
                 sku?: string;
                 attributes?: {
@@ -3100,29 +3538,103 @@ export interface components {
                 price_delta?: number;
             }[];
         };
+        /** @description All ProductInput fields are optional on PATCH. Omission preserves the stored value. Explicit null clears a nullable field; discount_type null clears discount_type, discount_value, discount_starts_at, and discount_ends_at together. */
+        ProductPatch: {
+            /** Format: uuid */
+            category_id?: string;
+            name_en?: string;
+            name_ar?: string;
+            description?: string | null;
+            price?: components["schemas"]["Money"];
+            /** @enum {string|null} */
+            discount_type?: "percentage" | "amount" | null;
+            discount_value?: number | null;
+            /** Format: date-time */
+            discount_starts_at?: string | null;
+            /** Format: date-time */
+            discount_ends_at?: string | null;
+            is_negotiable?: boolean;
+            floor_price?: number | null;
+            points_price?: number | null;
+            tracks_expiry?: boolean;
+            /** @enum {string} */
+            status?: "active" | "hidden" | "archived";
+            /** @description Applied atomically in array order; the image at final position 0 is primary. */
+            media_operations?: components["schemas"]["ProductMediaOperation"][];
+            variants?: {
+                sku?: string;
+                attributes?: {
+                    [key: string]: unknown;
+                };
+                price_delta?: number;
+            }[];
+        };
+        ProductImage: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uri */
+            url: string;
+            sort_order: number;
+            /** @description True exactly when this is the first image. */
+            readonly is_primary: boolean;
+        };
+        ProductMediaOperation: {
+            /** @constant */
+            op: "add";
+            /**
+             * Format: uri
+             * @description Stable URL returned by POST /media/images.
+             */
+            url: string;
+            position: number;
+        } | {
+            /** @constant */
+            op: "remove";
+            /** Format: uuid */
+            image_id: string;
+        } | {
+            /** @constant */
+            op: "replace";
+            /** Format: uuid */
+            image_id: string;
+            /**
+             * Format: uri
+             * @description Stable URL returned by POST /media/images.
+             */
+            url: string;
+        } | {
+            /** @constant */
+            op: "move";
+            /** Format: uuid */
+            image_id: string;
+            position: number;
+        };
         Banner: {
             /** Format: uuid */
-            id?: string;
-            title?: string;
-            subtitle?: string | null;
+            id: string;
+            title: string;
+            subtitle: string | null;
             /** Format: uri */
-            image_url?: string;
-            cta_text?: string | null;
+            image_url: string;
+            cta_text: string | null;
             /** Format: uri */
-            link_url?: string | null;
-            sort_order?: number;
-            is_active?: boolean;
+            link_url: string | null;
+            sort_order: number;
+            is_active: boolean;
             /** Format: date-time */
-            starts_at?: string | null;
+            starts_at: string | null;
             /** Format: date-time */
-            ends_at?: string | null;
+            ends_at: string | null;
             /** Format: date-time */
-            created_at?: string;
+            created_at: string;
         };
-        BannerInput: {
+        BannerCreate: {
             title: string;
             subtitle?: string | null;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description Stable URL returned by POST /media/images.
+             */
             image_url: string;
             cta_text?: string | null;
             /** Format: uri */
@@ -3131,6 +3643,25 @@ export interface components {
             sort_order: number;
             /** @default true */
             is_active: boolean;
+            /** Format: date-time */
+            starts_at?: string | null;
+            /** Format: date-time */
+            ends_at?: string | null;
+        };
+        /** @description Omitted properties retain their stored values; explicit null clears nullable text or schedule properties. */
+        BannerPatch: {
+            title?: string;
+            subtitle?: string | null;
+            /**
+             * Format: uri
+             * @description Stable URL returned by POST /media/images.
+             */
+            image_url?: string;
+            cta_text?: string | null;
+            /** Format: uri */
+            link_url?: string | null;
+            sort_order?: number;
+            is_active?: boolean;
             /** Format: date-time */
             starts_at?: string | null;
             /** Format: date-time */
@@ -3177,10 +3708,10 @@ export interface components {
                 /** Format: uuid */
                 variant_id?: string | null;
                 quantity?: number;
-                /** @description The product's effective_price: its discounted_price while the discount window is active, otherwise its price. */
-                unit_price?: number;
+                /** @description The product's effective_price captured using the shared money policy. */
+                unit_price?: components["schemas"]["Money"];
             }[];
-            subtotal?: number;
+            subtotal?: components["schemas"]["Money"];
         };
         WishlistItem: {
             /** Format: uuid */
@@ -3226,8 +3757,10 @@ export interface components {
             image_url?: string | null;
             quantity?: number;
             /** @description The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order. */
-            unit_price?: number;
-            line_total?: number;
+            unit_price?: components["schemas"]["Money"];
+            line_total?: components["schemas"]["Money"];
+            /** @description True when the caller already has a product review for this order item. */
+            readonly reviewed?: boolean;
         };
         Order: {
             /** Format: uuid */
@@ -3238,10 +3771,37 @@ export interface components {
             payment_method?: "cod";
             /** Format: uuid */
             address_id?: string | null;
-            subtotal?: number;
-            delivery_fee?: number;
-            discount?: number;
-            total?: number;
+            /**
+             * Format: uuid
+             * @description Current delivery reachable by this order's owner.
+             */
+            delivery_id?: string | null;
+            subtotal?: components["schemas"]["Money"];
+            delivery_fee?: components["schemas"]["Money"];
+            discount?: components["schemas"]["Money"];
+            total?: components["schemas"]["Money"];
+            /** @description Immutable checkout snapshot. */
+            delivery_contact_phone?: string;
+            /** @description Immutable checkout snapshot. */
+            delivery_address_label?: string | null;
+            /** @description Immutable checkout snapshot. */
+            delivery_city?: string;
+            /** @description Immutable checkout snapshot. */
+            delivery_area?: string | null;
+            /** @description Immutable checkout snapshot. */
+            delivery_street?: string | null;
+            /** @description Immutable checkout snapshot. */
+            delivery_details?: string | null;
+            /**
+             * Format: double
+             * @description Immutable checkout snapshot.
+             */
+            delivery_lat?: number | null;
+            /**
+             * Format: double
+             * @description Immutable checkout snapshot.
+             */
+            delivery_lng?: number | null;
             /** Format: date-time */
             placed_at?: string;
             items?: components["schemas"]["OrderItem"][];
@@ -3472,6 +4032,9 @@ export interface components {
             created_at?: string;
             items?: components["schemas"]["ReturnItem"][];
         };
+        ReturnPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["Return"][];
+        };
         Delivery: {
             /** Format: uuid */
             id?: string;
@@ -3500,6 +4063,27 @@ export interface components {
             platform?: "android" | "ios" | "web";
             /** Format: date-time */
             created_at?: string;
+        };
+        NotificationPreferences: {
+            /** @default true */
+            order_updates: boolean;
+            /** @default true */
+            delivery_updates: boolean;
+            /** @default true */
+            return_updates: boolean;
+            /** @default true */
+            loyalty_updates: boolean;
+            /** @default false */
+            promotions: boolean;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        NotificationPreferencesPatch: {
+            order_updates?: boolean;
+            delivery_updates?: boolean;
+            return_updates?: boolean;
+            loyalty_updates?: boolean;
+            promotions?: boolean;
         };
         Permission: {
             /** @example orders.confirm */
@@ -3563,7 +4147,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Missing/invalid token */
+        /** @description Missing/invalid token (`UNAUTHORIZED`) */
         Unauthorized: {
             headers: {
                 [name: string]: unknown;
@@ -3572,7 +4156,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Not found */
+        /** @description Not found (`NOT_FOUND`) */
         NotFound: {
             headers: {
                 [name: string]: unknown;
@@ -3581,7 +4165,16 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Validation error */
+        /** @description State conflict (`CONFLICT`) */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Invalid request data (`VALIDATION_FAILED`, HTTP 422) */
         Validation: {
             headers: {
                 [name: string]: unknown;
@@ -3590,7 +4183,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Too many requests */
+        /** @description Too many requests (`RATE_LIMITED`) */
         RateLimited: {
             headers: {
                 [name: string]: unknown;
@@ -3599,7 +4192,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Missing permission (RBAC) */
+        /** @description Missing permission (`FORBIDDEN`) */
         Forbidden: {
             headers: {
                 [name: string]: unknown;

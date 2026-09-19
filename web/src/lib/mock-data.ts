@@ -3,6 +3,7 @@ import type {
   Coupon,
   Product,
   ProductAvailability,
+  ProductImage,
   Review,
   StoreSettings,
 } from "./api";
@@ -31,9 +32,9 @@ export const mockCategories: Category[] = [
     slug: "electronics",
     name_ar: "إلكترونيات",
     name_en: "Electronics",
-    icon: "Smartphone",
+    icon_key: "electronics",
     sort_order: 1,
-    is_active: true,
+    is_visible: true,
     children: [
       {
         id: "c1-phones",
@@ -41,9 +42,9 @@ export const mockCategories: Category[] = [
         slug: "phones",
         name_ar: "الهواتف والأجهزة اللوحية",
         name_en: "Phones & Tablets",
-        icon: "Smartphone",
+        icon_key: "electronics",
         sort_order: 1,
-        is_active: true,
+        is_visible: true,
         children: [],
       },
       {
@@ -52,9 +53,9 @@ export const mockCategories: Category[] = [
         slug: "audio",
         name_ar: "السماعات والصوتيات",
         name_en: "Headphones & Audio",
-        icon: "Headphones",
+        icon_key: "audio",
         sort_order: 2,
-        is_active: true,
+        is_visible: true,
         children: [],
       },
       {
@@ -63,9 +64,9 @@ export const mockCategories: Category[] = [
         slug: "computers",
         name_ar: "الحواسيب وملحقاتها",
         name_en: "Computers & Accessories",
-        icon: "Laptop",
+        icon_key: "computers",
         sort_order: 3,
-        is_active: true,
+        is_visible: true,
         children: [],
       },
       {
@@ -74,9 +75,9 @@ export const mockCategories: Category[] = [
         slug: "cameras-accessories",
         name_ar: "الكاميرات والإكسسوارات",
         name_en: "Cameras & Accessories",
-        icon: "Camera",
+        icon_key: "Camera",
         sort_order: 4,
-        is_active: true,
+        is_visible: true,
         children: [],
       },
     ],
@@ -87,9 +88,9 @@ export const mockCategories: Category[] = [
     slug: "home-kitchen",
     name_ar: "المنزل والمطبخ",
     name_en: "Home & Kitchen",
-    icon: "Sofa",
+    icon_key: "home_garden",
     sort_order: 2,
-    is_active: true,
+    is_visible: true,
     children: [],
   },
   {
@@ -98,9 +99,9 @@ export const mockCategories: Category[] = [
     slug: "fashion",
     name_ar: "الملابس والأزياء",
     name_en: "Clothing & Fashion",
-    icon: "Shirt",
+    icon_key: "fashion",
     sort_order: 3,
-    is_active: true,
+    is_visible: true,
     children: [],
   },
   {
@@ -109,9 +110,9 @@ export const mockCategories: Category[] = [
     slug: "beauty",
     name_ar: "الجمال والعناية",
     name_en: "Beauty & Care",
-    icon: "Sparkles",
+    icon_key: "beauty",
     sort_order: 4,
-    is_active: true,
+    is_visible: true,
     children: [],
   },
   {
@@ -120,9 +121,9 @@ export const mockCategories: Category[] = [
     slug: "sports",
     name_ar: "الرياضة واللياقة",
     name_en: "Sports & Fitness",
-    icon: "Dumbbell",
+    icon_key: "sports",
     sort_order: 5,
-    is_active: true,
+    is_visible: true,
     children: [],
   },
   {
@@ -131,9 +132,9 @@ export const mockCategories: Category[] = [
     slug: "games",
     name_ar: "الألعاب والهوايات",
     name_en: "Games & Hobbies",
-    icon: "Gamepad2",
+    icon_key: "gaming",
     sort_order: 6,
-    is_active: true,
+    is_visible: true,
     children: [],
   },
   {
@@ -142,9 +143,9 @@ export const mockCategories: Category[] = [
     slug: "tools",
     name_ar: "الأدوات والمعدات",
     name_en: "Tools & Equipment",
-    icon: "Drill",
+    icon_key: "tools",
     sort_order: 7,
-    is_active: true,
+    is_visible: true,
     children: [],
   },
   {
@@ -153,9 +154,9 @@ export const mockCategories: Category[] = [
     slug: "books",
     name_ar: "الكتب والقرطاسية",
     name_en: "Books & Stationery",
-    icon: "BookOpen",
+    icon_key: "books",
     sort_order: 8,
-    is_active: true,
+    is_visible: true,
     children: [],
   },
 ];
@@ -201,6 +202,19 @@ const photographs = {
  * "what the shopper pays" plus an optional regular price, which is the way the
  * catalogue reads on the page.
  */
+/**
+ * A ProductImage as the contract shapes it. `is_primary` is read-only and true
+ * exactly for the first image, so the fixture derives it rather than storing a
+ * second source of truth.
+ */
+function productImage(
+  id: string,
+  url: string,
+  sort_order: number,
+): ProductImage {
+  return { id, url, sort_order, is_primary: sort_order === 0 };
+}
+
 function demo(
   id: string,
   category_id: string,
@@ -238,9 +252,14 @@ function demo(
     status: "active",
     in_stock: true,
     available_qty: 24,
+    // Contract v4 carries ProductImage objects, not bare URLs.
     images: photograph
       ? [
-          `https://images.unsplash.com/${photographs[photograph]}?auto=format&fit=crop&w=640&q=80`,
+          productImage(
+            `${id}-img-1`,
+            `https://images.unsplash.com/${photographs[photograph]}?auto=format&fit=crop&w=640&q=80`,
+            0,
+          ),
         ]
       : [],
     variants: [],
@@ -638,7 +657,7 @@ if (headphones) {
     "https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=1200&q=80",
-  ];
+  ].map((url, index) => productImage(`p1-img-${index + 1}`, url, index));
   headphones.points_price = 8900;
   headphones.is_negotiable = true;
   headphones.description =

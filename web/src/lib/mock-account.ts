@@ -1,6 +1,7 @@
 import type {
   Address,
-  AddressInput,
+  AddressCreate,
+  AddressPatch,
   DeliveryRating,
   DeliveryRatingRequest,
   LoyaltyAccount,
@@ -91,9 +92,13 @@ let addresses: Address[] = [
     area: "الكوت — حي الزهراء",
     street: "شارع 14، دار 22",
     details: "قرب مدرسة الأمل، الطابق الأول",
+    // Required since contract v4.5.0: the recipient for this address, which is
+    // independent of the account phone.
+    contact_phone: "+9647701234567",
     lat: 32.515,
     lng: 45.8181,
     is_default: true,
+    created_at: "2026-05-05T10:30:00.000Z",
   },
   {
     id: "addr-2",
@@ -103,9 +108,11 @@ let addresses: Address[] = [
     area: "الكرادة",
     street: "شارع 62، بناية النور",
     details: null,
+    contact_phone: "+9647701234567",
     lat: null,
     lng: null,
     is_default: false,
+    created_at: "2026-07-04T10:30:00.000Z",
   },
 ];
 
@@ -118,13 +125,14 @@ export function listMockAddresses(): Address[] {
   );
 }
 
-export function createMockAddress(input: AddressInput): Address {
+export function createMockAddress(input: AddressCreate): Address {
   addressSequence += 1;
   const created: Address = {
     ...input,
     id: `addr-${addressSequence}`,
     user_id: currentUser.id,
     is_default: input.is_default ?? addresses.length === 0,
+    created_at: new Date().toISOString(),
   };
   if (created.is_default) {
     addresses = addresses.map((item) => ({ ...item, is_default: false }));
@@ -135,7 +143,7 @@ export function createMockAddress(input: AddressInput): Address {
 
 export function updateMockAddress(
   id: string,
-  input: AddressInput,
+  input: AddressPatch,
 ): Address | undefined {
   const existing = addresses.find((item) => item.id === id);
   if (!existing) return undefined;
