@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.6.0 - 2026-09-19
+
+### Added
+
+- Authenticated, user-scoped server carts with server-time product repricing,
+  stock-aware quantity validation, coupon application, and complete cart totals.
+- Documented guest-cart replay/merge seam after login.
+
+### Changed
+
+- Cart responses now include line totals, availability, coupon discount,
+  delivery fee, and grand total under the shared two-decimal money policy.
+
 ## 4.5.0 - 2026-09-18
 
 ### Added

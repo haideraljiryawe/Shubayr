@@ -85,6 +85,19 @@ and three banners. `npm run seed` is safe to repeat.
 The remaining OpenAPI endpoints are implemented phase-by-phase in the order
 specified by the backend build prompt.
 
+### Cart integration seam
+
+Guest carts stay on the client. After phone-OTP login, replay each guest line
+through authenticated `POST /api/v1/cart/items`; the server merges the same
+product/variant by increasing quantity (maximum 99 and never above available
+stock). `GET /api/v1/cart` always recomputes prices from the current server-time
+catalog discount. The cart subtotal is the sum of effective-price line totals,
+and the cart discount is a validated coupon only. Delivery fee is currently
+zero until a delivery-fee rule is introduced; checkout will recompute every
+amount and reject unavailable lines. There is no bulk merge endpoint yet, so
+clients should replay lines individually and retain failed guest lines for
+user correction.
+
 ## Database migrations
 
 New databases are created with `npm run prisma:migrate:deploy`. Existing
