@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.5.0 - 2026-09-18
+
+### Added
+
+- Idempotent development seed with all six roles, loggable accounts, eight
+  bilingual departments, subcategories, 32 stocked products, variants,
+  server-time discounts, durable MinIO images, and banners.
+- Automated real-PostgreSQL/MinIO acceptance coverage for the admin-to-public
+  catalog path and customer/guest RBAC denial.
+
+### Changed
+
+- The full Docker profile now provisions databases exclusively with Prisma
+  Migrate, seeds on API boot, and exposes one API URL for web and mobile.
+- The production start command now targets the actual compiled NestJS entry
+  point, and the API allows configured web origins through CORS.
+
 ## 4.4.0 - 2026-09-18
 
 ### Added

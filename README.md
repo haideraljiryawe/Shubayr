@@ -34,14 +34,17 @@ shubayr/
 | Push / SMS | Firebase Cloud Messaging / local SMS OTP |
 | Payments | **Cash on Delivery** now; pluggable module for gateways later |
 
-## Quick start (infrastructure)
+## Quick start (real-data stack)
 
 ```bash
 cp .env.example .env
-docker compose up -d          # starts db, redis, search, adminer, mailpit
+docker compose --profile full up -d --build
 ```
 
-On first boot, PostgreSQL auto-loads `infra/db/schema.sql` + `seed_rbac.sql`.
+On first boot, the API deploys the real Prisma migrations and runs the
+idempotent development seed. The shared API URL is
+`http://localhost:8000/api/v1`; `infra/db/schema.sql` remains a synchronized
+bootstrap/reference, not the upgrade path.
 
 | Service | URL |
 |---|---|
@@ -49,12 +52,8 @@ On first boot, PostgreSQL auto-loads `infra/db/schema.sql` + `seed_rbac.sql`.
 | Adminer (DB UI) | http://localhost:8081 |
 | Meilisearch | http://localhost:7700 |
 | Mailpit (dev email) | http://localhost:8025 |
-
-Once the backend exists in `backend/`, run the full stack:
-
-```bash
-docker compose --profile full up -d --build   # adds the NestJS API on :8000
-```
+| MinIO console | http://localhost:9001 |
+| API | http://localhost:8000/api/v1 |
 
 ## Getting started as a developer
 
