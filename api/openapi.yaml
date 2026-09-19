@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 4.5.0
+  version: 4.6.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -27,6 +27,7 @@ info:
     pricing all use this policy.
   license:
     name: Proprietary — Shubayr project
+    identifier: LicenseRef-Proprietary
 servers:
   - url: http://localhost:8000/api/v1
     description: Local development
@@ -400,7 +401,14 @@ paths:
   /cart:
     get:
       tags: [Cart]
-      summary: Get current cart
+      summary: Get the authenticated caller's repriced cart
+      description: >
+        Guest carts remain client-side. After login, clients replay guest lines
+        through POST /cart/items; identical product/variant lines are merged by
+        incrementing quantity. Every response reprices from current server-time
+        effective_price. Subtotal is the sum of effective-price line totals;
+        discount is the coupon amount only, and delivery_fee is zero until a
+        delivery-fee policy is configured at checkout.
       responses:
         "200":
           description: Cart
@@ -421,7 +429,7 @@ paths:
               properties:
                 product_id: { type: string, format: uuid }
                 variant_id: { type: [string, "null"], format: uuid }
-                quantity: { type: integer, minimum: 1 }
+                quantity: { type: integer, minimum: 1, maximum: 99 }
       responses:
         "200":
           description: Updated cart
@@ -439,8 +447,9 @@ paths:
           application/json:
             schema:
               type: object
+              required: [quantity]
               properties:
-                quantity: { type: integer, minimum: 1 }
+                quantity: { type: integer, minimum: 1, maximum: 99 }
       responses:
         "200":
           description: Updated cart
@@ -500,7 +509,8 @@ paths:
   /coupons/validate:
     post:
       tags: [Coupons]
-      summary: Validate a coupon code
+      summary: Validate a coupon code and apply it to the caller's cart
+      description: Invalid, expired, or exhausted codes return 404. Validity is rechecked on every cart read and at checkout.
       requestBody:
         required: true
         content:
@@ -509,7 +519,7 @@ paths:
               type: object
               required: [code]
               properties:
-                code: { type: string }
+                code: { type: string, minLength: 1, maxLength: 60 }
       responses:
         "200":
           description: Valid
@@ -2096,19 +2106,28 @@ components:
 
     Cart:
       type: object
+      required: [id, items, subtotal, discount, delivery_fee, total, coupon_code]
       properties:
         id: { type: string, format: uuid }
+        coupon_code: { type: [string, "null"] }
         items:
           type: array
           items:
             type: object
+            required: [id, product_id, variant_id, quantity, unit_price, line_total, available, available_qty]
             properties:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
               variant_id: { type: [string, "null"], format: uuid }
-              quantity: { type: integer }
-              unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured using the shared money policy." }
+              quantity: { type: integer, minimum: 1, maximum: 99 }
+              unit_price: { $ref: "#/components/schemas/Money", description: "Current server-time effective_price plus the selected variant's price_delta, floored at zero." }
+              line_total: { $ref: "#/components/schemas/Money" }
+              available: { type: boolean, description: "False when the product is hidden/inactive or available_qty is below quantity. Checkout rejects unavailable lines." }
+              available_qty: { type: integer, minimum: 0 }
         subtotal: { $ref: "#/components/schemas/Money" }
+        discount: { $ref: "#/components/schemas/Money", description: "Valid coupon discount only; catalog markdown is already in unit_price." }
+        delivery_fee: { $ref: "#/components/schemas/Money" }
+        total: { $ref: "#/components/schemas/Money" }
 
     WishlistItem:
       type: object

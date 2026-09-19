@@ -325,7 +325,8 @@ CREATE TABLE stock_movements (
 -- ---------------------------------------------------------------------
 CREATE TABLE carts (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    coupon_id       UUID,
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -358,6 +359,9 @@ CREATE TABLE coupons (
     used_count      INT NOT NULL DEFAULT 0,
     expires_at      TIMESTAMPTZ
 );
+
+ALTER TABLE carts ADD CONSTRAINT carts_coupon_id_fkey
+    FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE SET NULL;
 
 -- ---------------------------------------------------------------------
 -- 10. ORDERS

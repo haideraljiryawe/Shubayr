@@ -70,7 +70,7 @@ model User {
   addresses                 Address[]
   purchase_invoices         PurchaseInvoice[]       @relation("PurchaseInvoiceCreatedBy")
   stock_movements           StockMovement[]         @relation("StockMovementUser")
-  carts                     Cart[]
+  cart                      Cart?
   wishlist_items            WishlistItem[]
   orders                    Order[]
   assigned_pick_lists       PickList[]              @relation("PickListAssignee")
@@ -413,9 +413,11 @@ model StockMovement {
 
 model Cart {
   id         String     @id(map: "carts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id    String     @db.Uuid
+  user_id    String     @unique(map: "carts_user_id_key") @db.Uuid
+  coupon_id  String?    @db.Uuid
   updated_at DateTime   @default(now()) @db.Timestamptz(6)
   user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "carts_user_id_fkey")
+  coupon     Coupon?    @relation(fields: [coupon_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "carts_coupon_id_fkey")
   items      CartItem[]
 
   @@map("carts")
@@ -456,6 +458,7 @@ model Coupon {
   used_count  Int       @default(0)
   expires_at  DateTime? @db.Timestamptz(6)
   orders      Order[]
+  carts       Cart[]
 
   @@map("coupons")
 }

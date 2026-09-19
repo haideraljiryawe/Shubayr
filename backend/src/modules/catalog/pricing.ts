@@ -82,6 +82,20 @@ export function calculateLineTotal(
   return minorUnitsToMoney(moneyToMinorUnits(unitPrice) * BigInt(quantity));
 }
 
+/** Percentage of a money amount, rounded once at the minor-unit boundary. */
+export function calculatePercentageAmount(
+  amount: Decimalish,
+  percentage: Decimalish,
+): number {
+  const scaledPercentage = decimalToScaled(percentage, 2);
+  if (scaledPercentage < 0n || scaledPercentage > 10_000n) {
+    throw new RangeError('percentage must be between zero and 100');
+  }
+  return minorUnitsToMoney(
+    divideRoundHalfAway(moneyToMinorUnits(amount) * scaledPercentage, 10_000n),
+  );
+}
+
 function toDate(value: Date | string | null | undefined): Date | null {
   if (value === null || value === undefined) return null;
   const parsed = value instanceof Date ? value : new Date(value);

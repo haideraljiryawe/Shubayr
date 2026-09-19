@@ -25,5 +25,6 @@ import { ProductsService } from './products.service';
       useClass: BilingualNameFallbackInterceptor,
     },
   ],
+  exports: [ProductsService],
 })
 export class CatalogModule {}
