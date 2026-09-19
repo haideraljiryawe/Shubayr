@@ -154,9 +154,14 @@ export function ProfileForm() {
           </p>
         </div>
 
-        <p className="flex items-start gap-1.5 text-xs text-text-muted">
+        {/* Why the field above is read-only, rather than repeating the email
+            hint the email field already carries. */}
+        <p
+          data-testid="profile-phone-hint"
+          className="flex items-start gap-1.5 text-xs text-text-muted"
+        >
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          {t("emailHint")}
+          {t("phoneHint")}
         </p>
 
         <Button

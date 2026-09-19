@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowLeft, Banknote, MapPin, Package } from "lucide-react";
+import { ArrowLeft, Banknote, MapPin, Package, RotateCcw } from "lucide-react";
 import { useTheme } from "@/components/providers/theme-provider";
 import { buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,9 +15,11 @@ import {
   type OrderTracking,
 } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
-import { useOrderProducts } from "@/lib/order-products";
+import { deliveryIdForOrder } from "@/lib/order-delivery";
 import { useResource } from "@/lib/use-resource";
 import { AccountError, AccountSkeleton } from "./states";
+import { OrderItemLine } from "./order-item-line";
+import { OrderReviews } from "./order-reviews";
 import { OrderStatusChip, useOrderDate } from "./order-status";
 import { TrackingTimeline } from "./tracking-timeline";
 
@@ -74,11 +75,19 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   const address =
     addresses?.find((item) => item.id === found.address_id) ?? null;
 
+  // Returns, product reviews and the delivery rating are all things you can
+  // only do once the order is in your hands.
+  const delivered = found.status === "delivered";
+
   return (
     <div className="flex flex-col gap-4">
       <OrderHeader order={found} />
       <OrderItems order={found} />
+      {delivered ? <ReturnCta orderId={found.id ?? orderId} /> : null}
       <TrackingTimeline tracking={tracking} />
+      {delivered ? (
+        <OrderReviews order={found} deliveryId={deliveryIdForOrder(found)} />
+      ) : null}
       <DeliveryCard address={address} />
       <PaymentCard />
       <TotalsCard order={found} />
@@ -91,6 +100,22 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         {t("backToOrders")}
       </Link>
     </div>
+  );
+}
+
+/** Entry point to the return request, shown only on a delivered order. */
+function ReturnCta({ orderId }: { orderId: string }) {
+  const t = useTranslations("returns");
+
+  return (
+    <Link
+      href={`/account/orders/${orderId}/return`}
+      data-testid="order-return-cta"
+      className={buttonClasses({ variant: "secondary", block: true })}
+    >
+      <RotateCcw className="size-4" aria-hidden />
+      {t("request")}
+    </Link>
   );
 }
 
@@ -120,55 +145,39 @@ function OrderHeader({ order }: { order: Order }) {
   );
 }
 
+/**
+ * The order's lines, rendered from the snapshots the order itself carries.
+ *
+ * The contract captures `product_name_ar`/`product_name_en` and `image_url`
+ * at placement, so this no longer re-fetches the catalogue: a renamed or
+ * re-photographed product cannot rewrite what the shopper actually bought,
+ * and the page loses a fan-out of product requests.
+ */
 function OrderItems({ order }: { order: Order }) {
   const t = useTranslations("orders");
-  const locale = useLocale() as Locale;
   const items = order.items ?? [];
-  const products = useOrderProducts(items.map((item) => item.product_id ?? ""));
 
   return (
     <Card padding="md" className="flex flex-col gap-3">
       <h2 className="text-base font-bold text-text">{t("items")}</h2>
       <ul className="flex flex-col divide-y divide-border">
-        {items.map((item) => {
-          const product = products.get(item.product_id ?? "");
-          const name =
-            (locale === "ar" ? product?.name_ar : product?.name_en) ??
-            product?.name_ar ??
-            "";
-          const image = product?.images?.[0];
-
-          return (
-            <li key={item.id} className="flex items-center gap-3 py-3">
-              <span className="relative size-14 shrink-0 overflow-hidden rounded-md bg-card">
-                {image ? (
-                  <Image src={image} alt="" fill sizes="56px" className="object-cover" />
-                ) : (
-                  <span className="flex size-full items-center justify-center">
-                    <Package className="size-6 text-border" aria-hidden />
-                  </span>
-                )}
-              </span>
-
-              <span className="min-w-0 flex-1">
-                <Link
-                  href={`/product/${item.product_id}`}
-                  className="line-clamp-2 text-sm font-medium text-text transition-colors hover:text-primary-dark"
-                >
-                  {name}
-                </Link>
-                <span
-                  dir="ltr"
-                  className="mt-0.5 block text-xs text-text-muted [unicode-bidi:isolate] text-start"
-                >
+        {items.map((item) => (
+          <li key={item.id} className="py-3">
+            <OrderItemLine
+              item={item}
+              href={`/product/${item.product_id}`}
+              className="items-center"
+            >
+              <span className="flex items-center justify-between gap-3">
+                {/* ×N is a Latin-digit run inside an Arabic line. */}
+                <span dir="ltr" className="text-xs text-text-muted [unicode-bidi:isolate]">
                   ×{item.quantity}
                 </span>
+                <Price amount={item.line_total ?? 0} size="sm" />
               </span>
-
-              <Price amount={item.line_total ?? 0} size="sm" />
-            </li>
-          );
-        })}
+            </OrderItemLine>
+          </li>
+        ))}
       </ul>
     </Card>
   );

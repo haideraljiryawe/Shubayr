@@ -15,6 +15,15 @@ import {
   rememberMockOrder,
   updateMockAddress,
   updateMockUser,
+  listMockWishlist,
+  addMockWishlistItem,
+  removeMockWishlistItem,
+  getMockLoyalty,
+  createMockReturn,
+  listMockReturns,
+  createMockReview,
+  createMockDeliveryRating,
+  listMockReviewedOrderItems,
 } from "./mock-account";
 import {
   demoProducts,
@@ -57,6 +66,22 @@ export type Address = Schemas["Address"];
 export type AddressInput = Schemas["AddressInput"];
 export type Order = Schemas["Order"];
 export type OrderItem = Schemas["OrderItem"];
+export type UserSelfUpdate = Schemas["UserSelfUpdate"];
+export type WishlistItem = Schemas["WishlistItem"];
+export type WishlistPage = Schemas["WishlistPage"];
+export type LoyaltyAccount = Schemas["LoyaltyAccount"];
+export type LoyaltyEntry = NonNullable<LoyaltyAccount["ledger"]>[number];
+export type Return = Schemas["Return"];
+export type ReturnStatus = NonNullable<Return["status"]>;
+export type DeliveryRating = Schemas["DeliveryRating"];
+
+/** Request bodies, straight from the contract. */
+export type ReturnRequest =
+  paths["/returns"]["post"]["requestBody"]["content"]["application/json"];
+export type ReviewRequest =
+  paths["/products/{id}/reviews"]["post"]["requestBody"]["content"]["application/json"];
+export type DeliveryRatingRequest =
+  paths["/deliveries/{id}/rating"]["post"]["requestBody"]["content"]["application/json"];
 
 /** Request body of POST /orders, straight from the contract. */
 export type OrderRequest =
@@ -197,6 +222,29 @@ async function request<T>(
   }
 
   return (await response.json()) as T;
+}
+
+/** Same as request(), for endpoints the contract answers with 204 No Content. */
+async function requestNoContent(
+  path: string,
+  { query, ...init }: RequestInit & { query?: Query } = {},
+): Promise<void> {
+  const token = accessToken();
+  const response = await fetch(buildUrl(path, query), {
+    ...init,
+    signal: init.signal ?? AbortSignal.timeout(10_000),
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init.headers,
+    },
+  });
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      `${init.method ?? "GET"} ${path} failed with ${response.status}`,
+    );
+  }
 }
 
 export type ProductQuery = NonNullable<
@@ -453,14 +501,12 @@ export const api = {
   },
 
   /**
-   * Save profile edits.
+   * Save profile edits through PATCH /me.
    *
-   * CONTRACT GAP: api/openapi.yaml exposes /me as GET only, so there is no
-   * endpoint for a customer to edit their own profile — the body below is the
-   * contract's UserInput and the method/path are the obvious shape, but both
-   * must be added to the contract before mocks are switched off.
+   * The contract accepts name and email only: a phone change needs OTP
+   * re-verification, so it goes through the auth flow rather than here.
    */
-  async updateMe(input: Pick<UserInput, "name" | "email">): Promise<User> {
+  async updateMe(input: UserSelfUpdate): Promise<User> {
     return withFreshToken(async () => {
       if (USE_MOCKS) {
         await mockLatency();
@@ -468,7 +514,7 @@ export const api = {
         return updateMockUser(input);
       }
       return request<User>("/me", {
-        method: "PUT",
+        method: "PATCH",
         body: JSON.stringify(input),
       });
     });
@@ -632,6 +678,175 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ payment_method: "cod", ...body }),
       });
+    });
+  },
+
+  /* -------------------------------------------------------- wishlist */
+
+  /**
+   * The signed-in wishlist. A guest has no server wishlist at all, so the
+   * store above this keeps one locally and replays it on sign-in; these three
+   * methods are only ever reached with a session.
+   */
+  async listWishlist(): Promise<WishlistItem[]> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(120);
+        requireMockAuth();
+        return listMockWishlist();
+      }
+      const page = await request<WishlistPage>("/wishlist", {
+        query: { per_page: 100 },
+      });
+      return page.data;
+    });
+  },
+
+  async addWishlistItem(productId: string): Promise<WishlistItem> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(150);
+        requireMockAuth();
+        return addMockWishlistItem(productId);
+      }
+      return request<WishlistItem>("/wishlist", {
+        method: "POST",
+        body: JSON.stringify({ product_id: productId }),
+      });
+    });
+  },
+
+  async removeWishlistItem(productId: string): Promise<void> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(150);
+        requireMockAuth();
+        removeMockWishlistItem(productId);
+        return;
+      }
+      // 204 No Content: nothing to parse, so this bypasses request()'s json().
+      await requestNoContent(`/wishlist/${encodeURIComponent(productId)}`, {
+        method: "DELETE",
+      });
+    });
+  },
+
+  /* --------------------------------------------------------- loyalty */
+
+  /** Points balance plus the ledger, read-only for a customer. */
+  async getLoyalty(): Promise<LoyaltyAccount> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(120);
+        requireMockAuth();
+        return getMockLoyalty();
+      }
+      return request<LoyaltyAccount>("/loyalty");
+    });
+  },
+
+  /* --------------------------------------------------------- returns */
+
+  async createReturn(body: ReturnRequest): Promise<Return> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency();
+        requireMockAuth();
+        return createMockReturn(body);
+      }
+      return request<Return>("/returns", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    });
+  },
+
+  /**
+   * The customer's own return requests.
+   *
+   * CONTRACT GAP: api/openapi.yaml has POST /returns and the staff-only
+   * POST /returns/{id}/inspect, but no customer-facing GET /returns. The
+   * shape below is the obvious one (the shared Pagination envelope over
+   * Return), and it must be added to the contract before mocks are switched
+   * off — until then this reads the local fixture store.
+   */
+  async listReturns(): Promise<Return[]> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(120);
+        requireMockAuth();
+        return listMockReturns();
+      }
+      const page = await request<{ data: Return[] }>("/returns", {
+        query: { per_page: 50 },
+      });
+      return page.data;
+    });
+  },
+
+  /* --------------------------------------------- reviews & rating */
+
+  /** A product review, which the contract ties to a purchased order item. */
+  async createReview(productId: string, body: ReviewRequest): Promise<Review> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency();
+        requireMockAuth();
+        return createMockReview(productId, body);
+      }
+      return request<Review>(
+        `/products/${encodeURIComponent(productId)}/reviews`,
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    });
+  },
+
+  /**
+   * Rating the delivery is a separate act from reviewing the products, and the
+   * contract keeps it on its own endpoint.
+   *
+   * CONTRACT GAP: Order carries no `delivery_id`, and GET /deliveries/{id} is
+   * staff-scoped, so a customer has no contract route from their order to the
+   * delivery this rates. The fixture resolves it from the order; the contract
+   * needs `delivery_id` on Order before mocks are switched off.
+   */
+  async rateDelivery(
+    deliveryId: string,
+    body: DeliveryRatingRequest,
+  ): Promise<DeliveryRating> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency();
+        requireMockAuth();
+        return createMockDeliveryRating(deliveryId, body);
+      }
+      return request<DeliveryRating>(
+        `/deliveries/${encodeURIComponent(deliveryId)}/rating`,
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    });
+  },
+
+  /**
+   * Which of an order's items the customer may still review.
+   *
+   * CONTRACT GAP: nothing in api/openapi.yaml reports whether the signed-in
+   * customer has already reviewed a given order item — GET /products/{id}/
+   * reviews returns published reviews for everyone, with no per-user filter.
+   * Scanning every product's reviews client-side does not scale, so the
+   * fixture answers it directly. A `reviewed` flag on OrderItem, or
+   * GET /me/reviews, would close this.
+   */
+  async listReviewedOrderItems(orderId: string): Promise<string[]> {
+    return withFreshToken(async () => {
+      if (USE_MOCKS) {
+        await mockLatency(100);
+        requireMockAuth();
+        return listMockReviewedOrderItems(orderId);
+      }
+      return request<string[]>(
+        `/orders/${encodeURIComponent(orderId)}/reviewed-items`,
+      );
     });
   },
 

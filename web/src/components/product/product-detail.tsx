@@ -179,7 +179,13 @@ export function ProductDetail({
               >
                 <Share2 className="size-5" aria-hidden />
               </IconButton>
-              <WishlistButton className="bg-surface/90 backdrop-blur" />
+              {/* Without a productId this heart only tracked its own local
+                  state, so a shopper could "save" a product and never find
+                  it again. It now writes to the shared wishlist store. */}
+              <WishlistButton
+                productId={product.id ?? undefined}
+                className="bg-surface/90 backdrop-blur"
+              />
             </div>
           </div>
 

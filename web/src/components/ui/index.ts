@@ -20,6 +20,7 @@ export { Rating } from "./rating";
 export { SearchInput } from "./search-input";
 export { SectionHeader } from "./section-header";
 export { Select } from "./select";
+export { StarInput } from "./star-input";
 export { Textarea } from "./textarea";
 export { ToastProvider, useToast } from "./toast";
 export { Toggle } from "./toggle";

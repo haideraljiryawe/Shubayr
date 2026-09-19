@@ -1,10 +1,18 @@
 import type {
   Address,
   AddressInput,
+  DeliveryRating,
+  DeliveryRatingRequest,
+  LoyaltyAccount,
   Order,
   OrderStatus,
   OrderTracking,
+  Return,
+  ReturnRequest,
+  Review,
+  ReviewRequest,
   User,
+  WishlistItem,
 } from "./api";
 import { demoProducts } from "./mock-data";
 
@@ -178,6 +186,11 @@ function orderItem(
     id: `oi-${productId}`,
     product_id: productId,
     variant_id: null,
+    // Name and image are snapshots taken when the order was placed, so a
+    // later rename or re-photograph never rewrites order history.
+    product_name_ar: product?.name_ar ?? "",
+    product_name_en: product?.name_en ?? "",
+    image_url: product?.images?.[0] ?? null,
     quantity,
     unit_price: unit,
     line_total: unit * quantity,
@@ -216,7 +229,16 @@ let orders: Order[] = [
     orderItem("p1", 1),
     orderItem("p6", 2),
   ]),
-  buildOrder("SB-1035", "delivered", 9, [orderItem("p4", 1)], { discount: 20 }),
+  buildOrder(
+    "SB-1035",
+    "delivered",
+    9,
+    // Two lines, one of them ×3, so a partial return and several reviewable
+    // items are both exercisable against this fixture.
+    [orderItem("p4", 1), orderItem("p10", 3)],
+    { discount: 20 },
+  ),
+  buildOrder("SB-1028", "delivered", 30, [orderItem("p7", 1)]),
   buildOrder("SB-1031", "cancelled", 21, [orderItem("p14", 1)], {
     address_id: "addr-2",
   }),
@@ -286,4 +308,196 @@ export function mockTrackingFor(order: Order): OrderTracking {
   }
 
   return { order_id: order.id, events };
+}
+
+/* ---------------------------------------------------------------------------
+ * Wishlist.
+ *
+ * The signed-in half only. A guest's wishlist lives in wishlist-store.ts and
+ * is replayed into these on sign-in, which is the same seam the cart uses.
+ * ------------------------------------------------------------------------- */
+
+let wishlist: WishlistItem[] = [
+  { id: "wl-p11", product_id: "p11", added_at: isoAgo(3) },
+  { id: "wl-p17", product_id: "p17", added_at: isoAgo(11) },
+];
+
+/** Wishlist rows carry the whole product, so the page needs no second fetch. */
+function withProduct(item: WishlistItem): WishlistItem {
+  const product = demoProducts.find(({ id }) => id === item.product_id);
+  return product ? { ...item, product } : item;
+}
+
+export function listMockWishlist(): WishlistItem[] {
+  return wishlist.map(withProduct);
+}
+
+export function addMockWishlistItem(productId: string): WishlistItem {
+  const existing = wishlist.find((item) => item.product_id === productId);
+  if (existing) return withProduct(existing);
+  const item: WishlistItem = {
+    id: `wl-${productId}`,
+    product_id: productId,
+    added_at: new Date(SEEDED_NOW).toISOString(),
+  };
+  wishlist = [item, ...wishlist];
+  return withProduct(item);
+}
+
+export function removeMockWishlistItem(productId: string): void {
+  wishlist = wishlist.filter((item) => item.product_id !== productId);
+}
+
+/* ---------------------------------------------------------------------------
+ * Loyalty.
+ * ------------------------------------------------------------------------- */
+
+const loyalty: LoyaltyAccount = {
+  points_balance: 1_240,
+  ledger: [
+    { type: "earn", points: 320, created_at: isoAgo(9) },
+    { type: "redeem", points: -500, created_at: isoAgo(14) },
+    { type: "earn", points: 180, created_at: isoAgo(21) },
+    { type: "adjust", points: 40, created_at: isoAgo(35) },
+    { type: "earn", points: 1_200, created_at: isoAgo(52) },
+  ],
+};
+
+export function getMockLoyalty(): LoyaltyAccount {
+  // Newest first; the contract does not promise an order, so the page cannot
+  // rely on one and the fixture sorts the way the page renders.
+  return {
+    ...loyalty,
+    ledger: [...(loyalty.ledger ?? [])].sort((a, b) =>
+      (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+    ),
+  };
+}
+
+/* ---------------------------------------------------------------------------
+ * Returns.
+ * ------------------------------------------------------------------------- */
+
+let returns: Return[] = [
+  {
+    id: "ret-1",
+    order_id: "sb-1028",
+    user_id: mockUser.id,
+    type: "return",
+    status: "approved",
+    reason: "المقاس غير مناسب",
+    created_at: isoAgo(26),
+    items: [{ order_item_id: "oi-p7", quantity: 1 }],
+  },
+];
+
+let returnSeq = returns.length;
+
+export function listMockReturns(): Return[] {
+  return [...returns].sort((a, b) =>
+    (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+  );
+}
+
+export function createMockReturn(body: ReturnRequest): Return {
+  const created: Return = {
+    id: `ret-${++returnSeq}`,
+    order_id: body.order_id,
+    user_id: mockUser.id,
+    type: "return",
+    // Every request starts here; moving it on is a staff action.
+    status: "requested",
+    reason: body.reason ?? null,
+    created_at: new Date(SEEDED_NOW).toISOString(),
+    items: body.items.map((item) => ({
+      order_item_id: item.order_item_id,
+      quantity: item.quantity,
+    })),
+  };
+  returns = [created, ...returns];
+  return created;
+}
+
+/** The quantity already claimed per order item, so a return cannot exceed it. */
+export function mockReturnedQuantities(orderId: string): Map<string, number> {
+  const claimed = new Map<string, number>();
+  for (const entry of returns) {
+    if (entry.order_id !== orderId) continue;
+    if (entry.status === "rejected") continue;
+    for (const item of entry.items ?? []) {
+      const key = item.order_item_id ?? "";
+      claimed.set(key, (claimed.get(key) ?? 0) + (item.quantity ?? 0));
+    }
+  }
+  return claimed;
+}
+
+/* ---------------------------------------------------------------------------
+ * Reviews and the delivery rating.
+ * ------------------------------------------------------------------------- */
+
+let myReviews: Review[] = [];
+let reviewSeq = 0;
+
+export function createMockReview(
+  productId: string,
+  body: ReviewRequest,
+): Review {
+  const created: Review = {
+    id: `rev-mine-${++reviewSeq}`,
+    product_id: productId,
+    user_id: mockUser.id,
+    order_item_id: body.order_item_id,
+    rating: body.rating,
+    comment: body.comment ?? null,
+    // Tied to an order item, so the contract counts it as verified; it still
+    // waits on moderation before it appears on the product page.
+    verified_purchase: true,
+    status: "pending",
+    created_at: new Date(SEEDED_NOW).toISOString(),
+  };
+  myReviews = [created, ...myReviews];
+  return created;
+}
+
+export function listMockReviewedOrderItems(orderId: string): string[] {
+  const order = getMockOrder(orderId);
+  const ids = new Set((order?.items ?? []).map((item) => item.id));
+  return myReviews
+    .map((review) => review.order_item_id ?? "")
+    .filter((id) => ids.has(id));
+}
+
+/**
+ * The delivery behind an order. The contract has no customer-facing route from
+ * an order to its delivery, so the fixture derives a stable id; see the
+ * CONTRACT GAP note on api.rateDelivery.
+ */
+export function mockDeliveryIdFor(order: Order): string | null {
+  return order.status === "delivered" ? `dlv-${order.id}` : null;
+}
+
+let deliveryRatings: DeliveryRating[] = [];
+
+export function getMockDeliveryRating(
+  deliveryId: string,
+): DeliveryRating | undefined {
+  return deliveryRatings.find((entry) => entry.delivery_id === deliveryId);
+}
+
+export function createMockDeliveryRating(
+  deliveryId: string,
+  body: DeliveryRatingRequest,
+): DeliveryRating {
+  const created: DeliveryRating = {
+    id: `dr-${deliveryRatings.length + 1}`,
+    delivery_id: deliveryId,
+    agent_id: null,
+    user_id: mockUser.id,
+    stars: body.stars,
+    comment: body.comment ?? null,
+    created_at: new Date(SEEDED_NOW).toISOString(),
+  };
+  deliveryRatings = [created, ...deliveryRatings];
+  return created;
 }

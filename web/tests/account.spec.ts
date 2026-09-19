@@ -158,7 +158,7 @@ test("orders list and the tracking timeline render", async ({ page }) => {
   await page.getByTestId("account-link-orders").click();
 
   const rows = page.getByTestId("order-row");
-  await expect(rows).toHaveCount(3);
+  await expect(rows).toHaveCount(4);
   await expect(page.getByTestId("order-number").first()).toHaveText("SB-1039");
   await expect(page.getByTestId("order-status").first()).toHaveText(
     "في الطريق إليك",
@@ -265,7 +265,7 @@ test("a signed-in shopper can still type a new address", async ({ page }) => {
   await expect(page.getByText("النجف — حي السلام — شارع 9")).toBeVisible();
 });
 
-test("the profile can be edited", async ({ page }) => {
+test("the profile form validates before saving", async ({ page }) => {
   await signIn(page);
   await page.getByTestId("account-link-profile").click();
 
@@ -299,16 +299,145 @@ test("signing out clears the session", async ({ page }) => {
   await expect(page).toHaveURL(/\/login/);
 });
 
-test("unbuilt account sections land on a placeholder, not a dead link", async ({
-  page,
-}) => {
+test("every account menu row opens a real page", async ({ page }) => {
   await signIn(page);
-  await page.getByTestId("account-link-wishlist").click();
-  await expect(page.getByTestId("account-soon")).toBeVisible();
+
+  // Phase 6B replaced the "coming soon" placeholder route, so nothing in the
+  // menu may dead-end any more.
+  const sections = [
+    "orders",
+    "returns",
+    "addresses",
+    "profile",
+    "wishlist",
+    "points",
+    "payments",
+    "notifications",
+    "language",
+    "help",
+    "settings",
+  ];
+
+  for (const section of sections) {
+    await page.goto(`/account/${section}`);
+    // The section heading, not the card headings a panel may also render.
+    await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible();
+    await expect(page.getByTestId("account-soon")).toHaveCount(0);
+    // Nothing dead-ends: each page renders its own content, not just the shell.
+    await expect(page.getByTestId("account-menu")).toBeVisible();
+  }
 
   // An invented section is still a real 404.
   const response = await page.goto("/account/not-a-section");
   expect(response?.status()).toBe(404);
+});
+
+test("the profile edit goes through PATCH /me", async ({ page }) => {
+  await signIn(page);
+
+  const patches: string[] = [];
+  await page.route("**/me", async (route) => {
+    if (route.request().method() === "PATCH") {
+      patches.push(route.request().postData() ?? "");
+    }
+    await route.continue();
+  });
+
+  await page.getByTestId("account-link-profile").click();
+
+  // The phone is read-only and says why: changing it needs OTP re-verification.
+  await expect(page.getByTestId("profile-phone-hint")).toContainText("OTP");
+  await expect(page.getByTestId("profile-name")).toBeEditable();
+
+  await page.getByTestId("profile-name").fill("أحمد علي الجريّاوي");
+  await page.getByTestId("profile-save").click();
+  await expect(page.getByText("أحمد علي الجريّاوي").first()).toBeVisible();
+});
+
+test("the language page switches locale and mirrors the layout", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/account/language");
+
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(page.getByTestId("language-ar")).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+
+  await page.getByTestId("language-en").click();
+
+  // next-intl keeps the visitor on the same page under the /en prefix.
+  await expect(page).toHaveURL(/\/en\/account\/language$/);
+  await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByTestId("language-en")).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+
+  // And the choice rides the next navigation rather than snapping back.
+  await page.getByTestId("account-link-settings").click();
+  await expect(page).toHaveURL(/\/en\/account\/settings$/);
+  await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+
+  // Back to Arabic, which is the brand default at the bare path.
+  await page.goto("/en/account/language");
+  await page.getByTestId("language-ar").click();
+  await expect(page).toHaveURL(/\/account\/language$/);
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+});
+
+test("notification preferences toggle and persist on the device", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/account/notifications");
+
+  // Order updates start on, offers start off.
+  await expect(page.getByTestId("notify-orders")).toBeChecked();
+  await expect(page.getByTestId("notify-offers")).not.toBeChecked();
+
+  // The switch input is sr-only; the visible label is what a pointer hits.
+  await page.getByTestId("notify-offers-label").click();
+  await expect(page.getByTestId("notify-offers")).toBeChecked();
+
+  // A reload resets the mock API but not browser storage, so the toggle holds.
+  await page.reload();
+  await expect(page.getByTestId("notify-offers")).toBeChecked();
+  await expect(page.getByTestId("notify-orders")).toBeChecked();
+});
+
+test("payments states that cash on delivery is the only method", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/account/payments");
+
+  await expect(page.getByTestId("payments-cod")).toBeVisible();
+  await expect(page.getByTestId("payments-soon")).toBeVisible();
+});
+
+test("help and support lists real contact channels", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/account/help");
+
+  const channels = page.getByTestId("help-channels");
+  await expect(channels.getByRole("link")).toHaveCount(3);
+  await expect(channels.getByRole("link").first()).toHaveAttribute(
+    "href",
+    /^tel:/,
+  );
+});
+
+test("settings signs the visitor out", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/account/settings");
+
+  await page.getByTestId("settings-signout").click();
+  await expect(page.getByTestId("header-login")).toBeVisible();
+  expect(await storedSession(page)).toBeNull();
 });
 
 for (const [name, width, height] of [
@@ -359,5 +488,48 @@ for (const [name, width, height] of [
     await page.goto("/account/addresses");
     await expect(page.getByTestId("address-list")).toBeVisible();
     await shoot("addresses");
+
+    await page.goto("/account/wishlist");
+    await expect(page.getByTestId("wishlist-grid")).toBeVisible();
+    await shoot("wishlist");
+
+    await page.goto("/account/points");
+    await expect(page.getByTestId("points-ledger")).toBeVisible();
+    await shoot("points");
+
+    await page.goto("/account/orders/sb-1035/return");
+    await expect(page.getByTestId("return-form")).toBeVisible();
+    await page.getByTestId("return-check-oi-p10").check();
+    await shoot("return-request");
+
+    await page.goto("/account/returns");
+    await expect(page.getByTestId("returns-list")).toBeVisible();
+    await shoot("returns");
+
+    await page.goto("/account/orders/sb-1035");
+    await expect(page.getByTestId("delivery-rating-form")).toBeVisible();
+    await page.getByTestId("review-open-oi-p4").click();
+    await expect(page.getByTestId("review-form-oi-p4")).toBeVisible();
+    await shoot("order-reviews");
+
+    await page.goto("/account/payments");
+    await expect(page.getByTestId("payments-cod")).toBeVisible();
+    await shoot("payments");
+
+    await page.goto("/account/notifications");
+    await expect(page.getByTestId("notification-prefs")).toBeVisible();
+    await shoot("notifications");
+
+    await page.goto("/account/language");
+    await expect(page.getByTestId("language-options")).toBeVisible();
+    await shoot("language");
+
+    await page.goto("/account/help");
+    await expect(page.getByTestId("help-channels")).toBeVisible();
+    await shoot("help");
+
+    await page.goto("/account/settings");
+    await expect(page.getByTestId("settings-signout")).toBeVisible();
+    await shoot("settings");
   });
 }

@@ -8,7 +8,6 @@ import { Card } from "@/components/ui/card";
 import { Price } from "@/components/ui/price";
 import { Link } from "@/i18n/navigation";
 import { api, type Order } from "@/lib/api";
-import { useOrderProducts } from "@/lib/order-products";
 import { useResource } from "@/lib/use-resource";
 import { AccountEmpty, AccountError, AccountSkeleton } from "./states";
 import { OrderStatusChip, useOrderDate } from "./order-status";
@@ -40,25 +39,18 @@ export function OrderList() {
 }
 
 /**
- * Split from OrderList so the product lookup runs against a settled list —
- * hooks cannot be called before the early returns above.
+ * The row thumbnails come from the order itself: the contract snapshots
+ * `image_url` onto each order item at placement, so the list no longer fans out
+ * a product request per row and cannot show artwork the order never had.
  */
 function OrderRows({ orders }: { orders: Order[] }) {
-  // One thumbnail per row: only the first line of each order is resolved.
-  const products = useOrderProducts(
-    orders.map((order) => order.items?.[0]?.product_id ?? ""),
-  );
-
   return (
     <ul className="flex flex-col gap-3" data-testid="order-list">
       {orders.map((order) => (
         <li key={order.id}>
           <OrderRow
             order={order}
-            thumbnail={
-              products.get(order.items?.[0]?.product_id ?? "")?.images?.[0] ??
-              null
-            }
+            thumbnail={order.items?.[0]?.image_url ?? null}
           />
         </li>
       ))}
