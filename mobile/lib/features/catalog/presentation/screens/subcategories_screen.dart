@@ -104,7 +104,11 @@ class _SubcategoryGrid extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      categoryIconFor(category.icon, categoryId: category.id),
+                      categoryIconFor(
+                        category.icon,
+                        categoryId: category.id,
+                        iconKey: category.iconKey,
+                      ),
                       size: AppLayout.categoryIconSize,
                       color: context.colors.primary,
                     ),

@@ -8,6 +8,7 @@ import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_remote.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
+import 'package:shubayr/features/catalog/data/media/catalog_image.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
 
 const base = Product(
@@ -45,6 +46,34 @@ void main() {
     expect(product.discountEndsAt, endsAt);
     expect(product.toJson(), isNot(contains('sale_price')));
     expect(product.toJson(), isNot(contains('compare_at_price')));
+  });
+
+  test('updating mock gallery preserves scheduled discount fields', () {
+    final startsAt = DateTime.utc(2026, 9, 1);
+    final product = Product.fromJson({
+      ...base.toJson(),
+      'price': 100,
+      'discount_type': 'percentage',
+      'discount_value': 20,
+      'discount_starts_at': startsAt.toIso8601String(),
+      'discount_ends_at': null,
+      'on_sale': true,
+      'discounted_price': 80,
+      'effective_price': 80,
+      'discount_percent': 20,
+    });
+    const image = UrlCatalogImage('https://example.com/primary.jpg');
+
+    final updated = product.copyWith(mockImages: [image]);
+
+    expect(updated.displayImages, [image]);
+    expect(updated.price, 100);
+    expect(updated.discountType, 'percentage');
+    expect(updated.discountValue, 20);
+    expect(updated.discountStartsAt, startsAt);
+    expect(updated.effectivePrice, 80);
+    expect(updated.salePrice, 80);
+    expect(updated.toJson(), isNot(contains('mock_images')));
   });
 
   test(
@@ -170,10 +199,7 @@ void main() {
         expect(data['discount_value'], original == null ? null : 20);
         expect(data['discount_starts_at'], isNull);
         expect(data['discount_ends_at'], isNull);
-        expect(
-          data.containsKey('discount_percent'),
-          isFalse,
-        );
+        expect(data.containsKey('discount_percent'), isFalse);
         expect(requests.last.method, original == null ? 'PATCH' : 'POST');
       }
     },
@@ -184,9 +210,9 @@ void main() {
   late List<Map<String, dynamic>> categories;
   setUp(() async {
     catalog = CatalogRepositoryMock(delay: Duration.zero);
-    products = (await catalog.fetchProducts(
-      perPage: 100,
-    )).data.map((p) => p.toJson()).toList();
+    products = (await catalog.fetchProducts(perPage: 100)).data
+        .map((p) => p.toJson())
+        .toList();
     categories = [];
     void flatten(Category c) {
       categories.add(c.toJson());
@@ -294,9 +320,8 @@ void main() {
         expect(p.discountPercent, isNull);
         expect(p.isOnSale, isFalse);
         expect(
-          (await catalog.fetchProducts(
-            onSale: true,
-          )).data.any((p) => p.id == original.id),
+          (await catalog.fetchProducts(onSale: true)).data
+              .any((p) => p.id == original.id),
           isFalse,
         );
       }

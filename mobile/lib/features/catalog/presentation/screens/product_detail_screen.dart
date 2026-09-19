@@ -167,7 +167,10 @@ class _DetailState extends ConsumerState<_Detail> {
               ResponsiveSections(
                 stackedSpacing: 0,
                 children: [
-                  ProductGallery(images: product.images),
+                  ProductGallery(
+                    images: product.images,
+                    media: product.mockImages,
+                  ),
                   Padding(
                     padding: AppLayout.pageInsets(context),
                     child: Column(

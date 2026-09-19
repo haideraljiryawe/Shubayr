@@ -13,6 +13,7 @@ class AdminRepositoryRemote implements AdminRepository {
     String query = '',
     String? role,
     String? warehouseId,
+    String? categoryId,
   }) async {
     if (resource == AdminResource.locations && warehouseId == null) {
       throw const AppFailure(FailureKind.validation);
@@ -44,6 +45,8 @@ class AdminRepositoryRemote implements AdminRepository {
       query: {
         'page': page,
         'per_page': perPage,
+        if (resource == AdminResource.products && categoryId != null)
+          'category_id': categoryId,
         if (resource.canSearch && query.trim().isNotEmpty) 'q': query.trim(),
         if (resource == AdminResource.users && role != null) 'role': role,
       },
@@ -66,6 +69,9 @@ class AdminRepositoryRemote implements AdminRepository {
     String? id,
   }) async {
     if (id == null ? !resource.canCreate : !resource.canEdit) {
+      throw const AppFailure(FailureKind.validation);
+    }
+    if (input.keys.any((key) => key.startsWith('mock_'))) {
       throw const AppFailure(FailureKind.validation);
     }
     var body = resource.input(input);
@@ -94,8 +100,7 @@ class AdminRepositoryRemote implements AdminRepository {
   Map<String, dynamic> _scheduledDiscountInput(Map<String, dynamic> input) {
     final sale = input['sale_price'] as num;
     final original = input['compare_at_price'] as num?;
-    final discounted =
-        original != null && original.isFinite && original > sale;
+    final discounted = original != null && original.isFinite && original > sale;
     return {
       for (final entry in input.entries)
         if (!const {'sale_price', 'compare_at_price'}.contains(entry.key))

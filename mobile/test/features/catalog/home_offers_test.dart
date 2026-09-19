@@ -142,7 +142,8 @@ void main() {
             ('cat-electronics', Icons.devices),
             ('cat-grocery', Icons.shopping_basket),
             ('cat-clothing', Icons.checkroom),
-            ('cat-home', Icons.home),
+            // The fixture now uses the explicit home_furniture semantic key.
+            ('cat-home', Icons.weekend),
             ('cat-beauty', Icons.spa),
             ('cat-sports', Icons.fitness_center),
           ]) {

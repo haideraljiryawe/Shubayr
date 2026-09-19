@@ -9,9 +9,15 @@ import '../../../../core/widgets/app_button.dart';
 /// Shared by the resource lists. Fields stay mounted when resizing; actions
 /// move to the toolbar only in desktop windows. The screen owns the mobile FAB.
 class AdminListToolbar extends StatelessWidget {
-  const AdminListToolbar({super.key, required this.fields, this.onAdd});
+  const AdminListToolbar({
+    super.key,
+    required this.fields,
+    this.onAdd,
+    this.addLabel,
+  });
   final List<Widget> fields;
   final VoidCallback? onAdd;
+  final String? addLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +51,7 @@ class AdminListToolbar extends StatelessWidget {
                 if (desktop && onAdd != null)
                   AppButton(
                     key: const ValueKey('admin-toolbar-add'),
-                    label: context.l10n.adminAdd,
+                    label: addLabel ?? context.l10n.adminAdd,
                     icon: Icons.add,
                     expand: false,
                     onPressed: onAdd,

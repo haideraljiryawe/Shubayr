@@ -9,7 +9,6 @@ import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/state_views.dart';
-import '../data/mock_category_descriptions.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/category_card.dart';
 
@@ -44,8 +43,11 @@ class CategoriesScreen extends ConsumerWidget {
                 return CategoryCard(
                   key: ValueKey('cat-card-${category.id}'),
                   category: category,
+                  legacyMockArtwork: isMock,
                   description: isMock
-                      ? mockCategoryDescription(category.id, context.l10n)
+                      ? category.localizedDescription(
+                          Localizations.localeOf(context).languageCode,
+                        )
                       : null,
                   onTap: () => context.pushNamed(
                     AppRoutes.subcategoriesName,

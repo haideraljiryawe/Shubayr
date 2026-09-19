@@ -1,3 +1,4 @@
+import 'package:shubayr/features/admin/presentation/media/store_image_picker.dart';
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,10 +26,13 @@ Widget host(
   Widget? child,
   String locale = 'en',
   bool dark = false,
+  double scale = 1,
   AdminTestSession? session,
+  StoreImagePicker? picker,
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    if (picker != null) storeImagePickerProvider.overrideWithValue(picker),
     brandProvider.overrideWithValue(const Brand.bundled()),
     adminRepositoryProvider.overrideWithValue(repo),
     sessionControllerProvider.overrideWith(() => session ?? AdminTestSession()),
@@ -40,6 +44,12 @@ Widget host(
     theme: dark
         ? AppTheme.dark(const Brand.bundled())
         : AppTheme.light(const Brand.bundled()),
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(
+        context,
+      ).copyWith(textScaler: TextScaler.linear(scale)),
+      child: child!,
+    ),
     home: child ?? AdminListScreen(resource: resource),
   ),
 );
@@ -48,6 +58,8 @@ Future<void> save(WidgetTester tester) async {
   await tester.pumpAndSettle();
   final button = find.widgetWithText(AppButton, 'Save');
   await tester.ensureVisible(button);
+  await tester.pumpAndSettle();
+  await tester.pump(const Duration(seconds: 4));
   await tester.pumpAndSettle();
   await tester.tap(button);
   await tester.pumpAndSettle();
@@ -308,6 +320,14 @@ void main() {
         find.byKey(const ValueKey('name_en')),
         'New category',
       );
+      await tester.enterText(
+        find.byKey(const ValueKey('mock_description_en')),
+        'Daily essentials',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('mock_description_ar')),
+        'احتياجات يومية',
+      );
       await save(tester);
       expect(repo.writes.single.input['sort_order'], 0);
       expect(find.text('New category'), findsOneWidget);
@@ -341,7 +361,7 @@ void main() {
     },
   );
   testWidgets(
-    'product form saves names, category, price, image URLs and variants',
+    'product form saves names, category, prices and variants without URL entry',
     (tester) async {
       final repo = RecordingAdmin();
       await tester.pumpWidget(host(repo, resource: AdminResource.products));
@@ -351,7 +371,7 @@ void main() {
       final category = find.byType(DropdownButtonFormField<String>).first;
       await tester.tap(category);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Electronics').last);
+      await tester.tap(find.text('Electronics / Phones').last);
       await tester.pumpAndSettle();
       for (final entry in {
         'name_ar': 'مادة جديدة',
@@ -360,7 +380,6 @@ void main() {
         'compare_at_price': '15,000',
         'floor_price': '۱۲۵۰.۵',
         'points_price': '۱۲۵۰.0',
-        'images': 'https://example.com/product.jpg',
       }.entries) {
         final field = find.byKey(ValueKey(entry.key));
         await tester.ensureVisible(field);
@@ -402,7 +421,8 @@ void main() {
       expect(input['points_price'], 1250);
       expect((input['variants'] as List).single['price_delta'], -1250.5);
       expect(input['points_price'], isA<int>());
-      expect(input['images'], ['https://example.com/product.jpg']);
+      expect(input['mock_images'], isEmpty);
+      expect(find.byKey(const ValueKey('images')), findsNothing);
       expect((input['variants'] as List).single['sku'], 'SKU-NEW');
       expect(find.byType(AdminRecordForm), findsNothing);
       expect(tester.takeException(), isNull);

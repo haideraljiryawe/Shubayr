@@ -20,7 +20,8 @@ import 'package:shubayr/core/widgets/skeleton.dart';
 import 'package:shubayr/core/widgets/state_views.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
-import 'package:shubayr/features/catalog/presentation/data/mock_category_descriptions.dart';
+import 'package:shubayr/features/catalog/presentation/widgets/catalog_image_view.dart';
+import 'package:shubayr/features/catalog/data/media/catalog_image.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:shubayr/features/catalog/presentation/screens/categories_screen.dart';
 import 'package:shubayr/features/catalog/presentation/screens/subcategories_screen.dart';
@@ -140,10 +141,7 @@ void main() {
             await tester.scrollUntilVisible(card, 150);
             await tester.pumpAndSettle();
             final context = tester.element(card);
-            final description = mockCategoryDescription(
-              parent.id,
-              AppLocalizations.of(context),
-            );
+            final description = parent.localizedDescription(locale);
             expect(description, isNotNull);
             final label = find.descendant(
               of: card,
@@ -322,7 +320,17 @@ void main() {
           imageRect.width,
           closeTo(rect.width * AppLayout.categoryCardImageFraction, 0.01),
         );
-        expect(tester.widget<CachedNetworkImage>(image).fit, BoxFit.cover);
+        expect(
+          tester
+              .widget<CachedNetworkImage>(
+                find.descendant(
+                  of: image,
+                  matching: find.byType(CachedNetworkImage),
+                ),
+              )
+              .fit,
+          BoxFit.cover,
+        );
         final decoration =
             tester
                     .widget<DecoratedBox>(
@@ -359,10 +367,15 @@ void main() {
         expect(find.byIcon(Icons.chevron_right), findsNothing);
         expect(find.byIcon(Icons.chevron_left), findsNothing);
         expect(find.byKey(const ValueKey('cat-sub-cat-phones')), findsNothing);
-        final url = tester.widget<CachedNetworkImage>(image).imageUrl;
+        final url =
+            (tester.widget<CatalogImageView>(image).image as UrlCatalogImage)
+                .url;
         await tester.pumpWidget(_host(locale: locale));
         await tester.pumpAndSettle();
-        expect(tester.widget<CachedNetworkImage>(image).imageUrl, url);
+        expect(
+          (tester.widget<CatalogImageView>(image).image as UrlCatalogImage).url,
+          url,
+        );
         expect(
           tester.getSize(image).width,
           closeTo(
@@ -582,7 +595,10 @@ void main() {
     await tester.pumpWidget(_host());
     await tester.pumpAndSettle();
     final image = tester.widget<CachedNetworkImage>(
-      find.byKey(const ValueKey('cat-image-c1')),
+      find.descendant(
+        of: find.byKey(const ValueKey('cat-image-c1')),
+        matching: find.byType(CachedNetworkImage),
+      ),
     );
     final context = tester.element(find.byType(CategoryCard).first);
     final fallback = image.errorWidget!(

@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'catalog_image_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -133,21 +133,14 @@ class _Thumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final url = product.primaryImage;
+    final media = product.primaryDisplayImage;
 
     Widget placeholder() => ColoredBox(
       color: colors.surfaceAlt,
       child: Icon(Icons.image_outlined, color: colors.textMuted, size: 32),
     );
 
-    final image = url == null
-        ? placeholder()
-        : CachedNetworkImage(
-            imageUrl: url,
-            fit: BoxFit.cover,
-            errorWidget: (context, _, _) => placeholder(),
-            placeholder: (context, _) => ColoredBox(color: colors.surfaceAlt),
-          );
+    final image = CatalogImageView(image: media, placeholder: placeholder());
 
     return Stack(
       fit: StackFit.expand,

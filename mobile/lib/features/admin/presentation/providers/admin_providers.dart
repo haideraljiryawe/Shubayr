@@ -1,3 +1,4 @@
+import '../../../catalog/presentation/providers/product_list_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/error/failure.dart';
@@ -42,19 +43,22 @@ class AdminQuery {
     this.text = '',
     this.role,
     this.warehouseId,
+    this.categoryId,
   });
   final AdminResource resource;
   final String text;
-  final String? role, warehouseId;
+  final String? role, warehouseId, categoryId;
   @override
   bool operator ==(Object other) =>
       other is AdminQuery &&
       resource == other.resource &&
       text == other.text &&
       role == other.role &&
-      warehouseId == other.warehouseId;
+      warehouseId == other.warehouseId &&
+      categoryId == other.categoryId;
   @override
-  int get hashCode => Object.hash(resource, text, role, warehouseId);
+  int get hashCode =>
+      Object.hash(resource, text, role, warehouseId, categoryId);
 }
 
 class AdminList {
@@ -84,6 +88,18 @@ class AdminListController extends AsyncNotifier<AdminList> {
     _saving = false;
     ref.onDispose(() => _generation++);
     _require(arg.resource.readPermission);
+    // A hierarchy needs the complete tree before grouping: children can be on
+    // later pages than their parents. Product lists remain paginated.
+    if (arg.resource == AdminResource.categories) {
+      final records = await ref.watch(adminLookupsProvider(arg).future);
+      final page = AdminPage(
+        items: records,
+        page: 1,
+        perPage: records.isEmpty ? 1 : records.length,
+        total: records.length,
+      );
+      return AdminList(page, records);
+    }
     final page = await _fetch(repo, 1);
     return AdminList(page, page.items);
   }
@@ -100,6 +116,7 @@ class AdminListController extends AsyncNotifier<AdminList> {
       query: arg.text,
       role: arg.role,
       warehouseId: arg.warehouseId,
+      categoryId: arg.categoryId,
     );
     if (page.page != number ||
         page.perPage <= 0 ||
@@ -110,6 +127,9 @@ class AdminListController extends AsyncNotifier<AdminList> {
   }
 
   Future<void> refresh() async {
+    if (arg.resource == AdminResource.categories) {
+      ref.invalidate(adminLookupsProvider(arg));
+    }
     ref.invalidateSelf();
     try {
       await future;
@@ -175,6 +195,9 @@ class AdminListController extends AsyncNotifier<AdminList> {
         ref.invalidate(categoriesProvider);
         ref.invalidate(categoryFeedProvider);
         ref.invalidate(productProvider);
+        ref.invalidate(productListControllerProvider);
+        ref.invalidate(homeOffersProvider);
+        ref.invalidate(offerCategoriesProvider);
       }
       ref.invalidateSelf();
       return true;

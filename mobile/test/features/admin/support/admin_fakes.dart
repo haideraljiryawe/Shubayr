@@ -25,6 +25,7 @@ typedef AdminRequest = ({
   String query,
   String? role,
   String? warehouseId,
+  String? categoryId,
 });
 
 class RecordingAdmin extends AdminRepositoryMock {
@@ -44,6 +45,7 @@ class RecordingAdmin extends AdminRepositoryMock {
     String query = '',
     String? role,
     String? warehouseId,
+    String? categoryId,
   }) {
     final request = (
       resource: resource,
@@ -52,6 +54,7 @@ class RecordingAdmin extends AdminRepositoryMock {
       query: query,
       role: role,
       warehouseId: warehouseId,
+      categoryId: categoryId,
     );
     requests.add(request);
     return onFetch?.call(request) ??
@@ -62,6 +65,7 @@ class RecordingAdmin extends AdminRepositoryMock {
           query: query,
           role: role,
           warehouseId: warehouseId,
+          categoryId: categoryId,
         );
   }
 

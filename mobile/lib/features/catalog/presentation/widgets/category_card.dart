@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../data/media/catalog_image.dart';
+import 'catalog_image_view.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_layout.dart';
@@ -33,8 +34,10 @@ class CategoryCard extends StatelessWidget {
     required this.category,
     required this.onTap,
     this.description,
+    this.legacyMockArtwork = false,
   });
   final Category category;
+  final bool legacyMockArtwork;
   final String? description;
   final VoidCallback onTap;
 
@@ -50,7 +53,13 @@ class CategoryCard extends StatelessWidget {
       color: colors.surfaceAlt,
       child: Center(
         child: Icon(
-          categoryIconFor(category.icon, categoryId: category.id),
+          category.imageManaged || !legacyMockArtwork
+              ? Icons.image_outlined
+              : categoryIconFor(
+                  category.icon,
+                  categoryId: category.id,
+                  iconKey: category.iconKey,
+                ),
           color: colors.textMuted,
           size: AppLayout.categoryIconSize,
         ),
@@ -120,12 +129,17 @@ class CategoryCard extends StatelessWidget {
                         child: Stack(
                           children: [
                             Positioned.fill(
-                              child: CachedNetworkImage(
+                              child: CatalogImageView(
                                 key: ValueKey('cat-image-${category.id}'),
-                                imageUrl: categoryImageUrl(category.id),
-                                fit: BoxFit.cover,
-                                placeholder: (_, _) => fallback(),
-                                errorWidget: (_, _, _) => fallback(),
+                                image:
+                                    category.image ??
+                                    (category.imageManaged || !legacyMockArtwork
+                                        ? null
+                                        : UrlCatalogImage(
+                                            categoryImageUrl(category.id),
+                                          )),
+                                placeholder: fallback(),
+                                loading: fallback(),
                               ),
                             ),
                           ],
