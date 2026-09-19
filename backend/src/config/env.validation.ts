@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { DEFAULT_CORS_ORIGINS } from './cors';
 
 const schema = Joi.object({
   APP_ENV: Joi.string()
@@ -39,7 +40,7 @@ const schema = Joi.object({
   PUBLIC_API_URL: Joi.string()
     .uri({ scheme: ['http', 'https'] })
     .default('http://localhost:8000/api/v1'),
-  CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
+  CORS_ORIGINS: Joi.string().default(DEFAULT_CORS_ORIGINS),
   S3_ENDPOINT: Joi.string()
     .uri({ scheme: ['http', 'https'] })
     .required(),
