@@ -7,7 +7,7 @@ const product = {
   id: 'product-id',
   category_id: 'category-id',
   name_en: 'Coffee',
-  name_ar: 'قهوة',
+  name_ar: 'Ù‚Ù‡ÙˆØ©',
   description: null,
   price: '20.15',
   discount_type: 'percentage',
@@ -78,7 +78,11 @@ describe('ProductsService', () => {
         Promise.all(operations),
       ),
     };
-    const service = new ProductsService(prisma as never, {} as never);
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     const availability = await service.availability(product.id);
     expect(availability.available_qty).toBe(2);
     expect(availability.variants[0].available_qty).toBe(2);
@@ -101,7 +105,11 @@ describe('ProductsService', () => {
         }),
       },
     };
-    const service = new ProductsService(prisma as never, {} as never);
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await service.listPublic({});
     const query = productQuery as {
       where: { status: string; category_id: { in: string[] } };
@@ -125,7 +133,11 @@ describe('ProductsService', () => {
         Promise.all(operations),
       ),
     };
-    const service = new ProductsService(prisma as never, {} as never);
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     const result = await service.getAdmin(product.id);
     expect(result.effective_price).toBe(10.08);
     expect(result.on_sale).toBe(true);
@@ -161,7 +173,11 @@ describe('ProductsService', () => {
           : Promise.all(operation as Array<Promise<unknown>>),
       ),
     };
-    const service = new ProductsService(prisma as never, {} as never);
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await service.update(product.id, { name_en: 'Fresh Coffee' });
     expect(updateData).toEqual({ name_en: 'Fresh Coffee' });
   });
@@ -201,7 +217,11 @@ describe('ProductsService', () => {
           : Promise.all(operation as Array<Promise<unknown>>),
       ),
     };
-    const service = new ProductsService(prisma as never, {} as never);
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await service.update(product.id, {
       media_operations: [{ op: 'remove', image_id: 'image-a' }],
     });

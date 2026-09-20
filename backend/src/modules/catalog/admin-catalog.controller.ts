@@ -9,8 +9,11 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { CategoriesService } from './categories.service';
 import { CategoryQueryDto, ProductQueryDto } from './dto/catalog-query.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -65,16 +68,20 @@ export class AdminProductsController {
   }
 
   @Post()
-  create(@Body() input: CreateProductDto) {
-    return this.products.create(input);
+  create(
+    @Req() request: Request & { user: AuthenticatedRequestUser },
+    @Body() input: CreateProductDto,
+  ) {
+    return this.products.create(input, request.user.id);
   }
 
   @Patch(':id')
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() input: UpdateProductDto,
+    @Req() request: Request & { user: AuthenticatedRequestUser },
   ) {
-    return this.products.update(id, input);
+    return this.products.update(id, input, request.user.id);
   }
 
   @Delete(':id')

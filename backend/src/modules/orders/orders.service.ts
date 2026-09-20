@@ -9,6 +9,7 @@ import {
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { ProductsService } from '../catalog/products.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 import { calculateLineTotal } from '../catalog/pricing';
 import {
   activeCoupon,
@@ -42,6 +43,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly products: ProductsService,
+    private readonly loyalty: LoyaltyService,
   ) {}
 
   async place(userId: string, input: PlaceOrderDto, rawKey?: string) {
@@ -376,6 +378,9 @@ export class OrdersService {
         where: { order_id: id, released_at: null },
         data: { released_at: new Date() },
       });
+    }
+    if (status === 'delivered') {
+      await this.loyalty.earnDelivered(tx, id, _actorId);
     }
     if (
       ['out_for_delivery', 'delivered', 'failed_delivery', 'returned'].includes(

@@ -6,9 +6,10 @@ import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { AddressesController } from './addresses.controller';
 import { AddressesService } from './addresses.service';
+import { LoyaltyModule } from '../loyalty/loyalty.module';
 
 @Module({
-  imports: [CatalogModule],
+  imports: [CatalogModule, LoyaltyModule],
   controllers: [
     CartController,
     CouponController,

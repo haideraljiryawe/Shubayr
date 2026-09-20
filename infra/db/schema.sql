@@ -206,6 +206,10 @@ CREATE TABLE products (
         discount_starts_at IS NULL
         OR discount_ends_at IS NULL
         OR discount_ends_at > discount_starts_at
+    ),
+    CONSTRAINT products_negotiation_values_check CHECK (
+        (floor_price IS NULL OR (floor_price >= 0 AND floor_price <= price))
+        AND (points_price IS NULL OR points_price >= 0)
     )
 );
 
@@ -570,19 +574,37 @@ CREATE TABLE delivery_ratings (
 -- ---------------------------------------------------------------------
 CREATE TABLE loyalty_accounts (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    points_balance  INT NOT NULL DEFAULT 0
+    user_id         UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE loyalty_ledger (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     account_id      UUID NOT NULL REFERENCES loyalty_accounts(id) ON DELETE CASCADE,
     order_id        UUID REFERENCES orders(id),
+    return_id       UUID REFERENCES returns(id),
     type            VARCHAR(20) NOT NULL,   -- earn | redeem | adjust | expire
+    reason          VARCHAR(120) NOT NULL,
     points          INT NOT NULL,           -- +earn / -redeem
     note            VARCHAR(255),
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_by      UUID NOT NULL REFERENCES users(id),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT loyalty_ledger_type_points_check CHECK (
+        (type = 'earn' AND points > 0 AND order_id IS NOT NULL)
+        OR (type = 'redeem' AND points < 0)
+        OR (type = 'adjust' AND points <> 0)
+        OR (type = 'expire' AND points < 0)
+    )
 );
+
+CREATE UNIQUE INDEX loyalty_earn_order_once ON loyalty_ledger(order_id) WHERE type = 'earn';
+CREATE FUNCTION loyalty_ledger_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'loyalty ledger entries are append-only';
+END;
+$$;
+CREATE TRIGGER loyalty_ledger_no_update_delete
+    BEFORE UPDATE OR DELETE ON loyalty_ledger
+    FOR EACH ROW EXECUTE FUNCTION loyalty_ledger_immutable();
 
 -- ---------------------------------------------------------------------
 -- 16. AUDIT TRAIL  (sensitive operations)
@@ -624,6 +646,7 @@ CREATE INDEX idx_orders_status          ON orders(status);
 CREATE INDEX idx_order_items_order      ON order_items(order_id);
 CREATE INDEX idx_returns_order          ON returns(order_id);
 CREATE INDEX idx_loyalty_ledger_account ON loyalty_ledger(account_id);
+CREATE INDEX idx_loyalty_ledger_return ON loyalty_ledger(return_id);
 CREATE INDEX idx_audit_entity           ON audit_logs(entity_type, entity_id);
 
 -- =====================================================================

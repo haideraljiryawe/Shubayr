@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { MediaService } from '../media/media.service';
 import { ProductQueryDto } from './dto/catalog-query.dto';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -29,6 +30,7 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    private readonly audit: AuditService,
   ) {}
 
   listPublic(query: ProductQueryDto) {
@@ -62,43 +64,55 @@ export class ProductsService {
     return this.toResponse(product, new Date());
   }
 
-  async create(input: CreateProductDto) {
+  async create(input: CreateProductDto, actorId?: string) {
     await this.ensureCategory(input.category_id);
     await this.validateManagedUrls((input.images ?? []).map(({ url }) => url));
     await this.ensureSkusAvailable(input.variants ?? []);
     this.validatePricing(input);
 
     const { images, variants, ...data } = input;
-    const product = await this.prisma.product.create({
-      data: {
-        ...data,
-        name_en: data.name_en.trim(),
-        name_ar: data.name_ar.trim(),
-        images: images?.length
-          ? {
-              create: images.map(({ url }, sort_order) => ({
-                url,
-                sort_order,
-              })),
-            }
-          : undefined,
-        variants: variants?.length
-          ? {
-              create: variants.map((variant) => ({
-                sku: variant.sku,
-                attributes: variant.attributes as
-                  Prisma.InputJsonValue | undefined,
-                price_delta: variant.price_delta ?? 0,
-              })),
-            }
-          : undefined,
-      },
-      include: productInclude,
+    const product = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          ...data,
+          name_en: data.name_en.trim(),
+          name_ar: data.name_ar.trim(),
+          images: images?.length
+            ? {
+                create: images.map(({ url }, sort_order) => ({
+                  url,
+                  sort_order,
+                })),
+              }
+            : undefined,
+          variants: variants?.length
+            ? {
+                create: variants.map((variant) => ({
+                  sku: variant.sku,
+                  attributes: variant.attributes as
+                    Prisma.InputJsonValue | undefined,
+                  price_delta: variant.price_delta ?? 0,
+                })),
+              }
+            : undefined,
+        },
+        include: productInclude,
+      });
+      if (actorId && this.hasNegotiationPatch(input)) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'catalog.negotiation.create',
+          entityType: 'product',
+          entityId: created.id,
+          after: this.negotiationValues(created),
+        });
+      }
+      return created;
     });
     return this.toResponse(product, new Date());
   }
 
-  async update(id: string, input: UpdateProductDto) {
+  async update(id: string, input: UpdateProductDto, actorId?: string) {
     const current = await this.prisma.product.findUnique({
       where: { id },
       include: productInclude,
@@ -112,11 +126,21 @@ export class ProductsService {
     await this.validateManagedUrls(mediaUrls);
 
     const mergedPricing = mergeProductPricingPatch(current, input);
-    this.validatePricing(mergedPricing);
+    this.validatePricing({ ...current, ...input, ...mergedPricing });
     const data = this.productPatchData(input);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.product.update({ where: { id }, data });
+      if (actorId && this.hasNegotiationPatch(input)) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'catalog.negotiation.update',
+          entityType: 'product',
+          entityId: id,
+          before: this.negotiationValues(current),
+          after: this.negotiationValues({ ...current, ...input }),
+        });
+      }
       if (input.variants) {
         await tx.productVariant.deleteMany({ where: { product_id: id } });
         if (input.variants.length) {
@@ -348,12 +372,37 @@ export class ProductsService {
 
   private validatePricing(product: {
     price: number | string | { toNumber(): number };
+    is_negotiable?: boolean;
+    floor_price?: number | string | { toNumber(): number } | null;
+    points_price?: number | null;
     discount_type?: string | null;
     discount_value?: number | string | { toNumber(): number } | null;
     discount_starts_at?: Date | string | null;
     discount_ends_at?: Date | string | null;
   }): void {
     const price = this.decimalNumber(product.price);
+    const floor =
+      product.floor_price == null
+        ? null
+        : this.decimalNumber(product.floor_price);
+    if (floor !== null && (floor < 0 || floor > price)) {
+      throw new UnprocessableEntityException(
+        'floor_price must be between zero and price',
+      );
+    }
+    if (product.is_negotiable && floor === null) {
+      throw new UnprocessableEntityException(
+        'Negotiable products require floor_price',
+      );
+    }
+    if (
+      product.points_price != null &&
+      (!Number.isInteger(product.points_price) || product.points_price < 0)
+    ) {
+      throw new UnprocessableEntityException(
+        'points_price must be a non-negative integer',
+      );
+    }
     const value =
       product.discount_value === null || product.discount_value === undefined
         ? null
@@ -404,6 +453,29 @@ export class ProductsService {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') return Number(value);
     return value.toNumber();
+  }
+
+  private hasNegotiationPatch(input: {
+    is_negotiable?: boolean;
+    floor_price?: number | null;
+    points_price?: number | null;
+  }) {
+    return ['is_negotiable', 'floor_price', 'points_price'].some((field) =>
+      Object.prototype.hasOwnProperty.call(input, field),
+    );
+  }
+
+  private negotiationValues(row: {
+    is_negotiable?: boolean;
+    floor_price?: number | string | { toNumber(): number } | null;
+    points_price?: number | null;
+  }) {
+    return {
+      is_negotiable: row.is_negotiable ?? false,
+      floor_price:
+        row.floor_price == null ? null : this.decimalNumber(row.floor_price),
+      points_price: row.points_price ?? null,
+    };
   }
 
   private productPatchData(input: UpdateProductDto) {
