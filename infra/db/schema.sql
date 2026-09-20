@@ -115,14 +115,19 @@ CREATE TABLE addresses (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- FCM push-notification device tokens (one row per device/token per user)
+-- Push device tokens are unique globally and can move between accounts.
 CREATE TABLE device_tokens (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token           VARCHAR(512) NOT NULL,
     platform        VARCHAR(16) NOT NULL,   -- android | ios | web
+    locale          VARCHAR(8),
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    last_seen_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deactivated_at  TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (user_id, token)
+    CONSTRAINT device_tokens_token_key UNIQUE (token),
+    CONSTRAINT device_tokens_platform_check CHECK (platform IN ('android', 'ios', 'web'))
 );
 
 CREATE TABLE notification_preferences (
@@ -133,6 +138,54 @@ CREATE TABLE notification_preferences (
     loyalty_updates     BOOLEAN NOT NULL DEFAULT TRUE,
     promotions          BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE notification_channel_preferences (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(40) NOT NULL,
+    channel VARCHAR(8) NOT NULL,
+    enabled BOOLEAN NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT notification_channel_preferences_pkey PRIMARY KEY (user_id, type, channel),
+    CONSTRAINT notification_channel_preferences_type_check CHECK (type IN
+      ('order_placed','order_confirmed','order_status_changed','out_for_delivery','delivered',
+       'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo')),
+    CONSTRAINT notification_channel_preferences_channel_check CHECK (channel IN ('push','sms')),
+    CONSTRAINT notification_channel_preferences_critical_check
+      CHECK (NOT (type = 'order_confirmed' AND channel = 'sms' AND enabled = false))
+);
+
+CREATE TABLE notification_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_key VARCHAR(160) NOT NULL UNIQUE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(40) NOT NULL,
+    entity_type VARCHAR(40) NOT NULL,
+    entity_id UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    enqueued_at TIMESTAMPTZ,
+    processed_at TIMESTAMPTZ,
+    CONSTRAINT notification_events_type_check CHECK (type IN
+      ('order_placed','order_confirmed','order_status_changed','out_for_delivery','delivered',
+       'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo'))
+);
+
+CREATE TABLE notification_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID NOT NULL REFERENCES notification_events(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(40) NOT NULL,
+    channel VARCHAR(8) NOT NULL CHECK (channel IN ('push','sms')),
+    delivery_key VARCHAR(120) NOT NULL UNIQUE,
+    status VARCHAR(8) NOT NULL CHECK (status IN ('queued','sent','skipped','failed')),
+    locale VARCHAR(8) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    body TEXT NOT NULL,
+    entity_type VARCHAR(40) NOT NULL,
+    entity_id UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    sent_at TIMESTAMPTZ,
+    error VARCHAR(500)
 );
 
 -- ---------------------------------------------------------------------
@@ -647,6 +700,8 @@ CREATE INDEX idx_movements_batch        ON stock_movements(batch_id);
 CREATE INDEX idx_movements_type         ON stock_movements(type);
 CREATE INDEX idx_reservations_order     ON stock_reservations(order_id);
 CREATE INDEX idx_device_tokens_user     ON device_tokens(user_id);
+CREATE INDEX idx_notification_events_pending ON notification_events(enqueued_at, created_at);
+CREATE INDEX idx_notification_logs_user_history ON notification_logs(user_id, created_at DESC, id DESC);
 CREATE UNIQUE INDEX idx_addresses_one_default_per_user ON addresses(user_id)
     WHERE is_default;
 CREATE INDEX idx_orders_user            ON orders(user_id);

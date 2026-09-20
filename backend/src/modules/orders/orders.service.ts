@@ -10,6 +10,7 @@ import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { ProductsService } from '../catalog/products.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { calculateLineTotal } from '../catalog/pricing';
 import {
   activeCoupon,
@@ -44,6 +45,7 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly products: ProductsService,
     private readonly loyalty: LoyaltyService,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   async place(userId: string, input: PlaceOrderDto, rawKey?: string) {
@@ -262,6 +264,13 @@ export class OrdersService {
         where: { id: cart.id },
         data: { coupon_id: null, updated_at: at },
       });
+      await this.notifications?.record(
+        tx,
+        userId,
+        'order_placed',
+        'order',
+        order.id,
+      );
       return order.id;
     });
     return this.getOwned(userId, orderId);
@@ -373,6 +382,27 @@ export class OrdersService {
     await tx.orderStatusEvent.create({
       data: { order_id: id, status, note: note ?? null },
     });
+    if (this.notifications) {
+      const order = await tx.order.findUniqueOrThrow({ where: { id } });
+      const type =
+        status === 'confirmed'
+          ? 'order_confirmed'
+          : status === 'out_for_delivery'
+            ? 'out_for_delivery'
+            : status === 'delivered'
+              ? 'delivered'
+              : status === 'failed_delivery'
+                ? 'delivery_failed'
+                : 'order_status_changed';
+      await this.notifications.record(
+        tx,
+        order.user_id,
+        type,
+        'order',
+        id,
+        type === 'order_status_changed' ? status : '',
+      );
+    }
     if (status === 'cancelled') {
       await tx.simpleStockHold.updateMany({
         where: { order_id: id, released_at: null },

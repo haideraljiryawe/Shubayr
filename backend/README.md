@@ -78,6 +78,34 @@ The seed creates these development accounts; each uses the configured
 | delivery | `+9647700000005`, `+9647700000007` |
 | customer | `+9647700000006` |
 
+### Notifications
+
+`POST /api/v1/devices/token` registers or reassigns a globally unique push token;
+`DELETE /api/v1/devices/token?token=...` deactivates a token owned by the caller.
+`GET/PATCH /api/v1/me/notification-preferences` reads and updates the effective
+type/channel matrix; `GET /api/v1/me/notifications` lists the caller's attempts.
+Token registration and preference changes are audited. Seed data includes a
+customer web token, two explicit preferences, and sent/skipped history rows.
+
+The ten types are `order_placed`, `order_confirmed`, `order_status_changed`,
+`out_for_delivery`, `delivered`, `delivery_failed`, `return_update`,
+`loyalty_points_earned`, `review_moderated`, and `promo`. Each supports `push`
+and `sms`. Transactional push defaults on, except an existing broad category
+opt-out still applies until a type/channel override is saved. SMS defaults on
+for order confirmation, delivery success, and delivery failure; other SMS and
+all promo delivery default off. Customers may opt out of any pair except the
+critical order-confirmation SMS. Promo is always opt-in. A preference disabled
+at worker time creates a `skipped` history row.
+
+Domain transactions write notification events to a PostgreSQL outbox. A
+background poller enqueues them through BullMQ; the worker reads active tokens,
+effective preferences, and token locale (Arabic fallback), then records each
+attempt as `queued`, `sent`, `skipped`, or `failed`. Queue keys are scoped to
+the database name, so disposable acceptance runs cannot consume dev jobs.
+`NOTIFICATION_PROVIDER=dev` logs push/SMS without network calls; production
+defaults to `disabled` and records failed attempts until real gateways are
+configured. Provider classes are the integration seam for those gateways.
+
 It also creates eight bilingual departments and their subcategories, 32
 stocked products with variants and ordered images, active/future discounts,
 three banners, `DEV10` and `SHUBAYR10` percentage coupons, and six sample customer orders

@@ -8,6 +8,7 @@ import {
 import type { OrderItem, Prisma } from '../../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../database/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   calculateLineTotal,
   minorUnitsToMoney,
@@ -30,6 +31,7 @@ export class ReturnsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   listOwned(userId: string, query: ReturnQueryDto) {
@@ -145,6 +147,14 @@ export class ReturnsService {
           expected_refund: minorUnitsToMoney(expectedMinor),
         },
       });
+      await this.notifications?.record(
+        tx,
+        userId,
+        'return_update',
+        'return',
+        created.id,
+        'requested',
+      );
       return created.id;
     });
     return this.get(id);
@@ -264,6 +274,14 @@ export class ReturnsService {
           before: { status: current.status },
           after: { status, refund_amount: refundAmount },
         });
+        await this.notifications?.record(
+          tx,
+          current.user_id,
+          'return_update',
+          'return',
+          id,
+          status,
+        );
         if (approvedTotal > 0) {
           const ledger = await tx.refundLedgerEntry.create({
             data: {
@@ -375,6 +393,14 @@ export class ReturnsService {
           before: { status: current.status },
           after: { status: 'completed', order_returned: fullyReturned },
         });
+        await this.notifications?.record(
+          tx,
+          current.user_id,
+          'return_update',
+          'return',
+          id,
+          'completed',
+        );
       },
       { timeout: 15_000 },
     );

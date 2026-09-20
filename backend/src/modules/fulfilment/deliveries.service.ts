@@ -7,6 +7,7 @@ import {
 import type { Delivery, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AssignedDeliveriesQueryDto } from './dto/assigned-deliveries-query.dto';
 import {
   AssignDeliveryDto,
@@ -27,6 +28,7 @@ export class DeliveriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly loyalty: LoyaltyService,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   listAssigned(agentId: string, query: AssignedDeliveriesQueryDto) {
@@ -169,6 +171,18 @@ export class DeliveriesService {
       if (input.status === 'delivered') {
         await this.loyalty.earnDelivered(tx, delivery.order_id, agentId);
       }
+      await this.notifications?.record(
+        tx,
+        delivery.order.user_id,
+        input.status === 'failed'
+          ? 'delivery_failed'
+          : input.status === 'returned'
+            ? 'return_update'
+            : input.status,
+        'delivery',
+        id,
+        input.status,
+      );
       return tx.delivery.update({
         where: { id },
         data: {
