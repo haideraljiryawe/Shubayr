@@ -9,7 +9,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 import { PrismaClient } from '../src/generated/prisma/client';
-import { calculateLineTotal } from '../src/modules/catalog/pricing';
+import {
+  calculateLineTotal,
+  minorUnitsToMoney,
+  moneyToMinorUnits,
+} from '../src/modules/catalog/pricing';
 import { cartUnitPrice } from '../src/modules/orders/cart-pricing';
 
 const databaseUrl = required('DATABASE_URL');
@@ -658,8 +662,9 @@ async function seedPartialReturnDemo(
     cartUnitPrice(product, variant.price_delta, now),
   );
   const quantities = [3, 1];
-  const subtotal =
-    calculateLineTotal(prices[0], 3) + calculateLineTotal(prices[1], 1);
+  const subtotal = minorUnitsToMoney(
+    moneyToMinorUnits(prices[0]) * 3n + moneyToMinorUnits(prices[1]),
+  );
   await prisma.order.upsert({
     where: { id: orderId },
     update: {},
@@ -751,7 +756,9 @@ async function seedPartialReturnDemo(
       status: 'consumed',
     },
   });
-  const refund = prices[0] + prices[1];
+  const refund = minorUnitsToMoney(
+    moneyToMinorUnits(prices[0]) + moneyToMinorUnits(prices[1]),
+  );
   await prisma.return.upsert({
     where: { id: returnId },
     update: {},
