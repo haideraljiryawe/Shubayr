@@ -53,6 +53,11 @@ export class CartController {
   ) {
     return this.cart.remove(request.user.id, id);
   }
+
+  @Delete('coupon')
+  removeCoupon(@Req() request: AuthenticatedRequest) {
+    return this.cart.removeCoupon(request.user.id);
+  }
 }
 
 @Controller('coupons')

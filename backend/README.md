@@ -80,7 +80,7 @@ The seed creates these development accounts; each uses the configured
 
 It also creates eight bilingual departments and their subcategories, 32
 stocked products with variants and ordered images, active/future discounts,
-three banners, a `DEV10` percentage coupon, and four sample customer orders
+three banners, `DEV10` and `SHUBAYR10` percentage coupons, and four sample customer orders
 (pending, confirmed, out_for_delivery, delivered). Each order has immutable
 line/address snapshots and a delivery record; the delivered item has a seeded
 review. `npm run seed` is safe to repeat and does not duplicate those orders.
@@ -100,6 +100,9 @@ zero until a delivery-fee rule is introduced; checkout recomputes every
 amount and rejects unavailable lines. There is no bulk merge endpoint yet, so
 clients should replay lines individually and retain failed guest lines for
 user correction.
+
+`DELETE /api/v1/cart/coupon` detaches the current user's coupon and returns the
+repriced cart. Repeating the request when no coupon is applied is safe.
 
 ### COD checkout and orders
 
@@ -123,6 +126,18 @@ workflow. The seed currently refreshes development batch quantities; do not
 use repeated development seeding as production inventory bookkeeping.
 
 ## Database migrations
+
+The compose stack (`docker compose --profile full up`) owns the canonical
+`shubayr` development database. Its API deploys migrations and runs the
+idempotent seed on startup. Keep `DATABASE_URL` in the environment or compose;
+do not commit `.env` files. `npm run test:acceptance` uses `DATABASE_URL` only
+to connect to the PostgreSQL server: it creates a unique `shubayr_*_verify`
+database, migrates and seeds it, starts an API on a free port, runs the checks,
+then drops that database. Never point verify or acceptance at the shared dev
+API or database. A failed process can leave a disposable database behind;
+`npm run db:drop-verify` lists leftovers and
+`npm run db:drop-verify -- --execute` drops only `*_verify` databases. Run that
+maintenance command manually when needed; it is not part of boot or CI.
 
 New databases are created with `npm run prisma:migrate:deploy`. Existing
 databases that were originally provisioned from `infra/db/schema.sql` must be
@@ -149,7 +164,7 @@ npm run typecheck
 npm run lint
 npm run build
 npm test
-npm run test:acceptance # requires the built API plus PostgreSQL and MinIO
+npm run test:acceptance # requires a built API, PostgreSQL, and MinIO; creates its own DB/API
 ```
 
 `test:acceptance` runs both the admin-to-public catalog check and the

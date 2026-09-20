@@ -585,6 +585,22 @@ async function main(): Promise<void> {
     },
     create: { code: 'DEV10', type: 'percentage', value: 10 },
   });
+  await prisma.coupon.upsert({
+    where: { code: 'SHUBAYR10' },
+    update: {
+      type: 'percentage',
+      value: 10,
+      usage_limit: null,
+      expires_at: null,
+    },
+    create: {
+      code: 'SHUBAYR10',
+      type: 'percentage',
+      value: 10,
+      usage_limit: null,
+      expires_at: null,
+    },
+  });
   await seedCustomerOrders(users.get('customer')!, now);
 
   console.log(

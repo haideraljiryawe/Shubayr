@@ -129,6 +129,15 @@ export class CartService {
     };
   }
 
+  async removeCoupon(userId: string) {
+    const { id } = await this.getOrCreate(userId);
+    await this.prisma.cart.update({
+      where: { id },
+      data: { coupon_id: null, updated_at: new Date() },
+    });
+    return this.response(id);
+  }
+
   private async getOrCreate(userId: string) {
     return this.prisma.cart.upsert({
       where: { user_id: userId },

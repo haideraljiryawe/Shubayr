@@ -96,7 +96,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: shubayr_acceptance
+          POSTGRES_DB: postgres
         ports: [ "5432:5432" ]
         options: >-
           --health-cmd="pg_isready -U postgres" --health-interval=10s
@@ -105,7 +105,7 @@ jobs:
       APP_ENV: development
       NODE_ENV: test
       API_PORT: 8000
-      DATABASE_URL: postgresql://postgres:test@localhost:5432/shubayr_acceptance?schema=public
+      DATABASE_URL: postgresql://postgres:test@localhost:5432/postgres?schema=public
       REDIS_URL: redis://localhost:6379
       MEILI_HOST: http://localhost:7700
       MEILI_MASTER_KEY: masterKey_acceptance
@@ -139,30 +139,15 @@ jobs:
           done
           docker logs shubayr_acceptance_minio
           exit 1
-      - name: Install, migrate, seed, and build
+      - name: Install, generate, and build
         working-directory: backend
         run: |
           npm ci
           npm run prisma:generate
-          npm run prisma:migrate:deploy
-          npm run seed
-          npm run seed
           npm run build
-      - name: Prove catalog and COD order real-data acceptance
+      - name: Prove catalog and COD order real-data acceptance on a disposable database
         working-directory: backend
-        run: |
-          npm run start:prod > acceptance-api.log 2>&1 &
-          api_pid=$!
-          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://localhost:8000/api/v1/ready; then
-              npm run test:acceptance
-              exit $?
-            fi
-            sleep 1
-          done
-          cat acceptance-api.log
-          exit 1
+        run: npm run test:acceptance
 
   web:
     name: Web (Next.js)
