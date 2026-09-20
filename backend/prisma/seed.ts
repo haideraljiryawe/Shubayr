@@ -622,10 +622,249 @@ async function main(): Promise<void> {
     secondDeliveryAgent.id,
     now,
   );
+  await seedPartialReturnDemo(
+    users.get('customer')!,
+    users.get('admin')!,
+    users.get('delivery')!,
+    now,
+  );
 
   console.log(
-    `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 5 sample orders.`,
+    `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 6 sample orders.`,
   );
+}
+
+async function seedPartialReturnDemo(
+  customerId: string,
+  adminId: string,
+  agentId: string,
+  now: Date,
+): Promise<void> {
+  const orderId = seedId(1, 200);
+  const returnId = seedId(1, 204);
+  const locationId = seedId(9, 2);
+  const products = await Promise.all(
+    [1, 2].map(async (number) => {
+      const product = await prisma.product.findUniqueOrThrow({
+        where: { id: seedId(4, number) },
+      });
+      const variant = await prisma.productVariant.findUniqueOrThrow({
+        where: { sku: `SEED-${String(number).padStart(3, '0')}-STD` },
+      });
+      return { product, variant };
+    }),
+  );
+  const prices = products.map(({ product, variant }) =>
+    cartUnitPrice(product, variant.price_delta, now),
+  );
+  const quantities = [3, 1];
+  const subtotal =
+    calculateLineTotal(prices[0], 3) + calculateLineTotal(prices[1], 1);
+  await prisma.order.upsert({
+    where: { id: orderId },
+    update: {},
+    create: {
+      id: orderId,
+      user_id: customerId,
+      address_id: seedId(1, 1),
+      order_number: 'DEV-PARTIAL-RETURN',
+      status: 'delivered',
+      payment_method: 'cod',
+      subtotal,
+      delivery_fee: 0,
+      discount: 0,
+      total: subtotal,
+      delivery_contact_phone: '+9647700090006',
+      delivery_address_label: 'Home',
+      delivery_city: 'Baghdad',
+      delivery_area: 'Karrada',
+      delivery_street: 'Development Street',
+      delivery_details: 'Seeded checkout address',
+      placed_at: now,
+      items: {
+        create: products.map(({ product, variant }, index) => ({
+          id: seedId(1, 201 + index),
+          product_id: product.id,
+          variant_id: variant.id,
+          product_name_ar: product.name_ar,
+          product_name_en: product.name_en,
+          quantity: quantities[index],
+          unit_price: prices[index],
+          line_total: calculateLineTotal(prices[index], quantities[index]),
+        })),
+      },
+      payments: {
+        create: {
+          id: seedId(1, 212),
+          method: 'cod',
+          status: 'paid',
+          amount: subtotal,
+          paid_at: now,
+        },
+      },
+      status_events: {
+        create: { id: seedId(1, 213), status: 'delivered', at: now },
+      },
+    },
+  });
+  await prisma.delivery.upsert({
+    where: { id: seedId(1, 203) },
+    update: {},
+    create: {
+      id: seedId(1, 203),
+      order_id: orderId,
+      agent_id: agentId,
+      status: 'delivered',
+      delivery_fee: 0,
+      dispatched_at: now,
+      delivered_at: now,
+    },
+  });
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { delivery_id: seedId(1, 203) },
+  });
+  for (let index = 0; index < products.length; index += 1) {
+    await prisma.simpleStockHold.upsert({
+      where: { order_item_id: seedId(1, 201 + index) },
+      update: {},
+      create: {
+        id: seedId(1, 210 + index),
+        order_id: orderId,
+        order_item_id: seedId(1, 201 + index),
+        product_id: products[index].product.id,
+        variant_id: products[index].variant.id,
+        quantity: quantities[index],
+      },
+    });
+  }
+  await prisma.stockReservation.upsert({
+    where: { id: seedId(1, 209) },
+    update: {},
+    create: {
+      id: seedId(1, 209),
+      order_id: orderId,
+      order_item_id: seedId(1, 201),
+      batch_id: seedId(7, 1),
+      location_id: locationId,
+      quantity: 3,
+      status: 'consumed',
+    },
+  });
+  const refund = prices[0] + prices[1];
+  await prisma.return.upsert({
+    where: { id: returnId },
+    update: {},
+    create: {
+      id: returnId,
+      order_id: orderId,
+      user_id: customerId,
+      status: 'completed',
+      reason: 'Seeded partial return',
+      expected_refund: refund,
+      refund_amount: refund,
+      reviewed_by: adminId,
+      reviewed_at: now,
+      completed_at: now,
+      created_at: now,
+      items: {
+        create: [
+          {
+            id: seedId(1, 205),
+            order_item_id: seedId(1, 201),
+            quantity: 1,
+            approved_quantity: 1,
+            customer_reason: 'Unneeded unit',
+            unit_price: prices[0],
+            condition: 'sellable',
+            restock: true,
+            batch_id: seedId(7, 1),
+          },
+          {
+            id: seedId(1, 206),
+            order_item_id: seedId(1, 202),
+            quantity: 1,
+            approved_quantity: 1,
+            customer_reason: 'Arrived damaged',
+            unit_price: prices[1],
+            condition: 'damaged',
+            restock: false,
+          },
+        ],
+      },
+    },
+  });
+  await prisma.batchStock.upsert({
+    where: {
+      batch_id_location_id: { batch_id: seedId(7, 1), location_id: locationId },
+    },
+    update: { quantity: 101 },
+    create: { batch_id: seedId(7, 1), location_id: locationId, quantity: 101 },
+  });
+  await prisma.stockMovement.upsert({
+    where: { id: seedId(1, 208) },
+    update: {},
+    create: {
+      id: seedId(1, 208),
+      batch_id: seedId(7, 1),
+      return_item_id: seedId(1, 205),
+      type: 'return_in',
+      to_location: locationId,
+      quantity: 1,
+      reference: `return-origin:${returnId}`,
+      user_id: adminId,
+    },
+  });
+  await prisma.refundLedgerEntry.upsert({
+    where: { return_id: returnId },
+    update: {},
+    create: {
+      id: seedId(1, 207),
+      order_id: orderId,
+      return_id: returnId,
+      amount: refund,
+      status: 'obligation',
+      reason: 'Seeded COD refund obligation; no gateway reversal',
+      created_by: adminId,
+    },
+  });
+  const actions = [
+    'return.request',
+    'return.disposition',
+    'return.restock',
+    'return.disposition',
+    'return.review',
+    'refund.obligation',
+    'return.complete',
+  ];
+  for (const [index, action] of actions.entries()) {
+    await prisma.auditLog.upsert({
+      where: { id: seedId(1, 220 + index) },
+      update: {},
+      create: {
+        id: seedId(1, 220 + index),
+        actor_id: index === 0 ? customerId : adminId,
+        action,
+        entity_type:
+          action === 'refund.obligation'
+            ? 'refund_ledger'
+            : action === 'return.restock'
+              ? 'stock_movement'
+              : action === 'return.disposition'
+                ? 'return_item'
+                : 'return',
+        entity_id:
+          action === 'refund.obligation'
+            ? seedId(1, 207)
+            : action === 'return.restock'
+              ? seedId(1, 208)
+              : action === 'return.disposition'
+                ? seedId(1, index === 1 ? 205 : 206)
+                : returnId,
+        after: { seed_demo: true, status: 'completed' },
+      },
+    });
+  }
 }
 
 async function seedCustomerOrders(

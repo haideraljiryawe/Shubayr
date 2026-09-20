@@ -76,6 +76,8 @@ model User {
   assigned_pick_lists       PickList[]              @relation("PickListAssignee")
   assigned_deliveries       Delivery[]              @relation("DeliveryAgent")
   returns                   Return[]
+  reviewed_returns          Return[]                @relation("ReturnReviewer")
+  refund_ledger_entries     RefundLedgerEntry[]     @relation("RefundCreator")
   product_reviews           ProductReview[]
   delivery_ratings_as_agent DeliveryRating[]        @relation("DeliveryRatingAgent")
   delivery_ratings_as_user  DeliveryRating[]        @relation("DeliveryRatingUser")
@@ -394,22 +396,25 @@ model BatchStock {
 }
 
 model StockMovement {
-  id            String             @id(map: "stock_movements_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  batch_id      String             @db.Uuid
-  type          String             @db.VarChar(20)
-  from_location String?            @db.Uuid
-  to_location   String?            @db.Uuid
-  quantity      Int
-  reference     String?            @db.VarChar(120)
-  user_id       String?            @db.Uuid
-  created_at    DateTime           @default(now()) @db.Timestamptz(6)
-  batch         InventoryBatch     @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_batch_id_fkey")
-  source        WarehouseLocation? @relation("StockMovementFromLocation", fields: [from_location], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_from_location_fkey")
-  destination   WarehouseLocation? @relation("StockMovementToLocation", fields: [to_location], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_to_location_fkey")
-  user          User?              @relation("StockMovementUser", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_user_id_fkey")
+  id             String             @id(map: "stock_movements_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  batch_id       String             @db.Uuid
+  type           String             @db.VarChar(20)
+  from_location  String?            @db.Uuid
+  to_location    String?            @db.Uuid
+  quantity       Int
+  reference      String?            @db.VarChar(120)
+  user_id        String?            @db.Uuid
+  return_item_id String?            @db.Uuid
+  created_at     DateTime           @default(now()) @db.Timestamptz(6)
+  batch          InventoryBatch     @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_batch_id_fkey")
+  source         WarehouseLocation? @relation("StockMovementFromLocation", fields: [from_location], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_from_location_fkey")
+  destination    WarehouseLocation? @relation("StockMovementToLocation", fields: [to_location], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_to_location_fkey")
+  user           User?              @relation("StockMovementUser", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_user_id_fkey")
+  return_item    ReturnItem?        @relation(fields: [return_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_return_item_id_fkey")
 
   @@index([batch_id], map: "idx_movements_batch")
   @@index([type], map: "idx_movements_type")
+  @@index([return_item_id], map: "idx_movements_return_item")
   @@map("stock_movements")
 }
 
@@ -466,42 +471,43 @@ model Coupon {
 }
 
 model Order {
-  id                     String             @id(map: "orders_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                String             @db.Uuid
-  address_id             String?            @db.Uuid
-  delivery_id            String?            @unique(map: "orders_delivery_id_key") @db.Uuid
-  coupon_id              String?            @db.Uuid
-  order_number           String             @unique(map: "orders_order_number_key") @db.VarChar(40)
-  idempotency_key        String?            @db.VarChar(128)
-  idempotency_fingerprint String?           @db.VarChar(64)
-  status                 String             @default("pending") @db.VarChar(30)
-  payment_method         String             @default("cod") @db.VarChar(20)
-  subtotal               Decimal            @default(0) @db.Decimal(12, 2)
-  delivery_fee           Decimal            @default(0) @db.Decimal(12, 2)
-  discount               Decimal            @default(0) @db.Decimal(12, 2)
-  total                  Decimal            @default(0) @db.Decimal(12, 2)
-  delivery_contact_phone String             @db.VarChar(32)
-  delivery_address_label String?            @db.VarChar(80)
-  delivery_city          String             @db.VarChar(80)
-  delivery_area          String?            @db.VarChar(120)
-  delivery_street        String?            @db.VarChar(160)
-  delivery_details       String?            @db.Text
-  delivery_lat           Float?             @db.DoublePrecision
-  delivery_lng           Float?             @db.DoublePrecision
-  placed_at              DateTime           @default(now()) @db.Timestamptz(6)
-  user                   User               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_user_id_fkey")
-  address                Address?           @relation(fields: [address_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_address_id_fkey")
-  delivery               Delivery?          @relation("OrderCurrentDelivery", fields: [delivery_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_delivery_id_fkey")
-  coupon                 Coupon?            @relation(fields: [coupon_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_coupon_id_fkey")
-  items                  OrderItem[]
-  payments               Payment[]
-  stock_reservations     StockReservation[]
-  pick_lists             PickList[]
-  deliveries             Delivery[]         @relation("OrderDeliveryHistory")
-  returns                Return[]
-  loyalty_ledger         LoyaltyLedger[]
-  status_events          OrderStatusEvent[]
-  simple_stock_holds     SimpleStockHold[]
+  id                      String              @id(map: "orders_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                 String              @db.Uuid
+  address_id              String?             @db.Uuid
+  delivery_id             String?             @unique(map: "orders_delivery_id_key") @db.Uuid
+  coupon_id               String?             @db.Uuid
+  order_number            String              @unique(map: "orders_order_number_key") @db.VarChar(40)
+  idempotency_key         String?             @db.VarChar(128)
+  idempotency_fingerprint String?             @db.VarChar(64)
+  status                  String              @default("pending") @db.VarChar(30)
+  payment_method          String              @default("cod") @db.VarChar(20)
+  subtotal                Decimal             @default(0) @db.Decimal(12, 2)
+  delivery_fee            Decimal             @default(0) @db.Decimal(12, 2)
+  discount                Decimal             @default(0) @db.Decimal(12, 2)
+  total                   Decimal             @default(0) @db.Decimal(12, 2)
+  delivery_contact_phone  String              @db.VarChar(32)
+  delivery_address_label  String?             @db.VarChar(80)
+  delivery_city           String              @db.VarChar(80)
+  delivery_area           String?             @db.VarChar(120)
+  delivery_street         String?             @db.VarChar(160)
+  delivery_details        String?             @db.Text
+  delivery_lat            Float?              @db.DoublePrecision
+  delivery_lng            Float?              @db.DoublePrecision
+  placed_at               DateTime            @default(now()) @db.Timestamptz(6)
+  user                    User                @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_user_id_fkey")
+  address                 Address?            @relation(fields: [address_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_address_id_fkey")
+  delivery                Delivery?           @relation("OrderCurrentDelivery", fields: [delivery_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_delivery_id_fkey")
+  coupon                  Coupon?             @relation(fields: [coupon_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_coupon_id_fkey")
+  items                   OrderItem[]
+  payments                Payment[]
+  stock_reservations      StockReservation[]
+  pick_lists              PickList[]
+  deliveries              Delivery[]          @relation("OrderDeliveryHistory")
+  returns                 Return[]
+  refund_ledger_entries   RefundLedgerEntry[]
+  loyalty_ledger          LoyaltyLedger[]
+  status_events           OrderStatusEvent[]
+  simple_stock_holds      SimpleStockHold[]
 
   @@unique([user_id, idempotency_key], map: "orders_user_id_idempotency_key_key")
   @@index([user_id], map: "idx_orders_user")
@@ -548,16 +554,16 @@ model OrderStatusEvent {
 /// Temporary sellable-stock decrement. The inventory slice will replace this
 /// with FEFO batch reservations and picking, without pretending to allocate batches here.
 model SimpleStockHold {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id      String    @db.Uuid
-  order_item_id String    @unique @db.Uuid
-  product_id    String    @db.Uuid
-  variant_id    String?   @db.Uuid
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id      String          @db.Uuid
+  order_item_id String          @unique @db.Uuid
+  product_id    String          @db.Uuid
+  variant_id    String?         @db.Uuid
   quantity      Int
-  released_at   DateTime? @db.Timestamptz(6)
-  order         Order     @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  order_item    OrderItem @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
-  product       Product   @relation(fields: [product_id], references: [id], onDelete: NoAction)
+  released_at   DateTime?       @db.Timestamptz(6)
+  order         Order           @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  order_item    OrderItem       @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
+  product       Product         @relation(fields: [product_id], references: [id], onDelete: NoAction)
   variant       ProductVariant? @relation(fields: [variant_id], references: [id], onDelete: NoAction)
 
   @@index([product_id, variant_id, released_at])
@@ -640,34 +646,63 @@ model Delivery {
 }
 
 model Return {
-  id         String       @id(map: "returns_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id   String       @db.Uuid
-  user_id    String       @db.Uuid
-  type       String       @default("return") @db.VarChar(20)
-  status     String       @default("requested") @db.VarChar(20)
-  reason     String?      @db.Text
-  created_at DateTime     @default(now()) @db.Timestamptz(6)
-  order      Order        @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_order_id_fkey")
-  user       User         @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_user_id_fkey")
-  items      ReturnItem[]
+  id              String             @id(map: "returns_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id        String             @db.Uuid
+  user_id         String             @db.Uuid
+  type            String             @default("return") @db.VarChar(20)
+  status          String             @default("requested") @db.VarChar(30)
+  reason          String?            @db.Text
+  expected_refund Decimal            @default(0) @db.Decimal(12, 2)
+  refund_amount   Decimal            @default(0) @db.Decimal(12, 2)
+  reviewed_by     String?            @db.Uuid
+  reviewed_at     DateTime?          @db.Timestamptz(6)
+  completed_at    DateTime?          @db.Timestamptz(6)
+  created_at      DateTime           @default(now()) @db.Timestamptz(6)
+  order           Order              @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_order_id_fkey")
+  user            User               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_user_id_fkey")
+  reviewer        User?              @relation("ReturnReviewer", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_reviewed_by_fkey")
+  items           ReturnItem[]
+  refund          RefundLedgerEntry?
 
   @@index([order_id], map: "idx_returns_order")
   @@map("returns")
 }
 
 model ReturnItem {
-  id            String          @id(map: "return_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  return_id     String          @db.Uuid
-  order_item_id String          @db.Uuid
-  quantity      Int
-  condition     String          @db.VarChar(20)
-  restock       Boolean         @default(false)
-  batch_id      String?         @db.Uuid
-  return        Return          @relation(fields: [return_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "return_items_return_id_fkey")
-  order_item    OrderItem       @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_items_order_item_id_fkey")
-  batch         InventoryBatch? @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_items_batch_id_fkey")
+  id                String          @id(map: "return_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  return_id         String          @db.Uuid
+  order_item_id     String          @db.Uuid
+  quantity          Int
+  approved_quantity Int             @default(0)
+  customer_reason   String          @db.Text
+  unit_price        Decimal         @db.Decimal(12, 2)
+  condition         String?         @db.VarChar(20)
+  restock           Boolean         @default(false)
+  batch_id          String?         @db.Uuid
+  return            Return          @relation(fields: [return_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "return_items_return_id_fkey")
+  order_item        OrderItem       @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_items_order_item_id_fkey")
+  batch             InventoryBatch? @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_items_batch_id_fkey")
+  movements         StockMovement[]
 
+  @@unique([return_id, order_item_id], map: "return_items_return_id_order_item_id_key")
   @@map("return_items")
+}
+
+model RefundLedgerEntry {
+  id         String   @id(map: "refund_ledger_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id   String   @db.Uuid
+  return_id  String   @unique(map: "refund_ledger_return_id_key") @db.Uuid
+  amount     Decimal  @db.Decimal(12, 2)
+  status     String   @default("obligation") @db.VarChar(20)
+  reason     String   @db.Text
+  created_by String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  order      Order    @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "refund_ledger_order_id_fkey")
+  return     Return   @relation(fields: [return_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "refund_ledger_return_id_fkey")
+  creator    User     @relation("RefundCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "refund_ledger_created_by_fkey")
+
+  @@index([order_id], map: "idx_refund_ledger_order")
+  @@map("refund_ledger")
 }
 
 model ProductReview {
