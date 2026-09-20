@@ -126,7 +126,18 @@ export class ProductsService {
     await this.validateManagedUrls(mediaUrls);
 
     const mergedPricing = mergeProductPricingPatch(current, input);
-    this.validatePricing({ ...current, ...input, ...mergedPricing });
+    this.validatePricing({
+      ...mergedPricing,
+      is_negotiable: input.is_negotiable ?? current.is_negotiable,
+      floor_price:
+        input.floor_price === undefined
+          ? current.floor_price
+          : input.floor_price,
+      points_price:
+        input.points_price === undefined
+          ? current.points_price
+          : input.points_price,
+    });
     const data = this.productPatchData(input);
 
     await this.prisma.$transaction(async (tx) => {

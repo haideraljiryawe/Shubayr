@@ -2,6 +2,7 @@ jest.mock('../../database/prisma.service', () => ({ PrismaService: class {} }));
 jest.mock('../media/media.service', () => ({ MediaService: class {} }));
 
 import { ProductsService } from './products.service';
+import { UnprocessableEntityException } from '@nestjs/common';
 
 const product = {
   id: 'product-id',
@@ -49,6 +50,21 @@ function availabilityMocks() {
 }
 
 describe('ProductsService', () => {
+  it('rejects an updated negotiation floor above the stored regular price before SQL', async () => {
+    const prisma = {
+      product: { findUnique: jest.fn().mockResolvedValue(product) },
+      $transaction: jest.fn(),
+    };
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
+    await expect(
+      service.update(product.id, { floor_price: 20.16 }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
   it('subtracts active COD holds as well as batch reservations from sellable stock', async () => {
     const prisma = {
       product: {
