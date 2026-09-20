@@ -1,5 +1,39 @@
 # Changelog
 
+## 5.3.0 - 2026-09-21
+
+### Added
+
+- `ProductPatch.variants[].id`: an optional stable handle that lets a product
+  update rename a variant SKU without the variant losing its identity.
+
+### Changed
+
+- Public product reads now apply effective category visibility, so a hidden
+  category hides its whole descendant subtree even when `?category_id=` names
+  a visible child. Staff and admin reads are unchanged.
+- A product update reconciles its variants in place instead of deleting and
+  recreating them, so variant ids survive an edit. Removing a variant that
+  inventory, cart, purchasing or order history still references is now
+  rejected with 422 instead of failing as a 500.
+- PATCH validation runs against the merged stored+incoming product state: a
+  partial amount-discount update no longer demands a `price` that is already
+  stored, and an explicit null on a non-nullable field returns 422 rather
+  than reaching the database as a 500.
+- `contact_phone` is trimmed before storage and must be an E.164 number on
+  both address create and PATCH; blank, whitespace-only and malformed values
+  are rejected with 422.
+
+### Fixed
+
+- `schema.prisma` now declares `onUpdate: NoAction` on the nine relations that
+  omitted it, matching the migrations, `infra/db/schema.sql` and the migrated
+  database. A from-scratch migrate reports zero drift, and CI gates it with
+  `npm run prisma:drift-check`.
+- Regenerated the web OpenAPI client types, which were still pinned to the 4.x
+  contract, and corrected the return-status map and per-line return reason the
+  stale types were masking.
+
 ## 5.2.0 - 2026-09-20
 
 ### Added

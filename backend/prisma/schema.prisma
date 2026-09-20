@@ -192,7 +192,7 @@ model NotificationChannelPreference {
   channel    String   @db.VarChar(8)
   enabled    Boolean
   updated_at DateTime @default(now()) @db.Timestamptz(6)
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "notification_channel_preferences_user_id_fkey")
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_channel_preferences_user_id_fkey")
 
   @@id([user_id, type, channel], map: "notification_channel_preferences_pkey")
   @@map("notification_channel_preferences")
@@ -208,7 +208,7 @@ model NotificationEvent {
   created_at   DateTime  @default(now()) @db.Timestamptz(6)
   enqueued_at  DateTime? @db.Timestamptz(6)
   processed_at DateTime? @db.Timestamptz(6)
-  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "notification_events_user_id_fkey")
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_events_user_id_fkey")
   logs         NotificationLog[]
 
   @@index([enqueued_at, created_at], map: "idx_notification_events_pending")
@@ -231,10 +231,10 @@ model NotificationLog {
   created_at  DateTime  @default(now()) @db.Timestamptz(6)
   sent_at     DateTime? @db.Timestamptz(6)
   error       String?   @db.VarChar(500)
-  event       NotificationEvent @relation(fields: [event_id], references: [id], onDelete: Cascade, map: "notification_logs_event_id_fkey")
-  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "notification_logs_user_id_fkey")
+  event       NotificationEvent @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_logs_event_id_fkey")
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_logs_user_id_fkey")
 
-  @@index([user_id, created_at, id], map: "idx_notification_logs_user_history")
+  @@index([user_id, created_at(sort: Desc), id(sort: Desc)], map: "idx_notification_logs_user_history")
   @@map("notification_logs")
 }
 
@@ -608,7 +608,7 @@ model OrderStatusEvent {
   status   String   @db.VarChar(30)
   note     String?  @db.Text
   at       DateTime @default(now()) @db.Timestamptz(6)
-  order    Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  order    Order    @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([order_id, at])
   @@map("order_status_events")
@@ -624,10 +624,10 @@ model SimpleStockHold {
   variant_id    String?         @db.Uuid
   quantity      Int
   released_at   DateTime?       @db.Timestamptz(6)
-  order         Order           @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  order_item    OrderItem       @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
-  product       Product         @relation(fields: [product_id], references: [id], onDelete: NoAction)
-  variant       ProductVariant? @relation(fields: [variant_id], references: [id], onDelete: NoAction)
+  order         Order           @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  order_item    OrderItem       @relation(fields: [order_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product       Product         @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  variant       ProductVariant? @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([product_id, variant_id, released_at])
   @@map("simple_stock_holds")

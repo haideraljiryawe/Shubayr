@@ -153,18 +153,7 @@ export class ProductsService {
         });
       }
       if (input.variants) {
-        await tx.productVariant.deleteMany({ where: { product_id: id } });
-        if (input.variants.length) {
-          await tx.productVariant.createMany({
-            data: input.variants.map((variant) => ({
-              product_id: id,
-              sku: variant.sku,
-              attributes: variant.attributes as
-                Prisma.InputJsonValue | undefined,
-              price_delta: variant.price_delta ?? 0,
-            })),
-          });
-        }
+        await this.applyVariants(tx, id, current.variants, input.variants);
       }
       if (input.media_operations) {
         await this.applyMediaOperations(
@@ -276,10 +265,7 @@ export class ProductsService {
     const rows = await this.prisma.product.findMany({
       where: {
         ...(!includeHidden ? { status: 'active' } : {}),
-        ...(visibleCategoryIds
-          ? { category_id: { in: [...visibleCategoryIds] } }
-          : {}),
-        ...(query.category_id ? { category_id: query.category_id } : {}),
+        ...this.categoryFilter(query.category_id, visibleCategoryIds),
         ...(q
           ? {
               OR: [
@@ -379,6 +365,99 @@ export class ProductsService {
     });
     if (match)
       throw new ConflictException(`Variant SKU already exists: ${match.sku}`);
+  }
+
+  /**
+   * Reconciles a product's variant set in place.
+   *
+   * This used to delete every variant and recreate the supplied set, which
+   * handed each surviving variant a brand new id on every product update.
+   * Inventory batches, cart lines, order lines, purchase invoice lines and
+   * stock holds all reference variants by id, so the rebuild either orphaned
+   * that history or — because those foreign keys are ON DELETE NO ACTION —
+   * failed outright and surfaced as a 500.
+   *
+   * Variants are matched on the supplied `id` when present and otherwise on
+   * the globally unique `sku`, so an edit keeps the existing row.
+   */
+  private async applyVariants(
+    tx: Prisma.TransactionClient,
+    productId: string,
+    existing: Array<{ id: string; sku: string }>,
+    desired: ProductVariantInputDto[],
+  ): Promise<void> {
+    const byId = new Map(existing.map((variant) => [variant.id, variant]));
+    const bySku = new Map(existing.map((variant) => [variant.sku, variant]));
+    const kept = new Set<string>();
+
+    for (const variant of desired) {
+      const match = variant.id ? byId.get(variant.id) : bySku.get(variant.sku);
+      if (variant.id && !match) {
+        throw new UnprocessableEntityException(
+          `Variant ${variant.id} does not belong to this product`,
+        );
+      }
+      const data = {
+        sku: variant.sku,
+        attributes: variant.attributes as Prisma.InputJsonValue | undefined,
+        price_delta: variant.price_delta ?? 0,
+      };
+      if (match) {
+        kept.add(match.id);
+        await tx.productVariant.update({ where: { id: match.id }, data });
+        continue;
+      }
+      const created = await tx.productVariant.create({
+        data: { product_id: productId, ...data },
+      });
+      kept.add(created.id);
+    }
+
+    const removed = existing.filter((variant) => !kept.has(variant.id));
+    if (!removed.length) return;
+    const referenced = await this.referencedVariantIds(
+      tx,
+      removed.map(({ id }) => id),
+    );
+    if (referenced.size) {
+      // Deleting these would violate an ON DELETE NO ACTION foreign key and
+      // destroy the immutable history that points at them, so refuse the
+      // removal with the unified 422 rather than a database-level 500.
+      const skus = removed
+        .filter(({ id }) => referenced.has(id))
+        .map(({ sku }) => sku)
+        .join(', ');
+      throw new UnprocessableEntityException(
+        `Cannot remove variant(s) referenced by inventory or order history: ${skus}`,
+      );
+    }
+    await tx.productVariant.deleteMany({
+      where: { id: { in: removed.map(({ id }) => id) } },
+    });
+  }
+
+  /** Variant ids still pointed at by stock, cart, purchasing or order rows. */
+  private async referencedVariantIds(
+    tx: Prisma.TransactionClient,
+    ids: string[],
+  ): Promise<Set<string>> {
+    const where = { variant_id: { in: ids } } as const;
+    const [batches, cartItems, orderItems, invoiceItems, holds] =
+      await Promise.all([
+        tx.inventoryBatch.findMany({ where, select: { variant_id: true } }),
+        tx.cartItem.findMany({ where, select: { variant_id: true } }),
+        tx.orderItem.findMany({ where, select: { variant_id: true } }),
+        tx.purchaseInvoiceItem.findMany({
+          where,
+          select: { variant_id: true },
+        }),
+        tx.simpleStockHold.findMany({ where, select: { variant_id: true } }),
+      ]);
+    return new Set(
+      [...batches, ...cartItems, ...orderItems, ...invoiceItems, ...holds]
+        .map(({ variant_id }) => variant_id)
+        .filter((id): id is string => id !== null),
+    );
   }
 
   private validatePricing(product: {
@@ -590,6 +669,29 @@ export class ProductsService {
     }
   }
 
+  /**
+   * Narrows a product query to one category without losing the effective
+   * visibility filter. Both used to be spread into the same `where` object
+   * under the same `category_id` key, so an explicit ?category_id= silently
+   * replaced the visibility filter and exposed hidden categories publicly.
+   */
+  private categoryFilter(
+    requested: string | undefined,
+    visible: Set<string> | undefined,
+  ) {
+    if (!requested) {
+      return visible ? { category_id: { in: [...visible] } } : {};
+    }
+    // A public read of a hidden category — or of one under a hidden ancestor
+    // — reports it as empty rather than leaking its products.
+    if (visible && !visible.has(requested)) return { category_id: { in: [] } };
+    return { category_id: requested };
+  }
+
+  /**
+   * Categories that are visible in their own right AND have no hidden
+   * ancestor: hiding a parent hides its whole subtree from public reads.
+   */
   private async visibleCategoryIds(): Promise<Set<string>> {
     const rows = await this.prisma.category.findMany({
       select: { id: true, parent_id: true, is_visible: true },

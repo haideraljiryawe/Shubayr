@@ -11,6 +11,7 @@ import {
   IsUUID,
   Min,
   Validate,
+  ValidateIf,
   ValidateNested,
   ValidationArguments,
   ValidatorConstraint,
@@ -58,8 +59,13 @@ class DiscountValueInRange implements ValidatorConstraintInterface {
       return false;
     }
     if (discount_type === 'percentage') return value <= 100;
-    // An amount discount may not swallow the whole price.
-    return typeof price === 'number' ? value < price : false;
+    // An amount discount may not swallow the whole price, but on a PATCH the
+    // price often lives only in the stored row. Comparing against the payload
+    // alone rejected every partial amount-discount update that (correctly)
+    // left `price` out, so defer to the service, which re-validates the
+    // merged stored+incoming definition before writing.
+    if (typeof price === 'number') return value < price;
+    return args.object.constructor.name === 'UpdateProductDto';
   }
 
   defaultMessage(args: ValidationArguments): string {
@@ -89,6 +95,14 @@ class DiscountWindowOrdered implements ValidatorConstraintInterface {
     return 'discount_ends_at must be after discount_starts_at';
   }
 }
+
+/**
+ * Optional, but never null: the column behind the field is NOT NULL, so an
+ * explicit null has to fail validation with the unified 422 instead of being
+ * skipped by @IsOptional() and reaching Prisma as a null write (a 500).
+ */
+const IsDefinedIfPresent = (): PropertyDecorator =>
+  ValidateIf((_, value: unknown) => value !== undefined);
 
 const emptyToNull = ({ value }: { value: unknown }): unknown =>
   value === '' ? null : value;
@@ -146,7 +160,7 @@ export class ProductWriteDto extends BilingualNameDto {
   @Validate(DiscountWindowOrdered)
   discount_ends_at?: Date | null;
 
-  @IsOptional()
+  @IsDefinedIfPresent()
   @IsBoolean()
   is_negotiable?: boolean;
 
@@ -160,21 +174,21 @@ export class ProductWriteDto extends BilingualNameDto {
   @Min(0)
   points_price?: number | null;
 
-  @IsOptional()
+  @IsDefinedIfPresent()
   @IsBoolean()
   tracks_expiry?: boolean;
 
-  @IsOptional()
+  @IsDefinedIfPresent()
   @IsIn(['active', 'hidden', 'archived'])
   status?: 'active' | 'hidden' | 'archived';
 
-  @IsOptional()
+  @IsDefinedIfPresent()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProductImageInputDto)
   images?: ProductImageInputDto[];
 
-  @IsOptional()
+  @IsDefinedIfPresent()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProductVariantInputDto)
