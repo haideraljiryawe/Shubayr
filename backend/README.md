@@ -75,15 +75,15 @@ The seed creates these development accounts; each uses the configured
 | manager | `+9647700000002` |
 | purchasing | `+9647700000003` |
 | warehouse | `+9647700000004` |
-| delivery | `+9647700000005` |
+| delivery | `+9647700000005`, `+9647700000007` |
 | customer | `+9647700000006` |
 
 It also creates eight bilingual departments and their subcategories, 32
 stocked products with variants and ordered images, active/future discounts,
-three banners, `DEV10` and `SHUBAYR10` percentage coupons, and four sample customer orders
-(pending, confirmed, out_for_delivery, delivered). Each order has immutable
+three banners, `DEV10` and `SHUBAYR10` percentage coupons, and five sample customer orders
+(pending, confirmed, out_for_delivery, delivered, failed_delivery). Each order has immutable
 line/address snapshots and a delivery record; the delivered item has a seeded
-review. `npm run seed` is safe to repeat and does not duplicate those orders.
+review and a separate delivery rating. `npm run seed` is safe to repeat and does not duplicate those orders.
 
 The remaining OpenAPI endpoints are implemented phase-by-phase in the order
 specified by the backend build prompt.
@@ -117,6 +117,16 @@ address/contact; later catalog or address edits cannot rewrite the order.
 `GET /api/v1/orders/{id}/track` returns status events. Customers can cancel only
 pending/confirmed orders; staff with `orders.update` can advance the status
 machine defined in OpenAPI.
+
+Operations staff with `orders.update` can list all deliveries with
+`GET /api/v1/deliveries` and assign an active delivery using
+`PATCH /api/v1/deliveries/{id}/assign`. Agents with `delivery.assigned` see only
+their own records at `GET /api/v1/deliveries/assigned` and change status with
+`PATCH /api/v1/deliveries/{id}`. The path is assigned → out_for_delivery →
+delivered → returned, or out_for_delivery → failed. Failed and returned are
+terminal. Status changes also advance the parent order and its tracking events.
+The owning customer may rate a delivered delivery once with
+`POST /api/v1/deliveries/{id}/rating`; this is separate from product reviews.
 
 Checkout immediately subtracts a simple product/variant hold from sellable
 stock, then cancellation releases it. This is deliberately **not** a fake

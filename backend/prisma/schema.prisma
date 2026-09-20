@@ -690,7 +690,7 @@ model ProductReview {
 
 model DeliveryRating {
   id          String   @id(map: "delivery_ratings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  delivery_id String   @db.Uuid
+  delivery_id String   @unique(map: "delivery_ratings_delivery_id_key") @db.Uuid
   agent_id    String?  @db.Uuid
   user_id     String   @db.Uuid
   stars       Int

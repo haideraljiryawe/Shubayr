@@ -534,7 +534,8 @@ CREATE TABLE delivery_ratings (
     stars           INT NOT NULL CHECK (stars BETWEEN 1 AND 5),
     comment         TEXT,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (delivery_id, user_id)
+    UNIQUE (delivery_id, user_id),
+    UNIQUE (delivery_id)
 );
 
 -- ---------------------------------------------------------------------

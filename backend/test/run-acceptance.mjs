@@ -77,6 +77,7 @@ try {
   const acceptanceEnv = { ...environment, ACCEPTANCE_API_URL: apiUrl, ACCEPTANCE_DATABASE_NAME: name };
   await run('test/real-data.acceptance.mjs', [], acceptanceEnv);
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
+  await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
 } finally {
   if (api && api.exitCode === null) {
     api.kill();

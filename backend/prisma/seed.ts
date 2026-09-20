@@ -330,6 +330,21 @@ async function main(): Promise<void> {
     });
   }
 
+  const secondDeliveryAgent = await prisma.user.upsert({
+    where: { phone: '+9647700000007' },
+    update: {
+      role_id: roleIds.get('delivery')!,
+      name: 'Development Delivery B',
+      is_active: true,
+    },
+    create: {
+      role_id: roleIds.get('delivery')!,
+      phone: '+9647700000007',
+      name: 'Development Delivery B',
+      is_active: true,
+    },
+  });
+
   const adminId = users.get('admin')!;
   const imageUrls: string[] = [];
   for (let index = 0; index < departments.length; index += 1) {
@@ -601,15 +616,22 @@ async function main(): Promise<void> {
       expires_at: null,
     },
   });
-  await seedCustomerOrders(users.get('customer')!, now);
+  await seedCustomerOrders(
+    users.get('customer')!,
+    users.get('delivery')!,
+    secondDeliveryAgent.id,
+    now,
+  );
 
   console.log(
-    `Seeded ${roles.length} roles, ${accounts.length} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 4 sample orders.`,
+    `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 5 sample orders.`,
   );
 }
 
 async function seedCustomerOrders(
   customerId: string,
+  deliveryAgentId: string,
+  secondDeliveryAgentId: string,
   now: Date,
 ): Promise<void> {
   const addressId = seedId(1, 1);
@@ -665,6 +687,19 @@ async function seedCustomerOrders(
       ],
       product: 4,
       daysAgo: 7,
+      quantity: 1,
+    },
+    {
+      status: 'failed_delivery',
+      timeline: [
+        'pending',
+        'confirmed',
+        'processing',
+        'out_for_delivery',
+        'failed_delivery',
+      ],
+      product: 5,
+      daysAgo: 5,
       quantity: 1,
     },
   ] as const;
@@ -757,11 +792,14 @@ async function seedCustomerOrders(
       create: {
         id: seedId(1, 20 + index),
         order_id: id,
+        agent_id: index === 1 ? secondDeliveryAgentId : deliveryAgentId,
         status: delivered
           ? 'delivered'
-          : dispatched
-            ? 'out_for_delivery'
-            : 'assigned',
+          : sample.status === 'failed_delivery'
+            ? 'failed'
+            : dispatched
+              ? 'out_for_delivery'
+              : 'assigned',
         delivery_fee: 0,
         dispatched_at: dispatched
           ? new Date(placedAt.getTime() + 3 * 3_600_000)
@@ -770,6 +808,10 @@ async function seedCustomerOrders(
           ? new Date(placedAt.getTime() + 4 * 3_600_000)
           : null,
       },
+    });
+    await prisma.delivery.updateMany({
+      where: { id: delivery.id, agent_id: null },
+      data: { agent_id: index === 1 ? secondDeliveryAgentId : deliveryAgentId },
     });
     if (!order.delivery_id) {
       await prisma.order.update({
@@ -810,6 +852,18 @@ async function seedCustomerOrders(
           comment: 'Seeded delivered-order review',
           verified_purchase: true,
           status: 'published',
+        },
+      });
+      await prisma.deliveryRating.upsert({
+        where: { delivery_id: delivery.id },
+        update: {},
+        create: {
+          id: seedId(1, 90),
+          delivery_id: delivery.id,
+          agent_id: deliveryAgentId,
+          user_id: customerId,
+          stars: 5,
+          comment: 'Seeded delivery rating',
         },
       });
     }
