@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.8.0 - 2026-09-20
+
+### Added
+
+- Staff delivery listing and assignment, agent-scoped delivery transitions,
+  and customer delivery ratings on real PostgreSQL.
+- A unique delivery-rating constraint and seeded assigned, dispatched,
+  delivered, and failed deliveries with two delivery agents.
+
+### Changed
+
+- Delivery status changes now advance order status and tracking events in the
+  same transaction; failed and returned deliveries are terminal.
+
 ## 4.7.1 - 2026-09-20
 
 ### Added
