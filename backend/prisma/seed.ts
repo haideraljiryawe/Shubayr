@@ -9,6 +9,8 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { calculateLineTotal } from '../src/modules/catalog/pricing';
+import { cartUnitPrice } from '../src/modules/orders/cart-pricing';
 
 const databaseUrl = required('DATABASE_URL');
 const publicApiUrl = (
@@ -573,9 +575,229 @@ async function main(): Promise<void> {
     });
   }
 
+  await prisma.coupon.upsert({
+    where: { code: 'DEV10' },
+    update: {
+      type: 'percentage',
+      value: 10,
+      usage_limit: null,
+      expires_at: null,
+    },
+    create: { code: 'DEV10', type: 'percentage', value: 10 },
+  });
+  await seedCustomerOrders(users.get('customer')!, now);
+
   console.log(
-    `Seeded ${roles.length} roles, ${accounts.length} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, and ${banners.length} banners.`,
+    `Seeded ${roles.length} roles, ${accounts.length} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 4 sample orders.`,
   );
+}
+
+async function seedCustomerOrders(
+  customerId: string,
+  now: Date,
+): Promise<void> {
+  const addressId = seedId(1, 1);
+  const existingAddressCount = await prisma.address.count({
+    where: { user_id: customerId },
+  });
+  const address = await prisma.address.upsert({
+    where: { id: addressId },
+    update: {},
+    create: {
+      id: addressId,
+      user_id: customerId,
+      label: 'Home',
+      city: 'Baghdad',
+      area: 'Karrada',
+      street: 'Development Street',
+      details: 'Seeded checkout address',
+      contact_phone: '+9647700090006',
+      is_default: existingAddressCount === 0,
+    },
+  });
+
+  const samples = [
+    {
+      status: 'pending',
+      timeline: ['pending'],
+      product: 1,
+      daysAgo: 0,
+      quantity: 2,
+    },
+    {
+      status: 'confirmed',
+      timeline: ['pending', 'confirmed'],
+      product: 2,
+      daysAgo: 1,
+      quantity: 1,
+    },
+    {
+      status: 'out_for_delivery',
+      timeline: ['pending', 'confirmed', 'processing', 'out_for_delivery'],
+      product: 3,
+      daysAgo: 3,
+      quantity: 1,
+    },
+    {
+      status: 'delivered',
+      timeline: [
+        'pending',
+        'confirmed',
+        'processing',
+        'out_for_delivery',
+        'delivered',
+      ],
+      product: 4,
+      daysAgo: 7,
+      quantity: 1,
+    },
+  ] as const;
+
+  for (let index = 0; index < samples.length; index += 1) {
+    const sample = samples[index];
+    const id = seedId(1, 10 + index);
+    const placedAt = new Date(
+      now.getTime() - sample.daysAgo * 86_400_000 - 3_600_000,
+    );
+    const product = await prisma.product.findUniqueOrThrow({
+      where: { id: seedId(4, sample.product) },
+      include: { images: { orderBy: [{ sort_order: 'asc' }, { id: 'asc' }] } },
+    });
+    const variant = await prisma.productVariant.findUniqueOrThrow({
+      where: { sku: `SEED-${String(sample.product).padStart(3, '0')}-STD` },
+    });
+    const unitPrice = cartUnitPrice(product, variant.price_delta, placedAt);
+    const lineTotal = calculateLineTotal(unitPrice, sample.quantity);
+    const itemId = seedId(1, 30 + index);
+    let order = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!order) {
+      order = await prisma.order.create({
+        data: {
+          id,
+          user_id: customerId,
+          address_id: address.id,
+          order_number: `DEV-ORDER-${index + 1}`,
+          status: sample.status,
+          payment_method: 'cod',
+          subtotal: lineTotal,
+          delivery_fee: 0,
+          discount: 0,
+          total: lineTotal,
+          placed_at: placedAt,
+          delivery_contact_phone: address.contact_phone,
+          delivery_address_label: address.label,
+          delivery_city: address.city,
+          delivery_area: address.area,
+          delivery_street: address.street,
+          delivery_details: address.details,
+          delivery_lat: address.lat,
+          delivery_lng: address.lng,
+          items: {
+            create: {
+              id: itemId,
+              product_id: product.id,
+              variant_id: variant.id,
+              product_name_ar: product.name_ar,
+              product_name_en: product.name_en,
+              image_url: product.images[0]?.url ?? null,
+              quantity: sample.quantity,
+              unit_price: unitPrice,
+              line_total: lineTotal,
+            },
+          },
+          payments: {
+            create: {
+              id: seedId(1, 40 + index),
+              method: 'cod',
+              status: sample.status === 'delivered' ? 'paid' : 'pending',
+              amount: lineTotal,
+              paid_at:
+                sample.status === 'delivered'
+                  ? new Date(placedAt.getTime() + 5 * 3_600_000)
+                  : null,
+            },
+          },
+          status_events: {
+            create: sample.timeline.map((status, eventIndex) => ({
+              id: seedId(1, 100 + index * 10 + eventIndex),
+              status,
+              at: new Date(placedAt.getTime() + eventIndex * 3_600_000),
+            })),
+          },
+        },
+        include: { items: true },
+      });
+    }
+    const dispatched = (sample.timeline as readonly string[]).includes(
+      'out_for_delivery',
+    );
+    const delivered = sample.status === 'delivered';
+    const delivery = await prisma.delivery.upsert({
+      where: { id: seedId(1, 20 + index) },
+      update: {},
+      create: {
+        id: seedId(1, 20 + index),
+        order_id: id,
+        status: delivered
+          ? 'delivered'
+          : dispatched
+            ? 'out_for_delivery'
+            : 'assigned',
+        delivery_fee: 0,
+        dispatched_at: dispatched
+          ? new Date(placedAt.getTime() + 3 * 3_600_000)
+          : null,
+        delivered_at: delivered
+          ? new Date(placedAt.getTime() + 4 * 3_600_000)
+          : null,
+      },
+    });
+    if (!order.delivery_id) {
+      await prisma.order.update({
+        where: { id },
+        data: { delivery_id: delivery.id },
+      });
+    }
+    for (const item of order.items) {
+      await prisma.simpleStockHold.upsert({
+        where: { order_item_id: item.id },
+        update: {},
+        create: {
+          id: seedId(1, 70 + index),
+          order_id: id,
+          order_item_id: item.id,
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          quantity: item.quantity,
+        },
+      });
+    }
+    if (delivered && order.items[0]) {
+      const deliveredItem = order.items[0];
+      await prisma.productReview.upsert({
+        where: {
+          order_item_id_user_id: {
+            order_item_id: deliveredItem.id,
+            user_id: customerId,
+          },
+        },
+        update: {},
+        create: {
+          id: seedId(1, 80),
+          product_id: deliveredItem.product_id,
+          user_id: customerId,
+          order_item_id: deliveredItem.id,
+          rating: 5,
+          comment: 'Seeded delivered-order review',
+          verified_purchase: true,
+          status: 'published',
+        },
+      });
+    }
+  }
 }
 
 function categoryData(

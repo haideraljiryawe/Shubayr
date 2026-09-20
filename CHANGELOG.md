@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.7.1 - 2026-09-20
+
+### Added
+
+- Four idempotently seeded customer orders (pending, confirmed,
+  out_for_delivery, delivered), with immutable snapshots, delivery records,
+  timeline events, and a reviewed delivered item.
+- `DEV10` development coupon and a 79-assertion COD checkout HTTP acceptance
+  test, run alongside the existing 34-assertion catalog acceptance test in CI.
+
+### Fixed
+
+- `POST /orders/{id}/cancel` now returns the contract's HTTP 200 instead of
+  Nest's default 201.
+
 ## 4.7.0 - 2026-09-20
 
 ### Added

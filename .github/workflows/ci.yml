@@ -148,7 +148,7 @@ jobs:
           npm run seed
           npm run seed
           npm run build
-      - name: Prove admin-to-public persistence and RBAC
+      - name: Prove catalog and COD order real-data acceptance
         working-directory: backend
         run: |
           npm run start:prod > acceptance-api.log 2>&1 &

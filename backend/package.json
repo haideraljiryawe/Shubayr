@@ -1,6 +1,6 @@
 {
   "name": "shubayr-backend",
-  "version": "4.7.0",
+  "version": "4.7.1",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -23,7 +23,7 @@
     "prisma:validate": "prisma validate",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "seed": "ts-node --transpile-only prisma/seed.ts",
-    "test:acceptance": "node test/real-data.acceptance.mjs"
+    "test:acceptance": "node test/real-data.acceptance.mjs && node test/order.acceptance.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1135.0",
