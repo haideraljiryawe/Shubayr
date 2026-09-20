@@ -99,10 +99,10 @@ its endpoints exist without touching the ones still waiting.
 | `profile` | **LIVE** | `GET /me`, `PATCH /me` |
 | `catalog` | **LIVE** | `GET /settings`, `/categories`, `/products`, `/products/{id}`, `/products/{id}/availability`, `/products/{id}/reviews` (reading) |
 | `banners` | **LIVE** | `GET /banners` |
-| `cart` | mock | client-local by design; there is no guest cart on the server |
-| `checkout` | mock | `POST /orders`, `POST /coupons/validate` — awaiting the orders slice |
-| `orders` | mock | `GET /orders`, `/orders/{id}`, `/orders/{id}/track` |
-| `addresses` | mock | `GET/POST/PATCH/DELETE /addresses` |
+| `cart` | **LIVE** | `GET /cart`, `POST /cart/items`, `PATCH`/`DELETE /cart/items/{id}` — signed in only |
+| `checkout` | **LIVE** | `POST /orders` (COD, idempotent), `POST /coupons/validate` |
+| `orders` | **LIVE** | `GET /orders`, `/orders/{id}`, `/orders/{id}/track`, `POST /orders/{id}/cancel` |
+| `addresses` | **LIVE** | `GET/POST/PATCH/DELETE /addresses` |
 | `wishlist` | mock | `GET/POST /wishlist`, `DELETE /wishlist/{productId}` |
 | `returns` | mock | `POST /returns`, and the customer list the contract still lacks |
 | `reviews` | mock | `POST /products/{id}/reviews`, `POST /deliveries/{id}/rating` — **writing** reviews, unlike the reads above |
@@ -182,12 +182,25 @@ Remove-Item Env:CATALOG_STREAMING_TESTS
 If those ports are reserved locally, set `PLAYWRIGHT_PORT` and
 `PLAYWRIGHT_API_PORT` to available ports before running the tests.
 
-`tests/live-catalog.spec.ts` is the one spec that talks to the **real** backend:
+`tests/live-catalog.spec.ts` and `tests/live-checkout.spec.ts` are the specs that
+talk to the **real** backend. The first
 it asserts the seeded department tree, server-computed effective pricing, the
 scheduled discount window, `?on_sale=true`, active banners, and the dev-OTP
-sign-in. It calls the API directly (Node-side, so no CORS) and **skips itself**
-when nothing answers at `NEXT_PUBLIC_API_URL`, which keeps the rest of the suite
-hermetic.
+sign-in. The second covers the server cart and COD checkout: repricing, server
+totals, a server-applied coupon, a repeated `Idempotency-Key` returning the same
+order rather than a second one, cancellation followed by a 409 on the retry, and
+the immutable order-item snapshots. Both call the API directly (Node-side, so no
+CORS) and **skip themselves** when nothing answers at `NEXT_PUBLIC_API_URL`,
+which keeps the rest of the suite hermetic.
+
+The seed carries **no coupon**, so the coupon test skips unless one exists. To
+exercise it locally, insert one:
+
+```sql
+INSERT INTO coupons (id, code, type, value, usage_limit, used_count, expires_at)
+VALUES (gen_random_uuid(), 'SHUBAYR10', 'percentage', 10, 1000, 0,
+        now() + interval '90 days');
+```
 
 Run `node scripts/check-contrast.mjs` to check `text-text-muted` against
 `bg-card` and `bg-background` (WCAG AA, at least 4.5:1). The script composites
@@ -245,16 +258,44 @@ and `image_url`), so order history never re-reads the catalogue and a renamed
 product cannot rewrite what someone bought. A product review and the delivery
 rating are deliberately separate submissions on separate endpoints.
 
+### The cart, in two modes
+
+A guest has no server cart — the contract is explicit about that — so the
+browser holds the lines in `localStorage`. Signing in replays them through
+`POST /cart/items`, which is the merge the contract prescribes: identical
+product/variant lines add up.
+
+From then on the **server cart is the authority**. Every mutation returns the
+whole repriced cart and `cart-store.ts` adopts it verbatim — prices,
+availability, subtotal, coupon discount, delivery fee and total all come from
+the API. Nothing client-side recomputes them, because the customer is charged
+the server's arithmetic and the screen must show that rather than its own guess
+at it. `data-server-priced` on the totals card says which side priced the cart.
+
+Two details worth knowing:
+
+- The cart response carries ids, money and availability but **no product names
+  or images**, so the store keeps what this device knows as a presentation
+  cache and joins it onto the server's lines. A line added on another device is
+  resolved from the catalogue instead.
+- A replayed guest line is retired to quantity 0 rather than deleted, so it
+  stays available as presentation detail and can never be replayed twice.
+
+Checkout mints one **Idempotency-Key per attempt** and replays it on retries, so
+a double-submit or a dropped response returns the original order rather than
+placing a second one.
+
+**All seeded stock sits on variants** — the variantless SKU is at zero — so a
+grid tile, which has no variant picker, sends the shopper to the product page
+instead of adding a line the server would refuse. That is what `requiresVariant`
+on `ProductCard` controls.
+
 ### Contract gaps this phase works around
 
 Four things the pages need do not exist in `api/openapi.yaml`. Each is mocked
 behind a typed client method shaped like the endpoint should be, and carries a
 `CONTRACT GAP` comment at the seam:
 
-- **No `delivery_id` on `Order`.** `POST /deliveries/{id}/rating` needs one, and
-  `GET /deliveries/{id}` is staff-scoped, so a customer has no route from their
-  order to its delivery. `src/lib/order-delivery.ts` is the single place the real
-  field plugs in.
 - **No customer `GET /returns`.** Only `POST /returns` and the staff
   `POST /returns/{id}/inspect` exist, so `/account/returns` reads the fixture.
 - **No "already reviewed" signal.** Nothing reports whether the signed-in

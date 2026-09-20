@@ -52,6 +52,7 @@ export type ProductImage = Schemas["ProductImage"];
 export type Category = Schemas["Category"];
 export type ProductPage = Schemas["ProductPage"];
 export type Cart = Schemas["Cart"];
+export type CartItem = NonNullable<Cart["items"]>[number];
 export type ProductVariant = Schemas["ProductVariant"];
 export type ProductAvailability = Schemas["ProductAvailability"];
 export type Review = Schemas["Review"];
@@ -304,6 +305,19 @@ function mockLatency(ms = 250): Promise<void> {
  * thing a fixture can meaningfully assert — the real API already validated it
  * at sign-in, and the mocked endpoint has no signature to check against.
  */
+/**
+ * Guard a LIVE authenticated endpoint before the request leaves the browser.
+ *
+ * The API would answer 401 anyway; failing here keeps a signed-out visitor
+ * from a pointless round trip, and gives `withFreshToken` the same 401 shape
+ * it already knows how to route on.
+ */
+function requireAuthenticated(): void {
+  if (!accessToken()) {
+    throw new ApiError(401, "Not signed in");
+  }
+}
+
 function requireMockAuth(): void {
   const token = accessToken();
   const valid = isLive("auth")
@@ -677,7 +691,19 @@ export const api = {
    * checkout gates on that before calling.
    */
   // MOCK: awaiting backend slice (checkout).
-  async placeOrder(body: OrderRequest, draft?: OrderDraft): Promise<Order> {
+  /**
+   * Place the COD order.
+   *
+   * `idempotencyKey` is generated once per checkout attempt and replayed on
+   * every retry, so a double-submit or a dropped response returns the original
+   * order instead of charging the customer twice. The server answers 409 if
+   * the same key arrives with a different basket, which the caller surfaces
+   * rather than silently placing something else.
+   */
+  async placeOrder(
+    body: OrderRequest,
+    { idempotencyKey, draft }: { idempotencyKey?: string; draft?: OrderDraft } = {},
+  ): Promise<Order> {
     return withFreshToken(async () => {
       if (!isLive("checkout")) {
         await mockLatency();
@@ -701,6 +727,7 @@ export const api = {
       }
       return request<Order>("/orders", {
         method: "POST",
+        headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
         body: JSON.stringify({ payment_method: "cod", ...body }),
       });
     });
@@ -881,6 +908,93 @@ export const api = {
       return request<string[]>(
         `/orders/${encodeURIComponent(orderId)}/reviewed-items`,
       );
+    });
+  },
+
+  /* ------------------------------------------------------------- cart */
+
+  /**
+   * The signed-in cart, repriced by the server on every read.
+   *
+   * A guest has no server cart at all — the contract is explicit that guest
+   * carts stay client-side and are replayed through POST /cart/items after
+   * login — so these methods are only ever reached with a session. The
+   * response is the authority: prices, availability and every total come back
+   * computed, and the store adopts them verbatim rather than recomputing.
+   */
+  async getCart(): Promise<Cart> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<Cart>("/cart");
+    });
+  },
+
+  async addCartItem(input: {
+    product_id: string;
+    variant_id?: string | null;
+    quantity: number;
+  }): Promise<Cart> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<Cart>("/cart/items", {
+        method: "POST",
+        body: JSON.stringify({
+          product_id: input.product_id,
+          variant_id: input.variant_id ?? null,
+          quantity: input.quantity,
+        }),
+      });
+    });
+  },
+
+  async updateCartItem(itemId: string, quantity: number): Promise<Cart> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<Cart>(`/cart/items/${encodeURIComponent(itemId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ quantity }),
+      });
+    });
+  },
+
+  /**
+   * Remove one line. The contract has no "empty the cart" route, so clearing
+   * is this called per line — which is also what placing an order makes
+   * unnecessary, since the server consumes the cart itself.
+   */
+  async removeCartItem(itemId: string): Promise<void> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      await requestNoContent(`/cart/items/${encodeURIComponent(itemId)}`, {
+        method: "DELETE",
+      });
+    });
+  },
+
+  /* ----------------------------------------------------------- orders */
+
+  /**
+   * Cancel an order the customer still may cancel.
+   *
+   * The server decides: pending and confirmed are cancellable, anything later
+   * answers 409, which the caller surfaces rather than guessing from status.
+   */
+  async cancelOrder(id: string): Promise<Order> {
+    return withFreshToken(async () => {
+      if (!isLive("orders")) {
+        await mockLatency();
+        requireMockAuth();
+        const order = getMockOrder(id);
+        if (!order) throw new ApiError(404, `Order ${id} not found`);
+        if (order.status !== "pending" && order.status !== "confirmed") {
+          throw new ApiError(409, "Status does not allow cancellation");
+        }
+        order.status = "cancelled";
+        return order;
+      }
+      return request<Order>(`/orders/${encodeURIComponent(id)}/cancel`, {
+        method: "POST",
+      });
     });
   },
 

@@ -9,9 +9,8 @@ import { useToast } from "@/components/ui/toast";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError, api, type Address, type Order, type OrderItem } from "@/lib/api";
-import { cartTotals, lineTotal } from "@/lib/cart";
-import { cartStore, type AppliedCoupon, type CartLine } from "@/lib/cart-store";
-import { DELIVERY_FEE } from "@/lib/config";
+import { lineTotal, type CartTotals } from "@/lib/cart";
+import { cartStore, type CartLine } from "@/lib/cart-store";
 import { useCart } from "@/lib/use-cart";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -49,7 +48,9 @@ const STAGE_STEP: Record<Stage, CheckoutStepKey> = {
 interface PlacedOrder {
   order: Order;
   lines: CartLine[];
-  coupon: AppliedCoupon | null;
+  /** The totals as shown at review, which is what the server charged. */
+  totals: CartTotals;
+  couponCode: string | null;
 }
 
 function summariseSaved(address: Address): ChosenAddress {
@@ -80,7 +81,7 @@ export function CheckoutFlow() {
   const t = useTranslations("checkout");
   const tc = useTranslations("cart");
   const showToast = useToast();
-  const { lines, coupon, hydrated } = useCart();
+  const { lines, totals, hydrated, couponCode, isServerBacked } = useCart();
   const { isAuthenticated, user } = useAuth();
 
   const [stage, setStage] = useState<Stage>("address");
@@ -92,8 +93,17 @@ export function CheckoutFlow() {
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
-
-  const totals = cartTotals(lines, coupon, DELIVERY_FEE);
+  /**
+   * One key per checkout attempt, minted when the flow mounts.
+   *
+   * Replaying it on a retry is what makes a double-submit — or a response lost
+   * on a flaky connection — return the original order instead of placing a
+   * second one. It only changes once an order actually lands, so every retry
+   * of *this* basket carries the same key.
+   */
+  const [idempotencyKey, setIdempotencyKey] = useState(() =>
+    globalThis.crypto.randomUUID(),
+  );
 
   // Saved addresses belong to a signed-in customer; a guest has none to read.
   const savedAddresses = useResource<Address[]>(
@@ -125,8 +135,10 @@ export function CheckoutFlow() {
     setPlacing(true);
     setError(null);
 
-    // Snapshot before the cart is cleared — the confirmation renders from this.
+    // Snapshot before the server consumes the cart — the confirmation renders
+    // from this, and the totals shown are the ones the server just charged.
     const snapshot: CartLine[] = lines;
+    const snapshotTotals = totals;
     const items: OrderItem[] = lines.map((line) => ({
       id: line.id,
       product_id: line.product_id,
@@ -152,20 +164,27 @@ export function CheckoutFlow() {
         {
           address_id: addressId,
           payment_method: "cod",
-          coupon_code: coupon?.code ?? null,
+          coupon_code: couponCode,
         },
         {
-          items,
-          subtotal: totals.subtotal,
-          delivery_fee: totals.deliveryFee,
-          discount: totals.discount,
-          total: totals.total,
+          idempotencyKey,
+          draft: {
+            items,
+            subtotal: snapshotTotals.subtotal,
+            delivery_fee: snapshotTotals.deliveryFee,
+            discount: snapshotTotals.discount,
+            total: snapshotTotals.total,
+          },
         },
       );
 
-      setPlaced({ order, lines: snapshot, coupon });
+      setPlaced({ order, lines: snapshot, totals: snapshotTotals, couponCode });
       setStage("done");
-      cartStore.clear();
+      // The server consumed its own cart when it placed the order; this drops
+      // the device copy and re-reads what is left.
+      await cartStore.onOrderPlaced();
+      // The next checkout is a new attempt and must not reuse this key.
+      setIdempotencyKey(globalThis.crypto.randomUUID());
     } catch (cause) {
       setError(
         cause instanceof ApiError && cause.status === 409
@@ -193,8 +212,10 @@ export function CheckoutFlow() {
         <Confirmation
           order={placed.order}
           lines={placed.lines}
-          totals={cartTotals(placed.lines, placed.coupon, DELIVERY_FEE)}
-          couponCode={placed.coupon?.code}
+          // The order's own totals when the server sent them, else what was
+          // shown at review — never recomputed here.
+          totals={placed.totals}
+          couponCode={placed.couponCode ?? undefined}
         />
       </Wrapper>
     );
@@ -268,7 +289,8 @@ export function CheckoutFlow() {
       <Wrapper step="review">
         <ReviewStep
           lines={lines}
-          coupon={coupon}
+          couponCode={couponCode}
+          serverPriced={isServerBacked}
           totals={totals}
           address={
             pickingSaved && saved

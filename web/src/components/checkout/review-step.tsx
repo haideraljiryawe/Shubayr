@@ -9,7 +9,7 @@ import { Price } from "@/components/ui/price";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { lineName, lineTotal, type CartTotals } from "@/lib/cart";
-import type { AppliedCoupon, CartLine } from "@/lib/cart-store";
+import type { CartLine } from "@/lib/cart-store";
 
 /**
  * The address being delivered to, whichever path produced it: a saved account
@@ -30,7 +30,8 @@ export interface ChosenAddress {
  */
 export function ReviewStep({
   lines,
-  coupon,
+  couponCode,
+  serverPriced,
   totals,
   address,
   error,
@@ -39,7 +40,8 @@ export function ReviewStep({
   onPlaceOrder,
 }: {
   lines: CartLine[];
-  coupon: AppliedCoupon | null;
+  couponCode: string | null;
+  serverPriced?: boolean;
   totals: CartTotals;
   address: ChosenAddress;
   error: string | null;
@@ -128,7 +130,11 @@ export function ReviewStep({
       </div>
 
       <div className="flex flex-col gap-3 lg:sticky lg:top-24">
-        <OrderSummary totals={totals} couponCode={coupon?.code}>
+        <OrderSummary
+          totals={totals}
+          couponCode={couponCode ?? undefined}
+          serverPriced={serverPriced}
+        >
           {error ? (
             <p
               role="alert"

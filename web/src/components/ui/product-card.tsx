@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 import { formatDiscount } from "@/lib/format";
 import { useToast } from "./toast";
 import { Badge } from "./badge";
-import { Button } from "./button";
+import { Button, buttonClasses } from "./button";
 import { Card } from "./card";
 import { Price } from "./price";
 import { Rating } from "./rating";
@@ -50,6 +50,15 @@ export interface ProductCardProps {
   imageSizes?: string;
   /** Marks the first row of the first grid as LCP-eligible. */
   priority?: boolean;
+  /**
+   * True when the product is only sellable through one of its variants.
+   *
+   * The seeded catalogue keeps all stock on variants and leaves the
+   * variantless SKU at zero, so adding from a tile — which has no picker —
+   * would be refused for want of stock. Such a tile sends the shopper to the
+   * product page to choose, instead of failing after the click.
+   */
+  requiresVariant?: boolean;
   /** The compact listing tile keeps rating and price below the product name. */
   variant?: "default" | "catalog";
   onAddToCart?: (id: string) => void;
@@ -72,6 +81,7 @@ export function ProductCard({
   inStock = true,
   imageSizes = "(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw",
   priority = false,
+  requiresVariant = false,
   variant = "default",
   onAddToCart,
   onWishlistToggle,
@@ -177,6 +187,21 @@ export function ProductCard({
             className="mt-auto pt-1"
           />
         ) : (
+          requiresVariant ? (
+          <Link
+            href={`/product/${id}`}
+            data-testid="card-choose-variant"
+            className={buttonClasses({
+              variant: "cta",
+              size: "sm",
+              block: true,
+              className: "mt-auto",
+            })}
+          >
+            <ShoppingCart className="size-4" aria-hidden />
+            {tp("chooseOptions")}
+          </Link>
+        ) : (
           <Button
             variant="cta"
             size="sm"
@@ -184,9 +209,9 @@ export function ProductCard({
             disabled={!inStock}
             startIcon={<ShoppingCart className="size-4" aria-hidden />}
             onClick={() => {
-              // A grid tile has no variant picker, so it adds the base product;
-              // choosing a colour or size is what the product page is for.
-              cartStore.addItem({
+              // No picker here, so this adds the variantless SKU; a product
+              // that only sells through variants took the branch above.
+              void cartStore.addItem({
                 product_id: id,
                 variant_id: null,
                 name_ar: nameAr ?? name,
@@ -213,7 +238,7 @@ export function ProductCard({
           >
             {added ? tp("addedToCart") : t("addToCart")}
           </Button>
-        )}
+        ))}
       </div>
     </Card>
   );

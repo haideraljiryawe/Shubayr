@@ -212,6 +212,7 @@ async function RelatedSection({
               nameEn={item.name_en ?? ""}
               availableQty={item.available_qty}
               {...pricingForVariant(item)}
+              requiresVariant={(item.variants ?? []).length > 0}
               rating={item.rating_avg}
               imageUrl={primaryImageUrl(item)}
               inStock={item.in_stock ?? true}

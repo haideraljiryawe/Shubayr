@@ -702,7 +702,7 @@ export interface paths {
         };
         /**
          * Per-variant available quantity for a product
-         * @description Availability is computed at read time as on-hand (sum of batch_stock) minus active reservations (stock_reservations with status=reserved). Nothing is persisted; the number reflects current sellable quantity.
+         * @description Availability is computed at read time as on-hand (sum of batch_stock) minus active batch reservations (stock_reservations with status=reserved) and temporary product/variant-level simple_stock_holds from COD orders. The computed number reflects current sellable quantity.
          */
         get: {
             parameters: {
@@ -742,7 +742,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get current cart */
+        /**
+         * Get the authenticated caller's repriced cart
+         * @description Guest carts remain client-side. After login, clients replay guest lines through POST /cart/items; identical product/variant lines are merged by incrementing quantity. Every response reprices from current server-time effective_price. Subtotal is the sum of effective-price line totals; discount is the coupon amount only, and delivery_fee is zero until a delivery-fee policy is configured at checkout.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -863,7 +866,7 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        quantity?: number;
+                        quantity: number;
                     };
                 };
             };
@@ -993,7 +996,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Validate a coupon code */
+        /**
+         * Validate a coupon code and apply it to the caller's cart
+         * @description Invalid, expired, or exhausted codes return 404. Validity is rechecked on every cart read and at checkout.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -1062,12 +1068,15 @@ export interface paths {
         put?: never;
         /**
          * Place a Cash-on-Delivery order
-         * @description Creates the order (status=pending) and a pending COD payment. Stock is validated but NOT deducted here; reservation happens on staff confirm. The selected owned address and contact_phone are copied into immutable order snapshot fields in the same transaction. Later address edits or deletion never alter a placed order.
+         * @description Atomically reprices and consumes the caller's server cart using server-time effective prices, creates status=pending, a pending COD payment and a minimal delivery record. Sellable stock is reduced by a product/variant hold; FEFO batch assignment and picking are reserved for the inventory slice. A repeated Idempotency-Key with the same checkout request returns the original order, even after the cart is cleared; a different request with that key returns 409. Without a key, retries can create a new order. The selected owned address and contact_phone are copied into immutable order snapshot fields in the same transaction. Later address edits do not alter snapshots; deletion clears address_id but retains snapshots.
          */
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description Optional printable ASCII key, 1-128 characters, unique per customer. */
+                    "Idempotency-Key"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -1095,7 +1104,7 @@ export interface paths {
                         "application/json": components["schemas"]["Order"];
                     };
                 };
-                /** @description One or more items unavailable */
+                /** @description Cart empty, item unavailable, coupon invalid, or idempotency conflict */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -1140,6 +1149,7 @@ export interface paths {
                         "application/json": components["schemas"]["Order"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
             };
         };
@@ -1179,6 +1189,7 @@ export interface paths {
                         "application/json": components["schemas"]["OrderTracking"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
             };
         };
@@ -1199,7 +1210,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancel an order (releases any reservations) */
+        /** Cancel a pending or confirmed order (releases its simple stock holds) */
         post: {
             parameters: {
                 query?: never;
@@ -1220,7 +1231,15 @@ export interface paths {
                         "application/json": components["schemas"]["Order"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                /** @description Status does not allow cancellation */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
             };
         };
         delete?: never;
@@ -1242,7 +1261,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update order status (staff) — confirm triggers FEFO reservation + pick list */
+        /**
+         * Update order status (staff); FEFO picking is a later inventory slice
+         * @description Allowed transitions are pending to confirmed/cancelled; confirmed to processing/cancelled; processing to out_for_delivery; out_for_delivery to delivered/failed_delivery; failed_delivery to out_for_delivery/cancelled; delivered to return_requested; return_requested to returned. Cancellation releases the simple stock hold. Every transition appends a tracking event.
+         */
         patch: {
             parameters: {
                 query?: never;
@@ -1256,6 +1278,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         status: components["schemas"]["OrderStatus"];
+                        note?: string | null;
                     };
                 };
             };
@@ -1271,6 +1294,13 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                /** @description Invalid status transition */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
                 422: components["responses"]["Validation"];
             };
         };
@@ -3420,7 +3450,7 @@ export interface components {
             sort_order?: number;
             is_visible?: boolean;
         };
-        /** @description A catalog product. `in_stock` and `available_qty` are computed at read time (sum of batch_stock minus active reservations); they are not stored. Pricing works the same way: the product stores a regular `price` plus a discount DEFINITION (`discount_type`, `discount_value` and the scheduled window `discount_starts_at`/`discount_ends_at`), and the server derives `on_sale`, `discounted_price`, `effective_price` and `discount_percent` on every read. Those four are never stored, because a scheduled window changes what they mean as the clock moves. Reads populate an empty or missing `name_ar`/`name_en` from the other language so locale-specific clients never receive a blank name. */
+        /** @description A catalog product. `in_stock` and `available_qty` are computed at read time (sum of batch_stock minus active batch reservations and temporary COD order holds); they are not stored on the product. Pricing works the same way: the product stores a regular `price` plus a discount DEFINITION (`discount_type`, `discount_value` and the scheduled window `discount_starts_at`/`discount_ends_at`), and the server derives `on_sale`, `discounted_price`, `effective_price` and `discount_percent` on every read. Those four are never stored, because a scheduled window changes what they mean as the clock moves. Reads populate an empty or missing `name_ar`/`name_en` from the other language so locale-specific clients never receive a blank name. */
         Product: {
             /** Format: uuid */
             id?: string;
@@ -3465,7 +3495,7 @@ export interface components {
             status?: "active" | "hidden" | "archived";
             /** @description computed: available_qty > 0 */
             in_stock?: boolean;
-            /** @description computed: on-hand minus active reservations */
+            /** @description computed: on-hand minus active batch reservations and temporary COD holds */
             available_qty?: number;
             /** @description Ordered by sort_order; the first image is primary. */
             images?: components["schemas"]["ProductImage"][];
@@ -3679,7 +3709,7 @@ export interface components {
             };
             price_delta?: number;
         };
-        /** @description Computed availability (on-hand minus active reservations) per product & variant. */
+        /** @description Computed availability (on-hand minus active batch reservations and temporary COD holds) per product & variant. */
         ProductAvailability: {
             /** Format: uuid */
             product_id?: string;
@@ -3699,19 +3729,28 @@ export interface components {
         };
         Cart: {
             /** Format: uuid */
-            id?: string;
-            items?: {
+            id: string;
+            coupon_code: string | null;
+            items: {
                 /** Format: uuid */
-                id?: string;
+                id: string;
                 /** Format: uuid */
-                product_id?: string;
+                product_id: string;
                 /** Format: uuid */
-                variant_id?: string | null;
-                quantity?: number;
-                /** @description The product's effective_price captured using the shared money policy. */
-                unit_price?: components["schemas"]["Money"];
+                variant_id: string | null;
+                quantity: number;
+                /** @description Current server-time effective_price plus the selected variant's price_delta, floored at zero. */
+                unit_price: components["schemas"]["Money"];
+                line_total: components["schemas"]["Money"];
+                /** @description False when the product is hidden/inactive or available_qty is below quantity. Checkout rejects unavailable lines. */
+                available: boolean;
+                available_qty: number;
             }[];
-            subtotal?: components["schemas"]["Money"];
+            subtotal: components["schemas"]["Money"];
+            /** @description Valid coupon discount only; catalog markdown is already in unit_price. */
+            discount: components["schemas"]["Money"];
+            delivery_fee: components["schemas"]["Money"];
+            total: components["schemas"]["Money"];
         };
         WishlistItem: {
             /** Format: uuid */
@@ -3769,7 +3808,10 @@ export interface components {
             status?: components["schemas"]["OrderStatus"];
             /** @enum {string} */
             payment_method?: "cod";
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description Original address reference; null if that address was later deleted. Delivery snapshots remain unchanged.
+             */
             address_id?: string | null;
             /**
              * Format: uuid

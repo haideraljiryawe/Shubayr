@@ -7,6 +7,7 @@ import { getMessages, getTranslations, setRequestLocale } from "next-intl/server
 import { AppShell } from "@/components/layout/app-shell";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { WishlistSync } from "@/components/providers/wishlist-sync";
+import { CartSync } from "@/lib/cart-sync";
 import { AuthProvider } from "@/lib/auth";
 import { localeDirection, routing, type Locale } from "@/i18n/routing";
 import { api } from "@/lib/api";
@@ -70,9 +71,11 @@ export default async function LocaleLayout({
               ask the same provider who is signed in. */}
           <AuthProvider>
             <ThemeProvider settings={settings}>
-              {/* Renders nothing; mirrors hearts onto the account once the
-                  visitor signs in. */}
+              {/* Both render nothing. The first mirrors hearts onto the
+                  account; the second replays the guest cart onto the server
+                  cart at sign-in and keeps the server's totals authoritative. */}
               <WishlistSync />
+              <CartSync />
               <AppShell>{children}</AppShell>
             </ThemeProvider>
           </AuthProvider>

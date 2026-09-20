@@ -1,15 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowLeft, Banknote, MapPin, Package, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft,
+  Banknote,
+  Loader2,
+  MapPin,
+  Package,
+  RotateCcw,
+  XCircle,
+} from "lucide-react";
 import { useTheme } from "@/components/providers/theme-provider";
-import { buttonClasses } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Price } from "@/components/ui/price";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
+import { useToast } from "@/components/ui/toast";
 import {
   api,
+  ApiError,
   type Address,
   type Order,
   type OrderTracking,
@@ -78,12 +89,19 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   // Returns, product reviews and the delivery rating are all things you can
   // only do once the order is in your hands.
   const delivered = found.status === "delivered";
+  // The server is the authority on cancellability and answers 409 otherwise;
+  // this only decides whether offering the button makes sense at all.
+  const cancellable =
+    found.status === "pending" || found.status === "confirmed";
 
   return (
     <div className="flex flex-col gap-4">
       <OrderHeader order={found} />
       <OrderItems order={found} />
       {delivered ? <ReturnCta orderId={found.id ?? orderId} /> : null}
+      {cancellable ? (
+        <CancelOrder orderId={found.id ?? orderId} onCancelled={reload} />
+      ) : null}
       <TrackingTimeline tracking={tracking} />
       {delivered ? (
         <OrderReviews order={found} deliveryId={deliveryIdForOrder(found)} />
@@ -99,6 +117,73 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         <ArrowLeft className="size-4 rtl-flip" aria-hidden />
         {t("backToOrders")}
       </Link>
+    </div>
+  );
+}
+
+/**
+ * «إلغاء الطلب» — offered while the status still allows it.
+ *
+ * The server decides for real: a 409 means the order moved on between the page
+ * loading and the click, which is said plainly rather than swallowed.
+ */
+function CancelOrder({
+  orderId,
+  onCancelled,
+}: {
+  orderId: string;
+  onCancelled: () => void;
+}) {
+  const t = useTranslations("orders");
+  const showToast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {error ? (
+        <p
+          role="alert"
+          data-testid="order-cancel-error"
+          className="rounded-md border border-error/40 bg-error/8 px-3 py-2 text-sm font-medium text-error-dark"
+        >
+          {error}
+        </p>
+      ) : null}
+      <Button
+        variant="secondary"
+        block
+        disabled={busy}
+        data-testid="order-cancel"
+        startIcon={
+          busy ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <XCircle className="size-4" aria-hidden />
+          )
+        }
+        className="text-error-dark"
+        onClick={async () => {
+          if (!window.confirm(t("cancelConfirm"))) return;
+          setBusy(true);
+          setError(null);
+          try {
+            await api.cancelOrder(orderId);
+            showToast(t("cancelled"));
+            onCancelled();
+          } catch (cause) {
+            setError(
+              cause instanceof ApiError && cause.status === 409
+                ? t("cancelTooLate")
+                : t("cancelFailed"),
+            );
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? t("cancelling") : t("cancelOrder")}
+      </Button>
     </div>
   );
 }

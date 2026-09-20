@@ -123,7 +123,8 @@
     "errorTitle": "Could not load the product",
     "errorBody": "Something went wrong fetching this product.",
     "retry": "Try again",
-    "browse": "Browse products"
+    "browse": "Browse products",
+    "chooseOptions": "Choose options"
   },
   "home": {
     "categoriesTitle": "Main categories",
@@ -387,7 +388,13 @@
     "status_failed_delivery": "Delivery failed",
     "status_cancelled": "Cancelled",
     "status_return_requested": "Return requested",
-    "status_returned": "Returned"
+    "status_returned": "Returned",
+    "cancelOrder": "Cancel order",
+    "cancelling": "Cancelling…",
+    "cancelConfirm": "Cancel this order?",
+    "cancelled": "Order cancelled",
+    "cancelFailed": "Could not cancel the order.",
+    "cancelTooLate": "This order can no longer be cancelled in its current status."
   },
   "addresses": {
     "title": "My addresses",

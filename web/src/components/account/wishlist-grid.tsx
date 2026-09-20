@@ -162,6 +162,7 @@ export function WishlistGrid() {
                 nameEn={product.name_en ?? ""}
                 availableQty={product.available_qty}
                 {...pricingForVariant(product)}
+                requiresVariant={(product.variants ?? []).length > 0}
                 rating={product.rating_avg}
                 imageUrl={primaryImageUrl(product)}
                 inStock={inStock}

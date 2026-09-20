@@ -6,10 +6,9 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { Link } from "@/i18n/navigation";
-import { cartTotals } from "@/lib/cart";
 import { cartStore } from "@/lib/cart-store";
-import { DELIVERY_FEE } from "@/lib/config";
 import { useCart } from "@/lib/use-cart";
+import { useCartLineDetails } from "@/lib/cart-sync";
 import { CartRow } from "./cart-row";
 import { CouponForm } from "./coupon-form";
 import { EmptyCart } from "./empty-cart";
@@ -44,9 +43,13 @@ function CartSkeleton() {
 export function CartView() {
   const t = useTranslations("cart");
   const showToast = useToast();
-  const { lines, coupon, hydrated } = useCart();
+  const { lines, totals, hydrated, isServerBacked, couponCode } = useCart();
 
-  const totals = cartTotals(lines, coupon, DELIVERY_FEE);
+  // A server line this device has never seen carries ids but no name; the
+  // catalogue fills that in.
+  useCartLineDetails(
+    lines.filter((line) => line.unresolved).map((line) => line.product_id),
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
@@ -68,7 +71,7 @@ export function CartView() {
             size="sm"
             data-testid="cart-clear"
             onClick={() => {
-              cartStore.clear();
+              void cartStore.clear();
               showToast(t("cleared"));
             }}
             startIcon={<Trash2 className="size-4" aria-hidden />}
@@ -94,11 +97,11 @@ export function CartView() {
                   <CartRow
                     key={line.id}
                     line={line}
-                    onQuantityChange={(id, quantity) =>
-                      cartStore.setQuantity(id, quantity)
-                    }
+                    onQuantityChange={(id, quantity) => {
+                      void cartStore.setQuantity(id, quantity);
+                    }}
                     onRemove={(id) => {
-                      cartStore.removeItem(id);
+                      void cartStore.removeItem(id);
                       showToast(t("removed"));
                     }}
                   />
@@ -108,19 +111,27 @@ export function CartView() {
 
             <Card padding="md">
               <CouponForm
-                coupon={coupon}
-                onApply={(applied) => {
-                  cartStore.applyCoupon(applied);
-                  showToast(t("couponApplied", { code: applied.code }));
+                couponCode={couponCode}
+                onApply={async (code) => {
+                  await cartStore.applyCouponCode(code);
+                  showToast(t("couponApplied", { code }));
                 }}
-                onRemove={() => cartStore.removeCoupon()}
+                // Signed in, the coupon lives on the server cart and the
+                // contract offers no way to take it off again.
+                onRemove={
+                  isServerBacked ? undefined : () => cartStore.removeCoupon()
+                }
               />
             </Card>
           </div>
 
           {/* Sticky on desktop so the totals stay beside a long basket. */}
           <div className="flex flex-col gap-3 lg:sticky lg:top-24">
-            <OrderSummary totals={totals} couponCode={coupon?.code}>
+            <OrderSummary
+              totals={totals}
+              couponCode={couponCode ?? undefined}
+              serverPriced={isServerBacked}
+            >
               <Link
                 href="/checkout"
                 data-testid="cart-checkout"

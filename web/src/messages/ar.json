@@ -123,7 +123,8 @@
     "errorTitle": "تعذّر تحميل المنتج",
     "errorBody": "حدث خطأ أثناء جلب بيانات المنتج.",
     "retry": "إعادة المحاولة",
-    "browse": "تصفّح المنتجات"
+    "browse": "تصفّح المنتجات",
+    "chooseOptions": "اختر الخيارات"
   },
   "home": {
     "categoriesTitle": "الأقسام الرئيسية",
@@ -387,7 +388,13 @@
     "status_failed_delivery": "تعذّر التسليم",
     "status_cancelled": "ملغي",
     "status_return_requested": "طلب إرجاع",
-    "status_returned": "تم الإرجاع"
+    "status_returned": "تم الإرجاع",
+    "cancelOrder": "إلغاء الطلب",
+    "cancelling": "جارٍ الإلغاء…",
+    "cancelConfirm": "هل تريد إلغاء هذا الطلب؟",
+    "cancelled": "تم إلغاء الطلب",
+    "cancelFailed": "تعذّر إلغاء الطلب.",
+    "cancelTooLate": "لم يعد بالإمكان إلغاء هذا الطلب في حالته الحالية."
   },
   "addresses": {
     "title": "عناويني",

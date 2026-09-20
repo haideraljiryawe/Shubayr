@@ -6,25 +6,31 @@ import { Loader2, TicketPercent, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, fieldErrorId } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { ApiError, api } from "@/lib/api";
-import type { AppliedCoupon } from "@/lib/cart-store";
+import { ApiError } from "@/lib/api";
 
 /**
- * «لديك كوبون خصم؟» — validates a code against POST /coupons/validate and hands
- * the applied coupon up to the cart.
+ * «لديك كوبون خصم؟» — sends a code through POST /coupons/validate.
+ *
+ * Signed in, that endpoint *attaches* the coupon to the server cart and the
+ * discount comes back on the next cart read, so this form never works out what
+ * a code is worth — it hands the code to the store and shows what returns.
  *
  * The contract answers 404 for a code that is unknown, used up or expired, so
  * all of those read as one message; anything else (offline, 500) is reported as
  * a failure to check rather than as a bad code, because the code may be fine.
  */
 export function CouponForm({
-  coupon,
+  couponCode,
   onApply,
   onRemove,
 }: {
-  coupon: AppliedCoupon | null;
-  onApply: (coupon: AppliedCoupon) => void;
-  onRemove: () => void;
+  couponCode: string | null;
+  onApply: (code: string) => Promise<void>;
+  /**
+   * Omitted when the server owns the coupon: the contract has no route to
+   * detach one, so offering a button that cannot work would be a lie.
+   */
+  onRemove?: () => void;
 }) {
   const t = useTranslations("cart");
   const inputId = useId();
@@ -43,22 +49,7 @@ export function CouponForm({
     setPending(true);
     setError(null);
     try {
-      const validated = await api.validateCoupon(trimmed);
-      // The contract types every Coupon field as optional; a coupon without a
-      // type or value cannot price anything, so treat it as a rejection.
-      if (
-        !validated.code ||
-        (validated.type !== "percentage" && validated.type !== "fixed") ||
-        typeof validated.value !== "number"
-      ) {
-        setError(t("couponInvalid"));
-        return;
-      }
-      onApply({
-        code: validated.code,
-        type: validated.type,
-        value: validated.value,
-      });
+      await onApply(trimmed);
       setCode("");
     } catch (cause) {
       setError(
@@ -71,22 +62,24 @@ export function CouponForm({
     }
   }
 
-  if (coupon) {
+  if (couponCode) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/40 bg-primary/8 px-4 py-3">
         <span className="flex items-center gap-2 text-sm font-medium text-primary-dark">
           <TicketPercent className="size-4 shrink-0" aria-hidden />
-          {t("couponApplied", { code: coupon.code })}
+          {t("couponApplied", { code: couponCode })}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRemove}
-          data-testid="coupon-remove"
-          startIcon={<X className="size-4" aria-hidden />}
-        >
-          {t("couponRemove")}
-        </Button>
+        {onRemove ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            data-testid="coupon-remove"
+            startIcon={<X className="size-4" aria-hidden />}
+          >
+            {t("couponRemove")}
+          </Button>
+        ) : null}
       </div>
     );
   }
