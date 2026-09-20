@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.9.0 - 2026-09-20
+
+### Added
+
+- Customer line-level partial return requests, staff return queue and per-line
+  condition review, and a reviewed-return completion endpoint.
+- Sellable return stock movements tied to return lines and a COD refund
+  obligation ledger calculated from immutable order-line price snapshots.
+- A completed partial-return seed example and disposable-database acceptance
+  coverage for eligibility, restock, refund rounding, and audit entries.
+
 ## 4.8.0 - 2026-09-20
 
 ### Added

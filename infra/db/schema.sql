@@ -317,6 +317,7 @@ CREATE TABLE stock_movements (
     quantity        INT NOT NULL,           -- signed or absolute per `type`; app enforces
     reference       VARCHAR(120),           -- order #, invoice #, return #, adjustment note
     user_id         UUID REFERENCES users(id),
+    return_item_id  UUID,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -495,8 +496,13 @@ CREATE TABLE returns (
     order_id        UUID NOT NULL REFERENCES orders(id),
     user_id         UUID NOT NULL REFERENCES users(id),
     type            VARCHAR(20) NOT NULL DEFAULT 'return',   -- return | exchange
-    status          VARCHAR(20) NOT NULL DEFAULT 'requested',-- requested | approved | collected | settled | rejected
+    status          VARCHAR(30) NOT NULL DEFAULT 'requested',-- requested | approved | partially_approved | rejected | completed
     reason          TEXT,
+    expected_refund NUMERIC(12,2) NOT NULL DEFAULT 0,
+    refund_amount   NUMERIC(12,2) NOT NULL DEFAULT 0,
+    reviewed_by     UUID REFERENCES users(id),
+    reviewed_at     TIMESTAMPTZ,
+    completed_at    TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -505,10 +511,31 @@ CREATE TABLE return_items (
     return_id       UUID NOT NULL REFERENCES returns(id) ON DELETE CASCADE,
     order_item_id   UUID NOT NULL REFERENCES order_items(id),
     quantity        INT NOT NULL CHECK (quantity > 0),       -- may be < ordered qty (partial return)
-    condition       VARCHAR(20) NOT NULL,                    -- sellable | opened | damaged
+    approved_quantity INT NOT NULL DEFAULT 0 CHECK (approved_quantity >= 0 AND approved_quantity <= quantity),
+    customer_reason TEXT NOT NULL,
+    unit_price      NUMERIC(12,2) NOT NULL,
+    condition       VARCHAR(20),                             -- sellable | opened | damaged
     restock         BOOLEAN NOT NULL DEFAULT FALSE,          -- only sellable normally re-enters stock
-    batch_id        UUID REFERENCES inventory_batches(id)    -- batch it is restocked into, if any
+    batch_id        UUID REFERENCES inventory_batches(id),   -- batch it is restocked into, if any
+    UNIQUE (return_id, order_item_id)
 );
+
+ALTER TABLE stock_movements ADD CONSTRAINT stock_movements_return_item_id_fkey
+    FOREIGN KEY (return_item_id) REFERENCES return_items(id);
+CREATE INDEX idx_movements_return_item ON stock_movements(return_item_id);
+
+-- COD refunds are recorded obligations; no gateway charge is reversed.
+CREATE TABLE refund_ledger (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id        UUID NOT NULL REFERENCES orders(id),
+    return_id       UUID NOT NULL UNIQUE REFERENCES returns(id),
+    amount          NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+    status          VARCHAR(20) NOT NULL DEFAULT 'obligation' CHECK (status = 'obligation'),
+    reason          TEXT NOT NULL,
+    created_by      UUID NOT NULL REFERENCES users(id),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_refund_ledger_order ON refund_ledger(order_id);
 
 -- ---------------------------------------------------------------------
 -- 14. RATINGS  (product review vs delivery rating kept separate)
