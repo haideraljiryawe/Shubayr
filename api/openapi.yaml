@@ -437,6 +437,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
+  /cart/coupon:
+    delete:
+      tags: [Cart]
+      summary: Remove the applied coupon from the authenticated caller's cart
+      description: Clears the coupon and returns the cart repriced at current server prices. Safe to repeat when no coupon is applied.
+      responses:
+        "200":
+          description: Repriced cart without a coupon
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Cart" }
   /cart/items/{id}:
     patch:
       tags: [Cart]
