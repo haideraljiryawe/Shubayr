@@ -80,7 +80,7 @@ The seed creates these development accounts; each uses the configured
 
 It also creates eight bilingual departments and their subcategories, 32
 stocked products with variants and ordered images, active/future discounts,
-three banners, `DEV10` and `SHUBAYR10` percentage coupons, and five sample customer orders
+three banners, `DEV10` and `SHUBAYR10` percentage coupons, and six sample customer orders
 (pending, confirmed, out_for_delivery, delivered, failed_delivery). Each order has immutable
 line/address snapshots and a delivery record; the delivered item has a seeded
 review and a separate delivery rating. `npm run seed` is safe to repeat and does not duplicate those orders.
@@ -127,6 +127,27 @@ delivered → returned, or out_for_delivery → failed. Failed and returned are
 terminal. Status changes also advance the parent order and its tracking events.
 The owning customer may rate a delivered delivery once with
 `POST /api/v1/deliveries/{id}/rating`; this is separate from product reviews.
+
+### Loyalty points and negotiation data
+
+Delivery completion earns `LOYALTY_POINTS_PER_CURRENCY_UNIT` points (default 1)
+for each **full** currency unit of the immutable order subtotal less its
+discount. Delivery fee is excluded. The delivery and ledger write share a
+transaction, and a unique order earn entry prevents double credit. No points
+are earned at checkout. A COD refund is recorded as an obligation, so returns
+do not claw back delivery-earned points in this slice.
+
+`GET /api/v1/loyalty` returns the customer's balance as the sum of immutable
+ledger entries and paginates history. `POST /api/v1/loyalty/redeem` records a
+points spend; its server-derived indicative value is one minor currency unit
+per point. Redemption does not alter an order or start a payment. Staff with
+`loyalty.manage` can read a customer's ledger and make audited signed
+adjustments at `/api/v1/admin/loyalty/{userId}`. Redemptions and negative
+adjustments cannot make the balance negative.
+
+Admin product writes can persist `is_negotiable`, `floor_price` (at most the
+regular price), and `points_price` (non-negative points cost). These fields
+are data-only until a customer negotiation flow is added.
 
 Checkout immediately subtracts a simple product/variant hold from sellable
 stock, then cancellation releases it. This is deliberately **not** a fake

@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.0.0 - 2026-09-20
+
+### Added
+
+- Append-only loyalty points ledger with balance derived from entries, earn-on-delivery,
+  customer redemption, staff reads and audited manual adjustments.
+- Admin validation and audit records for the existing negotiable product floor and
+  points-price fields; customer negotiation remains data-only.
+
+### Changed
+
+- Removed the mutable loyalty-account balance. Existing cached balances are
+  reconciled into ledger adjustments during migration.
+
 ## 4.9.0 - 2026-09-20
 
 ### Added

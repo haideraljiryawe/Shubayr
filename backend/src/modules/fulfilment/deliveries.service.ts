@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { Delivery, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 import { AssignedDeliveriesQueryDto } from './dto/assigned-deliveries-query.dto';
 import {
   AssignDeliveryDto,
@@ -23,7 +24,10 @@ const transitions: Record<string, readonly string[]> = {
 
 @Injectable()
 export class DeliveriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly loyalty: LoyaltyService,
+  ) {}
 
   listAssigned(agentId: string, query: AssignedDeliveriesQueryDto) {
     return this.list({ agent_id: agentId }, query);
@@ -161,6 +165,9 @@ export class DeliveriesService {
             at: new Date(now.getTime() + index),
           },
         });
+      }
+      if (input.status === 'delivered') {
+        await this.loyalty.earnDelivered(tx, delivery.order_id, agentId);
       }
       return tx.delivery.update({
         where: { id },

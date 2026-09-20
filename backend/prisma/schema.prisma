@@ -82,6 +82,7 @@ model User {
   delivery_ratings_as_agent DeliveryRating[]        @relation("DeliveryRatingAgent")
   delivery_ratings_as_user  DeliveryRating[]        @relation("DeliveryRatingUser")
   loyalty_account           LoyaltyAccount?
+  created_loyalty_entries   LoyaltyLedger[]         @relation("LoyaltyLedgerCreator")
   audit_logs                AuditLog[]              @relation("AuditActor")
   device_tokens             DeviceToken[]
   notification_preferences  NotificationPreference?
@@ -663,6 +664,7 @@ model Return {
   reviewer        User?              @relation("ReturnReviewer", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_reviewed_by_fkey")
   items           ReturnItem[]
   refund          RefundLedgerEntry?
+  loyalty_ledger  LoyaltyLedger[]
 
   @@index([order_id], map: "idx_returns_order")
   @@map("returns")
@@ -740,11 +742,10 @@ model DeliveryRating {
 }
 
 model LoyaltyAccount {
-  id             String          @id(map: "loyalty_accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id        String          @unique(map: "loyalty_accounts_user_id_key") @db.Uuid
-  points_balance Int             @default(0)
-  user           User            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "loyalty_accounts_user_id_fkey")
-  ledger         LoyaltyLedger[]
+  id      String          @id(map: "loyalty_accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id String          @unique(map: "loyalty_accounts_user_id_key") @db.Uuid
+  user    User            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "loyalty_accounts_user_id_fkey")
+  ledger  LoyaltyLedger[]
 
   @@map("loyalty_accounts")
 }
@@ -753,14 +754,20 @@ model LoyaltyLedger {
   id         String         @id(map: "loyalty_ledger_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   account_id String         @db.Uuid
   order_id   String?        @db.Uuid
+  return_id  String?        @db.Uuid
   type       String         @db.VarChar(20)
+  reason     String         @db.VarChar(120)
   points     Int
   note       String?        @db.VarChar(255)
+  created_by String         @db.Uuid
   created_at DateTime       @default(now()) @db.Timestamptz(6)
   account    LoyaltyAccount @relation(fields: [account_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "loyalty_ledger_account_id_fkey")
   order      Order?         @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "loyalty_ledger_order_id_fkey")
+  return     Return?        @relation(fields: [return_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "loyalty_ledger_return_id_fkey")
+  creator    User           @relation("LoyaltyLedgerCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "loyalty_ledger_created_by_fkey")
 
   @@index([account_id], map: "idx_loyalty_ledger_account")
+  @@index([return_id], map: "idx_loyalty_ledger_return")
   @@map("loyalty_ledger")
 }
 

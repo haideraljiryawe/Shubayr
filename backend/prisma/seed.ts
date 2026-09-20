@@ -484,6 +484,9 @@ async function main(): Promise<void> {
         description: `${nameEn} from the seeded Shubayr development catalog.`,
         price,
         ...discount,
+        is_negotiable: number === 3,
+        floor_price: number === 3 ? Math.round(price * 80) / 100 : null,
+        points_price: number === 3 ? 250 : null,
         status: 'active',
         tracks_expiry: department.slug === 'grocery',
       };
@@ -632,10 +635,99 @@ async function main(): Promise<void> {
     users.get('delivery')!,
     now,
   );
+  await seedLoyaltyDemo(
+    users.get('customer')!,
+    users.get('delivery')!,
+    users.get('admin')!,
+  );
 
   console.log(
     `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 6 sample orders.`,
   );
+}
+
+async function seedLoyaltyDemo(
+  customerId: string,
+  agentId: string,
+  adminId: string,
+): Promise<void> {
+  const account = await prisma.loyaltyAccount.upsert({
+    where: { user_id: customerId },
+    update: {},
+    create: { id: seedId(1, 300), user_id: customerId },
+  });
+  const order = await prisma.order.findUniqueOrThrow({
+    where: { id: seedId(1, 13) },
+  });
+  const eligible =
+    moneyToMinorUnits(order.subtotal) - moneyToMinorUnits(order.discount);
+  const earned = Number(eligible > 0n ? eligible / 100n : 0n);
+  if (earned < 1)
+    throw new Error(
+      'Delivered seed order must earn at least one loyalty point',
+    );
+  const entries = [
+    {
+      id: seedId(1, 301),
+      account_id: account.id,
+      order_id: order.id,
+      type: 'earn',
+      reason: 'order_delivered',
+      points: earned,
+      created_by: agentId,
+      note: 'Seeded earn from delivered order',
+    },
+    {
+      id: seedId(1, 302),
+      account_id: account.id,
+      order_id: null,
+      type: 'redeem',
+      reason: 'customer_redemption',
+      points: -1,
+      created_by: customerId,
+      note: 'Seeded points redemption',
+    },
+  ];
+  for (const entry of entries) {
+    const existing = await prisma.loyaltyLedger.findUnique({
+      where: { id: entry.id },
+    });
+    if (!existing) await prisma.loyaltyLedger.create({ data: entry });
+  }
+  for (const [index, action] of ['loyalty.earn', 'loyalty.redeem'].entries()) {
+    await prisma.auditLog.upsert({
+      where: { id: seedId(1, 303 + index) },
+      update: {},
+      create: {
+        id: seedId(1, 303 + index),
+        actor_id: index === 0 ? agentId : customerId,
+        action,
+        entity_type: 'loyalty_ledger',
+        entity_id: entries[index].id,
+        after: { seed_demo: true, points: entries[index].points },
+      },
+    });
+  }
+  const negotiable = await prisma.product.findUniqueOrThrow({
+    where: { id: seedId(4, 3) },
+  });
+  await prisma.auditLog.upsert({
+    where: { id: seedId(1, 305) },
+    update: {},
+    create: {
+      id: seedId(1, 305),
+      actor_id: adminId,
+      action: 'catalog.negotiation.create',
+      entity_type: 'product',
+      entity_id: seedId(4, 3),
+      after: {
+        is_negotiable: true,
+        floor_price: Number(negotiable.floor_price),
+        points_price: 250,
+        seed_demo: true,
+      },
+    },
+  });
 }
 
 async function seedPartialReturnDemo(

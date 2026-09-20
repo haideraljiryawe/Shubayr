@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 4.9.0
+  version: 5.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -737,13 +737,84 @@ paths:
   /loyalty:
     get:
       tags: [Loyalty]
-      summary: Current points balance and ledger
+      summary: Current customer's points balance and paginated ledger
+      description: Balance is computed from the append-only ledger. The default earn rate is one point per full currency unit of delivered order subtotal less discount, excluding delivery fee. COD refund entries are obligations rather than settled payments, so returns do not claw back delivery-earned points in this slice. One point redeemed has an indicative value of one minor currency unit; redemption does not change an order or initiate a payment.
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
       responses:
         "200":
           description: Loyalty account
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LoyaltyAccount" }
+  /loyalty/redeem:
+    post:
+      tags: [Loyalty]
+      summary: Spend points from the current customer's balance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points]
+              properties:
+                points: { type: integer, minimum: 1 }
+                note: { type: string, maxLength: 255 }
+      responses:
+        "201":
+          description: Points redemption recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoyaltyRedemption" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/loyalty/{userId}:
+    get:
+      tags: [Loyalty]
+      summary: Read a customer's balance and paginated ledger
+      x-permission: loyalty.manage
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Customer's ledger-derived balance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoyaltyAccount" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/loyalty/{userId}/adjust:
+    post:
+      tags: [Loyalty]
+      summary: Record an audited positive or negative staff adjustment
+      x-permission: loyalty.manage
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points, reason]
+              properties:
+                points: { type: integer, description: Signed nonzero delta. }
+                reason: { type: string, minLength: 1, maxLength: 120 }
+                note: { type: string, maxLength: 255 }
+      responses:
+        "201":
+          description: Adjustment ledger entry and resulting balance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoyaltyAdjustment" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- PURCHASING (staff) ----------------
   /suppliers:
@@ -1991,8 +2062,8 @@ components:
         effective_price: { $ref: "#/components/schemas/Money", readOnly: true, description: "The price the customer pays. Cart and order pricing use this exact value." }
         discount_percent: { type: [integer, "null"], readOnly: true, description: "Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false." }
         is_negotiable: { type: boolean }
-        floor_price: { type: [number, "null"] }
-        points_price: { type: [integer, "null"] }
+        floor_price: { type: [number, "null"], description: "Negotiation floor, at most the regular price." }
+        points_price: { type: [integer, "null"], description: "Persisted points cost for future negotiation UI; no customer negotiation endpoint yet." }
         tracks_expiry: { type: boolean }
         rating_avg: { type: number }
         status: { type: string, enum: [active, hidden, archived] }
@@ -2043,9 +2114,9 @@ components:
         discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0, description: "Required when discount_type is set, and must be null or omitted otherwise. percentage: at most 100. amount: strictly less than price." }
         discount_starts_at: { type: [string, "null"], format: date-time, description: "Optional window start; null means the discount is active immediately." }
         discount_ends_at: { type: [string, "null"], format: date-time, description: "Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set." }
-        is_negotiable: { type: boolean, default: false }
-        floor_price: { type: [number, "null"] }
-        points_price: { type: [integer, "null"] }
+        is_negotiable: { type: boolean, default: false, description: "Requires floor_price when true." }
+        floor_price: { type: [number, "null"], minimum: 0, description: "Must not exceed price." }
+        points_price: { type: [integer, "null"], minimum: 0, description: "Data-only points cost; negotiation UI is deferred." }
         tracks_expiry: { type: boolean, default: false }
         status: { type: string, enum: [active, hidden, archived], default: active }
         images:
@@ -2082,8 +2153,8 @@ components:
         discount_starts_at: { type: [string, "null"], format: date-time }
         discount_ends_at: { type: [string, "null"], format: date-time }
         is_negotiable: { type: boolean }
-        floor_price: { type: [number, "null"], multipleOf: 0.01 }
-        points_price: { type: [integer, "null"] }
+        floor_price: { type: [number, "null"], multipleOf: 0.01, minimum: 0, description: "Must not exceed the merged regular price." }
+        points_price: { type: [integer, "null"], minimum: 0 }
         tracks_expiry: { type: boolean }
         status: { type: string, enum: [active, hidden, archived] }
         media_operations:
@@ -2398,15 +2469,42 @@ components:
     LoyaltyAccount:
       type: object
       properties:
+        user_id: { type: string, format: uuid }
         points_balance: { type: integer }
+        page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
         ledger:
           type: array
-          items:
-            type: object
-            properties:
-              type: { type: string, enum: [earn, redeem, adjust, expire] }
-              points: { type: integer }
-              created_at: { type: string, format: date-time }
+          items: { $ref: "#/components/schemas/LoyaltyLedgerEntry" }
+
+    LoyaltyLedgerEntry:
+      type: object
+      description: Immutable signed points entry; account ownership identifies the customer.
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        order_id: { type: [string, "null"], format: uuid }
+        return_id: { type: [string, "null"], format: uuid }
+        type: { type: string, enum: [earn, redeem, adjust, expire] }
+        reason: { type: string }
+        points: { type: integer, description: Positive for earn; negative for redeem; signed for adjust. }
+        note: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    LoyaltyRedemption:
+      type: object
+      properties:
+        entry: { $ref: "#/components/schemas/LoyaltyLedgerEntry" }
+        points_balance: { type: integer }
+        redemption_value: { $ref: "#/components/schemas/Money", description: Server-derived indicative value at one point per minor currency unit. }
+
+    LoyaltyAdjustment:
+      type: object
+      properties:
+        entry: { $ref: "#/components/schemas/LoyaltyLedgerEntry" }
+        points_balance: { type: integer }
 
     Supplier:
       type: object

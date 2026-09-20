@@ -1,5 +1,6 @@
 jest.mock('../../database/prisma.service', () => ({ PrismaService: class {} }));
 jest.mock('../catalog/products.service', () => ({ ProductsService: class {} }));
+jest.mock('@nestjs/config', () => ({ ConfigService: class {} }));
 
 import { createHash } from 'node:crypto';
 import {
@@ -58,7 +59,11 @@ describe('OrdersService', () => {
       order: { findUnique: jest.fn().mockResolvedValue(row) },
       productReview: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    const service = new OrdersService(prisma as never, {} as never);
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     const result = await service.place('user-1', input, 'retry-1');
     expect(result.id).toBe('order-1');
     expect(tx.cart.findUnique).not.toHaveBeenCalled();
@@ -79,7 +84,11 @@ describe('OrdersService', () => {
         Promise.resolve(callback(tx)),
       ),
     };
-    const service = new OrdersService(prisma as never, {} as never);
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await expect(
       service.place('user-1', input, 'retry-1'),
     ).rejects.toBeInstanceOf(ConflictException);
@@ -94,7 +103,11 @@ describe('OrdersService', () => {
           .mockResolvedValueOnce(null),
       },
     };
-    const service = new OrdersService(prisma as never, {} as never);
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await expect(service.getOwned('user-1', 'order-1')).rejects.toBeInstanceOf(
       ForbiddenException,
     );
@@ -125,7 +138,11 @@ describe('OrdersService', () => {
       },
       productReview: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    const service = new OrdersService(prisma as never, {} as never);
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await service.cancel('user-1', 'order-1');
     expect(tx.order.updateMany).toHaveBeenCalledWith({
       where: { id: 'order-1', status: { in: ['pending', 'confirmed'] } },
@@ -155,7 +172,11 @@ describe('OrdersService', () => {
         Promise.resolve(callback(tx)),
       ),
     };
-    const service = new OrdersService(prisma as never, {} as never);
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await expect(
       service.updateStatus('staff-1', 'order-1', { status: 'delivered' }),
     ).rejects.toBeInstanceOf(ConflictException);
@@ -183,7 +204,11 @@ describe('OrdersService', () => {
       },
       productReview: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    const service = new OrdersService(prisma as never, {} as never);
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await service.updateStatus('staff-1', 'order-1', { status: 'confirmed' });
     expect(tx.order.updateMany).toHaveBeenCalledWith({
       where: { id: 'order-1', status: { in: ['pending'] } },

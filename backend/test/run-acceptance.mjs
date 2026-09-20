@@ -79,6 +79,7 @@ try {
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
   await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
   await run('test/returns.acceptance.mjs', [], acceptanceEnv);
+  await run('test/loyalty.acceptance.mjs', [], acceptanceEnv);
 } finally {
   if (api && api.exitCode === null) {
     api.kill();

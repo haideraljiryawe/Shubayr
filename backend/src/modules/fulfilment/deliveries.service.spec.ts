@@ -1,5 +1,7 @@
 jest.mock('../../database/prisma.service', () => ({ PrismaService: class {} }));
 
+jest.mock('@nestjs/config', () => ({ ConfigService: class {} }));
+
 import { PERMISSIONS_KEY } from '../../common/decorators/permissions.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { DeliveriesController } from './deliveries.controller';
@@ -75,7 +77,7 @@ describe('DeliveriesService', () => {
       Promise.all(queries),
     ),
   };
-  const service = new DeliveriesService(prisma as never);
+  const service = new DeliveriesService(prisma as never, {} as never);
 
   beforeEach(() => jest.clearAllMocks());
 
