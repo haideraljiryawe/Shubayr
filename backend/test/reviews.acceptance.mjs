@@ -47,7 +47,7 @@ try {
   await request('/admin/reviews', { token: customer, expected: 403 });
 
   const orders = (await request('/orders?per_page=100', { token: customer })).data;
-  const undelivered = orders.find((order) => order.order_number === 'DEV-ORDER-3');
+  const undelivered = orders.find((order) => order.order_number === 'DEV-ORDER-5');
   await request(`/products/${undelivered.items[0].product_id}/reviews`, {
     token: customer, method: 'POST', expected: 409,
     body: { order_item_id: undelivered.items[0].id, rating: 4 },
