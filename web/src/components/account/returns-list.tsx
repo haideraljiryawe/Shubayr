@@ -15,8 +15,8 @@ import { AccountEmpty, AccountError, AccountSkeleton } from "./states";
 const STATUS_TONE: Record<ReturnStatus, BadgeTone> = {
   requested: "warning",
   approved: "info",
-  collected: "info",
-  settled: "success",
+  partially_approved: "info",
+  completed: "success",
   rejected: "error",
 };
 

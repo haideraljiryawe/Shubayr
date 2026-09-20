@@ -22,6 +22,7 @@
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:drift-check": "prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script --exit-code",
     "seed": "ts-node --transpile-only prisma/seed.ts",
     "test:acceptance": "node test/run-acceptance.mjs",
     "db:drop-verify": "node scripts/drop-verify-dbs.mjs"

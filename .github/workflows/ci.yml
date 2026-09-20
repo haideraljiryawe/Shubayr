@@ -35,6 +35,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:test@localhost:5432/shubayr_ci?schema=public
         run: npm run prisma:migrate:deploy
+      - name: Prove the migrated database matches schema.prisma
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:test@localhost:5432/shubayr_ci?schema=public
+        run: npm run prisma:drift-check
       - name: Load RBAC seed
         run: |
           PGPASSWORD=test psql -h localhost -U postgres -d shubayr_ci -v ON_ERROR_STOP=1 -f infra/db/seed_rbac.sql

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 5.2.0
+  version: 5.3.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -2047,7 +2047,7 @@ components:
         area: { type: [string, "null"] }
         street: { type: [string, "null"] }
         details: { type: [string, "null"] }
-        contact_phone: { type: string, minLength: 3, maxLength: 32 }
+        contact_phone: { type: string, minLength: 3, maxLength: 32, pattern: "^\\+[1-9]\\d{7,14}$", description: "Trimmed before storage; must be an E.164 number such as +9647701234567." }
         lat: { type: [number, "null"], format: double }
         lng: { type: [number, "null"], format: double }
         is_default: { type: boolean, default: false }
@@ -2063,7 +2063,7 @@ components:
         area: { type: [string, "null"], maxLength: 120 }
         street: { type: [string, "null"], maxLength: 160 }
         details: { type: [string, "null"] }
-        contact_phone: { type: string, minLength: 3, maxLength: 32 }
+        contact_phone: { type: string, minLength: 3, maxLength: 32, pattern: "^\\+[1-9]\\d{7,14}$", description: "Trimmed before storage; must be an E.164 number such as +9647701234567." }
         lat: { type: [number, "null"], format: double }
         lng: { type: [number, "null"], format: double }
         is_default: { type: boolean }
@@ -2261,10 +2261,17 @@ components:
           items: { $ref: "#/components/schemas/ProductMediaOperation" }
         variants:
           type: array
+          description: >
+            Replaces the variant set in place. Each entry is matched to an
+            existing variant by `id` when supplied and otherwise by `sku`, so
+            an update never reissues variant ids. Omitting a variant removes
+            it; removing one still referenced by inventory, cart, purchasing
+            or order history is rejected with 422.
           items:
             type: object
             additionalProperties: false
             properties:
+              id: { type: string, format: uuid, description: "Existing variant to update; omit to match on sku or to add a new variant." }
               sku: { type: string }
               attributes: { type: object, additionalProperties: true }
               price_delta: { type: number, multipleOf: 0.01 }

@@ -26,6 +26,13 @@ export class ProductImageInputDto {
 }
 
 export class ProductVariantInputDto {
+  // Optional stable handle. Supplying it lets an update rename a variant's
+  // SKU without the variant losing its identity; omitted, variants are
+  // matched on the (globally unique) SKU instead.
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @IsString()
   @MaxLength(80)
   sku!: string;
