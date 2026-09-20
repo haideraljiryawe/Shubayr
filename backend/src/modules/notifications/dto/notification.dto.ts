@@ -32,9 +32,11 @@ export class RegisterDeviceDto {
 }
 
 export class UnregisterDeviceDto {
+  // The token may arrive as a query parameter instead, so an empty body is valid here.
+  @IsOptional()
   @IsString()
   @Length(1, 512)
-  token!: string;
+  token?: string;
 }
 
 export class PreferenceEntryDto {
