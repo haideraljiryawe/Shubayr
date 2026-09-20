@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Headers,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -57,6 +58,7 @@ export class OrdersController {
   }
 
   @Post(':id/cancel')
+  @HttpCode(200)
   cancel(
     @Req() request: UserRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,

@@ -80,7 +80,10 @@ The seed creates these development accounts; each uses the configured
 
 It also creates eight bilingual departments and their subcategories, 32
 stocked products with variants and ordered images, active/future discounts,
-and three banners. `npm run seed` is safe to repeat.
+three banners, a `DEV10` percentage coupon, and four sample customer orders
+(pending, confirmed, out_for_delivery, delivered). Each order has immutable
+line/address snapshots and a delivery record; the delivered item has a seeded
+review. `npm run seed` is safe to repeat and does not duplicate those orders.
 
 The remaining OpenAPI endpoints are implemented phase-by-phase in the order
 specified by the backend build prompt.
@@ -148,3 +151,8 @@ npm run build
 npm test
 npm run test:acceptance # requires the built API plus PostgreSQL and MinIO
 ```
+
+`test:acceptance` runs both the admin-to-public catalog check and the
+customer cart → COD checkout → orders/tracking check. The latter also tests
+repricing, coupon rounding, idempotency, immutable snapshots, stock release,
+and customer/staff access controls.
