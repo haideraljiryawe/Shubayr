@@ -128,6 +128,18 @@ terminal. Status changes also advance the parent order and its tracking events.
 The owning customer may rate a delivered delivery once with
 `POST /api/v1/deliveries/{id}/rating`; this is separate from product reviews.
 
+### Product reviews
+
+Customers can review a delivered purchased order line once through
+`POST /api/v1/products/{id}/reviews`. Reviews are marked as verified purchases
+and start `pending`; staff with `catalog.manage` publish or reject them with a
+reason at `POST /api/v1/admin/reviews/{id}/moderate`. The public product review
+list shows only published reviews. Editing a review's rating or comment sends
+it back to pending; deleting it clears the order line's `reviewed` flag.
+`products.rating_avg` and `rating_count` are caches reconciled from published
+review rows in the same transaction as every review change. Product reviews
+and the existing delivery rating are separate records and endpoints.
+
 ### Loyalty points and negotiation data
 
 Delivery completion earns `LOYALTY_POINTS_PER_CURRENCY_UNIT` points (default 1)

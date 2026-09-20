@@ -640,10 +640,101 @@ async function main(): Promise<void> {
     users.get('delivery')!,
     users.get('admin')!,
   );
+  await seedProductReviewDemo(users.get('customer')!, users.get('admin')!);
 
   console.log(
     `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 6 sample orders.`,
   );
+}
+
+async function seedProductReviewDemo(
+  customerId: string,
+  adminId: string,
+): Promise<void> {
+  const publishedItemId = seedId(1, 33);
+  const pendingItemId = seedId(1, 201);
+  await prisma.orderItem.update({
+    where: { id: publishedItemId },
+    data: { reviewed: true },
+  });
+  await prisma.orderItem.update({
+    where: { id: pendingItemId },
+    data: { reviewed: true },
+  });
+  const approved = await prisma.productReview.findUniqueOrThrow({
+    where: {
+      order_item_id_user_id: {
+        order_item_id: publishedItemId,
+        user_id: customerId,
+      },
+    },
+  });
+  if (!approved.moderated_by) {
+    await prisma.productReview.update({
+      where: { id: approved.id },
+      data: {
+        moderated_by: adminId,
+        moderated_at: approved.created_at,
+        moderation_reason: 'Seeded approved verified purchase',
+      },
+    });
+  }
+  const pending = await prisma.productReview.upsert({
+    where: {
+      order_item_id_user_id: {
+        order_item_id: pendingItemId,
+        user_id: customerId,
+      },
+    },
+    update: {},
+    create: {
+      id: seedId(1, 321),
+      product_id: seedId(4, 1),
+      user_id: customerId,
+      order_item_id: pendingItemId,
+      rating: 3,
+      comment: 'Seeded pending verified review',
+      verified_purchase: true,
+      status: 'pending',
+    },
+  });
+  await prisma.auditLog.upsert({
+    where: { id: seedId(1, 330) },
+    update: {},
+    create: {
+      id: seedId(1, 330),
+      actor_id: adminId,
+      action: 'product_review.moderate',
+      entity_type: 'product_review',
+      entity_id: approved.id,
+      before: { status: 'pending' },
+      after: {
+        status: 'published',
+        reason: 'Seeded approved verified purchase',
+      },
+    },
+  });
+  await prisma.auditLog.upsert({
+    where: { id: seedId(1, 331) },
+    update: {},
+    create: {
+      id: seedId(1, 331),
+      actor_id: customerId,
+      action: 'product_review.create',
+      entity_type: 'product_review',
+      entity_id: pending.id,
+      after: { status: 'pending', verified_purchase: true, seed_demo: true },
+    },
+  });
+  for (const productId of [seedId(4, 1), seedId(4, 4)]) {
+    const [rating] = await prisma.$queryRaw<
+      Array<{ rating_count: number; rating_avg: number }>
+    >`
+      SELECT COUNT(*)::integer AS rating_count,
+             COALESCE(ROUND(AVG(rating)::numeric, 2), 0) AS rating_avg
+      FROM product_reviews WHERE product_id = ${productId}::uuid AND status = 'published'`;
+    await prisma.product.update({ where: { id: productId }, data: rating });
+  }
 }
 
 async function seedLoyaltyDemo(

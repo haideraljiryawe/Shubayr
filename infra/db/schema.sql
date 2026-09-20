@@ -187,6 +187,7 @@ CREATE TABLE products (
     points_price    INT,                                -- cost in loyalty points, if redeemable
     tracks_expiry   BOOLEAN NOT NULL DEFAULT FALSE,     -- true => FEFO applies
     rating_avg      NUMERIC(3,2) NOT NULL DEFAULT 0,
+    rating_count    INT NOT NULL DEFAULT 0,
     status          VARCHAR(20) NOT NULL DEFAULT 'active', -- active | hidden | archived
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -410,7 +411,8 @@ CREATE TABLE order_items (
     image_url       VARCHAR(400),                       -- primary image snapshot; NULL when absent
     quantity        INT NOT NULL CHECK (quantity > 0),
     unit_price      NUMERIC(12,2) NOT NULL,
-    line_total      NUMERIC(12,2) NOT NULL
+    line_total      NUMERIC(12,2) NOT NULL,
+    reviewed        BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE order_status_events (
@@ -554,7 +556,13 @@ CREATE TABLE product_reviews (
     verified_purchase  BOOLEAN NOT NULL DEFAULT FALSE,
     status             VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending | published | rejected
     created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (order_item_id, user_id)
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    moderation_reason  VARCHAR(500),
+    moderated_by       UUID REFERENCES users(id),
+    moderated_at       TIMESTAMPTZ,
+    CONSTRAINT product_reviews_status_check CHECK (status IN ('pending', 'published', 'rejected')),
+    UNIQUE (order_item_id, user_id),
+    UNIQUE (order_item_id)
 );
 
 CREATE TABLE delivery_ratings (
