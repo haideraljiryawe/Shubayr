@@ -641,10 +641,76 @@ async function main(): Promise<void> {
     users.get('admin')!,
   );
   await seedProductReviewDemo(users.get('customer')!, users.get('admin')!);
+  await seedNotificationDemo(users.get('customer')!);
 
   console.log(
     `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 6 sample orders.`,
   );
+}
+
+async function seedNotificationDemo(customerId: string): Promise<void> {
+  await prisma.deviceToken.upsert({
+    where: { token: 'DEV-WEB-NOTIFICATION-TOKEN' },
+    update: {},
+    create: {
+      id: seedId(1, 400),
+      user_id: customerId,
+      token: 'DEV-WEB-NOTIFICATION-TOKEN',
+      platform: 'web',
+      locale: 'ar',
+    },
+  });
+  for (const [type, channel, enabled] of [
+    ['promo', 'push', false],
+    ['delivered', 'sms', false],
+  ] as const) {
+    await prisma.notificationChannelPreference.upsert({
+      where: { user_id_type_channel: { user_id: customerId, type, channel } },
+      update: {},
+      create: { user_id: customerId, type, channel, enabled },
+    });
+  }
+  const now = new Date();
+  for (const [number, type, channel, status] of [
+    [401, 'order_placed', 'push', 'sent'],
+    [403, 'promo', 'push', 'skipped'],
+  ] as const) {
+    const eventId = seedId(1, number);
+    const entityId = seedId(1, 10);
+    await prisma.notificationEvent.upsert({
+      where: { event_key: `seed:${type}:${customerId}` },
+      update: {},
+      create: {
+        id: eventId,
+        event_key: `seed:${type}:${customerId}`,
+        user_id: customerId,
+        type,
+        entity_type: 'order',
+        entity_id: entityId,
+        enqueued_at: now,
+        processed_at: now,
+      },
+    });
+    await prisma.notificationLog.upsert({
+      where: { delivery_key: `seed:${type}:${channel}:${customerId}` },
+      update: {},
+      create: {
+        id: seedId(1, number + 1),
+        event_id: eventId,
+        user_id: customerId,
+        type,
+        channel,
+        delivery_key: `seed:${type}:${channel}:${customerId}`,
+        status,
+        locale: 'ar',
+        title: type === 'promo' ? 'عرض من شُبير' : 'تم استلام الطلب',
+        body: type === 'promo' ? 'لديك عرض جديد.' : 'تم استلام طلبك.',
+        entity_type: 'order',
+        entity_id: entityId,
+        sent_at: status === 'sent' ? now : null,
+      },
+    });
+  }
 }
 
 async function seedProductReviewDemo(

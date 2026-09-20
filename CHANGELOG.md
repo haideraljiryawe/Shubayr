@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.2.0 - 2026-09-20
+
+### Added
+
+- Account-owned device registration and deactivation, per-type/channel notification
+  preferences, and paginated notification history.
+- Transactional notification outbox, BullMQ fan-out worker, bilingual templates,
+  development push/SMS drivers, and audited token and preference changes.
+- Notification attempt history and a disposable-database worker acceptance suite.
+
+### Changed
+
+- Order, delivery, return, loyalty earn, and review moderation events now write
+  notification outbox records in their domain transactions.
+
 ## 5.1.0 - 2026-09-20
 
 ### Added

@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { minorUnitsToMoney, moneyToMinorUnits } from '../catalog/pricing';
 import {
   AdjustPointsDto,
@@ -21,6 +22,7 @@ export class LoyaltyService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   /** Call inside the order-delivery transaction, after status becomes delivered. */
@@ -69,6 +71,13 @@ export class LoyaltyService {
         points: entry.points,
       },
     });
+    await this.notifications?.record(
+      tx,
+      order.user_id,
+      'loyalty_points_earned',
+      'loyalty_ledger',
+      entry.id,
+    );
     return entry;
   }
 

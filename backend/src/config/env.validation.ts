@@ -20,6 +20,13 @@ const schema = Joi.object({
   REDIS_URL: Joi.string()
     .uri({ scheme: ['redis', 'rediss'] })
     .required(),
+  NOTIFICATION_PROVIDER: Joi.string()
+    .valid('dev', 'disabled')
+    .when('APP_ENV', {
+      is: 'production',
+      then: Joi.valid('disabled').default('disabled'),
+      otherwise: Joi.valid('dev', 'disabled').default('dev'),
+    }),
   MEILI_HOST: Joi.string().uri().required(),
   MEILI_MASTER_KEY: Joi.string().min(8).required(),
   JWT_SECRET: Joi.string().min(32).required(),

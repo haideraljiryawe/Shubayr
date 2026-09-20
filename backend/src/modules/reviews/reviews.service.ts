@@ -8,6 +8,7 @@ import {
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   CreateReviewDto,
   EditReviewDto,
@@ -20,6 +21,7 @@ export class ReviewsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   async publicList(productId: string, query: ReviewQueryDto) {
@@ -255,6 +257,14 @@ export class ReviewsService {
         before: { status: current.status },
         after: { status, reason: input.reason },
       });
+      await this.notifications?.record(
+        tx,
+        current.user_id,
+        'review_moderated',
+        'product_review',
+        id,
+        `${status}:${updated.moderated_at?.getTime()}`,
+      );
       return updated;
     });
   }

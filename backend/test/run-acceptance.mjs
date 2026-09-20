@@ -81,6 +81,7 @@ try {
   await run('test/returns.acceptance.mjs', [], acceptanceEnv);
   await run('test/loyalty.acceptance.mjs', [], acceptanceEnv);
   await run('test/reviews.acceptance.mjs', [], acceptanceEnv);
+  await run('test/notifications.acceptance.mjs', [], acceptanceEnv);
 } finally {
   if (api && api.exitCode === null) {
     api.kill();
