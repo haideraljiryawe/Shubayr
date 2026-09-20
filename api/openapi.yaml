@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 5.0.0
+  version: 5.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -687,7 +687,8 @@ paths:
               schema: { $ref: "#/components/schemas/ReviewPage" }
     post:
       tags: [Reviews]
-      summary: Submit a review (must reference a purchased order item)
+      summary: Submit a verified-purchase product review
+      description: Only the owner of a delivered order item for this product may review it, once per purchased line. Reviews start pending moderation. Delivery ratings use a separate endpoint.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -699,13 +700,92 @@ paths:
               properties:
                 order_item_id: { type: string, format: uuid }
                 rating: { type: integer, minimum: 1, maximum: 5 }
-                comment: { type: string }
+                comment: { type: [string, "null"], maxLength: 2000 }
       responses:
         "201":
           description: Created review
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Review" }
+        "422": { $ref: "#/components/responses/Validation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /reviews/{id}:
+    patch:
+      tags: [Reviews]
+      summary: Edit the current customer's own product review
+      description: A content change resets a published or rejected review to pending and removes its moderation metadata. A no-op edit preserves status.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: [string, "null"], maxLength: 2000 }
+      responses:
+        "200":
+          description: Updated review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Review" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Reviews]
+      summary: Delete the current customer's own product review
+      description: Clears the purchased order item's reviewed flag and reconciles the product rating cache.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/reviews:
+    get:
+      tags: [Reviews]
+      summary: Staff product-review moderation queue
+      description: Defaults to pending reviews; status can select published or rejected reviews.
+      x-permission: catalog.manage
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, published, rejected] }
+      responses:
+        "200":
+          description: Paginated moderation queue
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/reviews/{id}/moderate:
+    post:
+      tags: [Reviews]
+      summary: Publish or reject a product review with a reason
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              properties:
+                decision: { type: string, enum: [publish, reject] }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Moderated review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Review" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /deliveries/{id}/rating:
     post:
@@ -2065,7 +2145,8 @@ components:
         floor_price: { type: [number, "null"], description: "Negotiation floor, at most the regular price." }
         points_price: { type: [integer, "null"], description: "Persisted points cost for future negotiation UI; no customer negotiation endpoint yet." }
         tracks_expiry: { type: boolean }
-        rating_avg: { type: number }
+        rating_avg: { type: number, description: "Cached average of published product reviews only, reconciled transactionally from review rows and rounded to two decimals half away from zero." }
+        rating_count: { type: integer, description: "Cached count of published product reviews only; review rows are authoritative." }
         status: { type: string, enum: [active, hidden, archived] }
         in_stock: { type: boolean, description: "computed: available_qty > 0" }
         available_qty: { type: integer, description: "computed: on-hand minus active batch reservations and temporary COD holds" }
@@ -2444,6 +2525,10 @@ components:
         verified_purchase: { type: boolean }
         status: { type: string, enum: [pending, published, rejected] }
         created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        moderation_reason: { type: [string, "null"], maxLength: 500 }
+        moderated_by: { type: [string, "null"], format: uuid }
+        moderated_at: { type: [string, "null"], format: date-time }
 
     ReviewPage:
       allOf:

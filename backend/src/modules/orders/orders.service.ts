@@ -288,7 +288,7 @@ export class OrdersService {
       page,
       per_page,
       total,
-      data: await Promise.all(rows.map((row) => this.toResponse(row, userId))),
+      data: rows.map((row) => this.toResponse(row)),
     };
   }
 
@@ -300,7 +300,7 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Order not found');
     if (order.user_id !== userId)
       throw new ForbiddenException('Order belongs to another customer');
-    return this.toResponse(order, userId);
+    return this.toResponse(order);
   }
 
   async track(userId: string, id: string) {
@@ -353,7 +353,7 @@ export class OrdersService {
       where: { id },
       include: orderInclude,
     });
-    return this.toResponse(row, row.user_id);
+    return this.toResponse(row);
   }
 
   private async transition(
@@ -401,15 +401,7 @@ export class OrdersService {
     }
   }
 
-  private async toResponse(row: OrderRow, userId: string) {
-    const reviews = await this.prisma.productReview.findMany({
-      where: {
-        user_id: userId,
-        order_item_id: { in: row.items.map((item) => item.id) },
-      },
-      select: { order_item_id: true },
-    });
-    const reviewed = new Set(reviews.map((review) => review.order_item_id));
+  private toResponse(row: OrderRow) {
     return {
       id: row.id,
       order_number: row.order_number,
@@ -440,7 +432,7 @@ export class OrdersService {
         quantity: item.quantity,
         unit_price: Number(item.unit_price),
         line_total: Number(item.line_total),
-        reviewed: reviewed.has(item.id),
+        reviewed: Boolean(item.reviewed),
       })),
     };
   }

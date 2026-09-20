@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.1.0 - 2026-09-20
+
+### Added
+
+- Verified-purchase product review creation, owner edits/deletes, staff moderation,
+  and published-only public review reads.
+- One-review-per-order-line constraint, persisted reviewed flag, moderation
+  metadata, and a published-review count beside the reconciled rating average.
+- Seeded approved and pending reviews plus disposable-database acceptance tests.
+
+### Changed
+
+- Product rating average and count are recomputed from published review rows
+  in the same transaction as each review mutation.
+
 ## 5.0.0 - 2026-09-20
 
 ### Added
