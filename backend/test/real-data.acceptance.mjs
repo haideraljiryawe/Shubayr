@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 
-const api = (
-  process.env.ACCEPTANCE_API_URL ?? 'http://localhost:8000/api/v1'
-).replace(/\/$/, '');
+const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
+if (!/^shubayr_[a-f0-9]{16}_verify$/.test(process.env.ACCEPTANCE_DATABASE_NAME ?? '')) {
+  throw new Error('Run acceptance through npm run test:acceptance (isolated *_verify database required)');
+}
+if (!api || new URL(api).hostname !== '127.0.0.1' || !new URL(api).port) {
+  throw new Error('Acceptance requires the runner-owned loopback API URL');
+}
 const adminPhone = process.env.ACCEPTANCE_ADMIN_PHONE ?? '+9647700000001';
 const customerPhone = process.env.ACCEPTANCE_CUSTOMER_PHONE ?? '+9647700000006';
 const expectedOtp = process.env.DEV_OTP ?? '000000';

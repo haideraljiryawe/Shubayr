@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 
-const api = (process.env.ACCEPTANCE_API_URL ?? 'http://localhost:8000/api/v1').replace(/\/$/, '');
+const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
+if (!/^shubayr_[a-f0-9]{16}_verify$/.test(process.env.ACCEPTANCE_DATABASE_NAME ?? '')) {
+  throw new Error('Run acceptance through npm run test:acceptance (isolated *_verify database required)');
+}
+if (!api || new URL(api).hostname !== '127.0.0.1' || !new URL(api).port) {
+  throw new Error('Acceptance requires the runner-owned loopback API URL');
+}
 const otp = process.env.DEV_OTP ?? '000000';
 let assertions = 0;
 
@@ -80,11 +86,25 @@ const repricedCart = await request('/cart', { token: customer.access_token });
 check(repricedCart.items[0].unit_price, 15.08, 'cart must reprice after catalog change');
 check(repricedCart.subtotal, 30.16, 'repriced quantity two subtotal');
 await request('/coupons/validate', {
-  method: 'POST', token: customer.access_token, body: { code: 'DEV10' },
+  method: 'POST', token: customer.access_token, body: { code: 'SHUBAYR10' },
 });
 const couponCart = await request('/cart', { token: customer.access_token });
+check(couponCart.coupon_code, 'SHUBAYR10', 'seeded live coupon must apply');
 check(couponCart.discount, 3.02, '10% coupon uses shared half-away rounding');
 check(couponCart.total, 27.14, 'checkout preview total includes coupon');
+const withoutCoupon = await request('/cart/coupon', {
+  method: 'DELETE', token: customer.access_token,
+});
+check(withoutCoupon.coupon_code, null, 'remove detaches coupon');
+check(withoutCoupon.discount, 0, 'remove clears coupon discount');
+check(withoutCoupon.total, 30.16, 'remove restores undiscounted total');
+const repeatedRemoval = await request('/cart/coupon', {
+  method: 'DELETE', token: customer.access_token,
+});
+check(repeatedRemoval.total, 30.16, 'removing twice is safe');
+await request('/coupons/validate', {
+  method: 'POST', token: customer.access_token, body: { code: 'SHUBAYR10' },
+});
 
 const address = await request('/addresses', {
   method: 'POST', token: customer.access_token, expected: 201,
@@ -117,7 +137,7 @@ const countAfter = (await request('/orders', { token: customer.access_token })).
 check(countAfter, orderCountBefore + 1, 'double POST creates exactly one order');
 await request('/orders', {
   method: 'POST', token: customer.access_token, headers: { 'Idempotency-Key': key },
-  body: { ...body, coupon_code: 'DEV10' }, expected: 409,
+  body: { ...body, coupon_code: 'SHUBAYR10' }, expected: 409,
 });
 const listed = await request('/orders?status=pending&per_page=100', { token: customer.access_token });
 check(listed.data.some((order) => order.id === placed.id), true, 'new order appears in user-scoped list');

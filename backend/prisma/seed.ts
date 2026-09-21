@@ -9,7 +9,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 import { PrismaClient } from '../src/generated/prisma/client';
-import { calculateLineTotal } from '../src/modules/catalog/pricing';
+import {
+  calculateLineTotal,
+  minorUnitsToMoney,
+  moneyToMinorUnits,
+} from '../src/modules/catalog/pricing';
 import { cartUnitPrice } from '../src/modules/orders/cart-pricing';
 
 const databaseUrl = required('DATABASE_URL');
@@ -330,6 +334,21 @@ async function main(): Promise<void> {
     });
   }
 
+  const secondDeliveryAgent = await prisma.user.upsert({
+    where: { phone: '+9647700000007' },
+    update: {
+      role_id: roleIds.get('delivery')!,
+      name: 'Development Delivery B',
+      is_active: true,
+    },
+    create: {
+      role_id: roleIds.get('delivery')!,
+      phone: '+9647700000007',
+      name: 'Development Delivery B',
+      is_active: true,
+    },
+  });
+
   const adminId = users.get('admin')!;
   const imageUrls: string[] = [];
   for (let index = 0; index < departments.length; index += 1) {
@@ -465,6 +484,9 @@ async function main(): Promise<void> {
         description: `${nameEn} from the seeded Shubayr development catalog.`,
         price,
         ...discount,
+        is_negotiable: number === 3,
+        floor_price: number === 3 ? Math.round(price * 80) / 100 : null,
+        points_price: number === 3 ? 250 : null,
         status: 'active',
         tracks_expiry: department.slug === 'grocery',
       };
@@ -585,15 +607,526 @@ async function main(): Promise<void> {
     },
     create: { code: 'DEV10', type: 'percentage', value: 10 },
   });
-  await seedCustomerOrders(users.get('customer')!, now);
+  await prisma.coupon.upsert({
+    where: { code: 'SHUBAYR10' },
+    update: {
+      type: 'percentage',
+      value: 10,
+      usage_limit: null,
+      expires_at: null,
+    },
+    create: {
+      code: 'SHUBAYR10',
+      type: 'percentage',
+      value: 10,
+      usage_limit: null,
+      expires_at: null,
+    },
+  });
+  await seedCustomerOrders(
+    users.get('customer')!,
+    users.get('delivery')!,
+    secondDeliveryAgent.id,
+    now,
+  );
+  await seedPartialReturnDemo(
+    users.get('customer')!,
+    users.get('admin')!,
+    users.get('delivery')!,
+    now,
+  );
+  await seedLoyaltyDemo(
+    users.get('customer')!,
+    users.get('delivery')!,
+    users.get('admin')!,
+  );
+  await seedProductReviewDemo(users.get('customer')!, users.get('admin')!);
+  await seedNotificationDemo(users.get('customer')!);
 
   console.log(
-    `Seeded ${roles.length} roles, ${accounts.length} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 4 sample orders.`,
+    `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 6 sample orders.`,
   );
+}
+
+async function seedNotificationDemo(customerId: string): Promise<void> {
+  await prisma.deviceToken.upsert({
+    where: { token: 'DEV-WEB-NOTIFICATION-TOKEN' },
+    update: {},
+    create: {
+      id: seedId(1, 400),
+      user_id: customerId,
+      token: 'DEV-WEB-NOTIFICATION-TOKEN',
+      platform: 'web',
+      locale: 'ar',
+    },
+  });
+  for (const [type, channel, enabled] of [
+    ['promo', 'push', false],
+    ['delivered', 'sms', false],
+  ] as const) {
+    await prisma.notificationChannelPreference.upsert({
+      where: { user_id_type_channel: { user_id: customerId, type, channel } },
+      update: {},
+      create: { user_id: customerId, type, channel, enabled },
+    });
+  }
+  const now = new Date();
+  for (const [number, type, channel, status] of [
+    [401, 'order_placed', 'push', 'sent'],
+    [403, 'promo', 'push', 'skipped'],
+  ] as const) {
+    const eventId = seedId(1, number);
+    const entityId = seedId(1, 10);
+    await prisma.notificationEvent.upsert({
+      where: { event_key: `seed:${type}:${customerId}` },
+      update: {},
+      create: {
+        id: eventId,
+        event_key: `seed:${type}:${customerId}`,
+        user_id: customerId,
+        type,
+        entity_type: 'order',
+        entity_id: entityId,
+        enqueued_at: now,
+        processed_at: now,
+      },
+    });
+    await prisma.notificationLog.upsert({
+      where: { delivery_key: `seed:${type}:${channel}:${customerId}` },
+      update: {},
+      create: {
+        id: seedId(1, number + 1),
+        event_id: eventId,
+        user_id: customerId,
+        type,
+        channel,
+        delivery_key: `seed:${type}:${channel}:${customerId}`,
+        status,
+        locale: 'ar',
+        title: type === 'promo' ? 'عرض من شُبير' : 'تم استلام الطلب',
+        body: type === 'promo' ? 'لديك عرض جديد.' : 'تم استلام طلبك.',
+        entity_type: 'order',
+        entity_id: entityId,
+        sent_at: status === 'sent' ? now : null,
+      },
+    });
+  }
+}
+
+async function seedProductReviewDemo(
+  customerId: string,
+  adminId: string,
+): Promise<void> {
+  const publishedItemId = seedId(1, 33);
+  const pendingItemId = seedId(1, 201);
+  await prisma.orderItem.update({
+    where: { id: publishedItemId },
+    data: { reviewed: true },
+  });
+  await prisma.orderItem.update({
+    where: { id: pendingItemId },
+    data: { reviewed: true },
+  });
+  const approved = await prisma.productReview.findUniqueOrThrow({
+    where: {
+      order_item_id_user_id: {
+        order_item_id: publishedItemId,
+        user_id: customerId,
+      },
+    },
+  });
+  if (!approved.moderated_by) {
+    await prisma.productReview.update({
+      where: { id: approved.id },
+      data: {
+        moderated_by: adminId,
+        moderated_at: approved.created_at,
+        moderation_reason: 'Seeded approved verified purchase',
+      },
+    });
+  }
+  const pending = await prisma.productReview.upsert({
+    where: {
+      order_item_id_user_id: {
+        order_item_id: pendingItemId,
+        user_id: customerId,
+      },
+    },
+    update: {},
+    create: {
+      id: seedId(1, 321),
+      product_id: seedId(4, 1),
+      user_id: customerId,
+      order_item_id: pendingItemId,
+      rating: 3,
+      comment: 'Seeded pending verified review',
+      verified_purchase: true,
+      status: 'pending',
+    },
+  });
+  await prisma.auditLog.upsert({
+    where: { id: seedId(1, 330) },
+    update: {},
+    create: {
+      id: seedId(1, 330),
+      actor_id: adminId,
+      action: 'product_review.moderate',
+      entity_type: 'product_review',
+      entity_id: approved.id,
+      before: { status: 'pending' },
+      after: {
+        status: 'published',
+        reason: 'Seeded approved verified purchase',
+      },
+    },
+  });
+  await prisma.auditLog.upsert({
+    where: { id: seedId(1, 331) },
+    update: {},
+    create: {
+      id: seedId(1, 331),
+      actor_id: customerId,
+      action: 'product_review.create',
+      entity_type: 'product_review',
+      entity_id: pending.id,
+      after: { status: 'pending', verified_purchase: true, seed_demo: true },
+    },
+  });
+  for (const productId of [seedId(4, 1), seedId(4, 4)]) {
+    const [rating] = await prisma.$queryRaw<
+      Array<{ rating_count: number; rating_avg: number }>
+    >`
+      SELECT COUNT(*)::integer AS rating_count,
+             COALESCE(ROUND(AVG(rating)::numeric, 2), 0) AS rating_avg
+      FROM product_reviews WHERE product_id = ${productId}::uuid AND status = 'published'`;
+    await prisma.product.update({ where: { id: productId }, data: rating });
+  }
+}
+
+async function seedLoyaltyDemo(
+  customerId: string,
+  agentId: string,
+  adminId: string,
+): Promise<void> {
+  const account = await prisma.loyaltyAccount.upsert({
+    where: { user_id: customerId },
+    update: {},
+    create: { id: seedId(1, 300), user_id: customerId },
+  });
+  const order = await prisma.order.findUniqueOrThrow({
+    where: { id: seedId(1, 13) },
+  });
+  const eligible =
+    moneyToMinorUnits(order.subtotal) - moneyToMinorUnits(order.discount);
+  const earned = Number(eligible > 0n ? eligible / 100n : 0n);
+  if (earned < 1)
+    throw new Error(
+      'Delivered seed order must earn at least one loyalty point',
+    );
+  const entries = [
+    {
+      id: seedId(1, 301),
+      account_id: account.id,
+      order_id: order.id,
+      type: 'earn',
+      reason: 'order_delivered',
+      points: earned,
+      created_by: agentId,
+      note: 'Seeded earn from delivered order',
+    },
+    {
+      id: seedId(1, 302),
+      account_id: account.id,
+      order_id: null,
+      type: 'redeem',
+      reason: 'customer_redemption',
+      points: -1,
+      created_by: customerId,
+      note: 'Seeded points redemption',
+    },
+  ];
+  for (const entry of entries) {
+    const existing = await prisma.loyaltyLedger.findUnique({
+      where: { id: entry.id },
+    });
+    if (!existing) await prisma.loyaltyLedger.create({ data: entry });
+  }
+  for (const [index, action] of ['loyalty.earn', 'loyalty.redeem'].entries()) {
+    await prisma.auditLog.upsert({
+      where: { id: seedId(1, 303 + index) },
+      update: {},
+      create: {
+        id: seedId(1, 303 + index),
+        actor_id: index === 0 ? agentId : customerId,
+        action,
+        entity_type: 'loyalty_ledger',
+        entity_id: entries[index].id,
+        after: { seed_demo: true, points: entries[index].points },
+      },
+    });
+  }
+  const negotiable = await prisma.product.findUniqueOrThrow({
+    where: { id: seedId(4, 3) },
+  });
+  await prisma.auditLog.upsert({
+    where: { id: seedId(1, 305) },
+    update: {},
+    create: {
+      id: seedId(1, 305),
+      actor_id: adminId,
+      action: 'catalog.negotiation.create',
+      entity_type: 'product',
+      entity_id: seedId(4, 3),
+      after: {
+        is_negotiable: true,
+        floor_price: Number(negotiable.floor_price),
+        points_price: 250,
+        seed_demo: true,
+      },
+    },
+  });
+}
+
+async function seedPartialReturnDemo(
+  customerId: string,
+  adminId: string,
+  agentId: string,
+  now: Date,
+): Promise<void> {
+  const orderId = seedId(1, 200);
+  const returnId = seedId(1, 204);
+  const locationId = seedId(9, 2);
+  const products = await Promise.all(
+    [1, 2].map(async (number) => {
+      const product = await prisma.product.findUniqueOrThrow({
+        where: { id: seedId(4, number) },
+      });
+      const variant = await prisma.productVariant.findUniqueOrThrow({
+        where: { sku: `SEED-${String(number).padStart(3, '0')}-STD` },
+      });
+      return { product, variant };
+    }),
+  );
+  const prices = products.map(({ product, variant }) =>
+    cartUnitPrice(product, variant.price_delta, now),
+  );
+  const quantities = [3, 1];
+  const subtotal = minorUnitsToMoney(
+    moneyToMinorUnits(prices[0]) * 3n + moneyToMinorUnits(prices[1]),
+  );
+  await prisma.order.upsert({
+    where: { id: orderId },
+    update: {},
+    create: {
+      id: orderId,
+      user_id: customerId,
+      address_id: seedId(1, 1),
+      order_number: 'DEV-PARTIAL-RETURN',
+      status: 'delivered',
+      payment_method: 'cod',
+      subtotal,
+      delivery_fee: 0,
+      discount: 0,
+      total: subtotal,
+      delivery_contact_phone: '+9647700090006',
+      delivery_address_label: 'Home',
+      delivery_city: 'Baghdad',
+      delivery_area: 'Karrada',
+      delivery_street: 'Development Street',
+      delivery_details: 'Seeded checkout address',
+      placed_at: now,
+      items: {
+        create: products.map(({ product, variant }, index) => ({
+          id: seedId(1, 201 + index),
+          product_id: product.id,
+          variant_id: variant.id,
+          product_name_ar: product.name_ar,
+          product_name_en: product.name_en,
+          quantity: quantities[index],
+          unit_price: prices[index],
+          line_total: calculateLineTotal(prices[index], quantities[index]),
+        })),
+      },
+      payments: {
+        create: {
+          id: seedId(1, 212),
+          method: 'cod',
+          status: 'paid',
+          amount: subtotal,
+          paid_at: now,
+        },
+      },
+      status_events: {
+        create: { id: seedId(1, 213), status: 'delivered', at: now },
+      },
+    },
+  });
+  await prisma.delivery.upsert({
+    where: { id: seedId(1, 203) },
+    update: {},
+    create: {
+      id: seedId(1, 203),
+      order_id: orderId,
+      agent_id: agentId,
+      status: 'delivered',
+      delivery_fee: 0,
+      dispatched_at: now,
+      delivered_at: now,
+    },
+  });
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { delivery_id: seedId(1, 203) },
+  });
+  for (let index = 0; index < products.length; index += 1) {
+    await prisma.simpleStockHold.upsert({
+      where: { order_item_id: seedId(1, 201 + index) },
+      update: {},
+      create: {
+        id: seedId(1, 210 + index),
+        order_id: orderId,
+        order_item_id: seedId(1, 201 + index),
+        product_id: products[index].product.id,
+        variant_id: products[index].variant.id,
+        quantity: quantities[index],
+      },
+    });
+  }
+  await prisma.stockReservation.upsert({
+    where: { id: seedId(1, 209) },
+    update: {},
+    create: {
+      id: seedId(1, 209),
+      order_id: orderId,
+      order_item_id: seedId(1, 201),
+      batch_id: seedId(7, 1),
+      location_id: locationId,
+      quantity: 3,
+      status: 'consumed',
+    },
+  });
+  const refund = minorUnitsToMoney(
+    moneyToMinorUnits(prices[0]) + moneyToMinorUnits(prices[1]),
+  );
+  await prisma.return.upsert({
+    where: { id: returnId },
+    update: {},
+    create: {
+      id: returnId,
+      order_id: orderId,
+      user_id: customerId,
+      status: 'completed',
+      reason: 'Seeded partial return',
+      expected_refund: refund,
+      refund_amount: refund,
+      reviewed_by: adminId,
+      reviewed_at: now,
+      completed_at: now,
+      created_at: now,
+      items: {
+        create: [
+          {
+            id: seedId(1, 205),
+            order_item_id: seedId(1, 201),
+            quantity: 1,
+            approved_quantity: 1,
+            customer_reason: 'Unneeded unit',
+            unit_price: prices[0],
+            condition: 'sellable',
+            restock: true,
+            batch_id: seedId(7, 1),
+          },
+          {
+            id: seedId(1, 206),
+            order_item_id: seedId(1, 202),
+            quantity: 1,
+            approved_quantity: 1,
+            customer_reason: 'Arrived damaged',
+            unit_price: prices[1],
+            condition: 'damaged',
+            restock: false,
+          },
+        ],
+      },
+    },
+  });
+  await prisma.batchStock.upsert({
+    where: {
+      batch_id_location_id: { batch_id: seedId(7, 1), location_id: locationId },
+    },
+    update: { quantity: 101 },
+    create: { batch_id: seedId(7, 1), location_id: locationId, quantity: 101 },
+  });
+  await prisma.stockMovement.upsert({
+    where: { id: seedId(1, 208) },
+    update: {},
+    create: {
+      id: seedId(1, 208),
+      batch_id: seedId(7, 1),
+      return_item_id: seedId(1, 205),
+      type: 'return_in',
+      to_location: locationId,
+      quantity: 1,
+      reference: `return-origin:${returnId}`,
+      user_id: adminId,
+    },
+  });
+  await prisma.refundLedgerEntry.upsert({
+    where: { return_id: returnId },
+    update: {},
+    create: {
+      id: seedId(1, 207),
+      order_id: orderId,
+      return_id: returnId,
+      amount: refund,
+      status: 'obligation',
+      reason: 'Seeded COD refund obligation; no gateway reversal',
+      created_by: adminId,
+    },
+  });
+  const actions = [
+    'return.request',
+    'return.disposition',
+    'return.restock',
+    'return.disposition',
+    'return.review',
+    'refund.obligation',
+    'return.complete',
+  ];
+  for (const [index, action] of actions.entries()) {
+    await prisma.auditLog.upsert({
+      where: { id: seedId(1, 220 + index) },
+      update: {},
+      create: {
+        id: seedId(1, 220 + index),
+        actor_id: index === 0 ? customerId : adminId,
+        action,
+        entity_type:
+          action === 'refund.obligation'
+            ? 'refund_ledger'
+            : action === 'return.restock'
+              ? 'stock_movement'
+              : action === 'return.disposition'
+                ? 'return_item'
+                : 'return',
+        entity_id:
+          action === 'refund.obligation'
+            ? seedId(1, 207)
+            : action === 'return.restock'
+              ? seedId(1, 208)
+              : action === 'return.disposition'
+                ? seedId(1, index === 1 ? 205 : 206)
+                : returnId,
+        after: { seed_demo: true, status: 'completed' },
+      },
+    });
+  }
 }
 
 async function seedCustomerOrders(
   customerId: string,
+  deliveryAgentId: string,
+  secondDeliveryAgentId: string,
   now: Date,
 ): Promise<void> {
   const addressId = seedId(1, 1);
@@ -649,6 +1182,19 @@ async function seedCustomerOrders(
       ],
       product: 4,
       daysAgo: 7,
+      quantity: 1,
+    },
+    {
+      status: 'failed_delivery',
+      timeline: [
+        'pending',
+        'confirmed',
+        'processing',
+        'out_for_delivery',
+        'failed_delivery',
+      ],
+      product: 5,
+      daysAgo: 5,
       quantity: 1,
     },
   ] as const;
@@ -741,11 +1287,14 @@ async function seedCustomerOrders(
       create: {
         id: seedId(1, 20 + index),
         order_id: id,
+        agent_id: index === 1 ? secondDeliveryAgentId : deliveryAgentId,
         status: delivered
           ? 'delivered'
-          : dispatched
-            ? 'out_for_delivery'
-            : 'assigned',
+          : sample.status === 'failed_delivery'
+            ? 'failed'
+            : dispatched
+              ? 'out_for_delivery'
+              : 'assigned',
         delivery_fee: 0,
         dispatched_at: dispatched
           ? new Date(placedAt.getTime() + 3 * 3_600_000)
@@ -754,6 +1303,10 @@ async function seedCustomerOrders(
           ? new Date(placedAt.getTime() + 4 * 3_600_000)
           : null,
       },
+    });
+    await prisma.delivery.updateMany({
+      where: { id: delivery.id, agent_id: null },
+      data: { agent_id: index === 1 ? secondDeliveryAgentId : deliveryAgentId },
     });
     if (!order.delivery_id) {
       await prisma.order.update({
@@ -794,6 +1347,18 @@ async function seedCustomerOrders(
           comment: 'Seeded delivered-order review',
           verified_purchase: true,
           status: 'published',
+        },
+      });
+      await prisma.deliveryRating.upsert({
+        where: { delivery_id: delivery.id },
+        update: {},
+        create: {
+          id: seedId(1, 90),
+          delivery_id: delivery.id,
+          agent_id: deliveryAgentId,
+          user_id: customerId,
+          stars: 5,
+          comment: 'Seeded delivery rating',
         },
       });
     }

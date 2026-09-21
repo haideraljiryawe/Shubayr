@@ -9,6 +9,8 @@ import {
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { ProductsService } from '../catalog/products.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { calculateLineTotal } from '../catalog/pricing';
 import {
   activeCoupon,
@@ -42,6 +44,8 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly products: ProductsService,
+    private readonly loyalty: LoyaltyService,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   async place(userId: string, input: PlaceOrderDto, rawKey?: string) {
@@ -260,6 +264,13 @@ export class OrdersService {
         where: { id: cart.id },
         data: { coupon_id: null, updated_at: at },
       });
+      await this.notifications?.record(
+        tx,
+        userId,
+        'order_placed',
+        'order',
+        order.id,
+      );
       return order.id;
     });
     return this.getOwned(userId, orderId);
@@ -286,7 +297,7 @@ export class OrdersService {
       page,
       per_page,
       total,
-      data: await Promise.all(rows.map((row) => this.toResponse(row, userId))),
+      data: rows.map((row) => this.toResponse(row)),
     };
   }
 
@@ -298,7 +309,7 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Order not found');
     if (order.user_id !== userId)
       throw new ForbiddenException('Order belongs to another customer');
-    return this.toResponse(order, userId);
+    return this.toResponse(order);
   }
 
   async track(userId: string, id: string) {
@@ -351,7 +362,7 @@ export class OrdersService {
       where: { id },
       include: orderInclude,
     });
-    return this.toResponse(row, row.user_id);
+    return this.toResponse(row);
   }
 
   private async transition(
@@ -371,11 +382,35 @@ export class OrdersService {
     await tx.orderStatusEvent.create({
       data: { order_id: id, status, note: note ?? null },
     });
+    if (this.notifications) {
+      const order = await tx.order.findUniqueOrThrow({ where: { id } });
+      const type =
+        status === 'confirmed'
+          ? 'order_confirmed'
+          : status === 'out_for_delivery'
+            ? 'out_for_delivery'
+            : status === 'delivered'
+              ? 'delivered'
+              : status === 'failed_delivery'
+                ? 'delivery_failed'
+                : 'order_status_changed';
+      await this.notifications.record(
+        tx,
+        order.user_id,
+        type,
+        'order',
+        id,
+        type === 'order_status_changed' ? status : '',
+      );
+    }
     if (status === 'cancelled') {
       await tx.simpleStockHold.updateMany({
         where: { order_id: id, released_at: null },
         data: { released_at: new Date() },
       });
+    }
+    if (status === 'delivered') {
+      await this.loyalty.earnDelivered(tx, id, _actorId);
     }
     if (
       ['out_for_delivery', 'delivered', 'failed_delivery', 'returned'].includes(
@@ -396,15 +431,7 @@ export class OrdersService {
     }
   }
 
-  private async toResponse(row: OrderRow, userId: string) {
-    const reviews = await this.prisma.productReview.findMany({
-      where: {
-        user_id: userId,
-        order_item_id: { in: row.items.map((item) => item.id) },
-      },
-      select: { order_item_id: true },
-    });
-    const reviewed = new Set(reviews.map((review) => review.order_item_id));
+  private toResponse(row: OrderRow) {
     return {
       id: row.id,
       order_number: row.order_number,
@@ -435,7 +462,7 @@ export class OrdersService {
         quantity: item.quantity,
         unit_price: Number(item.unit_price),
         line_total: Number(item.line_total),
-        reviewed: reviewed.has(item.id),
+        reviewed: Boolean(item.reviewed),
       })),
     };
   }

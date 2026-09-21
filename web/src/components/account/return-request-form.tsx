@@ -79,16 +79,30 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
     .map((item) => {
       const line = selection[item.id ?? ""];
       return line?.checked
-        ? { order_item_id: item.id ?? "", quantity: line.quantity }
+        ? {
+            order_item_id: item.id ?? "",
+            quantity: line.quantity,
+            reason: reason.trim(),
+          }
         : null;
     })
-    .filter((line): line is { order_item_id: string; quantity: number } =>
-      Boolean(line),
+    .filter(
+      (
+        line,
+      ): line is {
+        order_item_id: string;
+        quantity: number;
+        reason: string;
+      } => Boolean(line),
     );
 
   const submit = async () => {
     if (chosen.length === 0) {
       setError(t("errNoItems"));
+      return;
+    }
+    if (!reason.trim()) {
+      setError(t("errNoReason"));
       return;
     }
 

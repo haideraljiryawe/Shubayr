@@ -22,8 +22,10 @@
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:drift-check": "prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script --exit-code",
     "seed": "ts-node --transpile-only prisma/seed.ts",
-    "test:acceptance": "node test/real-data.acceptance.mjs && node test/order.acceptance.mjs"
+    "test:acceptance": "node test/run-acceptance.mjs",
+    "db:drop-verify": "node scripts/drop-verify-dbs.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1135.0",
@@ -42,6 +44,7 @@
     "bullmq": "^6.3.4",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "ioredis": "^5.11.1",
     "joi": "^18.2.8",
     "meilisearch": "^0.60.0",
     "nestjs-pino": "^5.1.0",

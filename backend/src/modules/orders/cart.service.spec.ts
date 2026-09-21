@@ -114,4 +114,67 @@ describe('CartService', () => {
       where: { id: 'item-1', cart: { user_id: 'user-1' } },
     });
   });
+
+  it('applies a coupon, removes it, and restores the original total', async () => {
+    const coupon = {
+      id: 'coupon-1',
+      code: 'SHUBAYR10',
+      type: 'percentage',
+      value: '10',
+      usage_limit: null,
+      used_count: 0,
+      expires_at: null,
+    };
+    let applied = false;
+    const prisma = {
+      coupon: { findFirst: jest.fn().mockResolvedValue(coupon) },
+      cart: {
+        upsert: jest.fn().mockResolvedValue({ id: 'cart-1' }),
+        update: jest
+          .fn()
+          .mockImplementation(
+            ({ data }: { data: { coupon_id: string | null } }) => {
+              applied = data.coupon_id !== null;
+              return Promise.resolve({ id: 'cart-1' });
+            },
+          ),
+        findUnique: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: 'cart-1',
+            coupon: applied ? coupon : null,
+            items: [
+              {
+                id: 'item-1',
+                product_id: 'product-1',
+                variant_id: 'variant-1',
+                quantity: 2,
+                unit_price: '999.99',
+                product,
+                variant: { price_delta: '0.05' },
+              },
+            ],
+          }),
+        ),
+      },
+    };
+    const products = {
+      availability: jest.fn().mockResolvedValue({
+        variants: [{ variant_id: 'variant-1', available_qty: 4 }],
+      }),
+    };
+    const service = new CartService(prisma as never, products as never);
+    const original = await service.get('user-1');
+    await service.applyCoupon('user-1', { code: 'SHUBAYR10' });
+    const discounted = await service.get('user-1');
+    expect(discounted.coupon_code).toBe('SHUBAYR10');
+    expect(discounted.discount).toBe(2.03);
+    expect(discounted.total).toBe(18.23);
+
+    const restored = await service.removeCoupon('user-1');
+    expect(restored.coupon_code).toBeNull();
+    expect(restored.discount).toBe(0);
+    expect(restored.total).toBe(original.total);
+    expect(prisma.cart.update).toHaveBeenCalledTimes(2);
+    expect(applied).toBe(false);
+  });
 });

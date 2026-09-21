@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 4.7.1
+  version: 5.3.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -437,6 +437,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
+  /cart/coupon:
+    delete:
+      tags: [Cart]
+      summary: Remove the applied coupon from the authenticated caller's cart
+      description: Clears the coupon and returns the cart repriced at current server prices. Safe to repeat when no coupon is applied.
+      responses:
+        "200":
+          description: Repriced cart without a coupon
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Cart" }
   /cart/items/{id}:
     patch:
       tags: [Cart]
@@ -676,7 +687,8 @@ paths:
               schema: { $ref: "#/components/schemas/ReviewPage" }
     post:
       tags: [Reviews]
-      summary: Submit a review (must reference a purchased order item)
+      summary: Submit a verified-purchase product review
+      description: Only the owner of a delivered order item for this product may review it, once per purchased line. Reviews start pending moderation. Delivery ratings use a separate endpoint.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -688,7 +700,7 @@ paths:
               properties:
                 order_item_id: { type: string, format: uuid }
                 rating: { type: integer, minimum: 1, maximum: 5 }
-                comment: { type: string }
+                comment: { type: [string, "null"], maxLength: 2000 }
       responses:
         "201":
           description: Created review
@@ -696,11 +708,90 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Review" }
         "422": { $ref: "#/components/responses/Validation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /reviews/{id}:
+    patch:
+      tags: [Reviews]
+      summary: Edit the current customer's own product review
+      description: A content change resets a published or rejected review to pending and removes its moderation metadata. A no-op edit preserves status.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: [string, "null"], maxLength: 2000 }
+      responses:
+        "200":
+          description: Updated review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Review" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Reviews]
+      summary: Delete the current customer's own product review
+      description: Clears the purchased order item's reviewed flag and reconciles the product rating cache.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/reviews:
+    get:
+      tags: [Reviews]
+      summary: Staff product-review moderation queue
+      description: Defaults to pending reviews; status can select published or rejected reviews.
+      x-permission: catalog.manage
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, published, rejected] }
+      responses:
+        "200":
+          description: Paginated moderation queue
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/reviews/{id}/moderate:
+    post:
+      tags: [Reviews]
+      summary: Publish or reject a product review with a reason
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              properties:
+                decision: { type: string, enum: [publish, reject] }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Moderated review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Review" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
   /deliveries/{id}/rating:
     post:
       tags: [Reviews]
       summary: Rate the delivery/agent (separate from product review)
-      description: Customer-scoped. The authenticated caller must own the delivery's order, the delivery must be delivered, and each caller may rate it once. Return 404 or 409 without exposing another customer's delivery.
+      description: Customer-scoped. The authenticated caller must own the delivery's order, both delivery and order must be delivered, and there is exactly one rating per delivery. Another customer's delivery returns 404.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -726,13 +817,84 @@ paths:
   /loyalty:
     get:
       tags: [Loyalty]
-      summary: Current points balance and ledger
+      summary: Current customer's points balance and paginated ledger
+      description: Balance is computed from the append-only ledger. The default earn rate is one point per full currency unit of delivered order subtotal less discount, excluding delivery fee. COD refund entries are obligations rather than settled payments, so returns do not claw back delivery-earned points in this slice. One point redeemed has an indicative value of one minor currency unit; redemption does not change an order or initiate a payment.
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
       responses:
         "200":
           description: Loyalty account
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LoyaltyAccount" }
+  /loyalty/redeem:
+    post:
+      tags: [Loyalty]
+      summary: Spend points from the current customer's balance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points]
+              properties:
+                points: { type: integer, minimum: 1 }
+                note: { type: string, maxLength: 255 }
+      responses:
+        "201":
+          description: Points redemption recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoyaltyRedemption" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/loyalty/{userId}:
+    get:
+      tags: [Loyalty]
+      summary: Read a customer's balance and paginated ledger
+      x-permission: loyalty.manage
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Customer's ledger-derived balance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoyaltyAccount" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/loyalty/{userId}/adjust:
+    post:
+      tags: [Loyalty]
+      summary: Record an audited positive or negative staff adjustment
+      x-permission: loyalty.manage
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points, reason]
+              properties:
+                points: { type: integer, description: Signed nonzero delta. }
+                reason: { type: string, minLength: 1, maxLength: 120 }
+                note: { type: string, maxLength: 255 }
+      responses:
+        "201":
+          description: Adjustment ledger entry and resulting balance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoyaltyAdjustment" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- PURCHASING (staff) ----------------
   /suppliers:
@@ -987,6 +1149,9 @@ paths:
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [requested, approved, partially_approved, rejected, completed] }
       responses:
         "200":
           description: Caller-owned returns
@@ -995,7 +1160,8 @@ paths:
               schema: { $ref: "#/components/schemas/ReturnPage" }
     post:
       tags: [Returns]
-      summary: Request a return (partial allowed — choose items & quantities)
+      summary: Request a partial or full return of a delivered order
+      description: Only the order owner can request a return. Pending quantities reserve eligibility. Expected refund uses immutable order-item unit prices.
       requestBody:
         required: true
         content:
@@ -1008,12 +1174,14 @@ paths:
                 reason: { type: string }
                 items:
                   type: array
+                  minItems: 1
                   items:
                     type: object
-                    required: [order_item_id, quantity]
+                    required: [order_item_id, quantity, reason]
                     properties:
                       order_item_id: { type: string, format: uuid }
                       quantity: { type: integer, minimum: 1 }
+                      reason: { type: string, minLength: 1, maxLength: 1000 }
       responses:
         "201":
           description: Created return request
@@ -1021,10 +1189,29 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Return" }
         "422": { $ref: "#/components/responses/Validation" }
+  /returns/queue:
+    get:
+      tags: [Returns]
+      summary: List all returns for staff review
+      x-permission: returns.view
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [requested, approved, partially_approved, rejected, completed] }
+      responses:
+        "200":
+          description: Paginated return queue
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReturnPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /returns/{id}/inspect:
     post:
       tags: [Returns]
-      summary: Inspect returned items (staff) — set condition & restock
+      summary: Review requested return quantities and conditions
+      description: Review each requested line or reject the whole request. Sellable approved units restock; opened and damaged units do not. Approved refund is a COD obligation.
       x-permission: returns.process
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1033,16 +1220,18 @@ paths:
           application/json:
             schema:
               type: object
+              required: [decision]
               properties:
+                decision: { type: string, enum: [approve, reject] }
                 items:
                   type: array
                   items:
                     type: object
+                    required: [return_item_id, approved_quantity]
                     properties:
                       return_item_id: { type: string, format: uuid }
+                      approved_quantity: { type: integer, minimum: 0 }
                       condition: { type: string, enum: [sellable, opened, damaged] }
-                      restock: { type: boolean }
-                      batch_id: { type: [string, "null"], format: uuid }
       responses:
         "200":
           description: Inspected return
@@ -1051,8 +1240,42 @@ paths:
               schema: { $ref: "#/components/schemas/Return" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /returns/{id}/complete:
+    post:
+      tags: [Returns]
+      summary: Complete a reviewed return
+      description: Completes an approved, partially approved, or rejected return. The order becomes returned only when all ordered units have approved returns.
+      x-permission: returns.process
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Completed return
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Return" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # ---------------- DELIVERIES (agent) ----------------
+  /deliveries:
+    get:
+      tags: [Deliveries]
+      summary: List all deliveries for operations staff
+      x-permission: orders.update
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
+      responses:
+        "200":
+          description: Paginated deliveries across all agents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /deliveries/assigned:
     get:
       tags: [Deliveries]
@@ -1110,6 +1333,12 @@ paths:
     patch:
       tags: [Deliveries]
       summary: Update delivery status (agent)
+      description: >
+        Only the assigned agent may act. Legal transitions are assigned to
+        out_for_delivery; out_for_delivery to delivered or failed; and delivered
+        to returned. Failed and returned are terminal. Dispatch and delivery
+        timestamps are recorded, and the order advances atomically through its
+        corresponding status events.
       x-permission: delivery.assigned
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1120,7 +1349,7 @@ paths:
               type: object
               required: [status]
               properties:
-                status: { type: string, enum: [out_for_delivery, delivered, failed] }
+                status: { type: string, enum: [out_for_delivery, delivered, failed, returned] }
       responses:
         "200":
           description: Updated delivery
@@ -1129,12 +1358,41 @@ paths:
               schema: { $ref: "#/components/schemas/Delivery" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /deliveries/{id}/assign:
+    patch:
+      tags: [Deliveries]
+      summary: Assign or reassign an active delivery to a delivery agent
+      description: Staff may assign only an active delivery to an active user with the delivery role.
+      x-permission: orders.update
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id]
+              properties:
+                agent_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Updated delivery assignment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Delivery" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- DEVICES (FCM push tokens) ----------------
   /devices/token:
     post:
       tags: [Devices]
-      summary: Register an FCM device token for push notifications
+      summary: Register or reactivate an account-owned push device token
+      description: Re-registering refreshes last_seen_at; a token moving accounts is reassigned, never duplicated.
       requestBody:
         required: true
         content:
@@ -1145,6 +1403,7 @@ paths:
               properties:
                 token: { type: string }
                 platform: { type: string, enum: [android, ios, web] }
+                locale: { type: string, enum: [ar, en, ar-IQ, en-US] }
       responses:
         "201":
           description: Registered device token
@@ -1154,7 +1413,7 @@ paths:
         "422": { $ref: "#/components/responses/Validation" }
     delete:
       tags: [Devices]
-      summary: Unregister an FCM device token
+      summary: Deactivate an owned device token
       parameters:
         - { name: token, in: query, required: false, schema: { type: string }, description: "Token to remove; may be sent as a query param or in the request body." }
       requestBody:
@@ -1169,12 +1428,13 @@ paths:
       responses:
         "204": { description: Removed }
         "404": { $ref: "#/components/responses/NotFound" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /me/notification-preferences:
     get:
       tags: [Devices]
-      summary: Get persisted notification preferences
-      description: Returns the authenticated user's stored row or the documented defaults when no row exists yet.
+      summary: Get effective per-type and per-channel notification preferences
+      description: Returns all 10 types across push and SMS. Transactional push defaults on; promo defaults off. Order confirmation SMS is mandatory. Legacy category toggles remain the fallback until a type/channel override is stored.
       responses:
         "200":
           description: Notification preferences
@@ -1183,8 +1443,8 @@ paths:
               schema: { $ref: "#/components/schemas/NotificationPreferences" }
     patch:
       tags: [Devices]
-      summary: Update persisted notification preferences
-      description: Omitted toggles are unchanged; the update is stored per account and shared by all devices.
+      summary: Update own type/channel notification preferences
+      description: Omitted pairs are unchanged; updates are shared by all devices. Order confirmation SMS cannot be disabled.
       requestBody:
         required: true
         content:
@@ -1197,6 +1457,20 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/NotificationPreferences" }
         "422": { $ref: "#/components/responses/Validation" }
+
+  /me/notifications:
+    get:
+      tags: [Devices]
+      summary: List the authenticated customer's notification history
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Own notification attempts, newest first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationHistory" }
 
   # ---------------- ADMIN: REPORTS & SETTINGS ----------------
   /admin/reports/sales:
@@ -1773,7 +2047,7 @@ components:
         area: { type: [string, "null"] }
         street: { type: [string, "null"] }
         details: { type: [string, "null"] }
-        contact_phone: { type: string, minLength: 3, maxLength: 32 }
+        contact_phone: { type: string, minLength: 3, maxLength: 32, pattern: "^\\+[1-9]\\d{7,14}$", description: "Trimmed before storage; must be an E.164 number such as +9647701234567." }
         lat: { type: [number, "null"], format: double }
         lng: { type: [number, "null"], format: double }
         is_default: { type: boolean, default: false }
@@ -1789,7 +2063,7 @@ components:
         area: { type: [string, "null"], maxLength: 120 }
         street: { type: [string, "null"], maxLength: 160 }
         details: { type: [string, "null"] }
-        contact_phone: { type: string, minLength: 3, maxLength: 32 }
+        contact_phone: { type: string, minLength: 3, maxLength: 32, pattern: "^\\+[1-9]\\d{7,14}$", description: "Trimmed before storage; must be an E.164 number such as +9647701234567." }
         lat: { type: [number, "null"], format: double }
         lng: { type: [number, "null"], format: double }
         is_default: { type: boolean }
@@ -1885,10 +2159,11 @@ components:
         effective_price: { $ref: "#/components/schemas/Money", readOnly: true, description: "The price the customer pays. Cart and order pricing use this exact value." }
         discount_percent: { type: [integer, "null"], readOnly: true, description: "Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false." }
         is_negotiable: { type: boolean }
-        floor_price: { type: [number, "null"] }
-        points_price: { type: [integer, "null"] }
+        floor_price: { type: [number, "null"], description: "Negotiation floor, at most the regular price." }
+        points_price: { type: [integer, "null"], description: "Persisted points cost for future negotiation UI; no customer negotiation endpoint yet." }
         tracks_expiry: { type: boolean }
-        rating_avg: { type: number }
+        rating_avg: { type: number, description: "Cached average of published product reviews only, reconciled transactionally from review rows and rounded to two decimals half away from zero." }
+        rating_count: { type: integer, description: "Cached count of published product reviews only; review rows are authoritative." }
         status: { type: string, enum: [active, hidden, archived] }
         in_stock: { type: boolean, description: "computed: available_qty > 0" }
         available_qty: { type: integer, description: "computed: on-hand minus active batch reservations and temporary COD holds" }
@@ -1937,9 +2212,9 @@ components:
         discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0, description: "Required when discount_type is set, and must be null or omitted otherwise. percentage: at most 100. amount: strictly less than price." }
         discount_starts_at: { type: [string, "null"], format: date-time, description: "Optional window start; null means the discount is active immediately." }
         discount_ends_at: { type: [string, "null"], format: date-time, description: "Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set." }
-        is_negotiable: { type: boolean, default: false }
-        floor_price: { type: [number, "null"] }
-        points_price: { type: [integer, "null"] }
+        is_negotiable: { type: boolean, default: false, description: "Requires floor_price when true." }
+        floor_price: { type: [number, "null"], minimum: 0, description: "Must not exceed price." }
+        points_price: { type: [integer, "null"], minimum: 0, description: "Data-only points cost; negotiation UI is deferred." }
         tracks_expiry: { type: boolean, default: false }
         status: { type: string, enum: [active, hidden, archived], default: active }
         images:
@@ -1976,8 +2251,8 @@ components:
         discount_starts_at: { type: [string, "null"], format: date-time }
         discount_ends_at: { type: [string, "null"], format: date-time }
         is_negotiable: { type: boolean }
-        floor_price: { type: [number, "null"], multipleOf: 0.01 }
-        points_price: { type: [integer, "null"] }
+        floor_price: { type: [number, "null"], multipleOf: 0.01, minimum: 0, description: "Must not exceed the merged regular price." }
+        points_price: { type: [integer, "null"], minimum: 0 }
         tracks_expiry: { type: boolean }
         status: { type: string, enum: [active, hidden, archived] }
         media_operations:
@@ -1986,10 +2261,17 @@ components:
           items: { $ref: "#/components/schemas/ProductMediaOperation" }
         variants:
           type: array
+          description: >
+            Replaces the variant set in place. Each entry is matched to an
+            existing variant by `id` when supplied and otherwise by `sku`, so
+            an update never reissues variant ids. Omitting a variant removes
+            it; removing one still referenced by inventory, cart, purchasing
+            or order history is rejected with 422.
           items:
             type: object
             additionalProperties: false
             properties:
+              id: { type: string, format: uuid, description: "Existing variant to update; omit to match on sku or to add a new variant." }
               sku: { type: string }
               attributes: { type: object, additionalProperties: true }
               price_delta: { type: number, multipleOf: 0.01 }
@@ -2267,6 +2549,10 @@ components:
         verified_purchase: { type: boolean }
         status: { type: string, enum: [pending, published, rejected] }
         created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        moderation_reason: { type: [string, "null"], maxLength: 500 }
+        moderated_by: { type: [string, "null"], format: uuid }
+        moderated_at: { type: [string, "null"], format: date-time }
 
     ReviewPage:
       allOf:
@@ -2292,15 +2578,42 @@ components:
     LoyaltyAccount:
       type: object
       properties:
+        user_id: { type: string, format: uuid }
         points_balance: { type: integer }
+        page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
         ledger:
           type: array
-          items:
-            type: object
-            properties:
-              type: { type: string, enum: [earn, redeem, adjust, expire] }
-              points: { type: integer }
-              created_at: { type: string, format: date-time }
+          items: { $ref: "#/components/schemas/LoyaltyLedgerEntry" }
+
+    LoyaltyLedgerEntry:
+      type: object
+      description: Immutable signed points entry; account ownership identifies the customer.
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        order_id: { type: [string, "null"], format: uuid }
+        return_id: { type: [string, "null"], format: uuid }
+        type: { type: string, enum: [earn, redeem, adjust, expire] }
+        reason: { type: string }
+        points: { type: integer, description: Positive for earn; negative for redeem; signed for adjust. }
+        note: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    LoyaltyRedemption:
+      type: object
+      properties:
+        entry: { $ref: "#/components/schemas/LoyaltyLedgerEntry" }
+        points_balance: { type: integer }
+        redemption_value: { $ref: "#/components/schemas/Money", description: Server-derived indicative value at one point per minor currency unit. }
+
+    LoyaltyAdjustment:
+      type: object
+      properties:
+        entry: { $ref: "#/components/schemas/LoyaltyLedgerEntry" }
+        points_balance: { type: integer }
 
     Supplier:
       type: object
@@ -2473,6 +2786,11 @@ components:
         id: { type: string, format: uuid }
         order_item_id: { type: string, format: uuid }
         quantity: { type: integer }
+        approved_quantity: { type: integer }
+        customer_reason: { type: string }
+        unit_price: { $ref: "#/components/schemas/Money", description: Immutable order-line unit price. }
+        expected_refund: { $ref: "#/components/schemas/Money" }
+        approved_refund: { $ref: "#/components/schemas/Money" }
         condition: { type: [string, "null"], enum: [sellable, opened, damaged] }
         restock: { type: boolean }
         batch_id: { type: [string, "null"], format: uuid }
@@ -2484,12 +2802,34 @@ components:
         order_id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
         type: { type: string, enum: [return, exchange] }
-        status: { type: string, enum: [requested, approved, collected, settled, rejected] }
+        status: { type: string, enum: [requested, approved, partially_approved, rejected, completed] }
         reason: { type: [string, "null"] }
+        expected_refund: { $ref: "#/components/schemas/Money" }
+        refund_amount: { $ref: "#/components/schemas/Money" }
+        reviewed_by: { type: [string, "null"], format: uuid }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
+        refund:
+          oneOf:
+            - { $ref: "#/components/schemas/RefundLedgerEntry" }
+            - { type: "null" }
         items:
           type: array
           items: { $ref: "#/components/schemas/ReturnItem" }
+
+    RefundLedgerEntry:
+      type: object
+      description: COD refund obligation; no payment gateway reversal occurs.
+      properties:
+        id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        return_id: { type: string, format: uuid }
+        amount: { $ref: "#/components/schemas/Money" }
+        status: { type: string, enum: [obligation] }
+        reason: { type: string }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
 
     ReturnPage:
       allOf:
@@ -2529,30 +2869,65 @@ components:
         user_id: { type: string, format: uuid }
         token: { type: string }
         platform: { type: string, enum: [android, ios, web] }
+        locale: { type: [string, "null"], enum: [ar, en, ar-IQ, en-US, null] }
+        is_active: { type: boolean }
+        last_seen_at: { type: string, format: date-time }
+        deactivated_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
 
     NotificationPreferences:
       type: object
       additionalProperties: false
-      required: [order_updates, delivery_updates, return_updates, loyalty_updates, promotions, updated_at]
+      required: [preferences]
       properties:
-        order_updates: { type: boolean, default: true }
-        delivery_updates: { type: boolean, default: true }
-        return_updates: { type: boolean, default: true }
-        loyalty_updates: { type: boolean, default: true }
-        promotions: { type: boolean, default: false }
-        updated_at: { type: string, format: date-time, readOnly: true }
+        preferences:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationPreferenceEntry" }
 
     NotificationPreferencesPatch:
       type: object
       additionalProperties: false
-      minProperties: 1
+      required: [preferences]
       properties:
-        order_updates: { type: boolean }
-        delivery_updates: { type: boolean }
-        return_updates: { type: boolean }
-        loyalty_updates: { type: boolean }
-        promotions: { type: boolean }
+        preferences:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/NotificationPreferenceEntry" }
+
+    NotificationPreferenceEntry:
+      type: object
+      additionalProperties: false
+      required: [type, channel, enabled]
+      properties:
+        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo] }
+        channel: { type: string, enum: [push, sms] }
+        enabled: { type: boolean }
+
+    NotificationHistory:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/NotificationAttempt" }
+
+    NotificationAttempt:
+      type: object
+      required: [id, type, channel, status, locale, title, body, entity_type, entity_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/NotificationPreferenceEntry/properties/type" }
+        channel: { type: string, enum: [push, sms] }
+        status: { type: string, enum: [queued, sent, skipped, failed] }
+        locale: { type: string, enum: [ar, en] }
+        title: { type: string }
+        body: { type: string }
+        entity_type: { type: string }
+        entity_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        sent_at: { type: [string, "null"], format: date-time }
 
     Permission:
       type: object

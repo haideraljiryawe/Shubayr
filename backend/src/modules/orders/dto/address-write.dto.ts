@@ -1,9 +1,10 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   Max,
   Min,
@@ -11,6 +12,23 @@ import {
   IsInt,
   ValidateIf,
 } from 'class-validator';
+
+/**
+ * Same E.164 shape the account phone uses. `contact_phone` previously only
+ * had to be a 3-to-32 character string, so "   " satisfied @MinLength(3) and
+ * was stored verbatim as a recipient nobody can call.
+ */
+const E164 = /^\+[1-9]\d{7,14}$/;
+
+const PHONE_MESSAGE =
+  'contact_phone must be an E.164 number such as +9647701234567';
+
+/**
+ * Surrounding whitespace is stripped before validation so it is never stored,
+ * and a whitespace-only value collapses to '' which then fails the pattern.
+ */
+const trimPhone = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim() : value;
 
 export class AddressCreateDto {
   @IsOptional()
@@ -37,9 +55,11 @@ export class AddressCreateDto {
   @IsString()
   details?: string | null;
 
+  @Transform(trimPhone)
   @IsString()
   @MinLength(3)
   @MaxLength(32)
+  @Matches(E164, { message: PHONE_MESSAGE })
   contact_phone!: string;
 
   @IsOptional()
@@ -81,9 +101,11 @@ export class AddressPatchDto {
   @IsString()
   details?: string | null;
   @ValidateIf((_, value: unknown) => value !== undefined)
+  @Transform(trimPhone)
   @IsString()
   @MinLength(3)
   @MaxLength(32)
+  @Matches(E164, { message: PHONE_MESSAGE })
   contact_phone?: string;
   @IsOptional()
   @IsNumber()

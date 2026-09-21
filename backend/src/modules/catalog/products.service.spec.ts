@@ -2,12 +2,13 @@ jest.mock('../../database/prisma.service', () => ({ PrismaService: class {} }));
 jest.mock('../media/media.service', () => ({ MediaService: class {} }));
 
 import { ProductsService } from './products.service';
+import { UnprocessableEntityException } from '@nestjs/common';
 
 const product = {
   id: 'product-id',
   category_id: 'category-id',
   name_en: 'Coffee',
-  name_ar: 'قهوة',
+  name_ar: 'Ù‚Ù‡ÙˆØ©',
   description: null,
   price: '20.15',
   discount_type: 'percentage',
@@ -49,6 +50,21 @@ function availabilityMocks() {
 }
 
 describe('ProductsService', () => {
+  it('rejects an updated negotiation floor above the stored regular price before SQL', async () => {
+    const prisma = {
+      product: { findUnique: jest.fn().mockResolvedValue(product) },
+      $transaction: jest.fn(),
+    };
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
+    await expect(
+      service.update(product.id, { floor_price: 20.16 }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
   it('subtracts active COD holds as well as batch reservations from sellable stock', async () => {
     const prisma = {
       product: {
@@ -78,7 +94,11 @@ describe('ProductsService', () => {
         Promise.all(operations),
       ),
     };
-    const service = new ProductsService(prisma as never, {} as never);
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     const availability = await service.availability(product.id);
     expect(availability.available_qty).toBe(2);
     expect(availability.variants[0].available_qty).toBe(2);
@@ -101,7 +121,11 @@ describe('ProductsService', () => {
         }),
       },
     };
-    const service = new ProductsService(prisma as never, {} as never);
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await service.listPublic({});
     const query = productQuery as {
       where: { status: string; category_id: { in: string[] } };
@@ -125,7 +149,11 @@ describe('ProductsService', () => {
         Promise.all(operations),
       ),
     };
-    const service = new ProductsService(prisma as never, {} as never);
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     const result = await service.getAdmin(product.id);
     expect(result.effective_price).toBe(10.08);
     expect(result.on_sale).toBe(true);
@@ -161,7 +189,11 @@ describe('ProductsService', () => {
           : Promise.all(operation as Array<Promise<unknown>>),
       ),
     };
-    const service = new ProductsService(prisma as never, {} as never);
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await service.update(product.id, { name_en: 'Fresh Coffee' });
     expect(updateData).toEqual({ name_en: 'Fresh Coffee' });
   });
@@ -201,7 +233,11 @@ describe('ProductsService', () => {
           : Promise.all(operation as Array<Promise<unknown>>),
       ),
     };
-    const service = new ProductsService(prisma as never, {} as never);
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await service.update(product.id, {
       media_operations: [{ op: 'remove', image_id: 'image-a' }],
     });

@@ -820,6 +820,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cart/coupon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove the applied coupon from the authenticated caller's cart
+         * @description Clears the coupon and returns the cart repriced at current server prices. Safe to repeat when no coupon is applied.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Repriced cart without a coupon */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Cart"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cart/items/{id}": {
         parameters: {
             query?: never;
@@ -1340,7 +1379,10 @@ export interface paths {
             };
         };
         put?: never;
-        /** Submit a review (must reference a purchased order item) */
+        /**
+         * Submit a verified-purchase product review
+         * @description Only the owner of a delivered order item for this product may review it, once per purchased line. Reviews start pending moderation. Delivery ratings use a separate endpoint.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -1356,7 +1398,7 @@ export interface paths {
                         /** Format: uuid */
                         order_item_id: string;
                         rating: number;
-                        comment?: string;
+                        comment?: string | null;
                     };
                 };
             };
@@ -1370,6 +1412,176 @@ export interface paths {
                         "application/json": components["schemas"]["Review"];
                     };
                 };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reviews/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete the current customer's own product review
+         * @description Clears the purchased order item's reviewed flag and reconciles the product rating cache.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Edit the current customer's own product review
+         * @description A content change resets a published or rejected review to pending and removes its moderation metadata. A no-op edit preserves status.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        rating?: number;
+                        comment?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated review */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Review"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Staff product-review moderation queue
+         * @description Defaults to pending reviews; status can select published or rejected reviews.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    status?: "pending" | "published" | "rejected";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated moderation queue */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReviewPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reviews/{id}/moderate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish or reject a product review with a reason */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        decision: "publish" | "reject";
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Moderated review */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Review"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -1390,7 +1602,7 @@ export interface paths {
         put?: never;
         /**
          * Rate the delivery/agent (separate from product review)
-         * @description Customer-scoped. The authenticated caller must own the delivery's order, the delivery must be delivered, and each caller may rate it once. Return 404 or 409 without exposing another customer's delivery.
+         * @description Customer-scoped. The authenticated caller must own the delivery's order, both delivery and order must be delivered, and there is exactly one rating per delivery. Another customer's delivery returns 404.
          */
         post: {
             parameters: {
@@ -1437,10 +1649,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Current points balance and ledger */
+        /**
+         * Current customer's points balance and paginated ledger
+         * @description Balance is computed from the append-only ledger. The default earn rate is one point per full currency unit of delivered order subtotal less discount, excluding delivery fee. COD refund entries are obligations rather than settled payments, so returns do not claw back delivery-earned points in this slice. One point redeemed has an indicative value of one minor currency unit; redemption does not change an order or initiate a payment.
+         */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -1460,6 +1678,145 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/loyalty/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Spend points from the current customer's balance */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        points: number;
+                        note?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Points redemption recorded */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LoyaltyRedemption"];
+                    };
+                };
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/loyalty/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a customer's balance and paginated ledger */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Customer's ledger-derived balance */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LoyaltyAccount"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/loyalty/{userId}/adjust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record an audited positive or negative staff adjustment */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description Signed nonzero delta. */
+                        points: number;
+                        reason: string;
+                        note?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Adjustment ledger entry and resulting balance */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LoyaltyAdjustment"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -1998,6 +2355,7 @@ export interface paths {
                 query?: {
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
+                    status?: "requested" | "approved" | "partially_approved" | "rejected" | "completed";
                 };
                 header?: never;
                 path?: never;
@@ -2017,7 +2375,10 @@ export interface paths {
             };
         };
         put?: never;
-        /** Request a return (partial allowed — choose items & quantities) */
+        /**
+         * Request a partial or full return of a delivered order
+         * @description Only the order owner can request a return. Pending quantities reserve eligibility. Expected refund uses immutable order-item unit prices.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -2035,6 +2396,7 @@ export interface paths {
                             /** Format: uuid */
                             order_item_id: string;
                             quantity: number;
+                            reason: string;
                         }[];
                     };
                 };
@@ -2058,6 +2420,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/returns/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all returns for staff review */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    status?: "requested" | "approved" | "partially_approved" | "rejected" | "completed";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated return queue */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReturnPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/returns/{id}/inspect": {
         parameters: {
             query?: never;
@@ -2067,7 +2470,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Inspect returned items (staff) — set condition & restock */
+        /**
+         * Review requested return quantities and conditions
+         * @description Review each requested line or reject the whole request. Sellable approved units restock; opened and damaged units do not. Approved refund is a COD obligation.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -2080,14 +2486,14 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
+                        /** @enum {string} */
+                        decision: "approve" | "reject";
                         items?: {
                             /** Format: uuid */
-                            return_item_id?: string;
+                            return_item_id: string;
+                            approved_quantity: number;
                             /** @enum {string} */
                             condition?: "sellable" | "opened" | "damaged";
-                            restock?: boolean;
-                            /** Format: uuid */
-                            batch_id?: string | null;
                         }[];
                     };
                 };
@@ -2104,8 +2510,93 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete a reviewed return
+         * @description Completes an approved, partially approved, or rejected return. The order becomes returned only when all ordered units have approved returns.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Completed return */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all deliveries for operations staff */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    status?: "assigned" | "out_for_delivery" | "delivered" | "failed" | "returned";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated deliveries across all agents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2170,7 +2661,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update delivery status (agent) */
+        /**
+         * Update delivery status (agent)
+         * @description Only the assigned agent may act. Legal transitions are assigned to out_for_delivery; out_for_delivery to delivered or failed; and delivered to returned. Failed and returned are terminal. Dispatch and delivery timestamps are recorded, and the order advances atomically through its corresponding status events.
+         */
         patch: {
             parameters: {
                 query?: never;
@@ -2184,7 +2678,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @enum {string} */
-                        status: "out_for_delivery" | "delivered" | "failed";
+                        status: "out_for_delivery" | "delivered" | "failed" | "returned";
                     };
                 };
             };
@@ -2200,6 +2694,60 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/deliveries/{id}/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Assign or reassign an active delivery to a delivery agent
+         * @description Staff may assign only an active delivery to an active user with the delivery role.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        agent_id: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated delivery assignment */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Delivery"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
             };
         };
         trace?: never;
@@ -2213,7 +2761,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register an FCM device token for push notifications */
+        /**
+         * Register or reactivate an account-owned push device token
+         * @description Re-registering refreshes last_seen_at; a token moving accounts is reassigned, never duplicated.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -2227,6 +2778,8 @@ export interface paths {
                         token: string;
                         /** @enum {string} */
                         platform: "android" | "ios" | "web";
+                        /** @enum {string} */
+                        locale?: "ar" | "en" | "ar-IQ" | "en-US";
                     };
                 };
             };
@@ -2243,7 +2796,7 @@ export interface paths {
                 422: components["responses"]["Validation"];
             };
         };
-        /** Unregister an FCM device token */
+        /** Deactivate an owned device token */
         delete: {
             parameters: {
                 query?: {
@@ -2269,6 +2822,7 @@ export interface paths {
                     };
                     content?: never;
                 };
+                403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
             };
         };
@@ -2285,8 +2839,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get persisted notification preferences
-         * @description Returns the authenticated user's stored row or the documented defaults when no row exists yet.
+         * Get effective per-type and per-channel notification preferences
+         * @description Returns all 10 types across push and SMS. Transactional push defaults on; promo defaults off. Order confirmation SMS is mandatory. Legacy category toggles remain the fallback until a type/channel override is stored.
          */
         get: {
             parameters: {
@@ -2314,8 +2868,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Update persisted notification preferences
-         * @description Omitted toggles are unchanged; the update is stored per account and shared by all devices.
+         * Update own type/channel notification preferences
+         * @description Omitted pairs are unchanged; updates are shared by all devices. Order confirmation SMS cannot be disabled.
          */
         patch: {
             parameters: {
@@ -2342,6 +2896,45 @@ export interface paths {
                 422: components["responses"]["Validation"];
             };
         };
+        trace?: never;
+    };
+    "/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the authenticated customer's notification history */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    per_page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Own notification attempts, newest first */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationHistory"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/admin/reports/sales": {
@@ -3362,6 +3955,7 @@ export interface components {
             area?: string | null;
             street?: string | null;
             details?: string | null;
+            /** @description Trimmed before storage; must be an E.164 number such as +9647701234567. */
             contact_phone: string;
             /** Format: double */
             lat?: number | null;
@@ -3377,6 +3971,7 @@ export interface components {
             area?: string | null;
             street?: string | null;
             details?: string | null;
+            /** @description Trimmed before storage; must be an E.164 number such as +9647701234567. */
             contact_phone?: string;
             /** Format: double */
             lat?: number | null;
@@ -3487,10 +4082,15 @@ export interface components {
             /** @description Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false. */
             readonly discount_percent?: number | null;
             is_negotiable?: boolean;
+            /** @description Negotiation floor, at most the regular price. */
             floor_price?: number | null;
+            /** @description Persisted points cost for future negotiation UI; no customer negotiation endpoint yet. */
             points_price?: number | null;
             tracks_expiry?: boolean;
+            /** @description Cached average of published product reviews only, reconciled transactionally from review rows and rounded to two decimals half away from zero. */
             rating_avg?: number;
+            /** @description Cached count of published product reviews only; review rows are authoritative. */
+            rating_count?: number;
             /** @enum {string} */
             status?: "active" | "hidden" | "archived";
             /** @description computed: available_qty > 0 */
@@ -3541,9 +4141,14 @@ export interface components {
              * @description Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set.
              */
             discount_ends_at?: string | null;
-            /** @default false */
+            /**
+             * @description Requires floor_price when true.
+             * @default false
+             */
             is_negotiable: boolean;
+            /** @description Must not exceed price. */
             floor_price?: number | null;
+            /** @description Data-only points cost; negotiation UI is deferred. */
             points_price?: number | null;
             /** @default false */
             tracks_expiry: boolean;
@@ -3584,6 +4189,7 @@ export interface components {
             /** Format: date-time */
             discount_ends_at?: string | null;
             is_negotiable?: boolean;
+            /** @description Must not exceed the merged regular price. */
             floor_price?: number | null;
             points_price?: number | null;
             tracks_expiry?: boolean;
@@ -3591,7 +4197,13 @@ export interface components {
             status?: "active" | "hidden" | "archived";
             /** @description Applied atomically in array order; the image at final position 0 is primary. */
             media_operations?: components["schemas"]["ProductMediaOperation"][];
+            /** @description Replaces the variant set in place. Each entry is matched to an existing variant by `id` when supplied and otherwise by `sku`, so an update never reissues variant ids. Omitting a variant removes it; removing one still referenced by inventory, cart, purchasing or order history is rejected with 422. */
             variants?: {
+                /**
+                 * Format: uuid
+                 * @description Existing variant to update; omit to match on sku or to add a new variant.
+                 */
+                id?: string;
                 sku?: string;
                 attributes?: {
                     [key: string]: unknown;
@@ -3877,6 +4489,13 @@ export interface components {
             status?: "pending" | "published" | "rejected";
             /** Format: date-time */
             created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+            moderation_reason?: string | null;
+            /** Format: uuid */
+            moderated_by?: string | null;
+            /** Format: date-time */
+            moderated_at?: string | null;
         };
         ReviewPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Review"][];
@@ -3896,14 +4515,44 @@ export interface components {
             created_at?: string;
         };
         LoyaltyAccount: {
+            /** Format: uuid */
+            user_id?: string;
             points_balance?: number;
-            ledger?: {
-                /** @enum {string} */
-                type?: "earn" | "redeem" | "adjust" | "expire";
-                points?: number;
-                /** Format: date-time */
-                created_at?: string;
-            }[];
+            page?: number;
+            per_page?: number;
+            total?: number;
+            ledger?: components["schemas"]["LoyaltyLedgerEntry"][];
+        };
+        /** @description Immutable signed points entry; account ownership identifies the customer. */
+        LoyaltyLedgerEntry: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            account_id?: string;
+            /** Format: uuid */
+            order_id?: string | null;
+            /** Format: uuid */
+            return_id?: string | null;
+            /** @enum {string} */
+            type?: "earn" | "redeem" | "adjust" | "expire";
+            reason?: string;
+            /** @description Positive for earn; negative for redeem; signed for adjust. */
+            points?: number;
+            note?: string | null;
+            /** Format: uuid */
+            created_by?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        LoyaltyRedemption: {
+            entry?: components["schemas"]["LoyaltyLedgerEntry"];
+            points_balance?: number;
+            /** @description Server-derived indicative value at one point per minor currency unit. */
+            redemption_value?: components["schemas"]["Money"];
+        };
+        LoyaltyAdjustment: {
+            entry?: components["schemas"]["LoyaltyLedgerEntry"];
+            points_balance?: number;
         };
         Supplier: {
             /** Format: uuid */
@@ -4052,6 +4701,12 @@ export interface components {
             /** Format: uuid */
             order_item_id?: string;
             quantity?: number;
+            approved_quantity?: number;
+            customer_reason?: string;
+            /** @description Immutable order-line unit price. */
+            unit_price?: components["schemas"]["Money"];
+            expected_refund?: components["schemas"]["Money"];
+            approved_refund?: components["schemas"]["Money"];
             /** @enum {string|null} */
             condition?: "sellable" | "opened" | "damaged" | null;
             restock?: boolean;
@@ -4068,11 +4723,37 @@ export interface components {
             /** @enum {string} */
             type?: "return" | "exchange";
             /** @enum {string} */
-            status?: "requested" | "approved" | "collected" | "settled" | "rejected";
+            status?: "requested" | "approved" | "partially_approved" | "rejected" | "completed";
             reason?: string | null;
+            expected_refund?: components["schemas"]["Money"];
+            refund_amount?: components["schemas"]["Money"];
+            /** Format: uuid */
+            reviewed_by?: string | null;
+            /** Format: date-time */
+            reviewed_at?: string | null;
+            /** Format: date-time */
+            completed_at?: string | null;
             /** Format: date-time */
             created_at?: string;
+            refund?: components["schemas"]["RefundLedgerEntry"] | null;
             items?: components["schemas"]["ReturnItem"][];
+        };
+        /** @description COD refund obligation; no payment gateway reversal occurs. */
+        RefundLedgerEntry: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            order_id?: string;
+            /** Format: uuid */
+            return_id?: string;
+            amount?: components["schemas"]["Money"];
+            /** @enum {string} */
+            status?: "obligation";
+            reason?: string;
+            /** Format: uuid */
+            created_by?: string;
+            /** Format: date-time */
+            created_at?: string;
         };
         ReturnPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Return"][];
@@ -4103,29 +4784,51 @@ export interface components {
             token?: string;
             /** @enum {string} */
             platform?: "android" | "ios" | "web";
+            /** @enum {string|null} */
+            locale?: "ar" | "en" | "ar-IQ" | "en-US" | null;
+            is_active?: boolean;
+            /** Format: date-time */
+            last_seen_at?: string;
+            /** Format: date-time */
+            deactivated_at?: string | null;
             /** Format: date-time */
             created_at?: string;
         };
         NotificationPreferences: {
-            /** @default true */
-            order_updates: boolean;
-            /** @default true */
-            delivery_updates: boolean;
-            /** @default true */
-            return_updates: boolean;
-            /** @default true */
-            loyalty_updates: boolean;
-            /** @default false */
-            promotions: boolean;
-            /** Format: date-time */
-            readonly updated_at: string;
+            preferences: components["schemas"]["NotificationPreferenceEntry"][];
         };
         NotificationPreferencesPatch: {
-            order_updates?: boolean;
-            delivery_updates?: boolean;
-            return_updates?: boolean;
-            loyalty_updates?: boolean;
-            promotions?: boolean;
+            preferences: components["schemas"]["NotificationPreferenceEntry"][];
+        };
+        NotificationPreferenceEntry: {
+            /** @enum {string} */
+            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo";
+            /** @enum {string} */
+            channel: "push" | "sms";
+            enabled: boolean;
+        };
+        NotificationHistory: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["NotificationAttempt"][];
+        };
+        NotificationAttempt: {
+            /** Format: uuid */
+            id: string;
+            type: components["schemas"]["NotificationPreferenceEntry"]["type"];
+            /** @enum {string} */
+            channel: "push" | "sms";
+            /** @enum {string} */
+            status: "queued" | "sent" | "skipped" | "failed";
+            /** @enum {string} */
+            locale: "ar" | "en";
+            title: string;
+            body: string;
+            entity_type: string;
+            /** Format: uuid */
+            entity_id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            sent_at?: string | null;
         };
         Permission: {
             /** @example orders.confirm */

@@ -1,5 +1,108 @@
 # Changelog
 
+## 5.3.0 - 2026-09-21
+
+### Added
+
+- `ProductPatch.variants[].id`: an optional stable handle that lets a product
+  update rename a variant SKU without the variant losing its identity.
+
+### Changed
+
+- Public product reads now apply effective category visibility, so a hidden
+  category hides its whole descendant subtree even when `?category_id=` names
+  a visible child. Staff and admin reads are unchanged.
+- A product update reconciles its variants in place instead of deleting and
+  recreating them, so variant ids survive an edit. Removing a variant that
+  inventory, cart, purchasing or order history still references is now
+  rejected with 422 instead of failing as a 500.
+- PATCH validation runs against the merged stored+incoming product state: a
+  partial amount-discount update no longer demands a `price` that is already
+  stored, and an explicit null on a non-nullable field returns 422 rather
+  than reaching the database as a 500.
+- `contact_phone` is trimmed before storage and must be an E.164 number on
+  both address create and PATCH; blank, whitespace-only and malformed values
+  are rejected with 422.
+
+### Fixed
+
+- `schema.prisma` now declares `onUpdate: NoAction` on the nine relations that
+  omitted it, matching the migrations, `infra/db/schema.sql` and the migrated
+  database. A from-scratch migrate reports zero drift, and CI gates it with
+  `npm run prisma:drift-check`.
+- Regenerated the web OpenAPI client types, which were still pinned to the 4.x
+  contract, and corrected the return-status map and per-line return reason the
+  stale types were masking.
+
+## 5.2.0 - 2026-09-20
+
+### Added
+
+- Account-owned device registration and deactivation, per-type/channel notification
+  preferences, and paginated notification history.
+- Transactional notification outbox, BullMQ fan-out worker, bilingual templates,
+  development push/SMS drivers, and audited token and preference changes.
+- Notification attempt history and a disposable-database worker acceptance suite.
+
+### Changed
+
+- Order, delivery, return, loyalty earn, and review moderation events now write
+  notification outbox records in their domain transactions.
+
+## 5.1.0 - 2026-09-20
+
+### Added
+
+- Verified-purchase product review creation, owner edits/deletes, staff moderation,
+  and published-only public review reads.
+- One-review-per-order-line constraint, persisted reviewed flag, moderation
+  metadata, and a published-review count beside the reconciled rating average.
+- Seeded approved and pending reviews plus disposable-database acceptance tests.
+
+### Changed
+
+- Product rating average and count are recomputed from published review rows
+  in the same transaction as each review mutation.
+
+## 5.0.0 - 2026-09-20
+
+### Added
+
+- Append-only loyalty points ledger with balance derived from entries, earn-on-delivery,
+  customer redemption, staff reads and audited manual adjustments.
+- Admin validation and audit records for the existing negotiable product floor and
+  points-price fields; customer negotiation remains data-only.
+
+### Changed
+
+- Removed the mutable loyalty-account balance. Existing cached balances are
+  reconciled into ledger adjustments during migration.
+
+## 4.9.0 - 2026-09-20
+
+### Added
+
+- Customer line-level partial return requests, staff return queue and per-line
+  condition review, and a reviewed-return completion endpoint.
+- Sellable return stock movements tied to return lines and a COD refund
+  obligation ledger calculated from immutable order-line price snapshots.
+- A completed partial-return seed example and disposable-database acceptance
+  coverage for eligibility, restock, refund rounding, and audit entries.
+
+## 4.8.0 - 2026-09-20
+
+### Added
+
+- Staff delivery listing and assignment, agent-scoped delivery transitions,
+  and customer delivery ratings on real PostgreSQL.
+- A unique delivery-rating constraint and seeded assigned, dispatched,
+  delivered, and failed deliveries with two delivery agents.
+
+### Changed
+
+- Delivery status changes now advance order status and tracking events in the
+  same transaction; failed and returned deliveries are terminal.
+
 ## 4.7.1 - 2026-09-20
 
 ### Added

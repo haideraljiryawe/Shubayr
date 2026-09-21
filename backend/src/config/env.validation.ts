@@ -9,12 +9,24 @@ const schema = Joi.object({
     .valid('development', 'test', 'production')
     .default('development'),
   API_PORT: Joi.number().port().default(8000),
+  LOYALTY_POINTS_PER_CURRENCY_UNIT: Joi.number()
+    .integer()
+    .min(1)
+    .max(100)
+    .default(1),
   DATABASE_URL: Joi.string()
     .uri({ scheme: ['postgresql', 'postgres'] })
     .required(),
   REDIS_URL: Joi.string()
     .uri({ scheme: ['redis', 'rediss'] })
     .required(),
+  NOTIFICATION_PROVIDER: Joi.string()
+    .valid('dev', 'disabled')
+    .when('APP_ENV', {
+      is: 'production',
+      then: Joi.valid('disabled').default('disabled'),
+      otherwise: Joi.valid('dev', 'disabled').default('dev'),
+    }),
   MEILI_HOST: Joi.string().uri().required(),
   MEILI_MASTER_KEY: Joi.string().min(8).required(),
   JWT_SECRET: Joi.string().min(32).required(),

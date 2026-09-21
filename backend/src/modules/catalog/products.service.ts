@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { MediaService } from '../media/media.service';
 import { ProductQueryDto } from './dto/catalog-query.dto';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -29,6 +30,7 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    private readonly audit: AuditService,
   ) {}
 
   listPublic(query: ProductQueryDto) {
@@ -62,43 +64,55 @@ export class ProductsService {
     return this.toResponse(product, new Date());
   }
 
-  async create(input: CreateProductDto) {
+  async create(input: CreateProductDto, actorId?: string) {
     await this.ensureCategory(input.category_id);
     await this.validateManagedUrls((input.images ?? []).map(({ url }) => url));
     await this.ensureSkusAvailable(input.variants ?? []);
     this.validatePricing(input);
 
     const { images, variants, ...data } = input;
-    const product = await this.prisma.product.create({
-      data: {
-        ...data,
-        name_en: data.name_en.trim(),
-        name_ar: data.name_ar.trim(),
-        images: images?.length
-          ? {
-              create: images.map(({ url }, sort_order) => ({
-                url,
-                sort_order,
-              })),
-            }
-          : undefined,
-        variants: variants?.length
-          ? {
-              create: variants.map((variant) => ({
-                sku: variant.sku,
-                attributes: variant.attributes as
-                  Prisma.InputJsonValue | undefined,
-                price_delta: variant.price_delta ?? 0,
-              })),
-            }
-          : undefined,
-      },
-      include: productInclude,
+    const product = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          ...data,
+          name_en: data.name_en.trim(),
+          name_ar: data.name_ar.trim(),
+          images: images?.length
+            ? {
+                create: images.map(({ url }, sort_order) => ({
+                  url,
+                  sort_order,
+                })),
+              }
+            : undefined,
+          variants: variants?.length
+            ? {
+                create: variants.map((variant) => ({
+                  sku: variant.sku,
+                  attributes: variant.attributes as
+                    Prisma.InputJsonValue | undefined,
+                  price_delta: variant.price_delta ?? 0,
+                })),
+              }
+            : undefined,
+        },
+        include: productInclude,
+      });
+      if (actorId && this.hasNegotiationPatch(input)) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'catalog.negotiation.create',
+          entityType: 'product',
+          entityId: created.id,
+          after: this.negotiationValues(created),
+        });
+      }
+      return created;
     });
     return this.toResponse(product, new Date());
   }
 
-  async update(id: string, input: UpdateProductDto) {
+  async update(id: string, input: UpdateProductDto, actorId?: string) {
     const current = await this.prisma.product.findUnique({
       where: { id },
       include: productInclude,
@@ -112,24 +126,34 @@ export class ProductsService {
     await this.validateManagedUrls(mediaUrls);
 
     const mergedPricing = mergeProductPricingPatch(current, input);
-    this.validatePricing(mergedPricing);
+    this.validatePricing({
+      ...mergedPricing,
+      is_negotiable: input.is_negotiable ?? current.is_negotiable,
+      floor_price:
+        input.floor_price === undefined
+          ? current.floor_price
+          : input.floor_price,
+      points_price:
+        input.points_price === undefined
+          ? current.points_price
+          : input.points_price,
+    });
     const data = this.productPatchData(input);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.product.update({ where: { id }, data });
+      if (actorId && this.hasNegotiationPatch(input)) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'catalog.negotiation.update',
+          entityType: 'product',
+          entityId: id,
+          before: this.negotiationValues(current),
+          after: this.negotiationValues({ ...current, ...input }),
+        });
+      }
       if (input.variants) {
-        await tx.productVariant.deleteMany({ where: { product_id: id } });
-        if (input.variants.length) {
-          await tx.productVariant.createMany({
-            data: input.variants.map((variant) => ({
-              product_id: id,
-              sku: variant.sku,
-              attributes: variant.attributes as
-                Prisma.InputJsonValue | undefined,
-              price_delta: variant.price_delta ?? 0,
-            })),
-          });
-        }
+        await this.applyVariants(tx, id, current.variants, input.variants);
       }
       if (input.media_operations) {
         await this.applyMediaOperations(
@@ -241,10 +265,7 @@ export class ProductsService {
     const rows = await this.prisma.product.findMany({
       where: {
         ...(!includeHidden ? { status: 'active' } : {}),
-        ...(visibleCategoryIds
-          ? { category_id: { in: [...visibleCategoryIds] } }
-          : {}),
-        ...(query.category_id ? { category_id: query.category_id } : {}),
+        ...this.categoryFilter(query.category_id, visibleCategoryIds),
         ...(q
           ? {
               OR: [
@@ -346,14 +367,132 @@ export class ProductsService {
       throw new ConflictException(`Variant SKU already exists: ${match.sku}`);
   }
 
+  /**
+   * Reconciles a product's variant set in place.
+   *
+   * This used to delete every variant and recreate the supplied set, which
+   * handed each surviving variant a brand new id on every product update.
+   * Inventory batches, cart lines, order lines, purchase invoice lines and
+   * stock holds all reference variants by id, so the rebuild either orphaned
+   * that history or — because those foreign keys are ON DELETE NO ACTION —
+   * failed outright and surfaced as a 500.
+   *
+   * Variants are matched on the supplied `id` when present and otherwise on
+   * the globally unique `sku`, so an edit keeps the existing row.
+   */
+  private async applyVariants(
+    tx: Prisma.TransactionClient,
+    productId: string,
+    existing: Array<{ id: string; sku: string }>,
+    desired: ProductVariantInputDto[],
+  ): Promise<void> {
+    const byId = new Map(existing.map((variant) => [variant.id, variant]));
+    const bySku = new Map(existing.map((variant) => [variant.sku, variant]));
+    const kept = new Set<string>();
+
+    for (const variant of desired) {
+      const match = variant.id ? byId.get(variant.id) : bySku.get(variant.sku);
+      if (variant.id && !match) {
+        throw new UnprocessableEntityException(
+          `Variant ${variant.id} does not belong to this product`,
+        );
+      }
+      const data = {
+        sku: variant.sku,
+        attributes: variant.attributes as Prisma.InputJsonValue | undefined,
+        price_delta: variant.price_delta ?? 0,
+      };
+      if (match) {
+        kept.add(match.id);
+        await tx.productVariant.update({ where: { id: match.id }, data });
+        continue;
+      }
+      const created = await tx.productVariant.create({
+        data: { product_id: productId, ...data },
+      });
+      kept.add(created.id);
+    }
+
+    const removed = existing.filter((variant) => !kept.has(variant.id));
+    if (!removed.length) return;
+    const referenced = await this.referencedVariantIds(
+      tx,
+      removed.map(({ id }) => id),
+    );
+    if (referenced.size) {
+      // Deleting these would violate an ON DELETE NO ACTION foreign key and
+      // destroy the immutable history that points at them, so refuse the
+      // removal with the unified 422 rather than a database-level 500.
+      const skus = removed
+        .filter(({ id }) => referenced.has(id))
+        .map(({ sku }) => sku)
+        .join(', ');
+      throw new UnprocessableEntityException(
+        `Cannot remove variant(s) referenced by inventory or order history: ${skus}`,
+      );
+    }
+    await tx.productVariant.deleteMany({
+      where: { id: { in: removed.map(({ id }) => id) } },
+    });
+  }
+
+  /** Variant ids still pointed at by stock, cart, purchasing or order rows. */
+  private async referencedVariantIds(
+    tx: Prisma.TransactionClient,
+    ids: string[],
+  ): Promise<Set<string>> {
+    const where = { variant_id: { in: ids } } as const;
+    const [batches, cartItems, orderItems, invoiceItems, holds] =
+      await Promise.all([
+        tx.inventoryBatch.findMany({ where, select: { variant_id: true } }),
+        tx.cartItem.findMany({ where, select: { variant_id: true } }),
+        tx.orderItem.findMany({ where, select: { variant_id: true } }),
+        tx.purchaseInvoiceItem.findMany({
+          where,
+          select: { variant_id: true },
+        }),
+        tx.simpleStockHold.findMany({ where, select: { variant_id: true } }),
+      ]);
+    return new Set(
+      [...batches, ...cartItems, ...orderItems, ...invoiceItems, ...holds]
+        .map(({ variant_id }) => variant_id)
+        .filter((id): id is string => id !== null),
+    );
+  }
+
   private validatePricing(product: {
     price: number | string | { toNumber(): number };
+    is_negotiable?: boolean;
+    floor_price?: number | string | { toNumber(): number } | null;
+    points_price?: number | null;
     discount_type?: string | null;
     discount_value?: number | string | { toNumber(): number } | null;
     discount_starts_at?: Date | string | null;
     discount_ends_at?: Date | string | null;
   }): void {
     const price = this.decimalNumber(product.price);
+    const floor =
+      product.floor_price == null
+        ? null
+        : this.decimalNumber(product.floor_price);
+    if (floor !== null && (floor < 0 || floor > price)) {
+      throw new UnprocessableEntityException(
+        'floor_price must be between zero and price',
+      );
+    }
+    if (product.is_negotiable && floor === null) {
+      throw new UnprocessableEntityException(
+        'Negotiable products require floor_price',
+      );
+    }
+    if (
+      product.points_price != null &&
+      (!Number.isInteger(product.points_price) || product.points_price < 0)
+    ) {
+      throw new UnprocessableEntityException(
+        'points_price must be a non-negative integer',
+      );
+    }
     const value =
       product.discount_value === null || product.discount_value === undefined
         ? null
@@ -404,6 +543,29 @@ export class ProductsService {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') return Number(value);
     return value.toNumber();
+  }
+
+  private hasNegotiationPatch(input: {
+    is_negotiable?: boolean;
+    floor_price?: number | null;
+    points_price?: number | null;
+  }) {
+    return ['is_negotiable', 'floor_price', 'points_price'].some((field) =>
+      Object.prototype.hasOwnProperty.call(input, field),
+    );
+  }
+
+  private negotiationValues(row: {
+    is_negotiable?: boolean;
+    floor_price?: number | string | { toNumber(): number } | null;
+    points_price?: number | null;
+  }) {
+    return {
+      is_negotiable: row.is_negotiable ?? false,
+      floor_price:
+        row.floor_price == null ? null : this.decimalNumber(row.floor_price),
+      points_price: row.points_price ?? null,
+    };
   }
 
   private productPatchData(input: UpdateProductDto) {
@@ -507,6 +669,29 @@ export class ProductsService {
     }
   }
 
+  /**
+   * Narrows a product query to one category without losing the effective
+   * visibility filter. Both used to be spread into the same `where` object
+   * under the same `category_id` key, so an explicit ?category_id= silently
+   * replaced the visibility filter and exposed hidden categories publicly.
+   */
+  private categoryFilter(
+    requested: string | undefined,
+    visible: Set<string> | undefined,
+  ) {
+    if (!requested) {
+      return visible ? { category_id: { in: [...visible] } } : {};
+    }
+    // A public read of a hidden category — or of one under a hidden ancestor
+    // — reports it as empty rather than leaking its products.
+    if (visible && !visible.has(requested)) return { category_id: { in: [] } };
+    return { category_id: requested };
+  }
+
+  /**
+   * Categories that are visible in their own right AND have no hidden
+   * ancestor: hiding a parent hides its whole subtree from public reads.
+   */
   private async visibleCategoryIds(): Promise<Set<string>> {
     const rows = await this.prisma.category.findMany({
       select: { id: true, parent_id: true, is_visible: true },
