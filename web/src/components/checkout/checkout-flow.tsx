@@ -6,12 +6,12 @@ import { ShoppingCart } from "lucide-react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError, api, type Address, type Order, type OrderItem } from "@/lib/api";
-import { lineTotal, type CartTotals } from "@/lib/cart";
-import { cartStore, type CartLine } from "@/lib/cart-store";
-import { useCart } from "@/lib/use-cart";
+import type { CartTotals } from "@/lib/cart";
+import { cartStore } from "@/lib/cart-store";
+import { useCart, type CartViewLine } from "@/lib/use-cart";
 import { useResource } from "@/lib/use-resource";
 import {
   AddressForm,
@@ -47,7 +47,7 @@ const STAGE_STEP: Record<Stage, CheckoutStepKey> = {
 /** What the confirmation screen shows after the cart has been emptied. */
 interface PlacedOrder {
   order: Order;
-  lines: CartLine[];
+  lines: CartViewLine[];
   /** The totals as shown at review, which is what the server charged. */
   totals: CartTotals;
   couponCode: string | null;
@@ -81,6 +81,7 @@ export function CheckoutFlow() {
   const t = useTranslations("checkout");
   const tc = useTranslations("cart");
   const showToast = useToast();
+  const router = useRouter();
   const { lines, totals, hydrated, couponCode, isServerBacked } = useCart();
   const { isAuthenticated, user } = useAuth();
 
@@ -137,7 +138,7 @@ export function CheckoutFlow() {
 
     // Snapshot before the server consumes the cart — the confirmation renders
     // from this, and the totals shown are the ones the server just charged.
-    const snapshot: CartLine[] = lines;
+    const snapshot: CartViewLine[] = lines;
     const snapshotTotals = totals;
     const items: OrderItem[] = lines.map((line) => ({
       id: line.id,
@@ -145,7 +146,7 @@ export function CheckoutFlow() {
       variant_id: line.variant_id,
       quantity: line.quantity,
       unit_price: line.unit_price,
-      line_total: lineTotal(line),
+      line_total: line.line_total,
     }));
 
     try {
@@ -186,11 +187,22 @@ export function CheckoutFlow() {
       // The next checkout is a new attempt and must not reuse this key.
       setIdempotencyKey(globalThis.crypto.randomUUID());
     } catch (cause) {
-      setError(
-        cause instanceof ApiError && cause.status === 409
-          ? t("orderUnavailable")
-          : t("orderFailed"),
-      );
+      if (cause instanceof ApiError && cause.status === 409) {
+        // The basket stopped being buyable between loading this page and
+        // pressing the button — something sold out, or a coupon expired.
+        // Re-reading the cart is what marks WHICH line is the problem, and the
+        // cart is the only screen that can show it, so the shopper goes back
+        // there rather than staring at a message beside a dead button.
+        //
+        // The idempotency key deliberately survives: this attempt placed
+        // nothing, so a retry of the same basket must still collapse onto one
+        // order if the first response was merely lost.
+        await cartStore.refresh();
+        showToast(t("orderUnavailable"));
+        router.push("/cart");
+        return;
+      }
+      setError(t("orderFailed"));
     } finally {
       setPlacing(false);
     }

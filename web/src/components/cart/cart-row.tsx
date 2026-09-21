@@ -3,26 +3,31 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { Package, Trash2 } from "lucide-react";
+import { AlertTriangle, Package, Trash2 } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
 import { Price } from "@/components/ui/price";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import { lineName, lineTotal } from "@/lib/cart";
-import type { CartLine } from "@/lib/cart-store";
+import { lineName } from "@/lib/cart";
+import type { CartViewLine } from "@/lib/use-cart";
 
 /**
  * One row of the «سلة المشتريات» screen: thumbnail, name, variant, unit price
  * with its discount, a quantity stepper capped at the stock we were told about,
  * and the remove control.
+ *
+ * A line the server marks unavailable — hidden product, or stock that fell
+ * below the chosen quantity — says so on the row itself and offers the two
+ * moves that clear it, because checkout will refuse the whole order until it
+ * is gone.
  */
 export function CartRow({
   line,
   onQuantityChange,
   onRemove,
 }: {
-  line: CartLine;
+  line: CartViewLine;
   onQuantityChange: (id: string, quantity: number) => void;
   onRemove: (id: string) => void;
 }) {
@@ -33,9 +38,14 @@ export function CartRow({
   const name = lineName(line, locale);
   const max = Math.max(1, line.available_qty);
   const atCap = line.quantity >= line.available_qty;
+  const unavailable = !line.available;
 
   return (
-    <li className="flex gap-3 border-b border-border py-4 last:border-b-0 sm:gap-4">
+    <li
+      data-testid={unavailable ? "cart-line-unavailable" : undefined}
+      data-available={unavailable ? "false" : "true"}
+      className="flex gap-3 border-b border-border py-4 last:border-b-0 sm:gap-4"
+    >
       <Link
         href={`/product/${line.product_id}`}
         tabIndex={-1}
@@ -72,6 +82,18 @@ export function CartRow({
             {line.variant_label ? (
               <p className="mt-0.5 text-xs text-text-muted">
                 {line.variant_label}
+              </p>
+            ) : null}
+            {unavailable ? (
+              <p
+                role="alert"
+                data-testid="cart-unavailable-note"
+                className="mt-1.5 flex items-start gap-1.5 text-xs font-medium text-error-dark"
+              >
+                <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden />
+                {line.available_qty > 0
+                  ? t("unavailableQty", { count: line.available_qty })
+                  : t("unavailableLine")}
               </p>
             ) : null}
           </div>
@@ -117,7 +139,7 @@ export function CartRow({
             data-testid="cart-line-total"
           >
             <Price
-              amount={lineTotal(line)}
+              amount={line.line_total}
               regularPrice={
                 line.regular_price ? line.regular_price * line.quantity : null
               }

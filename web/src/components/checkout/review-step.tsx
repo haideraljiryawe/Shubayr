@@ -8,8 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Price } from "@/components/ui/price";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import { lineName, lineTotal, type CartTotals } from "@/lib/cart";
-import type { CartLine } from "@/lib/cart-store";
+import { lineName, type CartTotals } from "@/lib/cart";
+import type { CartViewLine } from "@/lib/use-cart";
 
 /**
  * The address being delivered to, whichever path produced it: a saved account
@@ -39,7 +39,7 @@ export function ReviewStep({
   onEditAddress,
   onPlaceOrder,
 }: {
-  lines: CartLine[];
+  lines: CartViewLine[];
   couponCode: string | null;
   serverPriced?: boolean;
   totals: CartTotals;
@@ -85,7 +85,7 @@ export function ReviewStep({
                     </span>
                   </p>
                 </div>
-                <Price amount={lineTotal(line)} size="sm" />
+                <Price amount={line.line_total} size="sm" />
               </li>
             ))}
           </ul>

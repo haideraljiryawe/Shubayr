@@ -94,7 +94,7 @@ let addresses: Address[] = [
     area: "الكوت — حي الزهراء",
     street: "شارع 14، دار 22",
     details: "قرب مدرسة الأمل، الطابق الأول",
-    // Required since contract v4.5.0: the recipient for this address, which is
+    // The recipient for this address, which is
     // independent of the account phone.
     contact_phone: "+9647701234567",
     lat: 32.515,
@@ -125,6 +125,11 @@ export function listMockAddresses(): Address[] {
   return [...addresses].sort(
     (a, b) => Number(b.is_default ?? false) - Number(a.is_default ?? false),
   );
+}
+
+/** One saved address, for the checkout mock that snapshots it onto an order. */
+export function getMockAddress(id: string | undefined): Address | undefined {
+  return addresses.find((entry) => entry.id === id);
 }
 
 export function createMockAddress(input: AddressCreate): Address {
@@ -207,6 +212,13 @@ function orderItem(
   };
 }
 
+/**
+ * Statuses for which the contract has created a delivery record.
+ *
+ * Checkout mints one with the order, and it survives cancellation — so every
+ * order has a `delivery_id`. The customer-facing delivery STAGE is then read
+ * off the order's own status; see lib/order-delivery.ts.
+ */
 function buildOrder(
   order_number: string,
   status: OrderStatus,
@@ -219,23 +231,38 @@ function buildOrder(
     0,
   );
   const delivery_fee = 5;
+  // Checkout copies the chosen address into the order in the same transaction,
+  // and nothing rewrites it afterwards. The fixture takes the copy the same
+  // way, so the detail page reads snapshots here exactly as it does live —
+  // including for `addr-2`, which a later test may well edit or delete.
+  const source = addresses.find((entry) => entry.id === address_id);
+
   return {
     id: order_number.toLowerCase(),
     order_number,
     status,
     payment_method: "cod",
     address_id,
+    delivery_id: `dlv-${order_number.toLowerCase()}`,
     subtotal,
     delivery_fee,
     discount,
     total: subtotal + delivery_fee - discount,
+    delivery_contact_phone: source?.contact_phone ?? "+9647701234567",
+    delivery_address_label: source?.label ?? null,
+    delivery_city: source?.city ?? "",
+    delivery_area: source?.area ?? null,
+    delivery_street: source?.street ?? null,
+    delivery_details: source?.details ?? null,
+    delivery_lat: source?.lat ?? null,
+    delivery_lng: source?.lng ?? null,
     placed_at: isoAgo(placedDaysAgo),
     items,
   };
 }
 
 let orders: Order[] = [
-  buildOrder("SB-1039", "out_for_delivery", 1, [
+  buildOrder("SB-1039", "dispatched", 1, [
     orderItem("p1", 1),
     orderItem("p6", 2),
   ]),
@@ -280,16 +307,18 @@ export function rememberMockOrder(order: Order): void {
 const STATUS_FLOW: OrderStatus[] = [
   "pending",
   "confirmed",
-  "processing",
-  "out_for_delivery",
+  "preparing",
+  "ready_for_dispatch",
+  "dispatched",
   "delivered",
 ];
 
 const EVENT_NOTES: Partial<Record<OrderStatus, string>> = {
   pending: "استلمنا طلبك وبانتظار التأكيد.",
   confirmed: "تم تأكيد الطلب وحجز الكمية.",
-  processing: "يتم تجهيز الطلب في المستودع.",
-  out_for_delivery: "الطلب مع مندوب التوصيل.",
+  preparing: "يتم تجهيز الطلب في المستودع.",
+  ready_for_dispatch: "الطلب جاهز وبانتظار المندوب.",
+  dispatched: "الطلب مع مندوب التوصيل.",
   delivered: "تم تسليم الطلب واستلام المبلغ.",
   cancelled: "تم إلغاء الطلب.",
 };
@@ -297,7 +326,7 @@ const EVENT_NOTES: Partial<Record<OrderStatus, string>> = {
 export function mockTrackingFor(order: Order): OrderTracking {
   const status = order.status ?? "pending";
   const reached: OrderStatus[] =
-    status === "cancelled" || status === "failed_delivery"
+    status === "cancelled" || status === "failed"
       ? ["pending", "confirmed"]
       : STATUS_FLOW.slice(0, Math.max(1, STATUS_FLOW.indexOf(status) + 1));
 
@@ -309,7 +338,7 @@ export function mockTrackingFor(order: Order): OrderTracking {
     at: new Date(placedAt + index * 5 * 3_600_000).toISOString(),
   }));
 
-  if (status === "cancelled" || status === "failed_delivery") {
+  if (status === "cancelled" || status === "failed") {
     events.push({
       status,
       note: EVENT_NOTES[status] ?? null,
@@ -494,10 +523,6 @@ export function listMockReviewedOrderItems(orderId: string): string[] {
  * an order to its delivery, so the fixture derives a stable id; see the
  * CONTRACT GAP note on api.rateDelivery.
  */
-export function mockDeliveryIdFor(order: Order): string | null {
-  return order.status === "delivered" ? `dlv-${order.id}` : null;
-}
-
 let deliveryRatings: DeliveryRating[] = [];
 
 export function getMockDeliveryRating(

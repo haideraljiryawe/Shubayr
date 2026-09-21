@@ -9,14 +9,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, fieldErrorId } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { Address, AddressCreate } from "@/lib/api";
+import { isE164, toE164, type Address, type AddressCreate } from "@/lib/api";
 
 /* ---------------------------------------------------------------------------
  * Create / edit one saved address.
  *
- * The fields are the contract's AddressCreate — no recipient name or phone,
- * because a signed-in customer's contact details live on their profile. That is
- * the difference from the guest checkout form, which has to collect them.
+ * The fields are the contract's AddressCreate. `contact_phone` is part of that
+ * shape and belongs to the address rather than the account — an order can go to
+ * someone else's number — so it is collected here and normalised to E.164,
+ * which the server has required since v5.3.0.
  * ------------------------------------------------------------------------- */
 
 export interface AddressValues {
@@ -25,6 +26,8 @@ export interface AddressValues {
   area: string;
   street: string;
   details: string;
+  /** The recipient's number for THIS address, as typed. Normalised on submit. */
+  phone: string;
   is_default: boolean;
 }
 
@@ -34,6 +37,7 @@ export const EMPTY_ADDRESS: AddressValues = {
   area: "",
   street: "",
   details: "",
+  phone: "",
   is_default: false,
 };
 
@@ -44,34 +48,60 @@ export function valuesFromAddress(address: Address): AddressValues {
     area: address.area ?? "",
     street: address.street ?? "",
     details: address.details ?? "",
+    phone: address.contact_phone ?? "",
     is_default: address.is_default ?? false,
   };
 }
 
 /**
- * `contact_phone` is required by contract v4.5.0 and is the recipient's number
- * for this address, not the account's. The account editor has no field for it
- * yet — that arrives with the addresses backend slice — so it defaults to the
- * signed-in phone, which is what a customer's own address would carry anyway.
+ * `contact_phone` is the recipient's number for this address, which may differ
+ * from the account's — a gift going to a relative is the obvious case — so the
+ * form collects it rather than assuming the signed-in number.
+ *
+ * Since contract v5.3.0 the server enforces E.164, so the typed number is
+ * normalised here: Iraqi customers write "07701234567" and the API wants
+ * "+9647701234567". Create and edit both go through this one function, which
+ * is what keeps the two paths from drifting apart.
  */
-export function toAddressCreate(
-  values: AddressValues,
-  contactPhone: string,
-): AddressCreate {
+export function toAddressCreate(values: AddressValues): AddressCreate {
   return {
     label: values.label.trim(),
     city: values.city.trim(),
     area: values.area.trim(),
     street: values.street.trim(),
     details: values.details.trim() || null,
-    contact_phone: contactPhone,
+    contact_phone: toE164(values.phone.trim()),
     is_default: values.is_default,
   };
 }
 
-type FieldName = "label" | "city" | "area" | "street";
+/**
+ * The fields that differ from the address as it stands on the server.
+ *
+ * PATCH validates the MERGED state, and `additionalProperties: false` with
+ * `minProperties: 1` means resending an unchanged field is not free: it is a
+ * value the server re-validates and, for `is_default`, re-acts on. Sending
+ * only what actually changed keeps an edit to the street from also clearing
+ * and re-setting the default flag.
+ */
+export function addressPatchFor(
+  address: Address,
+  values: AddressValues,
+): Partial<AddressCreate> {
+  const next = toAddressCreate(values);
+  const current = valuesFromAddress(address);
+  const before = toAddressCreate(current);
 
-const REQUIRED: FieldName[] = ["label", "city", "area", "street"];
+  const patch: Record<string, unknown> = {};
+  for (const key of Object.keys(next) as (keyof AddressCreate)[]) {
+    if (next[key] !== before[key]) patch[key] = next[key];
+  }
+  return patch as Partial<AddressCreate>;
+}
+
+type FieldName = "label" | "city" | "area" | "street" | "phone";
+
+const REQUIRED: FieldName[] = ["label", "city", "area", "street", "phone"];
 
 export function AddressEditor({
   title,
@@ -107,6 +137,11 @@ export function AddressEditor({
     const found: Partial<Record<FieldName, string>> = {};
     for (const name of REQUIRED) {
       if (!values[name].trim()) found[name] = t("errRequired");
+    }
+    // Catch a number the server would reject before spending a round trip on
+    // it, using the contract's own pattern against the normalised form.
+    if (!found.phone && !isE164(toE164(values.phone.trim()))) {
+      found.phone = t("errPhone");
     }
     setErrors(found);
 
@@ -162,6 +197,31 @@ export function AddressEditor({
           {text("area", "address-level2")}
           {text("street", "address-line1")}
         </div>
+
+        <Field
+          label={t("phone")}
+          htmlFor={fieldId("phone")}
+          hint={t("phoneHint")}
+          error={errors.phone}
+        >
+          <Input
+            id={fieldId("phone")}
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            // A phone number is a Latin-digit run even in the Arabic UI.
+            dir="ltr"
+            value={values.phone}
+            invalid={Boolean(errors.phone)}
+            aria-describedby={
+              errors.phone ? fieldErrorId(fieldId("phone")) : undefined
+            }
+            placeholder={t("phonePlaceholder")}
+            data-testid="address-phone"
+            onChange={(event) => set("phone", event.target.value)}
+          />
+        </Field>
 
         <Field
           label={t("details")}

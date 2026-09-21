@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { cartItemCount, cartTotals, type CartTotals } from "./cart";
+import { cartItemCount, cartTotals, lineTotal, type CartTotals } from "./cart";
 import { DELIVERY_FEE } from "./config";
 import { cartStore, lineId, type CartLine, type CartState } from "./cart-store";
 
@@ -25,6 +25,12 @@ export interface CartViewLine extends CartLine {
   available: boolean;
   /** True when this device has never seen the product behind a server line. */
   unresolved: boolean;
+  /**
+   * What this row costs. Server-backed this is the server's own `line_total`,
+   * passed through rather than multiplied out here — the row has to show the
+   * number the customer is charged, not one the client agrees with.
+   */
+  line_total: number;
 }
 
 export interface CartView {
@@ -63,6 +69,9 @@ export function useCart(): CartView {
         ...line,
         available: true,
         unresolved: false,
+        // No server to ask while signed out, so the guest cart does its own
+        // arithmetic — the only place in the app that still does.
+        line_total: lineTotal(line),
       })),
       totals: cartTotals(basket, state.coupon, DELIVERY_FEE),
       hydrated: state.hydrated,
@@ -101,6 +110,7 @@ export function useCart(): CartView {
       quantity: item.quantity ?? 0,
       available: item.available ?? true,
       unresolved: known === undefined,
+      line_total: item.line_total ?? 0,
     };
   });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Trash2 } from "lucide-react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
@@ -44,6 +44,11 @@ export function CartView() {
   const t = useTranslations("cart");
   const showToast = useToast();
   const { lines, totals, hydrated, isServerBacked, couponCode } = useCart();
+
+  // Checkout refuses the whole order while any line is unavailable, so the
+  // cart says which ones and holds the CTA rather than letting the shopper
+  // walk into a 409 at the end of the flow.
+  const unavailable = lines.filter((line) => !line.available);
 
   // A server line this device has never seen carries ids but no name; the
   // catalogue fills that in.
@@ -91,6 +96,17 @@ export function CartView() {
       ) : (
         <div className="grid items-start gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-5 lg:col-span-2">
+            {unavailable.length > 0 ? (
+              <p
+                role="alert"
+                data-testid="cart-unavailable-banner"
+                className="flex items-start gap-2 rounded-md border border-error/40 bg-error/8 px-4 py-3 text-sm font-medium text-error-dark"
+              >
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                {t("unavailableBanner", { count: unavailable.length })}
+              </p>
+            ) : null}
+
             <Card padding="md">
               <ul data-testid="cart-items">
                 {lines.map((line) => (
@@ -116,11 +132,13 @@ export function CartView() {
                   await cartStore.applyCouponCode(code);
                   showToast(t("couponApplied", { code }));
                 }}
-                // Signed in, the coupon lives on the server cart and the
-                // contract offers no way to take it off again.
-                onRemove={
-                  isServerBacked ? undefined : () => cartStore.removeCoupon()
-                }
+                // Both sides can detach a coupon now: guest-side it only ever
+                // lived on the device, and signed in DELETE /cart/coupon
+                // answers with the cart repriced without the discount.
+                onRemove={async () => {
+                  await cartStore.removeCoupon();
+                  showToast(t("couponRemoved"));
+                }}
               />
             </Card>
           </div>
@@ -132,18 +150,33 @@ export function CartView() {
               couponCode={couponCode ?? undefined}
               serverPriced={isServerBacked}
             >
-              <Link
-                href="/checkout"
-                data-testid="cart-checkout"
-                className={buttonClasses({
-                  variant: "cta",
-                  size: "lg",
-                  block: true,
-                  className: "mt-2",
-                })}
-              >
-                {t("checkout")}
-              </Link>
+              {unavailable.length > 0 ? (
+                // Not a link at all: there is nothing behind it that could
+                // succeed until the basket is fixed.
+                <Button
+                  variant="cta"
+                  size="lg"
+                  block
+                  disabled
+                  data-testid="cart-checkout-blocked"
+                  className="mt-2"
+                >
+                  {t("checkout")}
+                </Button>
+              ) : (
+                <Link
+                  href="/checkout"
+                  data-testid="cart-checkout"
+                  className={buttonClasses({
+                    variant: "cta",
+                    size: "lg",
+                    block: true,
+                    className: "mt-2",
+                  })}
+                >
+                  {t("checkout")}
+                </Link>
+              )}
             </OrderSummary>
 
             <Link

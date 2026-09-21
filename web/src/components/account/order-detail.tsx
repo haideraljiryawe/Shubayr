@@ -18,17 +18,12 @@ import { Price } from "@/components/ui/price";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { useToast } from "@/components/ui/toast";
-import {
-  api,
-  ApiError,
-  type Address,
-  type Order,
-  type OrderTracking,
-} from "@/lib/api";
+import { api, ApiError, type Order, type OrderTracking } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 import { deliveryIdForOrder } from "@/lib/order-delivery";
 import { useResource } from "@/lib/use-resource";
 import { AccountError, AccountSkeleton } from "./states";
+import { DeliveryStatus } from "./delivery-status";
 import { OrderItemLine } from "./order-item-line";
 import { OrderReviews } from "./order-reviews";
 import { OrderStatusChip, useOrderDate } from "./order-status";
@@ -57,11 +52,6 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     () => api.trackOrder(orderId).catch(() => null),
     [orderId],
   );
-  const { data: addresses } = useResource<Address[]>(
-    () => api.listAddresses().catch(() => []),
-    [],
-  );
-
   const missing = order !== null && "notFound" in order;
 
   if (missing) {
@@ -83,8 +73,6 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   if (!order) return <AccountSkeleton rows={4} />;
 
   const found = order as Order;
-  const address =
-    addresses?.find((item) => item.id === found.address_id) ?? null;
 
   // Returns, product reviews and the delivery rating are all things you can
   // only do once the order is in your hands.
@@ -102,11 +90,12 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       {cancellable ? (
         <CancelOrder orderId={found.id ?? orderId} onCancelled={reload} />
       ) : null}
+      <DeliveryStatus order={found} />
       <TrackingTimeline tracking={tracking} />
       {delivered ? (
         <OrderReviews order={found} deliveryId={deliveryIdForOrder(found)} />
       ) : null}
-      <DeliveryCard address={address} />
+      <DeliveryCard order={found} />
       <PaymentCard />
       <TotalsCard order={found} />
 
@@ -268,32 +257,57 @@ function OrderItems({ order }: { order: Order }) {
   );
 }
 
-function DeliveryCard({ address }: { address: Address | null }) {
+/**
+ * Where the order went, from the order's OWN immutable snapshot.
+ *
+ * Checkout copies the chosen address into `delivery_*` fields in the same
+ * transaction that creates the order, and nothing rewrites them afterwards —
+ * editing or even deleting the saved address leaves them untouched. Reading
+ * the address book instead would show a customer today's address on an order
+ * shipped last month, and show nothing at all once they tidied that address
+ * away. It also saves a request the page has no other use for.
+ */
+function DeliveryCard({ order }: { order: Order }) {
   const t = useTranslations("orders");
+
+  const where = [order.delivery_city, order.delivery_area, order.delivery_street]
+    .filter(Boolean)
+    .join(" — ");
+
+  // A snapshot always has a city; an order predating the snapshot fields has
+  // nothing to show rather than something wrong.
+  if (!where) {
+    return (
+      <Card padding="md" className="flex flex-col gap-2">
+        <h2 className="text-base font-bold text-text">{t("deliveryAddress")}</h2>
+        <p className="text-sm text-text-muted">{t("addressMissing")}</p>
+      </Card>
+    );
+  }
 
   return (
     <Card padding="md" className="flex flex-col gap-2">
       <h2 className="text-base font-bold text-text">{t("deliveryAddress")}</h2>
-      {address ? (
-        <address className="flex gap-2 text-sm not-italic text-text-muted">
-          <MapPin className="mt-0.5 size-4 shrink-0 text-primary-dark" aria-hidden />
-          <span className="flex flex-col gap-0.5">
-            {address.label ? (
-              <span className="font-medium text-text">{address.label}</span>
-            ) : null}
-            <span>
-              {[address.city, address.area, address.street]
-                .filter(Boolean)
-                .join(" — ")}
+      <address
+        data-testid="order-address"
+        className="flex gap-2 text-sm not-italic text-text-muted"
+      >
+        <MapPin className="mt-0.5 size-4 shrink-0 text-primary-dark" aria-hidden />
+        <span className="flex flex-col gap-0.5">
+          {order.delivery_address_label ? (
+            <span className="font-medium text-text">
+              {order.delivery_address_label}
             </span>
-            {address.details ? <span>{address.details}</span> : null}
-          </span>
-        </address>
-      ) : (
-        // An order keeps its address_id after the address itself is deleted,
-        // so this is the normal "you removed it later" case.
-        <p className="text-sm text-text-muted">{t("addressMissing")}</p>
-      )}
+          ) : null}
+          <span>{where}</span>
+          {order.delivery_details ? <span>{order.delivery_details}</span> : null}
+          {order.delivery_contact_phone ? (
+            <span dir="ltr" className="[unicode-bidi:isolate] text-start">
+              {order.delivery_contact_phone}
+            </span>
+          ) : null}
+        </span>
+      </address>
     </Card>
   );
 }

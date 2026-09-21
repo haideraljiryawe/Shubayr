@@ -26,17 +26,15 @@ export function CouponForm({
 }: {
   couponCode: string | null;
   onApply: (code: string) => Promise<void>;
-  /**
-   * Omitted when the server owns the coupon: the contract has no route to
-   * detach one, so offering a button that cannot work would be a lie.
-   */
-  onRemove?: () => void;
+  /** Detaching is a round trip when the server owns the cart, so it awaits. */
+  onRemove: () => Promise<void> | void;
 }) {
   const t = useTranslations("cart");
   const inputId = useId();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,17 +67,32 @@ export function CouponForm({
           <TicketPercent className="size-4 shrink-0" aria-hidden />
           {t("couponApplied", { code: couponCode })}
         </span>
-        {onRemove ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRemove}
-            data-testid="coupon-remove"
-            startIcon={<X className="size-4" aria-hidden />}
-          >
-            {t("couponRemove")}
-          </Button>
-        ) : null}
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={removing}
+          data-testid="coupon-remove"
+          startIcon={
+            removing ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <X className="size-4" aria-hidden />
+            )
+          }
+          onClick={async () => {
+            setRemoving(true);
+            setError(null);
+            try {
+              await onRemove();
+            } catch {
+              setError(t("couponRemoveFailed"));
+            } finally {
+              setRemoving(false);
+            }
+          }}
+        >
+          {t("couponRemove")}
+        </Button>
       </div>
     );
   }

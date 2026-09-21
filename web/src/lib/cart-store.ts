@@ -291,6 +291,11 @@ export const cartStore = {
           });
         }
 
+        // Read the guest coupon BEFORE the state that holds it is replaced:
+        // `setState` reassigns the module-level `state`, so looking it up
+        // afterwards would always find the null this very call just wrote.
+        const guestCouponCode = state.coupon?.code;
+
         setState({
           ...state,
           // The basket now lives on the server. The rows stay behind at
@@ -305,8 +310,9 @@ export const cartStore = {
 
         // A coupon the guest had applied is re-offered to the server, which
         // re-validates it against the merged basket.
-        const code = state.coupon?.code;
-        if (code) await cartStore.applyCouponCode(code).catch(() => undefined);
+        if (guestCouponCode) {
+          await cartStore.applyCouponCode(guestCouponCode).catch(() => undefined);
+        }
       } catch {
         // Offline or a failing cart endpoint: stay on the device cart rather
         // than showing an empty one to someone who has items.
@@ -493,9 +499,22 @@ export const cartStore = {
     });
   },
 
-  removeCoupon(): void {
-    // Server-side the coupon lives on the cart and the contract offers no way
-    // to detach it, so this is guest-only; the signed-in UI hides the control.
+  /**
+   * Take the coupon off.
+   *
+   * Server-backed this is DELETE /cart/coupon (contract v5.1.0), which answers
+   * with the cart repriced without the discount — so, like every other
+   * mutation, the response is adopted verbatim and no total is worked out
+   * here. Guest-side the coupon only ever lived on the device.
+   */
+  async removeCoupon(): Promise<void> {
+    if (state.server) {
+      await withPending(async () => {
+        const cart = await api.removeCartCoupon();
+        setState({ ...state, server: cart }, { save: false });
+      });
+      return;
+    }
     setState({ ...state, coupon: null });
   },
 

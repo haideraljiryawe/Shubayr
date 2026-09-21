@@ -1301,8 +1301,9 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Update order status (staff); FEFO picking is a later inventory slice
-         * @description Allowed transitions are pending to confirmed/cancelled; confirmed to processing/cancelled; processing to out_for_delivery; out_for_delivery to delivered/failed_delivery; failed_delivery to out_for_delivery/cancelled; delivered to return_requested; return_requested to returned. Cancellation releases the simple stock hold. Every transition appends a tracking event.
+         * Deprecated alias for the staff pre-dispatch transition endpoint
+         * @deprecated
+         * @description Supports the same pre-dispatch transitions as PATCH /admin/orders/{id}/status. Use the dedicated admin endpoint for new clients.
          */
         patch: {
             parameters: {
@@ -1316,7 +1317,8 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        status: components["schemas"]["OrderStatus"];
+                        /** @enum {string} */
+                        status: "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched";
                         note?: string | null;
                     };
                 };
@@ -1328,7 +1330,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Order"];
+                        "application/json": components["schemas"]["AdminOrder"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -2663,7 +2665,7 @@ export interface paths {
         head?: never;
         /**
          * Update delivery status (agent)
-         * @description Only the assigned agent may act. Legal transitions are assigned to out_for_delivery; out_for_delivery to delivered or failed; and delivered to returned. Failed and returned are terminal. Dispatch and delivery timestamps are recorded, and the order advances atomically through its corresponding status events.
+         * @description Only the assigned agent may act. An assigned delivery may start only when its order is ready_for_dispatch. Legal transitions are assigned to out_for_delivery; out_for_delivery to delivered or failed; and delivered to returned. Failed and returned are terminal. Dispatch and delivery timestamps are recorded, and the order advances atomically through its corresponding status events. Successful delivery reconciles a pending COD payment to paid in the same transaction.
          */
         patch: {
             parameters: {
@@ -3027,8 +3029,9 @@ export interface paths {
                     status?: components["schemas"]["OrderStatus"];
                     from?: string;
                     to?: string;
-                    /** @description search by order number / customer */
+                    /** @description case-insensitive order_number search */
                     q?: string;
+                    customer_id?: string;
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -3044,14 +3047,172 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["OrderPage"];
+                        "application/json": components["schemas"]["AdminOrderPage"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
             };
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/orders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a full order-management detail */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Order with immutable lines, customer, shipping snapshot, payment, delivery, agent, and timeline */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrder"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/orders/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Advance an order through its pre-dispatch lifecycle
+         * @description Legal path: pending to confirmed to preparing to ready_for_dispatch to dispatched. Dispatch requires the existing current delivery to have an agent assigned through PATCH /deliveries/{id}/assign; it moves that same delivery to out_for_delivery and converts checkout stock holds from held to deducted. Delivery agent transitions own delivered, failed and returned.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched";
+                        note?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated order detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrder"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /** @description Illegal transition or dispatch handoff is incomplete */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/orders/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a pre-dispatch order and release its stock holds
+         * @description Allowed only from pending, confirmed, preparing, or ready_for_dispatch. A non-empty reason is stored in the timeline and audit trail. Dispatched, delivered, failed, returned, and paid COD orders cannot be cancelled.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Cancelled order detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrder"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /** @description Order is not cancellable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                422: components["responses"]["Validation"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -4386,7 +4547,7 @@ export interface components {
          * @description Canonical order lifecycle status (matches orders.status in schema.sql).
          * @enum {string}
          */
-        OrderStatus: "pending" | "confirmed" | "processing" | "out_for_delivery" | "delivered" | "failed_delivery" | "cancelled" | "return_requested" | "returned";
+        OrderStatus: "pending" | "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched" | "delivered" | "failed" | "cancelled" | "return_requested" | "returned";
         OrderItem: {
             /**
              * Format: uuid
@@ -4462,6 +4623,64 @@ export interface components {
         };
         OrderPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Order"][];
+        };
+        AdminOrder: components["schemas"]["Order"] & {
+            customer: {
+                /** Format: uuid */
+                id: string;
+                name: string | null;
+                phone: string;
+                email: string | null;
+            };
+            /** @description Immutable checkout shipping and contact values. */
+            shipping_snapshot: {
+                contact_phone?: string;
+                address_label?: string | null;
+                city?: string;
+                area?: string | null;
+                street?: string | null;
+                details?: string | null;
+                lat?: number | null;
+                lng?: number | null;
+            };
+            payments: {
+                /** Format: uuid */
+                id?: string;
+                /** @enum {string} */
+                method?: "cod";
+                /** @enum {string} */
+                status?: "pending" | "paid" | "refunded" | "failed";
+                amount?: components["schemas"]["Money"];
+                /** Format: date-time */
+                paid_at?: string | null;
+            }[];
+            delivery: {
+                /** Format: uuid */
+                id?: string;
+                /** @enum {string} */
+                status?: "assigned" | "out_for_delivery" | "delivered" | "failed" | "returned";
+                delivery_fee?: components["schemas"]["Money"];
+                /** Format: date-time */
+                dispatched_at?: string | null;
+                /** Format: date-time */
+                delivered_at?: string | null;
+                agent?: {
+                    /** Format: uuid */
+                    id?: string;
+                    name?: string | null;
+                    phone?: string;
+                    email?: string | null;
+                } | null;
+            } | null;
+            status_events: {
+                status?: components["schemas"]["OrderStatus"];
+                note?: string | null;
+                /** Format: date-time */
+                at?: string;
+            }[];
+        };
+        AdminOrderPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["AdminOrder"][];
         };
         OrderTracking: {
             /** Format: uuid */

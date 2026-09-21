@@ -2,6 +2,7 @@ import type { components, paths } from "@/types/api";
 import { isLive } from "./data-source";
 import {
   createMockAddress,
+  getMockAddress,
   deleteMockAddress,
   getMockOrder,
   getMockUser,
@@ -341,6 +342,20 @@ export function toE164(phone: string): string {
   return `+${digits}`;
 }
 
+/**
+ * The contract's own `contact_phone` pattern, enforced server-side since
+ * v5.3.0: a leading +, a non-zero country digit, then 7-14 more digits.
+ *
+ * Checking it before submitting turns what would be a 422 round trip into an
+ * inline field error, which is the difference between "this number is wrong"
+ * pointing at the box and a banner appearing after a save that failed.
+ */
+export const E164_PATTERN = /^\+[1-9]\d{7,14}$/;
+
+export function isE164(phone: string): boolean {
+  return E164_PATTERN.test(phone);
+}
+
 export const api = {
   /**
    * White-label identity (rule #1). Read on every page load by ThemeProvider.
@@ -552,7 +567,6 @@ export const api = {
 
   /* -------------------------------------------------------- addresses */
 
-  // MOCK: awaiting backend slice (addresses).
   async listAddresses(): Promise<Address[]> {
     return withFreshToken(async () => {
       if (!isLive("addresses")) {
@@ -567,7 +581,6 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (addresses).
   async updateAddress(id: string, input: AddressPatch): Promise<Address> {
     return withFreshToken(async () => {
       if (!isLive("addresses")) {
@@ -584,7 +597,6 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (addresses).
   async deleteAddress(id: string): Promise<void> {
     return withFreshToken(async () => {
       if (!isLive("addresses")) {
@@ -603,7 +615,6 @@ export const api = {
 
   /* ----------------------------------------------------------- orders */
 
-  // MOCK: awaiting backend slice (orders).
   async listOrders(status?: OrderStatus): Promise<Order[]> {
     return withFreshToken(async () => {
       if (!isLive("orders")) {
@@ -618,7 +629,6 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (orders).
   async getOrder(id: string): Promise<Order> {
     return withFreshToken(async () => {
       if (!isLive("orders")) {
@@ -632,7 +642,6 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (orders).
   async trackOrder(id: string): Promise<OrderTracking> {
     return withFreshToken(async () => {
       if (!isLive("orders")) {
@@ -652,7 +661,6 @@ export const api = {
    * ApiError(404) as "invalid or expired" and everything else as a failure to
    * reach the service.
    */
-  // MOCK: awaiting backend slice (checkout).
   async validateCoupon(code: string): Promise<Coupon> {
     if (!isLive("checkout")) {
       await mockLatency();
@@ -671,7 +679,6 @@ export const api = {
    * checkout that types a new address creates it first and places the order
    * against the id that comes back.
    */
-  // MOCK: awaiting backend slice (addresses).
   async createAddress(input: AddressCreate): Promise<Address> {
     return withFreshToken(async () => {
       if (!isLive("addresses")) {
@@ -690,7 +697,6 @@ export const api = {
    * Place a Cash-on-Delivery order. Requires an authenticated customer — the
    * checkout gates on that before calling.
    */
-  // MOCK: awaiting backend slice (checkout).
   /**
    * Place the COD order.
    *
@@ -708,16 +714,30 @@ export const api = {
       if (!isLive("checkout")) {
         await mockLatency();
         requireMockAuth();
+        const id = `order-${Date.now().toString(36)}`;
+        // The contract copies the chosen address onto the order in the same
+        // transaction, so the fixture does too — otherwise the detail page,
+        // which reads snapshots, would show nothing after a mocked checkout.
+        const chosen = getMockAddress(body.address_id);
         const order: Order = {
-          id: `order-${Date.now().toString(36)}`,
+          id,
           order_number: nextMockOrderNumber(),
           status: "pending",
           payment_method: body.payment_method ?? "cod",
           address_id: body.address_id,
+          delivery_id: `dlv-${id}`,
           subtotal: draft?.subtotal ?? 0,
           delivery_fee: draft?.delivery_fee ?? 0,
           discount: draft?.discount ?? 0,
           total: draft?.total ?? 0,
+          delivery_contact_phone: chosen?.contact_phone ?? "",
+          delivery_address_label: chosen?.label ?? null,
+          delivery_city: chosen?.city ?? "",
+          delivery_area: chosen?.area ?? null,
+          delivery_street: chosen?.street ?? null,
+          delivery_details: chosen?.details ?? null,
+          delivery_lat: chosen?.lat ?? null,
+          delivery_lng: chosen?.lng ?? null,
           placed_at: new Date().toISOString(),
           items: draft?.items ?? [],
         };
@@ -864,10 +884,10 @@ export const api = {
    * Rating the delivery is a separate act from reviewing the products, and the
    * contract keeps it on its own endpoint.
    *
-   * CONTRACT GAP: Order carries no `delivery_id`, and GET /deliveries/{id} is
-   * staff-scoped, so a customer has no contract route from their order to the
-   * delivery this rates. The fixture resolves it from the order; the contract
-   * needs `delivery_id` on Order before mocks are switched off.
+   * `Order.delivery_id` (contract v5.x) is what connects an order to the
+   * delivery this rates — the gap noted here before is closed, and
+   * lib/order-delivery.ts reads the real field. GET /deliveries/{id} is still
+   * staff-scoped, but nothing customer-facing needs the record itself.
    */
   // MOCK: awaiting backend slice (reviews).
   async rateDelivery(
@@ -890,12 +910,10 @@ export const api = {
   /**
    * Which of an order's items the customer may still review.
    *
-   * CONTRACT GAP: nothing in api/openapi.yaml reports whether the signed-in
-   * customer has already reviewed a given order item — GET /products/{id}/
-   * reviews returns published reviews for everyone, with no per-user filter.
-   * Scanning every product's reviews client-side does not scale, so the
-   * fixture answers it directly. A `reviewed` flag on OrderItem, or
-   * GET /me/reviews, would close this.
+   * `OrderItem.reviewed` now carries this per caller, so the separate lookup
+   * the fixture provides is no longer the only way to answer it. Reviews stay
+   * on fixtures until their own flip, which is where this method should be
+   * replaced by reading the flag off the order.
    */
   // MOCK: awaiting backend slice (reviews).
   async listReviewedOrderItems(orderId: string): Promise<string[]> {
@@ -954,6 +972,22 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ quantity }),
       });
+    });
+  },
+
+  /**
+   * Detach the coupon from the server cart and get it back repriced.
+   *
+   * Added by contract v5.1.0 (DELETE /cart/coupon). Before it existed the
+   * signed-in UI had to hide the "remove" control, because taking a coupon
+   * off was something only the server could do and no route did it. The
+   * contract calls the endpoint safe to repeat when no coupon is applied, so
+   * the caller never has to check first.
+   */
+  async removeCartCoupon(): Promise<Cart> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<Cart>("/cart/coupon", { method: "DELETE" });
     });
   },
 

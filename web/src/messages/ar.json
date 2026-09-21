@@ -221,7 +221,12 @@
     "browse": "تصفّح المنتجات",
     "loading": "جارٍ تحميل السلة…",
     "added": "تمت إضافة المنتج إلى السلة",
-    "soldOut": "نفد من المخزون"
+    "soldOut": "نفد من المخزون",
+    "couponRemoved": "تمت إزالة الكوبون",
+    "couponRemoveFailed": "تعذّرت إزالة الكوبون، حاول مرة أخرى",
+    "unavailableLine": "غير متوفر حالياً — احذف المنتج لإتمام الطلب",
+    "unavailableQty": "المتوفر {count} فقط — قلّل الكمية لإتمام الطلب",
+    "unavailableBanner": "{count, plural, one {منتج واحد في سلتك لم يعد متوفراً بالكمية المطلوبة. عدّله أو احذفه للمتابعة.} two {منتجان في سلتك لم يعودا متوفرين بالكمية المطلوبة. عدّلهما أو احذفهما للمتابعة.} few {# منتجات في سلتك لم تعد متوفرة بالكمية المطلوبة. عدّلها أو احذفها للمتابعة.} other {# منتجاً في سلتك لم تعد متوفرة بالكمية المطلوبة. عدّلها أو احذفها للمتابعة.}}"
   },
   "checkout": {
     "title": "إتمام الطلب",
@@ -382,10 +387,11 @@
     "notFoundBody": "ربما تم حذف الطلب أو أن الرابط غير صحيح.",
     "status_pending": "قيد الانتظار",
     "status_confirmed": "تم التأكيد",
-    "status_processing": "قيد التجهيز",
-    "status_out_for_delivery": "في الطريق إليك",
+    "status_preparing": "قيد التجهيز",
+    "status_ready_for_dispatch": "جاهز للإرسال",
+    "status_dispatched": "في الطريق إليك",
     "status_delivered": "تم التسليم",
-    "status_failed_delivery": "تعذّر التسليم",
+    "status_failed": "تعذّر التسليم",
     "status_cancelled": "ملغي",
     "status_return_requested": "طلب إرجاع",
     "status_returned": "تم الإرجاع",
@@ -394,7 +400,13 @@
     "cancelConfirm": "هل تريد إلغاء هذا الطلب؟",
     "cancelled": "تم إلغاء الطلب",
     "cancelFailed": "تعذّر إلغاء الطلب.",
-    "cancelTooLate": "لم يعد بالإمكان إلغاء هذا الطلب في حالته الحالية."
+    "cancelTooLate": "لم يعد بالإمكان إلغاء هذا الطلب في حالته الحالية.",
+    "deliveryStatus": "حالة التوصيل",
+    "delivery_assigned": "بانتظار المندوب",
+    "delivery_out_for_delivery": "في الطريق إليك",
+    "delivery_delivered": "تم التسليم",
+    "delivery_failed": "تعذّر التسليم — سنتواصل معك لإعادة المحاولة",
+    "delivery_returned": "أُعيد الطلب إلى المتجر"
   },
   "addresses": {
     "title": "عناويني",
@@ -435,7 +447,13 @@
     "loadError": "تعذّر تحميل العناوين.",
     "chooseSaved": "اختر عنوانًا محفوظًا",
     "useNew": "استخدام عنوان جديد",
-    "newAddress": "عنوان جديد"
+    "newAddress": "عنوان جديد",
+    "phone": "هاتف المستلم",
+    "phonePlaceholder": "07XXXXXXXXX",
+    "phoneHint": "رقم من يستلم الطلب على هذا العنوان، وقد يختلف عن رقم حسابك.",
+    "errPhone": "أدخل رقم هاتف صحيح، مثل 07701234567",
+    "errInvalid": "تعذّر حفظ العنوان: تحقّق من رقم الهاتف وبقية الحقول.",
+    "errDefaultConflict": "لا يمكن إلغاء العنوان الافتراضي؛ اجعل عنواناً آخر افتراضياً بدلاً من ذلك."
   },
   "wishlist": {
     "title": "المفضلة",
