@@ -16,11 +16,11 @@ import {
 export const ORDER_STATUSES = [
   'pending',
   'confirmed',
-  'preparing',
+  'processing',
   'ready_for_dispatch',
-  'dispatched',
+  'out_for_delivery',
   'delivered',
-  'failed',
+  'failed_delivery',
   'cancelled',
   'return_requested',
   'returned',
@@ -29,9 +29,9 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export const STAFF_ORDER_STATUSES = [
   'confirmed',
-  'preparing',
+  'processing',
   'ready_for_dispatch',
-  'dispatched',
+  'out_for_delivery',
 ] as const;
 export type StaffOrderStatus = (typeof STAFF_ORDER_STATUSES)[number];
 

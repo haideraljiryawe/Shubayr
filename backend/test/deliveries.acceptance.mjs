@@ -155,7 +155,7 @@ check(Boolean(dispatched.dispatched_at), true, 'dispatch timestamp stamped');
 const afterDispatch = await request(`/orders/${assigned.id}`, {
   token: token(customer),
 });
-check(afterDispatch.status, 'dispatched', 'dispatch advances parent order');
+check(afterDispatch.status, 'out_for_delivery', 'dispatch advances parent order');
 const delivered = await request(`/deliveries/${assigned.delivery_id}`, {
   token: token(agentA),
   method: 'PATCH',
@@ -226,7 +226,7 @@ const failed = await request(`/deliveries/${second.delivery_id}`, {
 check(failed.status, 'failed', 'failed is terminal alternate');
 check(
   (await request(`/orders/${second.id}`, { token: token(customer) })).status,
-  'failed',
+  'failed_delivery',
   'failure advances order',
 );
 await request(`/deliveries/${second.delivery_id}`, {

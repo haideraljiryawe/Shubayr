@@ -1169,13 +1169,13 @@ async function seedCustomerOrders(
       quantity: 1,
     },
     {
-      status: 'dispatched',
+      status: 'out_for_delivery',
       timeline: [
         'pending',
         'confirmed',
-        'preparing',
+        'processing',
         'ready_for_dispatch',
-        'dispatched',
+        'out_for_delivery',
       ],
       product: 3,
       daysAgo: 3,
@@ -1186,9 +1186,9 @@ async function seedCustomerOrders(
       timeline: [
         'pending',
         'confirmed',
-        'preparing',
+        'processing',
         'ready_for_dispatch',
-        'dispatched',
+        'out_for_delivery',
         'delivered',
       ],
       product: 4,
@@ -1196,14 +1196,14 @@ async function seedCustomerOrders(
       quantity: 1,
     },
     {
-      status: 'failed',
+      status: 'failed_delivery',
       timeline: [
         'pending',
         'confirmed',
-        'preparing',
+        'processing',
         'ready_for_dispatch',
-        'dispatched',
-        'failed',
+        'out_for_delivery',
+        'failed_delivery',
       ],
       product: 5,
       daysAgo: 5,
@@ -1211,21 +1211,21 @@ async function seedCustomerOrders(
     },
     {
       status: 'ready_for_dispatch',
-      timeline: ['pending', 'confirmed', 'preparing', 'ready_for_dispatch'],
+      timeline: ['pending', 'confirmed', 'processing', 'ready_for_dispatch'],
       product: 6,
       daysAgo: 2,
       quantity: 1,
     },
     {
       status: 'ready_for_dispatch',
-      timeline: ['pending', 'confirmed', 'preparing', 'ready_for_dispatch'],
+      timeline: ['pending', 'confirmed', 'processing', 'ready_for_dispatch'],
       product: 7,
       daysAgo: 4,
       quantity: 1,
     },
     {
-      status: 'preparing',
-      timeline: ['pending', 'confirmed', 'preparing'],
+      status: 'processing',
+      timeline: ['pending', 'confirmed', 'processing'],
       product: 8,
       daysAgo: 6,
       quantity: 1,
@@ -1318,7 +1318,7 @@ async function seedCustomerOrders(
       });
     }
     const dispatched = (sample.timeline as readonly string[]).includes(
-      'dispatched',
+      'out_for_delivery',
     );
     const delivered = sample.status === 'delivered';
     const delivery = await prisma.delivery.upsert({
@@ -1332,7 +1332,7 @@ async function seedCustomerOrders(
           : deliveryAgentId,
         status: delivered
           ? 'delivered'
-          : sample.status === 'failed'
+          : sample.status === 'failed_delivery'
             ? 'failed'
             : dispatched
               ? 'out_for_delivery'

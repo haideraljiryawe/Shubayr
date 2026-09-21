@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 5.4.0
+  version: 5.5.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -655,7 +655,7 @@ paths:
               type: object
               required: [status]
               properties:
-                status: { type: string, enum: [confirmed, preparing, ready_for_dispatch, dispatched] }
+                status: { type: string, enum: [confirmed, processing, ready_for_dispatch, out_for_delivery] }
                 note: { type: [string, "null"], maxLength: 500 }
       responses:
         "200":
@@ -1544,11 +1544,11 @@ paths:
       summary: Advance an order through its pre-dispatch lifecycle
       x-permission: orders.manage
       description: >
-        Legal path: pending to confirmed to preparing to ready_for_dispatch to
-        dispatched. Dispatch requires the existing current delivery to have an
+        Legal path: pending to confirmed to processing to ready_for_dispatch to
+        out_for_delivery. Dispatch requires the existing current delivery to have an
         agent assigned through PATCH /deliveries/{id}/assign; it moves that same
         delivery to out_for_delivery and converts checkout stock holds from held
-        to deducted. Delivery agent transitions own delivered, failed and returned.
+        to deducted. Delivery agent transitions own delivered, failed_delivery and returned.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -1561,7 +1561,7 @@ paths:
               properties:
                 status:
                   type: string
-                  enum: [confirmed, preparing, ready_for_dispatch, dispatched]
+                  enum: [confirmed, processing, ready_for_dispatch, out_for_delivery]
                 note: { type: [string, "null"], maxLength: 500 }
       responses:
         "200":
@@ -1579,9 +1579,9 @@ paths:
       summary: Cancel a pre-dispatch order and release its stock holds
       x-permission: orders.manage
       description: >
-        Allowed only from pending, confirmed, preparing, or ready_for_dispatch.
-        A non-empty reason is stored in the timeline and audit trail. Dispatched,
-        delivered, failed, returned, and paid COD orders cannot be cancelled.
+        Allowed only from pending, confirmed, processing, or ready_for_dispatch.
+        A non-empty reason is stored in the timeline and audit trail. Out-for-delivery,
+        delivered, failed-delivery, returned, and paid COD orders cannot be cancelled.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -2549,11 +2549,11 @@ components:
       enum:
         - pending
         - confirmed
-        - preparing
+        - processing
         - ready_for_dispatch
-        - dispatched
+        - out_for_delivery
         - delivered
-        - failed
+        - failed_delivery
         - cancelled
         - return_requested
         - returned

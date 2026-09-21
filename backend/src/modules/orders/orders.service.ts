@@ -29,11 +29,11 @@ import {
 
 const nextStatuses: Record<OrderStatus, readonly OrderStatus[]> = {
   pending: ['confirmed'],
-  confirmed: ['preparing'],
-  preparing: ['ready_for_dispatch'],
-  ready_for_dispatch: ['dispatched'],
-  dispatched: [],
-  failed: [],
+  confirmed: ['processing'],
+  processing: ['ready_for_dispatch'],
+  ready_for_dispatch: ['out_for_delivery'],
+  out_for_delivery: [],
+  failed_delivery: [],
   delivered: ['return_requested'],
   return_requested: ['returned'],
   returned: [],
@@ -58,7 +58,7 @@ type AdminOrderRow = Prisma.OrderGetPayload<{
 const cancellableStatuses = [
   'pending',
   'confirmed',
-  'preparing',
+  'processing',
   'ready_for_dispatch',
 ] as const;
 
@@ -455,7 +455,7 @@ export class OrdersService {
       const now = new Date();
       let delivery: Awaited<ReturnType<typeof tx.delivery.findUnique>> | null =
         null;
-      if (input.status === 'dispatched') {
+      if (input.status === 'out_for_delivery') {
         if (!order.delivery_id) {
           throw new ConflictException('Order has no current delivery');
         }
@@ -492,13 +492,15 @@ export class OrdersService {
       await this.audit.record(tx, {
         actorId,
         action:
-          input.status === 'dispatched' ? 'order.dispatch' : 'order.transition',
+          input.status === 'out_for_delivery'
+            ? 'order.dispatch'
+            : 'order.transition',
         entityType: 'order',
         entityId: id,
         before: { status: order.status },
         after: { status: input.status, note: input.note ?? null },
       });
-      if (input.status === 'dispatched' && delivery) {
+      if (input.status === 'out_for_delivery' && delivery) {
         await tx.simpleStockHold.updateMany({
           where: { order_id: id, status: 'held' },
           data: { status: 'deducted', deducted_at: now },
@@ -573,7 +575,7 @@ export class OrdersService {
     const type =
       status === 'confirmed'
         ? 'order_confirmed'
-        : status === 'dispatched'
+        : status === 'out_for_delivery'
           ? 'out_for_delivery'
           : 'order_status_changed';
     await this.notifications.record(

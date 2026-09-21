@@ -169,7 +169,9 @@ describe('OrdersService', () => {
     };
     const service = new OrdersService(prisma as never, {} as never, audit);
     await expect(
-      service.updateStatus('staff-1', 'order-1', { status: 'dispatched' }),
+      service.updateStatus('staff-1', 'order-1', {
+        status: 'out_for_delivery',
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(tx.orderStatusEvent.create).not.toHaveBeenCalled();
   });

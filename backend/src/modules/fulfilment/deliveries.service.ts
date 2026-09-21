@@ -96,9 +96,9 @@ export class DeliveriesService {
         ![
           'pending',
           'confirmed',
-          'preparing',
+          'processing',
           'ready_for_dispatch',
-          'dispatched',
+          'out_for_delivery',
         ].includes(delivery.order.status)
       ) {
         throw new ConflictException('Order delivery is not active');
@@ -155,15 +155,17 @@ export class DeliveriesService {
           if (orderStatus !== 'ready_for_dispatch') {
             throw new ConflictException('Order cannot be dispatched');
           }
-          orderSteps = ['dispatched'];
+          orderSteps = ['out_for_delivery'];
           break;
         }
         case 'delivered':
         case 'failed':
-          if (orderStatus !== 'dispatched') {
+          if (orderStatus !== 'out_for_delivery') {
             throw new ConflictException('Order is not out for delivery');
           }
-          orderSteps = [input.status === 'failed' ? 'failed' : 'delivered'];
+          orderSteps = [
+            input.status === 'failed' ? 'failed_delivery' : 'delivered',
+          ];
           break;
         case 'returned':
           if (!['delivered', 'return_requested'].includes(orderStatus)) {
@@ -193,7 +195,9 @@ export class DeliveriesService {
         await this.audit.record(tx, {
           actorId: agentId,
           action:
-            status === 'dispatched' ? 'order.dispatch' : 'order.transition',
+            status === 'out_for_delivery'
+              ? 'order.dispatch'
+              : 'order.transition',
           entityType: 'order',
           entityId: delivery.order_id,
           before: {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.5.0 - 2026-09-21
+
+### Changed
+
+- revert order-status naming to original vocabulary; no behavior change.
+
 ## 5.4.0 - 2026-09-21
 
 ### Added

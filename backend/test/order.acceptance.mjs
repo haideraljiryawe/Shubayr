@@ -63,7 +63,7 @@ const customer = await login('+9647700000006');
 const seededOrders = await request('/orders?per_page=100', {
   token: customer.access_token,
 });
-for (const status of ['pending', 'confirmed', 'dispatched', 'delivered']) {
+for (const status of ['pending', 'confirmed', 'out_for_delivery', 'delivered']) {
   const sample = seededOrders.data.find(
     (order) =>
       order.order_number.startsWith('DEV-ORDER-') && order.status === status,

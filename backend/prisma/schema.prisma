@@ -541,6 +541,7 @@ model Order {
   order_number            String              @unique(map: "orders_order_number_key") @db.VarChar(40)
   idempotency_key         String?             @db.VarChar(128)
   idempotency_fingerprint String?             @db.VarChar(64)
+  /// pending | confirmed | processing | ready_for_dispatch | out_for_delivery | delivered | failed_delivery | cancelled | return_requested | returned
   status                  String              @default("pending") @db.VarChar(30)
   payment_method          String              @default("cod") @db.VarChar(20)
   subtotal                Decimal             @default(0) @db.Decimal(12, 2)

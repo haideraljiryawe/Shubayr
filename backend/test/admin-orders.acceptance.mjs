@@ -81,8 +81,8 @@ try {
   for (const status of [
     'pending',
     'confirmed',
-    'preparing',
-    'dispatched',
+    'processing',
+    'out_for_delivery',
     'delivered',
     'cancelled',
   ]) {
@@ -94,20 +94,20 @@ try {
   }
 
   const preparing = await request(
-    '/admin/orders?status=preparing&per_page=100',
+    '/admin/orders?status=processing&per_page=100',
     { token: admin },
   );
   check(
     preparing.total,
     Number(
       await scalar(
-        "SELECT count(*)::int AS value FROM orders WHERE status='preparing'",
+        "SELECT count(*)::int AS value FROM orders WHERE status='processing'",
       ),
     ),
     'status total is filtered',
   );
   check(
-    preparing.data.every((order) => order.status === 'preparing'),
+    preparing.data.every((order) => order.status === 'processing'),
     true,
     'status filter applies before pagination',
   );
@@ -236,7 +236,7 @@ try {
     expected: 422,
   });
 
-  for (const status of ['confirmed', 'preparing', 'ready_for_dispatch']) {
+  for (const status of ['confirmed', 'processing', 'ready_for_dispatch']) {
     const updated = await request(`/admin/orders/${pending.id}/status`, {
       token: admin,
       method: 'PATCH',
@@ -258,9 +258,9 @@ try {
   const dispatched = await request(`/admin/orders/${pending.id}/status`, {
     token: admin,
     method: 'PATCH',
-    body: { status: 'dispatched', note: 'Courier handoff' },
+    body: { status: 'out_for_delivery', note: 'Courier handoff' },
   });
-  check(dispatched.status, 'dispatched', 'staff dispatches ready order');
+  check(dispatched.status, 'out_for_delivery', 'staff dispatches ready order');
   check(
     dispatched.delivery.id,
     pending.delivery.id,
@@ -338,7 +338,7 @@ try {
     method: 'POST',
     body: { reason: 'Customer requested staff cancellation' },
   });
-  check(cancelled.status, 'cancelled', 'staff cancels preparing order');
+  check(cancelled.status, 'cancelled', 'staff cancels processing order');
   const stockAfter = await request(`/products/${productId}/availability`);
   check(
     available(stockAfter),

@@ -1318,7 +1318,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @enum {string} */
-                        status: "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched";
+                        status: "confirmed" | "processing" | "ready_for_dispatch" | "out_for_delivery";
                         note?: string | null;
                     };
                 };
@@ -3118,7 +3118,7 @@ export interface paths {
         head?: never;
         /**
          * Advance an order through its pre-dispatch lifecycle
-         * @description Legal path: pending to confirmed to preparing to ready_for_dispatch to dispatched. Dispatch requires the existing current delivery to have an agent assigned through PATCH /deliveries/{id}/assign; it moves that same delivery to out_for_delivery and converts checkout stock holds from held to deducted. Delivery agent transitions own delivered, failed and returned.
+         * @description Legal path: pending to confirmed to processing to ready_for_dispatch to out_for_delivery. Dispatch requires the existing current delivery to have an agent assigned through PATCH /deliveries/{id}/assign; it moves that same delivery to out_for_delivery and converts checkout stock holds from held to deducted. Delivery agent transitions own delivered, failed_delivery and returned.
          */
         patch: {
             parameters: {
@@ -3133,7 +3133,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @enum {string} */
-                        status: "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched";
+                        status: "confirmed" | "processing" | "ready_for_dispatch" | "out_for_delivery";
                         note?: string | null;
                     };
                 };
@@ -3173,7 +3173,7 @@ export interface paths {
         put?: never;
         /**
          * Cancel a pre-dispatch order and release its stock holds
-         * @description Allowed only from pending, confirmed, preparing, or ready_for_dispatch. A non-empty reason is stored in the timeline and audit trail. Dispatched, delivered, failed, returned, and paid COD orders cannot be cancelled.
+         * @description Allowed only from pending, confirmed, processing, or ready_for_dispatch. A non-empty reason is stored in the timeline and audit trail. Out-for-delivery, delivered, failed-delivery, returned, and paid COD orders cannot be cancelled.
          */
         post: {
             parameters: {
@@ -4547,7 +4547,7 @@ export interface components {
          * @description Canonical order lifecycle status (matches orders.status in schema.sql).
          * @enum {string}
          */
-        OrderStatus: "pending" | "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched" | "delivered" | "failed" | "cancelled" | "return_requested" | "returned";
+        OrderStatus: "pending" | "confirmed" | "processing" | "ready_for_dispatch" | "out_for_delivery" | "delivered" | "failed_delivery" | "cancelled" | "return_requested" | "returned";
         OrderItem: {
             /**
              * Format: uuid
