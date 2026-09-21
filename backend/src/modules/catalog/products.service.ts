@@ -206,7 +206,7 @@ export class ProductsService {
         select: { quantity: true, batch: { select: { variant_id: true } } },
       }),
       this.prisma.simpleStockHold.findMany({
-        where: { product_id: id, released_at: null },
+        where: { product_id: id, status: { in: ['held', 'deducted'] } },
         select: { quantity: true, variant_id: true },
       }),
     ]);

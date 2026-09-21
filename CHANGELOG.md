@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.4.0 - 2026-09-21
+
+### Added
+
+- Permissioned staff order list/detail, pre-dispatch transitions, and audited
+  cancellation endpoints under `/admin/orders`.
+- Explicit `held`, `deducted`, and `released` lifecycle state for checkout stock
+  holds, plus delivered COD payment reconciliation and audit records.
+
+### Changed
+
+- Canonical order statuses now use `preparing`, `ready_for_dispatch`,
+  `dispatched`, and `failed`; dispatch reuses the checkout-created delivery and
+  the existing delivery-agent assignment flow.
+
 ## 5.3.0 - 2026-09-21
 
 ### Added

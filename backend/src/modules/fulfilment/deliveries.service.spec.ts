@@ -77,7 +77,11 @@ describe('DeliveriesService', () => {
       Promise.all(queries),
     ),
   };
-  const service = new DeliveriesService(prisma as never, {} as never);
+  const service = new DeliveriesService(
+    prisma as never,
+    {} as never,
+    {} as never,
+  );
 
   beforeEach(() => jest.clearAllMocks());
 

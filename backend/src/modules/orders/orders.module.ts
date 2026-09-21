@@ -6,14 +6,15 @@ import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { AddressesController } from './addresses.controller';
 import { AddressesService } from './addresses.service';
-import { LoyaltyModule } from '../loyalty/loyalty.module';
+import { AdminOrdersController } from './admin-orders.controller';
 
 @Module({
-  imports: [CatalogModule, LoyaltyModule],
+  imports: [CatalogModule],
   controllers: [
     CartController,
     CouponController,
     OrdersController,
+    AdminOrdersController,
     AddressesController,
   ],
   providers: [CartService, OrdersService, AddressesService],
