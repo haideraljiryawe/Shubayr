@@ -123,7 +123,8 @@
     "errorTitle": "Could not load the product",
     "errorBody": "Something went wrong fetching this product.",
     "retry": "Try again",
-    "browse": "Browse products"
+    "browse": "Browse products",
+    "chooseOptions": "Choose options"
   },
   "home": {
     "categoriesTitle": "Main categories",
@@ -220,7 +221,12 @@
     "browse": "Browse products",
     "loading": "Loading your cart…",
     "added": "Added to your cart",
-    "soldOut": "Out of stock"
+    "soldOut": "Out of stock",
+    "couponRemoved": "Coupon removed",
+    "couponRemoveFailed": "Could not remove the coupon, please try again",
+    "unavailableLine": "Out of stock — remove it to place your order",
+    "unavailableQty": "Only {count} left — lower the quantity to place your order",
+    "unavailableBanner": "{count, plural, one {One item in your basket is no longer available in the quantity you chose. Adjust or remove it to continue.} other {# items in your basket are no longer available in the quantities you chose. Adjust or remove them to continue.}}"
   },
   "checkout": {
     "title": "Checkout",
@@ -381,13 +387,26 @@
     "notFoundBody": "It may have been removed, or the link is wrong.",
     "status_pending": "Pending",
     "status_confirmed": "Confirmed",
-    "status_processing": "Processing",
-    "status_out_for_delivery": "Out for delivery",
+    "status_preparing": "Preparing",
+    "status_ready_for_dispatch": "Ready for dispatch",
+    "status_dispatched": "Out for delivery",
     "status_delivered": "Delivered",
-    "status_failed_delivery": "Delivery failed",
+    "status_failed": "Delivery failed",
     "status_cancelled": "Cancelled",
     "status_return_requested": "Return requested",
-    "status_returned": "Returned"
+    "status_returned": "Returned",
+    "cancelOrder": "Cancel order",
+    "cancelling": "Cancelling…",
+    "cancelConfirm": "Cancel this order?",
+    "cancelled": "Order cancelled",
+    "cancelFailed": "Could not cancel the order.",
+    "cancelTooLate": "This order can no longer be cancelled in its current status.",
+    "deliveryStatus": "Delivery status",
+    "delivery_assigned": "Waiting for a courier",
+    "delivery_out_for_delivery": "On its way to you",
+    "delivery_delivered": "Delivered",
+    "delivery_failed": "Delivery failed — we will contact you to retry",
+    "delivery_returned": "Returned to the store"
   },
   "addresses": {
     "title": "My addresses",
@@ -428,7 +447,13 @@
     "loadError": "We could not load your addresses.",
     "chooseSaved": "Choose a saved address",
     "useNew": "Use a new address",
-    "newAddress": "New address"
+    "newAddress": "New address",
+    "phone": "Recipient phone",
+    "phonePlaceholder": "07XXXXXXXXX",
+    "phoneHint": "The number of whoever receives the order here — it may differ from your account number.",
+    "errPhone": "Enter a valid phone number, for example 07701234567",
+    "errInvalid": "The address could not be saved: check the phone number and the other fields.",
+    "errDefaultConflict": "You cannot unset the default address; make another one default instead."
   },
   "wishlist": {
     "title": "Wishlist",

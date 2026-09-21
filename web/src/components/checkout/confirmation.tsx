@@ -9,8 +9,8 @@ import { Price } from "@/components/ui/price";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { Order } from "@/lib/api";
-import { lineName, lineTotal, type CartTotals } from "@/lib/cart";
-import type { CartLine } from "@/lib/cart-store";
+import { lineName, type CartTotals } from "@/lib/cart";
+import type { CartViewLine } from "@/lib/use-cart";
 
 /**
  * Order placed. The basket is cleared by then, so this screen renders from the
@@ -23,7 +23,7 @@ export function Confirmation({
   couponCode,
 }: {
   order: Order;
-  lines: CartLine[];
+  lines: CartViewLine[];
   totals: CartTotals;
   couponCode?: string | null;
 }) {
@@ -79,7 +79,7 @@ export function Confirmation({
                   </span>
                 </p>
               </div>
-              <Price amount={lineTotal(line)} size="sm" />
+              <Price amount={line.line_total} size="sm" />
             </li>
           ))}
         </ul>

@@ -16,11 +16,18 @@ import { formatPrice } from "@/lib/format";
 export function OrderSummary({
   totals,
   couponCode,
+  serverPriced = false,
   children,
 }: {
   totals: CartTotals;
   /** Named on the discount row, so the deduction is traceable to its coupon. */
   couponCode?: string | null;
+  /**
+   * True when these numbers came from the server cart rather than being
+   * computed here. Exposed as a data attribute so it is visible in the DOM —
+   * "who priced this" is worth being able to see, and to assert on.
+   */
+  serverPriced?: boolean;
   /** The CTA that belongs under the totals, if any. */
   children?: ReactNode;
 }) {
@@ -31,7 +38,12 @@ export function OrderSummary({
   const amount = (value: number) => formatPrice(value, currency, locale);
 
   return (
-    <Card padding="md" className="flex flex-col gap-3" data-testid="cart-summary">
+    <Card
+      padding="md"
+      className="flex flex-col gap-3"
+      data-testid="cart-summary"
+      data-server-priced={serverPriced ? "true" : "false"}
+    >
       <h2 className="text-base font-bold text-text">{t("summary")}</h2>
 
       <dl className="flex flex-col gap-2.5 text-sm">

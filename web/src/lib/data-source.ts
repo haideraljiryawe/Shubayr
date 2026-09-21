@@ -44,6 +44,12 @@ const LIVE_BY_DEFAULT: readonly Domain[] = [
   "profile",
   "catalog",
   "banners",
+  // Slice 2: the server-authoritative cart, COD checkout and the orders it
+  // produces — plus addresses, which checkout needs to name a destination.
+  "cart",
+  "checkout",
+  "orders",
+  "addresses",
 ];
 
 function isDomain(value: string): value is Domain {

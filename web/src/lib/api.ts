@@ -2,6 +2,7 @@ import type { components, paths } from "@/types/api";
 import { isLive } from "./data-source";
 import {
   createMockAddress,
+  getMockAddress,
   deleteMockAddress,
   getMockOrder,
   getMockUser,
@@ -52,6 +53,7 @@ export type ProductImage = Schemas["ProductImage"];
 export type Category = Schemas["Category"];
 export type ProductPage = Schemas["ProductPage"];
 export type Cart = Schemas["Cart"];
+export type CartItem = NonNullable<Cart["items"]>[number];
 export type ProductVariant = Schemas["ProductVariant"];
 export type ProductAvailability = Schemas["ProductAvailability"];
 export type Review = Schemas["Review"];
@@ -304,6 +306,19 @@ function mockLatency(ms = 250): Promise<void> {
  * thing a fixture can meaningfully assert — the real API already validated it
  * at sign-in, and the mocked endpoint has no signature to check against.
  */
+/**
+ * Guard a LIVE authenticated endpoint before the request leaves the browser.
+ *
+ * The API would answer 401 anyway; failing here keeps a signed-out visitor
+ * from a pointless round trip, and gives `withFreshToken` the same 401 shape
+ * it already knows how to route on.
+ */
+function requireAuthenticated(): void {
+  if (!accessToken()) {
+    throw new ApiError(401, "Not signed in");
+  }
+}
+
 function requireMockAuth(): void {
   const token = accessToken();
   const valid = isLive("auth")
@@ -325,6 +340,20 @@ export function toE164(phone: string): string {
   if (digits.startsWith("00")) return `+${digits.slice(2)}`;
   if (digits.startsWith("0")) return `+964${digits.slice(1)}`;
   return `+${digits}`;
+}
+
+/**
+ * The contract's own `contact_phone` pattern, enforced server-side since
+ * v5.3.0: a leading +, a non-zero country digit, then 7-14 more digits.
+ *
+ * Checking it before submitting turns what would be a 422 round trip into an
+ * inline field error, which is the difference between "this number is wrong"
+ * pointing at the box and a banner appearing after a save that failed.
+ */
+export const E164_PATTERN = /^\+[1-9]\d{7,14}$/;
+
+export function isE164(phone: string): boolean {
+  return E164_PATTERN.test(phone);
 }
 
 export const api = {
@@ -538,7 +567,6 @@ export const api = {
 
   /* -------------------------------------------------------- addresses */
 
-  // MOCK: awaiting backend slice (addresses).
   async listAddresses(): Promise<Address[]> {
     return withFreshToken(async () => {
       if (!isLive("addresses")) {
@@ -553,7 +581,6 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (addresses).
   async updateAddress(id: string, input: AddressPatch): Promise<Address> {
     return withFreshToken(async () => {
       if (!isLive("addresses")) {
@@ -570,7 +597,6 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (addresses).
   async deleteAddress(id: string): Promise<void> {
     return withFreshToken(async () => {
       if (!isLive("addresses")) {
@@ -589,7 +615,6 @@ export const api = {
 
   /* ----------------------------------------------------------- orders */
 
-  // MOCK: awaiting backend slice (orders).
   async listOrders(status?: OrderStatus): Promise<Order[]> {
     return withFreshToken(async () => {
       if (!isLive("orders")) {
@@ -604,7 +629,6 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (orders).
   async getOrder(id: string): Promise<Order> {
     return withFreshToken(async () => {
       if (!isLive("orders")) {
@@ -618,7 +642,6 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (orders).
   async trackOrder(id: string): Promise<OrderTracking> {
     return withFreshToken(async () => {
       if (!isLive("orders")) {
@@ -638,7 +661,6 @@ export const api = {
    * ApiError(404) as "invalid or expired" and everything else as a failure to
    * reach the service.
    */
-  // MOCK: awaiting backend slice (checkout).
   async validateCoupon(code: string): Promise<Coupon> {
     if (!isLive("checkout")) {
       await mockLatency();
@@ -657,7 +679,6 @@ export const api = {
    * checkout that types a new address creates it first and places the order
    * against the id that comes back.
    */
-  // MOCK: awaiting backend slice (addresses).
   async createAddress(input: AddressCreate): Promise<Address> {
     return withFreshToken(async () => {
       if (!isLive("addresses")) {
@@ -676,22 +697,47 @@ export const api = {
    * Place a Cash-on-Delivery order. Requires an authenticated customer — the
    * checkout gates on that before calling.
    */
-  // MOCK: awaiting backend slice (checkout).
-  async placeOrder(body: OrderRequest, draft?: OrderDraft): Promise<Order> {
+  /**
+   * Place the COD order.
+   *
+   * `idempotencyKey` is generated once per checkout attempt and replayed on
+   * every retry, so a double-submit or a dropped response returns the original
+   * order instead of charging the customer twice. The server answers 409 if
+   * the same key arrives with a different basket, which the caller surfaces
+   * rather than silently placing something else.
+   */
+  async placeOrder(
+    body: OrderRequest,
+    { idempotencyKey, draft }: { idempotencyKey?: string; draft?: OrderDraft } = {},
+  ): Promise<Order> {
     return withFreshToken(async () => {
       if (!isLive("checkout")) {
         await mockLatency();
         requireMockAuth();
+        const id = `order-${Date.now().toString(36)}`;
+        // The contract copies the chosen address onto the order in the same
+        // transaction, so the fixture does too — otherwise the detail page,
+        // which reads snapshots, would show nothing after a mocked checkout.
+        const chosen = getMockAddress(body.address_id);
         const order: Order = {
-          id: `order-${Date.now().toString(36)}`,
+          id,
           order_number: nextMockOrderNumber(),
           status: "pending",
           payment_method: body.payment_method ?? "cod",
           address_id: body.address_id,
+          delivery_id: `dlv-${id}`,
           subtotal: draft?.subtotal ?? 0,
           delivery_fee: draft?.delivery_fee ?? 0,
           discount: draft?.discount ?? 0,
           total: draft?.total ?? 0,
+          delivery_contact_phone: chosen?.contact_phone ?? "",
+          delivery_address_label: chosen?.label ?? null,
+          delivery_city: chosen?.city ?? "",
+          delivery_area: chosen?.area ?? null,
+          delivery_street: chosen?.street ?? null,
+          delivery_details: chosen?.details ?? null,
+          delivery_lat: chosen?.lat ?? null,
+          delivery_lng: chosen?.lng ?? null,
           placed_at: new Date().toISOString(),
           items: draft?.items ?? [],
         };
@@ -701,6 +747,7 @@ export const api = {
       }
       return request<Order>("/orders", {
         method: "POST",
+        headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
         body: JSON.stringify({ payment_method: "cod", ...body }),
       });
     });
@@ -837,10 +884,10 @@ export const api = {
    * Rating the delivery is a separate act from reviewing the products, and the
    * contract keeps it on its own endpoint.
    *
-   * CONTRACT GAP: Order carries no `delivery_id`, and GET /deliveries/{id} is
-   * staff-scoped, so a customer has no contract route from their order to the
-   * delivery this rates. The fixture resolves it from the order; the contract
-   * needs `delivery_id` on Order before mocks are switched off.
+   * `Order.delivery_id` (contract v5.x) is what connects an order to the
+   * delivery this rates — the gap noted here before is closed, and
+   * lib/order-delivery.ts reads the real field. GET /deliveries/{id} is still
+   * staff-scoped, but nothing customer-facing needs the record itself.
    */
   // MOCK: awaiting backend slice (reviews).
   async rateDelivery(
@@ -863,12 +910,10 @@ export const api = {
   /**
    * Which of an order's items the customer may still review.
    *
-   * CONTRACT GAP: nothing in api/openapi.yaml reports whether the signed-in
-   * customer has already reviewed a given order item — GET /products/{id}/
-   * reviews returns published reviews for everyone, with no per-user filter.
-   * Scanning every product's reviews client-side does not scale, so the
-   * fixture answers it directly. A `reviewed` flag on OrderItem, or
-   * GET /me/reviews, would close this.
+   * `OrderItem.reviewed` now carries this per caller, so the separate lookup
+   * the fixture provides is no longer the only way to answer it. Reviews stay
+   * on fixtures until their own flip, which is where this method should be
+   * replaced by reading the flag off the order.
    */
   // MOCK: awaiting backend slice (reviews).
   async listReviewedOrderItems(orderId: string): Promise<string[]> {
@@ -881,6 +926,109 @@ export const api = {
       return request<string[]>(
         `/orders/${encodeURIComponent(orderId)}/reviewed-items`,
       );
+    });
+  },
+
+  /* ------------------------------------------------------------- cart */
+
+  /**
+   * The signed-in cart, repriced by the server on every read.
+   *
+   * A guest has no server cart at all — the contract is explicit that guest
+   * carts stay client-side and are replayed through POST /cart/items after
+   * login — so these methods are only ever reached with a session. The
+   * response is the authority: prices, availability and every total come back
+   * computed, and the store adopts them verbatim rather than recomputing.
+   */
+  async getCart(): Promise<Cart> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<Cart>("/cart");
+    });
+  },
+
+  async addCartItem(input: {
+    product_id: string;
+    variant_id?: string | null;
+    quantity: number;
+  }): Promise<Cart> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<Cart>("/cart/items", {
+        method: "POST",
+        body: JSON.stringify({
+          product_id: input.product_id,
+          variant_id: input.variant_id ?? null,
+          quantity: input.quantity,
+        }),
+      });
+    });
+  },
+
+  async updateCartItem(itemId: string, quantity: number): Promise<Cart> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<Cart>(`/cart/items/${encodeURIComponent(itemId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ quantity }),
+      });
+    });
+  },
+
+  /**
+   * Detach the coupon from the server cart and get it back repriced.
+   *
+   * Added by contract v5.1.0 (DELETE /cart/coupon). Before it existed the
+   * signed-in UI had to hide the "remove" control, because taking a coupon
+   * off was something only the server could do and no route did it. The
+   * contract calls the endpoint safe to repeat when no coupon is applied, so
+   * the caller never has to check first.
+   */
+  async removeCartCoupon(): Promise<Cart> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<Cart>("/cart/coupon", { method: "DELETE" });
+    });
+  },
+
+  /**
+   * Remove one line. The contract has no "empty the cart" route, so clearing
+   * is this called per line — which is also what placing an order makes
+   * unnecessary, since the server consumes the cart itself.
+   */
+  async removeCartItem(itemId: string): Promise<void> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      await requestNoContent(`/cart/items/${encodeURIComponent(itemId)}`, {
+        method: "DELETE",
+      });
+    });
+  },
+
+  /* ----------------------------------------------------------- orders */
+
+  /**
+   * Cancel an order the customer still may cancel.
+   *
+   * The server decides: pending and confirmed are cancellable, anything later
+   * answers 409, which the caller surfaces rather than guessing from status.
+   */
+  async cancelOrder(id: string): Promise<Order> {
+    return withFreshToken(async () => {
+      if (!isLive("orders")) {
+        await mockLatency();
+        requireMockAuth();
+        const order = getMockOrder(id);
+        if (!order) throw new ApiError(404, `Order ${id} not found`);
+        if (order.status !== "pending" && order.status !== "confirmed") {
+          throw new ApiError(409, "Status does not allow cancellation");
+        }
+        order.status = "cancelled";
+        return order;
+      }
+      return request<Order>(`/orders/${encodeURIComponent(id)}/cancel`, {
+        method: "POST",
+      });
     });
   },
 

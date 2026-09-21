@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Field, fieldErrorId } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toE164, type AddressCreate } from "@/lib/api";
+import { isE164, toE164, type AddressCreate } from "@/lib/api";
 
 /* ---------------------------------------------------------------------------
  * Delivery address.
@@ -41,7 +41,7 @@ export const EMPTY_DELIVERY: DeliveryDetails = {
   mapPoint: "",
 };
 
-/** Iraqi mobile numbers: 11 digits beginning 07. */
+/** Iraqi mobile numbers as people write them: 11 digits beginning 07. */
 const PHONE_PATTERN = /^07\d{9}$/;
 const MAP_POINT_PATTERN = /^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/;
 
@@ -58,7 +58,12 @@ export function validateDelivery(
 ): DeliveryErrors {
   const errors: DeliveryErrors = {};
   if (!values.name.trim()) errors.name = t("errRequired");
-  if (!PHONE_PATTERN.test(normalisePhone(values.phone))) {
+  // Accept either the local form or a number already written in E.164 — the
+  // server's rule is the E.164 one, so validating the NORMALISED value is what
+  // actually predicts whether the address will be accepted. Rejecting
+  // "+9647701234567" for not starting 07 would refuse a number the API takes.
+  const phone = normalisePhone(values.phone);
+  if (!PHONE_PATTERN.test(phone) && !isE164(toE164(phone))) {
     errors.phone = t("errPhone");
   }
   if (!values.city.trim()) errors.city = t("errRequired");
@@ -80,10 +85,10 @@ export function toAddressCreate(values: DeliveryDetails): AddressCreate {
     area: values.area.trim(),
     street: values.street.trim(),
     details: values.details.trim() || null,
-    // Contract v4.5.0 carries the recipient's number on the address itself,
-    // independent of the account phone, so the value the form already asks
-    // for now reaches the API instead of only seeding sign-in.
-    contact_phone: toE164(values.phone),
+    // The recipient's number rides on the address itself, independent of the
+    // account phone. Normalised to E.164, which the server has required since
+    // contract v5.3.0 and answers 422 without.
+    contact_phone: toE164(normalisePhone(values.phone)),
     lat: point ? Number(point[1]) : null,
     lng: point ? Number(point[3]) : null,
     // Saved-address management arrives with authentication; a guest's one-off

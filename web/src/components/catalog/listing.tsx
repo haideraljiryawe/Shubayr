@@ -103,6 +103,7 @@ export async function ProductListing({
                         ""
                       }
                       {...pricingForVariant(product)}
+                      requiresVariant={(product.variants ?? []).length > 0}
                       rating={product.rating_avg}
                       reviewCount={counts[index]}
                       imageUrl={primaryImageUrl(product)}

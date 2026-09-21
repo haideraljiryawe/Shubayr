@@ -7,13 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
-import { api, type Address } from "@/lib/api";
+import { ApiError, api, type Address } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useResource } from "@/lib/use-resource";
 import { AccountEmpty, AccountError, AccountSkeleton } from "./states";
 import {
   AddressEditor,
   EMPTY_ADDRESS,
+  addressPatchFor,
   toAddressCreate,
   valuesFromAddress,
   type AddressValues,
@@ -40,7 +41,10 @@ export function AddressList() {
 
   const startAdd = () => {
     setEditing("new");
-    setValues(EMPTY_ADDRESS);
+    // A customer's own number is the likeliest recipient for their own
+    // address, so the field starts filled rather than blank — still editable,
+    // because the recipient may be somebody else.
+    setValues({ ...EMPTY_ADDRESS, phone: user?.phone ?? "" });
     setFormError(null);
   };
 
@@ -50,22 +54,41 @@ export function AddressList() {
     setFormError(null);
   };
 
+  /**
+   * A 422 is the server rejecting the *content* of a field — in practice the
+   * E.164 phone rule — and saying so is far more use than "saving failed".
+   */
+  function describeFailure(cause: unknown): string {
+    if (cause instanceof ApiError && cause.status === 422) {
+      return t("errInvalid");
+    }
+    if (cause instanceof ApiError && cause.status === 409) {
+      return t("errDefaultConflict");
+    }
+    return t("saveFailed");
+  }
+
   async function save() {
     setSaving(true);
     setFormError(null);
     try {
-      const input = toAddressCreate(values, user?.phone ?? "");
       if (editing === "new") {
-        await api.createAddress(input);
+        await api.createAddress(toAddressCreate(values));
         showToast(t("saved"));
       } else if (editing) {
-        await api.updateAddress(editing, input);
+        const current = addresses?.find((item) => item.id === editing);
+        // PATCH validates the merged state, so only what actually changed is
+        // sent. An edit that changes nothing is not a request at all.
+        const patch = current ? addressPatchFor(current, values) : toAddressCreate(values);
+        if (Object.keys(patch).length > 0) {
+          await api.updateAddress(editing, patch);
+        }
         showToast(t("updated"));
       }
       setEditing(null);
       reload();
-    } catch {
-      setFormError(t("saveFailed"));
+    } catch (cause) {
+      setFormError(describeFailure(cause));
     } finally {
       setSaving(false);
     }
@@ -85,14 +108,14 @@ export function AddressList() {
   async function makeDefault(address: Address) {
     if (!address.id) return;
     try {
-      await api.updateAddress(address.id, {
-        ...toAddressCreate(valuesFromAddress(address), address.contact_phone),
-        is_default: true,
-      });
+      // Promoting an address changes exactly one field. Resending the rest
+      // would make the server re-validate values nobody touched — and the
+      // whole point of PATCH here is that it does not have to.
+      await api.updateAddress(address.id, { is_default: true });
       showToast(t("defaultSet"));
       reload();
-    } catch {
-      showToast(t("saveFailed"));
+    } catch (cause) {
+      showToast(describeFailure(cause));
     }
   }
 

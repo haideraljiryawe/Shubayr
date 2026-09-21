@@ -174,10 +174,18 @@ test("orders list and the tracking timeline render", async ({ page }) => {
 
   const tracking = page.getByTestId("order-tracking");
   await expect(tracking).toBeVisible();
-  // Newest first: an out-for-delivery order has reached step four.
-  await expect(tracking.locator("li")).toHaveCount(4);
+  // Newest first. The lifecycle is pending → confirmed → preparing →
+  // ready_for_dispatch → dispatched, so a dispatched order has reached step
+  // five; `ready_for_dispatch` is the step contract v5.4.0 added.
+  await expect(tracking.locator("li")).toHaveCount(5);
   await expect(tracking.locator("li").first()).toContainText("في الطريق إليك");
   await expect(tracking.locator("li").last()).toContainText("قيد الانتظار");
+
+  // The delivery's own stage, projected off the order status.
+  await expect(page.getByTestId("delivery-status")).toHaveAttribute(
+    "data-stage",
+    "out_for_delivery",
+  );
 });
 
 test("addresses can be added, edited, defaulted and deleted", async ({ page }) => {

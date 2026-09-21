@@ -34,6 +34,7 @@ export default defineConfig({
           "**/account-reviews.spec.ts",
           // Skips itself unless a real backend is reachable.
           "**/live-catalog.spec.ts",
+          "**/live-checkout.spec.ts",
         ],
   timeout: 60000,
   use: {
