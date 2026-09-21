@@ -434,9 +434,10 @@ CREATE TABLE orders (
     order_number    VARCHAR(40) UNIQUE NOT NULL,
     idempotency_key VARCHAR(128),
     idempotency_fingerprint VARCHAR(64),
-    status          VARCHAR(30) NOT NULL DEFAULT 'pending',
-        -- pending | confirmed | processing | out_for_delivery | delivered
-        -- | failed_delivery | cancelled | return_requested | returned
+    status          VARCHAR(30) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending','confirmed','preparing','ready_for_dispatch',
+                          'dispatched','delivered','failed','cancelled',
+                          'return_requested','returned')),
     payment_method  VARCHAR(20) NOT NULL DEFAULT 'cod',
     subtotal        NUMERIC(12,2) NOT NULL DEFAULT 0,
     delivery_fee    NUMERIC(12,2) NOT NULL DEFAULT 0,
@@ -471,7 +472,10 @@ CREATE TABLE order_items (
 CREATE TABLE order_status_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    status VARCHAR(30) NOT NULL,
+    status VARCHAR(30) NOT NULL
+        CHECK (status IN ('pending','confirmed','preparing','ready_for_dispatch',
+                          'dispatched','delivered','failed','cancelled',
+                          'return_requested','returned')),
     note TEXT,
     at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -484,10 +488,17 @@ CREATE TABLE simple_stock_holds (
     product_id UUID NOT NULL REFERENCES products(id),
     variant_id UUID REFERENCES product_variants(id),
     quantity INT NOT NULL CHECK (quantity > 0),
-    released_at TIMESTAMPTZ
+    status VARCHAR(20) NOT NULL DEFAULT 'held',
+    deducted_at TIMESTAMPTZ,
+    released_at TIMESTAMPTZ,
+    CHECK (
+      (status = 'held' AND deducted_at IS NULL AND released_at IS NULL) OR
+      (status = 'deducted' AND deducted_at IS NOT NULL AND released_at IS NULL) OR
+      (status = 'released' AND deducted_at IS NULL AND released_at IS NOT NULL)
+    )
 );
-CREATE INDEX simple_stock_holds_product_id_variant_id_released_at_idx
-    ON simple_stock_holds(product_id, variant_id, released_at);
+CREATE INDEX simple_stock_holds_product_id_variant_id_status_idx
+    ON simple_stock_holds(product_id, variant_id, status);
 
 CREATE TABLE payments (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -706,6 +717,9 @@ CREATE UNIQUE INDEX idx_addresses_one_default_per_user ON addresses(user_id)
     WHERE is_default;
 CREATE INDEX idx_orders_user            ON orders(user_id);
 CREATE INDEX idx_orders_status          ON orders(status);
+CREATE INDEX idx_orders_admin_stable ON orders(placed_at DESC, id DESC);
+CREATE INDEX idx_orders_admin_status_stable ON orders(status, placed_at DESC, id DESC);
+CREATE INDEX idx_orders_admin_customer_stable ON orders(user_id, placed_at DESC, id DESC);
 CREATE INDEX idx_order_items_order      ON order_items(order_id);
 CREATE INDEX idx_returns_order          ON returns(order_id);
 CREATE INDEX idx_loyalty_ledger_account ON loyalty_ledger(account_id);

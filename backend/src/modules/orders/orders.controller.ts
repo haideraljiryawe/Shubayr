@@ -66,7 +66,7 @@ export class OrdersController {
     return this.orders.cancel(request.user.id, id);
   }
 
-  @RequirePermissions('orders.update')
+  @RequirePermissions('orders.manage')
   @Patch(':id/status')
   status(
     @Req() request: UserRequest,

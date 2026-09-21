@@ -28,6 +28,7 @@ INSERT INTO permissions(key, "group", description) VALUES
   ('orders.view',         'orders',     'View orders'),
   ('orders.confirm',      'orders',     'Confirm/cancel orders'),
   ('orders.update',       'orders',     'Update order status'),
+  ('orders.manage',       'orders',     'Manage staff order fulfillment'),
   ('inventory.view',      'inventory',  'View stock, batches, locations'),
   ('inventory.pick',      'inventory',  'Perform picking'),
   ('inventory.adjust',    'inventory',  'Controlled stock adjustments'),
@@ -52,7 +53,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions(role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'manager' AND p.key IN
-  ('catalog.view','catalog.manage','orders.view','orders.confirm','orders.update',
+  ('catalog.view','catalog.manage','orders.view','orders.confirm','orders.update','orders.manage',
    'inventory.view','returns.view','returns.process','reports.view','loyalty.manage')
 ON CONFLICT DO NOTHING;
 

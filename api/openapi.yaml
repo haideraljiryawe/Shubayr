@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 5.3.0
+  version: 5.4.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -639,14 +639,13 @@ paths:
   /orders/{id}/status:
     patch:
       tags: [Admin]
-      summary: Update order status (staff); FEFO picking is a later inventory slice
-      x-permission: orders.update
+      summary: Deprecated alias for the staff pre-dispatch transition endpoint
+      deprecated: true
+      x-permission: orders.manage
       description: >
-        Allowed transitions are pending to confirmed/cancelled; confirmed to
-        processing/cancelled; processing to out_for_delivery; out_for_delivery
-        to delivered/failed_delivery; failed_delivery to out_for_delivery/cancelled;
-        delivered to return_requested; return_requested to returned. Cancellation
-        releases the simple stock hold. Every transition appends a tracking event.
+        Supports the same pre-dispatch transitions as
+        PATCH /admin/orders/{id}/status. Use the dedicated admin endpoint for
+        new clients.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -656,14 +655,14 @@ paths:
               type: object
               required: [status]
               properties:
-                status: { $ref: "#/components/schemas/OrderStatus" }
+                status: { type: string, enum: [confirmed, preparing, ready_for_dispatch, dispatched] }
                 note: { type: [string, "null"], maxLength: 500 }
       responses:
         "200":
           description: Updated order
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Order" }
+              schema: { $ref: "#/components/schemas/AdminOrder" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { description: Invalid status transition }
@@ -1334,11 +1333,13 @@ paths:
       tags: [Deliveries]
       summary: Update delivery status (agent)
       description: >
-        Only the assigned agent may act. Legal transitions are assigned to
+        Only the assigned agent may act. An assigned delivery may start only
+        when its order is ready_for_dispatch. Legal transitions are assigned to
         out_for_delivery; out_for_delivery to delivered or failed; and delivered
         to returned. Failed and returned are terminal. Dispatch and delivery
         timestamps are recorded, and the order advances atomically through its
-        corresponding status events.
+        corresponding status events. Successful delivery reconciles a pending
+        COD payment to paid in the same transaction.
       x-permission: delivery.assigned
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1505,12 +1506,13 @@ paths:
     get:
       tags: [Admin]
       summary: List all orders (staff) with filters
-      x-permission: orders.view
+      x-permission: orders.manage
       parameters:
         - { name: status, in: query, schema: { $ref: "#/components/schemas/OrderStatus" } }
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
-        - { name: q, in: query, schema: { type: string }, description: "search by order number / customer" }
+        - { name: q, in: query, schema: { type: string, maxLength: 40 }, description: "case-insensitive order_number search" }
+        - { name: customer_id, in: query, schema: { type: string, format: uuid } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -1518,8 +1520,89 @@ paths:
           description: Paginated orders
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/OrderPage" }
+              schema: { $ref: "#/components/schemas/AdminOrderPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/orders/{id}:
+    get:
+      tags: [Admin]
+      summary: Get a full order-management detail
+      x-permission: orders.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Order with immutable lines, customer, shipping snapshot, payment, delivery, agent, and timeline
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/orders/{id}/status:
+    patch:
+      tags: [Admin]
+      summary: Advance an order through its pre-dispatch lifecycle
+      x-permission: orders.manage
+      description: >
+        Legal path: pending to confirmed to preparing to ready_for_dispatch to
+        dispatched. Dispatch requires the existing current delivery to have an
+        agent assigned through PATCH /deliveries/{id}/assign; it moves that same
+        delivery to out_for_delivery and converts checkout stock holds from held
+        to deducted. Delivery agent transitions own delivered, failed and returned.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [confirmed, preparing, ready_for_dispatch, dispatched]
+                note: { type: [string, "null"], maxLength: 500 }
+      responses:
+        "200":
+          description: Updated order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Illegal transition or dispatch handoff is incomplete }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/orders/{id}/cancel:
+    post:
+      tags: [Admin]
+      summary: Cancel a pre-dispatch order and release its stock holds
+      x-permission: orders.manage
+      description: >
+        Allowed only from pending, confirmed, preparing, or ready_for_dispatch.
+        A non-empty reason is stored in the timeline and audit trail. Dispatched,
+        delivered, failed, returned, and paid COD orders cannot be cancelled.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Cancelled order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Order is not cancellable }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADMIN: PRODUCTS CRUD ----------------
   /admin/products:
@@ -2466,10 +2549,11 @@ components:
       enum:
         - pending
         - confirmed
-        - processing
-        - out_for_delivery
+        - preparing
+        - ready_for_dispatch
+        - dispatched
         - delivered
-        - failed_delivery
+        - failed
         - cancelled
         - return_requested
         - returned
@@ -2523,6 +2607,76 @@ components:
             data:
               type: array
               items: { $ref: "#/components/schemas/Order" }
+
+    AdminOrder:
+      allOf:
+        - $ref: "#/components/schemas/Order"
+        - type: object
+          required: [customer, shipping_snapshot, payments, delivery, status_events]
+          properties:
+            customer:
+              type: object
+              required: [id, name, phone, email]
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: [string, "null"] }
+                phone: { type: string }
+                email: { type: [string, "null"] }
+            shipping_snapshot:
+              type: object
+              description: Immutable checkout shipping and contact values.
+              properties:
+                contact_phone: { type: string }
+                address_label: { type: [string, "null"] }
+                city: { type: string }
+                area: { type: [string, "null"] }
+                street: { type: [string, "null"] }
+                details: { type: [string, "null"] }
+                lat: { type: [number, "null"] }
+                lng: { type: [number, "null"] }
+            payments:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  method: { type: string, enum: [cod] }
+                  status: { type: string, enum: [pending, paid, refunded, failed] }
+                  amount: { $ref: "#/components/schemas/Money" }
+                  paid_at: { type: [string, "null"], format: date-time }
+            delivery:
+              type: [object, "null"]
+              properties:
+                id: { type: string, format: uuid }
+                status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
+                delivery_fee: { $ref: "#/components/schemas/Money" }
+                dispatched_at: { type: [string, "null"], format: date-time }
+                delivered_at: { type: [string, "null"], format: date-time }
+                agent:
+                  type: [object, "null"]
+                  properties:
+                    id: { type: string, format: uuid }
+                    name: { type: [string, "null"] }
+                    phone: { type: string }
+                    email: { type: [string, "null"] }
+            status_events:
+              type: array
+              items:
+                type: object
+                properties:
+                  status: { $ref: "#/components/schemas/OrderStatus" }
+                  note: { type: [string, "null"] }
+                  at: { type: string, format: date-time }
+
+    AdminOrderPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/AdminOrder" }
 
     OrderTracking:
       type: object

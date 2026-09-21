@@ -64,8 +64,8 @@ const orders = await request('/orders?per_page=100', {
 });
 const sample = (number) =>
   orders.data.find((order) => order.order_number === `DEV-ORDER-${number}`);
-const assigned = sample(1);
-const second = sample(2);
+const assigned = sample(6);
+const second = sample(7);
 const alreadyDelivered = sample(4);
 assert.ok(
   assigned?.delivery_id && second?.delivery_id && alreadyDelivered?.delivery_id,
@@ -155,11 +155,7 @@ check(Boolean(dispatched.dispatched_at), true, 'dispatch timestamp stamped');
 const afterDispatch = await request(`/orders/${assigned.id}`, {
   token: token(customer),
 });
-check(
-  afterDispatch.status,
-  'out_for_delivery',
-  'dispatch advances parent order',
-);
+check(afterDispatch.status, 'dispatched', 'dispatch advances parent order');
 const delivered = await request(`/deliveries/${assigned.delivery_id}`, {
   token: token(agentA),
   method: 'PATCH',
@@ -230,7 +226,7 @@ const failed = await request(`/deliveries/${second.delivery_id}`, {
 check(failed.status, 'failed', 'failed is terminal alternate');
 check(
   (await request(`/orders/${second.id}`, { token: token(customer) })).status,
-  'failed_delivery',
+  'failed',
   'failure advances order',
 );
 await request(`/deliveries/${second.delivery_id}`, {
