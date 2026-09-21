@@ -77,6 +77,7 @@ try {
   const acceptanceEnv = { ...environment, ACCEPTANCE_API_URL: apiUrl, ACCEPTANCE_DATABASE_NAME: name };
   await run('test/real-data.acceptance.mjs', [], acceptanceEnv);
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
+  await run('test/admin-orders.acceptance.mjs', [], acceptanceEnv);
   await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
   await run('test/returns.acceptance.mjs', [], acceptanceEnv);
   await run('test/loyalty.acceptance.mjs', [], acceptanceEnv);

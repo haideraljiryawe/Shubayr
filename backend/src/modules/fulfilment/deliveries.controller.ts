@@ -44,10 +44,11 @@ export class DeliveriesController {
   @Patch(':id/assign')
   @RequirePermissions('orders.update')
   assign(
+    @Req() request: AuthenticatedRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
     @Body() input: AssignDeliveryDto,
   ) {
-    return this.deliveries.assign(id, input);
+    return this.deliveries.assign(request.user.id, id, input);
   }
 
   @Patch(':id')

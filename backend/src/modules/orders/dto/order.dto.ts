@@ -1,27 +1,39 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsIn,
+  IsDateString,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
   Max,
   MaxLength,
+  Matches,
   Min,
 } from 'class-validator';
 
 export const ORDER_STATUSES = [
   'pending',
   'confirmed',
-  'processing',
-  'out_for_delivery',
+  'preparing',
+  'ready_for_dispatch',
+  'dispatched',
   'delivered',
-  'failed_delivery',
+  'failed',
   'cancelled',
   'return_requested',
   'returned',
 ] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+export const STAFF_ORDER_STATUSES = [
+  'confirmed',
+  'preparing',
+  'ready_for_dispatch',
+  'dispatched',
+] as const;
+export type StaffOrderStatus = (typeof STAFF_ORDER_STATUSES)[number];
 
 export class PlaceOrderDto {
   @IsUUID()
@@ -57,8 +69,8 @@ export class OrderQueryDto {
 }
 
 export class UpdateOrderStatusDto {
-  @IsIn(ORDER_STATUSES)
-  status!: OrderStatus;
+  @IsIn(STAFF_ORDER_STATUSES)
+  status!: StaffOrderStatus;
 
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
@@ -67,4 +79,38 @@ export class UpdateOrderStatusDto {
   @IsString()
   @MaxLength(500)
   note?: string | null;
+}
+
+export class AdminOrderQueryDto extends OrderQueryDto {
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MaxLength(40)
+  q?: string;
+
+  @IsOptional()
+  @IsUUID()
+  customer_id?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  from?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  to?: string;
+}
+
+export class CancelOrderDto {
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
 }

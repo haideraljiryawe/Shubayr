@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { Delivery, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AssignedDeliveriesQueryDto } from './dto/assigned-deliveries-query.dto';
@@ -28,6 +29,7 @@ export class DeliveriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly loyalty: LoyaltyService,
+    private readonly audit: AuditService,
     private readonly notifications?: NotificationsService,
   ) {}
 
@@ -66,7 +68,7 @@ export class DeliveriesService {
     };
   }
 
-  async assign(id: string, input: AssignDeliveryDto) {
+  async assign(actorId: string, id: string, input: AssignDeliveryDto) {
     const row = await this.prisma.$transaction(async (tx) => {
       const agent = await tx.user.findUnique({
         where: { id: input.agent_id },
@@ -75,16 +77,45 @@ export class DeliveriesService {
       if (!agent || !agent.is_active || agent.role.name !== 'delivery') {
         throw new NotFoundException('Delivery agent not found');
       }
+      const initial = await tx.delivery.findUnique({ where: { id } });
+      if (!initial) throw new NotFoundException('Delivery not found');
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${initial.order_id}::uuid FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM deliveries WHERE id = ${id}::uuid FOR UPDATE`;
-      const delivery = await tx.delivery.findUnique({ where: { id } });
+      const delivery = await tx.delivery.findUnique({
+        where: { id },
+        include: { order: true },
+      });
       if (!delivery) throw new NotFoundException('Delivery not found');
+      if (delivery.order.delivery_id !== id) {
+        throw new ConflictException('Delivery is not current for the order');
+      }
       if (!['assigned', 'out_for_delivery'].includes(delivery.status)) {
         throw new ConflictException('Terminal delivery cannot be reassigned');
       }
-      return tx.delivery.update({
+      if (
+        ![
+          'pending',
+          'confirmed',
+          'preparing',
+          'ready_for_dispatch',
+          'dispatched',
+        ].includes(delivery.order.status)
+      ) {
+        throw new ConflictException('Order delivery is not active');
+      }
+      const updated = await tx.delivery.update({
         where: { id },
         data: { agent_id: input.agent_id },
       });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'delivery.assign',
+        entityType: 'delivery',
+        entityId: id,
+        before: { agent_id: delivery.agent_id },
+        after: { agent_id: input.agent_id },
+      });
+      return updated;
     });
     return this.present(row);
   }
@@ -121,26 +152,18 @@ export class DeliveriesService {
       let orderSteps: string[];
       switch (input.status) {
         case 'out_for_delivery': {
-          const path: Record<string, string[]> = {
-            pending: ['confirmed', 'processing', 'out_for_delivery'],
-            confirmed: ['processing', 'out_for_delivery'],
-            processing: ['out_for_delivery'],
-            out_for_delivery: [],
-          };
-          if (!(orderStatus in path)) {
+          if (orderStatus !== 'ready_for_dispatch') {
             throw new ConflictException('Order cannot be dispatched');
           }
-          orderSteps = path[orderStatus];
+          orderSteps = ['dispatched'];
           break;
         }
         case 'delivered':
         case 'failed':
-          if (orderStatus !== 'out_for_delivery') {
+          if (orderStatus !== 'dispatched') {
             throw new ConflictException('Order is not out for delivery');
           }
-          orderSteps = [
-            input.status === 'failed' ? 'failed_delivery' : 'delivered',
-          ];
+          orderSteps = [input.status === 'failed' ? 'failed' : 'delivered'];
           break;
         case 'returned':
           if (!['delivered', 'return_requested'].includes(orderStatus)) {
@@ -167,8 +190,46 @@ export class DeliveriesService {
             at: new Date(now.getTime() + index),
           },
         });
+        await this.audit.record(tx, {
+          actorId: agentId,
+          action:
+            status === 'dispatched' ? 'order.dispatch' : 'order.transition',
+          entityType: 'order',
+          entityId: delivery.order_id,
+          before: {
+            status: index === 0 ? orderStatus : orderSteps[index - 1],
+          },
+          after: { status, delivery_id: id },
+        });
+      }
+      if (input.status === 'out_for_delivery') {
+        await tx.simpleStockHold.updateMany({
+          where: { order_id: delivery.order_id, status: 'held' },
+          data: { status: 'deducted', deducted_at: now },
+        });
       }
       if (input.status === 'delivered') {
+        const payments = await tx.payment.findMany({
+          where: {
+            order_id: delivery.order_id,
+            method: 'cod',
+            status: 'pending',
+          },
+        });
+        for (const payment of payments) {
+          await tx.payment.update({
+            where: { id: payment.id },
+            data: { status: 'paid', paid_at: now },
+          });
+          await this.audit.record(tx, {
+            actorId: agentId,
+            action: 'payment.reconcile_cod',
+            entityType: 'payment',
+            entityId: payment.id,
+            before: { status: payment.status, paid_at: payment.paid_at },
+            after: { status: 'paid', paid_at: now.toISOString() },
+          });
+        }
         await this.loyalty.earnDelivered(tx, delivery.order_id, agentId);
       }
       await this.notifications?.record(
@@ -183,7 +244,7 @@ export class DeliveriesService {
         id,
         input.status,
       );
-      return tx.delivery.update({
+      const updated = await tx.delivery.update({
         where: { id },
         data: {
           status: input.status,
@@ -193,6 +254,15 @@ export class DeliveriesService {
           ...(input.status === 'delivered' ? { delivered_at: now } : {}),
         },
       });
+      await this.audit.record(tx, {
+        actorId: agentId,
+        action: 'delivery.transition',
+        entityType: 'delivery',
+        entityId: id,
+        before: { status: delivery.status },
+        after: { status: input.status },
+      });
+      return updated;
     });
     return this.present(row);
   }

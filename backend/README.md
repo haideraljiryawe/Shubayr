@@ -108,8 +108,9 @@ configured. Provider classes are the integration seam for those gateways.
 
 It also creates eight bilingual departments and their subcategories, 32
 stocked products with variants and ordered images, active/future discounts,
-three banners, `DEV10` and `SHUBAYR10` percentage coupons, and six sample customer orders
-(pending, confirmed, out_for_delivery, delivered, failed_delivery). Each order has immutable
+three banners, `DEV10` and `SHUBAYR10` percentage coupons, and ten sample customer orders
+spanning pending, confirmed, preparing, ready-for-dispatch, dispatched, delivered,
+failed, and cancelled states. Each order has immutable
 line/address snapshots and a delivery record; the delivered item has a seeded
 review and a separate delivery rating. `npm run seed` is safe to repeat and does not duplicate those orders.
 
@@ -143,8 +144,15 @@ snapshots line names, primary image, server-time effective prices, and delivery
 address/contact; later catalog or address edits cannot rewrite the order.
 `GET /api/v1/orders` is paginated and owner-scoped, and
 `GET /api/v1/orders/{id}/track` returns status events. Customers can cancel only
-pending/confirmed orders; staff with `orders.update` can advance the status
-machine defined in OpenAPI.
+pending/confirmed orders. Staff with `orders.manage` use `/api/v1/admin/orders`
+for the stable, filtered list, full detail, cancellation, and the legal
+`pending -> confirmed -> preparing -> ready_for_dispatch -> dispatched` path.
+Dispatch requires an agent assigned through the existing delivery assignment
+endpoint, moves that same delivery to `out_for_delivery`, and converts checkout
+stock from `held` to `deducted`. Pre-dispatch cancellation instead converts the
+hold to `released`, restoring availability. Delivery owns the delivered/failed/
+returned states, and delivery marks a pending COD payment paid atomically on
+successful delivery.
 
 Operations staff with `orders.update` can list all deliveries with
 `GET /api/v1/deliveries` and assign an active delivery using

@@ -49,6 +49,7 @@ const permissions = [
   ['orders.view', 'orders', 'View orders'],
   ['orders.confirm', 'orders', 'Confirm and cancel orders'],
   ['orders.update', 'orders', 'Update order status'],
+  ['orders.manage', 'orders', 'Manage staff order fulfillment'],
   ['inventory.view', 'inventory', 'View stock and locations'],
   ['inventory.pick', 'inventory', 'Perform picking'],
   ['inventory.adjust', 'inventory', 'Adjust stock'],
@@ -72,6 +73,7 @@ const grants: Record<string, string[]> = {
     'orders.view',
     'orders.confirm',
     'orders.update',
+    'orders.manage',
     'inventory.view',
     'returns.view',
     'returns.process',
@@ -644,7 +646,7 @@ async function main(): Promise<void> {
   await seedNotificationDemo(users.get('customer')!);
 
   console.log(
-    `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 6 sample orders.`,
+    `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 10 sample orders.`,
   );
 }
 
@@ -989,6 +991,8 @@ async function seedPartialReturnDemo(
         product_id: products[index].product.id,
         variant_id: products[index].variant.id,
         quantity: quantities[index],
+        status: 'deducted',
+        deducted_at: now,
       },
     });
   }
@@ -1165,8 +1169,14 @@ async function seedCustomerOrders(
       quantity: 1,
     },
     {
-      status: 'out_for_delivery',
-      timeline: ['pending', 'confirmed', 'processing', 'out_for_delivery'],
+      status: 'dispatched',
+      timeline: [
+        'pending',
+        'confirmed',
+        'preparing',
+        'ready_for_dispatch',
+        'dispatched',
+      ],
       product: 3,
       daysAgo: 3,
       quantity: 1,
@@ -1176,8 +1186,9 @@ async function seedCustomerOrders(
       timeline: [
         'pending',
         'confirmed',
-        'processing',
-        'out_for_delivery',
+        'preparing',
+        'ready_for_dispatch',
+        'dispatched',
         'delivered',
       ],
       product: 4,
@@ -1185,16 +1196,45 @@ async function seedCustomerOrders(
       quantity: 1,
     },
     {
-      status: 'failed_delivery',
+      status: 'failed',
       timeline: [
         'pending',
         'confirmed',
-        'processing',
-        'out_for_delivery',
-        'failed_delivery',
+        'preparing',
+        'ready_for_dispatch',
+        'dispatched',
+        'failed',
       ],
       product: 5,
       daysAgo: 5,
+      quantity: 1,
+    },
+    {
+      status: 'ready_for_dispatch',
+      timeline: ['pending', 'confirmed', 'preparing', 'ready_for_dispatch'],
+      product: 6,
+      daysAgo: 2,
+      quantity: 1,
+    },
+    {
+      status: 'ready_for_dispatch',
+      timeline: ['pending', 'confirmed', 'preparing', 'ready_for_dispatch'],
+      product: 7,
+      daysAgo: 4,
+      quantity: 1,
+    },
+    {
+      status: 'preparing',
+      timeline: ['pending', 'confirmed', 'preparing'],
+      product: 8,
+      daysAgo: 6,
+      quantity: 1,
+    },
+    {
+      status: 'cancelled',
+      timeline: ['pending', 'cancelled'],
+      product: 9,
+      daysAgo: 8,
       quantity: 1,
     },
   ] as const;
@@ -1278,7 +1318,7 @@ async function seedCustomerOrders(
       });
     }
     const dispatched = (sample.timeline as readonly string[]).includes(
-      'out_for_delivery',
+      'dispatched',
     );
     const delivered = sample.status === 'delivered';
     const delivery = await prisma.delivery.upsert({
@@ -1287,26 +1327,32 @@ async function seedCustomerOrders(
       create: {
         id: seedId(1, 20 + index),
         order_id: id,
-        agent_id: index === 1 ? secondDeliveryAgentId : deliveryAgentId,
+        agent_id: [1, 6].includes(index)
+          ? secondDeliveryAgentId
+          : deliveryAgentId,
         status: delivered
           ? 'delivered'
-          : sample.status === 'failed_delivery'
+          : sample.status === 'failed'
             ? 'failed'
             : dispatched
               ? 'out_for_delivery'
               : 'assigned',
         delivery_fee: 0,
         dispatched_at: dispatched
-          ? new Date(placedAt.getTime() + 3 * 3_600_000)
+          ? new Date(placedAt.getTime() + 4 * 3_600_000)
           : null,
         delivered_at: delivered
-          ? new Date(placedAt.getTime() + 4 * 3_600_000)
+          ? new Date(placedAt.getTime() + 5 * 3_600_000)
           : null,
       },
     });
     await prisma.delivery.updateMany({
       where: { id: delivery.id, agent_id: null },
-      data: { agent_id: index === 1 ? secondDeliveryAgentId : deliveryAgentId },
+      data: {
+        agent_id: [1, 6].includes(index)
+          ? secondDeliveryAgentId
+          : deliveryAgentId,
+      },
     });
     if (!order.delivery_id) {
       await prisma.order.update({
@@ -1325,6 +1371,19 @@ async function seedCustomerOrders(
           product_id: item.product_id,
           variant_id: item.variant_id,
           quantity: item.quantity,
+          status:
+            sample.status === 'cancelled'
+              ? 'released'
+              : dispatched
+                ? 'deducted'
+                : 'held',
+          deducted_at: dispatched
+            ? new Date(placedAt.getTime() + 4 * 3_600_000)
+            : null,
+          released_at:
+            sample.status === 'cancelled'
+              ? new Date(placedAt.getTime() + 3_600_000)
+              : null,
         },
       });
     }
