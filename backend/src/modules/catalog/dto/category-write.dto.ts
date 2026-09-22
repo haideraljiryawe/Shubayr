@@ -9,6 +9,7 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { BilingualNameDto } from './bilingual-name.dto';
 
@@ -55,7 +56,7 @@ export class CategoryWriteDto extends BilingualNameDto {
   @Min(0)
   sort_order?: number;
 
-  @IsOptional()
+  @ValidateIf((_, value: unknown) => value !== undefined)
   @IsBoolean()
   is_visible?: boolean;
 }

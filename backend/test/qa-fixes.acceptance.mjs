@@ -176,6 +176,39 @@ try {
   check(cleared.discount_type, null, 'discount_type=null clears the discount definition');
   check(cleared.description, null, 'a genuinely nullable field still accepts null');
 
+  // Remaining PATCH regressions: invalid inputs must fail before services.
+  for (const [path, body] of [
+    [`/admin/categories/${child.id}`, { name_en: null }],
+    [`/admin/categories/${child.id}`, { is_visible: null }],
+    ['/me', { name: null }],
+    [`/admin/categories/${child.id}`, {}],
+    [`/admin/products/${patchTarget.id}`, {}],
+    [`/admin/products/${patchTarget.id}`, { media_operations: null }],
+  ]) {
+    const rejected = await request(path, { token: admin, method: 'PATCH', expected: 422, body });
+    check(rejected.code, 'VALIDATION_FAILED', 'invalid PATCH uses the unified validation envelope');
+  }
+  check((await row('SELECT name_en, is_visible FROM categories WHERE id=$1', [child.id])),
+    { name_en: child.name_en, is_visible: true }, 'rejected category patches leave the row intact');
+
+  const schedule = {
+    discount_starts_at: '2020-01-01T00:00:00.000Z',
+    discount_ends_at: '2030-01-01T00:00:00.000Z',
+  };
+  await request(`/admin/products/${patchTarget.id}`, { token: admin, method: 'PATCH',
+    body: { discount_type: 'percentage', discount_value: 20, ...schedule } });
+  const renamedScheduled = await request(`/admin/products/${patchTarget.id}`, { token: admin, method: 'PATCH',
+    body: { name_en: 'Scheduled product renamed' } });
+  check([renamedScheduled.discount_type, renamedScheduled.discount_value,
+    renamedScheduled.discount_starts_at, renamedScheduled.discount_ends_at],
+    ['percentage', 20, schedule.discount_starts_at, schedule.discount_ends_at],
+    'unrelated PATCH preserves the entire scheduled definition');
+  const scheduledAmount = await request(`/admin/products/${patchTarget.id}`, { token: admin, method: 'PATCH',
+    body: { discount_type: 'amount', discount_value: 25 } });
+  check(scheduledAmount.effective_price, 75, 'partial amount still uses the stored price');
+  check([scheduledAmount.discount_starts_at, scheduledAmount.discount_ends_at],
+    [schedule.discount_starts_at, schedule.discount_ends_at], 'partial amount keeps both schedule bounds');
+
   // ---------------------------------------------------------------- issue 4
   // contact_phone is trimmed and validated on create and on PATCH.
   await request('/addresses', { token: customer, method: 'POST', expected: 422,

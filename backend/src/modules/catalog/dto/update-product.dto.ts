@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsOptional, ValidateNested } from 'class-validator';
+import { IsArray, ValidateIf, ValidateNested } from 'class-validator';
 import { OmitType, PartialType } from '@nestjs/swagger';
 import { ProductMediaOperationDto } from './product-media.dto';
 import { ProductWriteDto } from './product-write.dto';
@@ -14,7 +14,7 @@ export class UpdateProductDto extends PartialType(
   OmitType(ProductWriteDto, ['images'] as const),
   { skipNullProperties: false },
 ) {
-  @IsOptional()
+  @ValidateIf((_, value: unknown) => value !== undefined)
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProductMediaOperationDto)

@@ -14,6 +14,7 @@ import {
 import type { Request } from 'express';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
+import { NonEmptyPatchPipe } from '../../common/http/non-empty-patch.pipe';
 import { CategoriesService } from './categories.service';
 import { CategoryQueryDto, ProductQueryDto } from './dto/catalog-query.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -40,7 +41,7 @@ export class AdminCategoriesController {
   @Patch(':id')
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() input: UpdateCategoryDto,
+    @Body(new NonEmptyPatchPipe()) input: UpdateCategoryDto,
   ) {
     return this.categories.update(id, input);
   }
@@ -78,7 +79,7 @@ export class AdminProductsController {
   @Patch(':id')
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() input: UpdateProductDto,
+    @Body(new NonEmptyPatchPipe()) input: UpdateProductDto,
     @Req() request: Request & { user: AuthenticatedRequestUser },
   ) {
     return this.products.update(id, input, request.user.id);
