@@ -1,51 +1,15 @@
-import {
-  BookOpen,
-  Drill,
-  Dumbbell,
-  Gamepad2,
-  Package,
-  Shirt,
-  Smartphone,
-  Sofa,
-  Sparkles,
-  type LucideIcon,
-} from "lucide-react";
+import { CategoryIcon } from "@/components/catalog/category-icon";
 import type { Category } from "@/lib/api";
 import type { Locale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 
 /**
- * `Category.icon` carries a lucide icon name (see the seed fixtures).
- *
- * An explicit map rather than a namespace import: `import * as icons` defeats
- * tree-shaking and pulls the whole icon set into the bundle, and lucide icons
- * are forwardRef objects — not functions — so a `typeof === "function"` guard
- * silently rejects every one of them and renders the fallback for all.
- */
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  Smartphone,
-  Sofa,
-  Shirt,
-  Sparkles,
-  Dumbbell,
-  Gamepad2,
-  Drill,
-  BookOpen,
-};
-
-function resolveIcon(name?: string | null): LucideIcon {
-  return (name && CATEGORY_ICONS[name]) || Package;
-}
-
-/**
  * The department quick-nav from the mockup: a tile of icon + label per
  * category. Scroll-snaps horizontally on mobile (mirroring the app) and
  * becomes a full row/grid from `sm` up.
  *
- * The route param is the category id — the contract has no slug field on
- * Category, and `GET /products?category_id=` takes the id, so the id is what
- * the Phase 3 page will actually need.
+ * URLs use the contract's slug; the category page resolves it to an API id.
  */
 export function CategoryRail({
   categories,
@@ -63,17 +27,15 @@ export function CategoryRail({
       )}
     >
       {categories.map((category) => {
-        const Icon = resolveIcon(category.icon);
         const label =
           (locale === "ar" ? category.name_ar : category.name_en) ?? "";
 
         return (
-          <li
-            key={category.id}
-            className="w-24 shrink-0 snap-start sm:w-auto"
-          >
+          <li key={category.id} className="w-24 shrink-0 snap-start sm:w-auto">
             <Link
-              href={`/category/${category.id}`}
+              href={
+                category.slug ? `/category/${category.slug}` : "/categories"
+              }
               className="group flex flex-col items-center gap-2 rounded-md p-1 text-center"
             >
               <span
@@ -82,10 +44,11 @@ export function CategoryRail({
                   "bg-card transition-colors group-hover:bg-primary-light/40",
                 )}
               >
-                <Icon
-                  className="size-7 text-primary-dark lg:size-8"
-                  strokeWidth={1.5}
-                  aria-hidden
+                {/* One icon map for the whole storefront, keyed by the
+                    contract's semantic `icon_key`. */}
+                <CategoryIcon
+                  iconKey={category.icon_key}
+                  className="size-7 lg:size-8"
                 />
               </span>
               <span className="line-clamp-2 text-xs font-medium text-text lg:text-sm">

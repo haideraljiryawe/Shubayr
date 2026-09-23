@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 1.1.0
+  version: 5.4.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -12,8 +12,22 @@ info:
     RBAC: staff/admin operations are annotated with `x-permission`, whose value
     is a permission key from infra/db/seed_rbac.sql. The backend enforces the
     permission; a missing permission returns 403.
+
+    Validation and errors: malformed or invalid request data returns HTTP 422
+    with code `VALIDATION_FAILED` and field-level errors. All non-2xx JSON
+    responses use the Error schema. PATCH distinguishes omission from null:
+    omitted fields are unchanged, while null is accepted only for explicitly
+    nullable fields and clears that field.
+
+    Money policy: API money values are decimal JSON numbers with at most two
+    fractional digits and are stored as NUMERIC(*,2). Calculations use integer
+    minor units and round once at the resulting money boundary, half away from
+    zero. Percentage values have at most two fractional digits. Cart line
+    totals, checkout totals, persisted order amounts, filters, and response
+    pricing all use this policy.
   license:
     name: Proprietary — Shubayr project
+    identifier: LicenseRef-Proprietary
 servers:
   - url: http://localhost:8000/api/v1
     description: Local development
@@ -21,6 +35,7 @@ tags:
   - name: Auth
   - name: Catalog
   - name: Banners
+  - name: Media
   - name: Addresses
   - name: Cart
   - name: Wishlist
@@ -53,9 +68,10 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [phone]
               properties:
-                phone: { type: string, example: "+9647701234567" }
+                phone: { type: string, pattern: '^\+[1-9]\d{7,14}$', example: "+9647701234567" }
       responses:
         "200":
           description: OTP sent
@@ -63,9 +79,16 @@ paths:
             application/json:
               schema:
                 type: object
+                additionalProperties: false
+                required: [otp_sent]
                 properties:
                   otp_sent: { type: boolean }
+                  dev_otp:
+                    type: string
+                    pattern: '^\d{6}$'
+                    description: Present only when APP_ENV=development; never returned in production.
         "429": { $ref: "#/components/responses/RateLimited" }
+        "422": { $ref: "#/components/responses/Validation" }
   /auth/verify-otp:
     post:
       tags: [Auth]
@@ -77,10 +100,11 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [phone, code]
               properties:
-                phone: { type: string }
-                code: { type: string, example: "123456" }
+                phone: { type: string, pattern: '^\+[1-9]\d{7,14}$' }
+                code: { type: string, pattern: '^\d{6}$', example: "000000" }
       responses:
         "200":
           description: Authenticated
@@ -88,6 +112,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AuthTokens" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
   /auth/refresh:
     post:
       tags: [Auth]
@@ -99,6 +124,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [refresh_token]
               properties:
                 refresh_token: { type: string }
@@ -114,6 +140,7 @@ paths:
                   access_token: { type: string }
                   refresh_token: { type: string }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
   /me:
     get:
       tags: [Auth]
@@ -146,11 +173,66 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  # ---------------- MEDIA ----------------
+  /media/images:
+    post:
+      tags: [Media]
+      summary: Upload a durable catalog image
+      description: Accepts JPEG, PNG, WebP, or AVIF up to 8 MiB and returns a stable API URL backed by the S3-compatible object store.
+      x-permission: catalog.manage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: Stored image metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaObject" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { description: Image exceeds 8 MiB, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "415": { description: Unsupported image MIME type, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "422": { $ref: "#/components/responses/Validation" }
+  /media/{id}:
+    get:
+      tags: [Media]
+      summary: Read durable image bytes using a stable public URL
+      security: []
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Original image bytes
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+            image/avif: { schema: { type: string, format: binary } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Media]
+      summary: Delete an unassociated media object
+      description: Returns 409 while a category, product image, or banner still references the URL.
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   # ---------------- ADDRESSES ----------------
   /addresses:
     get:
       tags: [Addresses]
       summary: List the current user's delivery addresses
+      description: Returns only addresses owned by the authenticated user. The first address is always made default.
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -164,11 +246,12 @@ paths:
     post:
       tags: [Addresses]
       summary: Create a delivery address
+      description: contact_phone is the recipient contact for this address and may equal or differ from the account phone. Creating the first address makes it default regardless of the supplied flag.
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/AddressInput" }
+            schema: { $ref: "#/components/schemas/AddressCreate" }
       responses:
         "201":
           description: Created
@@ -191,12 +274,13 @@ paths:
     patch:
       tags: [Addresses]
       summary: Update an address
+      description: Only the owner may update it. Setting is_default=true atomically clears the prior default. Clearing the only default while addresses remain returns 409.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/AddressInput" }
+            schema: { $ref: "#/components/schemas/AddressPatch" }
       responses:
         "200":
           description: Updated
@@ -205,9 +289,11 @@ paths:
               schema: { $ref: "#/components/schemas/Address" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
+        "409": { $ref: "#/components/responses/Conflict" }
     delete:
       tags: [Addresses]
       summary: Delete an address
+      description: Only the owner may delete it. Deleting the default promotes the oldest remaining address, ordered by created_at then id.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
@@ -219,11 +305,14 @@ paths:
       tags: [Catalog]
       summary: List departments & categories (tree)
       description: >
-        Category names are returned as `name_ar` and `name_en`. If either stored
-        value is missing, empty, or whitespace-only, that response field falls
-        back to the other language so locale-specific clients never render a
-        blank name.
+        Public results contain only visible categories whose complete ancestor
+        chain is visible. With parent_id omitted, returns roots; with parent_id,
+        returns direct children unless include_subtree=true. Siblings are
+        ordered by sort_order then id.
       security: []
+      parameters:
+        - { name: parent_id, in: query, schema: { type: string, format: uuid }, description: Parent whose children or subtree should be returned. }
+        - { name: include_subtree, in: query, schema: { type: boolean, default: false }, description: Include every descendant of parent_id. }
       responses:
         "200":
           description: Category tree
@@ -232,6 +321,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Category" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   /banners:
     get:
@@ -260,10 +350,10 @@ paths:
       parameters:
         - { name: q, in: query, schema: { type: string }, description: search text }
         - { name: category_id, in: query, schema: { type: string, format: uuid }, description: "Category UUID; products remain filtered by category_id, not slug." }
-        - { name: min_price, in: query, schema: { type: number } }
-        - { name: max_price, in: query, schema: { type: number } }
-        - { name: on_sale, in: query, schema: { type: boolean }, description: "When true, return products where compare_at_price is greater than sale_price." }
-        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating] } }
+        - { name: min_price, in: query, schema: { type: number }, description: "Lower bound on effective_price, so an active discount moves a product into range." }
+        - { name: max_price, in: query, schema: { type: number }, description: "Upper bound on effective_price, so an active discount moves a product into range." }
+        - { name: on_sale, in: query, schema: { type: boolean }, description: "When true, return only products with an ACTIVE discount right now: discount_type is set and the server clock falls inside [discount_starts_at, discount_ends_at] (null bounds are open). Scheduled discounts that have not started, and expired ones, are excluded." }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating] }, description: "price_asc and price_desc order by effective_price, the amount the customer would pay right now." }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -272,6 +362,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProductPage" }
+        "422": { $ref: "#/components/responses/Validation" }
   /products/{id}:
     get:
       tags: [Catalog]
@@ -294,8 +385,9 @@ paths:
       summary: Per-variant available quantity for a product
       description: >
         Availability is computed at read time as on-hand (sum of batch_stock)
-        minus active reservations (stock_reservations with status=reserved).
-        Nothing is persisted; the number reflects current sellable quantity.
+        minus active batch reservations (stock_reservations with status=reserved)
+        and temporary product/variant-level simple_stock_holds from COD orders.
+        The computed number reflects current sellable quantity.
       security: []
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
@@ -310,7 +402,14 @@ paths:
   /cart:
     get:
       tags: [Cart]
-      summary: Get current cart
+      summary: Get the authenticated caller's repriced cart
+      description: >
+        Guest carts remain client-side. After login, clients replay guest lines
+        through POST /cart/items; identical product/variant lines are merged by
+        incrementing quantity. Every response reprices from current server-time
+        effective_price. Subtotal is the sum of effective-price line totals;
+        discount is the coupon amount only, and delivery_fee is zero until a
+        delivery-fee policy is configured at checkout.
       responses:
         "200":
           description: Cart
@@ -331,10 +430,21 @@ paths:
               properties:
                 product_id: { type: string, format: uuid }
                 variant_id: { type: [string, "null"], format: uuid }
-                quantity: { type: integer, minimum: 1 }
+                quantity: { type: integer, minimum: 1, maximum: 99 }
       responses:
         "200":
           description: Updated cart
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Cart" }
+  /cart/coupon:
+    delete:
+      tags: [Cart]
+      summary: Remove the applied coupon from the authenticated caller's cart
+      description: Clears the coupon and returns the cart repriced at current server prices. Safe to repeat when no coupon is applied.
+      responses:
+        "200":
+          description: Repriced cart without a coupon
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
@@ -349,8 +459,9 @@ paths:
           application/json:
             schema:
               type: object
+              required: [quantity]
               properties:
-                quantity: { type: integer, minimum: 1 }
+                quantity: { type: integer, minimum: 1, maximum: 99 }
       responses:
         "200":
           description: Updated cart
@@ -410,7 +521,8 @@ paths:
   /coupons/validate:
     post:
       tags: [Coupons]
-      summary: Validate a coupon code
+      summary: Validate a coupon code and apply it to the caller's cart
+      description: Invalid, expired, or exhausted codes return 404. Validity is rechecked on every cart read and at checkout.
       requestBody:
         required: true
         content:
@@ -419,7 +531,7 @@ paths:
               type: object
               required: [code]
               properties:
-                code: { type: string }
+                code: { type: string, minLength: 1, maxLength: 60 }
       responses:
         "200":
           description: Valid
@@ -447,8 +559,21 @@ paths:
       tags: [Orders]
       summary: Place a Cash-on-Delivery order
       description: >
-        Creates the order (status=pending) and a pending COD payment. Stock is
-        validated but NOT deducted here; reservation happens on staff confirm.
+        Atomically reprices and consumes the caller's server cart using server-time
+        effective prices, creates status=pending, a pending COD payment and a
+        minimal delivery record. Sellable stock is reduced by a product/variant
+        hold; FEFO batch assignment and picking are reserved for the inventory
+        slice. A repeated Idempotency-Key with the same checkout request returns
+        the original order, even after the cart is cleared; a different request
+        with that key returns 409. Without a key, retries can create a new order.
+        The selected owned address and contact_phone are copied into immutable
+        order snapshot fields in the same transaction. Later address edits do
+        not alter snapshots; deletion clears address_id but retains snapshots.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Optional printable ASCII key, 1-128 characters, unique per customer.
+          schema: { type: string, minLength: 1, maxLength: 128 }
       requestBody:
         required: true
         content:
@@ -467,7 +592,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Order" }
         "409":
-          description: One or more items unavailable
+          description: Cart empty, item unavailable, coupon invalid, or idempotency conflict
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -483,6 +608,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Order" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /orders/{id}/track:
     get:
       tags: [Orders]
@@ -495,10 +621,11 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/OrderTracking" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /orders/{id}/cancel:
     post:
       tags: [Orders]
-      summary: Cancel an order (releases any reservations)
+      summary: Cancel a pending or confirmed order (releases its simple stock holds)
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "200":
@@ -507,11 +634,18 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Order" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { description: Status does not allow cancellation }
   /orders/{id}/status:
     patch:
       tags: [Admin]
-      summary: Update order status (staff) — confirm triggers FEFO reservation + pick list
-      x-permission: orders.update
+      summary: Deprecated alias for the staff pre-dispatch transition endpoint
+      deprecated: true
+      x-permission: orders.manage
+      description: >
+        Supports the same pre-dispatch transitions as
+        PATCH /admin/orders/{id}/status. Use the dedicated admin endpoint for
+        new clients.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -521,15 +655,18 @@ paths:
               type: object
               required: [status]
               properties:
-                status: { $ref: "#/components/schemas/OrderStatus" }
+                status: { type: string, enum: [confirmed, preparing, ready_for_dispatch, dispatched] }
+                note: { type: [string, "null"], maxLength: 500 }
       responses:
         "200":
           description: Updated order
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Order" }
+              schema: { $ref: "#/components/schemas/AdminOrder" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Invalid status transition }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- REVIEWS ----------------
   /products/{id}/reviews:
@@ -549,7 +686,8 @@ paths:
               schema: { $ref: "#/components/schemas/ReviewPage" }
     post:
       tags: [Reviews]
-      summary: Submit a review (must reference a purchased order item)
+      summary: Submit a verified-purchase product review
+      description: Only the owner of a delivered order item for this product may review it, once per purchased line. Reviews start pending moderation. Delivery ratings use a separate endpoint.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -561,7 +699,7 @@ paths:
               properties:
                 order_item_id: { type: string, format: uuid }
                 rating: { type: integer, minimum: 1, maximum: 5 }
-                comment: { type: string }
+                comment: { type: [string, "null"], maxLength: 2000 }
       responses:
         "201":
           description: Created review
@@ -569,10 +707,90 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Review" }
         "422": { $ref: "#/components/responses/Validation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /reviews/{id}:
+    patch:
+      tags: [Reviews]
+      summary: Edit the current customer's own product review
+      description: A content change resets a published or rejected review to pending and removes its moderation metadata. A no-op edit preserves status.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: [string, "null"], maxLength: 2000 }
+      responses:
+        "200":
+          description: Updated review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Review" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Reviews]
+      summary: Delete the current customer's own product review
+      description: Clears the purchased order item's reviewed flag and reconciles the product rating cache.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/reviews:
+    get:
+      tags: [Reviews]
+      summary: Staff product-review moderation queue
+      description: Defaults to pending reviews; status can select published or rejected reviews.
+      x-permission: catalog.manage
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, published, rejected] }
+      responses:
+        "200":
+          description: Paginated moderation queue
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/reviews/{id}/moderate:
+    post:
+      tags: [Reviews]
+      summary: Publish or reject a product review with a reason
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              properties:
+                decision: { type: string, enum: [publish, reject] }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Moderated review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Review" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
   /deliveries/{id}/rating:
     post:
       tags: [Reviews]
       summary: Rate the delivery/agent (separate from product review)
+      description: Customer-scoped. The authenticated caller must own the delivery's order, both delivery and order must be delivered, and there is exactly one rating per delivery. Another customer's delivery returns 404.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -590,18 +808,92 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DeliveryRating" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- LOYALTY ----------------
   /loyalty:
     get:
       tags: [Loyalty]
-      summary: Current points balance and ledger
+      summary: Current customer's points balance and paginated ledger
+      description: Balance is computed from the append-only ledger. The default earn rate is one point per full currency unit of delivered order subtotal less discount, excluding delivery fee. COD refund entries are obligations rather than settled payments, so returns do not claw back delivery-earned points in this slice. One point redeemed has an indicative value of one minor currency unit; redemption does not change an order or initiate a payment.
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
       responses:
         "200":
           description: Loyalty account
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LoyaltyAccount" }
+  /loyalty/redeem:
+    post:
+      tags: [Loyalty]
+      summary: Spend points from the current customer's balance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points]
+              properties:
+                points: { type: integer, minimum: 1 }
+                note: { type: string, maxLength: 255 }
+      responses:
+        "201":
+          description: Points redemption recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoyaltyRedemption" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/loyalty/{userId}:
+    get:
+      tags: [Loyalty]
+      summary: Read a customer's balance and paginated ledger
+      x-permission: loyalty.manage
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Customer's ledger-derived balance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoyaltyAccount" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/loyalty/{userId}/adjust:
+    post:
+      tags: [Loyalty]
+      summary: Record an audited positive or negative staff adjustment
+      x-permission: loyalty.manage
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points, reason]
+              properties:
+                points: { type: integer, description: Signed nonzero delta. }
+                reason: { type: string, minLength: 1, maxLength: 120 }
+                note: { type: string, maxLength: 255 }
+      responses:
+        "201":
+          description: Adjustment ledger entry and resulting balance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoyaltyAdjustment" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- PURCHASING (staff) ----------------
   /suppliers:
@@ -849,9 +1141,26 @@ paths:
 
   # ---------------- RETURNS ----------------
   /returns:
+    get:
+      tags: [Returns]
+      summary: List the authenticated customer's returns
+      description: Returns only rows whose user_id is the authenticated caller, newest first, with pagination applied after ownership scoping.
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [requested, approved, partially_approved, rejected, completed] }
+      responses:
+        "200":
+          description: Caller-owned returns
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReturnPage" }
     post:
       tags: [Returns]
-      summary: Request a return (partial allowed — choose items & quantities)
+      summary: Request a partial or full return of a delivered order
+      description: Only the order owner can request a return. Pending quantities reserve eligibility. Expected refund uses immutable order-item unit prices.
       requestBody:
         required: true
         content:
@@ -864,12 +1173,14 @@ paths:
                 reason: { type: string }
                 items:
                   type: array
+                  minItems: 1
                   items:
                     type: object
-                    required: [order_item_id, quantity]
+                    required: [order_item_id, quantity, reason]
                     properties:
                       order_item_id: { type: string, format: uuid }
                       quantity: { type: integer, minimum: 1 }
+                      reason: { type: string, minLength: 1, maxLength: 1000 }
       responses:
         "201":
           description: Created return request
@@ -877,10 +1188,29 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Return" }
         "422": { $ref: "#/components/responses/Validation" }
+  /returns/queue:
+    get:
+      tags: [Returns]
+      summary: List all returns for staff review
+      x-permission: returns.view
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [requested, approved, partially_approved, rejected, completed] }
+      responses:
+        "200":
+          description: Paginated return queue
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReturnPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /returns/{id}/inspect:
     post:
       tags: [Returns]
-      summary: Inspect returned items (staff) — set condition & restock
+      summary: Review requested return quantities and conditions
+      description: Review each requested line or reject the whole request. Sellable approved units restock; opened and damaged units do not. Approved refund is a COD obligation.
       x-permission: returns.process
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -889,16 +1219,18 @@ paths:
           application/json:
             schema:
               type: object
+              required: [decision]
               properties:
+                decision: { type: string, enum: [approve, reject] }
                 items:
                   type: array
                   items:
                     type: object
+                    required: [return_item_id, approved_quantity]
                     properties:
                       return_item_id: { type: string, format: uuid }
+                      approved_quantity: { type: integer, minimum: 0 }
                       condition: { type: string, enum: [sellable, opened, damaged] }
-                      restock: { type: boolean }
-                      batch_id: { type: [string, "null"], format: uuid }
       responses:
         "200":
           description: Inspected return
@@ -907,8 +1239,42 @@ paths:
               schema: { $ref: "#/components/schemas/Return" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /returns/{id}/complete:
+    post:
+      tags: [Returns]
+      summary: Complete a reviewed return
+      description: Completes an approved, partially approved, or rejected return. The order becomes returned only when all ordered units have approved returns.
+      x-permission: returns.process
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Completed return
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Return" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # ---------------- DELIVERIES (agent) ----------------
+  /deliveries:
+    get:
+      tags: [Deliveries]
+      summary: List all deliveries for operations staff
+      x-permission: orders.update
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
+      responses:
+        "200":
+          description: Paginated deliveries across all agents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /deliveries/assigned:
     get:
       tags: [Deliveries]
@@ -966,6 +1332,14 @@ paths:
     patch:
       tags: [Deliveries]
       summary: Update delivery status (agent)
+      description: >
+        Only the assigned agent may act. An assigned delivery may start only
+        when its order is ready_for_dispatch. Legal transitions are assigned to
+        out_for_delivery; out_for_delivery to delivered or failed; and delivered
+        to returned. Failed and returned are terminal. Dispatch and delivery
+        timestamps are recorded, and the order advances atomically through its
+        corresponding status events. Successful delivery reconciles a pending
+        COD payment to paid in the same transaction.
       x-permission: delivery.assigned
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -976,7 +1350,7 @@ paths:
               type: object
               required: [status]
               properties:
-                status: { type: string, enum: [out_for_delivery, delivered, failed] }
+                status: { type: string, enum: [out_for_delivery, delivered, failed, returned] }
       responses:
         "200":
           description: Updated delivery
@@ -985,12 +1359,41 @@ paths:
               schema: { $ref: "#/components/schemas/Delivery" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /deliveries/{id}/assign:
+    patch:
+      tags: [Deliveries]
+      summary: Assign or reassign an active delivery to a delivery agent
+      description: Staff may assign only an active delivery to an active user with the delivery role.
+      x-permission: orders.update
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id]
+              properties:
+                agent_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Updated delivery assignment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Delivery" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- DEVICES (FCM push tokens) ----------------
   /devices/token:
     post:
       tags: [Devices]
-      summary: Register an FCM device token for push notifications
+      summary: Register or reactivate an account-owned push device token
+      description: Re-registering refreshes last_seen_at; a token moving accounts is reassigned, never duplicated.
       requestBody:
         required: true
         content:
@@ -1001,6 +1404,7 @@ paths:
               properties:
                 token: { type: string }
                 platform: { type: string, enum: [android, ios, web] }
+                locale: { type: string, enum: [ar, en, ar-IQ, en-US] }
       responses:
         "201":
           description: Registered device token
@@ -1010,7 +1414,7 @@ paths:
         "422": { $ref: "#/components/responses/Validation" }
     delete:
       tags: [Devices]
-      summary: Unregister an FCM device token
+      summary: Deactivate an owned device token
       parameters:
         - { name: token, in: query, required: false, schema: { type: string }, description: "Token to remove; may be sent as a query param or in the request body." }
       requestBody:
@@ -1025,6 +1429,49 @@ paths:
       responses:
         "204": { description: Removed }
         "404": { $ref: "#/components/responses/NotFound" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /me/notification-preferences:
+    get:
+      tags: [Devices]
+      summary: Get effective per-type and per-channel notification preferences
+      description: Returns all 10 types across push and SMS. Transactional push defaults on; promo defaults off. Order confirmation SMS is mandatory. Legacy category toggles remain the fallback until a type/channel override is stored.
+      responses:
+        "200":
+          description: Notification preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationPreferences" }
+    patch:
+      tags: [Devices]
+      summary: Update own type/channel notification preferences
+      description: Omitted pairs are unchanged; updates are shared by all devices. Order confirmation SMS cannot be disabled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NotificationPreferencesPatch" }
+      responses:
+        "200":
+          description: Updated notification preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationPreferences" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /me/notifications:
+    get:
+      tags: [Devices]
+      summary: List the authenticated customer's notification history
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Own notification attempts, newest first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationHistory" }
 
   # ---------------- ADMIN: REPORTS & SETTINGS ----------------
   /admin/reports/sales:
@@ -1059,12 +1506,13 @@ paths:
     get:
       tags: [Admin]
       summary: List all orders (staff) with filters
-      x-permission: orders.view
+      x-permission: orders.manage
       parameters:
         - { name: status, in: query, schema: { $ref: "#/components/schemas/OrderStatus" } }
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
-        - { name: q, in: query, schema: { type: string }, description: "search by order number / customer" }
+        - { name: q, in: query, schema: { type: string, maxLength: 40 }, description: "case-insensitive order_number search" }
+        - { name: customer_id, in: query, schema: { type: string, format: uuid } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -1072,11 +1520,114 @@ paths:
           description: Paginated orders
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/OrderPage" }
+              schema: { $ref: "#/components/schemas/AdminOrderPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/orders/{id}:
+    get:
+      tags: [Admin]
+      summary: Get a full order-management detail
+      x-permission: orders.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Order with immutable lines, customer, shipping snapshot, payment, delivery, agent, and timeline
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/orders/{id}/status:
+    patch:
+      tags: [Admin]
+      summary: Advance an order through its pre-dispatch lifecycle
+      x-permission: orders.manage
+      description: >
+        Legal path: pending to confirmed to preparing to ready_for_dispatch to
+        dispatched. Dispatch requires the existing current delivery to have an
+        agent assigned through PATCH /deliveries/{id}/assign; it moves that same
+        delivery to out_for_delivery and converts checkout stock holds from held
+        to deducted. Delivery agent transitions own delivered, failed and returned.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [confirmed, preparing, ready_for_dispatch, dispatched]
+                note: { type: [string, "null"], maxLength: 500 }
+      responses:
+        "200":
+          description: Updated order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Illegal transition or dispatch handoff is incomplete }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/orders/{id}/cancel:
+    post:
+      tags: [Admin]
+      summary: Cancel a pre-dispatch order and release its stock holds
+      x-permission: orders.manage
+      description: >
+        Allowed only from pending, confirmed, preparing, or ready_for_dispatch.
+        A non-empty reason is stored in the timeline and audit trail. Dispatched,
+        delivered, failed, returned, and paid COD orders cannot be cancelled.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Cancelled order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Order is not cancellable }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADMIN: PRODUCTS CRUD ----------------
   /admin/products:
+    get:
+      tags: [Admin]
+      summary: List all products, including hidden and archived products
+      description: Uses the public filters and server-time pricing without public visibility restrictions.
+      x-permission: catalog.manage
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: min_price, in: query, schema: { type: number } }
+        - { name: max_price, in: query, schema: { type: number } }
+        - { name: on_sale, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated products including non-public states
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
     post:
       tags: [Admin]
       summary: Create a product
@@ -1096,17 +1647,33 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/products/{id}:
+    get:
+      tags: [Admin]
+      summary: Get any product, including hidden or archived
+      x-permission: catalog.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Product
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Admin]
       summary: Update a product
-      description: Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
+      description: >
+        Omitted fields are preserved. Explicit null clears only nullable fields;
+        `discount_type: null` clears the complete stored discount definition.
+        Updating unrelated fields never changes a scheduled discount.
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/ProductInput" }
+            schema: { $ref: "#/components/schemas/ProductPatch" }
       responses:
         "200":
           description: Updated product
@@ -1115,6 +1682,7 @@ paths:
               schema: { $ref: "#/components/schemas/Product" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
     delete:
       tags: [Admin]
       summary: Delete (archive) a product
@@ -1127,6 +1695,21 @@ paths:
 
   # ---------------- ADMIN: CATEGORIES CRUD ----------------
   /admin/categories:
+    get:
+      tags: [Admin]
+      summary: List all categories, including hidden categories
+      description: Same parent/subtree filtering as the public route, without visibility filtering.
+      x-permission: catalog.manage
+      parameters:
+        - { name: parent_id, in: query, schema: { type: string, format: uuid } }
+        - { name: include_subtree, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "200":
+          description: Category tree including hidden nodes
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Category" } }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
       summary: Create a category
@@ -1136,7 +1719,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/CategoryInput" }
+            schema: { $ref: "#/components/schemas/CategoryCreate" }
       responses:
         "201":
           description: Created category
@@ -1149,14 +1732,14 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a category
-      description: Every update requires both `name_ar` and `name_en` with non-whitespace text; validation errors identify the missing or empty field.
+      description: Omitted fields are unchanged. Reparenting must preserve the hierarchy depth and cycle rules.
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/CategoryInput" }
+            schema: { $ref: "#/components/schemas/CategoryPatch" }
       responses:
         "200":
           description: Updated category
@@ -1168,12 +1751,14 @@ paths:
     delete:
       tags: [Admin]
       summary: Delete a category
+      description: Deletion is allowed only for a leaf category with no products; otherwise returns 409. Use is_visible=false to hide populated categories.
       x-permission: catalog.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   # ---------------- ADMIN: BANNERS CRUD ----------------
   /admin/banners:
@@ -1199,7 +1784,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/BannerInput" }
+            schema: { $ref: "#/components/schemas/BannerCreate" }
       responses:
         "201":
           description: Created banner
@@ -1231,7 +1816,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/BannerInput" }
+            schema: { $ref: "#/components/schemas/BannerPatch" }
       responses:
         "200":
           description: Updated banner
@@ -1414,17 +1999,51 @@ components:
       required: false
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
   responses:
-    Unauthorized: { description: Missing/invalid token, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-    NotFound: { description: Not found, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-    Validation: { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-    RateLimited: { description: Too many requests, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-    Forbidden: { description: Missing permission (RBAC), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Unauthorized: { description: Missing/invalid token (`UNAUTHORIZED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    NotFound: { description: Not found (`NOT_FOUND`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Conflict: { description: State conflict (`CONFLICT`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Validation: { description: "Invalid request data (`VALIDATION_FAILED`, HTTP 422)", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    RateLimited: { description: Too many requests (`RATE_LIMITED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Forbidden: { description: Missing permission (`FORBIDDEN`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
   schemas:
     Error:
       type: object
+      additionalProperties: false
+      required: [status, code, message, errors]
       properties:
+        status: { type: integer, example: 422 }
+        code: { type: string, example: VALIDATION_FAILED }
         message: { type: string }
-        errors: { type: object, additionalProperties: true }
+        errors:
+          type: array
+          description: Empty for non-validation errors.
+          items: { $ref: "#/components/schemas/FieldError" }
+
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, code, message]
+      properties:
+        field: { type: string, example: items.0.quantity }
+        code: { type: string, example: min }
+        message: { type: string, example: quantity must not be less than 1 }
+
+    Money:
+      type: number
+      multipleOf: 0.01
+      description: Decimal money amount with at most two fractional digits; rounded half away from zero at money boundaries.
+
+    MediaObject:
+      type: object
+      additionalProperties: false
+      required: [id, public_url, mime_type, size_bytes, checksum, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        public_url: { type: string, format: uri, description: Stable API URL used when associating the image with catalog data. }
+        mime_type: { type: string, enum: [image/jpeg, image/png, image/webp, image/avif] }
+        size_bytes: { type: integer, minimum: 1, maximum: 8388608 }
+        checksum: { type: string, pattern: '^[a-f0-9]{64}$' }
+        created_at: { type: string, format: date-time }
 
     Pagination:
       type: object
@@ -1437,6 +2056,7 @@ components:
 
     AuthTokens:
       type: object
+      additionalProperties: false
       required: [access_token, refresh_token, user]
       properties:
         access_token: { type: string }
@@ -1445,9 +2065,11 @@ components:
 
     User:
       type: object
+      additionalProperties: false
+      required: [id, name, phone, email, is_active, role, permissions, created_at]
       properties:
         id: { type: string, format: uuid }
-        name: { type: string }
+        name: { type: [string, "null"] }
         phone: { type: string }
         email: { type: [string, "null"] }
         is_active: { type: boolean }
@@ -1483,30 +2105,51 @@ components:
 
     Address:
       type: object
+      required: [id, user_id, city, contact_phone, is_default, created_at]
       properties:
         id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
-        label: { type: string, example: Home }
+        label: { type: [string, "null"], example: Home }
         city: { type: string }
-        area: { type: string }
-        street: { type: string }
+        area: { type: [string, "null"] }
+        street: { type: [string, "null"] }
         details: { type: [string, "null"] }
+        contact_phone: { type: string, minLength: 3, maxLength: 32, description: Recipient contact for this address; independent from the account phone. }
         lat: { type: [number, "null"], format: double }
         lng: { type: [number, "null"], format: double }
         is_default: { type: boolean }
+        created_at: { type: string, format: date-time }
 
-    AddressInput:
+    AddressCreate:
       type: object
-      required: [city]
+      additionalProperties: false
+      required: [city, contact_phone]
       properties:
-        label: { type: string, example: Home }
+        label: { type: [string, "null"], example: Home }
         city: { type: string }
-        area: { type: string }
-        street: { type: string }
+        area: { type: [string, "null"] }
+        street: { type: [string, "null"] }
         details: { type: [string, "null"] }
+        contact_phone: { type: string, minLength: 3, maxLength: 32, pattern: "^\\+[1-9]\\d{7,14}$", description: "Trimmed before storage; must be an E.164 number such as +9647701234567." }
         lat: { type: [number, "null"], format: double }
         lng: { type: [number, "null"], format: double }
         is_default: { type: boolean, default: false }
+
+    AddressPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: Omitted fields are unchanged; null clears only nullable fields. contact_phone and city cannot be null.
+      properties:
+        label: { type: [string, "null"], maxLength: 80 }
+        city: { type: string, minLength: 1, maxLength: 80 }
+        area: { type: [string, "null"], maxLength: 120 }
+        street: { type: [string, "null"], maxLength: 160 }
+        details: { type: [string, "null"] }
+        contact_phone: { type: string, minLength: 3, maxLength: 32, pattern: "^\\+[1-9]\\d{7,14}$", description: "Trimmed before storage; must be an E.164 number such as +9647701234567." }
+        lat: { type: [number, "null"], format: double }
+        lng: { type: [number, "null"], format: double }
+        is_default: { type: boolean }
 
     AddressPage:
       allOf:
@@ -1520,35 +2163,67 @@ components:
 
     Category:
       type: object
-      description: Category reads populate an empty or missing `name_ar`/`name_en` from the other language.
+      description: Category reads populate an empty localized name or description from the other language.
       properties:
         id: { type: string, format: uuid }
         parent_id: { type: [string, "null"], format: uuid }
         name_en: { type: string }
         name_ar: { type: string }
         slug: { type: string, description: "SEO URL slug. Products are still filtered by category_id." }
-        icon: { type: [string, "null"] }
+        description_en: { type: [string, "null"] }
+        description_ar: { type: [string, "null"] }
+        image_url: { type: [string, "null"], format: uri, description: "Stable URL returned by POST /media/images." }
+        icon_key: { type: [string, "null"], description: "Semantic key such as consumer_electronics; never a framework codepoint or IconData value." }
         sort_order: { type: integer }
-        is_active: { type: boolean }
+        is_visible: { type: boolean }
         children: { type: array, items: { $ref: "#/components/schemas/Category" } }
 
-    CategoryInput:
+    CategoryCreate:
       type: object
-      description: Admin create and update requests require both names after trimming; neither may be empty.
+      additionalProperties: false
+      description: Creates a root or child category. Maximum depth is five levels, root depth 0 through depth 4.
       required: [name_en, name_ar]
       properties:
         parent_id: { type: [string, "null"], format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
         name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
-        icon: { type: [string, "null"] }
+        slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 140 }
+        description_en: { type: [string, "null"] }
+        description_ar: { type: [string, "null"] }
+        image_url: { type: [string, "null"], format: uri, description: "Stable URL returned by POST /media/images." }
+        icon_key: { type: [string, "null"], pattern: '^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$', maxLength: 80 }
         sort_order: { type: integer, default: 0 }
-        is_active: { type: boolean, default: true }
+        is_visible: { type: boolean, default: true }
+
+    CategoryPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: All fields are optional. parent_id null moves to root; a category cannot be its own parent or a descendant of itself, and reparenting cannot make any subtree node deeper than depth 4.
+      properties:
+        parent_id: { type: [string, "null"], format: uuid }
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*' }
+        slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 140 }
+        description_en: { type: [string, "null"] }
+        description_ar: { type: [string, "null"] }
+        image_url: { type: [string, "null"], format: uri, description: "Stable URL returned by POST /media/images." }
+        icon_key: { type: [string, "null"], pattern: '^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$', maxLength: 80 }
+        sort_order: { type: integer, minimum: 0 }
+        is_visible: { type: boolean }
 
     Product:
       type: object
       description: >
         A catalog product. `in_stock` and `available_qty` are computed at read
-        time (sum of batch_stock minus active reservations); they are not stored.
+        time (sum of batch_stock minus active batch reservations and temporary
+        COD order holds); they are not stored on the product.
+        Pricing works the same way: the product stores a regular `price` plus a
+        discount DEFINITION (`discount_type`, `discount_value` and the scheduled
+        window `discount_starts_at`/`discount_ends_at`), and the server derives
+        `on_sale`, `discounted_price`, `effective_price` and `discount_percent`
+        on every read. Those four are never stored, because a scheduled window
+        changes what they mean as the clock moves.
         Reads populate an empty or missing `name_ar`/`name_en` from the other
         language so locale-specific clients never receive a blank name.
       properties:
@@ -1556,38 +2231,84 @@ components:
         category_id: { type: string, format: uuid }
         name_en: { type: string }
         name_ar: { type: string }
-        description: { type: string }
-        sale_price: { type: number }
-        compare_at_price: { type: [number, "null"], description: "Original/was price. Null or less than or equal to sale_price means no discount." }
-        discount_percent: { type: [integer, "null"], readOnly: true, description: "Computed as round((compare_at_price - sale_price) / compare_at_price * 100) when compare_at_price is greater than sale_price; otherwise null." }
+        description: { type: [string, "null"] }
+        price: { $ref: "#/components/schemas/Money", description: "Regular selling price." }
+        discount_type: { type: [string, "null"], enum: [percentage, amount, null], description: "Discount kind, or null when the product has no discount defined." }
+        discount_value: { type: [number, "null"], multipleOf: 0.01, description: "For `percentage`, the percentage off (10 means 10%, at most two decimals). For `amount`, the currency amount subtracted from `price`. Null when `discount_type` is null." }
+        discount_starts_at: { type: [string, "null"], format: date-time, description: "Start of the scheduled discount window; null means the discount is active immediately." }
+        discount_ends_at: { type: [string, "null"], format: date-time, description: "End of the scheduled discount window; null means the discount never expires." }
+        on_sale: { type: boolean, readOnly: true, description: "Computed: true when discount_type is set AND now() falls inside [discount_starts_at, discount_ends_at], treating null bounds as open." }
+        discounted_price: { type: [number, "null"], multipleOf: 0.01, readOnly: true, description: "Computed in integer minor units when on_sale is true and rounded half away from zero; null when on_sale is false." }
+        effective_price: { $ref: "#/components/schemas/Money", readOnly: true, description: "The price the customer pays. Cart and order pricing use this exact value." }
+        discount_percent: { type: [integer, "null"], readOnly: true, description: "Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false." }
         is_negotiable: { type: boolean }
-        floor_price: { type: [number, "null"] }
-        points_price: { type: [integer, "null"] }
+        floor_price: { type: [number, "null"], description: "Negotiation floor, at most the regular price." }
+        points_price: { type: [integer, "null"], description: "Persisted points cost for future negotiation UI; no customer negotiation endpoint yet." }
         tracks_expiry: { type: boolean }
-        rating_avg: { type: number }
+        rating_avg: { type: number, description: "Cached average of published product reviews only, reconciled transactionally from review rows and rounded to two decimals half away from zero." }
+        rating_count: { type: integer, description: "Cached count of published product reviews only; review rows are authoritative." }
         status: { type: string, enum: [active, hidden, archived] }
         in_stock: { type: boolean, description: "computed: available_qty > 0" }
-        available_qty: { type: integer, description: "computed: on-hand minus active reservations" }
-        images: { type: array, items: { type: string, format: uri } }
+        available_qty: { type: integer, description: "computed: on-hand minus active batch reservations and temporary COD holds" }
+        images:
+          type: array
+          description: Ordered by sort_order; the first image is primary.
+          items: { $ref: "#/components/schemas/ProductImage" }
         variants: { type: array, items: { $ref: "#/components/schemas/ProductVariant" } }
 
     ProductInput:
       type: object
-      description: Admin create and update requests require both names after trimming; neither may be empty.
-      required: [category_id, name_en, name_ar, sale_price]
+      additionalProperties: false
+      description: >
+        Admin create and update requests require both names after trimming;
+        neither may be empty. Pricing is written as a regular `price` plus an
+        optional discount definition; the computed `on_sale`,
+        `discounted_price`, `effective_price` and `discount_percent` fields are
+        read-only and are never accepted on a write.
+
+
+        Discount validation, each breach returning 422 `validation_error`:
+
+
+        * `discount_type` set requires a `discount_value` greater than 0.
+
+        * `percentage`: 0 < `discount_value` <= 100.
+
+        * `amount`: 0 < `discount_value` < `price`.
+
+        * `discount_type` null clears the whole discount; `discount_value` must
+        then be null or omitted.
+
+        * When both `discount_starts_at` and `discount_ends_at` are set,
+        `discount_ends_at` must be strictly after `discount_starts_at`.
+
+        * Either timestamp may be sent alone: a null start means the discount is
+        active immediately, a null end means it never expires.
+      required: [category_id, name_en, name_ar, price]
       properties:
         category_id: { type: string, format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
         name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
-        description: { type: string }
-        sale_price: { type: number }
-        compare_at_price: { type: [number, "null"], description: "Original/was price; set to null or no more than sale_price to remove the discount." }
-        is_negotiable: { type: boolean, default: false }
-        floor_price: { type: [number, "null"] }
-        points_price: { type: [integer, "null"] }
+        description: { type: [string, "null"] }
+        price: { $ref: "#/components/schemas/Money", minimum: 0, description: "Regular selling price." }
+        discount_type: { type: [string, "null"], enum: [percentage, amount, null], default: null, description: "Null (the default) means no discount and clears any discount already stored." }
+        discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0, description: "Required when discount_type is set, and must be null or omitted otherwise. percentage: at most 100. amount: strictly less than price." }
+        discount_starts_at: { type: [string, "null"], format: date-time, description: "Optional window start; null means the discount is active immediately." }
+        discount_ends_at: { type: [string, "null"], format: date-time, description: "Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set." }
+        is_negotiable: { type: boolean, default: false, description: "Requires floor_price when true." }
+        floor_price: { type: [number, "null"], minimum: 0, description: "Must not exceed price." }
+        points_price: { type: [integer, "null"], minimum: 0, description: "Data-only points cost; negotiation UI is deferred." }
         tracks_expiry: { type: boolean, default: false }
         status: { type: string, enum: [active, hidden, archived], default: active }
-        images: { type: array, items: { type: string, format: uri } }
+        images:
+          type: array
+          description: Ordered creation list; array index becomes sort_order and index 0 is primary.
+          items:
+            type: object
+            additionalProperties: false
+            required: [url]
+            properties:
+              url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
         variants:
           type: array
           items:
@@ -1597,8 +2318,92 @@ components:
               attributes: { type: object, additionalProperties: true }
               price_delta: { type: number }
 
+    ProductPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: All ProductInput fields are optional on PATCH. Omission preserves the stored value. Explicit null clears a nullable field; discount_type null clears discount_type, discount_value, discount_starts_at, and discount_ends_at together.
+      properties:
+        category_id: { type: string, format: uuid }
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*' }
+        description: { type: [string, "null"] }
+        price: { $ref: "#/components/schemas/Money", minimum: 0 }
+        discount_type: { type: [string, "null"], enum: [percentage, amount, null] }
+        discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0 }
+        discount_starts_at: { type: [string, "null"], format: date-time }
+        discount_ends_at: { type: [string, "null"], format: date-time }
+        is_negotiable: { type: boolean }
+        floor_price: { type: [number, "null"], multipleOf: 0.01, minimum: 0, description: "Must not exceed the merged regular price." }
+        points_price: { type: [integer, "null"], minimum: 0 }
+        tracks_expiry: { type: boolean }
+        status: { type: string, enum: [active, hidden, archived] }
+        media_operations:
+          type: array
+          description: Applied atomically in array order; the image at final position 0 is primary.
+          items: { $ref: "#/components/schemas/ProductMediaOperation" }
+        variants:
+          type: array
+          description: >
+            Replaces the variant set in place. Each entry is matched to an
+            existing variant by `id` when supplied and otherwise by `sku`, so
+            an update never reissues variant ids. Omitting a variant removes
+            it; removing one still referenced by inventory, cart, purchasing
+            or order history is rejected with 422.
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              id: { type: string, format: uuid, description: "Existing variant to update; omit to match on sku or to add a new variant." }
+              sku: { type: string }
+              attributes: { type: object, additionalProperties: true }
+              price_delta: { type: number, multipleOf: 0.01 }
+
+    ProductImage:
+      type: object
+      additionalProperties: false
+      required: [id, url, sort_order, is_primary]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        sort_order: { type: integer, minimum: 0 }
+        is_primary: { type: boolean, readOnly: true, description: True exactly when this is the first image. }
+
+    ProductMediaOperation:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [op, url, position]
+          properties:
+            op: { const: add }
+            url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
+            position: { type: integer, minimum: 0 }
+        - type: object
+          additionalProperties: false
+          required: [op, image_id]
+          properties:
+            op: { const: remove }
+            image_id: { type: string, format: uuid }
+        - type: object
+          additionalProperties: false
+          required: [op, image_id, url]
+          properties:
+            op: { const: replace }
+            image_id: { type: string, format: uuid }
+            url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
+        - type: object
+          additionalProperties: false
+          required: [op, image_id, position]
+          properties:
+            op: { const: move }
+            image_id: { type: string, format: uuid }
+            position: { type: integer, minimum: 0 }
+      discriminator: { propertyName: op }
+
     Banner:
       type: object
+      additionalProperties: false
+      required: [id, title, subtitle, image_url, cta_text, link_url, sort_order, is_active, starts_at, ends_at, created_at]
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
@@ -1612,17 +2417,34 @@ components:
         ends_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
 
-    BannerInput:
+    BannerCreate:
       type: object
+      additionalProperties: false
       required: [title, image_url]
       properties:
-        title: { type: string }
+        title: { type: string, minLength: 1, maxLength: 200 }
         subtitle: { type: [string, "null"] }
-        image_url: { type: string, format: uri }
-        cta_text: { type: [string, "null"] }
+        image_url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
+        cta_text: { type: [string, "null"], maxLength: 120 }
         link_url: { type: [string, "null"], format: uri }
-        sort_order: { type: integer, default: 0 }
+        sort_order: { type: integer, minimum: 0, default: 0 }
         is_active: { type: boolean, default: true }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+
+    BannerPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: Omitted properties retain their stored values; explicit null clears nullable text or schedule properties.
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        subtitle: { type: [string, "null"] }
+        image_url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
+        cta_text: { type: [string, "null"], maxLength: 120 }
+        link_url: { type: [string, "null"], format: uri }
+        sort_order: { type: integer, minimum: 0 }
+        is_active: { type: boolean }
         starts_at: { type: [string, "null"], format: date-time }
         ends_at: { type: [string, "null"], format: date-time }
 
@@ -1646,7 +2468,7 @@ components:
 
     ProductAvailability:
       type: object
-      description: Computed availability (on-hand minus active reservations) per product & variant.
+      description: Computed availability (on-hand minus active batch reservations and temporary COD holds) per product & variant.
       properties:
         product_id: { type: string, format: uuid }
         in_stock: { type: boolean }
@@ -1673,19 +2495,28 @@ components:
 
     Cart:
       type: object
+      required: [id, items, subtotal, discount, delivery_fee, total, coupon_code]
       properties:
         id: { type: string, format: uuid }
+        coupon_code: { type: [string, "null"] }
         items:
           type: array
           items:
             type: object
+            required: [id, product_id, variant_id, quantity, unit_price, line_total, available, available_qty]
             properties:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
               variant_id: { type: [string, "null"], format: uuid }
-              quantity: { type: integer }
-              unit_price: { type: number }
-        subtotal: { type: number }
+              quantity: { type: integer, minimum: 1, maximum: 99 }
+              unit_price: { $ref: "#/components/schemas/Money", description: "Current server-time effective_price plus the selected variant's price_delta, floored at zero." }
+              line_total: { $ref: "#/components/schemas/Money" }
+              available: { type: boolean, description: "False when the product is hidden/inactive or available_qty is below quantity. Checkout rejects unavailable lines." }
+              available_qty: { type: integer, minimum: 0 }
+        subtotal: { $ref: "#/components/schemas/Money" }
+        discount: { $ref: "#/components/schemas/Money", description: "Valid coupon discount only; catalog markdown is already in unit_price." }
+        delivery_fee: { $ref: "#/components/schemas/Money" }
+        total: { $ref: "#/components/schemas/Money" }
 
     WishlistItem:
       type: object
@@ -1718,10 +2549,11 @@ components:
       enum:
         - pending
         - confirmed
-        - processing
-        - out_for_delivery
+        - preparing
+        - ready_for_dispatch
+        - dispatched
         - delivered
-        - failed_delivery
+        - failed
         - cancelled
         - return_requested
         - returned
@@ -1736,8 +2568,9 @@ components:
         product_name_en: { type: string, description: "English product name captured when the order is created." }
         image_url: { type: [string, "null"], format: uri, description: "Primary product image URL captured when the order is created." }
         quantity: { type: integer }
-        unit_price: { type: number }
-        line_total: { type: number }
+        unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order." }
+        line_total: { $ref: "#/components/schemas/Money" }
+        reviewed: { type: boolean, readOnly: true, description: True when the caller already has a product review for this order item. }
 
     Order:
       type: object
@@ -1746,11 +2579,20 @@ components:
         order_number: { type: string }
         status: { $ref: "#/components/schemas/OrderStatus" }
         payment_method: { type: string, enum: [cod] }
-        address_id: { type: [string, "null"], format: uuid }
-        subtotal: { type: number }
-        delivery_fee: { type: number }
-        discount: { type: number }
-        total: { type: number }
+        address_id: { type: [string, "null"], format: uuid, description: "Original address reference; null if that address was later deleted. Delivery snapshots remain unchanged." }
+        delivery_id: { type: [string, "null"], format: uuid, description: Current delivery reachable by this order's owner. }
+        subtotal: { $ref: "#/components/schemas/Money" }
+        delivery_fee: { $ref: "#/components/schemas/Money" }
+        discount: { $ref: "#/components/schemas/Money" }
+        total: { $ref: "#/components/schemas/Money" }
+        delivery_contact_phone: { type: string, description: Immutable checkout snapshot. }
+        delivery_address_label: { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_city: { type: string, description: Immutable checkout snapshot. }
+        delivery_area: { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_street: { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_details: { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_lat: { type: [number, "null"], format: double, description: Immutable checkout snapshot. }
+        delivery_lng: { type: [number, "null"], format: double, description: Immutable checkout snapshot. }
         placed_at: { type: string, format: date-time }
         items:
           type: array
@@ -1765,6 +2607,76 @@ components:
             data:
               type: array
               items: { $ref: "#/components/schemas/Order" }
+
+    AdminOrder:
+      allOf:
+        - $ref: "#/components/schemas/Order"
+        - type: object
+          required: [customer, shipping_snapshot, payments, delivery, status_events]
+          properties:
+            customer:
+              type: object
+              required: [id, name, phone, email]
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: [string, "null"] }
+                phone: { type: string }
+                email: { type: [string, "null"] }
+            shipping_snapshot:
+              type: object
+              description: Immutable checkout shipping and contact values.
+              properties:
+                contact_phone: { type: string }
+                address_label: { type: [string, "null"] }
+                city: { type: string }
+                area: { type: [string, "null"] }
+                street: { type: [string, "null"] }
+                details: { type: [string, "null"] }
+                lat: { type: [number, "null"] }
+                lng: { type: [number, "null"] }
+            payments:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  method: { type: string, enum: [cod] }
+                  status: { type: string, enum: [pending, paid, refunded, failed] }
+                  amount: { $ref: "#/components/schemas/Money" }
+                  paid_at: { type: [string, "null"], format: date-time }
+            delivery:
+              type: [object, "null"]
+              properties:
+                id: { type: string, format: uuid }
+                status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
+                delivery_fee: { $ref: "#/components/schemas/Money" }
+                dispatched_at: { type: [string, "null"], format: date-time }
+                delivered_at: { type: [string, "null"], format: date-time }
+                agent:
+                  type: [object, "null"]
+                  properties:
+                    id: { type: string, format: uuid }
+                    name: { type: [string, "null"] }
+                    phone: { type: string }
+                    email: { type: [string, "null"] }
+            status_events:
+              type: array
+              items:
+                type: object
+                properties:
+                  status: { $ref: "#/components/schemas/OrderStatus" }
+                  note: { type: [string, "null"] }
+                  at: { type: string, format: date-time }
+
+    AdminOrderPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/AdminOrder" }
 
     OrderTracking:
       type: object
@@ -1791,6 +2703,10 @@ components:
         verified_purchase: { type: boolean }
         status: { type: string, enum: [pending, published, rejected] }
         created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        moderation_reason: { type: [string, "null"], maxLength: 500 }
+        moderated_by: { type: [string, "null"], format: uuid }
+        moderated_at: { type: [string, "null"], format: date-time }
 
     ReviewPage:
       allOf:
@@ -1816,15 +2732,42 @@ components:
     LoyaltyAccount:
       type: object
       properties:
+        user_id: { type: string, format: uuid }
         points_balance: { type: integer }
+        page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
         ledger:
           type: array
-          items:
-            type: object
-            properties:
-              type: { type: string, enum: [earn, redeem, adjust, expire] }
-              points: { type: integer }
-              created_at: { type: string, format: date-time }
+          items: { $ref: "#/components/schemas/LoyaltyLedgerEntry" }
+
+    LoyaltyLedgerEntry:
+      type: object
+      description: Immutable signed points entry; account ownership identifies the customer.
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        order_id: { type: [string, "null"], format: uuid }
+        return_id: { type: [string, "null"], format: uuid }
+        type: { type: string, enum: [earn, redeem, adjust, expire] }
+        reason: { type: string }
+        points: { type: integer, description: Positive for earn; negative for redeem; signed for adjust. }
+        note: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    LoyaltyRedemption:
+      type: object
+      properties:
+        entry: { $ref: "#/components/schemas/LoyaltyLedgerEntry" }
+        points_balance: { type: integer }
+        redemption_value: { $ref: "#/components/schemas/Money", description: Server-derived indicative value at one point per minor currency unit. }
+
+    LoyaltyAdjustment:
+      type: object
+      properties:
+        entry: { $ref: "#/components/schemas/LoyaltyLedgerEntry" }
+        points_balance: { type: integer }
 
     Supplier:
       type: object
@@ -1997,6 +2940,11 @@ components:
         id: { type: string, format: uuid }
         order_item_id: { type: string, format: uuid }
         quantity: { type: integer }
+        approved_quantity: { type: integer }
+        customer_reason: { type: string }
+        unit_price: { $ref: "#/components/schemas/Money", description: Immutable order-line unit price. }
+        expected_refund: { $ref: "#/components/schemas/Money" }
+        approved_refund: { $ref: "#/components/schemas/Money" }
         condition: { type: [string, "null"], enum: [sellable, opened, damaged] }
         restock: { type: boolean }
         batch_id: { type: [string, "null"], format: uuid }
@@ -2008,12 +2956,44 @@ components:
         order_id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
         type: { type: string, enum: [return, exchange] }
-        status: { type: string, enum: [requested, approved, collected, settled, rejected] }
+        status: { type: string, enum: [requested, approved, partially_approved, rejected, completed] }
         reason: { type: [string, "null"] }
+        expected_refund: { $ref: "#/components/schemas/Money" }
+        refund_amount: { $ref: "#/components/schemas/Money" }
+        reviewed_by: { type: [string, "null"], format: uuid }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
+        refund:
+          oneOf:
+            - { $ref: "#/components/schemas/RefundLedgerEntry" }
+            - { type: "null" }
         items:
           type: array
           items: { $ref: "#/components/schemas/ReturnItem" }
+
+    RefundLedgerEntry:
+      type: object
+      description: COD refund obligation; no payment gateway reversal occurs.
+      properties:
+        id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        return_id: { type: string, format: uuid }
+        amount: { $ref: "#/components/schemas/Money" }
+        status: { type: string, enum: [obligation] }
+        reason: { type: string }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    ReturnPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/Return" }
 
     Delivery:
       type: object
@@ -2043,7 +3023,65 @@ components:
         user_id: { type: string, format: uuid }
         token: { type: string }
         platform: { type: string, enum: [android, ios, web] }
+        locale: { type: [string, "null"], enum: [ar, en, ar-IQ, en-US, null] }
+        is_active: { type: boolean }
+        last_seen_at: { type: string, format: date-time }
+        deactivated_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
+
+    NotificationPreferences:
+      type: object
+      additionalProperties: false
+      required: [preferences]
+      properties:
+        preferences:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationPreferenceEntry" }
+
+    NotificationPreferencesPatch:
+      type: object
+      additionalProperties: false
+      required: [preferences]
+      properties:
+        preferences:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/NotificationPreferenceEntry" }
+
+    NotificationPreferenceEntry:
+      type: object
+      additionalProperties: false
+      required: [type, channel, enabled]
+      properties:
+        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo] }
+        channel: { type: string, enum: [push, sms] }
+        enabled: { type: boolean }
+
+    NotificationHistory:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/NotificationAttempt" }
+
+    NotificationAttempt:
+      type: object
+      required: [id, type, channel, status, locale, title, body, entity_type, entity_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/NotificationPreferenceEntry/properties/type" }
+        channel: { type: string, enum: [push, sms] }
+        status: { type: string, enum: [queued, sent, skipped, failed] }
+        locale: { type: string, enum: [ar, en] }
+        title: { type: string }
+        body: { type: string }
+        entity_type: { type: string }
+        entity_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        sent_at: { type: [string, "null"], format: date-time }
 
     Permission:
       type: object

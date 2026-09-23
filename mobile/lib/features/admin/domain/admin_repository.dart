@@ -64,6 +64,79 @@ enum AdminResource {
     suppliers => {'name', 'phone', 'email', 'address', 'is_active'},
     _ => {},
   };
+
+  /// The retained mock editor uses its approved fixture schema. Network writes
+  /// use the authoritative contract, never inferred sale-price definitions.
+  Set<String> get remoteFields => switch (this) {
+    products => {
+      'category_id',
+      'name_en',
+      'name_ar',
+      'description',
+      'price',
+      'discount_type',
+      'discount_value',
+      'discount_starts_at',
+      'discount_ends_at',
+      'is_negotiable',
+      'floor_price',
+      'points_price',
+      'tracks_expiry',
+      'status',
+      'images',
+      'variants',
+    },
+    categories => {
+      'parent_id',
+      'name_en',
+      'name_ar',
+      'slug',
+      'description_en',
+      'description_ar',
+      'icon_key',
+      'image_url',
+      'sort_order',
+      'is_visible',
+    },
+    _ => fields,
+  };
+
+  Map<String, dynamic> remoteInput(
+    Map<String, dynamic> value, {
+    bool patch = false,
+  }) {
+    final allowed = {...remoteFields};
+    if (this == products && patch) {
+      allowed.remove('images');
+      allowed.add('media_operations');
+    }
+    final result = {
+      for (final key in allowed)
+        if (value.containsKey(key)) key: value[key],
+    };
+    final required = this == products
+        ? {'category_id', 'name_en', 'name_ar', 'price'}
+        : requiredFields;
+    for (final key in required) {
+      if ((!patch || result.containsKey(key)) &&
+          (result[key] == null || result[key].toString().trim().isEmpty)) {
+        throw const AppFailure(FailureKind.validation);
+      }
+    }
+    if (result.isEmpty) throw const AppFailure(FailureKind.validation);
+    if (this == products && result['variants'] is List) {
+      result['variants'] = [
+        for (final variant in result['variants'] as List)
+          {
+            for (final key in ['id', 'sku', 'attributes', 'price_delta'])
+              if ((variant as Map).containsKey(key) && (patch || key != 'id'))
+                key: variant[key],
+          },
+      ];
+    }
+    return result;
+  }
+
   Set<String> get requiredFields => switch (this) {
     products => {'category_id', 'name_en', 'name_ar', 'sale_price'},
     categories => {'name_en', 'name_ar'},
@@ -99,8 +172,21 @@ enum AdminResource {
 /// A contract record retains optional fields on edit; forms expose only the
 /// resource's write fields. No API shape is synthesized by the UI.
 class AdminRecord {
-  AdminRecord(Map<String, dynamic> json) : json = Map.unmodifiable(json);
+  AdminRecord(Map<String, dynamic> json)
+    : json = Map.unmodifiable(_withPricingAliases(json));
   final Map<String, dynamic> json;
+
+  static Map<String, dynamic> _withPricingAliases(Map<String, dynamic> json) {
+    if (!json.containsKey('effective_price')) return json;
+    return {
+      ...json,
+      if (!json.containsKey('sale_price'))
+        'sale_price': json['effective_price'],
+      if (!json.containsKey('compare_at_price'))
+        'compare_at_price': json['on_sale'] == true ? json['price'] : null,
+    };
+  }
+
   String get id => (json['id'] ?? json['key']) as String;
   String text(String key) => json[key]?.toString() ?? '';
   bool flag(String key, [bool fallback = false]) =>

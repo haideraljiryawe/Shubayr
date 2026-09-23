@@ -39,10 +39,16 @@ class AdminRepositoryMock implements AdminRepository {
       // cannot silently drop the extra legacy Mock gallery images.
       products.addAll(
         await Future.wait(
-          result.data.map(
-            (p) async =>
-                AdminRecord((await source.fetchProduct(p.id)).toMock()),
-          ),
+          result.data.map((p) async {
+            final detail = await source.fetchProduct(p.id);
+            return AdminRecord({
+              ...detail.toMock(),
+              // The mock form still uses legacy pricing inputs while
+              // Product follows the scheduled-discount read contract.
+              'sale_price': detail.salePrice,
+              'compare_at_price': detail.compareAtPrice,
+            });
+          }),
         ),
       );
       if (page * result.perPage >= result.total) break;

@@ -5,8 +5,8 @@ import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_snackbar.dart';
-import '../../../catalog/data/media/catalog_image.dart';
 import '../../../catalog/presentation/widgets/catalog_image_view.dart';
+import '../../../catalog/data/media/catalog_image.dart';
 import '../media/store_image_picker.dart';
 
 class StoreImagesEditor extends ConsumerStatefulWidget {
@@ -18,10 +18,11 @@ class StoreImagesEditor extends ConsumerStatefulWidget {
     this.enabled = true,
     this.onBusyChanged,
     this.guidance,
+    this.sessionOnly = true,
   });
   final List<CatalogImage> images;
   final ValueChanged<List<CatalogImage>> onChanged;
-  final bool multiple, enabled;
+  final bool multiple, enabled, sessionOnly;
   final ValueChanged<bool>? onBusyChanged;
   final String? guidance;
   @override
@@ -42,7 +43,14 @@ class _StoreImagesEditorState extends ConsumerState<StoreImagesEditor> {
       if (!mounted || result.isEmpty) return;
       final images = [...widget.images];
       if (replace != null) {
-        images[replace] = result.first;
+        final picked = result.first;
+        images[replace] = images[replace].productImageId == null
+            ? picked
+            : LocalCatalogImage(
+                picked.bytes,
+                name: picked.name,
+                productImageId: images[replace].productImageId,
+              );
       } else if (widget.multiple) {
         images.addAll(result);
       } else {
@@ -208,7 +216,10 @@ class _StoreImagesEditorState extends ConsumerState<StoreImagesEditor> {
             icon: const Icon(Icons.photo_library),
             label: Text(widget.multiple ? l.mediaAdd : l.mediaChoose),
           ),
-        Text(l.mediaSessionHint, style: context.text.bodySmall),
+        Text(
+          widget.sessionOnly ? l.mediaSessionHint : l.mediaUploadHint,
+          style: context.text.bodySmall,
+        ),
       ],
     );
   }

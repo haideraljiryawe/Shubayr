@@ -33,21 +33,21 @@ class AppCard extends StatelessWidget {
         border: Border.all(color: colors.border),
         boxShadow: elevated ? AppShadows.level1 : null,
       ),
-      child: onTap == null
-          // Descendant controls need ink above the card's decoration too.
-          ? Material(
-              type: MaterialType.transparency,
-              textStyle: DefaultTextStyle.of(context).style,
-              child: content,
-            )
-          : Material(
-              color: Colors.transparent,
-              child: InkWell(
+      // Descendant ListTiles need an ink surface above the card decoration,
+      // even when the card itself has no onTap callback. Preserve an inherited
+      // text style instead of replacing it with Material's default style.
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: AppRadii.lgAll,
+        textStyle: DefaultTextStyle.of(context).style,
+        child: onTap == null
+            ? content
+            : InkWell(
                 onTap: onTap,
                 borderRadius: AppRadii.lgAll,
                 child: content,
               ),
-            ),
+      ),
     );
   }
 }

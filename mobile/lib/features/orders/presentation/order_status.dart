@@ -12,10 +12,11 @@ String orderStatusLabel(AppLocalizations l10n, String status) =>
     switch (status) {
       'pending' => l10n.orderStatusPending,
       'confirmed' => l10n.orderStatusConfirmed,
-      'processing' => l10n.orderStatusProcessing,
-      'out_for_delivery' => l10n.orderStatusOutForDelivery,
+      'processing' || 'preparing' => l10n.orderStatusProcessing,
+      'out_for_delivery' || 'dispatched' => l10n.orderStatusOutForDelivery,
+      'ready_for_dispatch' => l10n.orderStatusReadyForDispatch,
       'delivered' => l10n.orderStatusDelivered,
-      'failed_delivery' => l10n.orderStatusFailedDelivery,
+      'failed_delivery' || 'failed' => l10n.orderStatusFailedDelivery,
       'cancelled' => l10n.orderStatusCancelled,
       'return_requested' => l10n.orderStatusReturnRequested,
       'returned' => l10n.orderStatusReturned,
@@ -24,10 +25,10 @@ String orderStatusLabel(AppLocalizations l10n, String status) =>
 
 Color orderStatusColor(AppColors colors, String status) => switch (status) {
   'pending' => colors.warning,
-  'confirmed' || 'processing' => colors.info,
-  'out_for_delivery' => colors.primary,
+  'confirmed' || 'processing' || 'preparing' => colors.info,
+  'out_for_delivery' || 'dispatched' => colors.primary,
   'delivered' => colors.success,
-  'failed_delivery' || 'cancelled' => colors.danger,
+  'failed_delivery' || 'failed' || 'cancelled' => colors.danger,
   'return_requested' || 'returned' => colors.textMuted,
   _ => colors.textMuted,
 };
@@ -35,10 +36,11 @@ Color orderStatusColor(AppColors colors, String status) => switch (status) {
 IconData orderStatusIcon(String status) => switch (status) {
   'pending' => Icons.schedule,
   'confirmed' => Icons.check_circle_outline,
-  'processing' => Icons.inventory_2_outlined,
-  'out_for_delivery' => Icons.local_shipping_outlined,
+  'processing' || 'preparing' => Icons.inventory_2_outlined,
+  'out_for_delivery' || 'dispatched' => Icons.local_shipping_outlined,
+  'ready_for_dispatch' => Icons.inventory_2_outlined,
   'delivered' => Icons.done_all,
-  'failed_delivery' => Icons.error_outline,
+  'failed_delivery' || 'failed' => Icons.error_outline,
   'cancelled' => Icons.cancel_outlined,
   'return_requested' => Icons.assignment_return_outlined,
   'returned' => Icons.keyboard_return,
@@ -46,5 +48,7 @@ IconData orderStatusIcon(String status) => switch (status) {
 };
 
 /// The customer can cancel only before the order leaves for delivery.
-bool isOrderCancellable(String status) =>
-    status == 'pending' || status == 'confirmed' || status == 'processing';
+bool isOrderCancellable(String status, {bool remote = false}) =>
+    status == 'pending' ||
+    status == 'confirmed' ||
+    (!remote && status == 'processing');

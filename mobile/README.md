@@ -182,5 +182,6 @@ phase, not a contract gap.
 
 ## Working agreement
 
-All work stays inside `mobile/`. Branch off `develop`, use Conventional Commits,
-open a PR into `develop` — see the repository `CONTRIBUTING.md`.
+All app work stays inside `mobile/`. Branch off the latest `main`, use Conventional
+Commits, and open a PR into `main`. Delete the task branch after merge — see the
+repository `CONTRIBUTING.md`.

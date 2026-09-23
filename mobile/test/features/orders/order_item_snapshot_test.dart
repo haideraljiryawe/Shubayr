@@ -176,8 +176,8 @@ void main() {
       final seed = (await repo.fetchOrders()).data.first;
       final adminSeed = (await admin.fetchOrders()).data.first;
 
-      final atPurchase = Product.fromJson({
-        ...original.firstWhere((p) => p.id == 'p1').toJson(),
+      final atPurchase = Product.fromMock({
+        ...original.firstWhere((p) => p.id == 'p1').toMock(),
         'name_ar': 'اسم وقت الشراء',
         'name_en': 'At purchase',
         'images': ['https://example.com/purchase.jpg'],
@@ -191,8 +191,8 @@ void main() {
       expect(placed.items.single.productNameEn, 'At purchase');
       expect(placed.items.single.imageUrl, 'https://example.com/purchase.jpg');
 
-      final renamed = Product.fromJson({
-        ...atPurchase.toJson(),
+      final renamed = Product.fromMock({
+        ...atPurchase.toMock(),
         'name_en': 'Renamed after purchase',
         'images': <String>[],
       });

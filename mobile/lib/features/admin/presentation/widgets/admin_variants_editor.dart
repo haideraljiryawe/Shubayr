@@ -21,7 +21,8 @@ class AdminVariantsEditor extends StatefulWidget {
 
 class _Variant {
   _Variant(Map<String, dynamic> json)
-    : sku = TextEditingController(text: json['sku']?.toString() ?? ''),
+    : id = json['id'] as String?,
+      sku = TextEditingController(text: json['sku']?.toString() ?? ''),
       delta = TextEditingController(
         text: MoneyText.fromNumber(json['price_delta'] as num? ?? 0),
       ),
@@ -32,9 +33,11 @@ class _Variant {
             TextEditingController(text: entry.value.toString()),
           ),
       ];
+  final String? id;
   final TextEditingController sku, delta;
   final List<(TextEditingController, TextEditingController)> attributes;
   Map<String, dynamic> json() => {
+    if (id != null) 'id': id,
     'sku': sku.text.trim(),
     'price_delta': MoneyText.tryParse(delta.text) ?? 0,
     'attributes': {

@@ -202,7 +202,9 @@ class AdminCategoryHierarchy extends StatelessWidget {
               Icon(
                 categoryIconFor(
                   record.text('icon'),
-                  iconKey: record.json['mock_icon_key'] as String?,
+                  iconKey:
+                      (record.json['icon_key'] ?? record.json['mock_icon_key'])
+                          as String?,
                 ),
                 color: context.colors.primary,
               ),
@@ -228,7 +230,7 @@ class AdminCategoryHierarchy extends StatelessWidget {
             style: context.text.bodySmall,
           ),
           Text(
-            record.flag('is_active', true)
+            record.flag('is_visible', record.flag('is_active', true))
                 ? l.categoryVisible
                 : l.adminInactive,
             style: context.text.bodySmall,

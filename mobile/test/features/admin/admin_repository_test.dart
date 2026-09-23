@@ -221,7 +221,7 @@ void main() {
         'category_id': 'c',
         'name_ar': 'س',
         'name_en': 'P',
-        'sale_price': 10,
+        'price': 10,
         'available_qty': 999,
         'in_stock': true,
         'variants': [
@@ -237,7 +237,9 @@ void main() {
       final payload = requests.last.data as Map;
       expect(payload.containsKey('available_qty'), isFalse);
       expect(payload.containsKey('id'), isFalse);
+      expect(payload['price'], 10);
       expect((payload['variants'] as List).single, {
+        'id': 'v',
         'sku': 'sku',
         'attributes': {'size': 'L'},
         'price_delta': 2,

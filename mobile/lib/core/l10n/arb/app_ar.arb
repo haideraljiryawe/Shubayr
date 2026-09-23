@@ -590,5 +590,18 @@
   "mediaMainCategoryGuidance": "استخدم صورة أفقية والعنصر المهم في الوسط؛ نسبة القص تتغيّر مع عرض البطاقة.",
   "mediaSubcategoryGuidance": "تُحفظ لاستخدام لاحق. البلاطات الحالية تعرض الأيقونة، لذا لا تُطلب نسبة للصورة حاليًا.",
   "adminViewSubcategories": "عرض الفروع",
-  "adminRetainedProductCategory": "التصنيف الحالي محفوظ، لكنه غير متاح للإسناد الجديد. يمكنك إبقاؤه لهذا المنتج أو اختيار قسم فرعي لتغييره."
+  "adminRetainedProductCategory": "التصنيف الحالي محفوظ، لكنه غير متاح للإسناد الجديد. يمكنك إبقاؤه لهذا المنتج أو اختيار قسم فرعي لتغييره.",
+  "adminDiscountType": "نوع الخصم",
+  "adminDiscountNone": "بدون خصم",
+  "adminDiscountPercentage": "نسبة مئوية",
+  "adminDiscountAmount": "مبلغ ثابت",
+  "adminDiscountValue": "قيمة الخصم",
+  "adminDiscountStartsAt": "بداية الخصم",
+  "adminDiscountEndsAt": "نهاية الخصم",
+  "adminDiscountDateHint": "اختياري؛ مثال بتوقيت UTC: 2026-10-01T09:00:00Z",
+  "adminDiscountDateInvalid": "أدخل تاريخًا ووقتًا صالحين مع المنطقة الزمنية، مثل 2026-10-01T09:00:00Z",
+  "adminCategorySlug": "معرّف رابط القسم",
+  "addressInternationalPhoneHint": "أدخل رقمًا دوليًا يبدأ بـ + ورمز البلد؛ لا يُضاف رمز البلد تلقائيًا.",
+  "mediaUploadHint": "تُرفع الصور عند الحفظ. JPEG وPNG وWebP وAVIF، بحد أقصى 8 MiB للصورة.",
+  "orderStatusReadyForDispatch": "جاهز للإرسال"
 }

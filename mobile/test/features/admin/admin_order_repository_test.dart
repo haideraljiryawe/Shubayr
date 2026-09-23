@@ -162,13 +162,38 @@ void main() {
       expect(requests.last.queryParameters, {'page': 1, 'per_page': 20});
       await repo.updateStatus('o1', 'confirmed');
       expect(requests.last.method, 'PATCH');
-      expect(requests.last.path, '/orders/o1/status');
+      expect(requests.last.path, '/admin/orders/o1/status');
       expect(requests.last.data, {'status': 'confirmed'});
       await expectLater(
         repo.updateStatus('o1', 'invalid'),
         throwsA(isA<AppFailure>()),
       );
       expect(requests, hasLength(3));
+      for (final status in ['preparing', 'ready_for_dispatch', 'dispatched']) {
+        await repo.updateStatus('o1', status);
+        expect(requests.last.data, {'status': status});
+      }
+      final count = requests.length;
+      for (final status in [
+        'processing',
+        'out_for_delivery',
+        'delivered',
+        'cancelled',
+      ]) {
+        await expectLater(
+          repo.updateStatus('o1', status),
+          throwsA(isA<AppFailure>()),
+        );
+      }
+      await repo.fetchOrders(
+        query: const AdminOrderQuery(status: 'ready_for_dispatch'),
+      );
+      expect(requests.last.queryParameters['status'], 'ready_for_dispatch');
+      await expectLater(
+        repo.fetchOrders(query: const AdminOrderQuery(status: 'processing')),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(requests, hasLength(count + 1));
     },
   );
 }

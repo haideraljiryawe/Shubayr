@@ -215,7 +215,10 @@ void main() {
           )).data.single.displayImages,
           images,
         );
-        expect(detail.toJson()['images'], [url.url]);
+        expect(
+          (detail.toJson()['images'] as List).map((image) => image['url']),
+          [url.url],
+        );
         expect(detail.toJson().containsKey('mock_images'), isFalse);
       }
       expect(

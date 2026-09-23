@@ -6,6 +6,7 @@ import { PrismaService } from '../../database/prisma.service';
 
 interface JwtPayload {
   sub: string;
+  typ: string;
 }
 
 @Injectable()
@@ -27,6 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     role: string;
     permissions: string[];
   }> {
+    if (payload.typ !== 'access') throw new UnauthorizedException();
     const user = await this.prisma.user.findFirst({
       where: { id: payload.sub, is_active: true },
       include: {

@@ -1,3 +1,4 @@
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,6 +37,42 @@ void main() {
     await ready();
   });
   tearDown(() => container.dispose());
+  test(
+    'remote order management requires the current orders.manage permission',
+    () async {
+      final remote = ProviderContainer(
+        retry: (_, _) => null,
+        overrides: [
+          dataSourceProvider.overrideWithValue(DataSource.remote),
+          adminOrderRepositoryProvider.overrideWithValue(
+            RecordingAdminOrders(),
+          ),
+          sessionControllerProvider.overrideWith(
+            () => AdminTestSession(
+              initial: const Session.signedIn(
+                User(
+                  id: 'staff',
+                  role: 'manager',
+                  permissions: ['orders.manage'],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(remote.dispose);
+      await remote.read(sessionControllerProvider.future);
+      final page = await remote.read(adminOrdersProvider.future);
+      expect(page.items, isNotEmpty);
+      final order = page.items.first;
+      expect(
+        await remote
+            .read(adminOrdersProvider.notifier)
+            .updateStatus(order.id, 'confirmed', expectedStatus: order.status),
+        true,
+      );
+    },
+  );
   test('selecting a fresh equal filter retains the existing reload', () async {
     final query = AdminOrderQuery(search: 'Ahmed');
     filter(query);

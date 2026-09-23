@@ -9,12 +9,15 @@ import { validateEnvironment } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BannersModule } from './modules/banners/banners.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { FulfilmentModule } from './modules/fulfilment/fulfilment.module';
 import { HealthModule } from './modules/health/health.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { LoyaltyModule } from './modules/loyalty/loyalty.module';
+import { MediaModule } from './modules/media/media.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PurchasingModule } from './modules/purchasing/purchasing.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { ReturnsModule } from './modules/returns/returns.module';
@@ -38,8 +41,11 @@ import { SettingsModule } from './modules/settings/settings.module';
       throttlers: [{ ttl: 60_000, limit: 120 }],
     }),
     DatabaseModule,
+    AuditModule,
+    NotificationsModule,
     AuthModule,
     RbacModule,
+    BannersModule,
     CatalogModule,
     PurchasingModule,
     InventoryModule,
@@ -47,8 +53,8 @@ import { SettingsModule } from './modules/settings/settings.module';
     FulfilmentModule,
     ReturnsModule,
     LoyaltyModule,
+    MediaModule,
     ReviewsModule,
-    AuditModule,
     SettingsModule,
     HealthModule,
   ],

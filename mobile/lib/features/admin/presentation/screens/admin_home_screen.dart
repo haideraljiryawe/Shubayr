@@ -1,3 +1,4 @@
+import '../../../../core/config/app_config.dart';
 import '../widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
@@ -83,7 +84,14 @@ class AdminHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final held = ref.watch(permissionsProvider);
     final visible = _sections
-        .where((s) => held.contains(s.permission))
+        .where(
+          (s) => held.contains(
+            s.permission == Permissions.ordersView &&
+                    ref.watch(dataSourceProvider) == DataSource.remote
+                ? Permissions.ordersManage
+                : s.permission,
+          ),
+        )
         .toList();
 
     return Scaffold(

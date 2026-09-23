@@ -1,8 +1,11 @@
+import 'dart:convert';
+import '../../../../core/network/api_client.dart';
+import '../../data/catalog_media_remote.dart';
+import '../../../catalog/data/product.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../catalog/data/category_description_limits.dart';
 import '../../../catalog/data/media/catalog_image.dart';
 import '../../../catalog/presentation/widgets/category_icon_catalog.dart';
-import '../../../catalog/presentation/widgets/catalog_image_view.dart';
 import '../widgets/category_icon_picker.dart';
 import '../widgets/store_images_editor.dart';
 import '../../../../core/utils/numeric_input_formatters.dart';
@@ -42,18 +45,30 @@ class AdminRecordForm extends ConsumerStatefulWidget {
 }
 
 class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
-  static const _moneyFields = {'sale_price', 'compare_at_price', 'floor_price'};
+  static const _moneyFields = {
+    'sale_price',
+    'compare_at_price',
+    'floor_price',
+    'price',
+  };
+  bool _isMoney(String field) =>
+      _moneyFields.contains(field) ||
+      (field == 'discount_value' && _draft['discount_type'] == 'amount');
   final _form = GlobalKey<FormState>();
   final _controllers = <String, TextEditingController>{};
   late Map<String, dynamic> _draft;
+  List<CatalogImage> _remoteImages = [];
+  List<ProductImage> _originalMedia = [];
+  bool _mediaChanged = false;
   bool _busy = false;
   bool _picking = false;
   bool get _isMock => ref.read(dataSourceProvider) == DataSource.mock;
   Set<String> get _fields => {
-    for (final field in resource.fields)
+    for (final field in (_isMock ? resource.fields : resource.remoteFields))
       if (!(resource == AdminResource.categories &&
-              (widget.record == null ||
-                  widget.record!.text('parent_id').isEmpty) &&
+              (_isMock &&
+                  (widget.record == null ||
+                      widget.record!.text('parent_id').isEmpty)) &&
               field == 'parent_id') &&
           !(_isMock && resource == AdminResource.categories && field == 'icon'))
         field,
@@ -80,7 +95,7 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
       _controllers[field] = TextEditingController(
         text: field == 'password'
             ? ''
-            : _moneyFields.contains(field)
+            : _isMoney(field)
             ? MoneyText.fromNumber(value as num?)
             : value?.toString() ?? '',
       );
@@ -98,6 +113,23 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
             ],
       );
     }
+    if (!_isMock) {
+      if (resource == AdminResource.products) {
+        _originalMedia = [
+          for (final image in _draft['images'] as List? ?? [])
+            ProductImage.fromJson(Map<String, dynamic>.from(image as Map)),
+        ]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+        _remoteImages = [
+          for (final image in _originalMedia)
+            UrlCatalogImage(image.url, productImageId: image.id),
+        ];
+      } else if (resource == AdminResource.categories) {
+        _remoteImages = [
+          if (_draft['image_url'] case final String url) UrlCatalogImage(url),
+        ];
+      }
+    }
+    _draft['is_visible'] ??= true;
     _draft['is_active'] ??= true;
     _draft['status'] ??= 'active';
     _draft['is_negotiable'] ??= false;
@@ -124,6 +156,8 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
     if (_busy || _picking || !_form.currentState!.validate()) return;
     final input = {..._draft};
     const numeric = {
+      'price',
+      'discount_value',
       'sale_price',
       'compare_at_price',
       'floor_price',
@@ -135,6 +169,10 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
       'parent_id',
       'role',
       'status',
+      'is_visible',
+      'discount_type',
+      'icon_key',
+      'image_url',
       'is_active',
       'is_negotiable',
       'tracks_expiry',
@@ -147,7 +185,7 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
     for (final field in _fields) {
       if (special.contains(field)) continue;
       final entered = _controllers[field]!.text.trim();
-      final text = _moneyFields.contains(field)
+      final text = _isMoney(field)
           ? MoneyText.normalize(entered)
           : numeric.contains(field) || field == 'phone'
           ? normalizeDigits(entered)
@@ -156,18 +194,85 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
         input.remove(field);
         continue;
       }
-      input[field] = numeric.contains(field)
+      if (field == 'slug' && text.isEmpty) {
+        input.remove(field);
+        continue;
+      }
+      input[field] =
+          field == 'discount_starts_at' || field == 'discount_ends_at'
+          ? (text.isEmpty
+                ? null
+                : DateTime.parse(text).toUtc().toIso8601String())
+          : numeric.contains(field)
           ? text.isEmpty
                 ? (field == 'sort_order' ? 0 : null)
                 : ['points_price', 'sort_order'].contains(field)
                 ? num.parse(text).toInt()
                 : num.parse(text)
-          : (field == 'email' && text.isEmpty)
+          : (const [
+                  'email',
+                  'description_en',
+                  'description_ar',
+                ].contains(field) &&
+                text.isEmpty)
           ? null
           : text;
     }
     setState(() => _busy = true);
     try {
+      if (!_isMock) {
+        input.removeWhere((key, _) => !resource.remoteFields.contains(key));
+        input.remove('images');
+        input.remove('image_url');
+        final previous = widget.record?.json;
+        if (previous != null) {
+          input.removeWhere(
+            (key, value) => jsonEncode(value) == jsonEncode(previous[key]),
+          );
+        }
+        // A changed type requires its value in the DTO. A null type explicitly
+        // clears the whole definition; unrelated edits never send that null.
+        if (resource == AdminResource.products &&
+            input.containsKey('discount_type')) {
+          if (input['discount_type'] == null) {
+            input.remove('discount_value');
+            input.remove('discount_starts_at');
+            input.remove('discount_ends_at');
+          } else {
+            input['discount_value'] = MoneyText.tryParse(
+              _controllers['discount_value']!.text,
+            );
+          }
+        }
+        if (_mediaChanged || previous == null) {
+          final media = CatalogMediaRemote(ref.read(apiClientProvider));
+          final uploaded = <UrlCatalogImage>[];
+          for (final image in _remoteImages) {
+            uploaded.add(await media.upload(image));
+          }
+          // Keep durable URLs on a failed catalog save so retry does not upload again.
+          _remoteImages = uploaded;
+          if (resource == AdminResource.products) {
+            if (previous == null) {
+              input['images'] = [
+                for (final image in uploaded) {'url': image.url},
+              ];
+            } else {
+              final operations = CatalogMediaRemote.operations(
+                _originalMedia,
+                uploaded,
+              );
+              if (operations.isNotEmpty) input['media_operations'] = operations;
+            }
+          } else if (resource == AdminResource.categories) {
+            input['image_url'] = uploaded.firstOrNull?.url;
+          }
+        }
+        if (previous != null && input.isEmpty) {
+          if (mounted) Navigator.pop(context);
+          return;
+        }
+      }
       final saved = await ref
           .read(adminListProvider(widget.query).notifier)
           .save(input, id: widget.record?.id);
@@ -274,6 +379,8 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
                     fullWidth: const [
                       'mock_image',
                       'mock_icon_key',
+                      'icon_key',
+                      'image_url',
                       'description',
                       'images',
                       'variants',
@@ -304,7 +411,7 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
 
   Widget _field(String field, List<AdminRecord> options) {
     final l = context.l10n;
-    if (field == 'mock_icon_key') {
+    if (field == 'mock_icon_key' || field == 'icon_key') {
       final selected = _draft[field] as String?;
       return OutlinedButton.icon(
         key: const ValueKey('category-icon-picker'),
@@ -323,7 +430,8 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
               },
       );
     }
-    if (field.startsWith('mock_description_')) {
+    if (field.startsWith('mock_description_') ||
+        const ['description_en', 'description_ar'].contains(field)) {
       return TextFormField(
         key: ValueKey(field),
         controller: _controllers[field],
@@ -333,13 +441,15 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
           labelText: field.endsWith('_en')
               ? l.categoryDescriptionEn
               : l.categoryDescriptionAr,
-          helperText: l.categoryDescriptionLimit(
-            '${CategoryDescriptionLimits.maxWords}',
-            '${CategoryDescriptionLimits.maxCharacters}',
-          ),
+          helperText: !_isMock
+              ? null
+              : l.categoryDescriptionLimit(
+                  '${CategoryDescriptionLimits.maxWords}',
+                  '${CategoryDescriptionLimits.maxCharacters}',
+                ),
           helperMaxLines: 2,
         ),
-        validator: (value) => _draft['parent_id'] != null
+        validator: (value) => !_isMock || _draft['parent_id'] != null
             ? null
             : (value == null || value.trim().isEmpty)
             ? l.adminRequired
@@ -348,36 +458,16 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
             : null,
       );
     }
-    if (field == 'mock_image' || field == 'images') {
+    if (field == 'mock_image' || field == 'images' || field == 'image_url') {
       final multiple = field == 'images';
-      final images = multiple
-          ? (_isMock
-                ? (_draft['mock_images'] as List).cast<CatalogImage>()
-                : [
-                    for (final url in _draft['images'] as List? ?? [])
-                      UrlCatalogImage(url as String),
-                  ])
+      final images = !_isMock
+          ? _remoteImages
+          : multiple
+          ? (_draft['mock_images'] as List).cast<CatalogImage>()
           : [if (_draft['mock_image'] case final CatalogImage image) image];
-      if (!_isMock) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l.mediaImages, style: context.text.titleSmall),
-            Text(l.mediaRemoteHint),
-            ResponsiveFields(
-              children: [
-                for (final image in images)
-                  AspectRatio(
-                    aspectRatio: 1,
-                    child: CatalogImageView(image: image),
-                  ),
-              ],
-            ),
-          ],
-        );
-      }
       return StoreImagesEditor(
         images: images,
+        sessionOnly: _isMock,
         multiple: multiple,
         guidance: multiple
             ? l.mediaProductGuidance
@@ -387,7 +477,10 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
         enabled: !_busy,
         onBusyChanged: (value) => setState(() => _picking = value),
         onChanged: (images) => setState(() {
-          if (multiple) {
+          if (!_isMock) {
+            _remoteImages = images;
+            _mediaChanged = true;
+          } else if (multiple) {
             _draft['mock_images'] = images;
           } else {
             _draft['mock_image'] = images.firstOrNull;
@@ -396,16 +489,49 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
         }),
       );
     }
-    if (const ['is_active', 'is_negotiable', 'tracks_expiry'].contains(field)) {
+    if (const [
+      'is_active',
+      'is_visible',
+      'is_negotiable',
+      'tracks_expiry',
+    ].contains(field)) {
       return SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: Text(
-          field == 'is_active' && resource == AdminResource.categories
+          (field == 'is_active' || field == 'is_visible') &&
+                  resource == AdminResource.categories
               ? l.categoryVisible
               : adminFieldLabel(l, field),
         ),
         value: _draft[field] == true,
         onChanged: _busy ? null : (v) => setState(() => _draft[field] = v),
+      );
+    }
+    if (field == 'discount_type') {
+      final selected = _draft[field] as String? ?? '';
+      return DropdownButtonFormField<String>(
+        key: ValueKey('discount-type-$selected'),
+        initialValue: selected,
+        decoration: InputDecoration(labelText: l.adminDiscountType),
+        items: [
+          DropdownMenuItem(value: '', child: Text(l.adminDiscountNone)),
+          DropdownMenuItem(
+            value: 'percentage',
+            child: Text(l.adminDiscountPercentage),
+          ),
+          DropdownMenuItem(value: 'amount', child: Text(l.adminDiscountAmount)),
+        ],
+        onChanged: _busy
+            ? null
+            : (value) => setState(() {
+                final number = MoneyText.tryParse(
+                  _controllers['discount_value']!.text,
+                );
+                _draft[field] = value == '' ? null : value;
+                _controllers['discount_value']!.text = value == 'amount'
+                    ? MoneyText.fromNumber(number)
+                    : number?.toString() ?? '';
+              }),
       );
     }
     if (field == 'variants') {
@@ -526,7 +652,14 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
               child: Text(entry.value, overflow: TextOverflow.ellipsis),
             ),
         ],
-        validator: (v) => resource.requiredFields.contains(field) && v == null
+        validator: (v) =>
+            (_isMock
+                        ? resource.requiredFields
+                        : resource == AdminResource.products
+                        ? {'category_id', 'name_en', 'name_ar', 'price'}
+                        : resource.requiredFields)
+                    .contains(field) &&
+                v == null
             ? l.adminRequired
             : null,
         onChanged: _busy
@@ -535,6 +668,8 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
       );
     }
     final isNumeric = const [
+      'price',
+      'discount_value',
       'sale_price',
       'compare_at_price',
       'floor_price',
@@ -553,7 +688,7 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
       enableSuggestions: field != 'password',
       autocorrect: field != 'password',
       maxLines: field == 'description' ? 3 : 1,
-      inputFormatters: _moneyFields.contains(field)
+      inputFormatters: _isMoney(field)
           ? const [MoneyInputFormatter()]
           : field == 'phone'
           ? const [PhoneInputFormatter()]
@@ -569,22 +704,36 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
           : null,
       decoration: InputDecoration(
         labelText: adminFieldLabel(l, field),
-        helperText: field == 'compare_at_price'
+        helperText: field == 'discount_starts_at' || field == 'discount_ends_at'
+            ? l.adminDiscountDateHint
+            : field == 'compare_at_price'
             ? l.adminOriginalPriceHint
             : null,
         helperMaxLines: 3,
       ),
       validator: (value) {
         final entered = value?.trim() ?? '';
-        final text = _moneyFields.contains(field)
+        final text = _isMoney(field)
             ? MoneyText.normalize(entered)
             : isNumeric
             ? normalizeDigits(entered)
             : entered;
         if (text.isEmpty) {
-          return resource.requiredFields.contains(field)
+          return (_isMock
+                      ? resource.requiredFields
+                      : resource == AdminResource.products
+                      ? {'category_id', 'name_en', 'name_ar', 'price'}
+                      : resource.requiredFields)
+                  .contains(field)
               ? l.adminRequired
               : null;
+        }
+        if (field == 'discount_starts_at' || field == 'discount_ends_at') {
+          final date = DateTime.tryParse(text);
+          if (date == null ||
+              !RegExp(r'(Z|[+-][0-9]{2}:[0-9]{2})$').hasMatch(text)) {
+            return l.adminDiscountDateInvalid;
+          }
         }
         if (isNumeric) {
           final number = num.tryParse(text);

@@ -28,8 +28,18 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
   nameEn: json['name_en'] as String,
   nameAr: json['name_ar'] as String,
   description: json['description'] as String? ?? '',
-  salePrice: json['sale_price'] as num? ?? 0,
-  compareAtPrice: json['compare_at_price'] as num?,
+  price: json['price'] as num? ?? 0,
+  discountType: json['discount_type'] as String?,
+  discountValue: json['discount_value'] as num?,
+  discountStartsAt: json['discount_starts_at'] == null
+      ? null
+      : DateTime.parse(json['discount_starts_at'] as String),
+  discountEndsAt: json['discount_ends_at'] == null
+      ? null
+      : DateTime.parse(json['discount_ends_at'] as String),
+  onSale: json['on_sale'] as bool? ?? false,
+  discountedPrice: json['discounted_price'] as num?,
+  effectivePrice: json['effective_price'] as num?,
   discountPercent: (json['discount_percent'] as num?)?.toInt(),
   isNegotiable: json['is_negotiable'] as bool? ?? false,
   floorPrice: json['floor_price'] as num?,
@@ -39,8 +49,10 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
   status: json['status'] as String? ?? 'active',
   inStock: json['in_stock'] as bool? ?? true,
   availableQty: (json['available_qty'] as num?)?.toInt() ?? 0,
-  images:
-      (json['images'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+  media:
+      (json['images'] as List<dynamic>?)
+          ?.map((e) => ProductImage.fromJson(e as Map<String, dynamic>))
+          .toList() ??
       const [],
   variants:
       (json['variants'] as List<dynamic>?)
@@ -55,8 +67,14 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
   'name_en': instance.nameEn,
   'name_ar': instance.nameAr,
   'description': instance.description,
-  'sale_price': instance.salePrice,
-  'compare_at_price': instance.compareAtPrice,
+  'price': instance.price,
+  'discount_type': instance.discountType,
+  'discount_value': instance.discountValue,
+  'discount_starts_at': instance.discountStartsAt?.toIso8601String(),
+  'discount_ends_at': instance.discountEndsAt?.toIso8601String(),
+  'on_sale': instance.onSale,
+  'discounted_price': instance.discountedPrice,
+  'effective_price': instance.effectivePrice,
   'discount_percent': instance.discountPercent,
   'is_negotiable': instance.isNegotiable,
   'floor_price': instance.floorPrice,
@@ -66,6 +84,21 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
   'status': instance.status,
   'in_stock': instance.inStock,
   'available_qty': instance.availableQty,
-  'images': instance.images,
+  'images': instance.media.map((e) => e.toJson()).toList(),
   'variants': instance.variants.map((e) => e.toJson()).toList(),
 };
+
+ProductImage _$ProductImageFromJson(Map<String, dynamic> json) => ProductImage(
+  id: json['id'] as String,
+  url: json['url'] as String,
+  sortOrder: (json['sort_order'] as num).toInt(),
+  isPrimary: json['is_primary'] as bool,
+);
+
+Map<String, dynamic> _$ProductImageToJson(ProductImage instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'url': instance.url,
+      'sort_order': instance.sortOrder,
+      'is_primary': instance.isPrimary,
+    };

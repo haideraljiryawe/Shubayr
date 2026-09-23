@@ -14,15 +14,19 @@ class Category {
     required this.nameEn,
     required this.nameAr,
     this.icon,
+    this.slug,
+    this.imageUrl,
     this.iconKey,
     this.shortDescriptionEn,
     this.shortDescriptionAr,
-    this.image,
+    // Keep the public fixture constructor while exposing remote image_url.
+    CatalogImage? image,
     this.imageManaged = false,
     this.sortOrder = 0,
     this.isActive = true,
     this.children = const [],
-  });
+    // ignore: prefer_initializing_formals
+  }) : _image = image;
 
   final String id;
   @JsonKey(name: 'parent_id')
@@ -31,16 +35,21 @@ class Category {
   final String nameEn;
   @JsonKey(name: 'name_ar')
   final String nameAr;
+  @JsonKey(includeFromJson: false, includeToJson: false)
   final String? icon;
-  // Product-approved Mock extensions, deliberately excluded from API JSON.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  final String? slug;
+  @JsonKey(name: 'image_url')
+  final String? imageUrl;
+  @JsonKey(name: 'icon_key')
   final String? iconKey;
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(name: 'description_en')
   final String? shortDescriptionEn;
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(name: 'description_ar')
   final String? shortDescriptionAr;
   @JsonKey(includeFromJson: false, includeToJson: false)
-  final CatalogImage? image;
+  CatalogImage? get image =>
+      _image ?? (imageUrl == null ? null : UrlCatalogImage(imageUrl!));
+  final CatalogImage? _image;
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool imageManaged;
 
@@ -69,6 +78,8 @@ class Category {
 
   Map<String, dynamic> toMock() => {
     ...toJson(),
+    'icon': icon,
+    'is_active': isActive,
     'mock_icon_key': iconKey,
     'mock_description_en': shortDescriptionEn,
     'mock_description_ar': shortDescriptionAr,
@@ -79,7 +90,7 @@ class Category {
 
   @JsonKey(name: 'sort_order')
   final int sortOrder;
-  @JsonKey(name: 'is_active')
+  @JsonKey(name: 'is_visible')
   final bool isActive;
   final List<Category> children;
 

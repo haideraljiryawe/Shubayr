@@ -1,0 +1,259 @@
+# Changelog
+
+## 5.4.0 - 2026-09-21
+
+### Added
+
+- Permissioned staff order list/detail, pre-dispatch transitions, and audited
+  cancellation endpoints under `/admin/orders`.
+- Explicit `held`, `deducted`, and `released` lifecycle state for checkout stock
+  holds, plus delivered COD payment reconciliation and audit records.
+
+### Changed
+
+- Canonical order statuses now use `preparing`, `ready_for_dispatch`,
+  `dispatched`, and `failed`; dispatch reuses the checkout-created delivery and
+  the existing delivery-agent assignment flow.
+
+## 5.3.0 - 2026-09-21
+
+### Added
+
+- `ProductPatch.variants[].id`: an optional stable handle that lets a product
+  update rename a variant SKU without the variant losing its identity.
+
+### Changed
+
+- Public product reads now apply effective category visibility, so a hidden
+  category hides its whole descendant subtree even when `?category_id=` names
+  a visible child. Staff and admin reads are unchanged.
+- A product update reconciles its variants in place instead of deleting and
+  recreating them, so variant ids survive an edit. Removing a variant that
+  inventory, cart, purchasing or order history still references is now
+  rejected with 422 instead of failing as a 500.
+- PATCH validation runs against the merged stored+incoming product state: a
+  partial amount-discount update no longer demands a `price` that is already
+  stored, and an explicit null on a non-nullable field returns 422 rather
+  than reaching the database as a 500.
+- `contact_phone` is trimmed before storage and must be an E.164 number on
+  both address create and PATCH; blank, whitespace-only and malformed values
+  are rejected with 422.
+
+### Fixed
+
+- `schema.prisma` now declares `onUpdate: NoAction` on the nine relations that
+  omitted it, matching the migrations, `infra/db/schema.sql` and the migrated
+  database. A from-scratch migrate reports zero drift, and CI gates it with
+  `npm run prisma:drift-check`.
+- Regenerated the web OpenAPI client types, which were still pinned to the 4.x
+  contract, and corrected the return-status map and per-line return reason the
+  stale types were masking.
+
+## 5.2.0 - 2026-09-20
+
+### Added
+
+- Account-owned device registration and deactivation, per-type/channel notification
+  preferences, and paginated notification history.
+- Transactional notification outbox, BullMQ fan-out worker, bilingual templates,
+  development push/SMS drivers, and audited token and preference changes.
+- Notification attempt history and a disposable-database worker acceptance suite.
+
+### Changed
+
+- Order, delivery, return, loyalty earn, and review moderation events now write
+  notification outbox records in their domain transactions.
+
+## 5.1.0 - 2026-09-20
+
+### Added
+
+- Verified-purchase product review creation, owner edits/deletes, staff moderation,
+  and published-only public review reads.
+- One-review-per-order-line constraint, persisted reviewed flag, moderation
+  metadata, and a published-review count beside the reconciled rating average.
+- Seeded approved and pending reviews plus disposable-database acceptance tests.
+
+### Changed
+
+- Product rating average and count are recomputed from published review rows
+  in the same transaction as each review mutation.
+
+## 5.0.0 - 2026-09-20
+
+### Added
+
+- Append-only loyalty points ledger with balance derived from entries, earn-on-delivery,
+  customer redemption, staff reads and audited manual adjustments.
+- Admin validation and audit records for the existing negotiable product floor and
+  points-price fields; customer negotiation remains data-only.
+
+### Changed
+
+- Removed the mutable loyalty-account balance. Existing cached balances are
+  reconciled into ledger adjustments during migration.
+
+## 4.9.0 - 2026-09-20
+
+### Added
+
+- Customer line-level partial return requests, staff return queue and per-line
+  condition review, and a reviewed-return completion endpoint.
+- Sellable return stock movements tied to return lines and a COD refund
+  obligation ledger calculated from immutable order-line price snapshots.
+- A completed partial-return seed example and disposable-database acceptance
+  coverage for eligibility, restock, refund rounding, and audit entries.
+
+## 4.8.0 - 2026-09-20
+
+### Added
+
+- Staff delivery listing and assignment, agent-scoped delivery transitions,
+  and customer delivery ratings on real PostgreSQL.
+- A unique delivery-rating constraint and seeded assigned, dispatched,
+  delivered, and failed deliveries with two delivery agents.
+
+### Changed
+
+- Delivery status changes now advance order status and tracking events in the
+  same transaction; failed and returned deliveries are terminal.
+
+## 4.7.1 - 2026-09-20
+
+### Added
+
+- Four idempotently seeded customer orders (pending, confirmed,
+  out_for_delivery, delivered), with immutable snapshots, delivery records,
+  timeline events, and a reviewed delivered item.
+- `DEV10` development coupon and a 79-assertion COD checkout HTTP acceptance
+  test, run alongside the existing 34-assertion catalog acceptance test in CI.
+
+### Fixed
+
+- `POST /orders/{id}/cancel` now returns the contract's HTTP 200 instead of
+  Nest's default 201.
+
+## 4.7.0 - 2026-09-20
+
+### Added
+
+- COD checkout from the server cart, with immutable catalog/address snapshots,
+  per-customer idempotency, a minimal delivery record, and a tracked status
+  timeline.
+- User-scoped paginated order reads, tracking, cancellation, and staff-guarded
+  status transitions.
+- Owned address CRUD, including first/default-address behavior, to make the
+  checkout address selection usable.
+- Temporary product/variant sellable-stock holds, released on cancellation.
+  FEFO batch reservation and picking remain in the inventory slice.
+
+### Changed
+
+- Order placement now reduces sellable stock immediately; confirmation no longer
+  claims to perform FEFO allocation. The OpenAPI status rules and errors match
+  the implemented HTTP behavior.
+- Deleting an address clears the order's optional address reference while
+  preserving immutable delivery snapshots.
+
+## 4.6.0 - 2026-09-19
+
+### Added
+
+- Authenticated, user-scoped server carts with server-time product repricing,
+  stock-aware quantity validation, coupon application, and complete cart totals.
+- Documented guest-cart replay/merge seam after login.
+
+### Changed
+
+- Cart responses now include line totals, availability, coupon discount,
+  delivery fee, and grand total under the shared two-decimal money policy.
+
+## 4.5.0 - 2026-09-18
+
+### Added
+
+- Idempotent development seed with all six roles, loggable accounts, eight
+  bilingual departments, subcategories, 32 stocked products, variants,
+  server-time discounts, durable MinIO images, and banners.
+- Automated real-PostgreSQL/MinIO acceptance coverage for the admin-to-public
+  catalog path and customer/guest RBAC denial.
+
+### Changed
+
+- The full Docker profile now provisions databases exclusively with Prisma
+  Migrate, seeds on API boot, and exposes one API URL for web and mobile.
+- The production start command now targets the actual compiled NestJS entry
+  point, and the API allows configured web origins through CORS.
+
+## 4.4.0 - 2026-09-18
+
+### Added
+
+- PostgreSQL-backed public active-banner reads and permission-protected banner
+  administration with durable managed media, deterministic display order, and
+  server-time schedule enforcement.
+
+### Changed
+
+- Banner PATCH now has an explicit partial-update contract: omitted fields are
+  preserved and nullable fields can be cleared with `null`.
+
+## 4.3.0 - 2026-09-18
+
+### Added
+
+- PostgreSQL-backed public category/product reads and permission-protected
+  category/product administration, including hierarchy enforcement, variants,
+  atomic ordered media operations, search/filter/sort, availability, and
+  server-time effective pricing.
+- Admin product list/detail reads for hidden and archived catalog records.
+
+## 4.2.0 - 2026-09-18
+
+### Added
+
+- Durable validated image uploads to S3-compatible storage, stable public API
+  media URLs, persisted upload metadata, and protected deletion of unassociated
+  objects.
+- MinIO with a persistent Docker volume for local development.
+
+## 4.1.0 - 2026-09-18
+
+### Added
+
+- Database-backed phone OTP login, access/rotating refresh JWTs, current-user
+  reads and updates, and development-only fixed OTP support.
+- Runtime RBAC identity is loaded from the seeded role/permission tables for
+  every authenticated request.
+
+## 4.0.0 - 2026-09-18
+
+### Breaking
+
+- Address writes now require a string `contact_phone`; the former client-side
+  account-phone toggle is not part of the API contract.
+- Orders now expose immutable checkout address/contact snapshots and a current
+  `delivery_id`.
+
+### Added
+
+- Customer return listing, reviewed order-item signal, customer-owned delivery
+  rating rules, and persisted notification preferences.
+
+## 3.0.0 - 2026-09-18
+
+### Breaking
+
+- Replaced category `icon`/`is_active` with semantic `icon_key`/`is_visible`,
+  and added localized descriptions plus a separate category image.
+- Product image responses are ordered objects; product PATCH media changes use
+  explicit add/remove/replace/move operations.
+
+## 2.0.0 - 2026-09-18
+
+### Breaking
+
+- Standardized every JSON error as `status`, `code`, `message`, and field-level
+  `errors`; request validation now consistently returns HTTP 422.
+- Defined PATCH omission-versus-null behavior and made product updates partial.
+- Standardized money at two decimal places with half-away-from-zero rounding.

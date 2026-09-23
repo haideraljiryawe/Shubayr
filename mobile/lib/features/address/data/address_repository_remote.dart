@@ -1,4 +1,6 @@
 import '../../../core/network/api_client.dart';
+import '../../../core/error/failure.dart';
+import '../../../core/utils/validators.dart';
 import '../domain/address_repository.dart';
 import 'address.dart';
 
@@ -8,11 +10,11 @@ class AddressRepositoryRemote implements AddressRepository {
   final ApiClient _api;
 
   Map<String, dynamic> _payload(AddressInput input) {
-    // Do not silently discard a delivery contact or send an invented API field.
-    if (input.contactPhone != null) {
-      throw UnsupportedError('Address contact_phone requires backend support');
+    final phone = Validators.normalizePhone(input.contactPhone ?? '');
+    if (!Validators.isE164Phone(phone)) {
+      throw const AppFailure(FailureKind.validation);
     }
-    return input.toJson();
+    return {...input.toJson(), 'contact_phone': phone};
   }
 
   @override

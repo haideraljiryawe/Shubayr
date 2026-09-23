@@ -5,9 +5,8 @@ import 'package:dio/dio.dart';
 /// `GET /settings`, `/categories`, `/products` and the OTP endpoints are
 /// declared `security: []` in the contract, so a missing token is not an error.
 ///
-/// There is deliberately no refresh-on-401 logic: `api/openapi.yaml` defines
-/// no refresh endpoint. A 401 propagates as [FailureKind.unauthorized] and the
-/// session layer signs the user out.
+/// Refresh-token rotation is not wired into this interceptor yet. A 401
+/// propagates as unauthorized and the session layer signs the user out.
 class AuthInterceptor extends Interceptor {
   AuthInterceptor({required this.readToken, required this.onUnauthorized});
 

@@ -73,6 +73,9 @@ class AdminOrdersController extends AsyncNotifier<AdminOrdersState> {
   }
 
   void _require(String permission) {
+    if (ref.read(dataSourceProvider) == DataSource.remote) {
+      permission = Permissions.ordersManage;
+    }
     if (!adminCan(ref, permission)) throw const AppFailure.unauthorized();
   }
 
@@ -203,7 +206,10 @@ class AdminOrdersController extends AsyncNotifier<AdminOrdersState> {
     _require(Permissions.ordersView);
     // OpenAPI assigns every status update, including confirmation, to this key.
     _require(Permissions.ordersUpdate);
-    if (!adminOrderStatuses.contains(status)) {
+    if (!(ref.read(dataSourceProvider) == DataSource.remote
+            ? remoteStaffOrderStatuses
+            : adminOrderStatuses)
+        .contains(status)) {
       throw const AppFailure(FailureKind.validation);
     }
     final current = state.value;

@@ -2,6 +2,35 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'order.g.dart';
 
+const remoteOrderStatuses = [
+  'pending',
+  'confirmed',
+  'preparing',
+  'ready_for_dispatch',
+  'dispatched',
+  'delivered',
+  'failed',
+  'cancelled',
+  'return_requested',
+  'returned',
+];
+const remoteStaffOrderStatuses = [
+  'confirmed',
+  'preparing',
+  'ready_for_dispatch',
+  'dispatched',
+];
+
+/// Fulfilment transitions verified against the orders service; delivery and
+/// return outcomes are owned by their respective workflows.
+List<String> remoteStaffNextStatuses(String status) => switch (status) {
+  'pending' => ['confirmed'],
+  'confirmed' => ['preparing'],
+  'preparing' => ['ready_for_dispatch'],
+  'ready_for_dispatch' => ['dispatched'],
+  _ => [],
+};
+
 /// A placed order. Shapes match `Order` in `api/openapi.yaml`. Amounts are
 /// computed by the server (subtotal, delivery fee, discount, total); the client
 /// only sends the address and an optional coupon.

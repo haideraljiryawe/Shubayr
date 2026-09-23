@@ -38,9 +38,17 @@ class Product {
     required this.nameEn,
     required this.nameAr,
     this.description = '',
-    this.salePrice = 0,
-    this.compareAtPrice,
+    this.price = 0,
+    this.discountType,
+    this.discountValue,
+    this.discountStartsAt,
+    this.discountEndsAt,
+    this.onSale = false,
+    this.discountedPrice,
+    num? effectivePrice,
     this.discountPercent,
+    num? salePrice,
+    num? compareAtPrice,
     this.isNegotiable = false,
     this.floorPrice,
     this.pointsPrice,
@@ -49,10 +57,14 @@ class Product {
     this.status = 'active',
     this.inStock = true,
     this.availableQty = 0,
-    this.images = const [],
+    List<String> images = const [],
+    this.media = const [],
     this.mockImages,
     this.variants = const [],
-  });
+  }) : _fixtureImages = images,
+       effectivePrice = effectivePrice ?? salePrice ?? price,
+       _legacySalePrice = salePrice,
+       _legacyCompareAtPrice = compareAtPrice;
 
   final String id;
   @JsonKey(name: 'category_id')
@@ -62,19 +74,42 @@ class Product {
   @JsonKey(name: 'name_ar')
   final String nameAr;
   final String description;
-  @JsonKey(name: 'sale_price')
-  final num salePrice;
-  @JsonKey(name: 'compare_at_price')
-  final num? compareAtPrice;
+  final num price;
+  @JsonKey(name: 'discount_type')
+  final String? discountType;
+  @JsonKey(name: 'discount_value')
+  final num? discountValue;
+  @JsonKey(name: 'discount_starts_at')
+  final DateTime? discountStartsAt;
+  @JsonKey(name: 'discount_ends_at')
+  final DateTime? discountEndsAt;
+  @JsonKey(name: 'on_sale')
+  final bool onSale;
+  @JsonKey(name: 'discounted_price')
+  final num? discountedPrice;
+  @JsonKey(name: 'effective_price')
+  final num effectivePrice;
   @JsonKey(name: 'discount_percent')
   final int? discountPercent;
 
+  // Keep direct constructors used by the mock layer source-compatible while
+  // remote reads use the scheduled-discount contract above.
+  final num? _legacySalePrice;
+  final num? _legacyCompareAtPrice;
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  num get salePrice => _legacySalePrice ?? effectivePrice;
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  num? get compareAtPrice => _legacyCompareAtPrice ?? (onSale ? price : null);
+
   bool get isOnSale =>
-      compareAtPrice != null &&
-      compareAtPrice!.isFinite &&
-      salePrice.isFinite &&
-      compareAtPrice! > 0 &&
-      compareAtPrice! > salePrice;
+      onSale ||
+      (_legacyCompareAtPrice != null &&
+          _legacyCompareAtPrice.isFinite &&
+          salePrice.isFinite &&
+          _legacyCompareAtPrice > 0 &&
+          _legacyCompareAtPrice > salePrice);
 
   /// Contract calculation for mock responses; remote percentages remain read-only.
   static int? discountPercentFor(num sale, num? original) =>
@@ -100,16 +135,59 @@ class Product {
   final bool inStock;
   @JsonKey(name: 'available_qty')
   final int availableQty;
-  final List<String> images;
+  final List<String> _fixtureImages;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<String> get images => media.isEmpty
+      ? _fixtureImages
+      : orderedMedia.map((image) => image.url).toList(growable: false);
+  @JsonKey(name: 'images')
+  final List<ProductImage> media;
+  List<ProductImage> get orderedMedia =>
+      [...media]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
   @JsonKey(includeFromJson: false, includeToJson: false)
   final List<CatalogImage>? mockImages;
   List<CatalogImage> get displayImages =>
       mockImages ?? images.map(UrlCatalogImage.new).toList(growable: false);
 
-  factory Product.fromMock(Map<String, dynamic> json) => Product.fromJson(
-    json,
-  ).copyWith(mockImages: (json['mock_images'] as List?)?.cast<CatalogImage>());
-  Map<String, dynamic> toMock() => {...toJson(), 'mock_images': mockImages};
+  /// Legacy prices and URL-only galleries exist only in the in-memory fixtures.
+  /// Remote decoding never passes through this conversion.
+  factory Product.fromMock(Map<String, dynamic> json) {
+    final hasSchedule =
+        json['discount_starts_at'] != null || json['discount_ends_at'] != null;
+    final sale = hasSchedule
+        ? null
+        : json['sale_price'] as num? ??
+              (json.containsKey('compare_at_price')
+                  ? json['effective_price'] as num? ?? json['price'] as num?
+                  : null);
+    final original = json['compare_at_price'] as num?;
+    final discounted = sale != null && original != null && original > sale;
+    return Product.fromJson({
+      ...json,
+      'images': <dynamic>[],
+      if (sale != null) ...{
+        'price': discounted ? original : sale,
+        'discount_type': discounted ? 'amount' : null,
+        'discount_value': discounted ? original - sale : null,
+        'on_sale': discounted,
+        'discounted_price': discounted ? sale : null,
+        'effective_price': sale,
+      },
+    }).copyWith(
+      images: [
+        for (final image in json['images'] as List? ?? [])
+          image is String ? image : (image as Map)['url'] as String,
+      ],
+      mockImages: (json['mock_images'] as List?)?.cast<CatalogImage>(),
+    );
+  }
+  Map<String, dynamic> toMock() => {
+    ...toJson(),
+    'sale_price': salePrice,
+    'compare_at_price': compareAtPrice,
+    'images': images,
+    'mock_images': mockImages,
+  };
   final List<ProductVariant> variants;
 
   /// The name for the active language, falling back to the other side.
@@ -135,9 +213,17 @@ class Product {
         nameEn: nameEn,
         nameAr: nameAr,
         description: description,
-        salePrice: salePrice,
-        compareAtPrice: compareAtPrice,
+        price: price,
+        discountType: discountType,
+        discountValue: discountValue,
+        discountStartsAt: discountStartsAt,
+        discountEndsAt: discountEndsAt,
+        onSale: onSale,
+        discountedPrice: discountedPrice,
+        effectivePrice: effectivePrice,
         discountPercent: discountPercent,
+        salePrice: _legacySalePrice,
+        compareAtPrice: _legacyCompareAtPrice,
         isNegotiable: isNegotiable,
         floorPrice: floorPrice,
         pointsPrice: pointsPrice,
@@ -146,7 +232,8 @@ class Product {
         status: status,
         inStock: inStock,
         availableQty: availableQty,
-        images: images ?? this.images,
+        images: images ?? _fixtureImages,
+        media: images == null ? media : const [],
         mockImages: mockImages ?? this.mockImages,
         variants: variants,
       );
@@ -154,5 +241,60 @@ class Product {
   factory Product.fromJson(Map<String, dynamic> json) =>
       _$ProductFromJson(json);
 
-  Map<String, dynamic> toJson() => _$ProductToJson(this);
+  Map<String, dynamic> toJson() {
+    final json = _$ProductToJson(this);
+    if (_fixtureImages.isNotEmpty && media.isEmpty) {
+      json['images'] = [
+        for (final (i, url) in _fixtureImages.indexed)
+          {
+            'id': 'mock-image-$i',
+            'url': url,
+            'sort_order': i,
+            'is_primary': i == 0,
+          },
+      ];
+    }
+    if (_legacySalePrice == null ||
+        discountType != null ||
+        discountStartsAt != null ||
+        discountEndsAt != null) {
+      return json;
+    }
+
+    final original = _legacyCompareAtPrice;
+    final discounted = isOnSale;
+    json
+      ..['price'] = discounted ? original : salePrice
+      ..['discount_type'] = discounted ? 'amount' : null
+      ..['discount_value'] = discounted ? original! - salePrice : null
+      ..['discount_starts_at'] = null
+      ..['discount_ends_at'] = null
+      ..['on_sale'] = discounted
+      ..['discounted_price'] = discounted ? salePrice : null
+      ..['effective_price'] = salePrice
+      ..['discount_percent'] = discounted
+          ? discountPercent ?? discountPercentFor(salePrice, original)
+          : null;
+    return json;
+  }
+}
+
+/// Stable image identity is retained for atomic PATCH media operations.
+@JsonSerializable()
+class ProductImage {
+  const ProductImage({
+    required this.id,
+    required this.url,
+    required this.sortOrder,
+    required this.isPrimary,
+  });
+  final String id;
+  final String url;
+  @JsonKey(name: 'sort_order')
+  final int sortOrder;
+  @JsonKey(name: 'is_primary')
+  final bool isPrimary;
+  factory ProductImage.fromJson(Map<String, dynamic> json) =>
+      _$ProductImageFromJson(json);
+  Map<String, dynamic> toJson() => _$ProductImageToJson(this);
 }

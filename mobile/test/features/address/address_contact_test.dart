@@ -251,31 +251,32 @@ void main() {
     }
   }
 
-  testWidgets(
-    'remote mode explains unsupported contact and cannot claim a save',
-    (tester) async {
-      // Use an explicitly remote configuration without issuing network requests.
-      final remote = ProviderContainer(
-        overrides: [
-          dataSourceProvider.overrideWithValue(DataSource.remote),
-          sessionControllerProvider.overrideWith(AddressTestSession.new),
-          addressRepositoryProvider.overrideWithValue(RecordingAddresses()),
-        ],
-      );
-      addTearDown(remote.dispose);
-      await remote.read(sessionControllerProvider.future);
-      await tester.pumpWidget(_host(remote));
-      await _open(tester);
-      expect(
-        find.text(
-          'Saving a contact phone is not available in the service yet.',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
-        isNull,
-      );
-    },
-  );
+  testWidgets('remote mode accepts normalized international delivery contacts', (
+    tester,
+  ) async {
+    // Use an explicitly remote configuration without issuing network requests.
+    final repo = RecordingAddresses();
+    final remote = ProviderContainer(
+      overrides: [
+        dataSourceProvider.overrideWithValue(DataSource.remote),
+        sessionControllerProvider.overrideWith(AddressTestSession.new),
+        addressRepositoryProvider.overrideWithValue(repo),
+      ],
+    );
+    addTearDown(remote.dispose);
+    await remote.read(sessionControllerProvider.future);
+    await tester.pumpWidget(_host(remote));
+    await _open(tester);
+    await tester.enterText(find.byType(TextFormField).at(1), 'Baghdad');
+    await _save(tester);
+    expect(
+      repo.created,
+      isEmpty,
+    ); // local account number needs explicit country code
+    await _tap(tester, other);
+    await tester.enterText(otherField, '(+٩٦٤) ٧٨١ ٢٣٤-٥٦٧٨');
+    await _save(tester);
+    expect(repo.created.single.contactPhone, '+9647812345678');
+    expect(find.byType(AddressFormScreen), findsNothing);
+  });
 }

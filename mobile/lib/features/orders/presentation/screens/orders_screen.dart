@@ -1,3 +1,4 @@
+import '../../../../core/config/app_config.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,6 +61,9 @@ class OrdersScreen extends ConsumerWidget {
         children: [
           _StatusFilterBar(
             selected: status,
+            statuses: ref.watch(dataSourceProvider) == DataSource.remote
+                ? remoteOrderStatuses
+                : _filterStatuses,
             onSelected: (value) =>
                 ref.read(orderStatusFilterProvider.notifier).state = value,
           ),
@@ -141,8 +145,13 @@ class OrdersScreen extends ConsumerWidget {
 /// Horizontal, scrollable status filter — "All" plus a chip per status, each
 /// carrying the same icon and colour it has in the order cards.
 class _StatusFilterBar extends StatelessWidget {
-  const _StatusFilterBar({required this.selected, required this.onSelected});
+  const _StatusFilterBar({
+    required this.selected,
+    required this.onSelected,
+    required this.statuses,
+  });
 
+  final List<String> statuses;
   final String? selected;
   final ValueChanged<String?> onSelected;
 
@@ -158,7 +167,7 @@ class _StatusFilterBar extends StatelessWidget {
         colors.textSecondary,
         l10n.ordersFilterAll,
       ),
-      for (final s in _filterStatuses)
+      for (final s in statuses)
         (
           s,
           orderStatusIcon(s),

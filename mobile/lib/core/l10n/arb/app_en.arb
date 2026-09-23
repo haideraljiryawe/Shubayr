@@ -695,5 +695,18 @@
   "mediaMainCategoryGuidance": "Use a landscape photo with the subject in the center. The crop ratio changes with the card width.",
   "mediaSubcategoryGuidance": "Saved for future use. Current subcategory tiles show the icon, so no photo ratio is required yet.",
   "adminViewSubcategories": "View subcategories",
-  "adminRetainedProductCategory": "The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it."
+  "adminRetainedProductCategory": "The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it.",
+  "adminDiscountType": "Discount type",
+  "adminDiscountNone": "No discount",
+  "adminDiscountPercentage": "Percentage",
+  "adminDiscountAmount": "Fixed amount",
+  "adminDiscountValue": "Discount value",
+  "adminDiscountStartsAt": "Discount starts",
+  "adminDiscountEndsAt": "Discount ends",
+  "adminDiscountDateHint": "Optional; UTC example: 2026-10-01T09:00:00Z",
+  "adminDiscountDateInvalid": "Enter a valid date and time with timezone, e.g. 2026-10-01T09:00:00Z",
+  "adminCategorySlug": "Category URL slug",
+  "addressInternationalPhoneHint": "Use an international number starting with + and country code; no country code is added automatically.",
+  "mediaUploadHint": "Images upload when saved. JPEG, PNG, WebP or AVIF, up to 8 MiB per image.",
+  "orderStatusReadyForDispatch": "Ready for dispatch"
 }

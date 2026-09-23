@@ -1,6 +1,6 @@
 {
   "name": "shubayr-backend",
-  "version": "0.1.0",
+  "version": "4.7.1",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -12,8 +12,8 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main.js",
-    "lint": "eslint \"{src,test}/**/*.ts\"",
+    "start:prod": "node dist/src/main.js",
+    "lint": "eslint \"{src,test}/**/*.ts\" \"prisma/seed.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
@@ -21,9 +21,14 @@
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
-    "prisma:migrate:deploy": "prisma migrate deploy"
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:drift-check": "prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script --exit-code",
+    "seed": "ts-node --transpile-only prisma/seed.ts",
+    "test:acceptance": "node test/run-acceptance.mjs",
+    "db:drop-verify": "node scripts/drop-verify-dbs.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1135.0",
     "@nestjs/bullmq": "^12.0.0",
     "@nestjs/common": "^11.2.3",
     "@nestjs/config": "^12.0.0",
@@ -39,6 +44,7 @@
     "bullmq": "^6.3.4",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "ioredis": "^5.11.1",
     "joi": "^18.2.8",
     "meilisearch": "^0.60.0",
     "nestjs-pino": "^5.1.0",

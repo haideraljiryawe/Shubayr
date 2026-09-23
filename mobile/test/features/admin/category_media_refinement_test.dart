@@ -122,7 +122,10 @@ void main() {
       final selected = product.copyWith(mockImages: [local, next]);
       expect(selected.primaryDisplayImage, same(local));
       expect(selected.displayImages, [local, next]);
-      expect(selected.toJson()['images'], [old]);
+      expect(
+        (selected.toJson()['images'] as List).map((image) => image['url']),
+        [old],
+      );
       expect(selected.toJson().containsKey('mock_images'), isFalse);
       final promoted = selected.copyWith(mockImages: [next]);
       expect(promoted.primaryDisplayImage, same(next));
@@ -316,7 +319,7 @@ void main() {
         query: 'Needle',
         page: 3,
       );
-      expect(request.path, '/products');
+      expect(request.path, '/admin/products');
       expect(request.queryParameters, {
         'page': 3,
         'per_page': 20,

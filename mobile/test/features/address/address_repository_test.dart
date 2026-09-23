@@ -8,7 +8,7 @@ import 'package:shubayr/features/address/data/address_repository_remote.dart';
 
 void main() {
   test(
-    'Mock requires and normalizes an actual contact; API serialization remains unchanged',
+    'Mock requires and normalizes an actual contact; API serialization includes the contact',
     () async {
       final repo = AddressRepositoryMock(delay: Duration.zero);
       for (final phone in [null, '', 'bad']) {
@@ -31,7 +31,7 @@ void main() {
       );
       expect(saved.contactPhone, '07812345678');
       expect(saved.toInput().contactPhone, saved.contactPhone);
-      expect(saved.toInput().toJson().containsKey('contact_phone'), isFalse);
+      expect(saved.toInput().toJson()['contact_phone'], '07812345678');
       expect(
         Address.fromJson({'id': 'legacy', 'city': 'Baghdad'}).contactPhone,
         isNull,
@@ -44,7 +44,7 @@ void main() {
   );
 
   test(
-    'remote rejects unsupported contact writes before sending any request',
+    'remote rejects local numbers without inventing a country code',
     () async {
       var requests = 0;
       final dio = Dio()
@@ -59,10 +59,13 @@ void main() {
       addTearDown(dio.close);
       final remote = AddressRepositoryRemote(ApiClient(dio));
       const input = AddressInput(city: 'Baghdad', contactPhone: '07700000000');
-      await expectLater(remote.createAddress(input), throwsUnsupportedError);
+      await expectLater(
+        remote.createAddress(input),
+        throwsA(isA<AppFailure>()),
+      );
       await expectLater(
         remote.updateAddress('a', input),
-        throwsUnsupportedError,
+        throwsA(isA<AppFailure>()),
       );
       expect(requests, 0);
     },

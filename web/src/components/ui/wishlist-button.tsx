@@ -4,20 +4,25 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useIsWishlisted } from "@/lib/use-wishlist";
+import { wishlistStore } from "@/lib/wishlist-store";
 import { IconButton } from "./icon-button";
 
 /**
- * The heart that sits on every product tile. Uncontrolled by default so the
- * style guide and card grids can drop it in; pass `active`/`onToggle` to bind
- * it to real wishlist state later.
+ * Product hearts read the shared wishlist store, so every heart for the same
+ * product — grid tile, product page, wishlist page — stays in step, and a
+ * signed-in shopper's taps reach the account. A button with no `productId` is
+ * a standalone example (the style guide) and keeps its own local state.
  */
 export function WishlistButton({
+  productId,
   active,
   defaultActive = false,
   onToggle,
   size = "md",
   className,
 }: {
+  productId?: string;
   active?: boolean;
   defaultActive?: boolean;
   onToggle?: (next: boolean) => void;
@@ -26,7 +31,8 @@ export function WishlistButton({
 }) {
   const t = useTranslations("common");
   const [internal, setInternal] = useState(defaultActive);
-  const isActive = active ?? internal;
+  const saved = useIsWishlisted(productId);
+  const isActive = active ?? (productId ? saved : internal);
 
   return (
     <IconButton
@@ -35,7 +41,10 @@ export function WishlistButton({
       size={size}
       onClick={() => {
         const next = !isActive;
-        if (active === undefined) setInternal(next);
+        if (active === undefined) {
+          if (productId) wishlistStore.toggle(productId);
+          else setInternal(next);
+        }
         onToggle?.(next);
       }}
       className={cn("shadow-sm", className)}

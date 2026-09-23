@@ -3313,6 +3313,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it.'**
   String get adminRetainedProductCategory;
+
+  /// No description provided for @adminDiscountType.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount type'**
+  String get adminDiscountType;
+
+  /// No description provided for @adminDiscountNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No discount'**
+  String get adminDiscountNone;
+
+  /// No description provided for @adminDiscountPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Percentage'**
+  String get adminDiscountPercentage;
+
+  /// No description provided for @adminDiscountAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed amount'**
+  String get adminDiscountAmount;
+
+  /// No description provided for @adminDiscountValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount value'**
+  String get adminDiscountValue;
+
+  /// No description provided for @adminDiscountStartsAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount starts'**
+  String get adminDiscountStartsAt;
+
+  /// No description provided for @adminDiscountEndsAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount ends'**
+  String get adminDiscountEndsAt;
+
+  /// No description provided for @adminDiscountDateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional; UTC example: 2026-10-01T09:00:00Z'**
+  String get adminDiscountDateHint;
+
+  /// No description provided for @adminDiscountDateInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid date and time with timezone, e.g. 2026-10-01T09:00:00Z'**
+  String get adminDiscountDateInvalid;
+
+  /// No description provided for @adminCategorySlug.
+  ///
+  /// In en, this message translates to:
+  /// **'Category URL slug'**
+  String get adminCategorySlug;
+
+  /// No description provided for @addressInternationalPhoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use an international number starting with + and country code; no country code is added automatically.'**
+  String get addressInternationalPhoneHint;
+
+  /// No description provided for @mediaUploadHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Images upload when saved. JPEG, PNG, WebP or AVIF, up to 8 MiB per image.'**
+  String get mediaUploadHint;
+
+  /// No description provided for @orderStatusReadyForDispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready for dispatch'**
+  String get orderStatusReadyForDispatch;
 }
 
 class _AppLocalizationsDelegate

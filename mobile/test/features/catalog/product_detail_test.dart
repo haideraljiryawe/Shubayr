@@ -46,7 +46,12 @@ class _FakeCatalog implements CatalogRepository {
   Future<Product> fetchProduct(String id) async => promotion
       ? Product.fromJson({
           ..._product.toJson(),
-          'compare_at_price': 20000,
+          'price': 20000,
+          'discount_type': 'percentage',
+          'discount_value': 50,
+          'on_sale': true,
+          'discounted_price': 10000,
+          'effective_price': 10000,
           'discount_percent': 50,
         })
       : _product;

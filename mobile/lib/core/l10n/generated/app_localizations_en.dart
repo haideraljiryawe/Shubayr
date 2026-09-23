@@ -1693,4 +1693,47 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get adminRetainedProductCategory =>
       'The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it.';
+
+  @override
+  String get adminDiscountType => 'Discount type';
+
+  @override
+  String get adminDiscountNone => 'No discount';
+
+  @override
+  String get adminDiscountPercentage => 'Percentage';
+
+  @override
+  String get adminDiscountAmount => 'Fixed amount';
+
+  @override
+  String get adminDiscountValue => 'Discount value';
+
+  @override
+  String get adminDiscountStartsAt => 'Discount starts';
+
+  @override
+  String get adminDiscountEndsAt => 'Discount ends';
+
+  @override
+  String get adminDiscountDateHint =>
+      'Optional; UTC example: 2026-10-01T09:00:00Z';
+
+  @override
+  String get adminDiscountDateInvalid =>
+      'Enter a valid date and time with timezone, e.g. 2026-10-01T09:00:00Z';
+
+  @override
+  String get adminCategorySlug => 'Category URL slug';
+
+  @override
+  String get addressInternationalPhoneHint =>
+      'Use an international number starting with + and country code; no country code is added automatically.';
+
+  @override
+  String get mediaUploadHint =>
+      'Images upload when saved. JPEG, PNG, WebP or AVIF, up to 8 MiB per image.';
+
+  @override
+  String get orderStatusReadyForDispatch => 'Ready for dispatch';
 }

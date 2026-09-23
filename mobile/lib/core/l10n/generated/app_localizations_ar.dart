@@ -1680,4 +1680,47 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get adminRetainedProductCategory =>
       'التصنيف الحالي محفوظ، لكنه غير متاح للإسناد الجديد. يمكنك إبقاؤه لهذا المنتج أو اختيار قسم فرعي لتغييره.';
+
+  @override
+  String get adminDiscountType => 'نوع الخصم';
+
+  @override
+  String get adminDiscountNone => 'بدون خصم';
+
+  @override
+  String get adminDiscountPercentage => 'نسبة مئوية';
+
+  @override
+  String get adminDiscountAmount => 'مبلغ ثابت';
+
+  @override
+  String get adminDiscountValue => 'قيمة الخصم';
+
+  @override
+  String get adminDiscountStartsAt => 'بداية الخصم';
+
+  @override
+  String get adminDiscountEndsAt => 'نهاية الخصم';
+
+  @override
+  String get adminDiscountDateHint =>
+      'اختياري؛ مثال بتوقيت UTC: 2026-10-01T09:00:00Z';
+
+  @override
+  String get adminDiscountDateInvalid =>
+      'أدخل تاريخًا ووقتًا صالحين مع المنطقة الزمنية، مثل 2026-10-01T09:00:00Z';
+
+  @override
+  String get adminCategorySlug => 'معرّف رابط القسم';
+
+  @override
+  String get addressInternationalPhoneHint =>
+      'أدخل رقمًا دوليًا يبدأ بـ + ورمز البلد؛ لا يُضاف رمز البلد تلقائيًا.';
+
+  @override
+  String get mediaUploadHint =>
+      'تُرفع الصور عند الحفظ. JPEG وPNG وWebP وAVIF، بحد أقصى 8 MiB للصورة.';
+
+  @override
+  String get orderStatusReadyForDispatch => 'جاهز للإرسال';
 }

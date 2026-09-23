@@ -6,7 +6,7 @@
 - Shared contract: `api/openapi.yaml` synchronized byte-for-byte from `origin/main` at `f458690` (latest contract-changing commit: `89c9120`). OpenAPI still reports **1.1.0**, so the commit is part of the baseline; version alone does not identify the reviewed changes.
 - Current focus: **R3 — Home banners, implemented with mock data; manual acceptance pending**. R2 customer/admin promotions are complete and manually accepted on 2026-09-11. R1 order-item snapshots are complete and manually accepted on 2026-09-10. B3a name/email editing is complete and manually accepted on 2026-09-10. Phase 3 admin foundation still awaits manual/design acceptance; admin orders are complete.
 - Delivery status Chips **B11** is ready; own name/email editing **B3a** is complete and manually accepted. R1 is complete and manually accepted; R2 is complete and manually accepted; **R3 home** is implemented with manual acceptance pending; **R3 admin and R4** remain ready client adaptations. Contract receipt alone does not complete them.
-- Main remaining dependencies: B1, B2, B3b, B4, B5, B6, B7, B8, B10, B12 and B13. B9 has an upstream CI fix awaiting local adoption and verification.
+- Main remaining dependencies: B1, B2, B3b, B4, B5, B6, B7, B8, B10, B12 and B13. The B9 CI fix is incorporated; verification of the integrated branch and branch protection remains.
 - Source changes, scope of synchronization and per-item decisions: [contract synchronization log](docs/contract-sync-log.md). No backend/web code, database migration, CI change or new UI feature was applied during this documentation sync.
 
 ## Reading and maintaining task status
@@ -102,7 +102,7 @@ Integration of a ready feature can be brought forward when a live environment is
 - [x] Isolate personal iOS signing-team selection in a local setting excluded from Git; this is development configuration, not proof of release readiness.
 - [ ] Prepare Android/iOS releases, distribution signing, and approved publishing metadata; Android release currently uses debug signing.
 - [ ] Acceptance of critical journeys on physical devices and Flutter Web using release builds; no `integration_test` tests currently exist.
-- [ ] **B9 — Adopt and verify the upstream CI fix:** `c550044` on `main` removes `|| true` from Flutter analysis/tests. The local `mobile` workflow was not synchronized in this documentation task. Coordinate adoption with its owner and verify failing checks actually block the required merge/release gate; branch-protection enforcement is unverified.
+- [~] **B9 — Verify the integrated CI gate:** `c550044` removes `|| true` from Flutter analysis/tests and is now incorporated into the integration branch. Verify the integrated checks pass and that failing checks block the required merge/release gate; branch-protection enforcement remains unverified.
 
 ## Dependency and decision register
 
@@ -118,7 +118,7 @@ Keep resolved and partially resolved IDs for traceability. The application task 
 | B6 — Warehouse continuity | Blocked, unchanged | Invoice reads, pick-list list/order link and per-location batch balances are missing. Admin orders and warehouse selection are implemented foundations only. | Add reads/links/balances; `qty_received` is not a current balance. New invoice creation/receiving and inventory read lists can proceed separately. |
 | B7 — Reports/settings | Partially available, unchanged | Sales/top products available; low-stock report and settings-save contract absent. | Agree low-stock semantics/response and settings-write permission. Do not hold up sales reports. |
 | B8 — FCM | Deferred to integration | Firebase setup, payload/destination approval and server sending integration pending. | Supply configuration and approved payload, then verify receipt. |
-| B9 — Release gate | **Upstream fix available; adoption/verification pending** | `main` no longer suppresses Flutter failures. Current `mobile` workflow and branch protection still need coordinated verification. | `c550044`; adopt/test separately. No new change from Haider is needed merely to remove `|| true`. |
+| B9 — Release gate | **CI fix incorporated; verification pending** | Flutter analysis/tests no longer suppress failures. Integrated CI and branch protection still need verification. | `c550044`; require a passing integrated run before merging and confirm branch-protection enforcement separately. |
 | B10 — Points operations | Deferred, unchanged | Operational negotiation/redemption contract/product approval absent. | Approved product decision and contracts; balance display and promotion prices are separate tasks. |
 | B11 — Delivery filtering | **Contract blocker resolved; client ready** | Optional status, agent scoping, filtered total, stable ordering and examples are documented. Chips/filtering remain unimplemented in Flutter. | `dc5df9b`; implement phase-2 task with mock, then verify remote when available. |
 | B12 — Admin catalog visibility | Blocked, unchanged; previously unnumbered | Public product/category reads still do not explicitly guarantee hidden/archived/inactive records for admins. | Confirm visibility or add admin reads. New name fallback does not resolve visibility. |
@@ -135,7 +135,7 @@ Use this sequence whenever Ahmed asks to review a new contract delivery or start
 5. Append a synchronization record with source commit, received change, mobile gap, status transition and the precise remaining request to Haider. Distinguish received, imported, implemented and verified. For revisions that do not change an item, keep its status unchanged.
 6. After implementation, record technical evidence and Ahmed's manual acceptance. Review related B entries again; do not close adjacent dependencies by association.
 
-Pending team convention: upstream `c550044` changes mobile guidance to short-lived branches from `main`. Ahmed explicitly requested continued work/pushes on `mobile`; that direction remains in force. This review records the discrepancy without changing local branch rules. See the synchronization log for scope and source links.
+The upstream short-lived-branch convention from `c550044` is incorporated. The current `mobile` branch is retained only for this integration check and is deleted after the verified merge, leaving `main` as the sole long-lived branch.
 
 ## Status evidence and verification limits
 

@@ -18,7 +18,7 @@ class AdminRepositoryRemote implements AdminRepository {
     if (resource == AdminResource.locations && warehouseId == null) {
       throw const AppFailure(FailureKind.validation);
     }
-    final path = resource.path(warehouseId: warehouseId);
+    final path = resource.path(write: true, warehouseId: warehouseId);
     if (resource == AdminResource.categories ||
         resource == AdminResource.permissions) {
       final values = await api.get<List<dynamic>>(path);
@@ -74,7 +74,7 @@ class AdminRepositoryRemote implements AdminRepository {
     if (input.keys.any((key) => key.startsWith('mock_'))) {
       throw const AppFailure(FailureKind.validation);
     }
-    final body = resource.input(input);
+    final body = resource.remoteInput(input, patch: id != null);
     return AdminRecord(
       id == null
           ? await api.post<Map<String, dynamic>>(

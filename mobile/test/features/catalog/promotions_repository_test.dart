@@ -8,6 +8,7 @@ import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_remote.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
+import 'package:shubayr/features/catalog/data/media/catalog_image.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
 
 const base = Product(
@@ -19,6 +20,62 @@ const base = Product(
 );
 
 void main() {
+  test('scheduled discount responses expose the effective customer price', () {
+    final startsAt = DateTime.utc(2026, 9, 1);
+    final endsAt = DateTime.utc(2026, 9, 30);
+    final product = Product.fromJson({
+      ...base.toJson(),
+      'price': 100,
+      'discount_type': 'percentage',
+      'discount_value': 20,
+      'discount_starts_at': startsAt.toIso8601String(),
+      'discount_ends_at': endsAt.toIso8601String(),
+      'on_sale': true,
+      'discounted_price': 80,
+      'effective_price': 80,
+      'discount_percent': 20,
+    });
+
+    expect(product.price, 100);
+    expect(product.salePrice, 80);
+    expect(product.compareAtPrice, 100);
+    expect(product.isOnSale, isTrue);
+    expect(product.discountType, 'percentage');
+    expect(product.discountValue, 20);
+    expect(product.discountStartsAt, startsAt);
+    expect(product.discountEndsAt, endsAt);
+    expect(product.toJson(), isNot(contains('sale_price')));
+    expect(product.toJson(), isNot(contains('compare_at_price')));
+  });
+
+  test('updating mock gallery preserves scheduled discount fields', () {
+    final startsAt = DateTime.utc(2026, 9, 1);
+    final product = Product.fromJson({
+      ...base.toJson(),
+      'price': 100,
+      'discount_type': 'percentage',
+      'discount_value': 20,
+      'discount_starts_at': startsAt.toIso8601String(),
+      'discount_ends_at': null,
+      'on_sale': true,
+      'discounted_price': 80,
+      'effective_price': 80,
+      'discount_percent': 20,
+    });
+    const image = UrlCatalogImage('https://example.com/primary.jpg');
+
+    final updated = product.copyWith(mockImages: [image]);
+
+    expect(updated.displayImages, [image]);
+    expect(updated.price, 100);
+    expect(updated.discountType, 'percentage');
+    expect(updated.discountValue, 20);
+    expect(updated.discountStartsAt, startsAt);
+    expect(updated.effectivePrice, 80);
+    expect(updated.salePrice, 80);
+    expect(updated.toJson(), isNot(contains('mock_images')));
+  });
+
   test(
     'older catalog responses without either promotion field remain supported',
     () {
@@ -34,23 +91,27 @@ void main() {
   );
 
   for (final original in <num?>[null, 0, 60, 80, 100]) {
-    test('promotion eligibility and legacy JSON: original=$original', () {
-      final product = Product.fromJson({
-        ...base.toJson(),
-        'compare_at_price': ?original,
-        'discount_percent': original == 100 ? 20 : null,
-      });
-      final read = Product.fromJson(
-        product.copyWith(images: ['image']).toJson(),
-      );
-      expect(read.isOnSale, original == 100);
-      expect(read.compareAtPrice, original);
-      expect(
-        Product.discountPercentFor(80, original),
-        original == 100 ? 20 : null,
-      );
-      expect(read.discountPercent, original == 100 ? 20 : null);
-    });
+    test(
+      'promotion eligibility in legacy Mock fixtures: original=$original',
+      () {
+        final product = Product.fromMock({
+          ...base.toMock(),
+          'sale_price': 80,
+          'compare_at_price': original,
+          'discount_percent': original == 100 ? 20 : null,
+        });
+        final read = Product.fromJson(
+          product.copyWith(images: ['image']).toJson(),
+        );
+        expect(read.isOnSale, original == 100);
+        expect(read.compareAtPrice, original == 100 ? original : null);
+        expect(
+          Product.discountPercentFor(80, original),
+          original == 100 ? 20 : null,
+        );
+        expect(read.discountPercent, original == 100 ? 20 : null);
+      },
+    );
   }
   test(
     'mock rounding follows contract; remote percentage is not overwritten',
@@ -66,7 +127,7 @@ void main() {
   );
 
   test(
-    'remote filters before pagination and only writes original price',
+    'remote filters before pagination and preserves scheduled admin fields',
     () async {
       final requests = <RequestOptions>[];
       final dio = Dio();
@@ -87,7 +148,10 @@ void main() {
                         'data': [
                           {
                             ...base.toJson(),
-                            'compare_at_price': 100,
+                            'price': 100,
+                            'discount_type': 'percentage',
+                            'discount_value': 20,
+                            'on_sale': true,
                             'discount_percent': 20,
                           },
                         ],
@@ -130,14 +194,22 @@ void main() {
       for (final original in <num?>[100, null]) {
         await admin.save(AdminResource.products, {
           ...base.toJson(),
-          'compare_at_price': original,
+          'price': original ?? 80,
+          'discount_type': original == null ? null : 'percentage',
+          'discount_value': original == null ? null : 20,
+          'discount_starts_at': '2026-10-01T09:00:00.000Z',
+          'discount_ends_at': '2026-10-02T09:00:00.000Z',
           'discount_percent': 99,
         }, id: original == null ? 'p1' : null);
-        expect(requests.last.data['compare_at_price'], original);
-        expect(
-          (requests.last.data as Map).containsKey('discount_percent'),
-          isFalse,
-        );
+        final data = requests.last.data as Map;
+        expect(data.containsKey('sale_price'), isFalse);
+        expect(data.containsKey('compare_at_price'), isFalse);
+        expect(data['price'], original ?? 80);
+        expect(data['discount_type'], original == null ? null : 'percentage');
+        expect(data['discount_value'], original == null ? null : 20);
+        expect(data['discount_starts_at'], '2026-10-01T09:00:00.000Z');
+        expect(data['discount_ends_at'], '2026-10-02T09:00:00.000Z');
+        expect(data.containsKey('discount_percent'), isFalse);
         expect(requests.last.method, original == null ? 'PATCH' : 'POST');
       }
     },
@@ -150,10 +222,10 @@ void main() {
     catalog = CatalogRepositoryMock(delay: Duration.zero);
     products = (await catalog.fetchProducts(
       perPage: 100,
-    )).data.map((p) => p.toJson()).toList();
+    )).data.map((p) => p.toMock()).toList();
     categories = [];
     void flatten(Category c) {
-      categories.add(c.toJson());
+      categories.add(c.toMock());
       c.children.forEach(flatten);
     }
 

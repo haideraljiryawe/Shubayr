@@ -13,6 +13,9 @@ class AdminOrderRepositoryRemote implements AdminOrderRepository {
     int perPage = 20,
   }) async {
     query.validate();
+    if (query.status != null && !remoteOrderStatuses.contains(query.status)) {
+      throw const AppFailure(FailureKind.validation);
+    }
     return OrderPage.fromJson(
       await api.get<Map<String, dynamic>>(
         '/admin/orders',
@@ -23,12 +26,12 @@ class AdminOrderRepositoryRemote implements AdminOrderRepository {
 
   @override
   Future<Order> updateStatus(String id, String status) async {
-    if (!adminOrderStatuses.contains(status)) {
+    if (!remoteStaffOrderStatuses.contains(status)) {
       throw const AppFailure(FailureKind.validation);
     }
     return Order.fromJson(
       await api.patch<Map<String, dynamic>>(
-        '/orders/$id/status',
+        '/admin/orders/$id/status',
         body: {'status': status},
       ),
     );

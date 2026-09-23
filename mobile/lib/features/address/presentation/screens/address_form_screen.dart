@@ -74,7 +74,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   }
 
   Future<void> _save() async {
-    if (_busy || ref.read(dataSourceProvider) != DataSource.mock) return;
+    if (_busy) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final navigator = Navigator.of(context);
 
@@ -117,7 +117,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     ref.watch(sessionControllerProvider);
-    final supportsContact = ref.watch(dataSourceProvider) == DataSource.mock;
+    final isRemote = ref.watch(dataSourceProvider) == DataSource.remote;
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -170,7 +170,9 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                   fullWidth: true,
                   child: FormField<String>(
                     validator: (_) =>
-                        Validators.isPhone(
+                        (isRemote
+                            ? Validators.isE164Phone
+                            : Validators.isPhone)(
                           _usePrimaryPhone ? _accountPhone : _otherPhone.text,
                         )
                         ? null
@@ -193,7 +195,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                               RadioListTile<bool>(
                                 key: const ValueKey('address-use-primary'),
                                 value: true,
-                                enabled: !_busy && supportsContact,
+                                enabled: !_busy,
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(l10n.addressUsePrimaryPhone),
                                 subtitle: Text(
@@ -206,7 +208,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                               RadioListTile<bool>(
                                 key: const ValueKey('address-use-other'),
                                 value: false,
-                                enabled: !_busy && supportsContact,
+                                enabled: !_busy,
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(l10n.addressUseOtherPhone),
                               ),
@@ -217,7 +219,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                           TextFormField(
                             key: const ValueKey('address-other-phone'),
                             controller: _otherPhone,
-                            enabled: !_busy && supportsContact,
+                            enabled: !_busy,
                             keyboardType: TextInputType.phone,
                             inputFormatters: const [PhoneInputFormatter()],
                             textDirection: TextDirection.ltr,
@@ -239,8 +241,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                               ),
                             ),
                           ),
-                        if (!supportsContact)
-                          Text(l10n.addressContactBackendPending),
+                        if (isRemote) Text(l10n.addressInternationalPhoneHint),
                       ],
                     ),
                   ),
@@ -262,7 +263,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                       label: l10n.actionSave,
                       icon: Icons.check,
                       isLoading: _busy,
-                      onPressed: supportsContact ? _save : null,
+                      onPressed: _save,
                     ),
                   ),
                 ),

@@ -1,3 +1,4 @@
+import '../../../../core/config/app_config.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -162,7 +163,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                         ),
                       ),
                     ],
-                    if (isOrderCancellable(o.status)) ...[
+                    if (isOrderCancellable(
+                      o.status,
+                      remote:
+                          ref.watch(dataSourceProvider) == DataSource.remote,
+                    )) ...[
                       const SizedBox(height: AppSpacing.lg),
                       Center(
                         child: TextButton.icon(

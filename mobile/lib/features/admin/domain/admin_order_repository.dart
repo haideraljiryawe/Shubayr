@@ -32,7 +32,9 @@ class AdminOrderQuery {
         'per_page': perPage,
       };
   void validate() {
-    if ((status != null && !adminOrderStatuses.contains(status)) ||
+    if ((status != null &&
+            !adminOrderStatuses.contains(status) &&
+            !remoteOrderStatuses.contains(status)) ||
         (from != null && to != null && date(from!).compareTo(date(to!)) > 0)) {
       throw const AppFailure(FailureKind.validation);
     }

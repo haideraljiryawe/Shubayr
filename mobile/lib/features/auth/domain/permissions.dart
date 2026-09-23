@@ -5,6 +5,7 @@
 abstract final class Permissions {
   static const catalogView = 'catalog.view';
   static const catalogManage = 'catalog.manage';
+  static const ordersManage = 'orders.manage';
   static const ordersView = 'orders.view';
   static const ordersConfirm = 'orders.confirm';
   static const ordersUpdate = 'orders.update';
@@ -26,6 +27,7 @@ abstract final class Permissions {
   static const all = <String>[
     catalogView,
     catalogManage,
+    ordersManage,
     ordersView,
     ordersConfirm,
     ordersUpdate,

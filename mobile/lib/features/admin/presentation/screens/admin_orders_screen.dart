@@ -1,3 +1,4 @@
+import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
 import '../widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
@@ -122,7 +123,10 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                       labelText: l.adminOrderNewStatus,
                     ),
                     items: [
-                      for (final status in adminOrderStatuses)
+                      for (final status
+                          in (ref.read(dataSourceProvider) == DataSource.remote
+                              ? remoteStaffNextStatuses(order.status)
+                              : adminOrderStatuses))
                         if (status != order.status)
                           DropdownMenuItem(
                             value: status,
@@ -181,7 +185,13 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     });
     final session = ref.watch(adminSessionProvider);
     final permissions = ref.watch(sessionControllerProvider).value;
-    if (!session.staff || permissions?.can(Permissions.ordersView) != true) {
+    if (!session.staff ||
+        permissions?.can(
+              ref.watch(dataSourceProvider) == DataSource.remote
+                  ? Permissions.ordersManage
+                  : Permissions.ordersView,
+            ) !=
+            true) {
       return Scaffold(
         appBar: adminAppBar(context, ref, title: l.adminSectionOrders),
         body: AppEmptyView(message: l.adminNoAccess),
@@ -243,7 +253,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
             padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
             child: Row(
               children: [
-                for (final status in [null, ...adminOrderStatuses])
+                for (final status in [
+                  null,
+                  ...(ref.watch(dataSourceProvider) == DataSource.remote
+                      ? remoteOrderStatuses
+                      : adminOrderStatuses),
+                ])
                   Padding(
                     padding: const EdgeInsetsDirectional.only(
                       end: AppSpacing.sm,
@@ -351,10 +366,18 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                                 order: order,
                                 busy: list.updatingId == order.id,
                                 canUpdate:
+                                    (ref.watch(dataSourceProvider) !=
+                                            DataSource.remote ||
+                                        remoteStaffNextStatuses(
+                                          order.status,
+                                        ).isNotEmpty) &&
                                     permissions?.can(
-                                      Permissions.ordersUpdate,
-                                    ) ==
-                                    true,
+                                          ref.watch(dataSourceProvider) ==
+                                                  DataSource.remote
+                                              ? Permissions.ordersManage
+                                              : Permissions.ordersUpdate,
+                                        ) ==
+                                        true,
                                 onConfirm: enabled
                                     ? () => _update(order, confirm: true)
                                     : null,

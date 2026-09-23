@@ -5,14 +5,16 @@
   "engines": {
     "node": ">=20.9.0"
   },
-  "description": "Shubayr — public Arabic-first storefront (Next.js App Router).",
+  "description": "Shubayr \u2014 public Arabic-first storefront (Next.js App Router).",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "gen:api": "openapi-typescript ../api/openapi.yaml -o src/types/api.d.ts"
+    "test": "playwright test",
+    "gen:api": "openapi-typescript ../api/openapi.yaml -o src/types/api.d.ts",
+    "test:live": "playwright test --config playwright.live.config.ts"
   },
   "dependencies": {
     "clsx": "2.1.1",
@@ -24,6 +26,7 @@
     "tailwind-merge": "3.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "22.18.1",
     "@types/react": "19.2.2",
