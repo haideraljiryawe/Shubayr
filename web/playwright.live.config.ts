@@ -25,7 +25,11 @@ const port = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
 
 export default defineConfig({
   testDir: "./tests",
-  testMatch: ["**/live-funnel.spec.ts", "**/live-checkout.spec.ts"],
+  testMatch: [
+    "**/live-funnel.spec.ts",
+    "**/live-checkout.spec.ts",
+    "**/live-account.spec.ts",
+  ],
   timeout: 90000,
   use: {
     baseURL: `http://localhost:${port}`,
@@ -44,8 +48,11 @@ export default defineConfig({
       NEXT_PUBLIC_USE_MOCKS: "false",
       // The funnel, exactly as this PR flips it — the domains left on
       // fixtures stay on fixtures even here.
+      // The funnel and the account extras, exactly as this repo flips them.
+      // `wishlist` is absent on purpose: the backend serves no such route.
       NEXT_PUBLIC_LIVE_DOMAINS:
-        "auth,profile,catalog,banners,cart,checkout,orders,addresses",
+        "auth,profile,catalog,banners,cart,checkout,orders,addresses," +
+        "returns,loyalty,reviews,notifications",
       NEXT_PUBLIC_API_URL: api,
     },
   },

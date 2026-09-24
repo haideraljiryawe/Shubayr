@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Banknote,
@@ -22,13 +22,16 @@ import { Toggle } from "@/components/ui/toggle";
 import { useToast } from "@/components/ui/toast";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { localeLabel, routing, type Locale } from "@/i18n/routing";
+import {
+  api,
+  type NotificationChannel,
+  type NotificationPreferences,
+  type NotificationType,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
-import {
-  NOTIFICATION_KEYS,
-  notificationPrefsStore,
-  type NotificationKey,
-} from "@/lib/notification-prefs";
+import { useResource } from "@/lib/use-resource";
+import { AccountError, AccountSkeleton } from "./states";
 
 /* -------------------------------------------------------------- payments */
 
@@ -81,28 +84,104 @@ export function PaymentMethodsPanel() {
 
 /* --------------------------------------------------------- notifications */
 
+/**
+ * The ten notification types across both channels, in the order the contract
+ * lists them — which is also roughly the order a shopper meets them.
+ */
+const NOTIFICATION_TYPES: NotificationType[] = [
+  "order_placed",
+  "order_confirmed",
+  "order_status_changed",
+  "out_for_delivery",
+  "delivered",
+  "delivery_failed",
+  "return_update",
+  "loyalty_points_earned",
+  "review_moderated",
+  "promo",
+];
+
+const CHANNELS: NotificationChannel[] = ["push", "sms"];
+
+/** Order-confirmation SMS is mandatory; the contract refuses to turn it off. */
+function isMandatory(
+  type: NotificationType,
+  channel: NotificationChannel,
+): boolean {
+  return type === "order_confirmed" && channel === "sms";
+}
+
+function prefKey(type: NotificationType, channel: NotificationChannel): string {
+  return `${type}:${channel}`;
+}
+
+/**
+ * Per-type, per-channel notification preferences, read and written through
+ * GET/PATCH /me/notification-preferences.
+ *
+ * These are ACCOUNT-level: the contract says an update is shared by every
+ * device on the account, so this is not a device setting and there is nothing
+ * local to reconcile. It is also not push REGISTRATION — receiving web push
+ * needs a service worker and an FCM token this app does not mint, so the note
+ * at the bottom says so rather than implying a toggle is enough.
+ */
 export function NotificationPrefsPanel() {
   const t = useTranslations("settings");
   const showToast = useToast();
-  // Read through the store, not an effect: the hydration pass renders the
-  // defaults the server rendered, then React adopts the stored values in the
-  // same commit, so no toggle visibly flips after paint.
-  const prefs = useSyncExternalStore(
-    notificationPrefsStore.subscribe,
-    notificationPrefsStore.getSnapshot,
-    notificationPrefsStore.getServerSnapshot,
+
+  const {
+    data: prefs,
+    failed,
+    reload,
+  } = useResource<NotificationPreferences>(
+    () => api.getNotificationPreferences(),
+    [],
   );
 
-  const toggle = (key: NotificationKey, next: boolean) => {
-    notificationPrefsStore.set(key, next);
-    showToast(t("notifySaved"));
-  };
+  /** Pairs with a PATCH in flight, so each toggle can show its own spinner. */
+  const [saving, setSaving] = useState<Set<string>>(new Set());
+  /** The server's answer, adopted verbatim once a PATCH lands. */
+  const [current, setCurrent] = useState<NotificationPreferences | null>(null);
 
-  const LABEL: Record<NotificationKey, [string, string]> = {
-    orders: [t("notifyOrders"), t("notifyOrdersHint")],
-    offers: [t("notifyOffers"), t("notifyOffersHint")],
-    points: [t("notifyPoints"), t("notifyPointsHint")],
-  };
+  const effective = current ?? prefs;
+
+  const enabled = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const entry of effective?.preferences ?? []) {
+      map.set(prefKey(entry.type, entry.channel), entry.enabled);
+    }
+    return map;
+  }, [effective]);
+
+  async function toggle(
+    type: NotificationType,
+    channel: NotificationChannel,
+    next: boolean,
+  ) {
+    const key = prefKey(type, channel);
+    setSaving((busy) => new Set(busy).add(key));
+    try {
+      // Only the pair that moved is sent: the contract leaves omitted pairs
+      // alone, so there is no need to restate the other nineteen.
+      const updated = await api.updateNotificationPreferences([
+        { type, channel, enabled: next },
+      ]);
+      setCurrent(updated);
+      showToast(t("notifySaved"));
+    } catch {
+      // Nothing local changed, so the row simply stays where it was.
+      showToast(t("notifyFailed"));
+    } finally {
+      setSaving((busy) => {
+        const rest = new Set(busy);
+        rest.delete(key);
+        return rest;
+      });
+    }
+  }
+
+  if (failed) return <AccountError onRetry={reload} />;
+  if (!effective) return <AccountSkeleton rows={5} />;
 
   return (
     <div className="flex flex-col gap-4">
@@ -111,43 +190,80 @@ export function NotificationPrefsPanel() {
       </Card>
 
       <Card padding="none" className="overflow-hidden">
-        <ul className="divide-y divide-border" data-testid="notification-prefs">
-          {NOTIFICATION_KEYS.map((key) => {
-            const [label, hint] = LABEL[key];
-            const id = `notify-${key}`;
+        {/* Channel headings, so each row's two switches are identifiable. */}
+        <div className="flex items-center gap-4 border-b border-border bg-card px-4 py-2.5">
+          <span className="flex-1 text-xs font-semibold text-text-muted">
+            {t("notifyType")}
+          </span>
+          {CHANNELS.map((channel) => (
+            <span
+              key={channel}
+              className="w-12 text-center text-xs font-semibold text-text-muted"
+            >
+              {t(`channel_${channel}`)}
+            </span>
+          ))}
+        </div>
 
-            return (
-              <li
-                key={key}
-                className="flex items-start justify-between gap-4 px-4 py-3.5"
-              >
-                <label
-                  htmlFor={id}
-                  data-testid={`${id}-label`}
-                  className="min-w-0 cursor-pointer"
-                >
-                  <span className="block text-sm font-medium text-text">
-                    {label}
+        <ul className="divide-y divide-border" data-testid="notification-prefs">
+          {NOTIFICATION_TYPES.map((type) => (
+            <li
+              key={type}
+              className="flex items-center gap-4 px-4 py-3.5"
+              data-testid={`notify-row-${type}`}
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-text">
+                  {t(`notifyType_${type}`)}
+                </span>
+              </span>
+
+              {CHANNELS.map((channel) => {
+                const key = prefKey(type, channel);
+                const id = `notify-${type}-${channel}`;
+                const locked = isMandatory(type, channel);
+
+                return (
+                  <span
+                    key={channel}
+                    className="flex w-12 justify-center"
+                    title={locked ? t("notifyMandatory") : undefined}
+                  >
+                    <Toggle
+                      id={id}
+                      data-testid={id}
+                      checked={enabled.get(key) ?? false}
+                      // The server refuses to disable it, so the UI does not
+                      // offer an action that would only come back rejected.
+                      disabled={locked || saving.has(key)}
+                      aria-label={`${t(`notifyType_${type}`)} — ${t(
+                        `channel_${channel}`,
+                      )}`}
+                      onChange={(event) =>
+                        void toggle(type, channel, event.target.checked)
+                      }
+                    />
                   </span>
-                  <span className="mt-0.5 block text-xs text-text-muted">
-                    {hint}
-                  </span>
-                </label>
-                <Toggle
-                  id={id}
-                  data-testid={id}
-                  checked={prefs[key]}
-                  onChange={(event) => toggle(key, event.target.checked)}
-                />
-              </li>
-            );
-          })}
+                );
+              })}
+            </li>
+          ))}
         </ul>
       </Card>
 
       <p className="flex items-start gap-1.5 text-xs text-text-muted">
         <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-        {t("notifyLocal")}
+        {t("notifyAccountWide")}
+      </p>
+
+      {/*
+        Being honest about the half that is not built: the preference is stored
+        and respected by the backend's fan-out, but this browser has registered
+        no push token, so nothing will actually arrive here.
+      */}
+      <p className="flex items-start gap-1.5 text-xs text-text-muted">
+        <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+        {t("notifyPushSetup")}
       </p>
     </div>
   );

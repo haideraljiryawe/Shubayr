@@ -103,14 +103,47 @@ its endpoints exist without touching the ones still waiting.
 | `checkout` | **LIVE** | `POST /orders` (COD, idempotent), `POST /coupons/validate` |
 | `orders` | **LIVE** | `GET /orders`, `/orders/{id}`, `/orders/{id}/track`, `POST /orders/{id}/cancel` |
 | `addresses` | **LIVE** | `GET/POST/PATCH/DELETE /addresses` — `contact_phone` is E.164 |
-| `wishlist` | mock | `GET/POST /wishlist`, `DELETE /wishlist/{productId}` |
-| `returns` | mock | `POST /returns`, and the customer list the contract still lacks |
-| `reviews` | mock | `POST /products/{id}/reviews`, `POST /deliveries/{id}/rating` — **writing** reviews, unlike the reads above |
-| `loyalty` | mock | `GET /loyalty` |
-| `notifications` | mock | device-local; the contract has no endpoint yet |
+| `returns` | **LIVE** | `GET /returns`, `POST /returns` — per-line `reason` is required |
+| `loyalty` | **LIVE** | `GET /loyalty` (paginated ledger), `POST /loyalty/redeem` |
+| `reviews` | **LIVE** | `POST /products/{id}/reviews`, `PATCH`/`DELETE /reviews/{id}`, `POST /deliveries/{id}/rating` — **writing**, unlike the reads under `catalog` |
+| `notifications` | **LIVE** | `GET`/`PATCH /me/notification-preferences` |
+| `wishlist` | mock | **no backend** — see below |
 
 Every still-mocked method carries a `// MOCK: awaiting backend slice` comment at
 its definition, so the remaining work is greppable.
+
+### Wishlist has no backend
+
+`api/openapi.yaml` documents `GET`/`POST /wishlist` and
+`DELETE /wishlist/{productId}`, `infra/db/schema.sql` creates a
+`wishlist_items` table, and Prisma generates a `WishlistItem` model — but the
+NestJS app has **no wishlist module at all**, so every one of those routes
+answers 404. The contract is ahead of the server here.
+
+The domain therefore stays on fixtures. It is not faked against a route that
+does not exist, and `tests/live-account.spec.ts` asserts the 404 so that the
+day someone builds the slice, that test fails and says so.
+
+### Notification preferences are not push registration
+
+`GET`/`PATCH /me/notification-preferences` is account-level — the contract is
+explicit that an update is shared by every device — so flipping a toggle stores
+a preference the backend's fan-out respects. It does **not** make this browser
+receive anything: web push needs a service worker and an FCM token the web app
+does not mint, which is a separate config/ops task. The settings page says so
+rather than implying the toggle is enough.
+
+### A customer cannot find their own pending review
+
+Writing a review returns it, so editing and deleting work immediately. But
+`GET /products/{id}/reviews` is public and returns only **published** rows, and
+there is no `GET /me/reviews` — so after a reload, a review still awaiting
+moderation is invisible to the person who wrote it.
+
+`components/account/order-reviews.tsx` offers edit and delete whenever it can
+identify the review (it just wrote it, or it is published and findable) and
+says plainly that a pending one cannot be changed yet. A customer-scoped
+`GET /me/reviews` would close this.
 
 ### Two status vocabularies, deliberately
 
@@ -126,8 +159,8 @@ Contract v5.4.0 renamed the order side — `processing` → `preparing`,
 delivery rather than four. The delivery side was not renamed.
 
 ```bash
-# The default: auth, profile, catalog, banners, cart, checkout, orders, addresses
-NEXT_PUBLIC_LIVE_DOMAINS=auth,profile,catalog,banners,cart,checkout,orders,addresses
+# The default: everything with a backend. `wishlist` is the only domain left off.
+NEXT_PUBLIC_LIVE_DOMAINS=auth,profile,catalog,banners,cart,checkout,orders,addresses,returns,loyalty,reviews,notifications
 NEXT_PUBLIC_LIVE_DOMAINS=all                            # everything live
 NEXT_PUBLIC_LIVE_DOMAINS=none                           # everything mocked
 NEXT_PUBLIC_USE_MOCKS=true                              # global override to mock
@@ -151,23 +184,34 @@ so the dev server has to run on one of those ports for browser calls to be
 allowed. Serving the web app anywhere else needs that origin added to
 `CORS_ORIGINS` on the API side.
 
-### The purchase funnel, tested against the real stack
+### Tested against the real stack
 
-`npm test` is hermetic and never needs a backend. The funnel has a second suite
-that drives a real browser against a real API:
+`npm test` is hermetic and never needs a backend. A second suite drives a real
+browser against a real API:
 
 ```bash
 docker compose --profile full up -d          # api on :8000, seeded
 cd web && npm run test:live                  # dev server on :3100, mocks off
 ```
 
-It proves the whole path on live data — a guest basket replayed exactly once at
-sign-in, a server-priced cart, a coupon applied and removed, an E.164 address,
-an idempotent COD placement that a double-click cannot duplicate, the order in
-the list, its immutable snapshots on the detail, and the delivery stage for
-every status the seed carries. Two tests take the seeded product off sale
-mid-flow to exercise the unavailable-line and 409-at-placement paths, and put
-it back in a `finally`.
+`live-funnel.spec.ts` proves the purchase path on live data — a guest basket
+replayed exactly once at sign-in, a server-priced cart, a coupon applied and
+removed, an E.164 address, an idempotent COD placement that a double-click
+cannot duplicate, the order in the list, its immutable snapshots on the detail,
+and the delivery stage for every status the seed carries. Two of its tests take
+the seeded product off sale mid-flow to exercise the unavailable-line and
+409-at-placement paths, and put it back in a `finally`.
+
+`live-account.spec.ts` covers the account extras: a partial return with a
+per-line reason and the server's refund, the loyalty balance and ledger plus a
+redemption (and the over-balance refusal), writing then editing then deleting a
+review on a purchased line, and a notification preference that survives a
+reload because it lives on the account. It also pins wishlist's 404.
+
+Anything needing a delivered order **mints one** — placing it, walking it
+through staff transitions, assigning a courier and having that courier deliver
+it. Returns are irreversible, so a suite that reused the seeded order would
+pass once and then slowly poison itself.
 
 Point it at another stack with `PLAYWRIGHT_LIVE_API`:
 
@@ -176,7 +220,11 @@ PLAYWRIGHT_LIVE_API=http://localhost:8001/api/v1 npm run test:live
 ```
 
 Every live spec skips itself when nothing answers, so running it without a
-backend is a skip rather than a wall of failures.
+backend is a skip rather than a wall of failures. "Nothing answers" means
+exactly that: `tests/live-api.ts` treats any HTTP status as present, because an
+earlier helper skipped on a rate-limit 429 and turned a whole verified-nothing
+run green. The API allows 120 requests per window, so that module also caches
+tokens and waits the window out rather than skipping.
 
 ## Catalog (Phase 3)
 
@@ -332,26 +380,28 @@ grid tile, which has no variant picker, sends the shopper to the product page
 instead of adding a line the server would refuse. That is what `requiresVariant`
 on `ProductCard` controls.
 
-### Contract gaps this phase works around
+### Contract gaps the pages still work around
 
-Three things the pages need do not exist in `api/openapi.yaml`. Each is mocked
-behind a typed client method shaped like the endpoint should be, and carries a
-`CONTRACT GAP` comment at the seam:
+Each carries a `CONTRACT GAP` comment at the seam:
 
-- **No customer `GET /returns`.** Only `POST /returns` and the staff
-  `POST /returns/{id}/inspect` exist, so `/account/returns` reads the fixture.
-- **No notification preferences.** The toggles are stored per device in
-  `localStorage` and say so on the page.
+- **No wishlist backend.** The routes are in the contract and the table is in
+  the database, but no module serves them. The domain stays on fixtures; see
+  above.
+- **No `GET /me/reviews`.** A customer cannot find their own pending review
+  after a reload, so edit and delete are offered only when the review is
+  identifiable; see above.
 - **No customer-readable delivery record.** `GET /deliveries` is staff-scoped,
   `/deliveries/assigned` is the agent's, and `/deliveries/{id}` is PATCH-only,
   so the storefront cannot read the `Delivery` behind an order. It does not
   need to: every delivery transition advances the order through a matching
   status in the same transaction, so `lib/order-delivery.ts` projects the
   stage off the order and `Order.delivery_id` marks that a delivery exists.
+- **No web push.** `POST /devices/token` exists, but minting a token needs a
+  service worker and FCM web config; preferences are wired, delivery is not.
 
-The `reviewed` flag on `OrderItem` closed the "already reviewed" gap this
-section used to list; the reviews domain still reads the fixture until its own
-flip, which is where that lookup should be replaced by the flag.
+Two gaps this section used to list are closed: `GET /returns` now serves the
+customer's own returns, and `OrderItem.reviewed` reports which purchased lines
+they have already reviewed.
 
 ## Source layout
 

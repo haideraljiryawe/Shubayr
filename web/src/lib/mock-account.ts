@@ -5,6 +5,10 @@ import type {
   DeliveryRating,
   DeliveryRatingRequest,
   LoyaltyAccount,
+  LoyaltyEntry,
+  LoyaltyRedemption,
+  NotificationPreferenceEntry,
+  NotificationPreferences,
   Order,
   OrderStatus,
   OrderTracking,
@@ -281,17 +285,41 @@ let orders: Order[] = [
   }),
 ];
 
+/**
+ * Stamp `OrderItem.reviewed` the way the live API does.
+ *
+ * It is a per-caller flag the server derives from whether this customer has a
+ * review for the line, so the fixture derives it the same way rather than
+ * storing it — otherwise writing a review would leave the flag stale and the
+ * page would keep offering to review something already reviewed.
+ */
+function withReviewedFlags(order: Order): Order {
+  const reviewed = new Set(
+    myReviews.map((review) => review.order_item_id ?? ""),
+  );
+  return {
+    ...order,
+    items: (order.items ?? []).map((item) => ({
+      ...item,
+      reviewed: reviewed.has(item.id ?? ""),
+    })),
+  };
+}
+
 export function listMockOrders(status?: OrderStatus): Order[] {
   const all = [...orders].sort((a, b) =>
     (b.placed_at ?? "").localeCompare(a.placed_at ?? ""),
   );
-  return status ? all.filter((order) => order.status === status) : all;
+  return (status ? all.filter((order) => order.status === status) : all).map(
+    withReviewedFlags,
+  );
 }
 
 export function getMockOrder(id: string): Order | undefined {
-  return orders.find(
+  const found = orders.find(
     (order) => order.id === id || order.order_number === id,
   );
+  return found ? withReviewedFlags(found) : undefined;
 }
 
 /** Remember an order placed during this session so its detail page works. */
@@ -402,6 +430,8 @@ export function removeMockWishlistItem(productId: string): void {
  * Loyalty.
  * ------------------------------------------------------------------------- */
 
+let loyaltySeq = 0;
+
 const loyalty: LoyaltyAccount = {
   points_balance: 1_240,
   ledger: [
@@ -413,14 +443,52 @@ const loyalty: LoyaltyAccount = {
   ],
 };
 
-export function getMockLoyalty(): LoyaltyAccount {
+export function getMockLoyalty(
+  { page = 1, per_page = 20 }: { page?: number; per_page?: number } = {},
+): LoyaltyAccount {
   // Newest first; the contract does not promise an order, so the page cannot
   // rely on one and the fixture sorts the way the page renders.
+  const ledger = [...(loyalty.ledger ?? [])].sort((a, b) =>
+    (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+  );
   return {
     ...loyalty,
-    ledger: [...(loyalty.ledger ?? [])].sort((a, b) =>
-      (b.created_at ?? "").localeCompare(a.created_at ?? ""),
-    ),
+    page,
+    per_page,
+    total: ledger.length,
+    ledger: ledger.slice((page - 1) * per_page, page * per_page),
+  };
+}
+
+/**
+ * Spend points against the fixture balance.
+ *
+ * The over-balance refusal is a 409 here too, because that is the case the UI
+ * has to handle and a fixture that always succeeds would never exercise it.
+ */
+export function redeemMockLoyalty(
+  points: number,
+  note?: string,
+): LoyaltyRedemption | null {
+  const balance = loyalty.points_balance ?? 0;
+  // null rather than a throw: ApiError is a value in ./api, which imports this
+  // module, so raising it here would close an import cycle. The caller turns
+  // this into the contract's 409.
+  if (points > balance) return null;
+  const entry: LoyaltyEntry = {
+    id: `loy-redeem-${++loyaltySeq}`,
+    type: "redeem",
+    reason: "manual_redemption",
+    points: -points,
+    note: note?.trim() || null,
+    created_at: new Date(SEEDED_NOW).toISOString(),
+  };
+  loyalty.points_balance = balance - points;
+  loyalty.ledger = [entry, ...(loyalty.ledger ?? [])];
+  return {
+    entry,
+    points_balance: loyalty.points_balance,
+    redemption_value: points,
   };
 }
 
@@ -459,11 +527,40 @@ export function createMockReturn(body: ReturnRequest): Return {
     status: "requested",
     reason: body.reason ?? null,
     created_at: new Date(SEEDED_NOW).toISOString(),
-    items: body.items.map((item) => ({
+    items: [],
+  };
+
+  // The server prices a return from the order line's IMMUTABLE unit price and
+  // sends the amounts back computed. The fixture stands in for the server, so
+  // it does that arithmetic here — the page still only ever renders what it
+  // is given.
+  const order = orders.find((entry) => entry.id === body.order_id);
+  const unitPrices = new Map(
+    (order?.items ?? []).map((item) => [item.id ?? "", item.unit_price ?? 0]),
+  );
+
+  created.items = body.items.map((item, index) => {
+    const unit = unitPrices.get(item.order_item_id) ?? 0;
+    return {
+      id: `${created.id}-item-${index + 1}`,
       order_item_id: item.order_item_id,
       quantity: item.quantity,
-    })),
-  };
+      approved_quantity: 0,
+      customer_reason: item.reason,
+      unit_price: unit,
+      expected_refund: unit * item.quantity,
+      approved_refund: 0,
+      condition: null,
+      restock: false,
+      batch_id: null,
+    };
+  });
+  created.expected_refund = created.items.reduce(
+    (sum, item) => sum + (item.expected_refund ?? 0),
+    0,
+  );
+  created.refund_amount = 0;
+
   returns = [created, ...returns];
   return created;
 }
@@ -510,6 +607,49 @@ export function createMockReview(
   return created;
 }
 
+/** Edit one of the fixture's own reviews; a content change resets it. */
+export function updateMockReview(
+  reviewId: string,
+  patch: { rating?: number; comment?: string | null },
+): Review | undefined {
+  const current = myReviews.find((review) => review.id === reviewId);
+  if (!current) return undefined;
+
+  const changed =
+    (patch.rating !== undefined && patch.rating !== current.rating) ||
+    (patch.comment !== undefined && patch.comment !== current.comment);
+
+  const updated: Review = {
+    ...current,
+    ...(patch.rating !== undefined ? { rating: patch.rating } : {}),
+    ...(patch.comment !== undefined ? { comment: patch.comment } : {}),
+    // The contract: an edit that changes content returns the review to
+    // moderation; a no-op edit leaves its status alone.
+    status: changed ? "pending" : current.status,
+    ...(changed
+      ? { moderation_reason: null, moderated_by: null, moderated_at: null }
+      : {}),
+    updated_at: new Date(SEEDED_NOW).toISOString(),
+  };
+  myReviews = myReviews.map((review) =>
+    review.id === reviewId ? updated : review,
+  );
+  return updated;
+}
+
+export function deleteMockReview(reviewId: string): boolean {
+  if (!myReviews.some((review) => review.id === reviewId)) return false;
+  myReviews = myReviews.filter((review) => review.id !== reviewId);
+  return true;
+}
+
+/** The caller's own review of a purchased line, if they wrote one. */
+export function findMockReviewForItem(
+  orderItemId: string,
+): Review | undefined {
+  return myReviews.find((review) => review.order_item_id === orderItemId);
+}
+
 export function listMockReviewedOrderItems(orderId: string): string[] {
   const order = getMockOrder(orderId);
   const ids = new Set((order?.items ?? []).map((item) => item.id));
@@ -546,4 +686,75 @@ export function createMockDeliveryRating(
   };
   deliveryRatings = [created, ...deliveryRatings];
   return created;
+}
+
+/* ---------------------------------------------------------------------------
+ * Notification preferences.
+ *
+ * The contract's shape exactly: every type across both channels, with the
+ * server's own defaults — transactional push on, promo off — so the mocked
+ * settings page renders the same grid the live one does.
+ * ------------------------------------------------------------------------- */
+
+const NOTIFICATION_TYPES: NotificationPreferenceEntry["type"][] = [
+  "order_placed",
+  "order_confirmed",
+  "order_status_changed",
+  "out_for_delivery",
+  "delivered",
+  "delivery_failed",
+  "return_update",
+  "loyalty_points_earned",
+  "review_moderated",
+  "promo",
+];
+
+/** Order confirmation SMS is mandatory; the contract refuses to turn it off. */
+export function isMandatoryPreference(
+  type: NotificationPreferenceEntry["type"],
+  channel: NotificationPreferenceEntry["channel"],
+): boolean {
+  return type === "order_confirmed" && channel === "sms";
+}
+
+function defaultPreferences(): NotificationPreferenceEntry[] {
+  return NOTIFICATION_TYPES.flatMap((type) =>
+    (["push", "sms"] as const).map((channel) => ({
+      type,
+      channel,
+      enabled: isMandatoryPreference(type, channel)
+        ? true
+        : channel === "push"
+          ? type !== "promo"
+          : false,
+    })),
+  );
+}
+
+let notificationPreferences = defaultPreferences();
+
+export function getMockNotificationPreferences(): NotificationPreferences {
+  return { preferences: notificationPreferences.map((entry) => ({ ...entry })) };
+}
+
+/**
+ * Apply a partial update. Pairs the patch does not mention are untouched, and
+ * an unknown type or channel is dropped rather than stored — the live server
+ * answers 422 for those, so the fixture must not quietly accept one.
+ */
+export function updateMockNotificationPreferences(
+  patch: NotificationPreferenceEntry[],
+): NotificationPreferences {
+  for (const entry of patch) {
+    if (!NOTIFICATION_TYPES.includes(entry.type)) continue;
+    if (entry.channel !== "push" && entry.channel !== "sms") continue;
+    if (isMandatoryPreference(entry.type, entry.channel)) continue;
+
+    notificationPreferences = notificationPreferences.map((current) =>
+      current.type === entry.type && current.channel === entry.channel
+        ? { ...current, enabled: entry.enabled }
+        : current,
+    );
+  }
+  return getMockNotificationPreferences();
 }

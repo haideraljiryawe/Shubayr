@@ -65,7 +65,15 @@ test("a partial return can be requested and shows up in the list", async ({
   await expect(stepper).toBeVisible();
   await stepper.getByRole("button", { name: "زيادة الكمية" }).click();
 
-  await page.getByTestId("return-reason").fill("المقاس غير مناسب");
+  // The contract requires a reason on every LINE, so submitting without one
+  // is refused here rather than spent on a 422.
+  await page.getByTestId("return-submit").click();
+  await expect(page.getByTestId("return-error")).toContainText(
+    "اذكر سبب الإرجاع لكل منتج",
+  );
+
+  await page.getByTestId("return-line-reason-oi-p10").fill("المقاس غير مناسب");
+  await page.getByTestId("return-reason").fill("ملاحظة عامة");
   await page.getByTestId("return-submit").click();
 
   // It lands on the returns list, newest first, awaiting review.
@@ -73,7 +81,9 @@ test("a partial return can be requested and shows up in the list", async ({
   const list = page.getByTestId("returns-list");
   await expect(list).toBeVisible();
   await expect(list.locator("> li").first()).toContainText("قيد المراجعة");
-  await expect(list.locator("> li").first()).toContainText("sb-1035");
+  // The row names the ORDER, resolved to its number rather than its id.
+  await expect(list.locator("> li").first()).toContainText("SB-1035");
+  await expect(list.locator("> li").first()).toContainText("المقاس غير مناسب");
 });
 
 test("the quantity stepper cannot exceed what was bought", async ({ page }) => {

@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Loader2, Star, Truck } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  Pencil,
+  Star,
+  Trash2,
+  Truck,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,39 +17,61 @@ import { Field } from "@/components/ui/field";
 import { StarInput } from "@/components/ui/star-input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-import { api, type Order, type OrderItem } from "@/lib/api";
-import { useResource } from "@/lib/use-resource";
+import {
+  ApiError,
+  api,
+  type Order,
+  type OrderItem,
+  type Review,
+} from "@/lib/api";
 import { OrderItemLine } from "./order-item-line";
 
 /**
- * Reviewing a delivered order: one review per product, plus one rating for the
- * delivery itself.
+ * Reviews this session has written or resolved, keyed by order item.
+ *
+ * It lives outside the component because the order refetches after every
+ * write, and while that is in flight the page shows a skeleton — which
+ * unmounts these rows and would otherwise throw away the only handle we have
+ * on a freshly created review. See the CONTRACT GAP note below: there is no
+ * route that would let us look it up again.
+ */
+const knownReviews = new Map<string, Review>();
+
+/**
+ * Reviewing a delivered order: one review per purchased line, plus one rating
+ * for the delivery itself.
  *
  * The two are deliberately separate acts on separate endpoints — a shopper can
  * love the product and not the courier — so they never share a form or a
  * submit. Both only appear once the order is delivered; the caller gates that.
+ *
+ * WHICH lines are already reviewed comes from `OrderItem.reviewed`, a
+ * per-caller flag the order itself carries, so there is nothing extra to
+ * fetch and no second source of truth to drift.
+ *
+ * CONTRACT GAP: editing or deleting a review needs its id, and a customer has
+ * no route to their own. GET /products/{id}/reviews is public and returns only
+ * PUBLISHED rows, so a review still awaiting moderation is invisible to the
+ * person who wrote it the moment they reload the page. This component
+ * therefore offers edit and delete whenever it can identify the review — it
+ * just created it, or it is published and findable — and says plainly that a
+ * pending one cannot be changed yet. A customer-scoped GET /me/reviews would
+ * close this.
  */
 export function OrderReviews({
   order,
   deliveryId,
+  onChanged,
 }: {
   order: Order;
   /** Null when the order has no delivery to rate. */
   deliveryId: string | null;
+  /** Refetch the order, so `reviewed` flags reflect what just happened. */
+  onChanged: () => void;
 }) {
   const t = useTranslations("reviews");
-  const orderId = order.id ?? "";
-
-  // Which items already carry a review by this customer. See the CONTRACT GAP
-  // note on api.listReviewedOrderItems: nothing in the contract reports this.
-  const { data: reviewed, reload } = useResource<string[]>(
-    () => api.listReviewedOrderItems(orderId).catch(() => []),
-    [orderId],
-  );
-
-  const done = new Set(reviewed ?? []);
   const items = order.items ?? [];
-  const pending = items.filter((item) => !done.has(item.id ?? ""));
+  const outstanding = items.filter((item) => !item.reviewed);
 
   return (
     <>
@@ -52,7 +81,7 @@ export function OrderReviews({
           <p className="mt-1 text-sm text-text-muted">{t("productIntro")}</p>
         </div>
 
-        {pending.length === 0 ? (
+        {outstanding.length === 0 ? (
           <p
             data-testid="reviews-all-done"
             className="flex items-center gap-2 rounded-md bg-success/10 px-3 py-2.5 text-sm font-medium text-success-dark"
@@ -65,40 +94,80 @@ export function OrderReviews({
         <ul className="flex flex-col divide-y divide-border">
           {items.map((item) => (
             <li key={item.id} className="py-3">
-              <ProductReviewRow
-                item={item}
-                reviewed={done.has(item.id ?? "")}
-                onSubmitted={reload}
-              />
+              <ProductReviewRow item={item} onChanged={onChanged} />
             </li>
           ))}
         </ul>
       </Card>
 
-      {deliveryId ? (
-        <DeliveryRatingCard deliveryId={deliveryId} />
-      ) : null}
+      {deliveryId ? <DeliveryRatingCard deliveryId={deliveryId} /> : null}
     </>
   );
 }
 
 function ProductReviewRow({
   item,
-  reviewed,
-  onSubmitted,
+  onChanged,
 }: {
   item: OrderItem;
-  reviewed: boolean;
-  onSubmitted: () => void;
+  onChanged: () => void;
 }) {
   const t = useTranslations("reviews");
   const showToast = useToast();
+  const id = item.id ?? "";
+  const productId = item.product_id ?? "";
+
   const [open, setOpen] = useState(false);
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
-  const id = item.id ?? "";
+  /** The caller's own review, once this component can identify it. */
+  const [mine, setMineState] = useState<Review | null>(
+    () => knownReviews.get(id) ?? null,
+  );
+
+  const setMine = useCallback(
+    (review: Review | null) => {
+      if (review) knownReviews.set(id, review);
+      else knownReviews.delete(id);
+      setMineState(review);
+    },
+    [id],
+  );
+  // Hoisted out of the dependency arrays below: optional chaining inside a
+  // dep list defeats the compiler's memoization checks.
+  const reviewId = mine?.id ?? null;
+
+  // A published review is findable on the product; a pending one is not. This
+  // is what decides whether edit and delete can be offered after a reload, so
+  // it runs once per reviewed line and quietly gives up when it cannot.
+  useEffect(() => {
+    if (!item.reviewed || mine || !productId) return;
+    let cancelled = false;
+
+    api
+      .listReviews(productId, { per_page: 100 })
+      .then((page) => {
+        if (cancelled) return;
+        const found = (page.data ?? []).find(
+          (review) => review.order_item_id === id,
+        );
+        if (found) setMine(found);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, item.reviewed, mine, productId, setMine]);
+
+  const startEdit = useCallback(() => {
+    setStars(mine?.rating ?? 0);
+    setComment(mine?.comment ?? "");
+    setError(undefined);
+    setOpen(true);
+  }, [mine]);
 
   const submit = useCallback(async () => {
     if (stars < 1) {
@@ -108,28 +177,61 @@ function ProductReviewRow({
     setSaving(true);
     setError(undefined);
     try {
-      await api.createReview(item.product_id ?? "", {
-        order_item_id: id,
-        rating: stars,
-        comment: comment.trim() || undefined,
-      });
-      showToast(t("submitted"));
+      if (reviewId) {
+        // Editing content sends the review back to moderation, which the note
+        // under the form warns about before the shopper presses save.
+        const updated = await api.updateReview(reviewId, {
+          rating: stars,
+          comment: comment.trim() || null,
+        });
+        setMine(updated);
+        showToast(t("updated"));
+      } else {
+        const created = await api.createReview(productId, {
+          order_item_id: id,
+          rating: stars,
+          comment: comment.trim() || undefined,
+        });
+        // Holding the created review is what makes edit and delete reachable
+        // in this session, before any moderator has looked at it.
+        setMine(created);
+        showToast(t("submitted"));
+      }
       setOpen(false);
-      onSubmitted();
+      onChanged();
+    } catch (cause) {
+      setError(
+        cause instanceof ApiError && cause.status === 409
+          ? t("errAlready")
+          : t("errFailed"),
+      );
+    } finally {
+      setSaving(false);
+    }
+  }, [comment, id, onChanged, productId, reviewId, setMine, showToast, stars, t]);
+
+  const remove = useCallback(async () => {
+    if (!reviewId) return;
+    setSaving(true);
+    setError(undefined);
+    try {
+      await api.deleteReview(reviewId);
+      setMine(null);
+      setOpen(false);
+      setStars(0);
+      setComment("");
+      showToast(t("deleted"));
+      onChanged();
     } catch {
       setError(t("errFailed"));
     } finally {
       setSaving(false);
     }
-  }, [comment, id, item.product_id, onSubmitted, showToast, stars, t]);
+  }, [onChanged, reviewId, setMine, showToast, t]);
 
-  return (
-    <OrderItemLine item={item}>
-      {reviewed ? (
-        <Badge tone="success" data-testid={`review-done-${id}`}>
-          {t("reviewed")}
-        </Badge>
-      ) : open ? (
+  if (open) {
+    return (
+      <OrderItemLine item={item}>
         <form
           noValidate
           data-testid={`review-form-${id}`}
@@ -163,7 +265,9 @@ function ProductReviewRow({
             />
           </Field>
 
-          <p className="text-xs text-text-muted">{t("pending")}</p>
+          <p className="text-xs text-text-muted">
+            {mine ? t("editResetsToPending") : t("pending")}
+          </p>
 
           <span className="flex gap-2">
             <Button
@@ -190,12 +294,74 @@ function ProductReviewRow({
             </Button>
           </span>
         </form>
+      </OrderItemLine>
+    );
+  }
+
+  return (
+    <OrderItemLine item={item}>
+      {item.reviewed ? (
+        <span className="flex flex-col gap-2">
+          <span className="flex flex-wrap items-center gap-2">
+            <Badge
+              tone={mine?.status === "published" ? "success" : "warning"}
+              data-testid={`review-done-${id}`}
+            >
+              {mine?.status === "published" ? t("published") : t("reviewed")}
+            </Badge>
+
+            {mine ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  data-testid={`review-edit-${id}`}
+                  onClick={startEdit}
+                  startIcon={<Pencil className="size-4" aria-hidden />}
+                >
+                  {t("edit")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={saving}
+                  data-testid={`review-delete-${id}`}
+                  onClick={() => void remove()}
+                  startIcon={<Trash2 className="size-4" aria-hidden />}
+                  className="text-error-dark"
+                >
+                  {t("delete")}
+                </Button>
+              </>
+            ) : (
+              // Written, but awaiting moderation and so not findable — see the
+              // CONTRACT GAP note at the top of this file.
+              <span
+                data-testid={`review-locked-${id}`}
+                className="text-xs text-text-muted"
+              >
+                {t("pendingNotEditable")}
+              </span>
+            )}
+          </span>
+
+          {error ? (
+            <span role="alert" className="text-sm font-medium text-error">
+              {error}
+            </span>
+          ) : null}
+        </span>
       ) : (
         <Button
           variant="secondary"
           size="sm"
           data-testid={`review-open-${id}`}
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setStars(0);
+            setComment("");
+            setError(undefined);
+            setOpen(true);
+          }}
           startIcon={<Star className="size-4" aria-hidden />}
           className="self-start"
         >
@@ -229,7 +395,13 @@ function DeliveryRatingCard({ deliveryId }: { deliveryId: string }) {
       });
       showToast(t("deliveryRated"));
       setRated(true);
-    } catch {
+    } catch (cause) {
+      // The contract allows one rating per delivery, so a repeat is a 409 and
+      // reads as "already done" rather than as a failure.
+      if (cause instanceof ApiError && cause.status === 409) {
+        setRated(true);
+        return;
+      }
       setError(t("errFailed"));
     } finally {
       setSaving(false);

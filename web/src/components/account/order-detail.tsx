@@ -93,7 +93,13 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       <DeliveryStatus order={found} />
       <TrackingTimeline tracking={tracking} />
       {delivered ? (
-        <OrderReviews order={found} deliveryId={deliveryIdForOrder(found)} />
+        <OrderReviews
+          order={found}
+          deliveryId={deliveryIdForOrder(found)}
+          // Writing or deleting a review flips OrderItem.reviewed, which this
+          // page renders from, so the order is what has to be re-read.
+          onChanged={reload}
+        />
       ) : null}
       <DeliveryCard order={found} />
       <PaymentCard />
