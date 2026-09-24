@@ -56,7 +56,7 @@ docker compose --profile full up -d --build
 docker compose ps
 ```
 
-This starts PostgreSQL, Redis, Meilisearch, MinIO, Adminer, Mailpit, and the
+This starts PostgreSQL, Redis, Meilisearch, SeaweedFS, Adminer, Mailpit, and the
 NestJS API. PostgreSQL is created by the real Prisma migrations; `schema.sql`
 is reference/bootstrap documentation and is not applied as an upgrade. The API
 runs the idempotent seed on boot and is available at
@@ -79,7 +79,7 @@ Open [Adminer](http://localhost:8081) and use:
 
 Confirm `GET http://localhost:8000/api/v1/ready` returns a ready response. The
 seed supplies all six roles, eight bilingual departments plus subcategories,
-32 stocked products, durable MinIO images, discounts, and banners.
+32 stocked products, durable S3-backed images, discounts, and banners.
 
 ## 4. Run the API directly on the host
 

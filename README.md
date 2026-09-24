@@ -52,7 +52,7 @@ bootstrap/reference, not the upgrade path.
 | Adminer (DB UI) | http://localhost:8081 |
 | Meilisearch | http://localhost:7700 |
 | Mailpit (dev email) | http://localhost:8025 |
-| MinIO console | http://localhost:9001 |
+| SeaweedFS master status | http://localhost:9001 |
 | API | http://localhost:8000/api/v1 |
 
 ## Getting started as a developer

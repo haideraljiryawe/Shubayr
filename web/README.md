@@ -172,7 +172,7 @@ suite runs under, so the tests never need a backend.
 ### Running against the real backend
 
 ```bash
-docker compose --profile full up -d     # db, redis, meilisearch, MinIO, api:8000
+docker compose --profile full up -d     # db, redis, meilisearch, SeaweedFS, api:8000
 cd web && npm run dev                   # http://localhost:3000
 ```
 

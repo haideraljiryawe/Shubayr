@@ -137,18 +137,22 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: backend/package-lock.json
-      - name: Start MinIO
+      - name: Start S3-compatible object storage
         run: |
-          docker run --detach --name shubayr_acceptance_minio \
+          docker run --detach --name shubayr_acceptance_s3 \
             --publish 9000:9000 \
-            --env MINIO_ROOT_USER=shubayr \
-            --env MINIO_ROOT_PASSWORD=shubayr_minio_secret \
-            quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z server /data
+            --env AWS_ACCESS_KEY_ID=shubayr \
+            --env AWS_SECRET_ACCESS_KEY=shubayr_minio_secret \
+            --env S3_BUCKET=shubayr-media \
+            chrislusf/seaweedfs:4.47 mini -dir=/data -s3.port=9000 \
+              -master.telemetry=false
           for attempt in $(seq 1 30); do
-            curl --fail --silent http://localhost:9000/minio/health/live && exit 0
+            status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              http://localhost:9000/ || true)"
+            [ "$status" = "403" ] && exit 0
             sleep 1
           done
-          docker logs shubayr_acceptance_minio
+          docker logs shubayr_acceptance_s3
           exit 1
       - name: Install, generate, and build
         working-directory: backend

@@ -46,19 +46,32 @@ services:
     volumes:
       - search_data:/meili_data
 
+  # Keep the legacy service, volume, port, and .env names so existing local
+  # S3 endpoints and developer configuration continue to work unchanged.
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z
+    image: chrislusf/seaweedfs:4.47
     container_name: shubayr_minio
     restart: unless-stopped
-    command: server /data --console-address ":9001"
+    command:
+      - mini
+      - -dir=/data
+      - -s3.port=9000
+      - -master.port=9001
+      - -master.telemetry=false
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-shubayr}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-shubayr_minio_secret}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-shubayr}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-shubayr_minio_secret}
+      S3_BUCKET: ${S3_BUCKET:-shubayr-media}
     ports:
       - "${MINIO_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider http://localhost:9000/ 2>&1 | grep -q '403 Forbidden'"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   adminer:
     image: adminer:4
@@ -104,7 +117,7 @@ services:
       search:
         condition: service_started
       minio:
-        condition: service_started
+        condition: service_healthy
     environment:
       APP_ENV: ${APP_ENV:-development}
       NODE_ENV: ${NODE_ENV:-development}
