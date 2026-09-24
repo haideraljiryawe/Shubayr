@@ -25,11 +25,12 @@ Start the complete migration-first, real-data stack from the repository root:
 docker compose --profile full up -d --build
 ```
 
-This starts PostgreSQL, Redis, Meilisearch, MinIO, and the API. At startup,
+This starts PostgreSQL, Redis, Meilisearch, SeaweedFS, and the API. At startup,
 the API runs `prisma generate`, `prisma migrate deploy`, and the idempotent
-development seed before serving at `http://localhost:8000/api/v1`. MinIO keeps
-objects in the named `minio_data` volume, so uploaded catalog images survive
-container restarts. Its local console is `http://localhost:9001`.
+development seed before serving at `http://localhost:8000/api/v1`. SeaweedFS
+keeps objects in the existing `minio_data` volume, so uploaded catalog images
+survive container restarts. Its local master status page is
+`http://localhost:9001`.
 
 Browser CORS allows `http://localhost:3000` and `http://localhost:3100` by
 default. Override `CORS_ORIGINS` with a comma-separated list of exact origins
@@ -243,7 +244,7 @@ npm run typecheck
 npm run lint
 npm run build
 npm test
-npm run test:acceptance # requires a built API, PostgreSQL, and MinIO; creates its own DB/API
+npm run test:acceptance # requires a built API, PostgreSQL, and S3-compatible storage; creates its own DB/API
 ```
 
 `test:acceptance` runs both the admin-to-public catalog check and the
