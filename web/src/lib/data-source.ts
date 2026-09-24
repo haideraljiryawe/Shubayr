@@ -36,8 +36,8 @@ export const DOMAINS = [
 export type Domain = (typeof DOMAINS)[number];
 
 /**
- * Slice 1: the domains the backend actually serves today. Everything else
- * stays on fixtures until its own backend slice lands.
+ * The domains the backend actually serves today. Everything else stays on
+ * fixtures until its own backend slice lands.
  */
 const LIVE_BY_DEFAULT: readonly Domain[] = [
   "auth",
@@ -50,6 +50,20 @@ const LIVE_BY_DEFAULT: readonly Domain[] = [
   "checkout",
   "orders",
   "addresses",
+  // Slice 3: the account extras. Every one of these was verified against
+  // api/openapi.yaml v5.4.0 before being listed here — `reviews` covers
+  // WRITING reviews and rating a delivery (reading them has always been part
+  // of `catalog`), and `notifications` is the account-level preference pair,
+  // not push delivery, which needs device tokens the web app does not mint.
+  "returns",
+  "loyalty",
+  "reviews",
+  "notifications",
+  // NOT wishlist. api/openapi.yaml documents GET/POST /wishlist and
+  // DELETE /wishlist/{productId}, and the database carries a wishlist_items
+  // table, but the backend has no wishlist module at all — every verb answers
+  // 404. The contract is ahead of the server here, so the domain stays on
+  // fixtures until that slice is actually built. See the README.
 ];
 
 function isDomain(value: string): value is Domain {

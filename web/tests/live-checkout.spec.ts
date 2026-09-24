@@ -12,30 +12,13 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
  * Start the stack with `docker compose --profile full up -d` and seed it.
  */
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-const PHONE = "+9647700000006";
-const OTP = process.env.DEV_OTP ?? "000000";
-
-async function reachable(request: APIRequestContext): Promise<boolean> {
-  try {
-    return (await request.get(`${API}/settings`, { timeout: 3000 })).ok();
-  } catch {
-    return false;
-  }
-}
-
-async function signIn(request: APIRequestContext): Promise<string> {
-  await request.post(`${API}/auth/request-otp`, { data: { phone: PHONE } });
-  const verified = await request.post(`${API}/auth/verify-otp`, {
-    data: { phone: PHONE, code: OTP },
-  });
-  expect(verified.ok()).toBe(true);
-  return (await verified.json()).access_token as string;
-}
-
-function auth(token: string) {
-  return { Authorization: `Bearer ${token}` };
-}
+import {
+  API,
+  awaitQuota,
+  bearer as auth,
+  customerToken as signIn,
+  reachable,
+} from "./live-api";
 
 /** Leave the cart empty so each test starts from a known basket. */
 async function emptyCart(request: APIRequestContext, token: string) {
@@ -64,6 +47,7 @@ test.describe("live cart and COD checkout", () => {
       !(await reachable(request)),
       `No API at ${API} — start the backend to run the live smoke test.`,
     );
+    await awaitQuota(request);
   });
 
   test("the server reprices the cart and owns every total", async ({

@@ -11,15 +11,17 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
  * when nothing answers, so the suite is safe to run with no backend.
  */
 
-const API =
-  process.env.PLAYWRIGHT_LIVE_API ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://localhost:8000/api/v1";
-const PHONE_LOCAL = "07700000006";
-const PHONE_E164 = "+9647700000006";
-/** The seeded administrator, used only to take a product off sale mid-test. */
-const ADMIN_E164 = "+9647700000001";
-const OTP = process.env.DEV_OTP ?? "000000";
+import {
+  API,
+  ADMIN_E164,
+  CUSTOMER_E164,
+  CUSTOMER_LOCAL as PHONE_LOCAL,
+  awaitQuota,
+  customerToken as token,
+  reachable,
+  signIn,
+  tokenFor,
+} from "./live-api";
 
 /**
  * A product whose stock sits on a VARIANT.
@@ -29,30 +31,6 @@ const OTP = process.env.DEV_OTP ?? "000000";
  * availability off the variant, and this test walks the path that proves it.
  */
 const EARBUDS = "40000000-0000-4000-8000-000000000001";
-
-async function reachable(request: APIRequestContext): Promise<boolean> {
-  try {
-    return (await request.get(`${API}/settings`, { timeout: 3000 })).ok();
-  } catch {
-    return false;
-  }
-}
-
-async function tokenFor(
-  request: APIRequestContext,
-  phone: string,
-): Promise<string> {
-  await request.post(`${API}/auth/request-otp`, { data: { phone } });
-  const verified = await request.post(`${API}/auth/verify-otp`, {
-    data: { phone, code: OTP },
-  });
-  expect(verified.ok()).toBe(true);
-  return (await verified.json()).access_token as string;
-}
-
-function token(request: APIRequestContext): Promise<string> {
-  return tokenFor(request, PHONE_E164);
-}
 
 /**
  * Take a product off sale, or put it back.
@@ -85,26 +63,6 @@ async function emptyServerCart(request: APIRequestContext): Promise<void> {
   if (cart.coupon_code) await request.delete(`${API}/cart/coupon`, { headers });
 }
 
-/**
- * Sign in through the real phone-OTP form and land on `next`.
- *
- * /login is the storefront's own entry point and honours ?next=, so this is
- * the returning customer's path rather than a test-only shortcut — no token is
- * injected, the OTP round trip really happens.
- */
-async function signIn(page: Page, next = "/account/orders"): Promise<void> {
-  await page.goto(`/login?next=${encodeURIComponent(next)}`);
-  // The form is rendered twice (narrow and wide); only one is ever visible.
-  const phone = page.locator('[data-testid="auth-phone"]:visible');
-  await expect(phone).toBeVisible();
-  await phone.fill(PHONE_LOCAL);
-  await page.locator('[data-testid="auth-send-otp"]:visible').click();
-  await page.locator('[data-testid="auth-code"]:visible').fill(OTP);
-  await page.locator('[data-testid="auth-verify"]:visible').click();
-  // The redirect is what tells us the session is actually established.
-  await page.waitForURL((url) => !url.pathname.includes("/login"));
-}
-
 /** Put one earbuds line in the guest basket, choosing the in-stock variant. */
 async function addEarbudsAsGuest(page: Page): Promise<void> {
   await page.goto(`/product/${EARBUDS}`);
@@ -132,6 +90,7 @@ test.describe("live purchase funnel", () => {
       !(await reachable(request)),
       `No API at ${API} — start the backend to run the live funnel test.`,
     );
+    await awaitQuota(request);
     await emptyServerCart(request);
 
     // Nothing carries over between tests: no session, no guest basket.
@@ -340,7 +299,7 @@ test.describe("live purchase funnel", () => {
       (entry: { label?: string }) => entry.label === label,
     );
     expect(created).toBeTruthy();
-    expect(created.contact_phone).toBe(PHONE_E164);
+    expect(created.contact_phone).toBe(CUSTOMER_E164);
 
     // Tidy up, so a re-run does not silt the account up with addresses.
     await request.delete(`${API}/addresses/${created.id}`, {
