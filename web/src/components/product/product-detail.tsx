@@ -187,6 +187,7 @@ export function ProductDetail({
               <WishlistButton
                 productId={product.id ?? undefined}
                 className="bg-surface/90 backdrop-blur"
+                data-testid="pdp-wishlist"
               />
             </div>
           </div>

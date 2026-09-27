@@ -17,7 +17,7 @@ import {
   awaitQuota,
   bearer as auth,
   customerToken as signIn,
-  reachable,
+  requireLiveApi,
 } from "./live-api";
 
 /** Leave the cart empty so each test starts from a known basket. */
@@ -43,10 +43,7 @@ const EARBUDS_VARIANT = "50000000-0000-4000-8000-000000000001";
 
 test.describe("live cart and COD checkout", () => {
   test.beforeEach(async ({ request }) => {
-    test.skip(
-      !(await reachable(request)),
-      `No API at ${API} — start the backend to run the live smoke test.`,
-    );
+    await requireLiveApi(request, "the live smoke test");
     await awaitQuota(request);
   });
 

@@ -18,36 +18,43 @@ import { AccountEmpty, AccountError, AccountSkeleton } from "./states";
 /**
  * The saved products, as a grid of the same tile the storefront uses.
  *
- * The store holds product ids only — that is all a guest's device can know —
- * so the page resolves them to products through the catalogue. A signed-in
- * shopper's list arrives from GET /wishlist (which carries the whole product),
- * but rendering from ids either way keeps one path instead of two.
+ * Signed in, every row comes from GET /wishlist with its product attached, and
+ * the tile renders that product's prices exactly as the server sent them —
+ * the server prices the list at read time, so a sale that started since the
+ * heart was tapped is already reflected, and nothing here does arithmetic on
+ * it. A row without a product (the domain mocked beside a live catalogue) is
+ * the only thing resolved through the catalogue instead.
  */
 export function WishlistGrid() {
   const t = useTranslations("wishlist");
   const tp = useTranslations("product");
   const locale = useLocale() as Locale;
   const showToast = useToast();
-  const { ids, hydrated } = useWishlist();
+  const { ids, items, status, hydrated } = useWishlist();
 
-  // Resolved products, plus the ids the catalogue could not return. Both only
-  // ever move inside a promise continuation: setting them in the effect body
-  // would cascade a render, which is what `useResource` exists to avoid
-  // elsewhere — this needs its own version because it resolves many ids.
-  const [products, setProducts] = useState<Map<string, Product>>(new Map());
+  // Catalogue lookups for rows the server did not attach a product to, plus
+  // the ids the catalogue could not return. Both only ever move inside a
+  // promise continuation, never in the effect body.
+  const [resolved, setResolved] = useState<Map<string, Product>>(new Map());
   const [unavailable, setUnavailable] = useState<Set<string>>(new Set());
-  const [failed, setFailed] = useState(false);
 
-  const missing = useMemo(
-    () => ids.filter((id) => !products.has(id) && !unavailable.has(id)),
-    [ids, products, unavailable],
+  const productFor = useCallback(
+    (id: string) => items[id]?.product ?? resolved.get(id),
+    [items, resolved],
   );
 
-  // Derived rather than stored, so nothing has to be set before the fetch.
-  const resolving = hydrated && missing.length > 0 && !failed;
+  const settled = status === "ready" || status === "guest";
+
+  const missing = useMemo(
+    () =>
+      settled
+        ? ids.filter((id) => !productFor(id) && !unavailable.has(id))
+        : [],
+    [ids, productFor, settled, unavailable],
+  );
 
   useEffect(() => {
-    if (!hydrated || missing.length === 0) return;
+    if (missing.length === 0) return;
     let cancelled = false;
 
     Promise.all(
@@ -59,29 +66,24 @@ export function WishlistGrid() {
           () => [id, null] as const,
         ),
       ),
-    ).then(
-      (entries) => {
-        if (cancelled) return;
-        setProducts((current) => {
-          const next = new Map(current);
-          for (const [id, product] of entries) if (product) next.set(id, product);
-          return next;
-        });
-        setUnavailable((current) => {
-          const next = new Set(current);
-          for (const [id, product] of entries) if (!product) next.add(id);
-          return next;
-        });
-      },
-      () => {
-        if (!cancelled) setFailed(true);
-      },
-    );
+    ).then((entries) => {
+      if (cancelled) return;
+      setResolved((current) => {
+        const next = new Map(current);
+        for (const [id, product] of entries) if (product) next.set(id, product);
+        return next;
+      });
+      setUnavailable((current) => {
+        const next = new Set(current);
+        for (const [id, product] of entries) if (!product) next.add(id);
+        return next;
+      });
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [hydrated, missing]);
+  }, [missing]);
 
   const remove = useCallback(
     (productId: string) => {
@@ -113,10 +115,22 @@ export function WishlistGrid() {
     [showToast, t],
   );
 
-  if (!hydrated || (resolving && products.size === 0)) {
+  if (status === "error") {
+    return (
+      <AccountError
+        message={t("loadError")}
+        onRetry={() => void wishlistStore.refresh()}
+      />
+    );
+  }
+
+  const saved = ids
+    .map((id) => productFor(id))
+    .filter((product): product is Product => Boolean(product));
+
+  if (!hydrated || !settled || (missing.length > 0 && saved.length === 0)) {
     return <AccountSkeleton rows={3} />;
   }
-  if (failed) return <AccountError message={t("loadError")} />;
 
   if (ids.length === 0) {
     return (
@@ -132,10 +146,6 @@ export function WishlistGrid() {
       />
     );
   }
-
-  const saved = ids
-    .map((id) => products.get(id))
-    .filter((product): product is Product => Boolean(product));
 
   return (
     <div className="flex flex-col gap-4">

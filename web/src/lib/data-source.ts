@@ -59,11 +59,11 @@ const LIVE_BY_DEFAULT: readonly Domain[] = [
   "loyalty",
   "reviews",
   "notifications",
-  // NOT wishlist. api/openapi.yaml documents GET/POST /wishlist and
-  // DELETE /wishlist/{productId}, and the database carries a wishlist_items
-  // table, but the backend has no wishlist module at all — every verb answers
-  // 404. The contract is ahead of the server here, so the domain stays on
-  // fixtures until that slice is actually built. See the README.
+  // Slice 4: the wishlist. The backend module landed in #55 (contract
+  // v5.5.0), so GET/POST /wishlist and DELETE /wishlist/{productId} are served
+  // — probed against the running API, not just read off openapi.yaml, which
+  // documented these routes long before the server implemented them.
+  "wishlist",
 ];
 
 function isDomain(value: string): value is Domain {

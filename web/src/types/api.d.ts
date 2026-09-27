@@ -1347,6 +1347,49 @@ export interface paths {
         };
         trace?: never;
     };
+    "/me/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the current customer's own product reviews
+         * @description Returns all moderation states, newest first. Pending and rejected reviews are visible only to their owner; public product review reads remain published-only.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated caller-owned reviews */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerReviewPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products/{id}/reviews": {
         parameters: {
             query?: never;
@@ -4718,6 +4761,17 @@ export interface components {
         };
         ReviewPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Review"][];
+        };
+        CustomerReview: components["schemas"]["Review"] & {
+            product: {
+                /** Format: uuid */
+                id: string;
+                name_en: string;
+                name_ar: string;
+            };
+        };
+        CustomerReviewPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["CustomerReview"][];
         };
         DeliveryRating: {
             /** Format: uuid */

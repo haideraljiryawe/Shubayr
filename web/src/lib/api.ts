@@ -31,6 +31,7 @@ import {
   createMockReview,
   createMockDeliveryRating,
   listMockReviewedOrderItems,
+  listMockMyReviews,
 } from "./mock-account";
 import {
   demoProducts,
@@ -63,6 +64,8 @@ export type ProductVariant = Schemas["ProductVariant"];
 export type ProductAvailability = Schemas["ProductAvailability"];
 export type Review = Schemas["Review"];
 export type ReviewPage = Schemas["ReviewPage"];
+export type CustomerReview = Schemas["CustomerReview"];
+export type CustomerReviewPage = Schemas["CustomerReviewPage"];
 export type Coupon = Schemas["Coupon"];
 export type User = Schemas["User"];
 export type UserInput = Schemas["UserInput"];
@@ -774,8 +777,10 @@ export const api = {
    * The signed-in wishlist. A guest has no server wishlist at all, so the
    * store above this keeps one locally and replays it on sign-in; these three
    * methods are only ever reached with a session.
+   *
+   * Each row carries its whole product, priced by the server when the list is
+   * read, and the page renders that as sent.
    */
-  // MOCK: awaiting backend slice (wishlist).
   async listWishlist(): Promise<WishlistItem[]> {
     return withFreshToken(async () => {
       if (!isLive("wishlist")) {
@@ -790,7 +795,7 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (wishlist).
+  /** Idempotent on the server: adding a saved product returns the same row. */
   async addWishlistItem(productId: string): Promise<WishlistItem> {
     return withFreshToken(async () => {
       if (!isLive("wishlist")) {
@@ -805,7 +810,7 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (wishlist).
+  /** 404 when the product is not on the list — the store treats that as done. */
   async removeWishlistItem(productId: string): Promise<void> {
     return withFreshToken(async () => {
       if (!isLive("wishlist")) {
@@ -981,6 +986,27 @@ export const api = {
         .filter((item) => item.reviewed)
         .map((item) => item.id ?? "")
         .filter(Boolean);
+    });
+  },
+
+  /**
+   * The caller's own reviews, in every moderation state, newest first.
+   *
+   * GET /products/{id}/reviews is public and returns only PUBLISHED rows, so
+   * this is the one route on which a customer can find a review that is still
+   * awaiting moderation, or was rejected — and so the one that lets edit and
+   * delete survive a reload.
+   */
+  async listMyReviews(
+    query: { page?: number; per_page?: number } = {},
+  ): Promise<CustomerReviewPage> {
+    return withFreshToken(async () => {
+      if (!isLive("reviews")) {
+        await mockLatency(100);
+        requireMockAuth();
+        return listMockMyReviews(query);
+      }
+      return request<CustomerReviewPage>("/me/reviews", { query });
     });
   },
 

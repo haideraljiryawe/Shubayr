@@ -2,6 +2,8 @@ import type {
   Address,
   AddressCreate,
   AddressPatch,
+  CustomerReview,
+  CustomerReviewPage,
   DeliveryRating,
   DeliveryRatingRequest,
   LoyaltyAccount,
@@ -641,6 +643,30 @@ export function deleteMockReview(reviewId: string): boolean {
   if (!myReviews.some((review) => review.id === reviewId)) return false;
   myReviews = myReviews.filter((review) => review.id !== reviewId);
   return true;
+}
+
+/** GET /me/reviews: every moderation state, newest first, with product names. */
+export function listMockMyReviews({
+  page = 1,
+  per_page = 20,
+}: { page?: number; per_page?: number } = {}): CustomerReviewPage {
+  const data: CustomerReview[] = myReviews.map((review) => {
+    const product = demoProducts.find(({ id }) => id === review.product_id);
+    return {
+      ...review,
+      product: {
+        id: review.product_id ?? "",
+        name_ar: product?.name_ar ?? "",
+        name_en: product?.name_en ?? "",
+      },
+    };
+  });
+  return {
+    page,
+    per_page,
+    total: data.length,
+    data: data.slice((page - 1) * per_page, page * per_page),
+  };
 }
 
 /** The caller's own review of a purchased line, if they wrote one. */

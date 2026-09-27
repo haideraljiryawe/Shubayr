@@ -561,10 +561,16 @@
     "delete": "حذف",
     "deleted": "تم حذف التقييم",
     "updated": "تم تحديث التقييم",
-    "published": "منشور",
     "editResetsToPending": "أي تعديل يعيد التقييم إلى المراجعة قبل نشره من جديد.",
-    "pendingNotEditable": "قيد المراجعة — يمكنك تعديله بعد نشره.",
-    "errAlready": "سبق أن قيّمت هذا المنتج من هذا الطلب."
+    "errAlready": "سبق أن قيّمت هذا المنتج من هذا الطلب.",
+    "statusPending": "بانتظار المراجعة",
+    "statusPublished": "منشور",
+    "statusRejected": "مرفوض",
+    "rejectedReason": "سبب الرفض: {reason}",
+    "rejectedHint": "عدّله لإرساله إلى المراجعة من جديد.",
+    "mineLoading": "جارٍ تحميل تقييمك",
+    "mineLoadError": "تعذّر تحميل تقييماتك.",
+    "retry": "إعادة المحاولة"
   },
   "settings": {
     "paymentsTitle": "طرق الدفع",

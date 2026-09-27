@@ -105,24 +105,29 @@ its endpoints exist without touching the ones still waiting.
 | `addresses` | **LIVE** | `GET/POST/PATCH/DELETE /addresses` — `contact_phone` is E.164 |
 | `returns` | **LIVE** | `GET /returns`, `POST /returns` — per-line `reason` is required |
 | `loyalty` | **LIVE** | `GET /loyalty` (paginated ledger), `POST /loyalty/redeem` |
-| `reviews` | **LIVE** | `POST /products/{id}/reviews`, `PATCH`/`DELETE /reviews/{id}`, `POST /deliveries/{id}/rating` — **writing**, unlike the reads under `catalog` |
+| `reviews` | **LIVE** | `POST /products/{id}/reviews`, `GET /me/reviews`, `PATCH`/`DELETE /reviews/{id}`, `POST /deliveries/{id}/rating` — the customer's own reviews, unlike the published reads under `catalog` |
 | `notifications` | **LIVE** | `GET`/`PATCH /me/notification-preferences` |
-| `wishlist` | mock | **no backend** — see below |
+| `wishlist` | **LIVE** | `GET`/`POST /wishlist`, `DELETE /wishlist/{productId}` — signed in only; see below |
 
 Every still-mocked method carries a `// MOCK: awaiting backend slice` comment at
 its definition, so the remaining work is greppable.
 
-### Wishlist has no backend
+### Wishlist: guest list on the device, replayed once
 
-`api/openapi.yaml` documents `GET`/`POST /wishlist` and
-`DELETE /wishlist/{productId}`, `infra/db/schema.sql` creates a
-`wishlist_items` table, and Prisma generates a `WishlistItem` model — but the
-NestJS app has **no wishlist module at all**, so every one of those routes
-answers 404. The contract is ahead of the server here.
+Signed in, `GET /wishlist` is the authority: each row carries its whole
+product, priced by the server when the list is read, and the wishlist page
+renders that product as sent — no client-side price arithmetic. Hearts toggle
+optimistically and roll back if the server refuses.
 
-The domain therefore stays on fixtures. It is not faked against a route that
-does not exist, and `tests/live-account.spec.ts` asserts the 404 so that the
-day someone builds the slice, that test fails and says so.
+A guest has no server wishlist, so — exactly like the cart — the hearts are
+held in `localStorage` and **replayed through `POST /wishlist` once, at
+sign-in**. Each id leaves the device list the moment the server has answered
+for it, so a reload, a second sign-in or React StrictMode's double-mounted
+effect can never push it again (which would re-add a product the shopper had
+since removed on another device). The replay is shared by every caller of
+`wishlistStore.attachAccount()`, and a product the server will never take
+(404/422) is dropped rather than retried forever. Signing out drops the
+account's list from the device.
 
 ### Notification preferences are not push registration
 
@@ -133,17 +138,16 @@ receive anything: web push needs a service worker and an FCM token the web app
 does not mint, which is a separate config/ops task. The settings page says so
 rather than implying the toggle is enough.
 
-### A customer cannot find their own pending review
+### A customer's own reviews come from `GET /me/reviews`
 
-Writing a review returns it, so editing and deleting work immediately. But
-`GET /products/{id}/reviews` is public and returns only **published** rows, and
-there is no `GET /me/reviews` — so after a reload, a review still awaiting
-moderation is invisible to the person who wrote it.
-
-`components/account/order-reviews.tsx` offers edit and delete whenever it can
-identify the review (it just wrote it, or it is published and findable) and
-says plainly that a pending one cannot be changed yet. A customer-scoped
-`GET /me/reviews` would close this.
+`GET /products/{id}/reviews` is public and returns only **published** rows, so
+it can never show a customer the review they wrote that is still waiting on a
+moderator. `GET /me/reviews` (contract v5.5.0) is customer-scoped and returns
+every moderation state, so `components/account/order-reviews.tsx` looks each
+reviewed order line up there: edit and delete are offered for the customer's
+review whatever its state, including after a reload, and the badge shows where
+it stands — pending, published, or rejected together with the moderator's
+reason. Editing sends it back to pending, which the form says before saving.
 
 ### Two status vocabularies, deliberately
 
@@ -159,8 +163,8 @@ Contract v5.4.0 renamed the order side — `processing` → `preparing`,
 delivery rather than four. The delivery side was not renamed.
 
 ```bash
-# The default: everything with a backend. `wishlist` is the only domain left off.
-NEXT_PUBLIC_LIVE_DOMAINS=auth,profile,catalog,banners,cart,checkout,orders,addresses,returns,loyalty,reviews,notifications
+# The default: every domain is live now that the wishlist has a backend.
+NEXT_PUBLIC_LIVE_DOMAINS=auth,profile,catalog,banners,cart,checkout,orders,addresses,returns,loyalty,reviews,notifications,wishlist
 NEXT_PUBLIC_LIVE_DOMAINS=all                            # everything live
 NEXT_PUBLIC_LIVE_DOMAINS=none                           # everything mocked
 NEXT_PUBLIC_USE_MOCKS=true                              # global override to mock
@@ -205,8 +209,23 @@ the seeded product off sale mid-flow to exercise the unavailable-line and
 `live-account.spec.ts` covers the account extras: a partial return with a
 per-line reason and the server's refund, the loyalty balance and ledger plus a
 redemption (and the over-balance refusal), writing then editing then deleting a
-review on a purchased line, and a notification preference that survives a
-reload because it lives on the account. It also pins wishlist's 404.
+review on a purchased line — including a PENDING one after a reload, found
+through `GET /me/reviews` — the moderator's decision (rejected with its reason,
+then published) shown on the customer's own review, and a notification
+preference that survives a reload because it lives on the account.
+
+`live-wishlist.spec.ts` covers the wishlist: a heart that reaches the account,
+reads back after a reload and is removed from the page; the page rendering the
+server's price verbatim (the test rewrites `effective_price` in flight to a
+value no client arithmetic could produce); double adds, sequential and racing,
+that leave one row; and a guest heart replayed exactly once — one browser
+`POST /wishlist` under StrictMode, and not resurrected after it is removed
+elsewhere and the page reloads.
+
+Under `npm run test:live` a backend that does not answer **fails** the run
+(`PLAYWRIGHT_LIVE_REQUIRED=1`, checked by `requireLiveApi` in
+`tests/live-api.ts`) rather than skipping it green. Any HTTP status, a 429
+included, counts as "the API is there".
 
 Anything needing a delivered order **mints one** — placing it, walking it
 through staff transitions, assigning a courier and having that courier deliver
@@ -233,7 +252,8 @@ tokens and waits the window out rather than skipping.
 - `/search?q=...`: the same listing, wired to the header's GET search form.
 - Price, minimum rating, subcategory, sale status, sort and pagination live in
   the URL. Mobile filters use a keyboard-accessible modal sheet; desktop uses
-  a left sidebar. Wishlist selections persist locally without a backend write.
+  a left sidebar. Wishlist hearts are kept on the device for a guest and on
+  the account once signed in.
 - Pricing is entirely backend-computed: the storefront renders `effective_price`
   as what the shopper pays, strikes through `price` and shows the
   `discount_percent` badge only while `on_sale` is true. There is no discount
@@ -334,12 +354,12 @@ from `lg` up the menu is a sidebar beside the section.
 | المساعدة والدعم | Contact channels and FAQ |
 | الإعدادات | Account summary and sign-out |
 
-**Wishlist.** `src/lib/wishlist-store.ts` is the same seam as the cart store: a
-guest's hearts live in `localStorage`, and `setWishlistSync` plugs in
-`GET/POST /wishlist` and `DELETE /wishlist/{productId}` once someone signs in.
-Signing in *merges* — a product hearted as a guest is pushed up, never dropped.
-The merge carries a revision guard so a slow `GET /wishlist` cannot resurrect an
-item the shopper removed while it was in flight.
+**Wishlist.** `src/lib/wishlist-store.ts` is the same seam as the cart store:
+a guest's hearts live in `localStorage`; `WishlistSync` calls
+`attachAccount()` on sign-in (replay once, then adopt `GET /wishlist`) and
+`detachAccount()` on sign-out. A session epoch drops any response that lands
+after a sign-out, and a revision guard re-reads once if a heart was tapped
+while `GET /wishlist` was in flight.
 
 **Returns and reviews** are reachable only from a delivered order, and both the
 entry point and the request page enforce that. Order lines render from the
@@ -384,12 +404,6 @@ on `ProductCard` controls.
 
 Each carries a `CONTRACT GAP` comment at the seam:
 
-- **No wishlist backend.** The routes are in the contract and the table is in
-  the database, but no module serves them. The domain stays on fixtures; see
-  above.
-- **No `GET /me/reviews`.** A customer cannot find their own pending review
-  after a reload, so edit and delete are offered only when the review is
-  identifiable; see above.
 - **No customer-readable delivery record.** `GET /deliveries` is staff-scoped,
   `/deliveries/assigned` is the agent's, and `/deliveries/{id}` is PATCH-only,
   so the storefront cannot read the `Delivery` behind an order. It does not

@@ -27,15 +27,44 @@ import {
 import { OrderItemLine } from "./order-item-line";
 
 /**
- * Reviews this session has written or resolved, keyed by order item.
+ * The caller's own reviews, keyed by order item.
  *
  * It lives outside the component because the order refetches after every
  * write, and while that is in flight the page shows a skeleton — which
- * unmounts these rows and would otherwise throw away the only handle we have
- * on a freshly created review. See the CONTRACT GAP note below: there is no
- * route that would let us look it up again.
+ * unmounts these rows. Keeping what is already known means they come back
+ * with their status and controls in place instead of flickering while
+ * GET /me/reviews is asked again.
  */
 const knownReviews = new Map<string, Review>();
+
+/** GET /me/reviews pages to walk before giving up on a very old order. */
+const MAX_REVIEW_PAGES = 10;
+
+/**
+ * Find the caller's reviews of these order items.
+ *
+ * GET /me/reviews is newest first, so a recent order is answered by the first
+ * page; an older one walks on until every reviewed line is accounted for.
+ */
+async function findMyReviews(
+  orderItemIds: string[],
+): Promise<Map<string, Review>> {
+  const wanted = new Set(orderItemIds);
+  const found = new Map<string, Review>();
+  for (let page = 1; page <= MAX_REVIEW_PAGES; page += 1) {
+    const result = await api.listMyReviews({ page, per_page: 100 });
+    for (const review of result.data) {
+      const itemId = review.order_item_id ?? "";
+      if (wanted.has(itemId)) found.set(itemId, review);
+    }
+    const exhausted =
+      result.data.length === 0 || page * result.per_page >= result.total;
+    if (found.size === wanted.size || exhausted) break;
+  }
+  return found;
+}
+
+type Lookup = "loading" | "done" | "failed";
 
 /**
  * Reviewing a delivered order: one review per purchased line, plus one rating
@@ -46,17 +75,12 @@ const knownReviews = new Map<string, Review>();
  * submit. Both only appear once the order is delivered; the caller gates that.
  *
  * WHICH lines are already reviewed comes from `OrderItem.reviewed`, a
- * per-caller flag the order itself carries, so there is nothing extra to
- * fetch and no second source of truth to drift.
- *
- * CONTRACT GAP: editing or deleting a review needs its id, and a customer has
- * no route to their own. GET /products/{id}/reviews is public and returns only
- * PUBLISHED rows, so a review still awaiting moderation is invisible to the
- * person who wrote it the moment they reload the page. This component
- * therefore offers edit and delete whenever it can identify the review — it
- * just created it, or it is published and findable — and says plainly that a
- * pending one cannot be changed yet. A customer-scoped GET /me/reviews would
- * close this.
+ * per-caller flag the order itself carries. The reviews themselves — their
+ * id, their text and their moderation status — come from GET /me/reviews,
+ * the customer-scoped list that includes pending and rejected rows. The public
+ * product list is published-only and could never find a review still waiting
+ * on a moderator; this can, which is what keeps edit and delete available
+ * after a reload whatever state the review is in.
  */
 export function OrderReviews({
   order,
@@ -72,6 +96,58 @@ export function OrderReviews({
   const t = useTranslations("reviews");
   const items = order.items ?? [];
   const outstanding = items.filter((item) => !item.reviewed);
+
+  // Only lines the order marks reviewed have a review to find. Joined into a
+  // string so the lookup re-runs when that set changes, not on every render.
+  const reviewedKey = items
+    .filter((item) => item.reviewed && item.id)
+    .map((item) => item.id ?? "")
+    .join(",");
+
+  const [mine, setMineMap] = useState<Map<string, Review>>(() => {
+    const known = new Map<string, Review>();
+    for (const item of items) {
+      const review = knownReviews.get(item.id ?? "");
+      if (review) known.set(item.id ?? "", review);
+    }
+    return known;
+  });
+  const [lookup, setLookup] = useState<Lookup>(
+    reviewedKey ? "loading" : "done",
+  );
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!reviewedKey) return;
+    let cancelled = false;
+
+    findMyReviews(reviewedKey.split(",")).then(
+      (found) => {
+        if (cancelled) return;
+        for (const [itemId, review] of found) knownReviews.set(itemId, review);
+        setMineMap((current) => new Map([...current, ...found]));
+        setLookup("done");
+      },
+      () => {
+        if (!cancelled) setLookup("failed");
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reviewedKey, attempt]);
+
+  const setMine = useCallback((itemId: string, review: Review | null) => {
+    if (review) knownReviews.set(itemId, review);
+    else knownReviews.delete(itemId);
+    setMineMap((current) => {
+      const next = new Map(current);
+      if (review) next.set(itemId, review);
+      else next.delete(itemId);
+      return next;
+    });
+  }, []);
 
   return (
     <>
@@ -91,10 +167,36 @@ export function OrderReviews({
           </p>
         ) : null}
 
+        {lookup === "failed" ? (
+          <p
+            role="alert"
+            className="flex flex-wrap items-center gap-2 text-sm text-error-dark"
+          >
+            {t("mineLoadError")}
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid="reviews-mine-retry"
+              onClick={() => {
+                setLookup("loading");
+                setAttempt((count) => count + 1);
+              }}
+            >
+              {t("retry")}
+            </Button>
+          </p>
+        ) : null}
+
         <ul className="flex flex-col divide-y divide-border">
           {items.map((item) => (
             <li key={item.id} className="py-3">
-              <ProductReviewRow item={item} onChanged={onChanged} />
+              <ProductReviewRow
+                item={item}
+                mine={mine.get(item.id ?? "") ?? null}
+                looking={lookup === "loading"}
+                onMine={setMine}
+                onChanged={onChanged}
+              />
             </li>
           ))}
         </ul>
@@ -107,9 +209,17 @@ export function OrderReviews({
 
 function ProductReviewRow({
   item,
+  mine,
+  looking,
+  onMine,
   onChanged,
 }: {
   item: OrderItem;
+  /** The caller's own review of this line, once GET /me/reviews found it. */
+  mine: Review | null;
+  /** True while that lookup is still in flight. */
+  looking: boolean;
+  onMine: (itemId: string, review: Review | null) => void;
   onChanged: () => void;
 }) {
   const t = useTranslations("reviews");
@@ -122,45 +232,14 @@ function ProductReviewRow({
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
-  /** The caller's own review, once this component can identify it. */
-  const [mine, setMineState] = useState<Review | null>(
-    () => knownReviews.get(id) ?? null,
-  );
 
   const setMine = useCallback(
-    (review: Review | null) => {
-      if (review) knownReviews.set(id, review);
-      else knownReviews.delete(id);
-      setMineState(review);
-    },
-    [id],
+    (review: Review | null) => onMine(id, review),
+    [id, onMine],
   );
   // Hoisted out of the dependency arrays below: optional chaining inside a
   // dep list defeats the compiler's memoization checks.
   const reviewId = mine?.id ?? null;
-
-  // A published review is findable on the product; a pending one is not. This
-  // is what decides whether edit and delete can be offered after a reload, so
-  // it runs once per reviewed line and quietly gives up when it cannot.
-  useEffect(() => {
-    if (!item.reviewed || mine || !productId) return;
-    let cancelled = false;
-
-    api
-      .listReviews(productId, { per_page: 100 })
-      .then((page) => {
-        if (cancelled) return;
-        const found = (page.data ?? []).find(
-          (review) => review.order_item_id === id,
-        );
-        if (found) setMine(found);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id, item.reviewed, mine, productId, setMine]);
 
   const startEdit = useCallback(() => {
     setStars(mine?.rating ?? 0);
@@ -192,8 +271,8 @@ function ProductReviewRow({
           rating: stars,
           comment: comment.trim() || undefined,
         });
-        // Holding the created review is what makes edit and delete reachable
-        // in this session, before any moderator has looked at it.
+        // Held straight away so edit and delete are offered at once; after a
+        // reload GET /me/reviews finds it again, pending or not.
         setMine(created);
         showToast(t("submitted"));
       }
@@ -303,12 +382,7 @@ function ProductReviewRow({
       {item.reviewed ? (
         <span className="flex flex-col gap-2">
           <span className="flex flex-wrap items-center gap-2">
-            <Badge
-              tone={mine?.status === "published" ? "success" : "warning"}
-              data-testid={`review-done-${id}`}
-            >
-              {mine?.status === "published" ? t("published") : t("reviewed")}
-            </Badge>
+            <ReviewStatusBadge status={mine?.status} testId={`review-done-${id}`} />
 
             {mine ? (
               <>
@@ -333,17 +407,16 @@ function ProductReviewRow({
                   {t("delete")}
                 </Button>
               </>
-            ) : (
-              // Written, but awaiting moderation and so not findable — see the
-              // CONTRACT GAP note at the top of this file.
-              <span
-                data-testid={`review-locked-${id}`}
-                className="text-xs text-text-muted"
-              >
-                {t("pendingNotEditable")}
-              </span>
-            )}
+            ) : looking ? (
+              <Loader2
+                role="status"
+                className="size-4 animate-spin text-text-muted"
+                aria-label={t("mineLoading")}
+              />
+            ) : null}
           </span>
+
+          {mine ? <MyReviewSummary review={mine} itemId={id} /> : null}
 
           {error ? (
             <span role="alert" className="text-sm font-medium text-error">
@@ -369,6 +442,76 @@ function ProductReviewRow({
         </Button>
       )}
     </OrderItemLine>
+  );
+}
+
+const STATUS_TONE = {
+  pending: "warning",
+  published: "success",
+  rejected: "error",
+} as const;
+
+const STATUS_LABEL = {
+  pending: "statusPending",
+  published: "statusPublished",
+  rejected: "statusRejected",
+} as const;
+
+/**
+ * Where the review stands with moderation. Until GET /me/reviews answers, the
+ * line is only known to be reviewed, and the badge says just that.
+ */
+function ReviewStatusBadge({
+  status,
+  testId,
+}: {
+  status: Review["status"];
+  testId: string;
+}) {
+  const t = useTranslations("reviews");
+
+  return (
+    <Badge
+      tone={status ? STATUS_TONE[status] : "neutral"}
+      data-testid={testId}
+      data-status={status ?? "unknown"}
+    >
+      {status ? t(STATUS_LABEL[status]) : t("reviewed")}
+    </Badge>
+  );
+}
+
+/** The shopper's own words back to them, and why a moderator refused them. */
+function MyReviewSummary({ review, itemId }: { review: Review; itemId: string }) {
+  const t = useTranslations("reviews");
+
+  return (
+    <span
+      data-testid={`review-mine-${itemId}`}
+      className="flex flex-col gap-1 text-sm text-text-muted"
+    >
+      <span className="flex items-center gap-1.5">
+        <Star className="size-4 fill-warning text-warning" aria-hidden />
+        {t("starsLabel", { count: review.rating ?? 0 })}
+      </span>
+      {review.comment ? (
+        <span className="line-clamp-2 text-text">{review.comment}</span>
+      ) : null}
+      {review.status === "pending" ? (
+        <span className="text-xs">{t("pending")}</span>
+      ) : null}
+      {review.status === "rejected" ? (
+        <span
+          data-testid={`review-rejected-${itemId}`}
+          className="text-xs text-error-dark"
+        >
+          {review.moderation_reason
+            ? `${t("rejectedReason", { reason: review.moderation_reason })} `
+            : null}
+          {t("rejectedHint")}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
