@@ -2,7 +2,7 @@ jest.mock('../../database/prisma.service', () => ({ PrismaService: class {} }));
 
 jest.mock('@nestjs/config', () => ({ ConfigService: class {} }));
 
-import { PERMISSIONS_KEY } from '../../common/decorators/permissions.decorator';
+import { ACCESS_POLICY_KEY } from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { DeliveriesController } from './deliveries.controller';
 import { DeliveriesService } from './deliveries.service';
@@ -132,23 +132,33 @@ describe('DeliveriesService', () => {
 });
 
 describe('DeliveriesController', () => {
-  it('requires delivery.assigned and uses the authenticated agent id', async () => {
+  it('requires the delivery-agent app role and uses the authenticated agent id', async () => {
     const listAssigned = jest.fn().mockResolvedValue({});
     const controller = new DeliveriesController({ listAssigned } as never);
     const user: AuthenticatedRequestUser = {
       id: 'current-agent',
-      role: 'delivery',
-      permissions: ['delivery.assigned'],
+      phone: '+9647700000005',
+      username: null,
+      role: 'delivery_agent',
+      surface: 'app',
+      client: 'mobile',
+      permissions: [],
+      permissionVersion: 1,
+      mustChangePassword: false,
     };
 
     expect(
       // Decorator metadata is attached to the unbound controller method.
       Reflect.getMetadata(
-        PERMISSIONS_KEY,
+        ACCESS_POLICY_KEY,
         // eslint-disable-next-line @typescript-eslint/unbound-method
         DeliveriesController.prototype.listAssigned,
       ),
-    ).toEqual(['delivery.assigned']);
+    ).toEqual({
+      access: 'authenticated',
+      surfaces: ['app'],
+      appRoles: ['delivery_agent'],
+    });
     await controller.listAssigned({ user } as never, {
       status: DeliveryStatus.Assigned,
       page: 1,

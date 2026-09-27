@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
+import { AppPolicy } from '../../common/decorators/access-policy.decorator';
 import { CartService } from './cart.service';
 import {
   AddCartItemDto,
@@ -21,6 +22,7 @@ import {
 
 type AuthenticatedRequest = Request & { user: AuthenticatedRequestUser };
 
+@AppPolicy('customer')
 @Controller('cart')
 export class CartController {
   constructor(private readonly cart: CartService) {}
@@ -60,6 +62,7 @@ export class CartController {
   }
 }
 
+@AppPolicy('customer')
 @Controller('coupons')
 export class CouponController {
   constructor(private readonly cart: CartService) {}

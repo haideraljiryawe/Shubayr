@@ -107,8 +107,11 @@ describe('MeController', () => {
       { name: 'Updated Customer' },
     );
 
-    expect(updateCurrentUser).toHaveBeenCalledWith('current-user', {
-      name: 'Updated Customer',
-    });
+    expect(updateCurrentUser).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'current-user' }),
+      {
+        name: 'Updated Customer',
+      },
+    );
   });
 });

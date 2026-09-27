@@ -1,5 +1,32 @@
 # Changelog
 
+## 6.0.0 - 2026-09-27
+
+### Breaking
+
+- Authentication tokens now carry an immutable `surface` (`admin` or `app`).
+  Phone OTP issues app-only tokens; staff username/password login issues
+  admin-only tokens. Refresh and logout preserve the original surface.
+- Phone roles are now exactly `customer`, `delivery_agent`, or
+  `order_monitor`, assigned by the server. The legacy `delivery` role and
+  client-supplied roles are no longer accepted.
+- Coarse staff roles and permissions were replaced with multi-preset and
+  per-user grants from the fine-grained permission registry. Existing admin
+  clients must use the new staff, preset, and work-phone endpoints.
+- Work accounts are API-blocked from cart, checkout, wishlist, addresses,
+  reviews, returns, and loyalty redemption. Order monitors are read-only.
+
+### Added
+
+- Argon2id staff passwords, password policy, audited login attempts, lockout,
+  temporary-password change enforcement, and immediate session revocation.
+- Deny-by-default route policy metadata and a full registered-route
+  authorization matrix test.
+- Audited staff, preset, grant, and work-phone management APIs, plus a reusable
+  separation-of-duties helper.
+
+See `api/CLIENT_MIGRATION_6.0.md` for mobile and web client changes.
+
 ## 5.5.0 - 2026-09-27
 
 ### Added

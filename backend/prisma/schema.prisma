@@ -42,6 +42,8 @@ model Permission {
   group            String           @db.VarChar(80)
   description      String?          @db.VarChar(255)
   role_permissions RolePermission[]
+  preset_permissions PresetPermission[]
+  user_grants        UserPermissionGrant[]
 
   @@map("permissions")
 }
@@ -58,15 +60,26 @@ model RolePermission {
 
 model User {
   id                        String                  @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  role_id                   String                  @db.Uuid
+  role_id                   String?                 @db.Uuid
   name                      String?                 @db.VarChar(120)
-  phone                     String                  @unique(map: "users_phone_key") @db.VarChar(32)
+  phone                     String?                 @unique(map: "users_phone_key") @db.VarChar(32)
+  username                  String?                 @unique(map: "users_username_key") @db.VarChar(80)
   email                     String?                 @db.VarChar(160)
   password_hash             String?                 @db.VarChar(255)
+  must_change_password      Boolean                 @default(false)
+  failed_login_attempts     Int                     @default(0)
+  locked_until              DateTime?               @db.Timestamptz(6)
+  session_version           Int                     @default(1)
+  permission_version        Int                     @default(1)
   is_active                 Boolean                 @default(true)
   created_at                DateTime                @default(now()) @db.Timestamptz(6)
   updated_at                DateTime                @default(now()) @db.Timestamptz(6)
-  role                      Role                    @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
+  role                      Role?                   @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
+  work_profile              WorkProfile?
+  permission_presets        UserPreset[]            @relation("UserAccessPresets")
+  assigned_permission_presets UserPreset[]          @relation("UserAccessPresetActors")
+  permission_grants         UserPermissionGrant[]   @relation("UserAccessGrants")
+  assigned_permission_grants UserPermissionGrant[]  @relation("UserAccessGrantActors")
   addresses                 Address[]
   purchase_invoices         PurchaseInvoice[]       @relation("PurchaseInvoiceCreatedBy")
   stock_movements           StockMovement[]         @relation("StockMovementUser")
@@ -112,6 +125,9 @@ model RefreshToken {
   id         String    @id(map: "refresh_tokens_pkey") @db.Uuid
   user_id    String    @db.Uuid
   token_hash String    @unique(map: "refresh_tokens_token_hash_key") @db.VarChar(64)
+  surface    String    @db.VarChar(16)
+  client     String?   @db.VarChar(20)
+  session_version Int
   expires_at DateTime  @db.Timestamptz(6)
   revoked_at DateTime? @db.Timestamptz(6)
   created_at DateTime  @default(now()) @db.Timestamptz(6)
@@ -120,6 +136,70 @@ model RefreshToken {
   @@index([user_id], map: "idx_refresh_tokens_user")
   @@index([expires_at], map: "idx_refresh_tokens_expiry")
   @@map("refresh_tokens")
+}
+
+model PermissionPreset {
+  id          String             @id(map: "permission_presets_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String             @unique(map: "permission_presets_name_key") @db.VarChar(80)
+  description String?            @db.VarChar(255)
+  is_system   Boolean            @default(false)
+  created_at  DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime           @default(now()) @db.Timestamptz(6)
+  permissions PresetPermission[]
+  users       UserPreset[]
+
+  @@map("permission_presets")
+}
+
+model PresetPermission {
+  preset_id    String           @db.Uuid
+  permission_id String          @db.Uuid
+  preset       PermissionPreset @relation(fields: [preset_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "preset_permissions_preset_id_fkey")
+  permission   Permission       @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "preset_permissions_permission_id_fkey")
+
+  @@id([preset_id, permission_id], map: "preset_permissions_pkey")
+  @@map("preset_permissions")
+}
+
+model UserPreset {
+  user_id     String           @db.Uuid
+  preset_id   String           @db.Uuid
+  assigned_by String           @db.Uuid
+  reason      String           @db.VarChar(500)
+  created_at  DateTime         @default(now()) @db.Timestamptz(6)
+  user        User             @relation("UserAccessPresets", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_presets_user_id_fkey")
+  preset      PermissionPreset @relation(fields: [preset_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_presets_preset_id_fkey")
+  actor       User             @relation("UserAccessPresetActors", fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "user_presets_assigned_by_fkey")
+
+  @@id([user_id, preset_id], map: "user_presets_pkey")
+  @@map("user_presets")
+}
+
+model UserPermissionGrant {
+  user_id       String     @db.Uuid
+  permission_id String     @db.Uuid
+  granted_by    String     @db.Uuid
+  reason        String     @db.VarChar(500)
+  created_at    DateTime   @default(now()) @db.Timestamptz(6)
+  user          User       @relation("UserAccessGrants", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_permission_grants_user_id_fkey")
+  permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_permission_grants_permission_id_fkey")
+  actor         User       @relation("UserAccessGrantActors", fields: [granted_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "user_permission_grants_granted_by_fkey")
+
+  @@id([user_id, permission_id], map: "user_permission_grants_pkey")
+  @@map("user_permission_grants")
+}
+
+model WorkProfile {
+  id         String   @id(map: "work_profiles_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @unique(map: "work_profiles_user_id_key") @db.Uuid
+  name       String   @db.VarChar(120)
+  app_role   String   @db.VarChar(32)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "work_profiles_user_id_fkey")
+
+  @@map("work_profiles")
 }
 
 model MediaObject {
@@ -853,6 +933,7 @@ model AuditLog {
   before      Json?    @db.JsonB
   after       Json?    @db.JsonB
   ip          String?  @db.VarChar(64)
+  reason      String?  @db.VarChar(500)
   created_at  DateTime @default(now()) @db.Timestamptz(6)
   actor       User?    @relation("AuditActor", fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "audit_logs_actor_id_fkey")
 

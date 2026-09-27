@@ -25,13 +25,16 @@ async function login(phone) {
   const challenge = await request('/auth/request-otp', { method: 'POST', body: { phone }, expected: 201 });
   return (await request('/auth/verify-otp', { method: 'POST', body: { phone, code: challenge.dev_otp }, expected: 201 })).access_token;
 }
+async function adminLogin() {
+  return (await request('/admin/auth/login', { method: 'POST', body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' }, expected: 201 })).access_token;
+}
 async function value(sql, values = []) {
   return (await db.query(sql, values)).rows[0]?.value;
 }
 
 try {
   const customer = await login('+9647700000006');
-  const admin = await login('+9647700000001');
+  const admin = await adminLogin();
   const agent = await login('+9647700000005');
   const other = await login('+9647700099988');
   const userId = await value("SELECT id AS value FROM users WHERE phone='+9647700000006'");

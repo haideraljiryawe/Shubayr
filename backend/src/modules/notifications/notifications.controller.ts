@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
+import { AppPolicy } from '../../common/decorators/access-policy.decorator';
 import { NotificationsService } from './notifications.service';
 import {
   NotificationHistoryQueryDto,
@@ -22,6 +23,7 @@ import {
 
 type UserRequest = Request & { user: AuthenticatedRequestUser };
 
+@AppPolicy('customer', 'delivery_agent', 'order_monitor')
 @Controller()
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}

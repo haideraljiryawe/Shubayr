@@ -41,6 +41,13 @@ async function login(phone) {
   })).access_token;
 }
 
+async function adminLogin() {
+  return (await request('/admin/auth/login', {
+    method: 'POST', expected: 201,
+    body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' },
+  })).access_token;
+}
+
 async function value(sql, args = []) {
   return (await db.query(sql, args)).rows[0]?.value;
 }
@@ -48,7 +55,7 @@ async function value(sql, args = []) {
 try {
   const customer = await login('+9647700000006');
   const other = await login('+9647700099966');
-  const admin = await login('+9647700000001');
+  const admin = await adminLogin();
   const addedProductId = '40000000-0000-4000-8000-000000000004';
   const discountedProductId = '40000000-0000-4000-8000-000000000001';
 

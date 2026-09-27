@@ -1,5 +1,12 @@
 # Shubayr Backend API
 
+## Development administrator
+
+The development seed creates an admin-only account at `admin` with password
+`Shubayr-Dev-Admin!2026`. These credentials are for local development only and
+must never be used in a deployed environment. Other seeded staff accounts use
+`Shubayr-Dev-Staff!2026` and have narrower permission presets.
+
 This folder holds the Node.js 24 LTS NestJS REST API. Complete environment setup is in
 `../docs/setup/SETUP_BACKEND.md`. The API is served below
 `http://localhost:8000/api/v1`.

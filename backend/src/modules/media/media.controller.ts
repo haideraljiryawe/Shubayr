@@ -25,7 +25,7 @@ export class MediaController {
   constructor(private readonly media: MediaService) {}
 
   @Post('images')
-  @RequirePermissions('catalog.manage')
+  @RequirePermissions('catalog.products')
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024 } }),
   )
@@ -54,7 +54,7 @@ export class MediaController {
 
   @Delete(':id')
   @HttpCode(204)
-  @RequirePermissions('catalog.manage')
+  @RequirePermissions('catalog.products')
   async remove(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
     await this.media.remove(id);
   }

@@ -30,6 +30,9 @@ async function login(phone) {
   const session = await request('/auth/verify-otp', { method: 'POST', body: { phone, code: challenge.dev_otp }, expected: 201 });
   return session.access_token;
 }
+async function adminLogin() {
+  return (await request('/admin/auth/login', { method: 'POST', body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' }, expected: 201 })).access_token;
+}
 async function scalar(sql, values = []) {
   const result = await db.query(sql, values);
   return result.rows[0]?.value;
@@ -37,7 +40,7 @@ async function scalar(sql, values = []) {
 
 try {
   const customer = await login('+9647700000006');
-  const admin = await login('+9647700000001');
+  const admin = await adminLogin();
   const other = await login('+9647700099977');
   const customerId = await scalar("SELECT id AS value FROM users WHERE phone = '+9647700000006'");
   const [seedDemo, ownOrders] = await Promise.all([
