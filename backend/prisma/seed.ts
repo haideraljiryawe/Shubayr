@@ -642,12 +642,29 @@ async function main(): Promise<void> {
     users.get('delivery')!,
     users.get('admin')!,
   );
+  await seedWishlist(users.get('customer')!);
   await seedProductReviewDemo(users.get('customer')!, users.get('admin')!);
   await seedNotificationDemo(users.get('customer')!);
 
   console.log(
     `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 10 sample orders.`,
   );
+}
+
+async function seedWishlist(customerId: string): Promise<void> {
+  for (const productNumber of [1, 2, 3]) {
+    const productId = seedId(4, productNumber);
+    await prisma.wishlistItem.upsert({
+      where: {
+        user_id_product_id: {
+          user_id: customerId,
+          product_id: productId,
+        },
+      },
+      update: {},
+      create: { user_id: customerId, product_id: productId },
+    });
+  }
 }
 
 async function seedNotificationDemo(customerId: string): Promise<void> {

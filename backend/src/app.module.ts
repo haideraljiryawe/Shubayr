@@ -23,6 +23,7 @@ import { RbacModule } from './modules/rbac/rbac.module';
 import { ReturnsModule } from './modules/returns/returns.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { WishlistModule } from './modules/wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     LoyaltyModule,
     MediaModule,
     ReviewsModule,
+    WishlistModule,
     SettingsModule,
     HealthModule,
   ],

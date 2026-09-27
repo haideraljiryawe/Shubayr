@@ -52,7 +52,7 @@ export class ModerateReviewDto {
   reason!: string;
 }
 
-export class ReviewQueryDto {
+export class ReviewPageQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -65,7 +65,9 @@ export class ReviewQueryDto {
   @Min(1)
   @Max(100)
   per_page?: number;
+}
 
+export class ReviewQueryDto extends ReviewPageQueryDto {
   @IsOptional()
   @IsIn(['pending', 'published', 'rejected'])
   status?: string;
