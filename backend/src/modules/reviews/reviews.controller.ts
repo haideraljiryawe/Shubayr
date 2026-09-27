@@ -19,6 +19,7 @@ import {
   CreateReviewDto,
   EditReviewDto,
   ModerateReviewDto,
+  ReviewPageQueryDto,
   ReviewQueryDto,
 } from './dto/review.dto';
 import { ReviewsService } from './reviews.service';
@@ -43,6 +44,11 @@ export class ReviewsController {
     @Body() input: CreateReviewDto,
   ) {
     return this.reviews.create(request.user.id, request.user.role, id, input);
+  }
+
+  @Get('me/reviews')
+  mine(@Req() request: UserRequest, @Query() query: ReviewPageQueryDto) {
+    return this.reviews.mine(request.user.id, request.user.role, query);
   }
 
   @Patch('reviews/:id')

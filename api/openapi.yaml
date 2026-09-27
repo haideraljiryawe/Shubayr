@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 5.4.0
+  version: 5.5.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -669,6 +669,22 @@ paths:
         "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- REVIEWS ----------------
+  /me/reviews:
+    get:
+      tags: [Reviews]
+      summary: List the current customer's own product reviews
+      description: Returns all moderation states, newest first. Pending and rejected reviews are visible only to their owner; public product review reads remain published-only.
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated caller-owned reviews
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomerReviewPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /products/{id}/reviews:
     get:
       tags: [Reviews]
@@ -2717,6 +2733,31 @@ components:
             data:
               type: array
               items: { $ref: "#/components/schemas/Review" }
+
+    CustomerReview:
+      allOf:
+        - $ref: "#/components/schemas/Review"
+        - type: object
+          required: [product]
+          properties:
+            product:
+              type: object
+              additionalProperties: false
+              required: [id, name_en, name_ar]
+              properties:
+                id: { type: string, format: uuid }
+                name_en: { type: string }
+                name_ar: { type: string }
+
+    CustomerReviewPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/CustomerReview" }
 
     DeliveryRating:
       type: object

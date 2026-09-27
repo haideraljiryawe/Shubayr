@@ -13,6 +13,7 @@ import {
   CreateReviewDto,
   EditReviewDto,
   ModerateReviewDto,
+  ReviewPageQueryDto,
   ReviewQueryDto,
 } from './dto/review.dto';
 
@@ -53,6 +54,27 @@ export class ReviewsService {
 
   queue(query: ReviewQueryDto) {
     return this.list({ status: query.status ?? 'pending' }, query);
+  }
+
+  async mine(userId: string, role: string, query: ReviewPageQueryDto) {
+    if (role !== 'customer')
+      throw new ForbiddenException('Customer account required');
+    const page = query.page ?? 1;
+    const per_page = query.per_page ?? 20;
+    const where = { user_id: userId };
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.productReview.count({ where }),
+      this.prisma.productReview.findMany({
+        where,
+        include: {
+          product: { select: { id: true, name_en: true, name_ar: true } },
+        },
+        orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * per_page,
+        take: per_page,
+      }),
+    ]);
+    return { page, per_page, total, data };
   }
 
   private async list(

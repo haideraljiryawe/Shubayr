@@ -42,17 +42,26 @@ export class ProductsService {
   }
 
   async getPublic(id: string) {
+    const [product] = await this.getPublicMany([id]);
+    if (!product) throw new NotFoundException('Product not found');
+    return product;
+  }
+
+  async getPublicMany(ids: string[]) {
+    if (!ids.length) return [];
     const visibleCategoryIds = await this.visibleCategoryIds();
-    const product = await this.prisma.product.findFirst({
+    const products = await this.prisma.product.findMany({
       where: {
-        id,
+        id: { in: [...new Set(ids)] },
         status: 'active',
         category_id: { in: [...visibleCategoryIds] },
       },
       include: productInclude,
     });
-    if (!product) throw new NotFoundException('Product not found');
-    return this.toResponse(product, new Date());
+    const now = new Date();
+    return Promise.all(
+      products.map((product) => this.toResponse(product, now)),
+    );
   }
 
   async getAdmin(id: string) {

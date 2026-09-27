@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.5.0 - 2026-09-27
+
+### Added
+
+- Customer-owned wishlist list/add/remove endpoints matching the existing
+  contract, with idempotent adds, server-time catalog pricing, effective
+  category visibility, stable pagination, audit records, and seeded examples.
+- `GET /me/reviews` for paginated caller-owned review history across pending,
+  published, and rejected moderation states, including current product names.
+
 ## 5.4.0 - 2026-09-21
 
 ### Added
