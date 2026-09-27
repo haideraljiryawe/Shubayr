@@ -1,9 +1,7 @@
--- =====================================================================
--- Shubayr — RBAC + white-label seed (safe to run after schema.sql)
--- Detailed roles & permissions from day one (team review point #3).
--- =====================================================================
+-- Shubayr access-model-v2 bootstrap seed. Runtime seeding is performed by
+-- backend/prisma/seed.ts; this SQL mirrors the code-defined registry for clean
+-- infrastructure bootstraps.
 
--- White-label defaults
 INSERT INTO store_settings(key, value) VALUES
   ('store_name', 'Shubayr'),
   ('currency', 'IQD'),
@@ -11,68 +9,82 @@ INSERT INTO store_settings(key, value) VALUES
   ('logo_url', '')
 ON CONFLICT (key) DO NOTHING;
 
--- Roles
 INSERT INTO roles(name, description, is_system) VALUES
-  ('admin',       'Full system access',                      TRUE),
-  ('manager',     'Store operations & catalog',              TRUE),
-  ('purchasing',  'Suppliers & purchase invoices',           TRUE),
-  ('warehouse',   'Stock, batches, picking',                 TRUE),
-  ('delivery',    'Delivery agent',                          TRUE),
-  ('customer',    'End customer',                            TRUE)
-ON CONFLICT (name) DO NOTHING;
+  ('customer', 'End customer app role', TRUE),
+  ('delivery_agent', 'Delivery agent app role', TRUE),
+  ('order_monitor', 'Read-only order monitor app role', TRUE)
+ON CONFLICT (name) DO UPDATE
+SET description = EXCLUDED.description, is_system = TRUE;
 
--- Permissions (grouped)
 INSERT INTO permissions(key, "group", description) VALUES
-  ('catalog.view',        'catalog',    'View products & categories'),
-  ('catalog.manage',      'catalog',    'Create/update products & categories'),
-  ('orders.view',         'orders',     'View orders'),
-  ('orders.confirm',      'orders',     'Confirm/cancel orders'),
-  ('orders.update',       'orders',     'Update order status'),
-  ('orders.manage',       'orders',     'Manage staff order fulfillment'),
-  ('inventory.view',      'inventory',  'View stock, batches, locations'),
-  ('inventory.pick',      'inventory',  'Perform picking'),
-  ('inventory.adjust',    'inventory',  'Controlled stock adjustments'),
-  ('inventory.transfer',  'inventory',  'Transfer stock between locations'),
-  ('purchasing.view',     'purchasing', 'View suppliers & purchase invoices'),
-  ('purchasing.manage',   'purchasing', 'Create/receive purchase invoices'),
-  ('returns.view',        'returns',    'View returns'),
-  ('returns.process',     'returns',    'Approve/inspect/settle returns'),
-  ('delivery.assigned',   'delivery',   'View & update assigned deliveries'),
-  ('loyalty.manage',      'loyalty',    'Adjust loyalty points'),
-  ('users.manage',        'users',      'Manage users & roles'),
-  ('reports.view',        'reports',    'View reports & analytics'),
-  ('settings.manage',     'settings',   'Manage store settings (white-label)')
-ON CONFLICT (key) DO NOTHING;
+  ('orders.view', 'orders', 'View orders'),
+  ('orders.accept', 'orders', 'Accept pending orders'),
+  ('orders.reject', 'orders', 'Reject pending orders'),
+  ('orders.prepare', 'orders', 'Move accepted orders into preparation'),
+  ('orders.mark_ready', 'orders', 'Mark prepared orders ready'),
+  ('orders.handover', 'orders', 'Hand ready orders to delivery'),
+  ('orders.cancel', 'orders', 'Cancel an order'),
+  ('orders.assign_agent', 'orders', 'Assign a delivery agent'),
+  ('catalog.categories', 'catalog', 'Manage categories'),
+  ('catalog.brands', 'catalog', 'Manage brands'),
+  ('catalog.products', 'catalog', 'Manage products and banners'),
+  ('prices.change', 'catalog', 'Change sale prices'),
+  ('cost.view', 'purchasing', 'View product cost'),
+  ('suppliers.view', 'purchasing', 'View suppliers'),
+  ('suppliers.manage', 'purchasing', 'Manage suppliers'),
+  ('purchases.create', 'purchasing', 'Create purchase invoices'),
+  ('purchases.correct', 'purchasing', 'Correct purchase invoices'),
+  ('payments.record', 'payments', 'Record payments'),
+  ('payments.reverse', 'payments', 'Reverse payments'),
+  ('inventory.count', 'inventory', 'Count inventory'),
+  ('inventory.pick', 'inventory', 'Pick reserved inventory'),
+  ('inventory.transfer', 'inventory', 'Transfer inventory'),
+  ('inventory.adjust', 'inventory', 'Adjust inventory'),
+  ('returns.inspect', 'returns', 'Inspect returns'),
+  ('returns.approve', 'returns', 'Approve returns'),
+  ('returns.refund', 'returns', 'Refund returns'),
+  ('reviews.moderate', 'reviews', 'Moderate product reviews'),
+  ('loyalty.adjust', 'loyalty', 'Adjust loyalty balances'),
+  ('deliveries.manage', 'deliveries', 'List and manage deliveries'),
+  ('users.manage', 'access', 'Manage staff and work phones'),
+  ('roles.manage', 'access', 'Manage permission presets'),
+  ('settings.manage', 'settings', 'Manage store settings'),
+  ('reports.view', 'reports', 'View reports'),
+  ('period.close', 'accounting', 'Close accounting periods')
+ON CONFLICT (key) DO UPDATE
+SET "group" = EXCLUDED."group", description = EXCLUDED.description;
 
--- Grant everything to admin
-INSERT INTO role_permissions(role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p WHERE r.name = 'admin'
+INSERT INTO permission_presets(name, description, is_system) VALUES
+  ('super_admin', 'All current permissions', TRUE),
+  ('operations', 'Orders, deliveries, returns, reviews, loyalty and reports', TRUE),
+  ('catalog_editor', 'Catalog and price management', TRUE),
+  ('stock_controller', 'Purchasing and inventory control', TRUE)
+ON CONFLICT (name) DO UPDATE
+SET description = EXCLUDED.description, is_system = TRUE;
+
+INSERT INTO preset_permissions(preset_id, permission_id)
+SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
+WHERE pp.name = 'super_admin'
 ON CONFLICT DO NOTHING;
 
--- Manager: catalog + orders + inventory view + returns + reports
-INSERT INTO role_permissions(role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p
-WHERE r.name = 'manager' AND p.key IN
-  ('catalog.view','catalog.manage','orders.view','orders.confirm','orders.update','orders.manage',
-   'inventory.view','returns.view','returns.process','reports.view','loyalty.manage')
+INSERT INTO preset_permissions(preset_id, permission_id)
+SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
+WHERE pp.name = 'operations' AND p.key IN
+  ('orders.view','orders.accept','orders.reject','orders.prepare','orders.mark_ready',
+   'orders.handover','orders.cancel','orders.assign_agent','deliveries.manage',
+   'returns.inspect','returns.approve','returns.refund','reviews.moderate',
+   'loyalty.adjust','reports.view')
 ON CONFLICT DO NOTHING;
 
--- Purchasing
-INSERT INTO role_permissions(role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p
-WHERE r.name = 'purchasing' AND p.key IN
-  ('purchasing.view','purchasing.manage','inventory.view','catalog.view')
+INSERT INTO preset_permissions(preset_id, permission_id)
+SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
+WHERE pp.name = 'catalog_editor' AND p.key IN
+  ('catalog.categories','catalog.brands','catalog.products','prices.change')
 ON CONFLICT DO NOTHING;
 
--- Warehouse
-INSERT INTO role_permissions(role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p
-WHERE r.name = 'warehouse' AND p.key IN
-  ('inventory.view','inventory.pick','inventory.adjust','inventory.transfer','orders.view')
-ON CONFLICT DO NOTHING;
-
--- Delivery
-INSERT INTO role_permissions(role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p
-WHERE r.name = 'delivery' AND p.key IN ('delivery.assigned','orders.view')
+INSERT INTO preset_permissions(preset_id, permission_id)
+SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
+WHERE pp.name = 'stock_controller' AND p.key IN
+  ('cost.view','suppliers.view','suppliers.manage','purchases.create',
+   'purchases.correct','inventory.count','inventory.pick','inventory.adjust','inventory.transfer')
 ON CONFLICT DO NOTHING;

@@ -14,6 +14,7 @@ import {
 import type { Request } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AppPolicy } from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import {
   CreateReviewDto,
@@ -38,36 +39,40 @@ export class ReviewsController {
   }
 
   @Post('products/:id/reviews')
+  @AppPolicy('customer')
   create(
     @Req() request: UserRequest,
     @Param('id', uuid) id: string,
     @Body() input: CreateReviewDto,
   ) {
-    return this.reviews.create(request.user.id, request.user.role, id, input);
+    return this.reviews.create(request.user.id, request.user.role!, id, input);
   }
 
   @Get('me/reviews')
+  @AppPolicy('customer')
   mine(@Req() request: UserRequest, @Query() query: ReviewPageQueryDto) {
-    return this.reviews.mine(request.user.id, request.user.role, query);
+    return this.reviews.mine(request.user.id, request.user.role!, query);
   }
 
   @Patch('reviews/:id')
+  @AppPolicy('customer')
   edit(
     @Req() request: UserRequest,
     @Param('id', uuid) id: string,
     @Body() input: EditReviewDto,
   ) {
-    return this.reviews.edit(request.user.id, request.user.role, id, input);
+    return this.reviews.edit(request.user.id, request.user.role!, id, input);
   }
 
   @Delete('reviews/:id')
+  @AppPolicy('customer')
   @HttpCode(204)
   delete(@Req() request: UserRequest, @Param('id', uuid) id: string) {
-    return this.reviews.delete(request.user.id, request.user.role, id);
+    return this.reviews.delete(request.user.id, request.user.role!, id);
   }
 }
 
-@RequirePermissions('catalog.manage')
+@RequirePermissions('reviews.moderate')
 @Controller('admin/reviews')
 export class AdminReviewsController {
   constructor(private readonly reviews: ReviewsService) {}

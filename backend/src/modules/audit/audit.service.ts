@@ -9,6 +9,7 @@ export interface AuditEntry {
   before?: Prisma.InputJsonValue;
   after?: Prisma.InputJsonValue;
   ip?: string;
+  reason?: string;
 }
 
 @Injectable()
@@ -23,6 +24,7 @@ export class AuditService {
         before: entry.before,
         after: entry.after,
         ip: entry.ip,
+        reason: entry.reason,
       },
     });
   }

@@ -74,7 +74,7 @@ export class DeliveriesService {
         where: { id: input.agent_id },
         include: { role: true },
       });
-      if (!agent || !agent.is_active || agent.role.name !== 'delivery') {
+      if (!agent || !agent.is_active || agent.role?.name !== 'delivery_agent') {
         throw new NotFoundException('Delivery agent not found');
       }
       const initial = await tx.delivery.findUnique({ where: { id } });

@@ -28,7 +28,7 @@ export class PublicBannersController {
   }
 }
 
-@RequirePermissions('catalog.manage')
+@RequirePermissions('catalog.products')
 @Controller('admin/banners')
 export class AdminBannersController {
   constructor(private readonly banners: BannersService) {}

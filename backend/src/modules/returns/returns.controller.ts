@@ -10,7 +10,10 @@ import {
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import {
+  AdminPolicy,
+  AppPolicy,
+} from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import {
   InspectReturnDto,
@@ -26,24 +29,26 @@ export class ReturnsController {
   constructor(private readonly returns: ReturnsService) {}
 
   @Get()
+  @AppPolicy('customer')
   listOwned(@Req() request: UserRequest, @Query() query: ReturnQueryDto) {
     return this.returns.listOwned(request.user.id, query);
   }
 
   @Get('queue')
-  @RequirePermissions('returns.view')
+  @AdminPolicy('returns.inspect')
   queue(@Query() query: ReturnQueryDto) {
     return this.returns.queue(query);
   }
 
   @Post()
+  @AppPolicy('customer')
   request(@Req() request: UserRequest, @Body() input: RequestReturnDto) {
-    return this.returns.request(request.user.id, request.user.role, input);
+    return this.returns.request(request.user.id, request.user.role!, input);
   }
 
   @Post(':id/inspect')
   @HttpCode(200)
-  @RequirePermissions('returns.process')
+  @AdminPolicy('returns.inspect', 'returns.approve')
   inspect(
     @Req() request: UserRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
@@ -54,7 +59,7 @@ export class ReturnsController {
 
   @Post(':id/complete')
   @HttpCode(200)
-  @RequirePermissions('returns.process')
+  @AdminPolicy('returns.refund')
   complete(
     @Req() request: UserRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,

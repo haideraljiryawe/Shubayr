@@ -10,7 +10,10 @@ import {
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import {
+  AdminPolicy,
+  AppPolicy,
+} from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { DeliveriesService } from './deliveries.service';
 import { AssignedDeliveriesQueryDto } from './dto/assigned-deliveries-query.dto';
@@ -27,13 +30,13 @@ export class DeliveriesController {
   constructor(private readonly deliveries: DeliveriesService) {}
 
   @Get()
-  @RequirePermissions('orders.update')
+  @AdminPolicy('deliveries.manage')
   listAll(@Query() query: AssignedDeliveriesQueryDto) {
     return this.deliveries.listAll(query);
   }
 
   @Get('assigned')
-  @RequirePermissions('delivery.assigned')
+  @AppPolicy('delivery_agent')
   listAssigned(
     @Req() request: AuthenticatedRequest,
     @Query() query: AssignedDeliveriesQueryDto,
@@ -42,7 +45,7 @@ export class DeliveriesController {
   }
 
   @Patch(':id/assign')
-  @RequirePermissions('orders.update')
+  @AdminPolicy('orders.assign_agent')
   assign(
     @Req() request: AuthenticatedRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
@@ -52,7 +55,7 @@ export class DeliveriesController {
   }
 
   @Patch(':id')
-  @RequirePermissions('delivery.assigned')
+  @AppPolicy('delivery_agent')
   updateStatus(
     @Req() request: AuthenticatedRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
@@ -62,11 +65,12 @@ export class DeliveriesController {
   }
 
   @Post(':id/rating')
+  @AppPolicy('customer')
   rate(
     @Req() request: AuthenticatedRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
     @Body() input: CreateDeliveryRatingDto,
   ) {
-    return this.deliveries.rate(request.user.id, request.user.role, id, input);
+    return this.deliveries.rate(request.user.id, request.user.role!, id, input);
   }
 }

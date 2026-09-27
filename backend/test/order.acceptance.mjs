@@ -58,7 +58,13 @@ async function login(phone) {
   });
 }
 
-const admin = await login('+9647700000001');
+function adminLogin() {
+  return request('/admin/auth/login', {
+    method: 'POST', body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' }, expected: 201,
+  });
+}
+
+const admin = await adminLogin();
 const customer = await login('+9647700000006');
 const seededOrders = await request('/orders?per_page=100', {
   token: customer.access_token,

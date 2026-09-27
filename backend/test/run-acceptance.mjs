@@ -69,6 +69,15 @@ try {
   environment.API_PORT = String(port);
   environment.PUBLIC_API_URL = apiUrl;
   await run(prisma, ['migrate', 'deploy']);
+  await run(prisma, [
+    'migrate',
+    'diff',
+    '--from-config-datasource',
+    '--to-schema',
+    'prisma/schema.prisma',
+    '--script',
+    '--exit-code',
+  ]);
   await run(tsNode, ['--transpile-only', 'prisma/seed.ts']);
   // A second seed run proves idempotency, including the SHUBAYR10 coupon.
   await run(tsNode, ['--transpile-only', 'prisma/seed.ts']);
@@ -76,6 +85,7 @@ try {
   await waitForApi(apiUrl);
   const acceptanceEnv = { ...environment, ACCEPTANCE_API_URL: apiUrl, ACCEPTANCE_DATABASE_NAME: name };
   await run('test/real-data.acceptance.mjs', [], acceptanceEnv);
+  await run('test/access-model.acceptance.mjs', [], acceptanceEnv);
   await run('test/wishlist.acceptance.mjs', [], acceptanceEnv);
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
   await run('test/admin-orders.acceptance.mjs', [], acceptanceEnv);

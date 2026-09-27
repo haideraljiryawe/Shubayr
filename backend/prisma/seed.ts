@@ -15,6 +15,8 @@ import {
   moneyToMinorUnits,
 } from '../src/modules/catalog/pricing';
 import { cartUnitPrice } from '../src/modules/orders/cart-pricing';
+import { PERMISSION_REGISTRY } from '../src/common/access/permission-registry';
+import { hashPassword } from '../src/modules/auth/password';
 
 const databaseUrl = required('DATABASE_URL');
 const publicApiUrl = (
@@ -35,76 +37,68 @@ const prisma = new PrismaClient({
 });
 
 const roles = [
-  ['admin', 'Full system access'],
-  ['manager', 'Store operations and catalog'],
-  ['purchasing', 'Suppliers and purchase invoices'],
-  ['warehouse', 'Stock, batches, and picking'],
-  ['delivery', 'Delivery agent'],
   ['customer', 'End customer'],
+  ['delivery_agent', 'Delivery agent app role'],
+  ['order_monitor', 'Read-only order monitor app role'],
 ] as const;
 
-const permissions = [
-  ['catalog.view', 'catalog', 'View products and categories'],
-  ['catalog.manage', 'catalog', 'Create and update catalog data'],
-  ['orders.view', 'orders', 'View orders'],
-  ['orders.confirm', 'orders', 'Confirm and cancel orders'],
-  ['orders.update', 'orders', 'Update order status'],
-  ['orders.manage', 'orders', 'Manage staff order fulfillment'],
-  ['inventory.view', 'inventory', 'View stock and locations'],
-  ['inventory.pick', 'inventory', 'Perform picking'],
-  ['inventory.adjust', 'inventory', 'Adjust stock'],
-  ['inventory.transfer', 'inventory', 'Transfer stock'],
-  ['purchasing.view', 'purchasing', 'View purchasing data'],
-  ['purchasing.manage', 'purchasing', 'Manage purchasing data'],
-  ['returns.view', 'returns', 'View returns'],
-  ['returns.process', 'returns', 'Process returns'],
-  ['delivery.assigned', 'delivery', 'Manage assigned deliveries'],
-  ['loyalty.manage', 'loyalty', 'Adjust loyalty points'],
-  ['users.manage', 'users', 'Manage users and roles'],
-  ['reports.view', 'reports', 'View reports'],
-  ['settings.manage', 'settings', 'Manage store settings'],
-] as const;
+const permissions = Object.entries(PERMISSION_REGISTRY).map(
+  ([key, [group, description]]) => [key, group, description] as const,
+);
 
-const grants: Record<string, string[]> = {
-  admin: permissions.map(([key]) => key),
-  manager: [
-    'catalog.view',
-    'catalog.manage',
+const presetGrants: Record<string, string[]> = {
+  super_admin: permissions.map(([key]) => key),
+  operations: [
     'orders.view',
-    'orders.confirm',
-    'orders.update',
-    'orders.manage',
-    'inventory.view',
-    'returns.view',
-    'returns.process',
+    'orders.accept',
+    'orders.reject',
+    'orders.prepare',
+    'orders.mark_ready',
+    'orders.handover',
+    'orders.cancel',
+    'orders.assign_agent',
+    'deliveries.manage',
+    'returns.inspect',
+    'returns.approve',
+    'returns.refund',
+    'reviews.moderate',
     'reports.view',
-    'loyalty.manage',
+    'loyalty.adjust',
   ],
-  purchasing: [
-    'purchasing.view',
-    'purchasing.manage',
-    'inventory.view',
-    'catalog.view',
+  catalog_editor: [
+    'catalog.categories',
+    'catalog.brands',
+    'catalog.products',
+    'prices.change',
   ],
-  warehouse: [
-    'inventory.view',
+  stock_controller: [
+    'cost.view',
+    'suppliers.view',
+    'suppliers.manage',
+    'purchases.create',
+    'purchases.correct',
+    'inventory.count',
     'inventory.pick',
     'inventory.adjust',
     'inventory.transfer',
-    'orders.view',
   ],
-  delivery: ['delivery.assigned', 'orders.view'],
-  customer: [],
 };
 
-const accounts = [
-  ['admin', '+9647700000001', 'Development Admin'],
-  ['manager', '+9647700000002', 'Development Manager'],
-  ['purchasing', '+9647700000003', 'Development Purchasing'],
-  ['warehouse', '+9647700000004', 'Development Warehouse'],
-  ['delivery', '+9647700000005', 'Development Delivery'],
-  ['customer', '+9647700000006', 'Development Customer'],
+const staffAccounts = [
+  ['admin', 'Development Admin', 'super_admin'],
+  ['operations', 'Development Operations', 'operations'],
+  ['catalog', 'Development Catalog', 'catalog_editor'],
+  ['stock', 'Development Stock', 'stock_controller'],
 ] as const;
+
+const appAccounts = [
+  ['delivery', 'delivery_agent', '+9647700000005', 'Development Delivery'],
+  ['monitor', 'order_monitor', '+9647700000008', 'Development Order Monitor'],
+  ['customer', 'customer', '+9647700000006', 'Development Customer'],
+] as const;
+
+const DEV_ADMIN_PASSWORD = 'Shubayr-Dev-Admin!2026';
+const DEV_STAFF_PASSWORD = 'Shubayr-Dev-Staff!2026';
 
 type Department = {
   slug: string;
@@ -311,47 +305,132 @@ async function main(): Promise<void> {
     });
     permissionIds.set(key, permission.id);
   }
-  for (const [roleName, keys] of Object.entries(grants)) {
-    await prisma.rolePermission.createMany({
+
+  const users = new Map<string, string>();
+  const adminPasswordHash = await hashPassword(DEV_ADMIN_PASSWORD);
+  const staffPasswordHash = await hashPassword(DEV_STAFF_PASSWORD);
+  const presetIds = new Map<string, string>();
+  for (const [name, keys] of Object.entries(presetGrants)) {
+    const preset = await prisma.permissionPreset.upsert({
+      where: { name },
+      update: {
+        description: `Development ${name.replaceAll('_', ' ')} preset`,
+        is_system: true,
+      },
+      create: {
+        name,
+        description: `Development ${name.replaceAll('_', ' ')} preset`,
+        is_system: true,
+      },
+    });
+    presetIds.set(name, preset.id);
+    await prisma.presetPermission.deleteMany({
+      where: { preset_id: preset.id },
+    });
+    await prisma.presetPermission.createMany({
       data: keys.map((key) => ({
-        role_id: roleIds.get(roleName)!,
+        preset_id: preset.id,
         permission_id: permissionIds.get(key)!,
       })),
-      skipDuplicates: true,
     });
   }
 
-  const users = new Map<string, string>();
-  for (const [roleName, phone, name] of accounts) {
+  for (const [username, name] of staffAccounts) {
+    const user = await prisma.user.upsert({
+      where: { username },
+      update: {
+        name,
+        ...(username === 'admin'
+          ? { phone: '+9647700000001', role_id: roleIds.get('customer')! }
+          : {}),
+        password_hash:
+          username === 'admin' ? adminPasswordHash : staffPasswordHash,
+        must_change_password: false,
+        is_active: true,
+      },
+      create: {
+        username,
+        name,
+        ...(username === 'admin'
+          ? { phone: '+9647700000001', role_id: roleIds.get('customer')! }
+          : {}),
+        password_hash:
+          username === 'admin' ? adminPasswordHash : staffPasswordHash,
+        must_change_password: false,
+        is_active: true,
+      },
+    });
+    users.set(username, user.id);
+  }
+  const adminId = users.get('admin')!;
+  for (const [username, , presetName] of staffAccounts) {
+    const userId = users.get(username)!;
+    await prisma.userPreset.upsert({
+      where: {
+        user_id_preset_id: {
+          user_id: userId,
+          preset_id: presetIds.get(presetName)!,
+        },
+      },
+      update: { assigned_by: adminId, reason: 'Development seed' },
+      create: {
+        user_id: userId,
+        preset_id: presetIds.get(presetName)!,
+        assigned_by: adminId,
+        reason: 'Development seed',
+      },
+    });
+  }
+
+  for (const [key, roleName, phone, name] of appAccounts) {
     const user = await prisma.user.upsert({
       where: { phone },
       update: { role_id: roleIds.get(roleName)!, name, is_active: true },
       create: { role_id: roleIds.get(roleName)!, phone, name, is_active: true },
     });
-    users.set(roleName, user.id);
+    users.set(key, user.id);
     await prisma.notificationPreference.upsert({
       where: { user_id: user.id },
       update: {},
       create: { user_id: user.id },
     });
+    if (roleName !== 'customer') {
+      await prisma.workProfile.upsert({
+        where: { user_id: user.id },
+        update: { name, app_role: roleName, is_active: true },
+        create: { user_id: user.id, name, app_role: roleName },
+      });
+    }
   }
 
   const secondDeliveryAgent = await prisma.user.upsert({
     where: { phone: '+9647700000007' },
     update: {
-      role_id: roleIds.get('delivery')!,
+      role_id: roleIds.get('delivery_agent')!,
       name: 'Development Delivery B',
       is_active: true,
     },
     create: {
-      role_id: roleIds.get('delivery')!,
+      role_id: roleIds.get('delivery_agent')!,
       phone: '+9647700000007',
       name: 'Development Delivery B',
       is_active: true,
     },
   });
+  await prisma.workProfile.upsert({
+    where: { user_id: secondDeliveryAgent.id },
+    update: {
+      name: 'Development Delivery B',
+      app_role: 'delivery_agent',
+      is_active: true,
+    },
+    create: {
+      user_id: secondDeliveryAgent.id,
+      name: 'Development Delivery B',
+      app_role: 'delivery_agent',
+    },
+  });
 
-  const adminId = users.get('admin')!;
   const imageUrls: string[] = [];
   for (let index = 0; index < departments.length; index += 1) {
     imageUrls.push(
@@ -647,7 +726,7 @@ async function main(): Promise<void> {
   await seedNotificationDemo(users.get('customer')!);
 
   console.log(
-    `Seeded ${roles.length} roles, ${accounts.length + 1} accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 10 sample orders.`,
+    `Seeded ${roles.length} app roles, ${staffAccounts.length} staff accounts, ${appAccounts.length + 1} app accounts, ${departments.length} departments, ${categoryNumber - 1 - departments.length} subcategories, ${productNumber - 1} products, ${banners.length} banners, and 10 sample orders.`,
   );
 }
 

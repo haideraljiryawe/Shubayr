@@ -335,7 +335,7 @@ export class NotificationsService
           : [
               {
                 key: 'sms',
-                recipient: event.user.phone,
+                recipient: event.user.phone ?? '',
                 locale: tokens[0]?.locale,
               },
             ];
