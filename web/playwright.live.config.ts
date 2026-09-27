@@ -11,9 +11,11 @@ import { defineConfig } from "@playwright/test";
  *   docker compose --profile full up -d        # then seed it
  *   npm run test:live
  *
- * Point PLAYWRIGHT_LIVE_API elsewhere to run against another stack. Every spec
- * skips itself when nothing answers there, so a checkout with no backend is a
- * skip rather than a wall of failures.
+ * Point PLAYWRIGHT_LIVE_API elsewhere to run against another stack. Nothing
+ * answering there FAILS the run: this config exists to exercise a real API, and
+ * a live run that skipped because it reached none would report green having
+ * verified nothing. (The hermetic suite still skips its opportunistic live
+ * specs — see requireLiveApi in tests/live-api.ts.)
  */
 const api = process.env.PLAYWRIGHT_LIVE_API ?? "http://localhost:8000/api/v1";
 
@@ -21,6 +23,8 @@ const api = process.env.PLAYWRIGHT_LIVE_API ?? "http://localhost:8000/api/v1";
 // in the dev server's, so the two specs would otherwise disagree about which
 // backend "live" means.
 process.env.NEXT_PUBLIC_API_URL = api;
+// Read by requireLiveApi in the workers, which inherit this process's env.
+process.env.PLAYWRIGHT_LIVE_REQUIRED ??= "1";
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
 
 export default defineConfig({
@@ -29,6 +33,7 @@ export default defineConfig({
     "**/live-funnel.spec.ts",
     "**/live-checkout.spec.ts",
     "**/live-account.spec.ts",
+    "**/live-wishlist.spec.ts",
   ],
   timeout: 90000,
   use: {
@@ -46,13 +51,11 @@ export default defineConfig({
     timeout: 120000,
     env: {
       NEXT_PUBLIC_USE_MOCKS: "false",
-      // The funnel, exactly as this PR flips it — the domains left on
-      // fixtures stay on fixtures even here.
-      // The funnel and the account extras, exactly as this repo flips them.
-      // `wishlist` is absent on purpose: the backend serves no such route.
+      // Every domain, exactly as this repo flips them — wishlist included
+      // since the backend module landed (#55).
       NEXT_PUBLIC_LIVE_DOMAINS:
         "auth,profile,catalog,banners,cart,checkout,orders,addresses," +
-        "returns,loyalty,reviews,notifications",
+        "returns,loyalty,reviews,notifications,wishlist",
       NEXT_PUBLIC_API_URL: api,
     },
   },

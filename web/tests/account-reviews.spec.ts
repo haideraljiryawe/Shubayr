@@ -63,9 +63,21 @@ test("a delivered order can be reviewed per product", async ({ page }) => {
   await form.getByRole("textbox").fill("منتج ممتاز وجودة عالية.");
   await page.getByTestId("review-submit-oi-p4").click();
 
-  // It flips to "reviewed" and stops offering the form again.
-  await expect(page.getByTestId("review-done-oi-p4")).toBeVisible();
+  // It flips to "reviewed" and stops offering the form again. A new review
+  // waits on moderation, and the badge names that state rather than a
+  // generic "done".
+  const badge = page.getByTestId("review-done-oi-p4");
+  await expect(badge).toHaveAttribute("data-status", "pending");
+  await expect(badge).toHaveText("بانتظار المراجعة");
   await expect(page.getByTestId("review-open-oi-p4")).toHaveCount(0);
+  // The shopper's own words come back to them, and a pending review can
+  // still be edited or deleted — there is no "locked until published" note.
+  await expect(page.getByTestId("review-mine-oi-p4")).toContainText(
+    "منتج ممتاز وجودة عالية.",
+  );
+  await expect(page.getByTestId("review-edit-oi-p4")).toBeVisible();
+  await expect(page.getByTestId("review-delete-oi-p4")).toBeVisible();
+  await expect(page.getByTestId("review-locked-oi-p4")).toHaveCount(0);
   // The other line is untouched.
   await expect(page.getByTestId("review-open-oi-p10")).toBeVisible();
 });

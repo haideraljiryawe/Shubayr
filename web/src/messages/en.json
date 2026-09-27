@@ -561,10 +561,16 @@
     "delete": "Delete",
     "deleted": "Review deleted",
     "updated": "Review updated",
-    "published": "Published",
     "editResetsToPending": "Editing sends the review back for moderation before it appears again.",
-    "pendingNotEditable": "Awaiting moderation — you can edit it once published.",
-    "errAlready": "You have already reviewed this item from this order."
+    "errAlready": "You have already reviewed this item from this order.",
+    "statusPending": "Awaiting moderation",
+    "statusPublished": "Published",
+    "statusRejected": "Rejected",
+    "rejectedReason": "Reason: {reason}",
+    "rejectedHint": "Edit it to send it back for review.",
+    "mineLoading": "Loading your review",
+    "mineLoadError": "Could not load your reviews.",
+    "retry": "Try again"
   },
   "settings": {
     "paymentsTitle": "Payment methods",

@@ -18,7 +18,7 @@ import {
   CUSTOMER_LOCAL as PHONE_LOCAL,
   awaitQuota,
   customerToken as token,
-  reachable,
+  requireLiveApi,
   signIn,
   tokenFor,
 } from "./live-api";
@@ -86,10 +86,7 @@ async function addEarbudsAsGuest(page: Page): Promise<void> {
 
 test.describe("live purchase funnel", () => {
   test.beforeEach(async ({ request, page }) => {
-    test.skip(
-      !(await reachable(request)),
-      `No API at ${API} — start the backend to run the live funnel test.`,
-    );
+    await requireLiveApi(request, "the live funnel test");
     await awaitQuota(request);
     await emptyServerCart(request);
 

@@ -1,4 +1,9 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 
 /**
  * Shared plumbing for the live suites.
@@ -46,6 +51,28 @@ export async function reachable(request: APIRequestContext): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * The one gate every live spec opens with.
+ *
+ * Under `npm run test:live` (playwright.live.config.ts sets
+ * PLAYWRIGHT_LIVE_REQUIRED=1) a missing backend FAILS the test: that config
+ * exists to exercise a real API, so a run that reached none has verified
+ * nothing and must not report green. Anywhere else — the hermetic suite runs
+ * live-catalog and live-checkout opportunistically — it skips as before.
+ */
+export async function requireLiveApi(
+  request: APIRequestContext,
+  what: string,
+): Promise<void> {
+  const up = await reachable(request);
+  if (!up && process.env.PLAYWRIGHT_LIVE_REQUIRED === "1") {
+    throw new Error(
+      `No API at ${API}, but the live suite requires one to run ${what}.`,
+    );
+  }
+  test.skip(!up, `No API at ${API} — start the backend to run ${what}.`);
 }
 
 /**

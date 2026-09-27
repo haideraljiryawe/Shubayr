@@ -21,6 +21,7 @@ export function WishlistButton({
   onToggle,
   size = "md",
   className,
+  "data-testid": testId,
 }: {
   productId?: string;
   active?: boolean;
@@ -28,6 +29,7 @@ export function WishlistButton({
   onToggle?: (next: boolean) => void;
   size?: "sm" | "md" | "lg";
   className?: string;
+  "data-testid"?: string;
 }) {
   const t = useTranslations("common");
   const [internal, setInternal] = useState(defaultActive);
@@ -39,6 +41,7 @@ export function WishlistButton({
       label={t(isActive ? "removeFromWishlist" : "addToWishlist")}
       aria-pressed={isActive}
       size={size}
+      data-testid={testId}
       onClick={() => {
         const next = !isActive;
         if (active === undefined) {

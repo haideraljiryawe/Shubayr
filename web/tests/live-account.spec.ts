@@ -6,7 +6,7 @@ import {
   awaitQuota,
   bearer,
   customerToken,
-  reachable,
+  requireLiveApi,
   signIn,
   tokenFor,
 } from "./live-api";
@@ -21,10 +21,7 @@ import {
  * poison itself. Minting costs a handful of requests and makes the run
  * repeatable, which matters more.
  *
- * Wishlist is deliberately absent from the live domains: the contract
- * documents it but the backend serves no such route, so the domain stays on
- * fixtures. The last test here pins that, because a mixed-mode page is exactly
- * where a wrong assumption would show up.
+ * The wishlist has its own live spec (live-wishlist.spec.ts).
  */
 
 /** Stock sits on the variant; the variantless SKU is seeded at zero. */
@@ -116,10 +113,7 @@ async function mintDeliveredOrder(
 
 test.describe("live account extras", () => {
   test.beforeEach(async ({ request, page }) => {
-    test.skip(
-      !(await reachable(request)),
-      `No API at ${API} — start the backend to run the live account tests.`,
-    );
+    await requireLiveApi(request, "the live account tests");
     await awaitQuota(request);
     await page.goto("/");
     await page.evaluate(() => {
@@ -249,9 +243,8 @@ test.describe("live account extras", () => {
     await page.getByTestId(`review-submit-${order.orderItemId}`).click();
 
     // New reviews start pending moderation, which the badge reflects.
-    await expect(
-      page.getByTestId(`review-done-${order.orderItemId}`),
-    ).toBeVisible();
+    const badge = page.getByTestId(`review-done-${order.orderItemId}`);
+    await expect(badge).toHaveAttribute("data-status", "pending");
     await expect(open).toHaveCount(0);
 
     const customer = await customerToken(request);
@@ -269,9 +262,7 @@ test.describe("live account extras", () => {
       .getByTestId(`review-stars-${order.orderItemId}-star-5`)
       .click();
     await page.getByTestId(`review-submit-${order.orderItemId}`).click();
-    await expect(
-      page.getByTestId(`review-done-${order.orderItemId}`),
-    ).toBeVisible();
+    await expect(badge).toHaveAttribute("data-status", "pending");
 
     // Delete: the line becomes reviewable again, and the server clears the flag.
     await page.getByTestId(`review-delete-${order.orderItemId}`).click();
@@ -283,6 +274,122 @@ test.describe("live account extras", () => {
       })
     ).json();
     expect(cleared.items[0].reviewed).toBe(false);
+  });
+
+  test("a pending review is still the customer's to edit and delete after a reload", async ({
+    page,
+    request,
+  }) => {
+    const order = await mintDeliveredOrder(request, 1);
+    const item = order.orderItemId;
+
+    await signIn(page, `/account/orders/${order.id}`);
+    await page.getByTestId(`review-open-${item}`).click();
+    const form = page.getByTestId(`review-form-${item}`);
+    await form.getByTestId(`review-stars-${item}-star-3`).click();
+    await form.getByRole("textbox").fill("Waiting on a moderator.");
+    await page.getByTestId(`review-submit-${item}`).click();
+    const badge = page.getByTestId(`review-done-${item}`);
+    await expect(badge).toHaveAttribute("data-status", "pending");
+
+    // The reload is the whole point: nothing of this session survives it, and
+    // the public product list is published-only, so only GET /me/reviews can
+    // find this review again.
+    await page.reload();
+    await expect(badge).toHaveAttribute("data-status", "pending");
+    await expect(page.getByTestId(`review-mine-${item}`)).toContainText(
+      "Waiting on a moderator.",
+    );
+    await expect(page.getByTestId(`review-locked-${item}`)).toHaveCount(0);
+
+    // Edit it after the reload…
+    await page.getByTestId(`review-edit-${item}`).click();
+    await form.getByTestId(`review-stars-${item}-star-5`).click();
+    await form.getByRole("textbox").fill("Edited after a reload.");
+    await page.getByTestId(`review-submit-${item}`).click();
+    await expect(page.getByTestId(`review-mine-${item}`)).toContainText(
+      "Edited after a reload.",
+    );
+
+    const customer = await customerToken(request);
+    const mine = await (
+      await request.get(`${API}/me/reviews?per_page=100`, {
+        headers: bearer(customer),
+      })
+    ).json();
+    const stored = mine.data.find(
+      (review: { order_item_id: string }) => review.order_item_id === item,
+    );
+    expect(stored).toMatchObject({
+      rating: 5,
+      comment: "Edited after a reload.",
+      status: "pending",
+    });
+
+    // …and delete it after another.
+    await page.reload();
+    await page.getByTestId(`review-delete-${item}`).click();
+    await expect(page.getByTestId(`review-open-${item}`)).toBeVisible({
+      timeout: 15000,
+    });
+    const gone = await (
+      await request.get(`${API}/me/reviews?per_page=100`, {
+        headers: bearer(customer),
+      })
+    ).json();
+    expect(
+      gone.data.some(
+        (review: { order_item_id: string }) => review.order_item_id === item,
+      ),
+    ).toBe(false);
+  });
+
+  test("the customer sees a moderator's decision on their own review", async ({
+    page,
+    request,
+  }) => {
+    const order = await mintDeliveredOrder(request, 1);
+    const item = order.orderItemId;
+    const customer = await customerToken(request);
+    const admin = await tokenFor(request, ADMIN_E164);
+
+    const created = await request.post(`${API}/products/${EARBUDS}/reviews`, {
+      headers: bearer(customer),
+      data: { order_item_id: item, rating: 2, comment: "Moderate me." },
+    });
+    expect(created.ok()).toBe(true);
+    const review = await created.json();
+
+    const rejected = await request.post(
+      `${API}/admin/reviews/${review.id}/moderate`,
+      {
+        headers: bearer(admin),
+        data: { decision: "reject", reason: "Off-topic" },
+      },
+    );
+    expect(rejected.ok()).toBe(true);
+
+    await signIn(page, `/account/orders/${order.id}`);
+    const badge = page.getByTestId(`review-done-${item}`);
+    await expect(badge).toHaveAttribute("data-status", "rejected");
+    // The moderator's reason reaches the author, with the way back.
+    await expect(page.getByTestId(`review-rejected-${item}`)).toContainText(
+      "Off-topic",
+    );
+    await expect(page.getByTestId(`review-edit-${item}`)).toBeVisible();
+
+    const published = await request.post(
+      `${API}/admin/reviews/${review.id}/moderate`,
+      {
+        headers: bearer(admin),
+        data: { decision: "publish", reason: "Reconsidered" },
+      },
+    );
+    expect(published.ok()).toBe(true);
+
+    await page.reload();
+    await expect(badge).toHaveAttribute("data-status", "published");
+    await expect(page.getByTestId(`review-rejected-${item}`)).toHaveCount(0);
   });
 
   test("a notification preference is stored on the account, not the device", async ({
@@ -361,35 +468,5 @@ test.describe("live account extras", () => {
       },
     );
     expect(response.status()).toBe(422);
-  });
-
-  test("wishlist has no backend, so it stays on fixtures beside live pages", async ({
-    page,
-    request,
-  }) => {
-    // The contract documents these routes; the server implements none of them.
-    // If this ever starts passing, the domain is ready to be flipped.
-    const customer = await customerToken(request);
-    const listed = await request.get(`${API}/wishlist`, {
-      headers: bearer(customer),
-    });
-    expect(listed.status()).toBe(404);
-
-    // Meanwhile the page still works, on fixtures, next to live account pages
-    // and with a REAL JWT in play — the mixed-mode case that has bitten
-    // before, where a mock guard rejects a genuine token.
-    //
-    // Saving a LIVE catalogue product and finding it on the fixture-backed
-    // wishlist is the sharper version of that check: the id crosses from a
-    // live domain into a mocked one and has to resolve on the way back.
-    await page.goto(`/product/${EARBUDS}`);
-    await page
-      .getByRole("button", { name: "أضف إلى المفضلة" })
-      .first()
-      .click();
-
-    await signIn(page, "/account/wishlist");
-    await expect(page.getByTestId("wishlist-grid")).toBeVisible();
-    await expect(page.getByTestId("wishlist-count")).toBeVisible();
   });
 });
