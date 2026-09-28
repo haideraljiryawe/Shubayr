@@ -22,8 +22,8 @@ async function request(path, { token, method = 'GET', body, expected = 200 } = {
   return payload;
 }
 async function login(phone) {
-  const challenge = await request('/auth/request-otp', { method: 'POST', body: { phone }, expected: 201 });
-  return (await request('/auth/verify-otp', { method: 'POST', body: { phone, code: challenge.dev_otp }, expected: 201 })).access_token;
+  const challenge = await request('/auth/request-otp', { method: 'POST', body: { phone }, expected: 200 });
+  return (await request('/auth/verify-otp', { method: 'POST', body: { phone, code: challenge.dev_otp }, expected: 200 })).access_token;
 }
 async function adminLogin() {
   return (await request('/admin/auth/login', { method: 'POST', body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' }, expected: 201 })).access_token;

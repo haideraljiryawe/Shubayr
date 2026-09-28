@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
+import { currentClientIp } from './audit-context';
 
 export interface AuditEntry {
   actorId?: string;
@@ -14,7 +15,10 @@ export interface AuditEntry {
 
 @Injectable()
 export class AuditService {
-  record(transaction: Prisma.TransactionClient, entry: AuditEntry) {
+  record(
+    transaction: Pick<Prisma.TransactionClient, 'auditLog'>,
+    entry: AuditEntry,
+  ) {
     return transaction.auditLog.create({
       data: {
         actor_id: entry.actorId,
@@ -23,7 +27,7 @@ export class AuditService {
         entity_id: entry.entityId,
         before: entry.before,
         after: entry.after,
-        ip: entry.ip,
+        ip: entry.ip ?? currentClientIp(),
         reason: entry.reason,
       },
     });

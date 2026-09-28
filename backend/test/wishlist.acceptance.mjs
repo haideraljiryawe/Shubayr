@@ -34,10 +34,10 @@ async function request(path, { token, method = 'GET', body, expected = 200 } = {
 
 async function login(phone) {
   const challenge = await request('/auth/request-otp', {
-    method: 'POST', expected: 201, body: { phone },
+    method: 'POST', expected: 200, body: { phone },
   });
   return (await request('/auth/verify-otp', {
-    method: 'POST', expected: 201, body: { phone, code: challenge.dev_otp },
+    method: 'POST', expected: 200, body: { phone, code: challenge.dev_otp },
   })).access_token;
 }
 

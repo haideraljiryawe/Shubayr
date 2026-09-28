@@ -332,7 +332,9 @@ export class ProductsService {
       in_stock: availability.in_stock,
       available_qty: availability.available_qty,
       images: product.images.map((image, index) => ({
-        ...image,
+        id: image.id,
+        url: image.url,
+        sort_order: image.sort_order,
         is_primary: index === 0,
       })),
       variants: product.variants.map((variant) => ({

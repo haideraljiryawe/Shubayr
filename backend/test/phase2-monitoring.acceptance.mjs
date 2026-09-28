@@ -40,13 +40,13 @@ async function request(
 async function login(phone) {
   const challenge = await request('/auth/request-otp', {
     method: 'POST',
-    expected: 201,
+    expected: 200,
     body: { phone },
   });
   return (
     await request('/auth/verify-otp', {
       method: 'POST',
-      expected: 201,
+      expected: 200,
       body: { phone, code: challenge.dev_otp },
     })
   ).access_token;

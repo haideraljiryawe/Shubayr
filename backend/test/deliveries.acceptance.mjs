@@ -41,13 +41,13 @@ async function login(phone) {
   const challenge = await request('/auth/request-otp', {
     method: 'POST',
     body: { phone },
-    expected: 201,
+    expected: 200,
   });
   check(challenge.dev_otp, process.env.DEV_OTP ?? '000000', 'development OTP');
   return request('/auth/verify-otp', {
     method: 'POST',
     body: { phone, code: challenge.dev_otp },
-    expected: 201,
+    expected: 200,
   });
 }
 
