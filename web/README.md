@@ -108,10 +108,45 @@ contract's unified Error envelope, its machine-readable `code` and field
 - If a purchase call is refused anyway — a tab whose cached profile predates
   the phone's registration — the client re-reads `GET /me`, and the fresh
   role flips the page to the landing instead of a broken cart.
-- The full agent and monitor work pages come after backend build phase 2.
+- Work accounts reach their own pages from the landing and the header
+  (API 6.1, below); every shopping page still shows the landing.
 
 In the mock suite, `07700000005` signs in as a delivery agent and
 `07700000008` as an order monitor, mirroring the backend seed.
+
+## Work pages and the notification center (API 6.1)
+
+The paths match the deep links the server writes into each role's
+notifications, so tapping one and using the work menu land on the same page.
+Each page checks the exact role (`RequireRole`); any other signed-in role is
+told the page is not theirs, and the API answers 403 regardless.
+
+| Path | Who | What |
+| --- | --- | --- |
+| `/monitor/orders` | `order_monitor` | Read-only list: status chips with the server's `status_counts`, search on customer name or order number, a date range in the store's timezone (Asia/Baghdad), server-side pages |
+| `/monitor/orders/{id}` | `order_monitor` | Number, status, customer name and phone, address, items and quantities, totals, payment method — no images, no controls |
+| `/deliveries`, `/deliveries/{id}` | `delivery_agent` | The agent's own deliveries and only the moves `PATCH /deliveries/{id}` allows today (start, delivered, failed, returned), each confirmed once; a 409 reloads the delivery and says why |
+| `/notifications` | every signed-in role | The inbox: all/unread, mark one, mark all, deep links per role; the header bell carries the unread count |
+
+**The monitor list** sends every filter to the server and returns to page 1
+whenever one changes. Search is debounced (300 ms), and each new query aborts
+the one before it *and* is checked against a sequence number when it lands
+(`src/lib/use-latest-request.ts`) — an abort cannot recall a response that
+already arrived, so both guards are needed for an older answer never to
+overwrite a newer one.
+
+**The live inbox** (`src/lib/notification-center.ts`) is one store per tab.
+Each connection POSTs `/notifications/stream-ticket` with the bearer token and
+opens the `EventSource` with the single-use ticket — the token never enters a
+URL. Because the ticket is single-use, the browser's own auto-reconnect would
+replay a spent one, so every drop closes the source and a fresh ticket opens
+the next, resuming with `since` (the query-string form of `Last-Event-ID`; an
+`EventSource` cannot set headers). The last event id is kept per user in
+`localStorage`, so a reload resumes rather than replaying all history. Reads
+are PATCHed, and the server's `notification.read` / `unread.count` events keep
+every tab and device in step; arriving never marks anything read. Going
+offline closes the stream; coming back, or the tab becoming visible, refetches
+the count and reconnects.
 
 ## Live vs mock, per domain
 
@@ -135,6 +170,9 @@ its endpoints exist without touching the ones still waiting.
 | `reviews` | **LIVE** | `POST /products/{id}/reviews`, `GET /me/reviews`, `PATCH`/`DELETE /reviews/{id}`, `POST /deliveries/{id}/rating` — the customer's own reviews, unlike the published reads under `catalog` |
 | `notifications` | **LIVE** | `GET`/`PATCH /me/notification-preferences` |
 | `wishlist` | **LIVE** | `GET`/`POST /wishlist`, `DELETE /wishlist/{productId}` — signed in only; see below |
+| `monitor` | **LIVE** | `GET /monitor/orders`, `/monitor/orders/{id}` — `order_monitor` only |
+| `deliveries` | **LIVE** | `GET /deliveries/assigned`, `PATCH /deliveries/{id}` — `delivery_agent` only |
+| `inbox` | **LIVE** | `GET /me/notifications`, `/me/notifications/unread-count`, `PATCH /me/notifications/{id}/read`, `/me/notifications/read-all`, `POST /notifications/stream-ticket`, `GET /notifications/stream` (SSE) |
 
 Every still-mocked method carries a `// MOCK: awaiting backend slice` comment at
 its definition, so the remaining work is greppable.
@@ -190,8 +228,8 @@ Contract v5.4.0 renamed the order side — `processing` → `preparing`,
 delivery rather than four. The delivery side was not renamed.
 
 ```bash
-# The default: every domain is live now that the wishlist has a backend.
-NEXT_PUBLIC_LIVE_DOMAINS=auth,profile,catalog,banners,cart,checkout,orders,addresses,returns,loyalty,reviews,notifications,wishlist
+# The default: every domain is live.
+NEXT_PUBLIC_LIVE_DOMAINS=auth,profile,catalog,banners,cart,checkout,orders,addresses,returns,loyalty,reviews,notifications,wishlist,monitor,deliveries,inbox
 NEXT_PUBLIC_LIVE_DOMAINS=all                            # everything live
 NEXT_PUBLIC_LIVE_DOMAINS=none                           # everything mocked
 NEXT_PUBLIC_USE_MOCKS=true                              # global override to mock
@@ -260,6 +298,24 @@ OTP form and checks every storefront page shows only the landing, that the API
 refuses them the cart, wishlist and addresses with
 `WORK_ACCOUNT_SHOPPING_FORBIDDEN`, and that a stale "customer" profile flips to
 the landing on the first refused call.
+
+`live-work-pages.spec.ts` covers the 6.1 pages: the API refusing each work
+endpoint to every other role and the pages refusing them too; the monitor's
+chips against the server's counts and each filter alone and combined, on an
+order it mints; an agent opening a fresh assignment from its notification and
+walking it to `delivered`; a staff handover racing the agent's click (409,
+explained); two browser sessions of one monitor seeing an arrival and each
+other's reads live; and a stream cut by going offline resuming with `since`
+without losing the notification created meanwhile.
+
+The behaviour that is hard to provoke on a real server — a slow older search
+landing after a newer one, a request cancelled mid-flight, a stream dropped
+at an exact point — runs against a scripted API instead
+(`tests/fake-api.ts`, a real HTTP server with a real SSE stream):
+
+```bash
+WORK_TESTS=true npx playwright test     # work-pages.spec.ts + inbox.spec.ts
+```
 
 Staff steps in these suites (moving orders along, moderating reviews) use an
 admin-surface token from `POST /admin/auth/login` (`staffToken` in
@@ -451,6 +507,16 @@ Each carries a `CONTRACT GAP` comment at the seam:
   stage off the order and `Order.delivery_id` marks that a delivery exists.
 - **No web push.** `POST /devices/token` exists, but minting a token needs a
   service worker and FCM web config; preferences are wired, delivery is not.
+- **No single delivery read for the agent.** `lib/deliveries.ts` finds a
+  delivery by paging the agent's own `/deliveries/assigned`. The agent also
+  has no read of the order behind it (customer, address, amount to collect),
+  so the delivery page shows only what `Delivery` carries; collected amount
+  and custody arrive with a later backend phase and are not shown until then.
+- **No "current position" for the stream.** A browser with no saved cursor
+  connects without `since`, and the server replays that user's whole event
+  history. The inbox merges it harmlessly (rows already shown are never
+  duplicated, older ones are left on their page); the saved cursor keeps it
+  a one-off per browser.
 
 Two gaps this section used to list are closed: `GET /returns` now serves the
 customer's own returns, and `OrderItem.reviewed` reports which purchased lines
@@ -468,9 +534,14 @@ src/
 │                         Checkbox Radio QuantityStepper Avatar Chip Wishlist
 ├─ components/layout/     Header DesktopNav BottomTabBar Footer Logo
 │                         LocaleSwitcher LocationSelector AppShell
+│                         NotificationBell WorkNav
+├─ components/work/       monitor list/detail · deliveries list/detail
+│                         RequireRole · Pager
+├─ components/inbox/      the notification center page
 ├─ components/providers/  theme-provider (white-label)
 ├─ i18n/                  routing · request · navigation
 ├─ lib/                   api · mock-data · format · color · cn
+│                         notification-center (stream) · use-latest-request
 ├─ messages/              ar.json · en.json
 └─ middleware.ts          locale resolution
 ```

@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { WishlistSync } from "@/components/providers/wishlist-sync";
 import { CartSync } from "@/lib/cart-sync";
 import { AuthProvider } from "@/lib/auth";
+import { NotificationCenterSync } from "@/lib/use-notifications";
 import { localeDirection, routing, type Locale } from "@/i18n/routing";
 import { api } from "@/lib/api";
 import "../globals.css";
@@ -71,11 +72,13 @@ export default async function LocaleLayout({
               ask the same provider who is signed in. */}
           <AuthProvider>
             <ThemeProvider settings={settings}>
-              {/* Both render nothing. The first mirrors hearts onto the
+              {/* These render nothing. The first mirrors hearts onto the
                   account; the second replays the guest cart onto the server
-                  cart at sign-in and keeps the server's totals authoritative. */}
+                  cart at sign-in and keeps the server's totals authoritative;
+                  the third keeps the signed-in inbox's count and live stream. */}
               <WishlistSync />
               <CartSync />
+              <NotificationCenterSync />
               <AppShell>{children}</AppShell>
             </ThemeProvider>
           </AuthProvider>

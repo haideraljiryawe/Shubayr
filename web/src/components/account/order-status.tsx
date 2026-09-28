@@ -9,7 +9,7 @@ import type { OrderStatus } from "@/lib/api";
  * step number: anything in motion is informational, a finished order is a
  * success, and the failure states are the only red ones.
  */
-const TONES: Record<OrderStatus, BadgeTone> = {
+export const ORDER_STATUS_TONES: Record<OrderStatus, BadgeTone> = {
   pending: "warning",
   confirmed: "info",
   preparing: "info",
@@ -37,7 +37,7 @@ export function OrderStatusChip({
 
   return (
     <Badge
-      tone={TONES[status] ?? "neutral"}
+      tone={ORDER_STATUS_TONES[status] ?? "neutral"}
       className={className}
       data-testid="order-status"
     >
