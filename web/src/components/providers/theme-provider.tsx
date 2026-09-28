@@ -36,7 +36,7 @@ export function useTheme(): Theme {
 
 /**
  * Build the `:root` override for a tenant brand. Returns null when the tenant
- * uses the default green, so the hand-tuned hexes in globals.css stay untouched
+ * uses the default green, so the hand-tuned hexes in tokens.css stay untouched
  * rather than being replaced by derived approximations.
  */
 function brandOverrideCss(primaryColor: string): string | null {

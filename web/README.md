@@ -40,7 +40,8 @@ Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · next-intl · lucide-
 
 ## Design tokens
 
-Defined once in `src/app/globals.css`:
+Defined once in `src/app/tokens.css` (imported by `globals.css`, and by the
+Web Admin in `admin/` — one palette for both apps):
 
 - Raw values live under a `--t-*` namespace on `:root`.
 - `@theme inline` maps them to Tailwind's semantic utilities (`bg-primary`,
@@ -460,7 +461,8 @@ they have already reviewed.
 ```
 src/
 ├─ app/[locale]/          layout (lang/dir/Cairo/providers), page, style-guide
-├─ app/globals.css        design tokens + Tailwind theme
+├─ app/globals.css        Tailwind entry; imports tokens.css
+├─ app/tokens.css         design tokens + Tailwind theme (shared with admin/)
 ├─ components/ui/         Button Field Input Select SearchInput Textarea Card
 │                         SectionHeader Badge Price Rating IconButton Toggle
 │                         Checkbox Radio QuantityStepper Avatar Chip Wishlist
