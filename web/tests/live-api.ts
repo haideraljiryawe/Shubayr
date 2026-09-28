@@ -28,11 +28,21 @@ export const API =
 
 export const OTP = process.env.DEV_OTP ?? "000000";
 
-/** Seeded accounts, by role. */
+/**
+ * Seeded phone accounts, by app role. Since API 6.0 a phone only ever yields
+ * an `app` session — staff operations need `staffToken` below.
+ */
 export const CUSTOMER_E164 = "+9647700000006";
 export const CUSTOMER_LOCAL = "07700000006";
-export const ADMIN_E164 = "+9647700000001";
 export const AGENT_E164 = "+9647700000005";
+export const AGENT_LOCAL = "07700000005";
+export const MONITOR_E164 = "+9647700000008";
+export const MONITOR_LOCAL = "07700000008";
+
+/** The seeded staff administrator (backend/prisma/seed.ts, dev only). */
+export const STAFF_USERNAME = process.env.LIVE_ADMIN_USERNAME ?? "admin";
+export const STAFF_PASSWORD =
+  process.env.LIVE_ADMIN_PASSWORD ?? "Shubayr-Dev-Admin!2026";
 
 export function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
@@ -113,7 +123,7 @@ export async function tokenFor(
   await awaitQuota(request);
   await request.post(`${API}/auth/request-otp`, { data: { phone } });
   const verified = await request.post(`${API}/auth/verify-otp`, {
-    data: { phone, code: OTP },
+    data: { phone, code: OTP, client: "web_store" },
   });
   expect(verified.ok()).toBe(true);
 
@@ -127,18 +137,43 @@ export function customerToken(request: APIRequestContext): Promise<string> {
 }
 
 /**
+ * An `admin`-surface token for the seeded administrator.
+ *
+ * API 6.0 splits the surfaces: the admin's phone now signs in as a plain
+ * customer, and staff routes answer AUTH_SURFACE_FORBIDDEN to any app token.
+ * Staff steps in the live suites (moving orders along, moderating reviews)
+ * therefore sign in with username and password.
+ */
+let staff: string | null = null;
+
+export async function staffToken(request: APIRequestContext): Promise<string> {
+  if (staff) return staff;
+  await awaitQuota(request);
+  const response = await request.post(`${API}/admin/auth/login`, {
+    data: { username: STAFF_USERNAME, password: STAFF_PASSWORD },
+  });
+  expect(response.ok()).toBe(true);
+  staff = (await response.json()).access_token as string;
+  return staff;
+}
+
+/**
  * Sign in through the real phone-OTP form and land on `next`.
  *
  * /login is the storefront's own entry point and honours ?next=, so this is
  * the returning customer's path rather than a test-only shortcut — no token is
  * injected, the OTP round trip really happens.
  */
-export async function signIn(page: Page, next: string): Promise<void> {
+export async function signIn(
+  page: Page,
+  next: string,
+  phoneLocal: string = CUSTOMER_LOCAL,
+): Promise<void> {
   await page.goto(`/login?next=${encodeURIComponent(next)}`);
   // The form is rendered twice (narrow and wide); only one is ever visible.
   const phone = page.locator('[data-testid="auth-phone"]:visible');
   await expect(phone).toBeVisible();
-  await phone.fill(CUSTOMER_LOCAL);
+  await phone.fill(phoneLocal);
   await page.locator('[data-testid="auth-send-otp"]:visible').click();
   await page.locator('[data-testid="auth-code"]:visible').fill(OTP);
   await page.locator('[data-testid="auth-verify"]:visible').click();

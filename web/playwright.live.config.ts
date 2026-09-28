@@ -34,6 +34,7 @@ export default defineConfig({
     "**/live-checkout.spec.ts",
     "**/live-account.spec.ts",
     "**/live-wishlist.spec.ts",
+    "**/live-work-account.spec.ts",
   ],
   timeout: 90000,
   use: {

@@ -178,7 +178,13 @@ jobs:
         run: |
           npm ci
           npm run lint --if-present
+          npm run typecheck
           npm run build --if-present
+      - name: Generated API types match api/openapi.yaml
+        working-directory: web
+        run: |
+          npm run gen:api
+          git diff --exit-code -- src/types/api.d.ts
 
   mobile:
     name: Mobile (Flutter)

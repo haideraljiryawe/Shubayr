@@ -9,6 +9,7 @@ import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { useCartCount } from "@/lib/use-cart";
+import { useWorkRole } from "@/lib/work-account";
 import { DesktopNav } from "./desktop-nav";
 import { LocaleSwitcher } from "./locale-switcher";
 import { LocationSelector } from "./location-selector";
@@ -30,6 +31,8 @@ export function Header() {
   const tAccount = useTranslations("account");
   const cartCount = useCartCount();
   const { user, isAuthenticated } = useAuth();
+  // A work account (API 6.0) cannot shop: no search, cart, location or nav.
+  const workRole = useWorkRole();
 
   return (
     <header className="sticky top-0 z-30 bg-surface/95 backdrop-blur border-b border-border">
@@ -37,46 +40,54 @@ export function Header() {
         <div className="flex h-16 items-center gap-3 md:gap-6">
           <Logo className="min-w-0 shrink" />
 
-          <LocationSelector className="hidden lg:inline-flex" />
+          {workRole ? null : (
+            <>
+              <LocationSelector className="hidden lg:inline-flex" />
 
-          {/* The wrapper carries the responsive visibility: SearchInput's
-              className lands on the <input>, which would hide the field but
-              leave its icons floating in the header. */}
-          <div className="hidden flex-1 md:block">
-            <SearchForm />
-          </div>
+              {/* The wrapper carries the responsive visibility: SearchInput's
+                  className lands on the <input>, which would hide the field but
+                  leave its icons floating in the header. */}
+              <div className="hidden flex-1 md:block">
+                <SearchForm />
+              </div>
+            </>
+          )}
 
           <div className="ms-auto flex shrink-0 items-center gap-1">
-            <IconButton label={t("notifications")} variant="ghost">
-              <Bell className="size-5" aria-hidden />
-            </IconButton>
+            {workRole ? null : (
+              <>
+                <IconButton label={t("notifications")} variant="ghost">
+                  <Bell className="size-5" aria-hidden />
+                </IconButton>
 
-            <span className="relative inline-flex">
-              <Link
-                href="/cart"
-                aria-label={t("cart")}
-                title={t("cart")}
-                data-testid="header-cart"
-                className="inline-flex size-10 items-center justify-center rounded-full text-text transition-colors duration-150 hover:bg-card"
-              >
-                <ShoppingCart className="size-5" aria-hidden />
-              </Link>
-              {cartCount > 0 ? (
-                <Badge
-                  tone="sale"
-                  className={cn(
-                    "pointer-events-none absolute -top-0.5 -end-0.5",
-                    "min-w-5 rounded-full px-1 py-0 text-[10px] leading-5",
-                  )}
-                >
-                  <span data-testid="cart-badge">{cartCount}</span>
-                </Badge>
-              ) : null}
-            </span>
+                <span className="relative inline-flex">
+                  <Link
+                    href="/cart"
+                    aria-label={t("cart")}
+                    title={t("cart")}
+                    data-testid="header-cart"
+                    className="inline-flex size-10 items-center justify-center rounded-full text-text transition-colors duration-150 hover:bg-card"
+                  >
+                    <ShoppingCart className="size-5" aria-hidden />
+                  </Link>
+                  {cartCount > 0 ? (
+                    <Badge
+                      tone="sale"
+                      className={cn(
+                        "pointer-events-none absolute -top-0.5 -end-0.5",
+                        "min-w-5 rounded-full px-1 py-0 text-[10px] leading-5",
+                      )}
+                    >
+                      <span data-testid="cart-badge">{cartCount}</span>
+                    </Badge>
+                  ) : null}
+                </span>
+              </>
+            )}
 
             {/* Signed out this is the way in; signed in it is the way to the
                 account. Both render the same size, so the row never shifts. */}
-            {isAuthenticated ? (
+            {workRole ? null : isAuthenticated ? (
               <Link
                 href="/account"
                 aria-label={tAccount("title")}
@@ -104,12 +115,14 @@ export function Header() {
         </div>
 
         {/* Mobile: search on its own row, like the phone mockups. */}
-        <div className="pb-3 md:hidden">
-          <SearchForm />
-        </div>
+        {workRole ? null : (
+          <div className="pb-3 md:hidden">
+            <SearchForm />
+          </div>
+        )}
       </div>
 
-      <DesktopNav />
+      {workRole ? null : <DesktopNav />}
     </header>
   );
 }

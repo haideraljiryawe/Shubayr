@@ -621,5 +621,15 @@
     "notifyType_loyalty_points_earned": "نقاط جديدة",
     "notifyType_review_moderated": "مراجعة تقييمك",
     "notifyType_promo": "العروض والتخفيضات"
+  },
+  "workAccount": {
+    "title": "حساب عمل",
+    "signedInAs": "مسجّل الدخول باسم {name}",
+    "role": {
+      "delivery_agent": "مندوب توصيل",
+      "order_monitor": "مراقب طلبات"
+    },
+    "body": "هذا الرقم مسجّل كحساب عمل، لذلك لا يمكن استخدامه للتسوق أو السلة أو المفضلة أو عناوين الزبائن في المتجر.",
+    "comingSoon": "صفحات العمل الخاصة بك ستتوفر هنا قريبًا. للتسوق سجّل الدخول برقم زبون."
   }
 }

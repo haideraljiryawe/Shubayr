@@ -76,6 +76,11 @@ export interface paths {
                         phone: string;
                         /** @example 000000 */
                         code: string;
+                        /**
+                         * @default mobile
+                         * @enum {string}
+                         */
+                        client?: "mobile" | "web_store";
                     };
                 };
             };
@@ -134,6 +139,140 @@ export interface paths {
                             access_token: string;
                             refresh_token: string;
                         };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke one refresh token on its original surface */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RefreshTokenRequest"];
+                };
+            };
+            responses: {
+                /** @description Refresh token revoked */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Authenticate staff with username and password
+         * @description Every attempt is audited. Five consecutive failures lock the account for 15 minutes.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        username: string;
+                        password: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Admin-surface token pair. `must_change_password` may require the change-password route before any other protected admin route. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthTokens"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                422: components["responses"]["Validation"];
+                429: components["responses"]["RateLimited"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/auth/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace the current or temporary staff password */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        current_password: string;
+                        new_password: components["schemas"]["Password"];
+                    };
+                };
+            };
+            responses: {
+                /** @description New token pair; all older sessions are revoked. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthTokens"];
                     };
                 };
                 401: components["responses"]["Unauthorized"];
@@ -2657,7 +2796,7 @@ export interface paths {
         };
         /**
          * Deliveries assigned to the current agent
-         * @description Requires the `delivery.assigned` permission and returns deliveries scoped to the current authenticated agent only. When `status` is supplied, the server applies it server-side to that agent's deliveries before pagination. `total` is the number matching the selected status, rather than the agent's unfiltered total. Results have stable ordering by `dispatched_at` DESC, then `id` DESC as the unique tiebreaker, so equal timestamps do not make items shift between pages. Omitting `status` returns all statuses.
+         * @description Requires an app-surface `delivery_agent` session and returns deliveries scoped to the current authenticated agent only. When `status` is supplied, the server applies it server-side to that agent's deliveries before pagination. `total` is the number matching the selected status, rather than the agent's unfiltered total. Results have stable ordering by `dispatched_at` DESC, then `id` DESC as the unique tiebreaker, so equal timestamps do not make items shift between pages. Omitting `status` returns all statuses.
          */
         get: {
             parameters: {
@@ -2885,7 +3024,7 @@ export interface paths {
         };
         /**
          * Get effective per-type and per-channel notification preferences
-         * @description Returns all 10 types across push and SMS. Transactional push defaults on; promo defaults off. Order confirmation SMS is mandatory. Legacy category toggles remain the fallback until a type/channel override is stored.
+         * @description Returns all supported notification types across push and SMS. Transactional push defaults on; promo defaults off. Order confirmation SMS is mandatory. Legacy category toggles remain the fallback until a type/channel override is stored.
          */
         get: {
             parameters: {
@@ -2950,12 +3089,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the authenticated customer's notification history */
+        /**
+         * List the caller's durable notification inbox
+         * @description Shared across the recipient's devices and auth surfaces; newest first with id as the stable tiebreak.
+         */
         get: {
             parameters: {
                 query?: {
                     page?: number;
                     per_page?: number;
+                    unread?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -2963,15 +3106,313 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Own notification attempts, newest first */
+                /** @description Own saved notifications, newest first */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["NotificationHistory"];
+                        "application/json": components["schemas"]["NotificationPage"];
                     };
                 };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the caller's unread notification count */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Current unread count */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UnreadCount"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Mark one owned notification read */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Read state */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: date-time */
+                            read_at: string;
+                        };
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/me/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Mark every unread notification for the caller read */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Bulk read result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            updated: number;
+                            /** Format: date-time */
+                            read_at: string;
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/notifications/stream-ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue a short-lived single-use SSE ticket
+         * @description The bearer token is used only for this POST and is never placed in the EventSource URL.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Ticket valid for 60 seconds and one stream connection */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ticket: string;
+                            /** Format: date-time */
+                            expires_at: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open the recipient-scoped notification SSE stream
+         * @description Emits notification.created, notification.read and unread.count. Supports Last-Event-ID or since; sends heartbeat comments every 15 seconds.
+         */
+        get: {
+            parameters: {
+                query: {
+                    ticket: string;
+                    since?: string;
+                };
+                header?: {
+                    "Last-Event-ID"?: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Server-sent event stream */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/event-stream": string;
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/monitor/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read-only order list for the order-monitor app role */
+        get: {
+            parameters: {
+                query?: {
+                    status?: components["schemas"]["OrderStatus"] | "all";
+                    /** @description Partial case-insensitive customer-name or order-number search with Arabic normalization. */
+                    q?: string;
+                    /** @description Start of the Asia/Baghdad calendar day. */
+                    date_from?: string;
+                    /** @description End of the Asia/Baghdad calendar day, inclusive. */
+                    date_to?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Pagination envelope plus status chip counts computed without the status filter */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonitorOrderPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/monitor/orders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read-only monitor order detail without product images */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Monitor-safe order detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonitorOrderDetail"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
             };
         };
         put?: never;
@@ -3737,44 +4178,37 @@ export interface paths {
         };
         trace?: never;
     };
-    "/admin/users": {
+    "/admin/staff": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List users */
+        /** List staff accounts and their preset/extra grants */
         get: {
             parameters: {
-                query?: {
-                    /** @description search by name / phone / email */
-                    q?: string;
-                    /** @description role name filter */
-                    role?: string;
-                    page?: components["parameters"]["Page"];
-                    per_page?: components["parameters"]["PerPage"];
-                };
+                query?: never;
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description Paginated users */
+                /** @description Staff accounts */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["UserPage"];
+                        "application/json": components["schemas"]["StaffUser"][];
                     };
                 };
                 403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
-        /** Create a user (staff/customer) */
+        /** Create a staff account with a temporary password */
         post: {
             parameters: {
                 query?: never;
@@ -3784,17 +4218,17 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["UserInput"];
+                    "application/json": components["schemas"]["StaffCreate"];
                 };
             };
             responses: {
-                /** @description Created user */
+                /** @description Staff account created */
                 201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["User"];
+                        "application/json": components["schemas"]["StaffUser"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -3807,7 +4241,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/users/{id}": {
+    "/admin/staff/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -3817,10 +4251,217 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Deactivate / delete a user */
-        delete: {
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update or deactivate a staff account
+         * @description Deactivation invalidates all existing sessions before the next request.
+         */
+        patch: {
             parameters: {
                 query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StaffUpdate"];
+                };
+            };
+            responses: {
+                /** @description Updated staff account */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StaffUser"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/staff/{id}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set or reset a temporary staff password
+         * @description Revokes sessions and forces a password change at the next login.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StaffPasswordReset"];
+                };
+            };
+            responses: {
+                /** @description Password reset */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/staff/{id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace a staff account's presets and extra grants
+         * @description The permission version changes atomically, so the next request sees the new grants without login.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StaffAccess"];
+                };
+            };
+            responses: {
+                /** @description Access replaced */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StaffUser"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List permission presets */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Presets */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PermissionPreset"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Create a permission preset */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PermissionPresetInput"];
+                };
+            };
+            responses: {
+                /** @description Preset created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PermissionPreset"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/presets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a non-system permission preset */
+        delete: {
+            parameters: {
+                query: {
+                    reason: components["parameters"]["Reason"];
+                };
                 header?: never;
                 path: {
                     id: components["parameters"]["PathId"];
@@ -3842,7 +4483,7 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        /** Update a user (profile, role, active state) */
+        /** Update a permission preset */
         patch: {
             parameters: {
                 query?: never;
@@ -3854,149 +4495,17 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["UserInput"];
+                    "application/json": components["schemas"]["PermissionPresetInput"];
                 };
             };
             responses: {
-                /** @description Updated user */
+                /** @description Preset updated */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["User"];
-                    };
-                };
-                403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
-            };
-        };
-        trace?: never;
-    };
-    "/admin/roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List roles (with their permission keys) */
-        get: {
-            parameters: {
-                query?: {
-                    page?: components["parameters"]["Page"];
-                    per_page?: components["parameters"]["PerPage"];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Paginated roles */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["RolePage"];
-                    };
-                };
-                403: components["responses"]["Forbidden"];
-            };
-        };
-        put?: never;
-        /** Create a role */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["RoleInput"];
-                };
-            };
-            responses: {
-                /** @description Created role */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Role"];
-                    };
-                };
-                403: components["responses"]["Forbidden"];
-                422: components["responses"]["Validation"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/roles/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete a role */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: components["parameters"]["PathId"];
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Deleted */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
-            };
-        };
-        options?: never;
-        head?: never;
-        /** Update a role (name, description, permissions) */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: components["parameters"]["PathId"];
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["RoleInput"];
-                };
-            };
-            responses: {
-                /** @description Updated role */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Role"];
+                        "application/json": components["schemas"]["PermissionPreset"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -4012,7 +4521,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all permission keys (for building roles) */
+        /** List the code-defined permission registry */
         get: {
             parameters: {
                 query?: never;
@@ -4037,6 +4546,115 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/work-phones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List pre-registered work phones */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Work phones */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkPhone"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /**
+         * Register or change a work phone role
+         * @description A phone already belonging to a customer is rejected with `CUSTOMER_PHONE_ALREADY_REGISTERED` (409).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WorkPhoneInput"];
+                };
+            };
+            responses: {
+                /** @description Work phone registered */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkPhone"];
+                    };
+                };
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/work-phones/{phone}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke a work phone immediately
+         * @description Existing app access and refresh tokens stop working on the next request.
+         */
+        delete: {
+            parameters: {
+                query: {
+                    reason: components["parameters"]["Reason"];
+                };
+                header?: never;
+                path: {
+                    phone: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Revoked */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -4094,20 +4712,32 @@ export interface components {
             refresh_token: string;
             user: components["schemas"]["User"];
         };
+        RefreshTokenRequest: {
+            refresh_token: string;
+        };
+        /** @description Must contain upper and lower case letters, a number, and a symbol. */
+        Password: string;
         User: {
             /** Format: uuid */
             id: string;
             name: string | null;
-            phone: string;
+            phone: string | null;
+            username: string | null;
             email: string | null;
             is_active: boolean;
             /**
-             * @description role name
-             * @example customer
+             * @description Present only on the app surface.
+             * @enum {string|null}
              */
-            role: string;
-            /** @description Flattened permission keys granted to the user's role. */
+            role: "customer" | "delivery_agent" | "order_monitor" | null;
+            /** @description Current preset and extra grants; always empty on the app surface. */
             permissions: string[];
+            /** @enum {string} */
+            surface: "admin" | "app";
+            /** @enum {string|null} */
+            client: "mobile" | "web_store" | null;
+            must_change_password: boolean;
+            permission_version: number;
             /** Format: date-time */
             created_at: string;
         };
@@ -4116,20 +4746,6 @@ export interface components {
             name?: string;
             /** Format: email */
             email?: string | null;
-        };
-        UserInput: {
-            name?: string;
-            phone: string;
-            email?: string | null;
-            /**
-             * @description role name to assign
-             * @example warehouse
-             */
-            role?: string;
-            /** @default true */
-            is_active: boolean;
-            /** @description optional; staff accounts may use password login */
-            password?: string | null;
         };
         Address: {
             /** Format: uuid */
@@ -4725,6 +5341,68 @@ export interface components {
         AdminOrderPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["AdminOrder"][];
         };
+        MonitorOrderListItem: {
+            /** Format: uuid */
+            id: string;
+            order_number: string;
+            status: components["schemas"]["OrderStatus"];
+            customer_name: string | null;
+            customer_phone: string;
+            total: components["schemas"]["Money"];
+            /** @enum {string} */
+            payment_method: "cod";
+            /** Format: date-time */
+            placed_at: string;
+        };
+        MonitorOrderPage: components["schemas"]["Pagination"] & {
+            /** @description Counts with q and Baghdad date filters applied and status excluded. */
+            status_counts: {
+                [key: string]: number;
+            };
+            data: components["schemas"]["MonitorOrderListItem"][];
+        };
+        /** @description Intentionally excludes product image fields. */
+        MonitorOrderDetail: {
+            /** Format: uuid */
+            id: string;
+            order_number: string;
+            status: components["schemas"]["OrderStatus"];
+            customer: {
+                name: string | null;
+                phone: string;
+            };
+            shipping_snapshot: {
+                contact_phone?: string;
+                address_label?: string | null;
+                city?: string;
+                area?: string | null;
+                street?: string | null;
+                details?: string | null;
+                lat?: number | null;
+                lng?: number | null;
+            };
+            items: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                product_id: string;
+                /** Format: uuid */
+                variant_id: string | null;
+                product_name_ar: string;
+                product_name_en: string;
+                quantity: number;
+                unit_price: components["schemas"]["Money"];
+                line_total: components["schemas"]["Money"];
+            }[];
+            subtotal: components["schemas"]["Money"];
+            delivery_fee: components["schemas"]["Money"];
+            discount: components["schemas"]["Money"];
+            total: components["schemas"]["Money"];
+            /** @enum {string} */
+            payment_method: "cod";
+            /** Format: date-time */
+            placed_at: string;
+        };
         OrderTracking: {
             /** Format: uuid */
             order_id?: string;
@@ -5075,33 +5753,113 @@ export interface components {
         };
         NotificationPreferenceEntry: {
             /** @enum {string} */
-            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo";
+            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "delivery_assigned";
             /** @enum {string} */
             channel: "push" | "sms";
             enabled: boolean;
         };
-        NotificationHistory: components["schemas"]["Pagination"] & {
-            data: components["schemas"]["NotificationAttempt"][];
+        NotificationPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["Notification"][];
         };
-        NotificationAttempt: {
+        Notification: {
             /** Format: uuid */
             id: string;
             type: components["schemas"]["NotificationPreferenceEntry"]["type"];
             /** @enum {string} */
-            channel: "push" | "sms";
-            /** @enum {string} */
-            status: "queued" | "sent" | "skipped" | "failed";
-            /** @enum {string} */
-            locale: "ar" | "en";
-            title: string;
-            body: string;
+            target_role: "customer" | "delivery_agent" | "order_monitor" | "staff";
+            title_ar: string;
+            body_ar: string;
+            title_en: string;
+            body_en: string;
+            deep_link: string;
             entity_type: string;
             /** Format: uuid */
             entity_id: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
-            sent_at?: string | null;
+            read_at: string | null;
+        };
+        UnreadCount: {
+            unread_count: number;
+        };
+        AuditReason: {
+            reason: string;
+        };
+        StaffUser: {
+            /** Format: uuid */
+            id: string;
+            username: string;
+            name: string | null;
+            /** Format: email */
+            email: string | null;
+            is_active: boolean;
+            must_change_password: boolean;
+            permission_version: number;
+            presets: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            }[];
+            extra_grants: string[];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        StaffCreate: components["schemas"]["AuditReason"] & {
+            username: string;
+            name: string;
+            /** Format: email */
+            email?: string | null;
+            password: components["schemas"]["Password"];
+            preset_ids?: string[];
+            permission_keys?: string[];
+        };
+        StaffUpdate: components["schemas"]["AuditReason"] & {
+            name?: string;
+            /** Format: email */
+            email?: string | null;
+            is_active?: boolean;
+        };
+        StaffPasswordReset: components["schemas"]["AuditReason"] & {
+            password: components["schemas"]["Password"];
+        };
+        StaffAccess: components["schemas"]["AuditReason"] & {
+            preset_ids: string[];
+            permission_keys: string[];
+        };
+        PermissionPreset: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string | null;
+            is_system: boolean;
+            permissions?: {
+                permission?: components["schemas"]["Permission"];
+            }[];
+        };
+        PermissionPresetInput: components["schemas"]["AuditReason"] & {
+            name?: string;
+            description?: string | null;
+            permission_keys?: string[];
+        };
+        WorkPhone: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            user_id: string;
+            phone?: string;
+            name: string;
+            /** @enum {string} */
+            app_role: "delivery_agent" | "order_monitor";
+            is_active: boolean;
+        };
+        WorkPhoneInput: components["schemas"]["AuditReason"] & {
+            phone: string;
+            name: string;
+            /** @enum {string} */
+            role: "delivery_agent" | "order_monitor";
         };
         Permission: {
             /** @example orders.confirm */
@@ -5224,6 +5982,7 @@ export interface components {
         PathId: string;
         Page: number;
         PerPage: number;
+        Reason: string;
     };
     requestBodies: never;
     headers: never;

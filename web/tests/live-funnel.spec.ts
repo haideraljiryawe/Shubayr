@@ -13,14 +13,13 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 
 import {
   API,
-  ADMIN_E164,
   CUSTOMER_E164,
   CUSTOMER_LOCAL as PHONE_LOCAL,
   awaitQuota,
   customerToken as token,
   requireLiveApi,
   signIn,
-  tokenFor,
+  staffToken,
 } from "./live-api";
 
 /**
@@ -44,7 +43,7 @@ async function setProductStatus(
   productId: string,
   status: "active" | "hidden",
 ): Promise<void> {
-  const admin = await tokenFor(request, ADMIN_E164);
+  const admin = await staffToken(request);
   const response = await request.patch(`${API}/admin/products/${productId}`, {
     headers: { Authorization: `Bearer ${admin}` },
     data: { status },

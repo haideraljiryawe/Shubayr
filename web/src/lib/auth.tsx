@@ -63,8 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    // The contract has no revoke endpoint, so signing out is local: drop the
-    // tokens. Add the call here when one lands.
+    // Revoke the refresh token on the server (API 6.0), but never make the
+    // visitor wait on it: the local session is dropped immediately either way.
+    const refreshToken = authStore.getSession()?.refresh_token;
+    if (refreshToken) void api.logout(refreshToken).catch(() => undefined);
     authStore.signOut({ deliberate: true });
   }, []);
 

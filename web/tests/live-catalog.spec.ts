@@ -136,7 +136,11 @@ test.describe("live catalog", () => {
     expect(requested.ok()).toBe(true);
 
     const verified = await request.post(`${API}/auth/verify-otp`, {
-      data: { phone, code: process.env.DEV_OTP ?? "000000" },
+      data: {
+        phone,
+        code: process.env.DEV_OTP ?? "000000",
+        client: "web_store",
+      },
     });
     expect(verified.ok()).toBe(true);
 
@@ -149,6 +153,11 @@ test.describe("live catalog", () => {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     expect(me.ok()).toBe(true);
-    expect((await me.json()).phone).toBe(phone);
+    const user = await me.json();
+    expect(user.phone).toBe(phone);
+    // API 6.0: a phone session is the app surface with a server-resolved role.
+    expect(user.surface).toBe("app");
+    expect(user.role).toBe("customer");
+    expect(user.permissions).toEqual([]);
   });
 });

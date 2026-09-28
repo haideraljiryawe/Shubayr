@@ -85,8 +85,11 @@ export function PaymentMethodsPanel() {
 /* --------------------------------------------------------- notifications */
 
 /**
- * The ten notification types across both channels, in the order the contract
- * lists them — which is also roughly the order a shopper meets them.
+ * The ten customer notification types across both channels, in the order the
+ * contract lists them — which is also roughly the order a shopper meets them.
+ * API 6.1 adds `new_order`, `order_cancelled` and `delivery_assigned`, but
+ * those are addressed to order monitors and delivery agents, who never reach
+ * this page (see WorkAccountGate), so they are not offered to a customer.
  */
 const NOTIFICATION_TYPES: NotificationType[] = [
   "order_placed",
