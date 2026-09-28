@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { workRoleOf } from "@/lib/work-account";
 import { wishlistStore } from "@/lib/wishlist-store";
 
 /**
@@ -15,13 +16,15 @@ import { wishlistStore } from "@/lib/wishlist-store";
  * deliberately no cleanup that could cancel a replay half-way.
  */
 export function WishlistSync() {
-  const { isAuthenticated, ready } = useAuth();
+  const { isAuthenticated, ready, user } = useAuth();
+  // A work account has no wishlist (403 WORK_ACCOUNT_SHOPPING_FORBIDDEN).
+  const shopper = isAuthenticated && !workRoleOf(user);
 
   useEffect(() => {
     if (!ready) return;
-    if (isAuthenticated) void wishlistStore.attachAccount();
+    if (shopper) void wishlistStore.attachAccount();
     else wishlistStore.detachAccount();
-  }, [isAuthenticated, ready]);
+  }, [shopper, ready]);
 
   return null;
 }

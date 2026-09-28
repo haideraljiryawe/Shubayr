@@ -1,13 +1,13 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import {
   API,
-  ADMIN_E164,
   AGENT_E164,
   awaitQuota,
   bearer,
   customerToken,
   requireLiveApi,
   signIn,
+  staffToken,
   tokenFor,
 } from "./live-api";
 
@@ -49,7 +49,7 @@ async function mintDeliveredOrder(
   quantity = 2,
 ): Promise<DeliveredOrder> {
   const customer = await customerToken(request);
-  const admin = await tokenFor(request, ADMIN_E164);
+  const admin = await staffToken(request);
   const agent = await tokenFor(request, AGENT_E164);
 
   // Start from an empty cart so the order contains exactly this line.
@@ -351,7 +351,7 @@ test.describe("live account extras", () => {
     const order = await mintDeliveredOrder(request, 1);
     const item = order.orderItemId;
     const customer = await customerToken(request);
-    const admin = await tokenFor(request, ADMIN_E164);
+    const admin = await staffToken(request);
 
     const created = await request.post(`${API}/products/${EARBUDS}/reviews`, {
       headers: bearer(customer),

@@ -22,6 +22,7 @@ import {
   rememberMockOrder,
   updateMockAddress,
   updateMockUser,
+  signInMockPhone,
   listMockWishlist,
   addMockWishlistItem,
   removeMockWishlistItem,
@@ -68,7 +69,9 @@ export type CustomerReview = Schemas["CustomerReview"];
 export type CustomerReviewPage = Schemas["CustomerReviewPage"];
 export type Coupon = Schemas["Coupon"];
 export type User = Schemas["User"];
-export type UserInput = Schemas["UserInput"];
+export type AppRole = NonNullable<User["role"]>;
+export type ApiErrorBody = Schemas["Error"];
+export type FieldError = Schemas["FieldError"];
 export type AuthTokens = Schemas["AuthTokens"];
 export type AddressPage = Schemas["AddressPage"];
 export type OrderPage = Schemas["OrderPage"];
@@ -140,10 +143,57 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /**
+     * The contract's machine-readable `code` from the unified Error envelope
+     * (e.g. `WORK_ACCOUNT_SHOPPING_FORBIDDEN`), when the response carried one.
+     * Route on this, not on the message, which is for humans.
+     */
+    readonly code?: string,
+    readonly errors: FieldError[] = [],
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+/** API 6.0: purchase functions answer this 403 to a work account. */
+export const WORK_ACCOUNT_SHOPPING_FORBIDDEN =
+  "WORK_ACCOUNT_SHOPPING_FORBIDDEN";
+
+export function isWorkAccountForbidden(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.status === 403 &&
+    error.code === WORK_ACCOUNT_SHOPPING_FORBIDDEN
+  );
+}
+
+/**
+ * Turn a failed response into an ApiError, keeping the contract's `code` and
+ * field errors when the body is the unified Error envelope. Anything else (a
+ * proxy's HTML page, an empty body) still yields an error with the status.
+ */
+async function toApiError(
+  response: Response,
+  method: string,
+  path: string,
+): Promise<ApiError> {
+  let body: Partial<ApiErrorBody> | null = null;
+  try {
+    body = (await response.json()) as Partial<ApiErrorBody>;
+  } catch {
+    body = null;
+  }
+  const error = new ApiError(
+    response.status,
+    typeof body?.message === "string"
+      ? body.message
+      : `${method} ${path} failed with ${response.status}`,
+    typeof body?.code === "string" ? body.code : undefined,
+    Array.isArray(body?.errors) ? body.errors : [],
+  );
+  if (isWorkAccountForbidden(error)) tokenProvider?.onWorkAccountForbidden?.();
+  return error;
 }
 
 type Query = Record<string, string | number | boolean | undefined>;
@@ -161,6 +211,12 @@ export interface TokenProvider {
   getRefreshToken(): string | null;
   onTokens(tokens: { access_token: string; refresh_token: string }): void;
   onSignedOut(): void;
+  /**
+   * The API refused a purchase function because the session belongs to a work
+   * account. The session store re-reads the user so the UI can switch to the
+   * work-account landing even if its cached profile said otherwise.
+   */
+  onWorkAccountForbidden?(): void;
 }
 
 let tokenProvider: TokenProvider | null = null;
@@ -240,10 +296,7 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      `${init.method ?? "GET"} ${path} failed with ${response.status}`,
-    );
+    throw await toApiError(response, init.method ?? "GET", path);
   }
 
   return (await response.json()) as T;
@@ -265,10 +318,7 @@ async function requestNoContent(
     },
   });
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      `${init.method ?? "GET"} ${path} failed with ${response.status}`,
-    );
+    throw await toApiError(response, init.method ?? "GET", path);
   }
 }
 
@@ -514,16 +564,34 @@ export const api = {
       if (code.trim() !== MOCK_OTP) {
         throw new ApiError(401, "Invalid or expired verification code");
       }
-      const user = updateMockUser({ phone });
+      const user = signInMockPhone(toE164(phone), phone);
       return {
         access_token: mockAccessToken(user.id ?? "u-1"),
         refresh_token: mockRefreshToken(user.id ?? "u-1"),
         user,
       };
     }
+    // API 6.0: name the client and never send a role — the server resolves
+    // it, and a work phone comes back as delivery_agent or order_monitor.
     return request<AuthTokens>("/auth/verify-otp", {
       method: "POST",
-      body: JSON.stringify({ phone: toE164(phone), code: code.trim() }),
+      body: JSON.stringify({
+        phone: toE164(phone),
+        code: code.trim(),
+        client: "web_store",
+      }),
+    });
+  },
+
+  /**
+   * Revoke the refresh token on the server (POST /auth/logout). Best effort:
+   * signing out locally must never wait on, or fail because of, the network.
+   */
+  async logout(refresh_token: string): Promise<void> {
+    if (!isLive("auth")) return;
+    await requestNoContent("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ refresh_token }),
     });
   },
 
@@ -551,7 +619,10 @@ export const api = {
     );
   },
 
-  /** The signed-in customer, including the role permissions the contract flattens. */
+  /**
+   * The signed-in account. On the web store this is an app-surface session, so
+   * `role` is customer, delivery_agent or order_monitor and `permissions` is empty.
+   */
   async getMe(): Promise<User> {
     return withFreshToken(async () => {
       if (!isLive("profile")) {

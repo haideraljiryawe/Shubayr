@@ -621,5 +621,15 @@
     "notifyType_loyalty_points_earned": "Points earned",
     "notifyType_review_moderated": "Review moderated",
     "notifyType_promo": "Offers and promotions"
+  },
+  "workAccount": {
+    "title": "Work account",
+    "signedInAs": "Signed in as {name}",
+    "role": {
+      "delivery_agent": "Delivery agent",
+      "order_monitor": "Order monitor"
+    },
+    "body": "This phone is registered as a work account, so it can't be used for shopping, the cart, the wishlist or customer addresses on the store.",
+    "comingSoon": "Your work pages will be available here soon. To shop, sign in with a customer phone number."
   }
 }

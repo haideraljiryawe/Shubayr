@@ -1,5 +1,5 @@
 import type { User } from "./api";
-import { setTokenProvider } from "./api";
+import { api, setTokenProvider } from "./api";
 
 /* ---------------------------------------------------------------------------
  * Session store.
@@ -162,7 +162,29 @@ setTokenProvider({
   getRefreshToken: () => state.session?.refresh_token ?? null,
   onTokens: (tokens) => authStore.setTokens(tokens),
   onSignedOut: () => authStore.signOut(),
+  onWorkAccountForbidden: () => void reloadUser(),
 });
+
+/**
+ * Re-read the signed-in user after the API refused a purchase function as a
+ * work account. The role on the fresh profile is authoritative, and adopting
+ * it is what flips the storefront to the work-account landing. One reload is
+ * shared by however many requests were refused at once.
+ */
+let reloading: Promise<void> | null = null;
+
+function reloadUser(): Promise<void> {
+  reloading ??= api
+    .getMe()
+    .then((user) => authStore.setUser(user))
+    .catch(() => {
+      /* The refusal already reached its caller; nothing more to do here. */
+    })
+    .finally(() => {
+      reloading = null;
+    });
+  return reloading;
+}
 
 if (typeof window !== "undefined") {
   // Runs when the client bundle loads — before React hydrates — so the first

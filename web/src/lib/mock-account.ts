@@ -71,11 +71,26 @@ export const mockUser: User = {
   phone: "07701234567",
   email: null,
   is_active: true,
+  username: null,
+  // API 6.0: a phone session is always the `app` surface. Its role is
+  // resolved by the server and it carries no staff permissions.
   role: "customer",
-  // The contract flattens role permissions onto the user; a customer's set is
-  // what the storefront may do on its own data.
-  permissions: ["orders.read", "orders.create", "addresses.write"],
+  permissions: [],
+  surface: "app",
+  client: "web_store",
+  must_change_password: false,
+  permission_version: 1,
   created_at: "2026-02-11T09:00:00.000Z",
+};
+
+/**
+ * Work phones the mock recognises, mirroring the backend seed: signing in
+ * with one of these yields a work account instead of a customer, which is
+ * what lets the hermetic suite drive the work-account landing.
+ */
+const MOCK_WORK_PHONES: Record<string, { role: User["role"]; name: string }> = {
+  "+9647700000005": { role: "delivery_agent", name: "مندوب التوصيل" },
+  "+9647700000008": { role: "order_monitor", name: "مراقب الطلبات" },
 };
 
 let currentUser: User = { ...mockUser };
@@ -86,6 +101,22 @@ export function getMockUser(): User {
 
 export function updateMockUser(patch: Partial<User>): User {
   currentUser = { ...currentUser, ...patch };
+  return currentUser;
+}
+
+/**
+ * Sign a phone in, the way the server resolves it: a registered work phone
+ * becomes that work account, any other phone is the fixture customer.
+ */
+export function signInMockPhone(phoneE164: string, phone: string): User {
+  const work = MOCK_WORK_PHONES[phoneE164];
+  currentUser = work
+    ? { ...mockUser, id: `work-${phoneE164}`, phone, ...work }
+    : {
+        ...mockUser,
+        ...(currentUser.role === "customer" ? currentUser : {}),
+        phone,
+      };
   return currentUser;
 }
 
