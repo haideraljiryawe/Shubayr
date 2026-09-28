@@ -1,0 +1,140 @@
+/* ============================================================================
+   SHUBAYR DESIGN TOKENS
+   Source of truth: docs/design/shubayr-design-system.jpeg (see docs/design/README.md).
+
+   Shared by the web store and the Web Admin (admin/src/app/globals.css
+   imports this very file), so the two apps can never drift apart in palette,
+   radii, elevation or type. Change a token here and both apps follow.
+
+   Raw tokens are plain custom properties under a `--t-*` (token) namespace so
+   the white-label ThemeProvider (rule #1 in docs/ARCHITECTURE.md) can override
+   brand values at runtime from GET /settings without a rebuild.
+
+   The @theme inline block only *points* Tailwind's semantic utilities at those
+   variables — it never copies the literal values — which is what makes the
+   runtime override work. The `--t-*` prefix exists so a theme key never
+   references itself (e.g. `--color-card: var(--color-card)` would be circular).
+   ========================================================================== */
+
+:root {
+  /* --- Brand — overridden at runtime by ThemeProvider -------------------
+     NOTE: the design sheet prints "#5BBF6B" beside the Primary swatch, but the
+     swatch itself — and every mockup screen (buttons, tab-bar circle, profile
+     header) — renders #558464. The sage is the real brand green; the printed
+     label is a typo in the sheet. Confirmed with the design owner. */
+  --t-primary: #558464;
+  --t-primary-dark: #3e6b4e;
+  --t-primary-light: #7fae8c;
+  --t-accent: #d4a017;
+
+  /* Text/icon color that sits ON a filled primary surface. ThemeProvider
+     recomputes this per tenant so a pale brand still gets readable text. */
+  --t-on-primary: #ffffff;
+
+  /* --- Surfaces --------------------------------------------------------- */
+  --t-background: #faf7f2;
+  --t-surface: #ffffff;
+  --t-card: #f4f1ea;
+  --t-border: #e5e1d8;
+
+  /* --- Text ------------------------------------------------------------- */
+  --t-text: #1f2937;
+  --t-text-muted: #4b5563;
+
+  /* --- Status ----------------------------------------------------------- */
+  --t-success: #22c55e;
+  --t-warning: #f59e0b;
+  --t-error: #ef4444;
+  /* White text on --t-error is 3.76:1, below AA. This darker sibling (5.70:1)
+     is used wherever red is a FILL behind white text — sale and count badges.
+     The lighter --t-error stays the status/border colour. */
+  --t-error-dark: #a81c1c;
+  /* The bright status colours are for FILLS and icons; as TEXT they fail AA on
+     our light surfaces (--t-success is only 2.12:1, --t-warning 2.2:1). These
+     darker siblings are what status *text* uses. */
+  --t-success-dark: #166534;
+  --t-warning-dark: #92400e;
+  --t-info-dark: #1d4ed8;
+  --t-info: #3b82f6;
+
+  /* --- Radii (8 / 12 / 20 per the sheet) -------------------------------- */
+  --t-radius-sm: 8px;
+  --t-radius-md: 12px;
+  --t-radius-lg: 20px;
+
+  /* --- Elevation -------------------------------------------------------- */
+  --t-shadow-sm: 0 1px 2px 0 rgb(31 41 55 / 0.05);
+  --t-shadow-md: 0 4px 12px -2px rgb(31 41 55 / 0.08), 0 2px 4px -2px rgb(31 41 55 / 0.04);
+  --t-shadow-lg: 0 12px 32px -8px rgb(31 41 55 / 0.14), 0 4px 8px -4px rgb(31 41 55 / 0.06);
+}
+
+/* ----------------------------------------------------------------------------
+   Tailwind theme — semantic utility names only:
+   bg-primary, text-text-muted, border-border, rounded-lg, shadow-md …
+   -------------------------------------------------------------------------- */
+@theme inline {
+  --color-primary: var(--t-primary);
+  --color-primary-dark: var(--t-primary-dark);
+  --color-primary-light: var(--t-primary-light);
+  --color-on-primary: var(--t-on-primary);
+  --color-accent: var(--t-accent);
+
+  --color-background: var(--t-background);
+  --color-surface: var(--t-surface);
+  --color-card: var(--t-card);
+  --color-border: var(--t-border);
+
+  --color-text: var(--t-text);
+  --color-text-muted: var(--t-text-muted);
+
+  --color-success: var(--t-success);
+  --color-warning: var(--t-warning);
+  --color-error: var(--t-error);
+  --color-error-dark: var(--t-error-dark);
+  --color-success-dark: var(--t-success-dark);
+  --color-warning-dark: var(--t-warning-dark);
+  --color-info-dark: var(--t-info-dark);
+  --color-info: var(--t-info);
+
+  --radius-sm: var(--t-radius-sm);
+  --radius-md: var(--t-radius-md);
+  --radius-lg: var(--t-radius-lg);
+
+  --shadow-sm: var(--t-shadow-sm);
+  --shadow-md: var(--t-shadow-md);
+  --shadow-lg: var(--t-shadow-lg);
+
+  /* Cairo is loaded by next/font/google in the locale layout. */
+  --font-sans: var(--font-cairo), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--t-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--t-background);
+    color: var(--t-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--t-primary);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Flip a glyph that encodes direction (arrows, chevrons) under RTL. */
+  [dir="rtl"] .rtl-flip {
+    transform: scaleX(-1);
+  }
+}

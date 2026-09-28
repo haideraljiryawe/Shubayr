@@ -1,0 +1,10 @@
+# The build context is the repository root; send only what the image uses.
+*
+!admin/
+!web/src/app/tokens.css
+!api/openapi.yaml
+admin/node_modules
+admin/.next
+admin/test-results
+admin/playwright-report
+admin/.env.local

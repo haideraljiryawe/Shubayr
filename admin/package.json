@@ -1,0 +1,43 @@
+{
+  "name": "shubayr-admin",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "description": "Shubayr — Web Admin (Next.js App Router, Arabic-first, staff username/password).",
+  "scripts": {
+    "dev": "next dev --port 3200",
+    "build": "next build",
+    "start": "next start --port 3200",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "gen:api": "openapi-typescript ../api/openapi.yaml -o src/types/api.d.ts",
+    "test": "vitest run",
+    "test:live": "playwright test --config playwright.live.config.ts"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "lucide-react": "1.41.0",
+    "next": "16.3.4",
+    "next-intl": "4.14.2",
+    "openapi-fetch": "0.17.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "server-only": "0.0.1",
+    "tailwind-merge": "3.4.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "22.18.1",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.1",
+    "eslint": "9.39.0",
+    "eslint-config-next": "16.3.4",
+    "openapi-typescript": "7.13.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "5.0.2"
+  }
+}
