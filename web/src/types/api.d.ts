@@ -518,6 +518,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
@@ -547,6 +548,7 @@ export interface paths {
                         "application/json": components["schemas"]["Address"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -903,6 +905,7 @@ export interface paths {
                         "application/json": components["schemas"]["Cart"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
@@ -951,6 +954,8 @@ export interface paths {
                         "application/json": components["schemas"]["Cart"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -1091,6 +1096,7 @@ export interface paths {
                         "application/json": components["schemas"]["WishlistPage"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
@@ -1120,6 +1126,8 @@ export interface paths {
                         "application/json": components["schemas"]["WishlistItem"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -1282,6 +1290,7 @@ export interface paths {
                         "application/json": components["schemas"]["Order"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 /** @description Cart empty, item unavailable, coupon invalid, or idempotency conflict */
                 409: {
                     headers: {
@@ -1411,13 +1420,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Status does not allow cancellation */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
+                409: components["responses"]["Conflict"];
             };
         };
         delete?: never;
@@ -1474,13 +1477,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Invalid status transition */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -1596,6 +1593,7 @@ export interface paths {
                         "application/json": components["schemas"]["Review"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
                 409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
@@ -1858,6 +1856,7 @@ export interface paths {
                         "application/json": components["schemas"]["LoyaltyAccount"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
@@ -1903,6 +1902,7 @@ export interface paths {
                         "application/json": components["schemas"]["LoyaltyRedemption"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
@@ -2595,6 +2595,9 @@ export interface paths {
                         "application/json": components["schemas"]["Return"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -2694,6 +2697,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -2738,6 +2742,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
             };
         };
         delete?: never;
@@ -3634,13 +3639,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Illegal transition or dispatch handoff is incomplete */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -3687,13 +3686,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Order is not cancellable */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -3938,6 +3931,7 @@ export interface paths {
                         "application/json": components["schemas"]["Category"];
                     };
                 };
+                401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 422: components["responses"]["Validation"];
             };
@@ -4017,6 +4011,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
             };
         };
         trace?: never;
@@ -4188,7 +4183,16 @@ export interface paths {
         /** List staff accounts and their preset/extra grants */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    q?: components["parameters"]["Search"];
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    status?: "active" | "inactive" | "must_change";
+                    preset?: string;
+                    permission_key?: string;
+                    sort?: "name" | "username" | "created_at";
+                    dir?: "asc" | "desc";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -4201,7 +4205,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StaffUser"][];
+                        "application/json": components["schemas"]["StaffUserListResponse"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -4393,7 +4397,15 @@ export interface paths {
         /** List permission presets */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    q?: components["parameters"]["Search"];
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    kind?: "system" | "custom";
+                    permission_key?: string;
+                    sort?: "name" | "permissions";
+                    dir?: "asc" | "desc";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -4406,7 +4418,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PermissionPreset"][];
+                        "application/json": components["schemas"]["PermissionPresetListResponse"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -4561,7 +4573,15 @@ export interface paths {
         /** List pre-registered work phones */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    q?: components["parameters"]["Search"];
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    role?: "delivery_agent" | "order_monitor";
+                    status?: "active" | "revoked";
+                    sort?: "name" | "phone" | "role";
+                    dir?: "asc" | "desc";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -4574,7 +4594,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["WorkPhone"][];
+                        "application/json": components["schemas"]["WorkPhoneListResponse"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -4655,6 +4675,57 @@ export interface paths {
                 404: components["responses"]["NotFound"];
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List audit records newest first
+         * @description Results use creation time descending with ID descending as a stable tiebreak.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Actor UUID, username, or name search. */
+                    actor?: string;
+                    action?: string;
+                    entity_type?: string;
+                    entity_id?: string;
+                    from?: string;
+                    to?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated audit records */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuditLogList"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5138,7 +5209,7 @@ export interface components {
             sku?: string;
             attributes?: {
                 [key: string]: unknown;
-            };
+            } | null;
             price_delta?: number;
         };
         /** @description Computed availability (on-hand minus active batch reservations and temporary COD holds) per product & variant. */
@@ -5807,6 +5878,11 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        StaffUserList: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["StaffUser"][];
+        };
+        /** @description A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope. */
+        StaffUserListResponse: components["schemas"]["StaffUser"][] | components["schemas"]["StaffUserList"];
         StaffCreate: components["schemas"]["AuditReason"] & {
             username: string;
             name: string;
@@ -5844,16 +5920,52 @@ export interface components {
             description?: string | null;
             permission_keys?: string[];
         };
+        PermissionPresetList: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["PermissionPreset"][];
+        };
+        /** @description A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope. */
+        PermissionPresetListResponse: components["schemas"]["PermissionPreset"][] | components["schemas"]["PermissionPresetList"];
         WorkPhone: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
             user_id: string;
-            phone?: string;
+            phone: string;
             name: string;
             /** @enum {string} */
             app_role: "delivery_agent" | "order_monitor";
             is_active: boolean;
+        };
+        WorkPhoneList: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["WorkPhone"][];
+        };
+        /** @description A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope. */
+        WorkPhoneListResponse: components["schemas"]["WorkPhone"][] | components["schemas"]["WorkPhoneList"];
+        AuditActor: {
+            /** Format: uuid */
+            id: string;
+            username: string | null;
+            name: string | null;
+        };
+        AuditLog: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            actor_id: string | null;
+            actor: components["schemas"]["AuditActor"] | null;
+            action: string;
+            entity_type: string;
+            /** Format: uuid */
+            entity_id: string | null;
+            before: Record<string, never> | unknown[] | string | number | boolean | null;
+            after: Record<string, never> | unknown[] | string | number | boolean | null;
+            ip: string | null;
+            reason: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AuditLogList: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["AuditLog"][];
         };
         WorkPhoneInput: components["schemas"]["AuditReason"] & {
             phone: string;
@@ -5982,6 +6094,7 @@ export interface components {
         PathId: string;
         Page: number;
         PerPage: number;
+        Search: string;
         Reason: string;
     };
     requestBodies: never;
