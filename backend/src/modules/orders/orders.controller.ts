@@ -31,11 +31,9 @@ export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
 
   @Get()
-  @AppPolicy('customer', 'order_monitor')
+  @AppPolicy('customer')
   list(@Req() request: UserRequest, @Query() query: OrderQueryDto) {
-    return request.user.role === 'order_monitor'
-      ? this.orders.listAdmin(query)
-      : this.orders.list(request.user.id, query);
+    return this.orders.list(request.user.id, query);
   }
 
   @Post()
@@ -49,14 +47,12 @@ export class OrdersController {
   }
 
   @Get(':id')
-  @AppPolicy('customer', 'order_monitor')
+  @AppPolicy('customer')
   detail(
     @Req() request: UserRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
   ) {
-    return request.user.role === 'order_monitor'
-      ? this.orders.getAdmin(id)
-      : this.orders.getOwned(request.user.id, id);
+    return this.orders.getOwned(request.user.id, id);
   }
 
   @Get(':id/track')

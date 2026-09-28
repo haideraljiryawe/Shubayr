@@ -78,6 +78,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       client: payload.client ?? null,
       permissions,
       permissionVersion: user.permission_version,
+      sessionVersion: user.session_version,
       mustChangePassword: user.must_change_password,
     };
   }

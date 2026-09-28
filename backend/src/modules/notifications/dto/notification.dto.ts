@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
   Max,
   Min,
   ValidateNested,
@@ -60,6 +61,11 @@ export class PatchPreferencesDto {
 
 export class NotificationHistoryQueryDto {
   @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  unread?: boolean;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -71,4 +77,16 @@ export class NotificationHistoryQueryDto {
   @Min(1)
   @Max(100)
   per_page?: number;
+}
+
+export class NotificationStreamQueryDto {
+  @IsString()
+  @Length(16, 512)
+  ticket!: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 40)
+  @Matches(/^\d+$/)
+  since?: string;
 }

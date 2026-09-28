@@ -21,6 +21,7 @@ export interface AuthenticatedRequestUser {
   client: 'mobile' | 'web_store' | null;
   permissions: string[];
   permissionVersion: number;
+  sessionVersion: number;
   mustChangePassword: boolean;
 }
 

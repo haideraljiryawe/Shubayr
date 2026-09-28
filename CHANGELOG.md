@@ -1,5 +1,23 @@
 # Changelog
 
+## 6.1.0 - 2026-09-28
+
+### Added
+
+- A durable bilingual notification inbox for every account type, with synced
+  unread state and recipient-specific deep links.
+- Short-lived single-use SSE tickets, Redis-backed live delivery, heartbeats,
+  and persisted sequence replay through `Last-Event-ID` or `since`.
+- Dedicated read-only order-monitor list/detail APIs with server-side combined
+  filters, Arabic-normalized search, Baghdad date boundaries, and chip counts.
+
+### Changed
+
+- Notification push and SMS attempts are now downstream deliveries from the
+  saved inbox event rather than the notification history source of truth.
+- Removed the obsolete `orders.manage` permission data; order administration
+  continues to use the Phase 1 fine-grained permission registry.
+
 ## 6.0.0 - 2026-09-27
 
 ### Breaking

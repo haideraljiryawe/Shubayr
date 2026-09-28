@@ -38,6 +38,7 @@ import {
   CouponController,
 } from '../../modules/orders/cart.controller';
 import { OrdersController } from '../../modules/orders/orders.controller';
+import { MonitorOrdersController } from '../../modules/orders/monitor-orders.controller';
 import {
   PermissionsController,
   PresetsController,
@@ -76,6 +77,7 @@ const controllers: Type[] = [
   CartController,
   CouponController,
   OrdersController,
+  MonitorOrdersController,
   StaffController,
   PresetsController,
   PermissionsController,
@@ -97,6 +99,7 @@ const customer: AuthenticatedRequestUser = {
   client: 'mobile',
   permissions: [],
   permissionVersion: 1,
+  sessionVersion: 1,
   mustChangePassword: false,
 };
 const delivery = {

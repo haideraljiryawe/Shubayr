@@ -115,6 +115,15 @@ export class DeliveriesService {
         before: { agent_id: delivery.agent_id },
         after: { agent_id: input.agent_id },
       });
+      await this.notifications?.record(
+        tx,
+        input.agent_id,
+        'delivery_assigned',
+        'delivery',
+        id,
+        input.agent_id,
+        'delivery_agent',
+      );
       return updated;
     });
     return this.present(row);
@@ -243,7 +252,17 @@ export class DeliveriesService {
         'delivery',
         id,
         input.status,
+        'customer',
+        `/orders/${delivery.order_id}`,
       );
+      if (input.status === 'failed') {
+        await this.notifications?.recordOrderMonitors(
+          tx,
+          'delivery_failed',
+          delivery.order_id,
+          id,
+        );
+      }
       const updated = await tx.delivery.update({
         where: { id },
         data: {

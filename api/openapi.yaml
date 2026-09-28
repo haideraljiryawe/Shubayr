@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 6.0.0
+  version: 6.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -53,6 +53,8 @@ tags:
   - name: Returns
   - name: Deliveries
   - name: Devices
+  - name: Notifications
+  - name: Monitoring
   - name: Admin
 
 security:
@@ -1524,7 +1526,7 @@ paths:
     get:
       tags: [Devices]
       summary: Get effective per-type and per-channel notification preferences
-      description: Returns all 10 types across push and SMS. Transactional push defaults on; promo defaults off. Order confirmation SMS is mandatory. Legacy category toggles remain the fallback until a type/channel override is stored.
+      description: Returns all supported notification types across push and SMS. Transactional push defaults on; promo defaults off. Order confirmation SMS is mandatory. Legacy category toggles remain the fallback until a type/channel override is stored.
       responses:
         "200":
           description: Notification preferences
@@ -1550,17 +1552,139 @@ paths:
 
   /me/notifications:
     get:
-      tags: [Devices]
-      summary: List the authenticated customer's notification history
+      tags: [Notifications]
+      summary: List the caller's durable notification inbox
+      description: Shared across the recipient's devices and auth surfaces; newest first with id as the stable tiebreak.
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: unread, in: query, schema: { type: boolean, default: false } }
       responses:
         "200":
-          description: Own notification attempts, newest first
+          description: Own saved notifications, newest first
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/NotificationHistory" }
+              schema: { $ref: "#/components/schemas/NotificationPage" }
+
+  /me/notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Get the caller's unread notification count
+      responses:
+        "200":
+          description: Current unread count
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UnreadCount" }
+
+  /me/notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark one owned notification read
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Read state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, read_at]
+                properties:
+                  id: { type: string, format: uuid }
+                  read_at: { type: string, format: date-time }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /me/notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark every unread notification for the caller read
+      responses:
+        "200":
+          description: Bulk read result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updated, read_at]
+                properties:
+                  updated: { type: integer, minimum: 0 }
+                  read_at: { type: string, format: date-time }
+
+  /notifications/stream-ticket:
+    post:
+      tags: [Notifications]
+      summary: Issue a short-lived single-use SSE ticket
+      description: The bearer token is used only for this POST and is never placed in the EventSource URL.
+      responses:
+        "201":
+          description: Ticket valid for 60 seconds and one stream connection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ticket, expires_at]
+                properties:
+                  ticket: { type: string }
+                  expires_at: { type: string, format: date-time }
+
+  /notifications/stream:
+    get:
+      tags: [Notifications]
+      summary: Open the recipient-scoped notification SSE stream
+      security: []
+      description: Emits notification.created, notification.read and unread.count. Supports Last-Event-ID or since; sends heartbeat comments every 15 seconds.
+      parameters:
+        - { name: ticket, in: query, required: true, schema: { type: string } }
+        - { name: since, in: query, required: false, schema: { type: string, pattern: "^[0-9]+$" } }
+        - { name: Last-Event-ID, in: header, required: false, schema: { type: string, pattern: "^[0-9]+$" } }
+      responses:
+        "200":
+          description: Server-sent event stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /monitor/orders:
+    get:
+      tags: [Monitoring]
+      summary: Read-only order list for the order-monitor app role
+      x-surface: app
+      x-app-role: order_monitor
+      parameters:
+        - { name: status, in: query, schema: { oneOf: [ { $ref: "#/components/schemas/OrderStatus" }, { type: string, const: all } ] } }
+        - { name: q, in: query, schema: { type: string, maxLength: 80 }, description: "Partial case-insensitive customer-name or order-number search with Arabic normalization." }
+        - { name: date_from, in: query, schema: { type: string, format: date }, description: Start of the Asia/Baghdad calendar day. }
+        - { name: date_to, in: query, schema: { type: string, format: date }, description: End of the Asia/Baghdad calendar day, inclusive. }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Pagination envelope plus status chip counts computed without the status filter
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MonitorOrderPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /monitor/orders/{id}:
+    get:
+      tags: [Monitoring]
+      summary: Read-only monitor order detail without product images
+      x-surface: app
+      x-app-role: order_monitor
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Monitor-safe order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MonitorOrderDetail" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADMIN: REPORTS & SETTINGS ----------------
   /admin/reports/sales:
@@ -2805,6 +2929,79 @@ components:
               type: array
               items: { $ref: "#/components/schemas/AdminOrder" }
 
+    MonitorOrderListItem:
+      type: object
+      required: [id, order_number, status, customer_name, customer_phone, total, payment_method, placed_at]
+      properties:
+        id: { type: string, format: uuid }
+        order_number: { type: string }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        customer_name: { type: [string, "null"] }
+        customer_phone: { type: string }
+        total: { $ref: "#/components/schemas/Money" }
+        payment_method: { type: string, enum: [cod] }
+        placed_at: { type: string, format: date-time }
+
+    MonitorOrderPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [status_counts, data]
+          properties:
+            status_counts:
+              type: object
+              description: Counts with q and Baghdad date filters applied and status excluded.
+              additionalProperties: { type: integer, minimum: 0 }
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/MonitorOrderListItem" }
+
+    MonitorOrderDetail:
+      type: object
+      description: Intentionally excludes product image fields.
+      required: [id, order_number, status, customer, shipping_snapshot, items, subtotal, delivery_fee, discount, total, payment_method, placed_at]
+      properties:
+        id: { type: string, format: uuid }
+        order_number: { type: string }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        customer:
+          type: object
+          required: [name, phone]
+          properties:
+            name: { type: [string, "null"] }
+            phone: { type: string }
+        shipping_snapshot:
+          type: object
+          properties:
+            contact_phone: { type: string }
+            address_label: { type: [string, "null"] }
+            city: { type: string }
+            area: { type: [string, "null"] }
+            street: { type: [string, "null"] }
+            details: { type: [string, "null"] }
+            lat: { type: [number, "null"] }
+            lng: { type: [number, "null"] }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, product_id, variant_id, product_name_ar, product_name_en, quantity, unit_price, line_total]
+            properties:
+              id: { type: string, format: uuid }
+              product_id: { type: string, format: uuid }
+              variant_id: { type: [string, "null"], format: uuid }
+              product_name_ar: { type: string }
+              product_name_en: { type: string }
+              quantity: { type: integer }
+              unit_price: { $ref: "#/components/schemas/Money" }
+              line_total: { $ref: "#/components/schemas/Money" }
+        subtotal: { $ref: "#/components/schemas/Money" }
+        delivery_fee: { $ref: "#/components/schemas/Money" }
+        discount: { $ref: "#/components/schemas/Money" }
+        total: { $ref: "#/components/schemas/Money" }
+        payment_method: { type: string, enum: [cod] }
+        placed_at: { type: string, format: date-time }
+
     OrderTracking:
       type: object
       properties:
@@ -3205,11 +3402,11 @@ components:
       additionalProperties: false
       required: [type, channel, enabled]
       properties:
-        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo] }
+        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, delivery_assigned] }
         channel: { type: string, enum: [push, sms] }
         enabled: { type: boolean }
 
-    NotificationHistory:
+    NotificationPage:
       allOf:
         - $ref: "#/components/schemas/Pagination"
         - type: object
@@ -3217,23 +3414,31 @@ components:
           properties:
             data:
               type: array
-              items: { $ref: "#/components/schemas/NotificationAttempt" }
+              items: { $ref: "#/components/schemas/Notification" }
 
-    NotificationAttempt:
+    Notification:
       type: object
-      required: [id, type, channel, status, locale, title, body, entity_type, entity_id, created_at]
+      required: [id, type, target_role, title_ar, body_ar, title_en, body_en, deep_link, entity_type, entity_id, created_at, read_at]
       properties:
         id: { type: string, format: uuid }
         type: { $ref: "#/components/schemas/NotificationPreferenceEntry/properties/type" }
-        channel: { type: string, enum: [push, sms] }
-        status: { type: string, enum: [queued, sent, skipped, failed] }
-        locale: { type: string, enum: [ar, en] }
-        title: { type: string }
-        body: { type: string }
+        target_role: { type: string, enum: [customer, delivery_agent, order_monitor, staff] }
+        title_ar: { type: string }
+        body_ar: { type: string }
+        title_en: { type: string }
+        body_en: { type: string }
+        deep_link: { type: string }
         entity_type: { type: string }
         entity_id: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
-        sent_at: { type: [string, "null"], format: date-time }
+        read_at: { type: [string, "null"], format: date-time }
+
+    UnreadCount:
+      type: object
+      additionalProperties: false
+      required: [unread_count]
+      properties:
+        unread_count: { type: integer, minimum: 0 }
 
     AuditReason:
       type: object

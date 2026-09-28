@@ -6,7 +6,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import type { Prisma } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { ProductsService } from '../catalog/products.service';
 import { AuditService } from '../audit/audit.service';
@@ -25,6 +25,8 @@ import {
   CancelOrderDto,
   PlaceOrderDto,
   UpdateOrderStatusDto,
+  MonitorOrderQueryDto,
+  ORDER_STATUSES,
 } from './dto/order.dto';
 
 const nextStatuses: Record<OrderStatus, readonly OrderStatus[]> = {
@@ -294,6 +296,7 @@ export class OrdersService {
         'order',
         order.id,
       );
+      await this.notifications?.recordOrderMonitors(tx, 'new_order', order.id);
       return order.id;
     });
     return this.getOwned(userId, orderId);
@@ -395,6 +398,121 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
     return this.toAdminResponse(order);
+  }
+
+  async listMonitor(query: MonitorOrderQueryDto) {
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    if (query.date_from && query.date_to && query.date_from > query.date_to) {
+      throw new UnprocessableEntityException(
+        'date_from must be on or before date_to',
+      );
+    }
+    const normalized = query.q ? this.normalizeArabic(query.q) : undefined;
+    const search = normalized
+      ? Prisma.sql`AND (lower(o.order_number) LIKE ${`%${normalized.toLowerCase()}%`} OR translate(lower(coalesce(u.name, '')), 'أإآٱىةؤئء', 'اااايهوي') LIKE ${`%${normalized}%`})`
+      : Prisma.empty;
+    const from = query.date_from
+      ? Prisma.sql`AND o.placed_at >= (${query.date_from}::date::timestamp AT TIME ZONE 'Asia/Baghdad')`
+      : Prisma.empty;
+    const to = query.date_to
+      ? Prisma.sql`AND o.placed_at < (((${query.date_to}::date + 1)::timestamp) AT TIME ZONE 'Asia/Baghdad')`
+      : Prisma.empty;
+    const status =
+      query.status && query.status !== 'all'
+        ? Prisma.sql`AND o.status = ${query.status}`
+        : Prisma.empty;
+    type MonitorListRow = {
+      id: string;
+      order_number: string;
+      status: string;
+      customer_name: string | null;
+      customer_phone: string | null;
+      total: Prisma.Decimal;
+      payment_method: string;
+      placed_at: Date;
+    };
+    const [totalRows, counts, rows] = await this.prisma.$transaction([
+      this.prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
+        SELECT count(*)::bigint AS count FROM orders o JOIN users u ON u.id = o.user_id
+        WHERE true ${search} ${from} ${to} ${status}`),
+      this.prisma.$queryRaw<{ status: string; count: bigint }[]>(Prisma.sql`
+        SELECT o.status, count(*)::bigint AS count FROM orders o JOIN users u ON u.id = o.user_id
+        WHERE true ${search} ${from} ${to} GROUP BY o.status`),
+      this.prisma.$queryRaw<MonitorListRow[]>(Prisma.sql`
+        SELECT o.id, o.order_number, o.status, u.name AS customer_name, u.phone AS customer_phone,
+               o.total, o.payment_method, o.placed_at
+        FROM orders o JOIN users u ON u.id = o.user_id
+        WHERE true ${search} ${from} ${to} ${status}
+        ORDER BY o.placed_at DESC, o.id DESC
+        OFFSET ${(page - 1) * perPage} LIMIT ${perPage}`),
+    ]);
+    const statusCounts: Record<string, number> = Object.fromEntries(
+      ORDER_STATUSES.map((value) => [value, 0]),
+    );
+    for (const row of counts) statusCounts[row.status] = Number(row.count);
+    statusCounts.all = counts.reduce((sum, row) => sum + Number(row.count), 0);
+    return {
+      page,
+      per_page: perPage,
+      total: Number(totalRows[0]?.count ?? 0n),
+      status_counts: statusCounts,
+      data: rows.map((row) => ({ ...row, total: Number(row.total) })),
+    };
+  }
+
+  async getMonitor(id: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        user: { select: { name: true, phone: true } },
+        items: { orderBy: { id: 'asc' } },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    return {
+      id: order.id,
+      order_number: order.order_number,
+      status: order.status,
+      customer: order.user,
+      shipping_snapshot: {
+        contact_phone: order.delivery_contact_phone,
+        address_label: order.delivery_address_label,
+        city: order.delivery_city,
+        area: order.delivery_area,
+        street: order.delivery_street,
+        details: order.delivery_details,
+        lat: order.delivery_lat,
+        lng: order.delivery_lng,
+      },
+      items: order.items.map((item) => ({
+        id: item.id,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        product_name_ar: item.product_name_ar,
+        product_name_en: item.product_name_en,
+        quantity: item.quantity,
+        unit_price: Number(item.unit_price),
+        line_total: Number(item.line_total),
+      })),
+      subtotal: Number(order.subtotal),
+      delivery_fee: Number(order.delivery_fee),
+      discount: Number(order.discount),
+      total: Number(order.total),
+      payment_method: order.payment_method,
+      placed_at: order.placed_at,
+    };
+  }
+
+  private normalizeArabic(value: string) {
+    return value
+      .toLowerCase()
+      .replace(/[أإآٱ]/g, 'ا')
+      .replace(/ى/g, 'ي')
+      .replace(/ة/g, 'ه')
+      .replace(/ؤ/g, 'و')
+      .replace(/ئ/g, 'ي')
+      .replace(/ء/g, '');
   }
 
   async track(userId: string, id: string) {
@@ -561,6 +679,12 @@ export class OrdersService {
       after: { status: 'cancelled', reason },
     });
     await this.recordOrderNotification(tx, id, 'cancelled');
+    await this.notifications?.recordOrderMonitors(
+      tx,
+      'order_cancelled',
+      id,
+      now.toISOString(),
+    );
   }
 
   private async recordOrderNotification(

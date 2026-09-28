@@ -203,7 +203,8 @@ CREATE TABLE notification_channel_preferences (
     CONSTRAINT notification_channel_preferences_pkey PRIMARY KEY (user_id, type, channel),
     CONSTRAINT notification_channel_preferences_type_check CHECK (type IN
       ('order_placed','order_confirmed','order_status_changed','out_for_delivery','delivered',
-       'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo')),
+       'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo',
+       'new_order','order_cancelled','delivery_assigned')),
     CONSTRAINT notification_channel_preferences_channel_check CHECK (channel IN ('push','sms')),
     CONSTRAINT notification_channel_preferences_critical_check
       CHECK (NOT (type = 'order_confirmed' AND channel = 'sms' AND enabled = false))
@@ -211,17 +212,36 @@ CREATE TABLE notification_channel_preferences (
 
 CREATE TABLE notification_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_key VARCHAR(160) NOT NULL UNIQUE,
+    event_key VARCHAR(160) NOT NULL,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR(40) NOT NULL,
+    target_role VARCHAR(32) NOT NULL CHECK (target_role IN ('customer','delivery_agent','order_monitor','staff')),
     entity_type VARCHAR(40) NOT NULL,
     entity_id UUID NOT NULL,
+    title_ar VARCHAR(200) NOT NULL,
+    body_ar TEXT NOT NULL,
+    title_en VARCHAR(200) NOT NULL,
+    body_en TEXT NOT NULL,
+    deep_link VARCHAR(500) NOT NULL,
+    read_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     enqueued_at TIMESTAMPTZ,
     processed_at TIMESTAMPTZ,
+    CONSTRAINT notification_events_event_key_user_id_key UNIQUE (event_key, user_id),
     CONSTRAINT notification_events_type_check CHECK (type IN
       ('order_placed','order_confirmed','order_status_changed','out_for_delivery','delivered',
-       'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo'))
+       'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo',
+       'new_order','order_cancelled','delivery_assigned'))
+);
+
+CREATE TABLE notification_stream_events (
+    sequence BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    notification_id UUID REFERENCES notification_events(id) ON DELETE CASCADE,
+    event VARCHAR(40) NOT NULL CHECK (event IN ('notification.created','notification.read','unread.count')),
+    data JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    published_at TIMESTAMPTZ
 );
 
 CREATE TABLE notification_logs (
@@ -767,6 +787,9 @@ CREATE INDEX idx_movements_type         ON stock_movements(type);
 CREATE INDEX idx_reservations_order     ON stock_reservations(order_id);
 CREATE INDEX idx_device_tokens_user     ON device_tokens(user_id);
 CREATE INDEX idx_notification_events_pending ON notification_events(enqueued_at, created_at);
+CREATE INDEX idx_notification_events_inbox ON notification_events(user_id, read_at, created_at DESC, id DESC);
+CREATE INDEX idx_notification_stream_events_user_sequence ON notification_stream_events(user_id, sequence);
+CREATE INDEX idx_notification_stream_events_pending ON notification_stream_events(published_at, sequence);
 CREATE INDEX idx_notification_logs_user_history ON notification_logs(user_id, created_at DESC, id DESC);
 CREATE UNIQUE INDEX idx_addresses_one_default_per_user ON addresses(user_id)
     WHERE is_default;
