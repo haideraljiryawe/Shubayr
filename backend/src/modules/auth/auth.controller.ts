@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { Policy } from '../../common/decorators/access-policy.decorator';
 import { Public } from '../../common/decorators/public.decorator';
@@ -19,16 +19,19 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('request-otp')
+  @HttpCode(200)
   requestOtp(@Body() input: RequestOtpDto) {
     return this.auth.requestOtp(input);
   }
 
   @Post('verify-otp')
+  @HttpCode(200)
   verifyOtp(@Body() input: VerifyOtpDto) {
     return this.auth.verifyOtp(input);
   }
 
   @Post('refresh')
+  @HttpCode(200)
   refresh(@Body() input: RefreshTokenDto) {
     return this.auth.refresh(input);
   }

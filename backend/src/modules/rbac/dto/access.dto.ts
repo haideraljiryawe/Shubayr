@@ -1,15 +1,18 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayUnique,
   IsArray,
   IsBoolean,
   IsEmail,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
+  Max,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 import {
@@ -17,6 +20,84 @@ import {
   type PermissionKey,
 } from '../../../common/access/permission-registry';
 import { PASSWORD_PATTERN } from '../../auth/password';
+
+export class ListQueryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  q?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  per_page?: number;
+}
+
+export class StaffListQueryDto extends ListQueryDto {
+  @IsOptional()
+  @IsIn(['active', 'inactive', 'must_change'])
+  status?: 'active' | 'inactive' | 'must_change';
+
+  @IsOptional()
+  @IsUUID('4')
+  preset?: string;
+
+  @IsOptional()
+  @IsIn(PERMISSION_KEYS)
+  permission_key?: PermissionKey;
+
+  @IsOptional()
+  @IsIn(['name', 'username', 'created_at'])
+  sort?: 'name' | 'username' | 'created_at';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  dir?: 'asc' | 'desc';
+}
+
+export class PresetListQueryDto extends ListQueryDto {
+  @IsOptional()
+  @IsIn(['system', 'custom'])
+  kind?: 'system' | 'custom';
+
+  @IsOptional()
+  @IsIn(PERMISSION_KEYS)
+  permission_key?: PermissionKey;
+
+  @IsOptional()
+  @IsIn(['name', 'permissions'])
+  sort?: 'name' | 'permissions';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  dir?: 'asc' | 'desc';
+}
+
+export class WorkPhoneListQueryDto extends ListQueryDto {
+  @IsOptional()
+  @IsIn(['delivery_agent', 'order_monitor'])
+  role?: 'delivery_agent' | 'order_monitor';
+
+  @IsOptional()
+  @IsIn(['active', 'revoked'])
+  status?: 'active' | 'revoked';
+
+  @IsOptional()
+  @IsIn(['name', 'phone', 'role'])
+  sort?: 'name' | 'phone' | 'role';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  dir?: 'asc' | 'desc';
+}
 
 export class ReasonDto {
   @IsString()

@@ -48,6 +48,7 @@ INSERT INTO permissions(key, "group", description) VALUES
   ('deliveries.manage', 'deliveries', 'List and manage deliveries'),
   ('users.manage', 'access', 'Manage staff and work phones'),
   ('roles.manage', 'access', 'Manage permission presets'),
+  ('audit.view', 'access', 'View audit logs'),
   ('settings.manage', 'settings', 'Manage store settings'),
   ('reports.view', 'reports', 'View reports'),
   ('period.close', 'accounting', 'Close accounting periods')

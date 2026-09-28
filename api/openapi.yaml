@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 6.1.0
+  version: 6.2.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -313,6 +313,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AddressPage" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Addresses]
       summary: Create a delivery address
@@ -328,6 +329,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Address" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
   /addresses/{id}:
     get:
@@ -486,6 +488,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /cart/items:
     post:
       tags: [Cart]
@@ -507,6 +510,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
   /cart/coupon:
     delete:
       tags: [Cart]
@@ -559,6 +564,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/WishlistPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Wishlist]
       summary: Add a product to the wishlist
@@ -577,6 +583,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/WishlistItem" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
   /wishlist/{productId}:
     delete:
       tags: [Wishlist]
@@ -661,6 +669,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Order" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "409":
           description: Cart empty, item unavailable, coupon invalid, or idempotency conflict
           content:
@@ -705,7 +714,7 @@ paths:
               schema: { $ref: "#/components/schemas/Order" }
         "404": { $ref: "#/components/responses/NotFound" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { description: Status does not allow cancellation }
+        "409": { $ref: "#/components/responses/Conflict" }
   /orders/{id}/status:
     patch:
       tags: [Admin]
@@ -740,7 +749,7 @@ paths:
               schema: { $ref: "#/components/schemas/AdminOrder" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { description: Invalid status transition }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- REVIEWS ----------------
@@ -797,6 +806,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Review" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -918,6 +928,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LoyaltyAccount" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /loyalty/redeem:
     post:
       tags: [Loyalty]
@@ -938,6 +949,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LoyaltyRedemption" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/loyalty/{userId}:
@@ -1278,6 +1290,9 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Return" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /returns/queue:
     get:
@@ -1330,6 +1345,7 @@ paths:
               schema: { $ref: "#/components/schemas/Return" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /returns/{id}/complete:
     post:
@@ -1346,6 +1362,7 @@ paths:
               schema: { $ref: "#/components/schemas/Return" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   # ---------------- DELIVERIES (agent) ----------------
   /deliveries:
@@ -1789,7 +1806,7 @@ paths:
               schema: { $ref: "#/components/schemas/AdminOrder" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { description: Illegal transition or dispatch handoff is incomplete }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/orders/{id}/cancel:
     post:
@@ -1819,7 +1836,7 @@ paths:
               schema: { $ref: "#/components/schemas/AdminOrder" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { description: Order is not cancellable }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADMIN: PRODUCTS CRUD ----------------
@@ -1944,6 +1961,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Category" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/categories/{id}:
@@ -1966,6 +1984,7 @@ paths:
               schema: { $ref: "#/components/schemas/Category" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
     delete:
       tags: [Admin]
       summary: Delete a category
@@ -2061,10 +2080,29 @@ paths:
       summary: List staff accounts and their preset/extra grants
       x-surface: admin
       x-permission: users.manage
+      parameters:
+        - { $ref: "#/components/parameters/Search" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, inactive, must_change] }
+        - name: preset
+          in: query
+          schema: { type: string, format: uuid }
+        - name: permission_key
+          in: query
+          schema: { type: string }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [name, username, created_at], default: name }
+        - name: dir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
       responses:
         "200":
           description: Staff accounts
-          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/StaffUser" } } } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/StaffUserListResponse" } } }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
@@ -2124,8 +2162,24 @@ paths:
       summary: List permission presets
       x-surface: admin
       x-permission: roles.manage
+      parameters:
+        - { $ref: "#/components/parameters/Search" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: kind
+          in: query
+          schema: { type: string, enum: [system, custom] }
+        - name: permission_key
+          in: query
+          schema: { type: string }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [name, permissions], default: name }
+        - name: dir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
       responses:
-        "200": { description: Presets, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/PermissionPreset" } } } } }
+        "200": { description: Presets, content: { application/json: { schema: { $ref: "#/components/schemas/PermissionPresetListResponse" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
@@ -2182,8 +2236,24 @@ paths:
       summary: List pre-registered work phones
       x-surface: admin
       x-permission: users.manage
+      parameters:
+        - { $ref: "#/components/parameters/Search" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: role
+          in: query
+          schema: { type: string, enum: [delivery_agent, order_monitor] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, revoked] }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [name, phone, role], default: name }
+        - name: dir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
       responses:
-        "200": { description: Work phones, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/WorkPhone" } } } } }
+        "200": { description: Work phones, content: { application/json: { schema: { $ref: "#/components/schemas/WorkPhoneListResponse" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
@@ -2214,6 +2284,42 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: List audit records newest first
+      description: Results use creation time descending with ID descending as a stable tiebreak.
+      x-surface: admin
+      x-permission: audit.view
+      parameters:
+        - name: actor
+          in: query
+          description: Actor UUID, username, or name search.
+          schema: { type: string, maxLength: 160 }
+        - name: action
+          in: query
+          schema: { type: string, maxLength: 80 }
+        - name: entity_type
+          in: query
+          schema: { type: string, maxLength: 80 }
+        - name: entity_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated audit records
+          content: { application/json: { schema: { $ref: "#/components/schemas/AuditLogList" } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2236,6 +2342,11 @@ components:
       in: query
       required: false
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Search:
+      name: q
+      in: query
+      required: false
+      schema: { type: string, maxLength: 160 }
     Reason:
       name: reason
       in: query
@@ -2714,7 +2825,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         sku: { type: string }
-        attributes: { type: object, additionalProperties: true }
+        attributes: { type: [object, "null"], additionalProperties: true }
         price_delta: { type: number }
 
     ProductAvailability:
@@ -3294,7 +3405,7 @@ components:
         unit_price: { $ref: "#/components/schemas/Money", description: Immutable order-line unit price. }
         expected_refund: { $ref: "#/components/schemas/Money" }
         approved_refund: { $ref: "#/components/schemas/Money" }
-        condition: { type: [string, "null"], enum: [sellable, opened, damaged] }
+        condition: { type: [string, "null"], enum: [sellable, opened, damaged, null] }
         restock: { type: boolean }
         batch_id: { type: [string, "null"], format: uuid }
 
@@ -3469,6 +3580,21 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    StaffUserList:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/StaffUser" } }
+
+    StaffUserListResponse:
+      description: A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope.
+      oneOf:
+        - type: array
+          items: { $ref: "#/components/schemas/StaffUser" }
+        - $ref: "#/components/schemas/StaffUserList"
+
     StaffCreate:
       allOf:
         - $ref: "#/components/schemas/AuditReason"
@@ -3532,9 +3658,24 @@ components:
             description: { type: [string, "null"], maxLength: 255 }
             permission_keys: { type: array, uniqueItems: true, items: { type: string } }
 
+    PermissionPresetList:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/PermissionPreset" } }
+
+    PermissionPresetListResponse:
+      description: A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope.
+      oneOf:
+        - type: array
+          items: { $ref: "#/components/schemas/PermissionPreset" }
+        - $ref: "#/components/schemas/PermissionPresetList"
+
     WorkPhone:
       type: object
-      required: [id, user_id, name, app_role, is_active]
+      required: [id, user_id, phone, name, app_role, is_active]
       properties:
         id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
@@ -3542,6 +3683,56 @@ components:
         name: { type: string }
         app_role: { type: string, enum: [delivery_agent, order_monitor] }
         is_active: { type: boolean }
+
+    WorkPhoneList:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/WorkPhone" } }
+
+    WorkPhoneListResponse:
+      description: A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope.
+      oneOf:
+        - type: array
+          items: { $ref: "#/components/schemas/WorkPhone" }
+        - $ref: "#/components/schemas/WorkPhoneList"
+
+    AuditActor:
+      type: object
+      required: [id, username, name]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: [string, "null"] }
+        name: { type: [string, "null"] }
+
+    AuditLog:
+      type: object
+      required: [id, actor_id, actor, action, entity_type, entity_id, before, after, ip, reason, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        actor_id: { type: [string, "null"], format: uuid }
+        actor:
+          oneOf:
+            - $ref: "#/components/schemas/AuditActor"
+            - type: "null"
+        action: { type: string }
+        entity_type: { type: string }
+        entity_id: { type: [string, "null"], format: uuid }
+        before: { type: [object, array, string, number, boolean, "null"] }
+        after: { type: [object, array, string, number, boolean, "null"] }
+        ip: { type: [string, "null"] }
+        reason: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+
+    AuditLogList:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/AuditLog" } }
 
     WorkPhoneInput:
       allOf:

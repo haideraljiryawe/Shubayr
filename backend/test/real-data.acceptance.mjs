@@ -38,7 +38,7 @@ async function login(phone) {
   const requested = await json('/auth/request-otp', {
     method: 'POST',
     body: { phone },
-    expected: 201,
+    expected: 200,
   });
   check(
     requested.dev_otp,
@@ -48,7 +48,7 @@ async function login(phone) {
   return json('/auth/verify-otp', {
     method: 'POST',
     body: { phone, code: requested.dev_otp },
-    expected: 201,
+    expected: 200,
   });
 }
 

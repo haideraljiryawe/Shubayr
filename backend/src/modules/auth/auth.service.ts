@@ -435,14 +435,12 @@ export class AuthService {
     outcome: 'succeeded' | 'failed' | 'locked',
     ip?: string,
   ): Promise<void> {
-    await this.prisma.auditLog.create({
-      data: {
-        actor_id: actorId,
-        action: 'admin.login',
-        entity_type: 'admin_session',
-        after: { username, outcome },
-        ip,
-      },
+    await this.audit?.record(this.prisma, {
+      actorId,
+      action: 'admin.login',
+      entityType: 'admin_session',
+      after: { username, outcome },
+      ip,
     });
   }
 

@@ -9,6 +9,7 @@ const schema = Joi.object({
     .valid('development', 'test', 'production')
     .default('development'),
   API_PORT: Joi.number().port().default(8000),
+  TRUSTED_PROXIES: Joi.string().allow('').default(''),
   LOYALTY_POINTS_PER_CURRENCY_UNIT: Joi.number()
     .integer()
     .min(1)

@@ -1,5 +1,35 @@
 # Changelog
 
+## 6.2.0 - 2026-09-28
+
+### Added
+
+- Trusted-proxy client IP resolution shared by rate limits and audit logging.
+- Permissioned, filtered, paginated audit-log reads for the Web Admin.
+- Server-side search, filters, sorting, and pagination for staff, permission
+  presets, and work-phone access lists while retaining no-query v6.1 array
+  responses and matching the Web Admin table URL contract.
+- OpenAPI response status and schema validation across the acceptance suite.
+
+### Fixed
+
+- Work-phone list rows now expose the documented top-level `phone` field.
+- OTP request, OTP verification, and token refresh return their documented
+  HTTP 200 status codes.
+- Product image responses no longer leak the undocumented `product_id` field.
+- Product variant responses now document nullable `attributes` as emitted for
+  variants without attribute metadata.
+- The protected category-create operation now documents its reachable 401 response.
+- Category updates now document their reachable 422 validation response.
+- Customer shopping operations now document the work-account 403 response.
+- Wishlist creation now documents its reachable 422 validation response.
+- Cart item creation now documents its reachable 422 validation response.
+- Customer and admin order conflict responses now declare the standard JSON
+  error schema.
+- Return request, inspection, and completion operations now document their
+  reachable not-found and conflict responses.
+- Return items now allow the nullable pre-inspection `condition` emitted by the API.
+
 ## 6.1.0 - 2026-09-28
 
 ### Added
