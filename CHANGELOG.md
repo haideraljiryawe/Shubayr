@@ -1,5 +1,60 @@
 # Changelog
 
+## 6.1.0 - 2026-09-28
+
+### Added
+
+- A durable bilingual notification inbox for every account type, with synced
+  unread state and recipient-specific deep links.
+- Short-lived single-use SSE tickets, Redis-backed live delivery, heartbeats,
+  and persisted sequence replay through `Last-Event-ID` or `since`.
+- Dedicated read-only order-monitor list/detail APIs with server-side combined
+  filters, Arabic-normalized search, Baghdad date boundaries, and chip counts.
+
+### Changed
+
+- Notification push and SMS attempts are now downstream deliveries from the
+  saved inbox event rather than the notification history source of truth.
+- Removed the obsolete `orders.manage` permission data; order administration
+  continues to use the Phase 1 fine-grained permission registry.
+
+## 6.0.0 - 2026-09-27
+
+### Breaking
+
+- Authentication tokens now carry an immutable `surface` (`admin` or `app`).
+  Phone OTP issues app-only tokens; staff username/password login issues
+  admin-only tokens. Refresh and logout preserve the original surface.
+- Phone roles are now exactly `customer`, `delivery_agent`, or
+  `order_monitor`, assigned by the server. The legacy `delivery` role and
+  client-supplied roles are no longer accepted.
+- Coarse staff roles and permissions were replaced with multi-preset and
+  per-user grants from the fine-grained permission registry. Existing admin
+  clients must use the new staff, preset, and work-phone endpoints.
+- Work accounts are API-blocked from cart, checkout, wishlist, addresses,
+  reviews, returns, and loyalty redemption. Order monitors are read-only.
+
+### Added
+
+- Argon2id staff passwords, password policy, audited login attempts, lockout,
+  temporary-password change enforcement, and immediate session revocation.
+- Deny-by-default route policy metadata and a full registered-route
+  authorization matrix test.
+- Audited staff, preset, grant, and work-phone management APIs, plus a reusable
+  separation-of-duties helper.
+
+See `api/CLIENT_MIGRATION_6.0.md` for mobile and web client changes.
+
+## 5.5.0 - 2026-09-27
+
+### Added
+
+- Customer-owned wishlist list/add/remove endpoints matching the existing
+  contract, with idempotent adds, server-time catalog pricing, effective
+  category visibility, stable pagination, audit records, and seeded examples.
+- `GET /me/reviews` for paginated caller-owned review history across pending,
+  published, and rejected moderation states, including current product names.
+
 ## 5.4.0 - 2026-09-21
 
 ### Added

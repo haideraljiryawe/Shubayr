@@ -480,7 +480,20 @@
     "type_adjust": "تعديل رصيد",
     "type_expire": "نقاط منتهية",
     "unit": "نقطة",
-    "loadError": "تعذّر تحميل النقاط."
+    "loadError": "تعذّر تحميل النقاط.",
+    "redeemTitle": "استبدال النقاط",
+    "redeemBody": "استبدل نقاطك برصيد؛ كل نقطة تساوي وحدة واحدة.",
+    "redeemAmount": "عدد النقاط",
+    "redeemPlaceholder": "مثال: 100",
+    "redeem": "استبدال",
+    "redeeming": "جارٍ الاستبدال…",
+    "redeemed": "تم استبدال {count} نقطة",
+    "errAmount": "أدخل عدد نقاط صحيحاً أكبر من صفر.",
+    "errBalance": "رصيدك من النقاط لا يكفي لهذا الاستبدال.",
+    "errRedeemFailed": "تعذّر استبدال النقاط، حاول مرة أخرى.",
+    "previous": "السابق",
+    "next": "التالي",
+    "pageOf": "صفحة {page} من {pageCount}"
   },
   "returns": {
     "title": "المرتجعات",
@@ -513,7 +526,15 @@
     "status_partially_approved": "موافقة جزئية",
     "status_completed": "مكتمل",
     "status_rejected": "مرفوض",
-    "loadError": "تعذّر تحميل المرتجعات."
+    "loadError": "تعذّر تحميل المرتجعات.",
+    "viewOrder": "عرض الطلب",
+    "refunded": "المبلغ المسترجع",
+    "expectedRefund": "الاسترجاع المتوقع",
+    "lineReason": "سبب إرجاع هذا المنتج",
+    "lineReasonPlaceholder": "مثال: وصل تالفاً",
+    "reasonOverallHint": "اختياري — ملاحظة عامة تُضاف إلى الطلب كله.",
+    "errNoLineReason": "اذكر سبب الإرجاع لكل منتج اخترته.",
+    "eligibleQty": "المتبقي للإرجاع: {count}"
   },
   "reviews": {
     "title": "التقييمات",
@@ -535,7 +556,21 @@
     "pending": "تقييمك قيد المراجعة قبل نشره.",
     "deliveryRated": "تم تقييم التوصيل",
     "allReviewed": "قيّمت كل منتجات هذا الطلب.",
-    "cancel": "إلغاء"
+    "cancel": "إلغاء",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "deleted": "تم حذف التقييم",
+    "updated": "تم تحديث التقييم",
+    "editResetsToPending": "أي تعديل يعيد التقييم إلى المراجعة قبل نشره من جديد.",
+    "errAlready": "سبق أن قيّمت هذا المنتج من هذا الطلب.",
+    "statusPending": "بانتظار المراجعة",
+    "statusPublished": "منشور",
+    "statusRejected": "مرفوض",
+    "rejectedReason": "سبب الرفض: {reason}",
+    "rejectedHint": "عدّله لإرساله إلى المراجعة من جديد.",
+    "mineLoading": "جارٍ تحميل تقييمك",
+    "mineLoadError": "تعذّر تحميل تقييماتك.",
+    "retry": "إعادة المحاولة"
   },
   "settings": {
     "paymentsTitle": "طرق الدفع",
@@ -546,14 +581,7 @@
     "gatewaysSoonBody": "نعمل على إضافة الدفع بالبطاقة والمحفظة الإلكترونية قريبًا.",
     "notificationsTitle": "الإشعارات",
     "notificationsBody": "اختر ما تريد أن نُعلمك به.",
-    "notifyOrders": "تحديثات الطلبات",
-    "notifyOrdersHint": "تأكيد الطلب وخروجه للتوصيل وتسليمه.",
-    "notifyOffers": "العروض والخصومات",
-    "notifyOffersHint": "أهم التخفيضات والعروض الموسمية.",
-    "notifyPoints": "النقاط والمكافآت",
-    "notifyPointsHint": "عند كسب نقاط أو قرب انتهائها.",
     "notifySaved": "تم حفظ التفضيلات",
-    "notifyLocal": "تُحفظ هذه التفضيلات على هذا الجهاز حتى يوفّر الخادم حفظها في حسابك.",
     "languageTitle": "اللغة",
     "languageBody": "اختر لغة العرض. يُحفظ اختيارك ويُطبَّق على كل الصفحات.",
     "languageSaved": "تم تغيير اللغة",
@@ -575,6 +603,33 @@
     "settingsBody": "إعدادات الحساب العامة.",
     "accountSection": "الحساب",
     "signOutBody": "سيتم تسجيل خروجك من هذا الجهاز.",
-    "version": "الإصدار"
+    "version": "الإصدار",
+    "notifyType": "نوع الإشعار",
+    "channel_push": "تنبيه",
+    "channel_sms": "رسالة",
+    "notifyMandatory": "لا يمكن إيقاف رسالة تأكيد الطلب.",
+    "notifyFailed": "تعذّر حفظ التفضيل، حاول مرة أخرى.",
+    "notifyAccountWide": "هذه التفضيلات مرتبطة بحسابك وتسري على كل أجهزتك.",
+    "notifyPushSetup": "تفعيل التنبيهات داخل المتصفح يحتاج إعداداً إضافياً لم يُفعَّل بعد، لذا لن تصل تنبيهات إلى هذا المتصفح حالياً.",
+    "notifyType_order_placed": "تسجيل الطلب",
+    "notifyType_order_confirmed": "تأكيد الطلب",
+    "notifyType_order_status_changed": "تغيّر حالة الطلب",
+    "notifyType_out_for_delivery": "خروج الطلب للتوصيل",
+    "notifyType_delivered": "تسليم الطلب",
+    "notifyType_delivery_failed": "تعذّر التسليم",
+    "notifyType_return_update": "تحديث طلب الإرجاع",
+    "notifyType_loyalty_points_earned": "نقاط جديدة",
+    "notifyType_review_moderated": "مراجعة تقييمك",
+    "notifyType_promo": "العروض والتخفيضات"
+  },
+  "workAccount": {
+    "title": "حساب عمل",
+    "signedInAs": "مسجّل الدخول باسم {name}",
+    "role": {
+      "delivery_agent": "مندوب توصيل",
+      "order_monitor": "مراقب طلبات"
+    },
+    "body": "هذا الرقم مسجّل كحساب عمل، لذلك لا يمكن استخدامه للتسوق أو السلة أو المفضلة أو عناوين الزبائن في المتجر.",
+    "comingSoon": "صفحات العمل الخاصة بك ستتوفر هنا قريبًا. للتسوق سجّل الدخول برقم زبون."
   }
 }

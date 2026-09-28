@@ -12,6 +12,7 @@ Online multi-section store (a digital shopping mall for a single owner) — **we
 shubayr/
 ├── backend/      Node.js API (NestJS + TypeScript + Prisma) — REST/JSON         ← Codex
 ├── web/          Next.js public storefront (SSR/SEO)                            ← Claude Code
+├── admin/        Next.js Web Admin — staff username/password, BFF (see admin/README.md)
 ├── mobile/       Flutter app — customer + delivery + admin (also Web target)    ← Claude Code
 ├── infra/
 │   └── db/       schema.sql (the shared DB contract) + seed_rbac.sql
@@ -27,6 +28,7 @@ shubayr/
 |---|---|
 | Mobile (customer + delivery + admin) | **Flutter** (also Flutter **Web** for admin) |
 | Public web storefront | **Next.js** (React, SSR/SEO) |
+| Web Admin | **Next.js** (App Router, BFF with httpOnly-cookie sessions) — `admin/` |
 | Backend API | **Node.js 24 LTS** (NestJS + TypeScript + Prisma) — REST/JSON |
 | Database | **PostgreSQL 16** |
 | Cache / queues | **Redis** |
@@ -52,7 +54,7 @@ bootstrap/reference, not the upgrade path.
 | Adminer (DB UI) | http://localhost:8081 |
 | Meilisearch | http://localhost:7700 |
 | Mailpit (dev email) | http://localhost:8025 |
-| MinIO console | http://localhost:9001 |
+| SeaweedFS master status | http://localhost:9001 |
 | API | http://localhost:8000/api/v1 |
 
 ## Getting started as a developer

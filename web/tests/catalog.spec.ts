@@ -167,8 +167,10 @@ test("subcategories, rating and prices filter the SSR result", async ({
   await page.goto(
     "/category/electronics?min_rating=4.5&min_price=50&max_price=200&on_sale=true",
   );
+  // Waits rather than counting once: on a cold dev compile the visible grid
+  // can still be settling when goto resolves, which made a bare count() flaky.
   const cards = visibleGrid(page).locator(":scope > li");
-  expect(await cards.count()).toBeGreaterThan(0);
+  await expect(cards.first()).toBeVisible();
   await expect(
     page.getByRole("complementary").getByLabel("السعر من"),
   ).toHaveValue("50");

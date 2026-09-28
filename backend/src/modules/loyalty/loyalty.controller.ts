@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AppPolicy } from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import {
   AdjustPointsDto,
@@ -21,6 +22,7 @@ import { LoyaltyService } from './loyalty.service';
 
 type UserRequest = Request & { user: AuthenticatedRequestUser };
 
+@AppPolicy('customer')
 @Controller('loyalty')
 export class LoyaltyController {
   constructor(private readonly loyalty: LoyaltyService) {}
@@ -40,7 +42,7 @@ export class LoyaltyController {
   }
 }
 
-@RequirePermissions('loyalty.manage')
+@RequirePermissions('loyalty.adjust')
 @Controller('admin/loyalty')
 export class AdminLoyaltyController {
   constructor(private readonly loyalty: LoyaltyService) {}

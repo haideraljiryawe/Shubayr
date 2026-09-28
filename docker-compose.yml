@@ -2,7 +2,7 @@
 # Shubayr — Local development stack
 # Run:  docker compose up -d
 # Services: PostgreSQL, Redis, Meilisearch, Adminer (DB UI), Mailpit,
-#           and the NestJS API (once backend/ is scaffolded).
+#           and (profile "full") the NestJS API and the Web Admin.
 # =====================================================================
 name: shubayr
 
@@ -46,19 +46,32 @@ services:
     volumes:
       - search_data:/meili_data
 
+  # Keep the legacy service, volume, port, and .env names so existing local
+  # S3 endpoints and developer configuration continue to work unchanged.
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z
+    image: chrislusf/seaweedfs:4.47
     container_name: shubayr_minio
     restart: unless-stopped
-    command: server /data --console-address ":9001"
+    command:
+      - mini
+      - -dir=/data
+      - -s3.port=9000
+      - -master.port=9001
+      - -master.telemetry=false
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-shubayr}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-shubayr_minio_secret}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-shubayr}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-shubayr_minio_secret}
+      S3_BUCKET: ${S3_BUCKET:-shubayr-media}
     ports:
       - "${MINIO_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider http://localhost:9000/ 2>&1 | grep -q '403 Forbidden'"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   adminer:
     image: adminer:4
@@ -104,7 +117,7 @@ services:
       search:
         condition: service_started
       minio:
-        condition: service_started
+        condition: service_healthy
     environment:
       APP_ENV: ${APP_ENV:-development}
       NODE_ENV: ${NODE_ENV:-development}
@@ -117,7 +130,10 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-development_refresh_secret_change_me_12345}
       DEV_OTP: ${DEV_OTP:-000000}
       PUBLIC_API_URL: http://localhost:${API_PORT:-8000}/api/v1
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3100}
+      # The Web Admin's origin is included, so a deployment that serves it
+      # elsewhere only sets ADMIN_ORIGIN. (The admin itself calls the API from
+      # its server — its BFF — so browsers never need CORS for it today.)
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3100,${ADMIN_ORIGIN:-http://localhost:3200}}
       S3_ENDPOINT: http://minio:9000
       S3_REGION: us-east-1
       S3_BUCKET: ${S3_BUCKET:-shubayr-media}
@@ -127,6 +143,35 @@ services:
       - path: ./backend/.env
         required: false
     profiles: ["full"]   # start with:  docker compose --profile full up -d
+
+  # ------------------------------------------------------------------
+  # Web Admin (Next.js, admin/) — staff sign-in with username/password.
+  # It is a BFF: the browser talks only to this service, which calls the
+  # API from its server with the session held in httpOnly cookies.
+  # ------------------------------------------------------------------
+  admin:
+    build:
+      context: .
+      dockerfile: admin/Dockerfile
+      target: development
+    container_name: shubayr_admin
+    restart: unless-stopped
+    working_dir: /repo/admin
+    volumes:
+      - ./admin:/repo/admin
+      - ./web/src/app/tokens.css:/repo/web/src/app/tokens.css:ro
+      - /repo/admin/node_modules
+      - /repo/admin/.next
+    ports:
+      - "${ADMIN_PORT:-3200}:3200"
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      API_URL: http://api:8000/api/v1
+      ADMIN_ORIGIN: ${ADMIN_ORIGIN:-http://localhost:3200}
+      ADMIN_COOKIE_SECURE: ${ADMIN_COOKIE_SECURE:-true}
+    profiles: ["full"]
 
 volumes:
   db_data:

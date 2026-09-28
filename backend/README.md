@@ -1,5 +1,12 @@
 # Shubayr Backend API
 
+## Development administrator
+
+The development seed creates an admin-only account at `admin` with password
+`Shubayr-Dev-Admin!2026`. These credentials are for local development only and
+must never be used in a deployed environment. Other seeded staff accounts use
+`Shubayr-Dev-Staff!2026` and have narrower permission presets.
+
 This folder holds the Node.js 24 LTS NestJS REST API. Complete environment setup is in
 `../docs/setup/SETUP_BACKEND.md`. The API is served below
 `http://localhost:8000/api/v1`.
@@ -25,11 +32,12 @@ Start the complete migration-first, real-data stack from the repository root:
 docker compose --profile full up -d --build
 ```
 
-This starts PostgreSQL, Redis, Meilisearch, MinIO, and the API. At startup,
+This starts PostgreSQL, Redis, Meilisearch, SeaweedFS, and the API. At startup,
 the API runs `prisma generate`, `prisma migrate deploy`, and the idempotent
-development seed before serving at `http://localhost:8000/api/v1`. MinIO keeps
-objects in the named `minio_data` volume, so uploaded catalog images survive
-container restarts. Its local console is `http://localhost:9001`.
+development seed before serving at `http://localhost:8000/api/v1`. SeaweedFS
+keeps objects in the existing `minio_data` volume, so uploaded catalog images
+survive container restarts. Its local master status page is
+`http://localhost:9001`.
 
 Browser CORS allows `http://localhost:3000` and `http://localhost:3100` by
 default. Override `CORS_ORIGINS` with a comma-separated list of exact origins
@@ -83,19 +91,23 @@ The seed creates these development accounts; each uses the configured
 `POST /api/v1/devices/token` registers or reassigns a globally unique push token;
 `DELETE /api/v1/devices/token?token=...` deactivates a token owned by the caller.
 `GET/PATCH /api/v1/me/notification-preferences` reads and updates the effective
-type/channel matrix; `GET /api/v1/me/notifications` lists the caller's attempts.
-Token registration and preference changes are audited. Seed data includes a
-customer web token, two explicit preferences, and sent/skipped history rows.
+type/channel matrix. `/api/v1/me/notifications` is the durable bilingual inbox,
+with unread filtering/count and mark-one/mark-all read operations shared across
+devices and surfaces. An authenticated `POST /api/v1/notifications/stream-ticket`
+issues a 60-second single-use ticket for the resumable SSE stream. Token
+registration and preference changes are audited.
 
-The ten types are `order_placed`, `order_confirmed`, `order_status_changed`,
+The notification types are `order_placed`, `order_confirmed`, `order_status_changed`,
 `out_for_delivery`, `delivered`, `delivery_failed`, `return_update`,
-`loyalty_points_earned`, `review_moderated`, and `promo`. Each supports `push`
+`loyalty_points_earned`, `review_moderated`, `promo`, `new_order`,
+`order_cancelled`, and `delivery_assigned`. Each supports `push`
 and `sms`. Transactional push defaults on, except an existing broad category
 opt-out still applies until a type/channel override is saved. SMS defaults on
 for order confirmation, delivery success, and delivery failure; other SMS and
 all promo delivery default off. Customers may opt out of any pair except the
 critical order-confirmation SMS. Promo is always opt-in. A preference disabled
-at worker time creates a `skipped` history row.
+at worker time creates a `skipped` delivery-attempt row without removing the
+saved inbox notification.
 
 Domain transactions write notification events to a PostgreSQL outbox. A
 background poller enqueues them through BullMQ; the worker reads active tokens,
@@ -144,7 +156,7 @@ snapshots line names, primary image, server-time effective prices, and delivery
 address/contact; later catalog or address edits cannot rewrite the order.
 `GET /api/v1/orders` is paginated and owner-scoped, and
 `GET /api/v1/orders/{id}/track` returns status events. Customers can cancel only
-pending/confirmed orders. Staff with `orders.manage` use `/api/v1/admin/orders`
+pending/confirmed orders. Staff with the relevant fine-grained order permissions use `/api/v1/admin/orders`
 for the stable, filtered list, full detail, cancellation, and the legal
 `pending -> confirmed -> preparing -> ready_for_dispatch -> dispatched` path.
 Dispatch requires an agent assigned through the existing delivery assignment
@@ -243,7 +255,7 @@ npm run typecheck
 npm run lint
 npm run build
 npm test
-npm run test:acceptance # requires a built API, PostgreSQL, and MinIO; creates its own DB/API
+npm run test:acceptance # requires a built API, PostgreSQL, and S3-compatible storage; creates its own DB/API
 ```
 
 `test:acceptance` runs both the admin-to-public catalog check and the

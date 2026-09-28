@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 5.4.0
+  version: 6.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -9,9 +9,12 @@ info:
     It must stay in sync with infra/db/schema.sql. Changing an endpoint's shape
     is a reviewed PR that updates this file first.
 
-    RBAC: staff/admin operations are annotated with `x-permission`, whose value
-    is a permission key from infra/db/seed_rbac.sql. The backend enforces the
-    permission; a missing permission returns 403.
+    Access model v2 (breaking): every bearer token has `surface=admin|app`.
+    Admin tokens come only from username/password login and staff operations
+    require both `surface=admin` and the route's `x-permission`. App tokens come
+    only from phone OTP, contain the server-resolved single app role, and never
+    authorize admin operations. App clients must not send a role during OTP.
+    Work roles (`delivery_agent`, `order_monitor`) cannot use purchase functions.
 
     Validation and errors: malformed or invalid request data returns HTTP 422
     with code `VALIDATION_FAILED` and field-level errors. All non-2xx JSON
@@ -50,6 +53,8 @@ tags:
   - name: Returns
   - name: Deliveries
   - name: Devices
+  - name: Notifications
+  - name: Monitoring
   - name: Admin
 
 security:
@@ -105,6 +110,7 @@ paths:
               properties:
                 phone: { type: string, pattern: '^\+[1-9]\d{7,14}$' }
                 code: { type: string, pattern: '^\d{6}$', example: "000000" }
+                client: { type: string, enum: [mobile, web_store], default: mobile }
       responses:
         "200":
           description: Authenticated
@@ -139,6 +145,70 @@ paths:
                 properties:
                   access_token: { type: string }
                   refresh_token: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke one refresh token on its original surface
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshTokenRequest" }
+      responses:
+        "201": { description: Refresh token revoked }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/auth/login:
+    post:
+      tags: [Auth, Admin]
+      summary: Authenticate staff with username and password
+      description: Every attempt is audited. Five consecutive failures lock the account for 15 minutes.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [username, password]
+              properties:
+                username: { type: string, pattern: '^[a-z][a-z0-9._-]{2,79}$' }
+                password: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        "201":
+          description: Admin-surface token pair. `must_change_password` may require the change-password route before any other protected admin route.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthTokens" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/auth/change-password:
+    post:
+      tags: [Auth, Admin]
+      summary: Replace the current or temporary staff password
+      x-surface: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [current_password, new_password]
+              properties:
+                current_password: { type: string }
+                new_password: { $ref: "#/components/schemas/Password" }
+      responses:
+        "201":
+          description: New token pair; all older sessions are revoked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthTokens" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "422": { $ref: "#/components/responses/Validation" }
   /me:
@@ -179,7 +249,7 @@ paths:
       tags: [Media]
       summary: Upload a durable catalog image
       description: Accepts JPEG, PNG, WebP, or AVIF up to 8 MiB and returns a stable API URL backed by the S3-compatible object store.
-      x-permission: catalog.manage
+      x-permission: catalog.products
       requestBody:
         required: true
         content:
@@ -219,7 +289,7 @@ paths:
       tags: [Media]
       summary: Delete an unassociated media object
       description: Returns 409 while a category, product image, or banner still references the URL.
-      x-permission: catalog.manage
+      x-permission: catalog.products
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
@@ -641,7 +711,12 @@ paths:
       tags: [Admin]
       summary: Deprecated alias for the staff pre-dispatch transition endpoint
       deprecated: true
-      x-permission: orders.manage
+      x-surface: admin
+      x-permission-by-status:
+        confirmed: orders.accept
+        preparing: orders.prepare
+        ready_for_dispatch: orders.mark_ready
+        dispatched: orders.handover
       description: >
         Supports the same pre-dispatch transitions as
         PATCH /admin/orders/{id}/status. Use the dedicated admin endpoint for
@@ -669,6 +744,22 @@ paths:
         "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- REVIEWS ----------------
+  /me/reviews:
+    get:
+      tags: [Reviews]
+      summary: List the current customer's own product reviews
+      description: Returns all moderation states, newest first. Pending and rejected reviews are visible only to their owner; public product review reads remain published-only.
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated caller-owned reviews
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomerReviewPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /products/{id}/reviews:
     get:
       tags: [Reviews]
@@ -746,7 +837,7 @@ paths:
       tags: [Reviews]
       summary: Staff product-review moderation queue
       description: Defaults to pending reviews; status can select published or rejected reviews.
-      x-permission: catalog.manage
+      x-permission: reviews.moderate
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -764,7 +855,7 @@ paths:
     post:
       tags: [Reviews]
       summary: Publish or reject a product review with a reason
-      x-permission: catalog.manage
+      x-permission: reviews.moderate
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -853,7 +944,7 @@ paths:
     get:
       tags: [Loyalty]
       summary: Read a customer's balance and paginated ledger
-      x-permission: loyalty.manage
+      x-permission: loyalty.adjust
       parameters:
         - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
         - { $ref: "#/components/parameters/Page" }
@@ -870,7 +961,7 @@ paths:
     post:
       tags: [Loyalty]
       summary: Record an audited positive or negative staff adjustment
-      x-permission: loyalty.manage
+      x-permission: loyalty.adjust
       parameters:
         - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -900,7 +991,7 @@ paths:
     get:
       tags: [Purchasing]
       summary: List suppliers
-      x-permission: purchasing.view
+      x-permission: suppliers.view
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -914,7 +1005,7 @@ paths:
     post:
       tags: [Purchasing]
       summary: Create a supplier
-      x-permission: purchasing.manage
+      x-permission: suppliers.manage
       requestBody:
         required: true
         content:
@@ -931,7 +1022,7 @@ paths:
     post:
       tags: [Purchasing]
       summary: Create a purchase invoice (draft)
-      x-permission: purchasing.manage
+      x-permission: purchases.create
       requestBody:
         required: true
         content:
@@ -964,7 +1055,7 @@ paths:
     post:
       tags: [Purchasing]
       summary: Receive goods — creates inventory batches and places them into locations
-      x-permission: purchasing.manage
+      x-permission: purchases.correct
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -995,7 +1086,7 @@ paths:
     get:
       tags: [Inventory]
       summary: List inventory batches (filter by product, expiry)
-      x-permission: inventory.view
+      x-permission: inventory.count
       parameters:
         - { name: product_id, in: query, schema: { type: string, format: uuid } }
         - { $ref: "#/components/parameters/Page" }
@@ -1011,7 +1102,7 @@ paths:
     get:
       tags: [Inventory]
       summary: List stock movements
-      x-permission: inventory.view
+      x-permission: inventory.count
       parameters:
         - { name: batch_id, in: query, schema: { type: string, format: uuid } }
         - { name: type, in: query, schema: { $ref: "#/components/schemas/StockMovementType" } }
@@ -1078,7 +1169,7 @@ paths:
     get:
       tags: [Warehouses]
       summary: List warehouses
-      x-permission: inventory.view
+      x-permission: inventory.count
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -1093,7 +1184,7 @@ paths:
     get:
       tags: [Warehouses]
       summary: List the zones/aisles/shelves/bins of a warehouse
-      x-permission: inventory.view
+      x-permission: inventory.count
       parameters:
         - { $ref: "#/components/parameters/PathId" }
         - { $ref: "#/components/parameters/Page" }
@@ -1192,7 +1283,7 @@ paths:
     get:
       tags: [Returns]
       summary: List all returns for staff review
-      x-permission: returns.view
+      x-permission: returns.inspect
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -1211,7 +1302,7 @@ paths:
       tags: [Returns]
       summary: Review requested return quantities and conditions
       description: Review each requested line or reject the whole request. Sellable approved units restock; opened and damaged units do not. Approved refund is a COD obligation.
-      x-permission: returns.process
+      x-permissions: [returns.inspect, returns.approve]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -1245,7 +1336,7 @@ paths:
       tags: [Returns]
       summary: Complete a reviewed return
       description: Completes an approved, partially approved, or rejected return. The order becomes returned only when all ordered units have approved returns.
-      x-permission: returns.process
+      x-permission: returns.refund
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "200":
@@ -1261,7 +1352,7 @@ paths:
     get:
       tags: [Deliveries]
       summary: List all deliveries for operations staff
-      x-permission: orders.update
+      x-permission: deliveries.manage
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -1280,15 +1371,15 @@ paths:
       tags: [Deliveries]
       summary: Deliveries assigned to the current agent
       description: >
-        Requires the `delivery.assigned` permission and returns deliveries scoped
-        to the current authenticated agent only. When `status` is supplied, the
+        Requires an app-surface `delivery_agent` session and returns deliveries
+        scoped to the current authenticated agent only. When `status` is supplied, the
         server applies it server-side to that agent's deliveries before
         pagination. `total`
         is the number matching the selected status, rather than the agent's
         unfiltered total. Results have stable ordering by `dispatched_at` DESC,
         then `id` DESC as the unique tiebreaker, so equal timestamps do not make
         items shift between pages. Omitting `status` returns all statuses.
-      x-permission: delivery.assigned
+      x-app-role: delivery_agent
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -1340,7 +1431,7 @@ paths:
         timestamps are recorded, and the order advances atomically through its
         corresponding status events. Successful delivery reconciles a pending
         COD payment to paid in the same transaction.
-      x-permission: delivery.assigned
+      x-app-role: delivery_agent
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -1366,7 +1457,7 @@ paths:
       tags: [Deliveries]
       summary: Assign or reassign an active delivery to a delivery agent
       description: Staff may assign only an active delivery to an active user with the delivery role.
-      x-permission: orders.update
+      x-permission: orders.assign_agent
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -1435,7 +1526,7 @@ paths:
     get:
       tags: [Devices]
       summary: Get effective per-type and per-channel notification preferences
-      description: Returns all 10 types across push and SMS. Transactional push defaults on; promo defaults off. Order confirmation SMS is mandatory. Legacy category toggles remain the fallback until a type/channel override is stored.
+      description: Returns all supported notification types across push and SMS. Transactional push defaults on; promo defaults off. Order confirmation SMS is mandatory. Legacy category toggles remain the fallback until a type/channel override is stored.
       responses:
         "200":
           description: Notification preferences
@@ -1461,17 +1552,139 @@ paths:
 
   /me/notifications:
     get:
-      tags: [Devices]
-      summary: List the authenticated customer's notification history
+      tags: [Notifications]
+      summary: List the caller's durable notification inbox
+      description: Shared across the recipient's devices and auth surfaces; newest first with id as the stable tiebreak.
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: unread, in: query, schema: { type: boolean, default: false } }
       responses:
         "200":
-          description: Own notification attempts, newest first
+          description: Own saved notifications, newest first
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/NotificationHistory" }
+              schema: { $ref: "#/components/schemas/NotificationPage" }
+
+  /me/notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Get the caller's unread notification count
+      responses:
+        "200":
+          description: Current unread count
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UnreadCount" }
+
+  /me/notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark one owned notification read
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Read state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, read_at]
+                properties:
+                  id: { type: string, format: uuid }
+                  read_at: { type: string, format: date-time }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /me/notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark every unread notification for the caller read
+      responses:
+        "200":
+          description: Bulk read result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updated, read_at]
+                properties:
+                  updated: { type: integer, minimum: 0 }
+                  read_at: { type: string, format: date-time }
+
+  /notifications/stream-ticket:
+    post:
+      tags: [Notifications]
+      summary: Issue a short-lived single-use SSE ticket
+      description: The bearer token is used only for this POST and is never placed in the EventSource URL.
+      responses:
+        "201":
+          description: Ticket valid for 60 seconds and one stream connection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ticket, expires_at]
+                properties:
+                  ticket: { type: string }
+                  expires_at: { type: string, format: date-time }
+
+  /notifications/stream:
+    get:
+      tags: [Notifications]
+      summary: Open the recipient-scoped notification SSE stream
+      security: []
+      description: Emits notification.created, notification.read and unread.count. Supports Last-Event-ID or since; sends heartbeat comments every 15 seconds.
+      parameters:
+        - { name: ticket, in: query, required: true, schema: { type: string } }
+        - { name: since, in: query, required: false, schema: { type: string, pattern: "^[0-9]+$" } }
+        - { name: Last-Event-ID, in: header, required: false, schema: { type: string, pattern: "^[0-9]+$" } }
+      responses:
+        "200":
+          description: Server-sent event stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /monitor/orders:
+    get:
+      tags: [Monitoring]
+      summary: Read-only order list for the order-monitor app role
+      x-surface: app
+      x-app-role: order_monitor
+      parameters:
+        - { name: status, in: query, schema: { oneOf: [ { $ref: "#/components/schemas/OrderStatus" }, { type: string, const: all } ] } }
+        - { name: q, in: query, schema: { type: string, maxLength: 80 }, description: "Partial case-insensitive customer-name or order-number search with Arabic normalization." }
+        - { name: date_from, in: query, schema: { type: string, format: date }, description: Start of the Asia/Baghdad calendar day. }
+        - { name: date_to, in: query, schema: { type: string, format: date }, description: "End of the Asia/Baghdad calendar day, inclusive." }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Pagination envelope plus status chip counts computed without the status filter
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MonitorOrderPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /monitor/orders/{id}:
+    get:
+      tags: [Monitoring]
+      summary: Read-only monitor order detail without product images
+      x-surface: app
+      x-app-role: order_monitor
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Monitor-safe order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MonitorOrderDetail" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADMIN: REPORTS & SETTINGS ----------------
   /admin/reports/sales:
@@ -1506,7 +1719,7 @@ paths:
     get:
       tags: [Admin]
       summary: List all orders (staff) with filters
-      x-permission: orders.manage
+      x-permission: orders.view
       parameters:
         - { name: status, in: query, schema: { $ref: "#/components/schemas/OrderStatus" } }
         - { name: from, in: query, schema: { type: string, format: date } }
@@ -1527,7 +1740,7 @@ paths:
     get:
       tags: [Admin]
       summary: Get a full order-management detail
-      x-permission: orders.manage
+      x-permission: orders.view
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "200":
@@ -1542,7 +1755,12 @@ paths:
     patch:
       tags: [Admin]
       summary: Advance an order through its pre-dispatch lifecycle
-      x-permission: orders.manage
+      x-surface: admin
+      x-permission-by-status:
+        confirmed: orders.accept
+        preparing: orders.prepare
+        ready_for_dispatch: orders.mark_ready
+        dispatched: orders.handover
       description: >
         Legal path: pending to confirmed to preparing to ready_for_dispatch to
         dispatched. Dispatch requires the existing current delivery to have an
@@ -1577,7 +1795,7 @@ paths:
     post:
       tags: [Admin]
       summary: Cancel a pre-dispatch order and release its stock holds
-      x-permission: orders.manage
+      x-permission: orders.cancel
       description: >
         Allowed only from pending, confirmed, preparing, or ready_for_dispatch.
         A non-empty reason is stored in the timeline and audit trail. Dispatched,
@@ -1610,7 +1828,7 @@ paths:
       tags: [Admin]
       summary: List all products, including hidden and archived products
       description: Uses the public filters and server-time pricing without public visibility restrictions.
-      x-permission: catalog.manage
+      x-permission: catalog.products
       parameters:
         - { name: q, in: query, schema: { type: string } }
         - { name: category_id, in: query, schema: { type: string, format: uuid } }
@@ -1632,7 +1850,7 @@ paths:
       tags: [Admin]
       summary: Create a product
       description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
-      x-permission: catalog.manage
+      x-permissions: [catalog.products, prices.change]
       requestBody:
         required: true
         content:
@@ -1650,7 +1868,7 @@ paths:
     get:
       tags: [Admin]
       summary: Get any product, including hidden or archived
-      x-permission: catalog.manage
+      x-permission: catalog.products
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "200":
@@ -1667,7 +1885,7 @@ paths:
         Omitted fields are preserved. Explicit null clears only nullable fields;
         `discount_type: null` clears the complete stored discount definition.
         Updating unrelated fields never changes a scheduled discount.
-      x-permission: catalog.manage
+      x-permissions: [catalog.products, prices.change]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -1686,7 +1904,7 @@ paths:
     delete:
       tags: [Admin]
       summary: Delete (archive) a product
-      x-permission: catalog.manage
+      x-permission: catalog.products
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
@@ -1699,7 +1917,7 @@ paths:
       tags: [Admin]
       summary: List all categories, including hidden categories
       description: Same parent/subtree filtering as the public route, without visibility filtering.
-      x-permission: catalog.manage
+      x-permission: catalog.categories
       parameters:
         - { name: parent_id, in: query, schema: { type: string, format: uuid } }
         - { name: include_subtree, in: query, schema: { type: boolean, default: false } }
@@ -1714,7 +1932,7 @@ paths:
       tags: [Admin]
       summary: Create a category
       description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
-      x-permission: catalog.manage
+      x-permission: catalog.categories
       requestBody:
         required: true
         content:
@@ -1733,7 +1951,7 @@ paths:
       tags: [Admin]
       summary: Update a category
       description: Omitted fields are unchanged. Reparenting must preserve the hierarchy depth and cycle rules.
-      x-permission: catalog.manage
+      x-permission: catalog.categories
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -1752,7 +1970,7 @@ paths:
       tags: [Admin]
       summary: Delete a category
       description: Deletion is allowed only for a leaf category with no products; otherwise returns 409. Use is_visible=false to hide populated categories.
-      x-permission: catalog.manage
+      x-permission: catalog.categories
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
@@ -1765,7 +1983,7 @@ paths:
     get:
       tags: [Admin]
       summary: List all home hero banners (including inactive and scheduled banners)
-      x-permission: catalog.manage
+      x-permission: catalog.products
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
@@ -1779,7 +1997,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create a home hero banner
-      x-permission: catalog.manage
+      x-permission: catalog.products
       requestBody:
         required: true
         content:
@@ -1797,7 +2015,7 @@ paths:
     get:
       tags: [Admin]
       summary: Get one home hero banner
-      x-permission: catalog.manage
+      x-permission: catalog.products
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "200":
@@ -1810,7 +2028,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a home hero banner
-      x-permission: catalog.manage
+      x-permission: catalog.products
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -1829,134 +2047,116 @@ paths:
     delete:
       tags: [Admin]
       summary: Delete a home hero banner
-      x-permission: catalog.manage
+      x-permission: catalog.products
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  # ---------------- ADMIN: USERS CRUD ----------------
-  /admin/users:
+  # ---------------- ADMIN: ACCESS MANAGEMENT ----------------
+  /admin/staff:
     get:
       tags: [Admin]
-      summary: List users
+      summary: List staff accounts and their preset/extra grants
+      x-surface: admin
       x-permission: users.manage
-      parameters:
-        - { name: q, in: query, schema: { type: string }, description: "search by name / phone / email" }
-        - { name: role, in: query, schema: { type: string }, description: "role name filter" }
-        - { $ref: "#/components/parameters/Page" }
-        - { $ref: "#/components/parameters/PerPage" }
       responses:
         "200":
-          description: Paginated users
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserPage" }
+          description: Staff accounts
+          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/StaffUser" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
-      summary: Create a user (staff/customer)
+      summary: Create a staff account with a temporary password
+      x-surface: admin
       x-permission: users.manage
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/UserInput" }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StaffCreate" } } } }
       responses:
-        "201":
-          description: Created user
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/User" }
+        "201": { description: Staff account created, content: { application/json: { schema: { $ref: "#/components/schemas/StaffUser" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
-  /admin/users/{id}:
+  /admin/staff/{id}:
     patch:
       tags: [Admin]
-      summary: Update a user (profile, role, active state)
+      summary: Update or deactivate a staff account
+      description: Deactivation invalidates all existing sessions before the next request.
+      x-surface: admin
       x-permission: users.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/UserInput" }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StaffUpdate" } } } }
       responses:
-        "200":
-          description: Updated user
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/User" }
+        "200": { description: Updated staff account, content: { application/json: { schema: { $ref: "#/components/schemas/StaffUser" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/staff/{id}/password:
+    post:
+      tags: [Admin]
+      summary: Set or reset a temporary staff password
+      description: Revokes sessions and forces a password change at the next login.
+      x-surface: admin
+      x-permission: users.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StaffPasswordReset" } } } }
+      responses:
+        "201": { description: Password reset }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/staff/{id}/access:
+    put:
+      tags: [Admin]
+      summary: Replace a staff account's presets and extra grants
+      description: The permission version changes atomically, so the next request sees the new grants without login.
+      x-surface: admin
+      x-permission: users.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StaffAccess" } } } }
+      responses:
+        "200": { description: Access replaced, content: { application/json: { schema: { $ref: "#/components/schemas/StaffUser" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/presets:
+    get:
+      tags: [Admin]
+      summary: List permission presets
+      x-surface: admin
+      x-permission: roles.manage
+      responses:
+        "200": { description: Presets, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/PermissionPreset" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Admin]
+      summary: Create a permission preset
+      x-surface: admin
+      x-permission: roles.manage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PermissionPresetInput" } } } }
+      responses:
+        "201": { description: Preset created, content: { application/json: { schema: { $ref: "#/components/schemas/PermissionPreset" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/presets/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update a permission preset
+      x-surface: admin
+      x-permission: roles.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PermissionPresetInput" } } } }
+      responses:
+        "200": { description: Preset updated, content: { application/json: { schema: { $ref: "#/components/schemas/PermissionPreset" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
     delete:
       tags: [Admin]
-      summary: Deactivate / delete a user
-      x-permission: users.manage
-      parameters: [ { $ref: "#/components/parameters/PathId" } ]
-      responses:
-        "204": { description: Deleted }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
-  # ---------------- ADMIN: ROLES & PERMISSIONS ----------------
-  /admin/roles:
-    get:
-      tags: [Admin]
-      summary: List roles (with their permission keys)
-      x-permission: users.manage
+      summary: Delete a non-system permission preset
+      x-surface: admin
+      x-permission: roles.manage
       parameters:
-        - { $ref: "#/components/parameters/Page" }
-        - { $ref: "#/components/parameters/PerPage" }
-      responses:
-        "200":
-          description: Paginated roles
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RolePage" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-    post:
-      tags: [Admin]
-      summary: Create a role
-      x-permission: users.manage
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/RoleInput" }
-      responses:
-        "201":
-          description: Created role
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Role" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Validation" }
-  /admin/roles/{id}:
-    patch:
-      tags: [Admin]
-      summary: Update a role (name, description, permissions)
-      x-permission: users.manage
-      parameters: [ { $ref: "#/components/parameters/PathId" } ]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/RoleInput" }
-      responses:
-        "200":
-          description: Updated role
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Role" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-    delete:
-      tags: [Admin]
-      summary: Delete a role
-      x-permission: users.manage
-      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+        - { $ref: "#/components/parameters/PathId" }
+        - { $ref: "#/components/parameters/Reason" }
       responses:
         "204": { description: Deleted }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -1964,8 +2164,9 @@ paths:
   /admin/permissions:
     get:
       tags: [Admin]
-      summary: List all permission keys (for building roles)
-      x-permission: users.manage
+      summary: List the code-defined permission registry
+      x-surface: admin
+      x-permission: roles.manage
       responses:
         "200":
           description: All permissions
@@ -1975,6 +2176,43 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/Permission" }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/work-phones:
+    get:
+      tags: [Admin]
+      summary: List pre-registered work phones
+      x-surface: admin
+      x-permission: users.manage
+      responses:
+        "200": { description: Work phones, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/WorkPhone" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Admin]
+      summary: Register or change a work phone role
+      description: A phone already belonging to a customer is rejected with `CUSTOMER_PHONE_ALREADY_REGISTERED` (409).
+      x-surface: admin
+      x-permission: users.manage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WorkPhoneInput" } } } }
+      responses:
+        "201": { description: Work phone registered, content: { application/json: { schema: { $ref: "#/components/schemas/WorkPhone" } } } }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/work-phones/{phone}:
+    delete:
+      tags: [Admin]
+      summary: Revoke a work phone immediately
+      description: Existing app access and refresh tokens stop working on the next request.
+      x-surface: admin
+      x-permission: users.manage
+      parameters:
+        - name: phone
+          in: path
+          required: true
+          schema: { type: string, pattern: '^\+[1-9]\d{7,14}$' }
+        - { $ref: "#/components/parameters/Reason" }
+      responses:
+        "204": { description: Revoked }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
 components:
   securitySchemes:
@@ -1998,6 +2236,11 @@ components:
       in: query
       required: false
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Reason:
+      name: reason
+      in: query
+      required: true
+      schema: { type: string, minLength: 3, maxLength: 500 }
   responses:
     Unauthorized: { description: Missing/invalid token (`UNAUTHORIZED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     NotFound: { description: Not found (`NOT_FOUND`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
@@ -2063,21 +2306,40 @@ components:
         refresh_token: { type: string }
         user: { $ref: "#/components/schemas/User" }
 
+    RefreshTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+
+    Password:
+      type: string
+      minLength: 12
+      maxLength: 128
+      pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,128}$'
+      description: Must contain upper and lower case letters, a number, and a symbol.
+
     User:
       type: object
       additionalProperties: false
-      required: [id, name, phone, email, is_active, role, permissions, created_at]
+      required: [id, name, phone, username, email, is_active, role, permissions, surface, client, must_change_password, permission_version, created_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: [string, "null"] }
-        phone: { type: string }
+        phone: { type: [string, "null"] }
+        username: { type: [string, "null"] }
         email: { type: [string, "null"] }
         is_active: { type: boolean }
-        role: { type: string, example: customer, description: "role name" }
+        role: { type: [string, "null"], enum: [customer, delivery_agent, order_monitor, null], description: Present only on the app surface. }
         permissions:
           type: array
-          description: Flattened permission keys granted to the user's role.
-          items: { type: string, example: "orders.confirm" }
+          description: Current preset and extra grants; always empty on the app surface.
+          items: { type: string, example: "orders.accept" }
+        surface: { type: string, enum: [admin, app] }
+        client: { type: [string, "null"], enum: [mobile, web_store, null] }
+        must_change_password: { type: boolean }
+        permission_version: { type: integer, minimum: 1 }
         created_at: { type: string, format: date-time }
 
     UserSelfUpdate:
@@ -2091,17 +2353,6 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 120, pattern: '.*\S.*' }
         email: { type: [string, "null"], format: email, maxLength: 160 }
-
-    UserInput:
-      type: object
-      required: [phone]
-      properties:
-        name: { type: string }
-        phone: { type: string }
-        email: { type: [string, "null"] }
-        role: { type: string, description: "role name to assign", example: warehouse }
-        is_active: { type: boolean, default: true }
-        password: { type: [string, "null"], description: "optional; staff accounts may use password login" }
 
     Address:
       type: object
@@ -2678,6 +2929,79 @@ components:
               type: array
               items: { $ref: "#/components/schemas/AdminOrder" }
 
+    MonitorOrderListItem:
+      type: object
+      required: [id, order_number, status, customer_name, customer_phone, total, payment_method, placed_at]
+      properties:
+        id: { type: string, format: uuid }
+        order_number: { type: string }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        customer_name: { type: [string, "null"] }
+        customer_phone: { type: string }
+        total: { $ref: "#/components/schemas/Money" }
+        payment_method: { type: string, enum: [cod] }
+        placed_at: { type: string, format: date-time }
+
+    MonitorOrderPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [status_counts, data]
+          properties:
+            status_counts:
+              type: object
+              description: Counts with q and Baghdad date filters applied and status excluded.
+              additionalProperties: { type: integer, minimum: 0 }
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/MonitorOrderListItem" }
+
+    MonitorOrderDetail:
+      type: object
+      description: Intentionally excludes product image fields.
+      required: [id, order_number, status, customer, shipping_snapshot, items, subtotal, delivery_fee, discount, total, payment_method, placed_at]
+      properties:
+        id: { type: string, format: uuid }
+        order_number: { type: string }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        customer:
+          type: object
+          required: [name, phone]
+          properties:
+            name: { type: [string, "null"] }
+            phone: { type: string }
+        shipping_snapshot:
+          type: object
+          properties:
+            contact_phone: { type: string }
+            address_label: { type: [string, "null"] }
+            city: { type: string }
+            area: { type: [string, "null"] }
+            street: { type: [string, "null"] }
+            details: { type: [string, "null"] }
+            lat: { type: [number, "null"] }
+            lng: { type: [number, "null"] }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, product_id, variant_id, product_name_ar, product_name_en, quantity, unit_price, line_total]
+            properties:
+              id: { type: string, format: uuid }
+              product_id: { type: string, format: uuid }
+              variant_id: { type: [string, "null"], format: uuid }
+              product_name_ar: { type: string }
+              product_name_en: { type: string }
+              quantity: { type: integer }
+              unit_price: { $ref: "#/components/schemas/Money" }
+              line_total: { $ref: "#/components/schemas/Money" }
+        subtotal: { $ref: "#/components/schemas/Money" }
+        delivery_fee: { $ref: "#/components/schemas/Money" }
+        discount: { $ref: "#/components/schemas/Money" }
+        total: { $ref: "#/components/schemas/Money" }
+        payment_method: { type: string, enum: [cod] }
+        placed_at: { type: string, format: date-time }
+
     OrderTracking:
       type: object
       properties:
@@ -2717,6 +3041,31 @@ components:
             data:
               type: array
               items: { $ref: "#/components/schemas/Review" }
+
+    CustomerReview:
+      allOf:
+        - $ref: "#/components/schemas/Review"
+        - type: object
+          required: [product]
+          properties:
+            product:
+              type: object
+              additionalProperties: false
+              required: [id, name_en, name_ar]
+              properties:
+                id: { type: string, format: uuid }
+                name_en: { type: string }
+                name_ar: { type: string }
+
+    CustomerReviewPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/CustomerReview" }
 
     DeliveryRating:
       type: object
@@ -3053,11 +3402,11 @@ components:
       additionalProperties: false
       required: [type, channel, enabled]
       properties:
-        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo] }
+        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, delivery_assigned] }
         channel: { type: string, enum: [push, sms] }
         enabled: { type: boolean }
 
-    NotificationHistory:
+    NotificationPage:
       allOf:
         - $ref: "#/components/schemas/Pagination"
         - type: object
@@ -3065,23 +3414,144 @@ components:
           properties:
             data:
               type: array
-              items: { $ref: "#/components/schemas/NotificationAttempt" }
+              items: { $ref: "#/components/schemas/Notification" }
 
-    NotificationAttempt:
+    Notification:
       type: object
-      required: [id, type, channel, status, locale, title, body, entity_type, entity_id, created_at]
+      required: [id, type, target_role, title_ar, body_ar, title_en, body_en, deep_link, entity_type, entity_id, created_at, read_at]
       properties:
         id: { type: string, format: uuid }
         type: { $ref: "#/components/schemas/NotificationPreferenceEntry/properties/type" }
-        channel: { type: string, enum: [push, sms] }
-        status: { type: string, enum: [queued, sent, skipped, failed] }
-        locale: { type: string, enum: [ar, en] }
-        title: { type: string }
-        body: { type: string }
+        target_role: { type: string, enum: [customer, delivery_agent, order_monitor, staff] }
+        title_ar: { type: string }
+        body_ar: { type: string }
+        title_en: { type: string }
+        body_en: { type: string }
+        deep_link: { type: string }
         entity_type: { type: string }
         entity_id: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
-        sent_at: { type: [string, "null"], format: date-time }
+        read_at: { type: [string, "null"], format: date-time }
+
+    UnreadCount:
+      type: object
+      additionalProperties: false
+      required: [unread_count]
+      properties:
+        unread_count: { type: integer, minimum: 0 }
+
+    AuditReason:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    StaffUser:
+      type: object
+      required: [id, username, name, email, is_active, must_change_password, permission_version, presets, extra_grants, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        name: { type: [string, "null"] }
+        email: { type: [string, "null"], format: email }
+        is_active: { type: boolean }
+        must_change_password: { type: boolean }
+        permission_version: { type: integer, minimum: 1 }
+        presets:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+        extra_grants: { type: array, items: { type: string } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    StaffCreate:
+      allOf:
+        - $ref: "#/components/schemas/AuditReason"
+        - type: object
+          required: [username, name, password]
+          properties:
+            username: { type: string, pattern: '^[a-z][a-z0-9._-]{2,79}$' }
+            name: { type: string, minLength: 1, maxLength: 120 }
+            email: { type: [string, "null"], format: email }
+            password: { $ref: "#/components/schemas/Password" }
+            preset_ids: { type: array, uniqueItems: true, items: { type: string, format: uuid } }
+            permission_keys: { type: array, uniqueItems: true, items: { type: string } }
+
+    StaffUpdate:
+      allOf:
+        - $ref: "#/components/schemas/AuditReason"
+        - type: object
+          properties:
+            name: { type: string, minLength: 1, maxLength: 120 }
+            email: { type: [string, "null"], format: email }
+            is_active: { type: boolean }
+
+    StaffPasswordReset:
+      allOf:
+        - $ref: "#/components/schemas/AuditReason"
+        - type: object
+          required: [password]
+          properties:
+            password: { $ref: "#/components/schemas/Password" }
+
+    StaffAccess:
+      allOf:
+        - $ref: "#/components/schemas/AuditReason"
+        - type: object
+          required: [preset_ids, permission_keys]
+          properties:
+            preset_ids: { type: array, uniqueItems: true, items: { type: string, format: uuid } }
+            permission_keys: { type: array, uniqueItems: true, items: { type: string } }
+
+    PermissionPreset:
+      type: object
+      required: [id, name, is_system]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        is_system: { type: boolean }
+        permissions:
+          type: array
+          items:
+            type: object
+            properties:
+              permission: { $ref: "#/components/schemas/Permission" }
+
+    PermissionPresetInput:
+      allOf:
+        - $ref: "#/components/schemas/AuditReason"
+        - type: object
+          properties:
+            name: { type: string, pattern: '^[a-z][a-z0-9._-]{2,79}$' }
+            description: { type: [string, "null"], maxLength: 255 }
+            permission_keys: { type: array, uniqueItems: true, items: { type: string } }
+
+    WorkPhone:
+      type: object
+      required: [id, user_id, name, app_role, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        phone: { type: string, pattern: '^\+[1-9]\d{7,14}$' }
+        name: { type: string }
+        app_role: { type: string, enum: [delivery_agent, order_monitor] }
+        is_active: { type: boolean }
+
+    WorkPhoneInput:
+      allOf:
+        - $ref: "#/components/schemas/AuditReason"
+        - type: object
+          required: [phone, name, role]
+          properties:
+            phone: { type: string, pattern: '^\+[1-9]\d{7,14}$' }
+            name: { type: string, minLength: 1, maxLength: 120 }
+            role: { type: string, enum: [delivery_agent, order_monitor] }
 
     Permission:
       type: object

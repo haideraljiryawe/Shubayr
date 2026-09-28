@@ -480,7 +480,20 @@
     "type_adjust": "Balance adjustment",
     "type_expire": "Points expired",
     "unit": "points",
-    "loadError": "Could not load your points."
+    "loadError": "Could not load your points.",
+    "redeemTitle": "Redeem points",
+    "redeemBody": "Turn points into credit; one point is worth one unit.",
+    "redeemAmount": "Points to redeem",
+    "redeemPlaceholder": "For example: 100",
+    "redeem": "Redeem",
+    "redeeming": "Redeeming…",
+    "redeemed": "Redeemed {count} points",
+    "errAmount": "Enter a whole number of points greater than zero.",
+    "errBalance": "You do not have enough points for that.",
+    "errRedeemFailed": "Could not redeem the points, please try again.",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page} of {pageCount}"
   },
   "returns": {
     "title": "Returns",
@@ -513,7 +526,15 @@
     "status_partially_approved": "Partly approved",
     "status_completed": "Completed",
     "status_rejected": "Rejected",
-    "loadError": "Could not load your returns."
+    "loadError": "Could not load your returns.",
+    "viewOrder": "View order",
+    "refunded": "Refunded",
+    "expectedRefund": "Expected refund",
+    "lineReason": "Why are you returning this item?",
+    "lineReasonPlaceholder": "For example: arrived damaged",
+    "reasonOverallHint": "Optional — a general note attached to the whole request.",
+    "errNoLineReason": "Give a reason for each item you selected.",
+    "eligibleQty": "{count} still returnable"
   },
   "reviews": {
     "title": "Reviews",
@@ -535,7 +556,21 @@
     "pending": "Your review is awaiting moderation before it is published.",
     "deliveryRated": "Delivery rated",
     "allReviewed": "You have reviewed every product in this order.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleted": "Review deleted",
+    "updated": "Review updated",
+    "editResetsToPending": "Editing sends the review back for moderation before it appears again.",
+    "errAlready": "You have already reviewed this item from this order.",
+    "statusPending": "Awaiting moderation",
+    "statusPublished": "Published",
+    "statusRejected": "Rejected",
+    "rejectedReason": "Reason: {reason}",
+    "rejectedHint": "Edit it to send it back for review.",
+    "mineLoading": "Loading your review",
+    "mineLoadError": "Could not load your reviews.",
+    "retry": "Try again"
   },
   "settings": {
     "paymentsTitle": "Payment methods",
@@ -546,14 +581,7 @@
     "gatewaysSoonBody": "Card and e-wallet payments are on the way.",
     "notificationsTitle": "Notifications",
     "notificationsBody": "Choose what you want to hear about.",
-    "notifyOrders": "Order updates",
-    "notifyOrdersHint": "Confirmation, out for delivery, and delivered.",
-    "notifyOffers": "Offers and discounts",
-    "notifyOffersHint": "Major sales and seasonal offers.",
-    "notifyPoints": "Points and rewards",
-    "notifyPointsHint": "When you earn points or they are about to expire.",
     "notifySaved": "Preferences saved",
-    "notifyLocal": "These preferences are stored on this device until the server can hold them on your account.",
     "languageTitle": "Language",
     "languageBody": "Choose your display language. Your choice is saved and applies everywhere.",
     "languageSaved": "Language changed",
@@ -575,6 +603,33 @@
     "settingsBody": "General account settings.",
     "accountSection": "Account",
     "signOutBody": "You will be signed out on this device.",
-    "version": "Version"
+    "version": "Version",
+    "notifyType": "Notification",
+    "channel_push": "Push",
+    "channel_sms": "SMS",
+    "notifyMandatory": "Order confirmation SMS cannot be switched off.",
+    "notifyFailed": "Could not save that preference, please try again.",
+    "notifyAccountWide": "These preferences belong to your account and apply on every device.",
+    "notifyPushSetup": "Receiving push in this browser needs extra setup that is not enabled yet, so nothing will arrive here for now.",
+    "notifyType_order_placed": "Order placed",
+    "notifyType_order_confirmed": "Order confirmed",
+    "notifyType_order_status_changed": "Order status changed",
+    "notifyType_out_for_delivery": "Out for delivery",
+    "notifyType_delivered": "Delivered",
+    "notifyType_delivery_failed": "Delivery failed",
+    "notifyType_return_update": "Return update",
+    "notifyType_loyalty_points_earned": "Points earned",
+    "notifyType_review_moderated": "Review moderated",
+    "notifyType_promo": "Offers and promotions"
+  },
+  "workAccount": {
+    "title": "Work account",
+    "signedInAs": "Signed in as {name}",
+    "role": {
+      "delivery_agent": "Delivery agent",
+      "order_monitor": "Order monitor"
+    },
+    "body": "This phone is registered as a work account, so it can't be used for shopping, the cart, the wishlist or customer addresses on the store.",
+    "comingSoon": "Your work pages will be available here soon. To shop, sign in with a customer phone number."
   }
 }

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { api, isLive } from "./api";
 import { useAuth } from "./auth";
 import { cartStore } from "./cart-store";
+import { workRoleOf } from "./work-account";
 
 /**
  * Connects the cart store to the server cart once a customer signs in.
@@ -15,7 +16,10 @@ import { cartStore } from "./cart-store";
  * every total.
  */
 export function CartSync() {
-  const { isAuthenticated, ready } = useAuth();
+  const { isAuthenticated, ready, user } = useAuth();
+  // A work account has no server cart: the API answers 403
+  // WORK_ACCOUNT_SHOPPING_FORBIDDEN, so there is nothing to attach to.
+  const shopper = isAuthenticated && !workRoleOf(user);
 
   useEffect(() => {
     // With the cart domain mocked there is no server cart to attach to, and
@@ -23,7 +27,7 @@ export function CartSync() {
     // be hermetic.
     if (!ready || !isLive("cart")) return;
 
-    if (!isAuthenticated) {
+    if (!shopper) {
       // Signing out drops the server view but keeps whatever is on the device,
       // so the basket a shopper built does not vanish under them.
       cartStore.detachServerCart();
@@ -36,7 +40,7 @@ export function CartSync() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, ready]);
+  }, [shopper, ready]);
 
   return null;
 }

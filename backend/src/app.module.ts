@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, DiscoveryModule } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
+import { RoutePolicyCoverageService } from './common/guards/route-policy-coverage.service';
 import { validateEnvironment } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { AuditModule } from './modules/audit/audit.module';
@@ -23,6 +24,7 @@ import { RbacModule } from './modules/rbac/rbac.module';
 import { ReturnsModule } from './modules/returns/returns.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { WishlistModule } from './modules/wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -40,6 +42,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     ThrottlerModule.forRoot({
       throttlers: [{ ttl: 60_000, limit: 120 }],
     }),
+    DiscoveryModule,
     DatabaseModule,
     AuditModule,
     NotificationsModule,
@@ -55,6 +58,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     LoyaltyModule,
     MediaModule,
     ReviewsModule,
+    WishlistModule,
     SettingsModule,
     HealthModule,
   ],
@@ -62,6 +66,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    RoutePolicyCoverageService,
   ],
 })
 export class AppModule {}

@@ -9,6 +9,9 @@ export const notificationTypes = [
   'loyalty_points_earned',
   'review_moderated',
   'promo',
+  'new_order',
+  'order_cancelled',
+  'delivery_assigned',
 ] as const;
 export type NotificationType = (typeof notificationTypes)[number];
 export const notificationChannels = ['push', 'sms'] as const;
@@ -47,7 +50,7 @@ export function defaultEnabled(
   return channel === 'push' || ['delivered', 'delivery_failed'].includes(type);
 }
 
-export function message(type: NotificationType, locale: string) {
+export function bilingualMessage(type: NotificationType) {
   const arabic: Record<NotificationType, [string, string]> = {
     order_placed: ['تم استلام الطلب', 'تم استلام طلبك.'],
     order_confirmed: ['تم تأكيد الطلب', 'تم تأكيد طلبك.'],
@@ -59,6 +62,9 @@ export function message(type: NotificationType, locale: string) {
     loyalty_points_earned: ['نقاط جديدة', 'أضيفت نقاط الولاء إلى حسابك.'],
     review_moderated: ['تحديث التقييم', 'تمت مراجعة تقييم المنتج.'],
     promo: ['عرض من شُبير', 'لديك عرض جديد.'],
+    new_order: ['طلب جديد', 'تم استلام طلب جديد للمتابعة.'],
+    order_cancelled: ['تم إلغاء طلب', 'تم إلغاء طلب ويتطلب المتابعة.'],
+    delivery_assigned: ['مهمة توصيل جديدة', 'تم إسناد طلب جديد إليك.'],
   };
   const english: Record<NotificationType, [string, string]> = {
     order_placed: ['Order placed', 'We received your order.'],
@@ -77,8 +83,27 @@ export function message(type: NotificationType, locale: string) {
       'Your product review has been moderated.',
     ],
     promo: ['Shubayr offer', 'A new offer is available.'],
+    new_order: ['New order', 'A new order is ready for monitoring.'],
+    order_cancelled: [
+      'Order cancelled',
+      'An order was cancelled and may need attention.',
+    ],
+    delivery_assigned: ['New delivery', 'A delivery has been assigned to you.'],
   };
-  const [title, body] = locale === 'en' ? english[type] : arabic[type];
+  return {
+    title_ar: arabic[type][0],
+    body_ar: arabic[type][1],
+    title_en: english[type][0],
+    body_en: english[type][1],
+  };
+}
+
+export function message(type: NotificationType, locale: string) {
+  const content = bilingualMessage(type);
+  const [title, body] =
+    locale === 'en'
+      ? [content.title_en, content.body_en]
+      : [content.title_ar, content.body_ar];
   return { title, body };
 }
 

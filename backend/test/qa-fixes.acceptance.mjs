@@ -37,11 +37,14 @@ async function login(phone) {
   const challenge = await request('/auth/request-otp', { method: 'POST', expected: 201, body: { phone } });
   return (await request('/auth/verify-otp', { method: 'POST', expected: 201, body: { phone, code: challenge.dev_otp } })).access_token;
 }
+async function adminLogin() {
+  return (await request('/admin/auth/login', { method: 'POST', expected: 201, body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' } })).access_token;
+}
 async function row(sql, args = []) { return (await db.query(sql, args)).rows[0]; }
 const tag = randomUUID().slice(0, 8);
 
 try {
-  const admin = await login('+9647700000001');
+  const admin = await adminLogin();
   const customer = await login('+9647700000006');
 
   // ---------------------------------------------------------------- issue 1

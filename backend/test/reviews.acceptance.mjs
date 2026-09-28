@@ -26,16 +26,45 @@ async function login(phone) {
   const challenge = await request('/auth/request-otp', { method: 'POST', expected: 201, body: { phone } });
   return (await request('/auth/verify-otp', { method: 'POST', expected: 201, body: { phone, code: challenge.dev_otp } })).access_token;
 }
+async function adminLogin() {
+  return (await request('/admin/auth/login', { method: 'POST', expected: 201, body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' } })).access_token;
+}
 async function value(sql, args = []) { return (await db.query(sql, args)).rows[0]?.value; }
 
 try {
   const customer = await login('+9647700000006');
-  const admin = await login('+9647700000001');
+  const admin = await adminLogin();
   const other = await login('+9647700099966');
   const customerId = await value("SELECT id AS value FROM users WHERE phone='+9647700000006'");
   const otherId = await value("SELECT id AS value FROM users WHERE phone='+9647700099966'");
   const productId = '40000000-0000-4000-8000-000000000004';
   const anotherProduct = '40000000-0000-4000-8000-000000000005';
+  const otherReviewId = randomUUID();
+  await db.query(`INSERT INTO product_reviews (id,product_id,user_id,rating,comment,status)
+    VALUES ($1,$2,$3,2,'Another customer rejected review','rejected')`, [otherReviewId, anotherProduct, otherId]);
+  const initialMine = await request('/me/reviews?per_page=100', { token: customer });
+  check(initialMine.total, 2, 'caller starts with seeded pending and published reviews');
+  check(
+    new Set(initialMine.data.map(({ status }) => status)),
+    new Set(['pending', 'published']),
+    'own review history includes every seeded moderation state',
+  );
+  check(initialMine.data.some(({ id }) => id === otherReviewId), false, 'own history excludes another customer');
+  check(
+    initialMine.data.every(({ user_id }) => user_id === customerId),
+    true,
+    'every returned review belongs to the caller',
+  );
+  check(
+    initialMine.data.every(({ product }) => product.id && product.name_en && product.name_ar),
+    true,
+    'own history includes current product identity and names',
+  );
+  const minePageOne = await request('/me/reviews?page=1&per_page=1', { token: customer });
+  const minePageTwo = await request('/me/reviews?page=2&per_page=1', { token: customer });
+  check(minePageOne.total, 2, 'own review pagination reports the full total');
+  check(minePageOne.data[0].id === minePageTwo.data[0].id, false, 'stable paging does not repeat reviews');
+  await request('/me/reviews', { token: admin, expected: 403 });
   const product = await request(`/products/${productId}`);
   check(product.rating_avg, 5, 'seeded approved review sets average');
   check(product.rating_count, 1, 'seeded approved review sets count');
@@ -90,6 +119,18 @@ try {
     token: admin, method: 'POST', body: { decision: 'reject', reason: 'Needs revision' },
   });
   check(rejected.status, 'rejected', 'staff can hide review');
+  const allMine = await request('/me/reviews?per_page=100', { token: customer });
+  check(allMine.total, 3, 'own history includes the newly rejected review');
+  check(
+    new Set(allMine.data.map(({ status }) => status)),
+    new Set(['pending', 'published', 'rejected']),
+    'own history returns pending, published, and rejected reviews',
+  );
+  check(
+    allMine.data.find(({ id }) => id === review.id).order_item_id,
+    lineId,
+    'own history preserves the order-item link',
+  );
   check((await request(`/products/${productId}/reviews`)).total, 1, 'rejected review stays hidden');
   check((await request(`/products/${productId}`)).rating_count, 1, 'rejected review does not count');
   check(Number(await value("SELECT count(*)::int AS value FROM audit_logs WHERE action='product_review.moderate' AND entity_id=$1", [review.id])), 1, 'rejection is audited');

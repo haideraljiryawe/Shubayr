@@ -222,7 +222,7 @@ export class LoyaltyService {
       where: { id: userId },
       include: { role: true },
     });
-    if (!user || user.role.name !== 'customer')
+    if (!user || user.role?.name !== 'customer')
       throw new NotFoundException('Customer not found');
   }
 }

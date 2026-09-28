@@ -51,8 +51,14 @@ async function login(phone) {
   });
 }
 
+function adminLogin() {
+  return request('/admin/auth/login', {
+    method: 'POST', body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' }, expected: 201,
+  });
+}
+
 const [admin, agentA, agentB, customer, otherCustomer] = await Promise.all([
-  login('+9647700000001'),
+  adminLogin(),
   login('+9647700000005'),
   login('+9647700000007'),
   login('+9647700000006'),

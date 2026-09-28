@@ -54,6 +54,12 @@ async function login(phone) {
   });
 }
 
+function adminLogin(username, password) {
+  return request('/admin/auth/login', {
+    method: 'POST', body: { username, password }, expected: 201,
+  });
+}
+
 async function scalar(sql, values = []) {
   const result = await db.query(sql, values);
   return result.rows[0]?.value;
@@ -62,8 +68,8 @@ async function scalar(sql, values = []) {
 try {
   const [adminSession, warehouseSession, agentSession, customerSession] =
     await Promise.all([
-      login('+9647700000001'),
-      login('+9647700000004'),
+      adminLogin('admin', 'Shubayr-Dev-Admin!2026'),
+      adminLogin('stock', 'Shubayr-Dev-Staff!2026'),
       login('+9647700000005'),
       login('+9647700000006'),
     ]);

@@ -2,7 +2,12 @@ import type { components, paths } from "@/types/api";
 import { isLive } from "./data-source";
 import {
   createMockAddress,
+  deleteMockReview,
   getMockAddress,
+  getMockNotificationPreferences,
+  redeemMockLoyalty,
+  updateMockNotificationPreferences,
+  updateMockReview,
   deleteMockAddress,
   getMockOrder,
   getMockUser,
@@ -17,6 +22,7 @@ import {
   rememberMockOrder,
   updateMockAddress,
   updateMockUser,
+  signInMockPhone,
   listMockWishlist,
   addMockWishlistItem,
   removeMockWishlistItem,
@@ -26,6 +32,7 @@ import {
   createMockReview,
   createMockDeliveryRating,
   listMockReviewedOrderItems,
+  listMockMyReviews,
 } from "./mock-account";
 import {
   demoProducts,
@@ -58,9 +65,13 @@ export type ProductVariant = Schemas["ProductVariant"];
 export type ProductAvailability = Schemas["ProductAvailability"];
 export type Review = Schemas["Review"];
 export type ReviewPage = Schemas["ReviewPage"];
+export type CustomerReview = Schemas["CustomerReview"];
+export type CustomerReviewPage = Schemas["CustomerReviewPage"];
 export type Coupon = Schemas["Coupon"];
 export type User = Schemas["User"];
-export type UserInput = Schemas["UserInput"];
+export type AppRole = NonNullable<User["role"]>;
+export type ApiErrorBody = Schemas["Error"];
+export type FieldError = Schemas["FieldError"];
 export type AuthTokens = Schemas["AuthTokens"];
 export type AddressPage = Schemas["AddressPage"];
 export type OrderPage = Schemas["OrderPage"];
@@ -77,8 +88,16 @@ export type WishlistPage = Schemas["WishlistPage"];
 export type LoyaltyAccount = Schemas["LoyaltyAccount"];
 export type LoyaltyEntry = NonNullable<LoyaltyAccount["ledger"]>[number];
 export type Return = Schemas["Return"];
+export type ReturnPage = Schemas["ReturnPage"];
 export type ReturnStatus = NonNullable<Return["status"]>;
+export type ReturnItem = Schemas["ReturnItem"];
 export type DeliveryRating = Schemas["DeliveryRating"];
+export type LoyaltyRedemption = Schemas["LoyaltyRedemption"];
+export type NotificationPreferences = Schemas["NotificationPreferences"];
+export type NotificationPreferenceEntry =
+  Schemas["NotificationPreferenceEntry"];
+export type NotificationType = NotificationPreferenceEntry["type"];
+export type NotificationChannel = NotificationPreferenceEntry["channel"];
 
 /** Request bodies, straight from the contract. */
 export type ReturnRequest =
@@ -87,6 +106,8 @@ export type ReviewRequest =
   paths["/products/{id}/reviews"]["post"]["requestBody"]["content"]["application/json"];
 export type DeliveryRatingRequest =
   paths["/deliveries/{id}/rating"]["post"]["requestBody"]["content"]["application/json"];
+export type ReviewPatch =
+  paths["/reviews/{id}"]["patch"]["requestBody"]["content"]["application/json"];
 
 /** Request body of POST /orders, straight from the contract. */
 export type OrderRequest =
@@ -122,10 +143,57 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /**
+     * The contract's machine-readable `code` from the unified Error envelope
+     * (e.g. `WORK_ACCOUNT_SHOPPING_FORBIDDEN`), when the response carried one.
+     * Route on this, not on the message, which is for humans.
+     */
+    readonly code?: string,
+    readonly errors: FieldError[] = [],
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+/** API 6.0: purchase functions answer this 403 to a work account. */
+export const WORK_ACCOUNT_SHOPPING_FORBIDDEN =
+  "WORK_ACCOUNT_SHOPPING_FORBIDDEN";
+
+export function isWorkAccountForbidden(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.status === 403 &&
+    error.code === WORK_ACCOUNT_SHOPPING_FORBIDDEN
+  );
+}
+
+/**
+ * Turn a failed response into an ApiError, keeping the contract's `code` and
+ * field errors when the body is the unified Error envelope. Anything else (a
+ * proxy's HTML page, an empty body) still yields an error with the status.
+ */
+async function toApiError(
+  response: Response,
+  method: string,
+  path: string,
+): Promise<ApiError> {
+  let body: Partial<ApiErrorBody> | null = null;
+  try {
+    body = (await response.json()) as Partial<ApiErrorBody>;
+  } catch {
+    body = null;
+  }
+  const error = new ApiError(
+    response.status,
+    typeof body?.message === "string"
+      ? body.message
+      : `${method} ${path} failed with ${response.status}`,
+    typeof body?.code === "string" ? body.code : undefined,
+    Array.isArray(body?.errors) ? body.errors : [],
+  );
+  if (isWorkAccountForbidden(error)) tokenProvider?.onWorkAccountForbidden?.();
+  return error;
 }
 
 type Query = Record<string, string | number | boolean | undefined>;
@@ -143,6 +211,12 @@ export interface TokenProvider {
   getRefreshToken(): string | null;
   onTokens(tokens: { access_token: string; refresh_token: string }): void;
   onSignedOut(): void;
+  /**
+   * The API refused a purchase function because the session belongs to a work
+   * account. The session store re-reads the user so the UI can switch to the
+   * work-account landing even if its cached profile said otherwise.
+   */
+  onWorkAccountForbidden?(): void;
 }
 
 let tokenProvider: TokenProvider | null = null;
@@ -222,10 +296,7 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      `${init.method ?? "GET"} ${path} failed with ${response.status}`,
-    );
+    throw await toApiError(response, init.method ?? "GET", path);
   }
 
   return (await response.json()) as T;
@@ -247,10 +318,7 @@ async function requestNoContent(
     },
   });
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      `${init.method ?? "GET"} ${path} failed with ${response.status}`,
-    );
+    throw await toApiError(response, init.method ?? "GET", path);
   }
 }
 
@@ -496,16 +564,34 @@ export const api = {
       if (code.trim() !== MOCK_OTP) {
         throw new ApiError(401, "Invalid or expired verification code");
       }
-      const user = updateMockUser({ phone });
+      const user = signInMockPhone(toE164(phone), phone);
       return {
         access_token: mockAccessToken(user.id ?? "u-1"),
         refresh_token: mockRefreshToken(user.id ?? "u-1"),
         user,
       };
     }
+    // API 6.0: name the client and never send a role — the server resolves
+    // it, and a work phone comes back as delivery_agent or order_monitor.
     return request<AuthTokens>("/auth/verify-otp", {
       method: "POST",
-      body: JSON.stringify({ phone: toE164(phone), code: code.trim() }),
+      body: JSON.stringify({
+        phone: toE164(phone),
+        code: code.trim(),
+        client: "web_store",
+      }),
+    });
+  },
+
+  /**
+   * Revoke the refresh token on the server (POST /auth/logout). Best effort:
+   * signing out locally must never wait on, or fail because of, the network.
+   */
+  async logout(refresh_token: string): Promise<void> {
+    if (!isLive("auth")) return;
+    await requestNoContent("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ refresh_token }),
     });
   },
 
@@ -533,7 +619,10 @@ export const api = {
     );
   },
 
-  /** The signed-in customer, including the role permissions the contract flattens. */
+  /**
+   * The signed-in account. On the web store this is an app-surface session, so
+   * `role` is customer, delivery_agent or order_monitor and `permissions` is empty.
+   */
   async getMe(): Promise<User> {
     return withFreshToken(async () => {
       if (!isLive("profile")) {
@@ -759,8 +848,10 @@ export const api = {
    * The signed-in wishlist. A guest has no server wishlist at all, so the
    * store above this keeps one locally and replays it on sign-in; these three
    * methods are only ever reached with a session.
+   *
+   * Each row carries its whole product, priced by the server when the list is
+   * read, and the page renders that as sent.
    */
-  // MOCK: awaiting backend slice (wishlist).
   async listWishlist(): Promise<WishlistItem[]> {
     return withFreshToken(async () => {
       if (!isLive("wishlist")) {
@@ -775,7 +866,7 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (wishlist).
+  /** Idempotent on the server: adding a saved product returns the same row. */
   async addWishlistItem(productId: string): Promise<WishlistItem> {
     return withFreshToken(async () => {
       if (!isLive("wishlist")) {
@@ -790,7 +881,7 @@ export const api = {
     });
   },
 
-  // MOCK: awaiting backend slice (wishlist).
+  /** 404 when the product is not on the list — the store treats that as done. */
   async removeWishlistItem(productId: string): Promise<void> {
     return withFreshToken(async () => {
       if (!isLive("wishlist")) {
@@ -808,16 +899,55 @@ export const api = {
 
   /* --------------------------------------------------------- loyalty */
 
-  /** Points balance plus the ledger, read-only for a customer. */
-  // MOCK: awaiting backend slice (loyalty).
-  async getLoyalty(): Promise<LoyaltyAccount> {
+  /**
+   * Points balance plus one page of the ledger.
+   *
+   * `points_balance` is computed by the server from the append-only ledger, so
+   * it is rendered as sent. Summing the page client-side would be wrong twice
+   * over: the page is one slice of the ledger, and the server's rate rules —
+   * delivered subtotal less discount, excluding delivery — are not the
+   * client's to reimplement.
+   */
+  async getLoyalty(
+    { page = 1, per_page = 20 }: { page?: number; per_page?: number } = {},
+  ): Promise<LoyaltyAccount> {
     return withFreshToken(async () => {
       if (!isLive("loyalty")) {
         await mockLatency(120);
         requireMockAuth();
-        return getMockLoyalty();
+        return getMockLoyalty({ page, per_page });
       }
-      return request<LoyaltyAccount>("/loyalty");
+      return request<LoyaltyAccount>("/loyalty", {
+        query: { page, per_page },
+      });
+    });
+  },
+
+  /**
+   * Spend points.
+   *
+   * The server refuses more than the balance with a 409 and an invalid amount
+   * with a 422; neither is pre-judged here beyond keeping the field a positive
+   * integer, because the balance can move between the page loading and the
+   * button being pressed.
+   */
+  async redeemLoyalty(
+    points: number,
+    note?: string,
+  ): Promise<LoyaltyRedemption> {
+    return withFreshToken(async () => {
+      if (!isLive("loyalty")) {
+        await mockLatency();
+        requireMockAuth();
+        const redeemed = redeemMockLoyalty(points, note);
+        // The contract's refusal for spending more than you hold.
+        if (!redeemed) throw new ApiError(409, "Insufficient points balance");
+        return redeemed;
+      }
+      return request<LoyaltyRedemption>("/loyalty/redeem", {
+        method: "POST",
+        body: JSON.stringify(note?.trim() ? { points, note: note.trim() } : { points }),
+      });
     });
   },
 
@@ -839,26 +969,23 @@ export const api = {
   },
 
   /**
-   * The customer's own return requests.
+   * The customer's own return requests, newest first.
    *
-   * CONTRACT GAP: api/openapi.yaml has POST /returns and the staff-only
-   * POST /returns/{id}/inspect, but no customer-facing GET /returns. The
-   * shape below is the obvious one (the shared Pagination envelope over
-   * Return), and it must be added to the contract before mocks are switched
-   * off — until then this reads the local fixture store.
+   * GET /returns is scoped to the caller server-side — the gap noted here
+   * before is closed — so there is no client-side ownership filter to get
+   * wrong. Status and every refund amount come back computed.
    */
-  // MOCK: awaiting backend slice (returns).
-  async listReturns(): Promise<Return[]> {
+  async listReturns(status?: ReturnStatus): Promise<Return[]> {
     return withFreshToken(async () => {
       if (!isLive("returns")) {
         await mockLatency(120);
         requireMockAuth();
         return listMockReturns();
       }
-      const page = await request<{ data: Return[] }>("/returns", {
-        query: { per_page: 50 },
+      const page = await request<ReturnPage>("/returns", {
+        query: { status, per_page: 50 },
       });
-      return page.data;
+      return page.data ?? [];
     });
   },
 
@@ -908,14 +1035,14 @@ export const api = {
   },
 
   /**
-   * Which of an order's items the customer may still review.
+   * Which of an order's items the customer has already reviewed.
    *
-   * `OrderItem.reviewed` now carries this per caller, so the separate lookup
-   * the fixture provides is no longer the only way to answer it. Reviews stay
-   * on fixtures until their own flip, which is where this method should be
-   * replaced by reading the flag off the order.
+   * Live, this is `OrderItem.reviewed` — a per-caller flag the order itself
+   * carries — so the order the page already holds is the answer and there is
+   * nothing to fetch. It used to call `/orders/{id}/reviewed-items`, which
+   * has never existed in any version of the contract; the call only survived
+   * because the domain was mocked and the live branch was unreachable.
    */
-  // MOCK: awaiting backend slice (reviews).
   async listReviewedOrderItems(orderId: string): Promise<string[]> {
     return withFreshToken(async () => {
       if (!isLive("reviews")) {
@@ -923,9 +1050,117 @@ export const api = {
         requireMockAuth();
         return listMockReviewedOrderItems(orderId);
       }
-      return request<string[]>(
-        `/orders/${encodeURIComponent(orderId)}/reviewed-items`,
+      const order = await request<Order>(
+        `/orders/${encodeURIComponent(orderId)}`,
       );
+      return (order.items ?? [])
+        .filter((item) => item.reviewed)
+        .map((item) => item.id ?? "")
+        .filter(Boolean);
+    });
+  },
+
+  /**
+   * The caller's own reviews, in every moderation state, newest first.
+   *
+   * GET /products/{id}/reviews is public and returns only PUBLISHED rows, so
+   * this is the one route on which a customer can find a review that is still
+   * awaiting moderation, or was rejected — and so the one that lets edit and
+   * delete survive a reload.
+   */
+  async listMyReviews(
+    query: { page?: number; per_page?: number } = {},
+  ): Promise<CustomerReviewPage> {
+    return withFreshToken(async () => {
+      if (!isLive("reviews")) {
+        await mockLatency(100);
+        requireMockAuth();
+        return listMockMyReviews(query);
+      }
+      return request<CustomerReviewPage>("/me/reviews", { query });
+    });
+  },
+
+  /**
+   * Edit one of the caller's own reviews.
+   *
+   * A content change sends the review back to `pending` and strips its
+   * moderation metadata, which the UI says out loud rather than leaving the
+   * shopper to wonder why their published review vanished from the product.
+   */
+  async updateReview(reviewId: string, patch: ReviewPatch): Promise<Review> {
+    return withFreshToken(async () => {
+      if (!isLive("reviews")) {
+        await mockLatency();
+        requireMockAuth();
+        const updated = updateMockReview(reviewId, patch);
+        if (!updated) throw new ApiError(404, `Review ${reviewId} not found`);
+        return updated;
+      }
+      return request<Review>(`/reviews/${encodeURIComponent(reviewId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      });
+    });
+  },
+
+  /** Delete one of the caller's own reviews; clears the line's reviewed flag. */
+  async deleteReview(reviewId: string): Promise<void> {
+    return withFreshToken(async () => {
+      if (!isLive("reviews")) {
+        await mockLatency();
+        requireMockAuth();
+        if (!deleteMockReview(reviewId)) {
+          throw new ApiError(404, `Review ${reviewId} not found`);
+        }
+        return;
+      }
+      await requestNoContent(`/reviews/${encodeURIComponent(reviewId)}`, {
+        method: "DELETE",
+      });
+    });
+  },
+
+  /* --------------------------------------------- notification prefs */
+
+  /**
+   * The caller's own notification preferences: every type across both
+   * channels, with the server's defaults already applied.
+   *
+   * These are ACCOUNT-level — the contract says updates are shared by all
+   * devices — so they are nothing to do with push delivery, which needs a
+   * device token this web app does not mint. Flipping the preferences does not
+   * make the browser receive push; see the README.
+   */
+  async getNotificationPreferences(): Promise<NotificationPreferences> {
+    return withFreshToken(async () => {
+      if (!isLive("notifications")) {
+        await mockLatency(120);
+        requireMockAuth();
+        return getMockNotificationPreferences();
+      }
+      return request<NotificationPreferences>("/me/notification-preferences");
+    });
+  },
+
+  /**
+   * Update some of them. Omitted pairs are left alone, so this sends only the
+   * toggles that actually moved; the server answers with the full effective
+   * set, which is what the UI then renders.
+   */
+  async updateNotificationPreferences(
+    preferences: NotificationPreferenceEntry[],
+  ): Promise<NotificationPreferences> {
+    return withFreshToken(async () => {
+      if (!isLive("notifications")) {
+        await mockLatency();
+        requireMockAuth();
+        return updateMockNotificationPreferences(preferences);
+      }
+      return request<NotificationPreferences>("/me/notification-preferences", {
+        method: "PATCH",
+        body: JSON.stringify({ preferences }),
+      });
     });
   },
 

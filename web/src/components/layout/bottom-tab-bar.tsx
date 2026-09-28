@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link, usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { useCartCount } from "@/lib/use-cart";
+import { useWorkRole } from "@/lib/work-account";
 import { isNavItemActive, NAV_ITEMS } from "./nav-items";
 
 /**
@@ -16,6 +17,8 @@ export function BottomTabBar() {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const cartCount = useCartCount();
+  // Every tab is a shopping destination a work account cannot use.
+  if (useWorkRole()) return null;
 
   return (
     <nav

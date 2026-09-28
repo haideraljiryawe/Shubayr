@@ -27,11 +27,11 @@ CREATE TABLE store_settings (
 -- Seed suggestion: store_name='Shubayr', currency='IQD', primary_color='#0B2A54'
 
 -- ---------------------------------------------------------------------
--- 1. RBAC — ROLES & PERMISSIONS (detailed from the start)
+-- 1. ACCESS MODEL V2 — APP ROLES, ADMIN PERMISSIONS, AND PRESETS
 -- ---------------------------------------------------------------------
 CREATE TABLE roles (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name            VARCHAR(80) UNIQUE NOT NULL,    -- admin, manager, purchasing, warehouse, delivery, customer, ...
+    name            VARCHAR(80) UNIQUE NOT NULL,    -- customer, delivery_agent, order_monitor
     description     VARCHAR(255),
     is_system       BOOLEAN NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -50,16 +50,67 @@ CREATE TABLE role_permissions (
     PRIMARY KEY (role_id, permission_id)
 );
 
+CREATE TABLE permission_presets (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            VARCHAR(80) UNIQUE NOT NULL,
+    description     VARCHAR(255),
+    is_system       BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE preset_permissions (
+    preset_id       UUID NOT NULL REFERENCES permission_presets(id) ON DELETE CASCADE,
+    permission_id   UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    PRIMARY KEY (preset_id, permission_id)
+);
+
 -- ---------------------------------------------------------------------
 -- 2. USERS & ADDRESSES
 -- ---------------------------------------------------------------------
 CREATE TABLE users (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    role_id         UUID NOT NULL REFERENCES roles(id),
+    role_id         UUID REFERENCES roles(id),
     name            VARCHAR(120),
-    phone           VARCHAR(32) UNIQUE NOT NULL,
+    phone           VARCHAR(32) UNIQUE,
+    username        VARCHAR(80) UNIQUE,
     email           VARCHAR(160),
     password_hash   VARCHAR(255),
+    must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
+    failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until    TIMESTAMPTZ,
+    session_version INTEGER NOT NULL DEFAULT 1,
+    permission_version INTEGER NOT NULL DEFAULT 1,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT users_identity_check CHECK (phone IS NOT NULL OR username IS NOT NULL),
+    CONSTRAINT users_username_format_check CHECK (username IS NULL OR username ~ '^[a-z][a-z0-9._-]{2,79}$')
+);
+
+CREATE TABLE user_presets (
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    preset_id       UUID NOT NULL REFERENCES permission_presets(id) ON DELETE CASCADE,
+    assigned_by     UUID NOT NULL REFERENCES users(id),
+    reason          VARCHAR(500) NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, preset_id)
+);
+
+CREATE TABLE user_permission_grants (
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    permission_id   UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    granted_by      UUID NOT NULL REFERENCES users(id),
+    reason          VARCHAR(500) NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, permission_id)
+);
+
+CREATE TABLE work_profiles (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    name            VARCHAR(120) NOT NULL,
+    app_role        VARCHAR(32) NOT NULL CHECK (app_role IN ('delivery_agent', 'order_monitor')),
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -81,6 +132,9 @@ CREATE TABLE refresh_tokens (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash VARCHAR(64) NOT NULL UNIQUE,
+  surface VARCHAR(16) NOT NULL CHECK (surface IN ('admin', 'app')),
+  client VARCHAR(20) CHECK (client IS NULL OR client IN ('mobile', 'web_store')),
+  session_version INTEGER NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL,
   revoked_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -149,7 +203,8 @@ CREATE TABLE notification_channel_preferences (
     CONSTRAINT notification_channel_preferences_pkey PRIMARY KEY (user_id, type, channel),
     CONSTRAINT notification_channel_preferences_type_check CHECK (type IN
       ('order_placed','order_confirmed','order_status_changed','out_for_delivery','delivered',
-       'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo')),
+       'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo',
+       'new_order','order_cancelled','delivery_assigned')),
     CONSTRAINT notification_channel_preferences_channel_check CHECK (channel IN ('push','sms')),
     CONSTRAINT notification_channel_preferences_critical_check
       CHECK (NOT (type = 'order_confirmed' AND channel = 'sms' AND enabled = false))
@@ -157,17 +212,36 @@ CREATE TABLE notification_channel_preferences (
 
 CREATE TABLE notification_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_key VARCHAR(160) NOT NULL UNIQUE,
+    event_key VARCHAR(160) NOT NULL,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR(40) NOT NULL,
+    target_role VARCHAR(32) NOT NULL CHECK (target_role IN ('customer','delivery_agent','order_monitor','staff')),
     entity_type VARCHAR(40) NOT NULL,
     entity_id UUID NOT NULL,
+    title_ar VARCHAR(200) NOT NULL,
+    body_ar TEXT NOT NULL,
+    title_en VARCHAR(200) NOT NULL,
+    body_en TEXT NOT NULL,
+    deep_link VARCHAR(500) NOT NULL,
+    read_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     enqueued_at TIMESTAMPTZ,
     processed_at TIMESTAMPTZ,
+    CONSTRAINT notification_events_event_key_user_id_key UNIQUE (event_key, user_id),
     CONSTRAINT notification_events_type_check CHECK (type IN
       ('order_placed','order_confirmed','order_status_changed','out_for_delivery','delivered',
-       'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo'))
+       'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo',
+       'new_order','order_cancelled','delivery_assigned'))
+);
+
+CREATE TABLE notification_stream_events (
+    sequence BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    notification_id UUID REFERENCES notification_events(id) ON DELETE CASCADE,
+    event VARCHAR(40) NOT NULL CHECK (event IN ('notification.created','notification.read','unread.count')),
+    data JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    published_at TIMESTAMPTZ
 );
 
 CREATE TABLE notification_logs (
@@ -690,6 +764,7 @@ CREATE TABLE audit_logs (
     before          JSONB,
     after           JSONB,
     ip              VARCHAR(64),
+    reason          VARCHAR(500),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -712,6 +787,9 @@ CREATE INDEX idx_movements_type         ON stock_movements(type);
 CREATE INDEX idx_reservations_order     ON stock_reservations(order_id);
 CREATE INDEX idx_device_tokens_user     ON device_tokens(user_id);
 CREATE INDEX idx_notification_events_pending ON notification_events(enqueued_at, created_at);
+CREATE INDEX idx_notification_events_inbox ON notification_events(user_id, read_at, created_at DESC, id DESC);
+CREATE INDEX idx_notification_stream_events_user_sequence ON notification_stream_events(user_id, sequence);
+CREATE INDEX idx_notification_stream_events_pending ON notification_stream_events(published_at, sequence);
 CREATE INDEX idx_notification_logs_user_history ON notification_logs(user_id, created_at DESC, id DESC);
 CREATE UNIQUE INDEX idx_addresses_one_default_per_user ON addresses(user_id)
     WHERE is_default;

@@ -37,11 +37,13 @@ model Role {
 }
 
 model Permission {
-  id               String           @id(map: "permissions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  key              String           @unique(map: "permissions_key_key") @db.VarChar(120)
-  group            String           @db.VarChar(80)
-  description      String?          @db.VarChar(255)
-  role_permissions RolePermission[]
+  id                 String                @id(map: "permissions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                String                @unique(map: "permissions_key_key") @db.VarChar(120)
+  group              String                @db.VarChar(80)
+  description        String?               @db.VarChar(255)
+  role_permissions   RolePermission[]
+  preset_permissions PresetPermission[]
+  user_grants        UserPermissionGrant[]
 
   @@map("permissions")
 }
@@ -57,41 +59,53 @@ model RolePermission {
 }
 
 model User {
-  id                        String                  @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  role_id                   String                  @db.Uuid
-  name                      String?                 @db.VarChar(120)
-  phone                     String                  @unique(map: "users_phone_key") @db.VarChar(32)
-  email                     String?                 @db.VarChar(160)
-  password_hash             String?                 @db.VarChar(255)
-  is_active                 Boolean                 @default(true)
-  created_at                DateTime                @default(now()) @db.Timestamptz(6)
-  updated_at                DateTime                @default(now()) @db.Timestamptz(6)
-  role                      Role                    @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
-  addresses                 Address[]
-  purchase_invoices         PurchaseInvoice[]       @relation("PurchaseInvoiceCreatedBy")
-  stock_movements           StockMovement[]         @relation("StockMovementUser")
-  cart                      Cart?
-  wishlist_items            WishlistItem[]
-  orders                    Order[]
-  assigned_pick_lists       PickList[]              @relation("PickListAssignee")
-  assigned_deliveries       Delivery[]              @relation("DeliveryAgent")
-  returns                   Return[]
-  reviewed_returns          Return[]                @relation("ReturnReviewer")
-  refund_ledger_entries     RefundLedgerEntry[]     @relation("RefundCreator")
-  product_reviews           ProductReview[]
-  moderated_product_reviews ProductReview[]         @relation("ProductReviewModerator")
-  delivery_ratings_as_agent DeliveryRating[]        @relation("DeliveryRatingAgent")
-  delivery_ratings_as_user  DeliveryRating[]        @relation("DeliveryRatingUser")
-  loyalty_account           LoyaltyAccount?
-  created_loyalty_entries   LoyaltyLedger[]         @relation("LoyaltyLedgerCreator")
-  audit_logs                AuditLog[]              @relation("AuditActor")
-  device_tokens             DeviceToken[]
-  notification_preferences  NotificationPreference?
-  notification_channels     NotificationChannelPreference[]
-  notification_events       NotificationEvent[]
-  notification_logs         NotificationLog[]
-  refresh_tokens            RefreshToken[]
-  uploaded_media            MediaObject[]           @relation("MediaUploadedBy")
+  id                          String                          @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role_id                     String?                         @db.Uuid
+  name                        String?                         @db.VarChar(120)
+  phone                       String?                         @unique(map: "users_phone_key") @db.VarChar(32)
+  username                    String?                         @unique(map: "users_username_key") @db.VarChar(80)
+  email                       String?                         @db.VarChar(160)
+  password_hash               String?                         @db.VarChar(255)
+  must_change_password        Boolean                         @default(false)
+  failed_login_attempts       Int                             @default(0)
+  locked_until                DateTime?                       @db.Timestamptz(6)
+  session_version             Int                             @default(1)
+  permission_version          Int                             @default(1)
+  is_active                   Boolean                         @default(true)
+  created_at                  DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime                        @default(now()) @db.Timestamptz(6)
+  role                        Role?                           @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
+  work_profile                WorkProfile?
+  permission_presets          UserPreset[]                    @relation("UserAccessPresets")
+  assigned_permission_presets UserPreset[]                    @relation("UserAccessPresetActors")
+  permission_grants           UserPermissionGrant[]           @relation("UserAccessGrants")
+  assigned_permission_grants  UserPermissionGrant[]           @relation("UserAccessGrantActors")
+  addresses                   Address[]
+  purchase_invoices           PurchaseInvoice[]               @relation("PurchaseInvoiceCreatedBy")
+  stock_movements             StockMovement[]                 @relation("StockMovementUser")
+  cart                        Cart?
+  wishlist_items              WishlistItem[]
+  orders                      Order[]
+  assigned_pick_lists         PickList[]                      @relation("PickListAssignee")
+  assigned_deliveries         Delivery[]                      @relation("DeliveryAgent")
+  returns                     Return[]
+  reviewed_returns            Return[]                        @relation("ReturnReviewer")
+  refund_ledger_entries       RefundLedgerEntry[]             @relation("RefundCreator")
+  product_reviews             ProductReview[]
+  moderated_product_reviews   ProductReview[]                 @relation("ProductReviewModerator")
+  delivery_ratings_as_agent   DeliveryRating[]                @relation("DeliveryRatingAgent")
+  delivery_ratings_as_user    DeliveryRating[]                @relation("DeliveryRatingUser")
+  loyalty_account             LoyaltyAccount?
+  created_loyalty_entries     LoyaltyLedger[]                 @relation("LoyaltyLedgerCreator")
+  audit_logs                  AuditLog[]                      @relation("AuditActor")
+  device_tokens               DeviceToken[]
+  notification_preferences    NotificationPreference?
+  notification_channels       NotificationChannelPreference[]
+  notification_events         NotificationEvent[]
+  notification_logs           NotificationLog[]
+  notification_stream_events  NotificationStreamEvent[]
+  refresh_tokens              RefreshToken[]
+  uploaded_media              MediaObject[]                   @relation("MediaUploadedBy")
 
   @@map("users")
 }
@@ -109,17 +123,84 @@ model OtpCode {
 }
 
 model RefreshToken {
-  id         String    @id(map: "refresh_tokens_pkey") @db.Uuid
-  user_id    String    @db.Uuid
-  token_hash String    @unique(map: "refresh_tokens_token_hash_key") @db.VarChar(64)
-  expires_at DateTime  @db.Timestamptz(6)
-  revoked_at DateTime? @db.Timestamptz(6)
-  created_at DateTime  @default(now()) @db.Timestamptz(6)
-  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "refresh_tokens_user_id_fkey")
+  id              String    @id(map: "refresh_tokens_pkey") @db.Uuid
+  user_id         String    @db.Uuid
+  token_hash      String    @unique(map: "refresh_tokens_token_hash_key") @db.VarChar(64)
+  surface         String    @db.VarChar(16)
+  client          String?   @db.VarChar(20)
+  session_version Int
+  expires_at      DateTime  @db.Timestamptz(6)
+  revoked_at      DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "refresh_tokens_user_id_fkey")
 
   @@index([user_id], map: "idx_refresh_tokens_user")
   @@index([expires_at], map: "idx_refresh_tokens_expiry")
   @@map("refresh_tokens")
+}
+
+model PermissionPreset {
+  id          String             @id(map: "permission_presets_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String             @unique(map: "permission_presets_name_key") @db.VarChar(80)
+  description String?            @db.VarChar(255)
+  is_system   Boolean            @default(false)
+  created_at  DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime           @default(now()) @db.Timestamptz(6)
+  permissions PresetPermission[]
+  users       UserPreset[]
+
+  @@map("permission_presets")
+}
+
+model PresetPermission {
+  preset_id     String           @db.Uuid
+  permission_id String           @db.Uuid
+  preset        PermissionPreset @relation(fields: [preset_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "preset_permissions_preset_id_fkey")
+  permission    Permission       @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "preset_permissions_permission_id_fkey")
+
+  @@id([preset_id, permission_id], map: "preset_permissions_pkey")
+  @@map("preset_permissions")
+}
+
+model UserPreset {
+  user_id     String           @db.Uuid
+  preset_id   String           @db.Uuid
+  assigned_by String           @db.Uuid
+  reason      String           @db.VarChar(500)
+  created_at  DateTime         @default(now()) @db.Timestamptz(6)
+  user        User             @relation("UserAccessPresets", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_presets_user_id_fkey")
+  preset      PermissionPreset @relation(fields: [preset_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_presets_preset_id_fkey")
+  actor       User             @relation("UserAccessPresetActors", fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "user_presets_assigned_by_fkey")
+
+  @@id([user_id, preset_id], map: "user_presets_pkey")
+  @@map("user_presets")
+}
+
+model UserPermissionGrant {
+  user_id       String     @db.Uuid
+  permission_id String     @db.Uuid
+  granted_by    String     @db.Uuid
+  reason        String     @db.VarChar(500)
+  created_at    DateTime   @default(now()) @db.Timestamptz(6)
+  user          User       @relation("UserAccessGrants", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_permission_grants_user_id_fkey")
+  permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_permission_grants_permission_id_fkey")
+  actor         User       @relation("UserAccessGrantActors", fields: [granted_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "user_permission_grants_granted_by_fkey")
+
+  @@id([user_id, permission_id], map: "user_permission_grants_pkey")
+  @@map("user_permission_grants")
+}
+
+model WorkProfile {
+  id         String   @id(map: "work_profiles_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @unique(map: "work_profiles_user_id_key") @db.Uuid
+  name       String   @db.VarChar(120)
+  app_role   String   @db.VarChar(32)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "work_profiles_user_id_fkey")
+
+  @@map("work_profiles")
 }
 
 model MediaObject {
@@ -157,16 +238,16 @@ model Address {
 }
 
 model DeviceToken {
-  id         String   @id(map: "device_tokens_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id    String   @db.Uuid
-  token      String   @db.VarChar(512)
-  platform   String   @db.VarChar(16)
-  locale     String?  @db.VarChar(8)
-  is_active  Boolean  @default(true)
-  last_seen_at DateTime @default(now()) @db.Timestamptz(6)
+  id             String    @id(map: "device_tokens_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String    @db.Uuid
+  token          String    @db.VarChar(512)
+  platform       String    @db.VarChar(16)
+  locale         String?   @db.VarChar(8)
+  is_active      Boolean   @default(true)
+  last_seen_at   DateTime  @default(now()) @db.Timestamptz(6)
   deactivated_at DateTime? @db.Timestamptz(6)
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "device_tokens_user_id_fkey")
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "device_tokens_user_id_fkey")
 
   @@unique([token], map: "device_tokens_token_key")
   @@index([user_id], map: "idx_device_tokens_user")
@@ -199,40 +280,66 @@ model NotificationChannelPreference {
 }
 
 model NotificationEvent {
-  id           String    @id(map: "notification_events_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  event_key    String    @unique(map: "notification_events_event_key_key") @db.VarChar(160)
-  user_id      String    @db.Uuid
-  type         String    @db.VarChar(40)
-  entity_type  String    @db.VarChar(40)
-  entity_id    String    @db.Uuid
-  created_at   DateTime  @default(now()) @db.Timestamptz(6)
-  enqueued_at  DateTime? @db.Timestamptz(6)
-  processed_at DateTime? @db.Timestamptz(6)
-  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_events_user_id_fkey")
-  logs         NotificationLog[]
+  id            String                    @id(map: "notification_events_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_key     String                    @db.VarChar(160)
+  user_id       String                    @db.Uuid
+  type          String                    @db.VarChar(40)
+  target_role   String                    @db.VarChar(32)
+  entity_type   String                    @db.VarChar(40)
+  entity_id     String                    @db.Uuid
+  title_ar      String                    @db.VarChar(200)
+  body_ar       String                    @db.Text
+  title_en      String                    @db.VarChar(200)
+  body_en       String                    @db.Text
+  deep_link     String                    @db.VarChar(500)
+  read_at       DateTime?                 @db.Timestamptz(6)
+  created_at    DateTime                  @default(now()) @db.Timestamptz(6)
+  enqueued_at   DateTime?                 @db.Timestamptz(6)
+  processed_at  DateTime?                 @db.Timestamptz(6)
+  user          User                      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_events_user_id_fkey")
+  logs          NotificationLog[]
+  stream_events NotificationStreamEvent[]
 
+  @@unique([event_key, user_id], map: "notification_events_event_key_user_id_key")
   @@index([enqueued_at, created_at], map: "idx_notification_events_pending")
+  @@index([user_id, read_at, created_at(sort: Desc), id(sort: Desc)], map: "idx_notification_events_inbox")
   @@map("notification_events")
 }
 
+model NotificationStreamEvent {
+  sequence        BigInt             @id(map: "notification_stream_events_pkey") @default(autoincrement())
+  user_id         String             @db.Uuid
+  notification_id String?            @db.Uuid
+  event           String             @db.VarChar(40)
+  data            Json
+  created_at      DateTime           @default(now()) @db.Timestamptz(6)
+  published_at    DateTime?          @db.Timestamptz(6)
+  user            User               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_stream_events_user_id_fkey")
+  notification    NotificationEvent? @relation(fields: [notification_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_stream_events_notification_id_fkey")
+
+  @@index([user_id, sequence], map: "idx_notification_stream_events_user_sequence")
+  @@index([published_at, sequence], map: "idx_notification_stream_events_pending")
+  @@map("notification_stream_events")
+}
+
 model NotificationLog {
-  id          String    @id(map: "notification_logs_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  event_id    String    @db.Uuid
-  user_id     String    @db.Uuid
-  type        String    @db.VarChar(40)
-  channel     String    @db.VarChar(8)
-  delivery_key String   @unique(map: "notification_logs_delivery_key_key") @db.VarChar(120)
-  status      String    @db.VarChar(8)
-  locale      String    @db.VarChar(8)
-  title       String    @db.VarChar(200)
-  body        String    @db.Text
-  entity_type String    @db.VarChar(40)
-  entity_id   String    @db.Uuid
-  created_at  DateTime  @default(now()) @db.Timestamptz(6)
-  sent_at     DateTime? @db.Timestamptz(6)
-  error       String?   @db.VarChar(500)
-  event       NotificationEvent @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_logs_event_id_fkey")
-  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_logs_user_id_fkey")
+  id           String            @id(map: "notification_logs_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id     String            @db.Uuid
+  user_id      String            @db.Uuid
+  type         String            @db.VarChar(40)
+  channel      String            @db.VarChar(8)
+  delivery_key String            @unique(map: "notification_logs_delivery_key_key") @db.VarChar(120)
+  status       String            @db.VarChar(8)
+  locale       String            @db.VarChar(8)
+  title        String            @db.VarChar(200)
+  body         String            @db.Text
+  entity_type  String            @db.VarChar(40)
+  entity_id    String            @db.Uuid
+  created_at   DateTime          @default(now()) @db.Timestamptz(6)
+  sent_at      DateTime?         @db.Timestamptz(6)
+  error        String?           @db.VarChar(500)
+  event        NotificationEvent @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_logs_event_id_fkey")
+  user         User              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_logs_user_id_fkey")
 
   @@index([user_id, created_at(sort: Desc), id(sort: Desc)], map: "idx_notification_logs_user_history")
   @@map("notification_logs")
@@ -853,6 +960,7 @@ model AuditLog {
   before      Json?    @db.JsonB
   after       Json?    @db.JsonB
   ip          String?  @db.VarChar(64)
+  reason      String?  @db.VarChar(500)
   created_at  DateTime @default(now()) @db.Timestamptz(6)
   actor       User?    @relation("AuditActor", fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "audit_logs_actor_id_fkey")
 

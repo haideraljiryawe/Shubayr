@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import pg from 'pg';
+import Redis from 'ioredis';
 
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
 if (
@@ -69,6 +70,65 @@ async function waitFor(sql, args, predicate, description) {
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`Timed out waiting for ${description}`);
+}
+
+async function openStream(ticket, { since, lastEventId, signal } = {}) {
+  const url = new URL(`${api}/notifications/stream`);
+  url.searchParams.set('ticket', ticket);
+  if (since !== undefined) url.searchParams.set('since', String(since));
+  const response = await fetch(url, {
+    signal,
+    headers:
+      lastEventId === undefined ? {} : { 'last-event-id': String(lastEventId) },
+  });
+  if (response.status !== 200) {
+    check(response.status, 200, `SSE open: ${await response.text()}`);
+  } else {
+    check(response.status, 200, 'SSE open');
+  }
+  return { reader: response.body.getReader(), buffer: '' };
+}
+
+async function nextEvent(stream, wanted, timeout = 4000) {
+  const read = async () => {
+    while (true) {
+      const boundary = stream.buffer.indexOf('\n\n');
+      if (boundary >= 0) {
+        const frame = stream.buffer.slice(0, boundary);
+        stream.buffer = stream.buffer.slice(boundary + 2);
+        if (frame.startsWith(':')) continue;
+        const fields = Object.fromEntries(
+          frame.split('\n').map((line) => {
+            const separator = line.indexOf(':');
+            return [
+              line.slice(0, separator),
+              line.slice(separator + 1).trimStart(),
+            ];
+          }),
+        );
+        if (!wanted || fields.event === wanted) {
+          return {
+            id: fields.id,
+            event: fields.event,
+            data: JSON.parse(fields.data),
+          };
+        }
+        continue;
+      }
+      const { done, value } = await stream.reader.read();
+      if (done) throw new Error('SSE stream closed before the expected event');
+      stream.buffer += new TextDecoder().decode(value);
+    }
+  };
+  return Promise.race([
+    read(),
+    new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`Timed out waiting for SSE ${wanted}`)),
+        timeout,
+      ),
+    ),
+  ]);
 }
 
 try {
@@ -147,7 +207,7 @@ try {
   const enabled = (prefs, type, channel) =>
     prefs.preferences.find((p) => p.type === type && p.channel === channel)
       ?.enabled;
-  check(defaults.preferences.length, 20, 'all type/channel pairs returned');
+  check(defaults.preferences.length, 26, 'all type/channel pairs returned');
   check(
     enabled(defaults, 'delivered', 'push'),
     true,
@@ -287,9 +347,10 @@ try {
 
   const promoId = randomUUID();
   await db.query(
-    `INSERT INTO notification_events (event_key,user_id,type,entity_type,entity_id)
-    VALUES ($1,$2,'promo','order',$3)`,
-    [`verify-promo:${promoId}`, bId, promoId],
+    `INSERT INTO notification_events
+      (event_key,user_id,type,target_role,entity_type,entity_id,title_ar,body_ar,title_en,body_en,deep_link)
+    VALUES ($1,$2,'promo','customer','order',$3,'عرض','عرض جديد','Offer','New offer',$4)`,
+    [`verify-promo:${promoId}`, bId, promoId, `/orders/${promoId}`],
   );
   const promo = await waitFor(
     "SELECT status FROM notification_logs WHERE entity_id=$1 AND type='promo' AND channel='push'",
@@ -301,9 +362,10 @@ try {
 
   const confirmId = randomUUID();
   await db.query(
-    `INSERT INTO notification_events (event_key,user_id,type,entity_type,entity_id)
-    VALUES ($1,$2,'order_confirmed','order',$3)`,
-    [`verify-confirm:${confirmId}`, bId, confirmId],
+    `INSERT INTO notification_events
+      (event_key,user_id,type,target_role,entity_type,entity_id,title_ar,body_ar,title_en,body_en,deep_link)
+    VALUES ($1,$2,'order_confirmed','customer','order',$3,'تأكيد الطلب','تم التأكيد','Order confirmed','Confirmed',$4)`,
+    [`verify-confirm:${confirmId}`, bId, confirmId, `/orders/${confirmId}`],
   );
   const sms = await waitFor(
     "SELECT status FROM notification_logs WHERE entity_id=$1 AND type='order_confirmed' AND channel='sms'",
@@ -336,17 +398,193 @@ try {
   check(
     historyB.data.some(
       (item) =>
-        item.entity_id === bOrder.deliveryId && item.status === 'skipped',
+        item.entity_id === bOrder.deliveryId && item.type === 'delivered',
     ),
     true,
-    'own history includes skipped attempt',
+    'own inbox includes saved delivered event despite push opt-out',
+  );
+  check(
+    historyB.data.find(
+      (item) =>
+        item.entity_id === bOrder.deliveryId && item.type === 'delivered',
+    )?.deep_link,
+    `/orders/${bOrder.orderId}`,
+    'customer delivery update links to the owned order',
   );
   check(
     historyB.data.some(
-      (item) => item.entity_id === confirmId && item.channel === 'sms',
+      (item) => item.entity_id === confirmId && item.type === 'order_confirmed',
     ),
     true,
-    'own history includes dev SMS',
+    'own inbox includes confirmation event',
+  );
+  const unreadBefore = await request('/me/notifications/unread-count', {
+    token: b,
+  });
+  const unreadItems = historyB.data.filter((item) => item.read_at === null);
+  check(unreadItems.length >= 2, true, 'inbox has independent unread rows');
+  check(
+    Boolean(
+      unreadItems[0].title_ar &&
+      unreadItems[0].title_en &&
+      unreadItems[0].deep_link,
+    ),
+    true,
+    'saved notification contains bilingual fixed text and a deep link',
+  );
+
+  const cursor = await row(
+    'SELECT coalesce(max(sequence),0)::text AS sequence FROM notification_stream_events WHERE user_id=$1',
+    [bId],
+  );
+  const liveTicket = await request('/notifications/stream-ticket', {
+    token: b,
+    method: 'POST',
+    expected: 201,
+  });
+  const live = await openStream(liveTicket.ticket, { since: cursor.sequence });
+  await Promise.all([
+    request(`/me/notifications/${unreadItems[0].id}/read`, {
+      token: b,
+      method: 'PATCH',
+    }),
+    request(`/me/notifications/${unreadItems[0].id}/read`, {
+      token: b,
+      method: 'PATCH',
+    }),
+  ]);
+  const liveRead = await nextEvent(live, 'notification.read');
+  check(
+    liveRead.data.notification_ids,
+    [unreadItems[0].id],
+    'read state reaches another live session',
+  );
+  check(
+    (
+      await row(
+        "SELECT count(*)::int AS count FROM notification_stream_events WHERE notification_id=$1 AND event='notification.read'",
+        [unreadItems[0].id],
+      )
+    ).count,
+    1,
+    'concurrent mark-read requests emit one state transition',
+  );
+  await live.reader.cancel();
+
+  const unreadAfterOne = await request(
+    '/me/notifications?unread=true&per_page=100',
+    { token: b },
+  );
+  check(
+    unreadAfterOne.total,
+    unreadBefore.unread_count - 1,
+    'reading one decrements unread count once',
+  );
+  check(
+    unreadAfterOne.data.some((item) => item.id === unreadItems[1].id),
+    true,
+    'reading one leaves other notifications unread',
+  );
+  await request(`/me/notifications/${unreadItems[0].id}/read`, {
+    token: a,
+    method: 'PATCH',
+    expected: 404,
+  });
+
+  const replayCursor = await row(
+    'SELECT coalesce(max(sequence),0)::text AS sequence FROM notification_stream_events WHERE user_id=$1',
+    [bId],
+  );
+  await request(`/me/notifications/${unreadItems[1].id}/read`, {
+    token: b,
+    method: 'PATCH',
+  });
+  const replayTicket = await request('/notifications/stream-ticket', {
+    token: b,
+    method: 'POST',
+    expected: 201,
+  });
+  const replay = await openStream(replayTicket.ticket, {
+    lastEventId: replayCursor.sequence,
+  });
+  const replayedRead = await nextEvent(replay, 'notification.read');
+  check(
+    replayedRead.data.notification_ids,
+    [unreadItems[1].id],
+    'Last-Event-ID replays a missed event',
+  );
+  await replay.reader.cancel();
+
+  const singleUseTicket = await request('/notifications/stream-ticket', {
+    token: b,
+    method: 'POST',
+    expected: 201,
+  });
+  const firstUse = await openStream(singleUseTicket.ticket, {
+    since: '999999999999',
+  });
+  await firstUse.reader.cancel();
+  await request(
+    `/notifications/stream?ticket=${encodeURIComponent(singleUseTicket.ticket)}`,
+    {
+      expected: 401,
+    },
+  );
+
+  const expiringTicket = await request('/notifications/stream-ticket', {
+    token: b,
+    method: 'POST',
+    expected: 201,
+  });
+  const database = new URL(process.env.DATABASE_URL).pathname;
+  const prefix = `shubayr:notify:${createHash('sha256').update(database).digest('hex').slice(0, 16)}`;
+  const redis = new Redis(process.env.REDIS_URL, {
+    maxRetriesPerRequest: null,
+  });
+  await redis.pexpire(`${prefix}:ticket:${expiringTicket.ticket}`, 1);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  await request(
+    `/notifications/stream?ticket=${encodeURIComponent(expiringTicket.ticket)}`,
+    {
+      expected: 401,
+    },
+  );
+  await redis.quit();
+
+  const totalBeforeAllRead = historyB.total;
+  const isolationCursor = await row(
+    'SELECT coalesce(max(sequence),0)::text AS sequence FROM notification_stream_events',
+  );
+  const isolationTicket = await request('/notifications/stream-ticket', {
+    token: a,
+    method: 'POST',
+    expected: 201,
+  });
+  const isolationAbort = new AbortController();
+  const isolated = await openStream(isolationTicket.ticket, {
+    since: isolationCursor.sequence,
+    signal: isolationAbort.signal,
+  });
+  await request('/me/notifications/read-all', { token: b, method: 'PATCH' });
+  const leaked = await Promise.race([
+    isolated.reader
+      .read()
+      .then(({ value }) => Boolean(value))
+      .catch(() => false),
+    new Promise((resolve) => setTimeout(() => resolve(false), 750)),
+  ]);
+  isolationAbort.abort();
+  check(leaked, false, 'another recipient receives no read-state SSE event');
+  check(
+    (await request('/me/notifications/unread-count', { token: b }))
+      .unread_count,
+    0,
+    'mark-all clears only unread state',
+  );
+  check(
+    (await request('/me/notifications?per_page=100', { token: b })).total,
+    totalBeforeAllRead,
+    'mark-all never deletes notifications',
   );
   check(
     (

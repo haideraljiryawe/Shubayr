@@ -1,5 +1,6 @@
-import { SetMetadata } from '@nestjs/common';
+import { applyDecorators, SetMetadata } from '@nestjs/common';
+import { PublicPolicy } from './access-policy.decorator';
 
 export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = (): MethodDecorator & ClassDecorator =>
-  SetMetadata(IS_PUBLIC_KEY, true);
+  applyDecorators(SetMetadata(IS_PUBLIC_KEY, true), PublicPolicy());

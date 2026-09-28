@@ -38,7 +38,7 @@ assert.deepEqual(composite([0, 0, 0, 0.5], [255, 255, 255, 1]), [127.5, 127.5, 1
 assert.equal(contrast([0, 0, 0, 1], [0, 0, 0, 0]), 21);
 assert.ok(Math.abs(contrast([0, 0, 0, 0.5], [255, 255, 255, 1]) - 3.97665) < 0.00001);
 
-const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../src/app/tokens.css", import.meta.url), "utf8");
 function token(name) {
   const hex = css.match(new RegExp(`--t-${name}:\\s*#([0-9a-f]{6}(?:[0-9a-f]{2})?)\\s*;`, "i"))?.[1];
   assert.ok(hex, `Missing hex token: --t-${name}`);

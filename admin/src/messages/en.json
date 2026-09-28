@@ -1,0 +1,282 @@
+{
+  "brand": {
+    "name": "Shubayr",
+    "admin": "Shubayr Admin",
+    "adminShort": "Admin"
+  },
+  "nav": {
+    "label": "Main menu",
+    "dashboard": "Dashboard",
+    "staff": "Staff",
+    "presets": "Permission presets",
+    "workPhones": "Work phones",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signInTitle": "Sign in to the admin",
+    "signInBody": "Use your username and password.",
+    "sessionExpired": "Your session ended. Please sign in again.",
+    "locked": "This account is temporarily locked after repeated failed attempts. Wait 15 minutes and try again, or contact an administrator.",
+    "invalidCredentials": "The username or password is incorrect.",
+    "username": "Username",
+    "password": "Password",
+    "backToAdmin": "Back to the admin"
+  },
+  "password": {
+    "title": "Change password",
+    "body": "Choose a new password for your account.",
+    "forcedBody": "You must change your temporary password before continuing.",
+    "forcedNotice": "Your account is using a temporary password. The admin stays locked until you change it.",
+    "currentWrong": "The current password is incorrect.",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm new password",
+    "submit": "Save password",
+    "rules": "Password requirements",
+    "rule": {
+      "length": "At least 12 characters",
+      "lower": "A lowercase letter",
+      "upper": "An uppercase letter",
+      "digit": "A number",
+      "symbol": "A symbol such as ! or #"
+    },
+    "weak": "The password does not meet every requirement.",
+    "mismatch": "The passwords do not match.",
+    "sameAsCurrent": "Choose a password different from the current one.",
+    "temporary": "Temporary password",
+    "temporaryHint": "They will be asked to change it at their first sign-in.",
+    "generate": "Generate password",
+    "show": "Show",
+    "hide": "Hide"
+  },
+  "common": {
+    "reason": "Reason for the change",
+    "reasonHint": "Stored in the audit log with your name and the time (at least 3 characters).",
+    "reasonRequired": "Enter a reason of at least 3 characters.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "switchLanguage": "Change language"
+  },
+  "errors": {
+    "validation": "Some fields are not valid. Check them and try again.",
+    "forbidden": "You don't have permission to do this.",
+    "passwordChange": "You must change your temporary password first.",
+    "unauthorized": "Your session ended. Please sign in again.",
+    "locked": "This account is temporarily locked.",
+    "rateLimited": "Too many requests in a short time. Wait a moment and try again.",
+    "notFound": "This item does not exist or was deleted.",
+    "conflict": "This conflicts with existing data.",
+    "customerPhone": "This number belongs to a customer and cannot become a work phone. Use a different number.",
+    "unknown": "Something went wrong. Please try again.",
+    "forbiddenTitle": "You don't have access",
+    "forbiddenBody": "This page needs a permission your account doesn't have. Ask an administrator if you need it.",
+    "loadFailedTitle": "The page could not load",
+    "loadFailedBody": "We couldn't reach the server. Try again in a moment.",
+    "backToDashboard": "Back to the dashboard"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "This item may have been deleted, or the link is wrong."
+  },
+  "numbers": {
+    "required": "This field is required.",
+    "invalid": "Enter a valid number.",
+    "ambiguous_separator": "Use a point (.) or the Arabic decimal mark (٫) for fractions only — no thousands separators.",
+    "not_integer": "Enter a whole number.",
+    "too_many_decimals": "Too many decimal places.",
+    "negative": "The value cannot be negative.",
+    "below_min": "The value is below the minimum.",
+    "above_max": "The value is above the maximum."
+  },
+  "table": {
+    "pagination": "Pagination",
+    "range": "{from}–{to} of {total}",
+    "perPage": "Per page",
+    "previous": "Previous page",
+    "next": "Next page",
+    "page": "Page {page} of {last}",
+    "goTo": "Page",
+    "go": "Go"
+  },
+  "permissions": {
+    "filter": "Search permissions",
+    "count": "{chosen} of {total}",
+    "fromPreset": "Granted by a preset"
+  },
+  "permissionGroups": {
+    "orders": "Orders",
+    "catalog": "Catalog & prices",
+    "purchasing": "Purchasing & suppliers",
+    "payments": "Payments",
+    "inventory": "Inventory",
+    "returns": "Returns",
+    "reviews": "Reviews",
+    "loyalty": "Loyalty",
+    "deliveries": "Deliveries",
+    "access": "Users & access",
+    "settings": "Settings",
+    "reports": "Reports",
+    "accounting": "Accounting"
+  },
+  "dashboard": {
+    "welcome": "Welcome, {name}",
+    "body": "Manage staff, their permissions and work phones from here.",
+    "section": {
+      "staff": "Create, edit and deactivate staff accounts, and reset passwords.",
+      "presets": "Ready-made permission sets you assign to staff.",
+      "workPhones": "Register or revoke delivery-agent and order-monitor phones."
+    },
+    "comingTitle": "Coming next",
+    "comingBody": "Orders, catalog, stock and accounting arrive with the next backend phases.",
+    "noSections": "Your current permissions don't open any sections yet."
+  },
+  "staff": {
+    "title": "Staff",
+    "description": "Admin accounts with their presets and extra grants.",
+    "new": "New staff member",
+    "newDescription": "Creates an account with a temporary password that must be changed at first sign-in.",
+    "edit": "Manage staff member",
+    "backToList": "All staff",
+    "search": "Search by name, username or email",
+    "empty": "No matching staff.",
+    "manage": "Manage",
+    "extraCount": "{count, plural, one {# extra grant} other {# extra grants}}",
+    "columns": {
+      "name": "Name",
+      "username": "Username",
+      "presets": "Access",
+      "status": "Status",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Deactivated",
+      "must_change": "Password change pending"
+    },
+    "filters": {
+      "status": "Status",
+      "preset": "Preset",
+      "any": "All"
+    },
+    "fields": {
+      "username": "Username",
+      "usernameHint": "Lowercase letters, digits and . _ - , starting with a letter.",
+      "name": "Full name",
+      "email": "Email (optional)"
+    },
+    "profileTitle": "Profile",
+    "accessTitle": "Access",
+    "accessHint": "Changes apply from their very next request — no new sign-in needed.",
+    "accessUnavailable": "Viewing presets needs the roles.manage permission, which your account doesn't have.",
+    "presetsTitle": "Presets",
+    "presetsHint": "A staff member can hold several presets.",
+    "extraTitle": "Extra grants",
+    "extraHint": "Individual permissions on top of the chosen presets.",
+    "create": "Create account",
+    "created": "Staff account created.",
+    "saveAccess": "Save access",
+    "savedProfile": "Profile saved.",
+    "savedAccess": "Access saved.",
+    "accountTitle": "Account",
+    "accountHint": "Deactivating or resetting the password ends all of their sessions at once.",
+    "resetPassword": "Reset password",
+    "resetPasswordTitle": "Reset password",
+    "resetPasswordBody": "Their sessions end, and they must change this temporary password when they sign in.",
+    "passwordWeak": "The temporary password does not meet every requirement.",
+    "passwordReset": "Password reset.",
+    "deactivate": "Deactivate",
+    "deactivateTitle": "Deactivate this account?",
+    "deactivateBody": "They can no longer sign in, and every session ends immediately. You can reactivate them later.",
+    "deactivated": "Account deactivated.",
+    "reactivate": "Reactivate",
+    "reactivateTitle": "Reactivate this account?",
+    "reactivateBody": "They will be able to sign in again with their current access.",
+    "reactivated": "Account reactivated."
+  },
+  "presets": {
+    "title": "Permission presets",
+    "description": "Ready-made permission sets assigned to staff. Built-in presets ship with the system and cannot be deleted.",
+    "new": "New preset",
+    "newDescription": "Pick permissions by area, then assign the preset to staff.",
+    "edit": "Edit",
+    "search": "Search by preset name or description",
+    "empty": "No matching presets.",
+    "system": "Built-in",
+    "custom": "Custom",
+    "permissionCount": "{count, plural, =0 {No permissions} one {# permission} other {# permissions}}",
+    "columns": {
+      "name": "Preset",
+      "permissions": "Permissions",
+      "actions": "Actions"
+    },
+    "filters": {
+      "kind": "Kind",
+      "any": "All"
+    },
+    "fields": {
+      "name": "Preset name",
+      "nameHint": "Lowercase letters, digits and . _ - , e.g. order_desk.",
+      "description": "Description"
+    },
+    "permissionsTitle": "Permissions",
+    "permissionsHint": "{count, plural, =0 {No permissions chosen yet.} one {# permission chosen.} other {# permissions chosen.}}",
+    "create": "Create preset",
+    "created": "Preset created.",
+    "saved": "Preset saved.",
+    "delete": "Delete preset",
+    "deleteTitle": "Delete the preset {name}?",
+    "deleteBody": "Staff holding it lose its permissions immediately.",
+    "deleted": "Preset deleted."
+  },
+  "workPhones": {
+    "title": "Work phones",
+    "description": "Delivery-agent and order-monitor phones. The server assigns the phone's role when it signs in to the app or the store.",
+    "registerTitle": "Register a work phone",
+    "changeTitle": "Change the phone's role",
+    "registerHint": "A number owned by a customer cannot be registered. Changes apply at once and end the phone's earlier sessions.",
+    "register": "Register phone",
+    "saveChange": "Save change",
+    "registered": "Work phone registered.",
+    "updated": "Work phone updated.",
+    "phoneInvalid": "Enter a valid phone number, e.g. 07701234567.",
+    "search": "Search by name or number",
+    "empty": "No matching work phones.",
+    "changeRole": "Change role",
+    "reactivate": "Reactivate",
+    "revoke": "Revoke",
+    "revokeTitle": "Revoke {name}'s phone?",
+    "revokeBody": "{phone} stops working immediately; its app sessions end on their next request.",
+    "revoked": "Work phone revoked.",
+    "columns": {
+      "name": "Name",
+      "phone": "Phone",
+      "role": "Role",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "role": {
+      "delivery_agent": "Delivery agent",
+      "order_monitor": "Order monitor"
+    },
+    "status": {
+      "active": "Active",
+      "revoked": "Revoked"
+    },
+    "filters": {
+      "role": "Role",
+      "status": "Status",
+      "any": "All"
+    },
+    "fields": {
+      "phone": "Phone number",
+      "phoneHint": "Local 07XXXXXXXXX or international +964…",
+      "name": "Person's name",
+      "nameHint": "Shown on their profile and on the orders assigned to them.",
+      "role": "Role"
+    }
+  }
+}

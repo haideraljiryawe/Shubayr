@@ -1,13 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UserSelfUpdateDto } from './dto/user-self-update.dto';
+import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 
 const profileInclude = {
-  role: {
-    include: {
-      role_permissions: { include: { permission: true } },
-    },
-  },
+  role: true,
 } as const;
 
 type UserWithAccess = Awaited<
@@ -15,23 +12,28 @@ type UserWithAccess = Awaited<
 > & {
   role: {
     name: string;
-    role_permissions: Array<{ permission: { key: string } }>;
-  };
+    role_permissions?: Array<{ permission: { key: string } }>;
+  } | null;
 };
 
 @Injectable()
 export class MeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCurrentUser(userId: string) {
+  async getCurrentUser(session: AuthenticatedRequestUser | string) {
+    const userId = typeof session === 'string' ? session : session.id;
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       include: profileInclude,
     });
-    return this.toResponse(user);
+    return this.toResponse(user, session);
   }
 
-  async updateCurrentUser(userId: string, input: UserSelfUpdateDto) {
+  async updateCurrentUser(
+    session: AuthenticatedRequestUser | string,
+    input: UserSelfUpdateDto,
+  ) {
+    const userId = typeof session === 'string' ? session : session.id;
     const data: { name?: string; email?: string | null } = {};
     if (input.name !== undefined) data.name = input.name.trim();
     if (input.email !== undefined) {
@@ -46,20 +48,28 @@ export class MeService {
       data,
       include: profileInclude,
     });
-    return this.toResponse(user);
+    return this.toResponse(user, session);
   }
 
-  private toResponse(user: UserWithAccess) {
+  private toResponse(
+    user: UserWithAccess,
+    session: AuthenticatedRequestUser | string,
+  ) {
+    const legacy = typeof session === 'string';
     return {
       id: user.id,
       name: user.name,
       phone: user.phone,
       email: user.email,
       is_active: user.is_active,
-      role: user.role.name,
-      permissions: user.role.role_permissions.map(
-        ({ permission }) => permission.key,
-      ),
+      username: user.username,
+      role:
+        legacy || session.surface === 'app' ? (user.role?.name ?? null) : null,
+      permissions: legacy
+        ? (user.role?.role_permissions ?? []).map((row) => row.permission.key)
+        : session.permissions,
+      surface: legacy ? 'app' : session.surface,
+      client: legacy ? null : session.client,
       created_at: user.created_at,
     };
   }

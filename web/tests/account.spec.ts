@@ -397,24 +397,33 @@ test("the language page switches locale and mirrors the layout", async ({
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 });
 
-test("notification preferences toggle and persist on the device", async ({
+test("notification preferences toggle per type and channel", async ({
   page,
 }) => {
   await signIn(page);
   await page.goto("/account/notifications");
 
-  // Order updates start on, offers start off.
-  await expect(page.getByTestId("notify-orders")).toBeChecked();
-  await expect(page.getByTestId("notify-offers")).not.toBeChecked();
+  // The contract's defaults: transactional push on, promo off.
+  await expect(page.getByTestId("notify-order_placed-push")).toBeChecked();
+  await expect(page.getByTestId("notify-promo-push")).not.toBeChecked();
 
-  // The switch input is sr-only; the visible label is what a pointer hits.
-  await page.getByTestId("notify-offers-label").click();
-  await expect(page.getByTestId("notify-offers")).toBeChecked();
+  // The switch input is sr-only; its enclosing label is the visible control,
+  // which is what a pointer actually hits.
+  await page
+    .locator('label:has([data-testid="notify-promo-push"])')
+    .click();
+  await expect(page.getByTestId("notify-promo-push")).toBeChecked();
 
-  // A reload resets the mock API but not browser storage, so the toggle holds.
-  await page.reload();
-  await expect(page.getByTestId("notify-offers")).toBeChecked();
-  await expect(page.getByTestId("notify-orders")).toBeChecked();
+  // Order-confirmation SMS is mandatory, so it is on and cannot be moved —
+  // the server would refuse, and the UI does not offer the attempt.
+  const mandatory = page.getByTestId("notify-order_confirmed-sms");
+  await expect(mandatory).toBeChecked();
+  await expect(mandatory).toBeDisabled();
+
+  // Every type is offered on both channels.
+  await expect(page.getByTestId("notification-prefs").locator("> li")).toHaveCount(
+    10,
+  );
 });
 
 test("payments states that cash on delivery is the only method", async ({

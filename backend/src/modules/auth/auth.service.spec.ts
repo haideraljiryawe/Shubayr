@@ -47,12 +47,18 @@ const user = {
   id: '11111111-1111-4111-8111-111111111111',
   name: null,
   phone: '+9647700000000',
+  username: null,
   email: null,
   is_active: true,
+  must_change_password: false,
+  failed_login_attempts: 0,
+  locked_until: null,
+  session_version: 1,
+  permission_version: 1,
+  work_profile: null,
   created_at: new Date('2026-01-01T00:00:00Z'),
   role: {
     name: 'customer',
-    role_permissions: [{ permission: { key: 'catalog.view' } }],
   },
 };
 
@@ -105,7 +111,10 @@ describe('AuthService', () => {
       role: {
         findUnique: jest.fn().mockResolvedValue({ id: 'customer-role' }),
       },
-      user: { upsert: jest.fn().mockResolvedValue(user) },
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue(user),
+      },
     };
     const prisma = {
       otpCode: {
@@ -134,7 +143,8 @@ describe('AuthService', () => {
     expect(result.user).toEqual(
       expect.objectContaining({
         role: 'customer',
-        permissions: ['catalog.view'],
+        permissions: [],
+        surface: 'app',
       }),
     );
     expect(result.access_token).not.toEqual(result.refresh_token);
@@ -148,7 +158,14 @@ describe('AuthService', () => {
   it('rotates a valid refresh token and rejects its replay', async () => {
     const id = '22222222-2222-4222-8222-222222222222';
     const oldToken = await jwt.signAsync(
-      { sub: user.id, typ: 'refresh', jti: id },
+      {
+        sub: user.id,
+        typ: 'refresh',
+        jti: id,
+        surface: 'app',
+        client: 'mobile',
+        ver: 1,
+      },
       { secret: refreshSecret, expiresIn: 3600 },
     );
     const updateMany = jest
@@ -166,6 +183,9 @@ describe('AuthService', () => {
           token_hash: createHash('sha256').update(oldToken).digest('hex'),
           expires_at: new Date(Date.now() + 3_600_000),
           revoked_at: null,
+          surface: 'app',
+          client: 'mobile',
+          session_version: 1,
           user,
         }),
       },

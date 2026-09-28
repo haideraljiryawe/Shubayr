@@ -7,7 +7,6 @@ if (!/^shubayr_[a-f0-9]{16}_verify$/.test(process.env.ACCEPTANCE_DATABASE_NAME ?
 if (!api || new URL(api).hostname !== '127.0.0.1' || !new URL(api).port) {
   throw new Error('Acceptance requires the runner-owned loopback API URL');
 }
-const adminPhone = process.env.ACCEPTANCE_ADMIN_PHONE ?? '+9647700000001';
 const customerPhone = process.env.ACCEPTANCE_CUSTOMER_PHONE ?? '+9647700000006';
 const expectedOtp = process.env.DEV_OTP ?? '000000';
 let assertions = 0;
@@ -53,6 +52,12 @@ async function login(phone) {
   });
 }
 
+function adminLogin(username = 'admin', password = 'Shubayr-Dev-Admin!2026') {
+  return json('/admin/auth/login', {
+    method: 'POST', body: { username, password }, expected: 201,
+  });
+}
+
 async function upload(token, fileName) {
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZrP8AAAAASUVORK5CYII=',
@@ -74,8 +79,9 @@ async function upload(token, fileName) {
   return payload;
 }
 
-const admin = await login(adminPhone);
-check(admin.user.role, 'admin', 'seeded admin must retain the admin role');
+const admin = await adminLogin();
+check(admin.user.surface, 'admin', 'seeded admin receives an admin-surface session');
+check(admin.user.role, null, 'admin sessions never carry an app role');
 const suffix = Date.now().toString(36);
 const [primaryMedia, secondaryMedia] = await Promise.all([
   upload(admin.access_token, `acceptance-primary-${suffix}.png`),

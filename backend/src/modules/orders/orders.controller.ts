@@ -12,7 +12,10 @@ import {
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import {
+  AppPolicy,
+  Policy,
+} from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import {
   OrderQueryDto,
@@ -28,11 +31,13 @@ export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
 
   @Get()
+  @AppPolicy('customer')
   list(@Req() request: UserRequest, @Query() query: OrderQueryDto) {
     return this.orders.list(request.user.id, query);
   }
 
   @Post()
+  @AppPolicy('customer')
   place(
     @Req() request: UserRequest,
     @Body() input: PlaceOrderDto,
@@ -42,6 +47,7 @@ export class OrdersController {
   }
 
   @Get(':id')
+  @AppPolicy('customer')
   detail(
     @Req() request: UserRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
@@ -50,6 +56,7 @@ export class OrdersController {
   }
 
   @Get(':id/track')
+  @AppPolicy('customer')
   track(
     @Req() request: UserRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
@@ -58,6 +65,7 @@ export class OrdersController {
   }
 
   @Post(':id/cancel')
+  @AppPolicy('customer')
   @HttpCode(200)
   cancel(
     @Req() request: UserRequest,
@@ -66,7 +74,19 @@ export class OrdersController {
     return this.orders.cancel(request.user.id, id);
   }
 
-  @RequirePermissions('orders.manage')
+  @Policy({
+    access: 'authenticated',
+    surfaces: ['admin'],
+    permissionFromBody: {
+      field: 'status',
+      map: {
+        confirmed: 'orders.accept',
+        preparing: 'orders.prepare',
+        ready_for_dispatch: 'orders.mark_ready',
+        dispatched: 'orders.handover',
+      },
+    },
+  })
   @Patch(':id/status')
   status(
     @Req() request: UserRequest,

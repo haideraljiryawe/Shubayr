@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
+import { AppPolicy } from '../../common/decorators/access-policy.decorator';
 import { AddressesService } from './addresses.service';
 import {
   AddressCreateDto,
@@ -22,6 +23,7 @@ import {
 
 type UserRequest = Request & { user: AuthenticatedRequestUser };
 
+@AppPolicy('customer')
 @Controller('addresses')
 export class AddressesController {
   constructor(private readonly addresses: AddressesService) {}

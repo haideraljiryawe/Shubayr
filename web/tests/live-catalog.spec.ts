@@ -1,4 +1,5 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { API, requireLiveApi } from "./live-api";
 
 /**
  * Smoke test against the REAL backend.
@@ -13,24 +14,9 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
  * dev-server origin and would otherwise make this fail for the wrong reason.
  */
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-
-async function reachable(request: APIRequestContext): Promise<boolean> {
-  try {
-    const response = await request.get(`${API}/settings`, { timeout: 3000 });
-    return response.ok();
-  } catch {
-    return false;
-  }
-}
-
 test.describe("live catalog", () => {
   test.beforeEach(async ({ request }) => {
-    test.skip(
-      !(await reachable(request)),
-      `No API at ${API} — start the backend to run the live smoke test.`,
-    );
+    await requireLiveApi(request, "the live smoke test");
   });
 
   test("serves the seeded department tree with localized names", async ({
@@ -150,7 +136,11 @@ test.describe("live catalog", () => {
     expect(requested.ok()).toBe(true);
 
     const verified = await request.post(`${API}/auth/verify-otp`, {
-      data: { phone, code: process.env.DEV_OTP ?? "000000" },
+      data: {
+        phone,
+        code: process.env.DEV_OTP ?? "000000",
+        client: "web_store",
+      },
     });
     expect(verified.ok()).toBe(true);
 
@@ -163,6 +153,11 @@ test.describe("live catalog", () => {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     expect(me.ok()).toBe(true);
-    expect((await me.json()).phone).toBe(phone);
+    const user = await me.json();
+    expect(user.phone).toBe(phone);
+    // API 6.0: a phone session is the app surface with a server-resolved role.
+    expect(user.surface).toBe("app");
+    expect(user.role).toBe("customer");
+    expect(user.permissions).toEqual([]);
   });
 });

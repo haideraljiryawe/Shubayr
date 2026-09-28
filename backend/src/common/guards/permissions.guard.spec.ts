@@ -1,41 +1,85 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PermissionsGuard } from './permissions.guard';
+import { Policy } from '../decorators/access-policy.decorator';
+import {
+  PermissionsGuard,
+  type AuthenticatedRequestUser,
+} from './permissions.guard';
 
-function contextWithPermissions(permissions: string[]): ExecutionContext {
+function context(
+  controller: object,
+  handler: () => void,
+  user?: AuthenticatedRequestUser,
+  body: Record<string, unknown> = {},
+): ExecutionContext {
   return {
-    getHandler: () => function handler() {},
-    getClass: () => class TestController {},
-    switchToHttp: () => ({
-      getRequest: () => ({
-        user: { id: 'user-id', role: 'customer', permissions },
-      }),
-    }),
+    getHandler: () => handler,
+    getClass: () => controller.constructor,
+    switchToHttp: () => ({ getRequest: () => ({ user, body }) }),
   } as never;
 }
 
-describe('PermissionsGuard RBAC', () => {
-  const reflector = {
-    getAllAndOverride: jest.fn((key: string) =>
-      key === 'permissions' ? ['catalog.manage'] : false,
-    ),
-  } as unknown as Reflector;
-  const guard = new PermissionsGuard(reflector);
+describe('PermissionsGuard access policies', () => {
+  const guard = new PermissionsGuard(new Reflector());
+  const admin: AuthenticatedRequestUser = {
+    id: 'admin',
+    phone: null,
+    username: 'admin',
+    role: null,
+    surface: 'admin',
+    client: null,
+    permissions: ['catalog.products'],
+    permissionVersion: 1,
+    sessionVersion: 1,
+    mustChangePassword: false,
+  };
 
-  it('allows an admin identity granted catalog.manage', () => {
-    expect(guard.canActivate(contextWithPermissions(['catalog.manage']))).toBe(
+  it('allows an admin identity with the current permission', () => {
+    class Controller {
+      @Policy({
+        access: 'authenticated',
+        surfaces: ['admin'],
+        permissions: ['catalog.products'],
+      })
+      handler(this: void) {}
+    }
+    const instance = new Controller();
+    expect(guard.canActivate(context(instance, instance.handler, admin))).toBe(
       true,
     );
   });
 
-  it('returns 403 for a customer without catalog.manage', () => {
-    try {
-      guard.canActivate(contextWithPermissions(['catalog.view']));
-      throw new Error('Expected guard to reject');
-    } catch (error) {
-      expect(error).toBeInstanceOf(ForbiddenException);
-      expect((error as ForbiddenException).getStatus()).toBe(403);
+  it('rejects an app token even when it carries a forged admin permission', () => {
+    class Controller {
+      @Policy({
+        access: 'authenticated',
+        surfaces: ['admin'],
+        permissions: ['catalog.products'],
+      })
+      handler(this: void) {}
     }
+    const instance = new Controller();
+    const appUser: AuthenticatedRequestUser = {
+      ...admin,
+      surface: 'app',
+      phone: '+9647700000006',
+      username: null,
+      role: 'customer',
+      client: 'mobile',
+    };
+    expect(() =>
+      guard.canActivate(context(instance, instance.handler, appUser)),
+    ).toThrow(ForbiddenException);
+  });
+
+  it('rejects a route without policy metadata', () => {
+    class Controller {
+      handler(this: void) {}
+    }
+    const instance = new Controller();
+    expect(() =>
+      guard.canActivate(context(instance, instance.handler, admin)),
+    ).toThrow(ForbiddenException);
   });
 });

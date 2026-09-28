@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+/* The Web Admin uses the storefront's design tokens — the same file, not a
+   copy — so the palette, radii, elevation and Cairo type stay identical across
+   both apps. See web/src/app/tokens.css. */
+@import "../../../web/src/app/tokens.css";
+
+/* Tailwind scans this app only; the imported tokens carry no class names. */
+@source "../";

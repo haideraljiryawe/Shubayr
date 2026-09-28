@@ -23,7 +23,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
 
-@RequirePermissions('catalog.manage')
+@RequirePermissions('catalog.categories')
 @Controller('admin/categories')
 export class AdminCategoriesController {
   constructor(private readonly categories: CategoriesService) {}
@@ -53,7 +53,7 @@ export class AdminCategoriesController {
   }
 }
 
-@RequirePermissions('catalog.manage')
+@RequirePermissions('catalog.products')
 @Controller('admin/products')
 export class AdminProductsController {
   constructor(private readonly products: ProductsService) {}
@@ -69,6 +69,7 @@ export class AdminProductsController {
   }
 
   @Post()
+  @RequirePermissions('catalog.products', 'prices.change')
   create(
     @Req() request: Request & { user: AuthenticatedRequestUser },
     @Body() input: CreateProductDto,
@@ -77,6 +78,7 @@ export class AdminProductsController {
   }
 
   @Patch(':id')
+  @RequirePermissions('catalog.products', 'prices.change')
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body(new NonEmptyPatchPipe()) input: UpdateProductDto,
