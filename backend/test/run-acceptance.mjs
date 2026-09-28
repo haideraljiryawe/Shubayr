@@ -7,7 +7,10 @@ import pg from 'pg';
 
 const { Client } = pg;
 const source = process.env.DATABASE_URL;
-if (!source) throw new Error('DATABASE_URL is required to create a disposable acceptance database');
+if (!source)
+  throw new Error(
+    'DATABASE_URL is required to create a disposable acceptance database',
+  );
 const baseUrl = new URL(source);
 if (!['postgres:', 'postgresql:'].includes(baseUrl.protocol)) {
   throw new Error('DATABASE_URL must be a PostgreSQL URL');
@@ -19,7 +22,11 @@ adminUrl.searchParams.delete('schema');
 const testUrl = new URL(baseUrl);
 testUrl.pathname = `/${name}`;
 const admin = new Client({ connectionString: adminUrl.toString() });
-const environment = { ...process.env, DATABASE_URL: testUrl.toString(), APP_ENV: 'development' };
+const environment = {
+  ...process.env,
+  DATABASE_URL: testUrl.toString(),
+  APP_ENV: 'development',
+};
 const node = process.execPath;
 const prisma = 'node_modules/prisma/build/index.js';
 const tsNode = 'node_modules/ts-node/dist/bin.js';
@@ -40,7 +47,11 @@ function run(script, args = [], env = environment) {
 
 async function freePort() {
   const server = createServer();
-  await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', (error) => error ? reject(error) : resolve()));
+  await new Promise((resolve, reject) =>
+    server.listen(0, '127.0.0.1', (error) =>
+      error ? reject(error) : resolve(),
+    ),
+  );
   const port = server.address().port;
   await new Promise((resolve) => server.close(resolve));
   return port;
@@ -48,18 +59,24 @@ async function freePort() {
 
 async function waitForApi(url) {
   for (let attempt = 0; attempt < 60; attempt += 1) {
-    if (api.exitCode !== null) throw new Error('Acceptance API stopped before it became ready');
+    if (api.exitCode !== null)
+      throw new Error('Acceptance API stopped before it became ready');
     try {
-      const response = await fetch(`${url}/ready`, { signal: AbortSignal.timeout(1000) });
+      const response = await fetch(`${url}/ready`, {
+        signal: AbortSignal.timeout(1000),
+      });
       if (response.ok) return;
-    } catch { /* API is still starting. */ }
+    } catch {
+      /* API is still starting. */
+    }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error('Acceptance API did not become ready within 30 seconds');
 }
 
 try {
-  if (!existsSync(apiEntry)) throw new Error('Build the backend first: npm run build');
+  if (!existsSync(apiEntry))
+    throw new Error('Build the backend first: npm run build');
   await admin.connect();
   await admin.query(`CREATE DATABASE "${name}"`);
   created = true;
@@ -83,7 +100,11 @@ try {
   await run(tsNode, ['--transpile-only', 'prisma/seed.ts']);
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
-  const acceptanceEnv = { ...environment, ACCEPTANCE_API_URL: apiUrl, ACCEPTANCE_DATABASE_NAME: name };
+  const acceptanceEnv = {
+    ...environment,
+    ACCEPTANCE_API_URL: apiUrl,
+    ACCEPTANCE_DATABASE_NAME: name,
+  };
   await run('test/real-data.acceptance.mjs', [], acceptanceEnv);
   await run('test/access-model.acceptance.mjs', [], acceptanceEnv);
   await run('test/wishlist.acceptance.mjs', [], acceptanceEnv);
@@ -94,6 +115,7 @@ try {
   await run('test/loyalty.acceptance.mjs', [], acceptanceEnv);
   await run('test/reviews.acceptance.mjs', [], acceptanceEnv);
   await run('test/notifications.acceptance.mjs', [], acceptanceEnv);
+  await run('test/phase2-monitoring.acceptance.mjs', [], acceptanceEnv);
   await run('test/qa-fixes.acceptance.mjs', [], acceptanceEnv);
 } finally {
   if (api && api.exitCode === null) {

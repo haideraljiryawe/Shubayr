@@ -31,6 +31,7 @@ describe('PermissionsGuard access policies', () => {
     client: null,
     permissions: ['catalog.products'],
     permissionVersion: 1,
+    sessionVersion: 1,
     mustChangePassword: false,
   };
 

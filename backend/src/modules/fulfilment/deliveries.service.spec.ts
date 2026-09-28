@@ -144,6 +144,7 @@ describe('DeliveriesController', () => {
       client: 'mobile',
       permissions: [],
       permissionVersion: 1,
+      sessionVersion: 1,
       mustChangePassword: false,
     };
 

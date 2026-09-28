@@ -7,6 +7,7 @@ import { OrdersService } from './orders.service';
 import { AddressesController } from './addresses.controller';
 import { AddressesService } from './addresses.service';
 import { AdminOrdersController } from './admin-orders.controller';
+import { MonitorOrdersController } from './monitor-orders.controller';
 
 @Module({
   imports: [CatalogModule],
@@ -15,6 +16,7 @@ import { AdminOrdersController } from './admin-orders.controller';
     CouponController,
     OrdersController,
     AdminOrdersController,
+    MonitorOrdersController,
     AddressesController,
   ],
   providers: [CartService, OrdersService, AddressesService],

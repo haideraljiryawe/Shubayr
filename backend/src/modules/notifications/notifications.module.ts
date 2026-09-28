@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsProcessor } from './notifications.processor';
 import { NotificationsService } from './notifications.service';
+import { NotificationStreamService } from './notification-stream.service';
 import {
   DevPushProvider,
   DevSmsProvider,
@@ -45,6 +46,7 @@ import {
   providers: [
     NotificationsService,
     NotificationsProcessor,
+    NotificationStreamService,
     {
       provide: PUSH_PROVIDER,
       inject: [ConfigService],

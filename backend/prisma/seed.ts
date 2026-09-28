@@ -776,15 +776,29 @@ async function seedNotificationDemo(customerId: string): Promise<void> {
     const eventId = seedId(1, number);
     const entityId = seedId(1, 10);
     await prisma.notificationEvent.upsert({
-      where: { event_key: `seed:${type}:${customerId}` },
+      where: {
+        event_key_user_id: {
+          event_key: `seed:${type}:${customerId}`,
+          user_id: customerId,
+        },
+      },
       update: {},
       create: {
         id: eventId,
         event_key: `seed:${type}:${customerId}`,
         user_id: customerId,
         type,
+        target_role: 'customer',
         entity_type: 'order',
         entity_id: entityId,
+        title_ar: type === 'promo' ? 'عرض من شُبير' : 'تم استلام الطلب',
+        body_ar: type === 'promo' ? 'لديك عرض جديد.' : 'تم استلام طلبك.',
+        title_en: type === 'promo' ? 'Shubayr offer' : 'Order placed',
+        body_en:
+          type === 'promo'
+            ? 'A new offer is available.'
+            : 'We received your order.',
+        deep_link: `/orders/${entityId}`,
         enqueued_at: now,
         processed_at: now,
       },
