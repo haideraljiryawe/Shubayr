@@ -1657,7 +1657,7 @@ paths:
         - { name: status, in: query, schema: { oneOf: [ { $ref: "#/components/schemas/OrderStatus" }, { type: string, const: all } ] } }
         - { name: q, in: query, schema: { type: string, maxLength: 80 }, description: "Partial case-insensitive customer-name or order-number search with Arabic normalization." }
         - { name: date_from, in: query, schema: { type: string, format: date }, description: Start of the Asia/Baghdad calendar day. }
-        - { name: date_to, in: query, schema: { type: string, format: date }, description: End of the Asia/Baghdad calendar day, inclusive. }
+        - { name: date_to, in: query, schema: { type: string, format: date }, description: "End of the Asia/Baghdad calendar day, inclusive." }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
