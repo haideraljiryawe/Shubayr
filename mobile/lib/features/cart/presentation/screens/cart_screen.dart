@@ -49,14 +49,21 @@ class CartScreen extends ConsumerWidget {
               message: l10n.cartEmptyMessage,
             );
           }
-          return ResponsiveBodyWithAside(
-            body: ListView.separated(
-              padding: AppLayout.pageInsets(context),
-              itemCount: c.items.length,
-              separatorBuilder: (_, _) => const Divider(height: AppSpacing.xl),
-              itemBuilder: (_, i) => _CartLine(item: c.items[i]),
+          return ResponsiveContent(
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.separated(
+                    padding: AppLayout.pageInsets(context),
+                    itemCount: c.items.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: AppSpacing.xl),
+                    itemBuilder: (_, i) => _CartLine(item: c.items[i]),
+                  ),
+                ),
+                _CartFooter(subtotal: c.subtotal),
+              ],
             ),
-            aside: _CartFooter(subtotal: c.subtotal),
           );
         },
       ),

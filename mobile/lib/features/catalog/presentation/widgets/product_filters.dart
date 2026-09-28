@@ -39,17 +39,10 @@ Future<ProductQuery?> showProductFilters(
   required bool offersOnly,
 }) {
   Widget editor() => ProductFilterEditor(query: query, offersOnly: offersOnly);
-  if (AppLayout.isDesktop(context)) {
-    return showDialog<ProductQuery>(
-      context: context,
-      builder: (_) => Dialog(
-        child: SizedBox(width: AppLayout.productFilterWidth, child: editor()),
-      ),
-    );
-  }
   return showModalBottomSheet<ProductQuery>(
     context: context,
     isScrollControlled: true,
+    constraints: const BoxConstraints(maxWidth: AppLayout.productFilterWidth),
     useSafeArea: true,
     builder: (context) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),

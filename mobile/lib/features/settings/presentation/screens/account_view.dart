@@ -146,81 +146,62 @@ class _ProfileCard extends StatelessWidget {
       UserRole.staff => l10n.roleStaff,
       _ => l10n.roleCustomer,
     };
+    final identity = Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          user.name?.trim().isNotEmpty == true
+              ? user.name!
+              : l10n.accountNoName,
+          textAlign: TextAlign.center,
+          style: context.text.titleLarge,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          user.phone?.trim().isNotEmpty == true
+              ? Validators.foldDigits(user.phone!)
+              : l10n.accountNoPhone,
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.center,
+          style: context.text.bodyLarge,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          user.email?.trim().isNotEmpty == true
+              ? user.email!
+              : l10n.accountNoEmail,
+          textAlign: TextAlign.center,
+          style: context.text.bodyLarge?.copyWith(
+            color: context.colors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          l10n.accountSignedInAs(roleLabel),
+          textAlign: TextAlign.center,
+          style: context.text.bodyMedium?.copyWith(
+            color: context.colors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppButton(
+          label: l10n.accountEditProfile,
+          variant: AppButtonVariant.secondary,
+          expand: false,
+          icon: Icons.edit_outlined,
+          onPressed: () => context.pushNamed(AppRoutes.profileName),
+        ),
+      ],
+    );
     return AppCard(
       key: const ValueKey('account-summary'),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final centered = constraints.maxWidth < AppBreakpoints.tablet;
-          final alignment = centered
-              ? CrossAxisAlignment.center
-              : CrossAxisAlignment.start;
-          final textAlign = centered ? TextAlign.center : TextAlign.start;
-          final identity = Column(
-            crossAxisAlignment: alignment,
-            children: [
-              Text(
-                user.name?.trim().isNotEmpty == true
-                    ? user.name!
-                    : l10n.accountNoName,
-                textAlign: textAlign,
-                style: context.text.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                user.phone?.trim().isNotEmpty == true
-                    ? Validators.foldDigits(user.phone!)
-                    : l10n.accountNoPhone,
-                textDirection: TextDirection.ltr,
-                textAlign: textAlign,
-                style: context.text.bodyLarge,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                user.email?.trim().isNotEmpty == true
-                    ? user.email!
-                    : l10n.accountNoEmail,
-                textAlign: textAlign,
-                style: context.text.bodyLarge?.copyWith(
-                  color: context.colors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                l10n.accountSignedInAs(roleLabel),
-                textAlign: textAlign,
-                style: context.text.bodyMedium?.copyWith(
-                  color: context.colors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              AppButton(
-                label: l10n.accountEditProfile,
-                variant: AppButtonVariant.secondary,
-                expand: false,
-                icon: Icons.edit_outlined,
-                onPressed: () => context.pushNamed(AppRoutes.profileName),
-              ),
-            ],
-          );
-          if (!centered) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const UserAvatar(),
-                const SizedBox(width: AppSpacing.xl),
-                Expanded(child: identity),
-              ],
-            );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Center(child: UserAvatar()),
-              const SizedBox(height: AppSpacing.lg),
-              identity,
-            ],
-          );
-        },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Center(child: UserAvatar()),
+          const SizedBox(height: AppSpacing.lg),
+          identity,
+        ],
       ),
     );
   }
@@ -351,59 +332,35 @@ class _SignInCard extends StatelessWidget {
     final l10n = context.l10n;
     return AppCard(
       key: const ValueKey('account-guest-summary'),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final centered = constraints.maxWidth < AppBreakpoints.tablet;
-          final identity = Column(
-            crossAxisAlignment: centered
-                ? CrossAxisAlignment.center
-                : CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.authGuest,
-                textAlign: centered ? TextAlign.center : TextAlign.start,
-                style: context.text.titleMedium,
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                l10n.accountGuestPrompt,
-                textAlign: centered ? TextAlign.center : TextAlign.start,
-                style: context.text.bodyMedium?.copyWith(
-                  color: context.colors.textSecondary,
-                ),
-              ),
-            ],
-          );
-          return Column(
-            crossAxisAlignment: centered
-                ? CrossAxisAlignment.center
-                : CrossAxisAlignment.stretch,
-            children: [
-              if (centered) ...[
-                const UserAvatar(),
-                const SizedBox(height: AppSpacing.lg),
-                identity,
-              ] else
-                Row(
-                  children: [
-                    const UserAvatar(),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(child: identity),
-                  ],
-                ),
-              const SizedBox(height: AppSpacing.lg),
-              AppButton(
-                label: l10n.authSignInTitle,
-                icon: Icons.login,
-                expand: !centered,
-                onPressed: () => context.pushNamed(
-                  AppRoutes.signInName,
-                  queryParameters: {'returnTo': AppRoutes.account},
-                ),
-              ),
-            ],
-          );
-        },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const UserAvatar(),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            l10n.authGuest,
+            textAlign: TextAlign.center,
+            style: context.text.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            l10n.accountGuestPrompt,
+            textAlign: TextAlign.center,
+            style: context.text.bodyMedium?.copyWith(
+              color: context.colors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppButton(
+            label: l10n.authSignInTitle,
+            icon: Icons.login,
+            expand: false,
+            onPressed: () => context.pushNamed(
+              AppRoutes.signInName,
+              queryParameters: {'returnTo': AppRoutes.account},
+            ),
+          ),
+        ],
       ),
     );
   }

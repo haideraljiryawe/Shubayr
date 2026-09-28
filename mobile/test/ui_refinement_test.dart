@@ -134,13 +134,10 @@ void main() {
               ),
             );
             await tester.pumpAndSettle();
-            final desktop = width >= AppBreakpoints.compactDesktop;
+            final desktop = width >= AppLayout.wideHeaderWidth;
             final add = find.byKey(const ValueKey('admin-toolbar-add'));
-            expect(
-              find.byType(FloatingActionButton),
-              desktop ? findsNothing : findsOneWidget,
-            );
-            expect(add, desktop ? findsOneWidget : findsNothing);
+            expect(find.byType(FloatingActionButton), findsOneWidget);
+            expect(add, findsNothing);
             expect(
               find.byKey(const ValueKey('admin-mobile-account-action')),
               desktop ? findsNothing : findsOneWidget,
@@ -150,39 +147,8 @@ void main() {
               final rect = tester.getRect(search);
               expect(
                 locale == 'ar' ? width - rect.right : rect.left,
-                AppSpacing.screenH,
+                closeTo(AppSpacing.screenH, 0.01),
               );
-              if (resource == AdminResource.products) {
-                final filters = find.byType(DropdownButtonFormField<String>);
-                expect(filters, findsNWidgets(2));
-                final filterRects = [
-                  tester.getRect(filters.at(0)),
-                  tester.getRect(filters.at(1)),
-                ];
-                final addRect = tester.getRect(add);
-                final rowWidth =
-                    rect.width +
-                    filterRects.fold<double>(0, (sum, r) => sum + r.width) +
-                    addRect.width +
-                    AppSpacing.md * 3;
-                if (rowWidth > width - AppSpacing.screenH * 2) {
-                  // Category filters can push Add onto its own toolbar row.
-                  expect(
-                    addRect.top,
-                    greaterThanOrEqualTo(
-                      filterRects.last.bottom + AppSpacing.md - 1,
-                    ),
-                  );
-                  expect(
-                    locale == 'ar' ? width - addRect.right : addRect.left,
-                    closeTo(AppSpacing.screenH, 1),
-                  );
-                } else {
-                  expect(addRect.center.dy, closeTo(rect.center.dy, 1));
-                }
-              } else {
-                expect(tester.getCenter(add).dy, closeTo(rect.center.dy, 1));
-              }
               if (resource == AdminResource.users) {
                 final filter = tester.getRect(
                   find.byType(DropdownButtonFormField<String>),
@@ -207,7 +173,7 @@ void main() {
               reason: '$width $resource $locale',
             );
           }
-          await tester.tap(find.byKey(const ValueKey('admin-toolbar-add')));
+          await tester.tap(find.byType(FloatingActionButton));
           await tester.pumpAndSettle();
           expect(find.byType(AdminRecordForm), findsOneWidget);
           expect(tester.takeException(), isNull);
@@ -361,7 +327,7 @@ void main() {
         );
         final page = find.byKey(const ValueKey('admin-page-header'));
         expect(tester.getRect(page).top, initialRect.bottom);
-        await tester.tap(find.byKey(const ValueKey('admin-toolbar-add')));
+        await tester.tap(find.byType(FloatingActionButton));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
         expect(identical(tester.element(global), element), isTrue);
@@ -433,50 +399,46 @@ void main() {
       },
     );
 
-    testWidgets(
-      'orders start-aligned controls and bounded desktop calendar $locale',
-      (tester) async {
-        addTearDown(() => tester.binding.setSurfaceSize(null));
-        for (final (width, scale) in [
-          (390.0, 1.0),
-          (900.0, 1.0),
-          (1920.0, 1.0),
-          (900.0, 2.0),
-          (1920.0, 2.0),
-        ]) {
-          await setWindow(tester, Size(width, 1000));
-          await tester.pumpWidget(
-            orders.host(RecordingAdminOrders(), lang: locale, scale: scale),
-          );
-          await tester.pumpAndSettle();
-          final search = tester.getRect(find.byType(TextField).first);
-          expect(
-            locale == 'ar' ? width - search.right : search.left,
-            width < 600 ? AppSpacing.screenMobileH : AppSpacing.screenH,
-          );
-          final date = find.widgetWithIcon(
-            TextButton,
-            Icons.date_range_outlined,
-          );
-          final rect = tester.getRect(date);
-          expect(
-            locale == 'ar' ? width - rect.right : rect.left,
-            width < 600 ? AppSpacing.screenMobileH : AppSpacing.screenH,
-          );
-          await tester.tap(date);
-          await tester.pumpAndSettle();
-          final bounded = find.byKey(const ValueKey('admin-date-range-dialog'));
-          expect(bounded, width >= 900 ? findsOneWidget : findsNothing);
-          if (width >= 900) {
-            final size = tester.getSize(bounded);
-            expect(size.width, lessThanOrEqualTo(AppLayout.dateRangeWidth));
-            expect(size.height, lessThanOrEqualTo(AppLayout.dateRangeHeight));
-          }
-          expect(tester.takeException(), isNull);
-          await tester.pumpWidget(const SizedBox.shrink());
+    testWidgets('orders use one bounded calendar on all windows $locale', (
+      tester,
+    ) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      for (final (width, scale) in [
+        (390.0, 1.0),
+        (900.0, 1.0),
+        (1920.0, 1.0),
+        (900.0, 2.0),
+        (1920.0, 2.0),
+      ]) {
+        await setWindow(tester, Size(width, 1000));
+        await tester.pumpWidget(
+          orders.host(RecordingAdminOrders(), lang: locale, scale: scale),
+        );
+        await tester.pumpAndSettle();
+        final search = tester.getRect(find.byType(TextField).first);
+        expect(
+          locale == 'ar' ? width - search.right : search.left,
+          width < 600 ? AppSpacing.screenMobileH : AppSpacing.screenH,
+        );
+        final date = find.widgetWithIcon(TextButton, Icons.date_range_outlined);
+        final rect = tester.getRect(date);
+        expect(
+          locale == 'ar' ? width - rect.right : rect.left,
+          width < 600 ? AppSpacing.screenMobileH : AppSpacing.screenH,
+        );
+        await tester.tap(date);
+        await tester.pumpAndSettle();
+        final bounded = find.byKey(const ValueKey('admin-date-range-dialog'));
+        expect(bounded, findsOneWidget);
+        {
+          final size = tester.getSize(bounded);
+          expect(size.width, lessThanOrEqualTo(AppLayout.dateRangeWidth));
+          expect(size.height, lessThanOrEqualTo(1000));
         }
-      },
-    );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
   }
 
   testWidgets(

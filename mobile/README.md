@@ -36,6 +36,9 @@ flutter analyze
 
 ### Configuration (`--dart-define`)
 
+For the local database-backed workflow, development OTP accounts, and remaining
+integration gaps, see [Local real-data development](docs/local-real-data.md).
+
 | Define | Values | Default | Purpose |
 |---|---|---|---|
 | `API_URL` | any URL | `http://localhost:8000/api/v1` | Backend base URL |

@@ -38,6 +38,7 @@ void main() {
                     Category(id: 'child', nameEn: 'Child', nameAr: 'الفرعي'),
                   ],
                 ),
+                Category(id: 'second', nameEn: 'Second', nameAr: 'الثاني'),
               ],
             ),
           ],
@@ -85,7 +86,29 @@ void main() {
         await tester.tap(find.byType(BackButton));
         await tester.pumpAndSettle();
         expect(find.byType(CategoriesScreen), findsOneWidget);
-        expect(tester.takeException(), isNull);
+        for (final width in [800.0, 1920.0, 390.0]) {
+          tester.view.physicalSize = Size(width, 1000);
+          await tester.pumpAndSettle();
+          expect(find.byType(NavigationRail), findsNothing);
+          expect(
+            find.text(locale == 'ar' ? 'الحساب' : 'Account'),
+            findsOneWidget,
+          );
+          expect(find.byType(CategoriesScreen), findsOneWidget);
+          final first = tester.getRect(
+            find.byKey(const ValueKey('cat-card-parent')),
+          );
+          final second = tester.getRect(
+            find.byKey(const ValueKey('cat-card-second')),
+          );
+          if (width == 390) {
+            expect(second.top, greaterThan(first.bottom));
+          } else {
+            expect(second.top, closeTo(first.top, 0.01));
+            expect(first.width, lessThan(width / 2));
+          }
+          expect(tester.takeException(), isNull);
+        }
       },
     );
   }

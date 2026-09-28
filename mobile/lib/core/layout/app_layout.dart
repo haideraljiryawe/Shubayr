@@ -2,32 +2,17 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/tokens/app_spacing.dart';
 
-/// Logical pixels. Window classes describe space, not fixed column counts.
-enum AppWindowClass { mobile, tablet, compactDesktop, desktop, largeDesktop }
-
-abstract final class AppBreakpoints {
-  static const tablet = 600.0;
-  static const compactDesktop = 900.0;
-  static const desktop = 1200.0;
-  static const largeDesktop = 1536.0;
-  static AppWindowClass classify(double width) => switch (width) {
-    < tablet => AppWindowClass.mobile,
-    < compactDesktop => AppWindowClass.tablet,
-    < desktop => AppWindowClass.compactDesktop,
-    < largeDesktop => AppWindowClass.desktop,
-    _ => AppWindowClass.largeDesktop,
-  };
-}
-
-/// Content-specific sizes; never a global cap on the application or tables.
+/// Shared content sizing. Only compact spacing/columns and the retained wide
+/// header need window thresholds; page content otherwise follows its slot.
 abstract final class AppLayout {
-  static bool isDesktop(BuildContext context) =>
-      AppBreakpoints.classify(MediaQuery.sizeOf(context).width).index >=
-      AppWindowClass.compactDesktop.index;
+  static const compactWidth = 600.0;
+  static const wideHeaderWidth = 900.0;
+
+  static bool usesWideHeader(BuildContext context) =>
+      MediaQuery.sizeOf(context).width >= wideHeaderWidth;
 
   static double pageHorizontal(BuildContext context) =>
-      AppBreakpoints.classify(MediaQuery.sizeOf(context).width) ==
-          AppWindowClass.mobile
+      MediaQuery.sizeOf(context).width < compactWidth
       ? AppSpacing.screenMobileH
       : AppSpacing.screenH;
 
@@ -54,15 +39,8 @@ abstract final class AppLayout {
   static const categoryIconSize = 32.0;
   static const categoryIconTarget = 56.0;
 
-  /// Wide phone artwork gradually becomes a panoramic desktop banner.
-  /// Interpolation avoids a height jump on either side of a breakpoint.
-  static double homeBannerAspectRatio(double imageWidth) {
-    final progress =
-        ((imageWidth - AppBreakpoints.tablet) /
-                (AppBreakpoints.desktop - AppBreakpoints.tablet))
-            .clamp(0.0, 1.0);
-    return 2.0 + (4.0 - 2.0) * progress;
-  }
+  /// One artwork proportion on all windows, within a readable content width.
+  static const homeBannerAspectRatio = 2.0;
 
   /// Two compact cards and a glimpse of the next on phones; cap each card
   /// on wide screens and allow readable growth with accessibility text sizes.
@@ -81,14 +59,12 @@ abstract final class AppLayout {
   static const fieldMinWidth = 260.0;
   static const dashboardMinHeight = 120.0;
   static const dashboardMinWidth = 220.0;
-  static const summaryWidth = 360.0;
-  static const categoryRailWidth = 180.0;
 
   static double textScale(BuildContext context) =>
       math.max(1, MediaQuery.textScalerOf(context).scale(14) / 14);
 
-  /// Use the smaller of the viewport and local slot so nested panes retain
-  /// phone behavior when a rail or split view leaves little room.
+  /// Preserve compact layouts; wider slots fit as many readable items as
+  /// their minimum width and current text scale allow.
   static int columns(
     BuildContext context,
     double availableWidth, {
@@ -96,8 +72,7 @@ abstract final class AppLayout {
     int phoneColumns = 1,
     double spacing = AppSpacing.md,
   }) {
-    if (math.min(MediaQuery.sizeOf(context).width, availableWidth) <
-        AppBreakpoints.tablet) {
+    if (availableWidth < compactWidth) {
       return phoneColumns;
     }
     return math.max(
@@ -313,63 +288,31 @@ class ResponsiveSections extends StatelessWidget {
   const ResponsiveSections({
     super.key,
     required this.children,
-    this.breakpoint = AppBreakpoints.compactDesktop,
+    this.minItemWidth = AppLayout.orderMinWidth,
     this.maxWidth = AppLayout.detailWidth,
     this.stackedSpacing = AppSpacing.lg,
   });
   final List<Widget> children;
-  final double breakpoint, maxWidth, stackedSpacing;
+  final double minItemWidth, maxWidth, stackedSpacing;
   @override
   Widget build(BuildContext context) => ResponsiveContent(
     maxWidth: maxWidth,
     child: LayoutBuilder(
       builder: (context, constraints) {
-        final wide =
-            constraints.maxWidth >= breakpoint * AppLayout.textScale(context);
-        final width = wide
-            ? (constraints.maxWidth - AppSpacing.lg * (children.length - 1)) /
-                  children.length
-            : constraints.maxWidth;
+        final columns = AppLayout.columns(
+          context,
+          constraints.maxWidth,
+          minItemWidth: minItemWidth,
+          spacing: AppSpacing.lg,
+        ).clamp(1, math.max(1, children.length));
+        final width =
+            (constraints.maxWidth - AppSpacing.lg * (columns - 1)) / columns;
         return Wrap(
           spacing: AppSpacing.lg,
           runSpacing: stackedSpacing,
           children: [
             for (var i = 0; i < children.length; i++)
               SizedBox(key: ValueKey(i), width: width, child: children[i]),
-          ],
-        );
-      },
-    ),
-  );
-}
-
-/// Keep the existing bottom summary on smaller layouts; use a bounded adjacent
-/// summary at desktop width. The main scrollable keeps its element on resize.
-class ResponsiveBodyWithAside extends StatelessWidget {
-  const ResponsiveBodyWithAside({
-    super.key,
-    required this.body,
-    required this.aside,
-  });
-  final Widget body, aside;
-  @override
-  Widget build(BuildContext context) => ResponsiveContent(
-    maxWidth: AppLayout.detailWidth,
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final wide =
-            constraints.maxWidth >=
-            AppBreakpoints.desktop * AppLayout.textScale(context);
-        return Flex(
-          direction: wide ? Axis.horizontal : Axis.vertical,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(key: const ValueKey('body'), child: body),
-            SizedBox(
-              key: const ValueKey('aside'),
-              width: wide ? AppLayout.summaryWidth : null,
-              child: wide ? SingleChildScrollView(child: aside) : aside,
-            ),
           ],
         );
       },

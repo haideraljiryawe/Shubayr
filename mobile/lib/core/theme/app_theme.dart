@@ -45,7 +45,6 @@ abstract final class AppTheme {
       textButtonTheme: ButtonThemes.text_(c, text),
       inputDecorationTheme: InputTheme.build(c, text),
       navigationBarTheme: NavigationThemes.navigationBar(c, text),
-      navigationRailTheme: NavigationThemes.navigationRail(c, text),
       chipTheme: NavigationThemes.chip(c, text),
       snackBarTheme: NavigationThemes.snackBar(c, text),
       tabBarTheme: NavigationThemes.tabBar(c, text),

@@ -21,17 +21,30 @@ const responsiveWidths = <double>[
 ];
 
 void main() {
-  test('window classification includes both sides of each breakpoint', () {
-    for (final (edge, before, after) in [
-      (600.0, AppWindowClass.mobile, AppWindowClass.tablet),
-      (900.0, AppWindowClass.tablet, AppWindowClass.compactDesktop),
-      (1200.0, AppWindowClass.compactDesktop, AppWindowClass.desktop),
-      (1536.0, AppWindowClass.desktop, AppWindowClass.largeDesktop),
-    ]) {
-      expect(AppBreakpoints.classify(edge - 1), before);
-      expect(AppBreakpoints.classify(edge), after);
-      expect(AppBreakpoints.classify(edge + 1), after);
+  testWidgets('columns follow local space and text scale, not window classes', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final counts = <int>[];
+    for (final width in [800.0, 1200.0, 1920.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 1000));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: 740,
+              child: Builder(
+                builder: (context) {
+                  counts.add(AppLayout.columns(context, 740));
+                  return const SizedBox();
+                },
+              ),
+            ),
+          ),
+        ),
+      );
     }
+    expect(counts, everyElement(2));
   });
 
   testWidgets('regrouping cards retains an in-progress interaction', (
@@ -177,7 +190,7 @@ void main() {
           } else if (width == 390) {
             expect(b.top, greaterThan(a.top));
           }
-          final inset = width < AppBreakpoints.tablet
+          final inset = width < AppLayout.compactWidth
               ? AppSpacing.screenMobileH
               : AppSpacing.screenH;
           final footer = tester.getRect(find.byKey(const ValueKey('retry')));

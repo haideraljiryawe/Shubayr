@@ -10,8 +10,8 @@ import '../../domain/admin_category_tree.dart';
 import '../../domain/admin_repository.dart';
 import '../../../catalog/presentation/widgets/category_icon.dart';
 
-/// One route, a lazy main-category list and the selected branch. Wide windows
-/// show both panes; phones show the branch with an explicit way back.
+/// One route shows the roots or selected branch, with cards fitting the space
+/// and an explicit way back at every window size.
 class AdminCategoryHierarchy extends StatelessWidget {
   const AdminCategoryHierarchy({
     super.key,
@@ -33,151 +33,135 @@ class AdminCategoryHierarchy extends StatelessWidget {
   Widget build(BuildContext context) {
     final tree = AdminCategoryTree(records);
     final selected = tree.byId[selectedId];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide =
-            constraints.maxWidth >=
-            AppBreakpoints.compactDesktop * AppLayout.textScale(context);
-        Widget roots() => RefreshIndicator(
-          onRefresh: onRefresh,
-          child: tree.roots.isEmpty
-              ? CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: AppEmptyView(
-                        title: context.l10n.adminEmpty,
-                        message: '',
-                      ),
-                    ),
-                  ],
-                )
-              : ResponsiveCardList(
-                  key: const ValueKey('admin-category-roots'),
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: AppLayout.pageInsets(
-                    context,
-                    bottom: AppSpacing.xxxl * 2,
-                  ),
-                  itemCount: tree.roots.length,
-                  itemBuilder: (context, i) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: _card(context, tree, tree.roots[i], isRoot: true),
-                  ),
-                ),
-        );
-        Widget branch() {
-          if (selected == null) {
-            return AppEmptyView(message: context.l10n.adminChooseCategory);
-          }
-          final children = tree.children(selected.id);
-          return RefreshIndicator(
-            onRefresh: onRefresh,
-            child: CustomScrollView(
-              key: ValueKey('admin-category-branch-${selected.id}'),
+    Widget roots() => RefreshIndicator(
+      onRefresh: onRefresh,
+      child: tree.roots.isEmpty
+          ? CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: AppLayout.pageInsets(context),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextButton.icon(
-                          key: const ValueKey('admin-category-back'),
-                          onPressed: () => onSelected(
-                            tree.byId[selected.text('parent_id')]?.id,
-                          ),
-                          icon: const BackButtonIcon(),
-                          label: Text(
-                            selected.text('parent_id').isEmpty
-                                ? context.l10n.adminBackToCategories
-                                : tree.byId[selected.text('parent_id')]?.label(
-                                        Localizations.localeOf(
-                                          context,
-                                        ).languageCode,
-                                      ) ??
-                                      context.l10n.adminBackToCategories,
-                          ),
-                        ),
-                        Text(
-                          tree.label(
-                            selected.id,
-                            Localizations.localeOf(context).languageCode,
-                          ),
-                          style: context.text.titleMedium,
-                          key: const ValueKey('admin-category-path'),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        _card(
-                          context,
-                          tree,
-                          selected,
-                          isRoot: false,
-                          selected: true,
-                        ),
-                        if (onAddChild != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.sm),
-                            child: OutlinedButton.icon(
-                              key: const ValueKey('admin-add-subcategory'),
-                              onPressed: () => onAddChild!(selected),
-                              icon: const Icon(Icons.add),
-                              label: Text(context.l10n.adminAddSubcategory),
-                            ),
-                          ),
-                      ],
-                    ),
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: AppEmptyView(
+                    title: context.l10n.adminEmpty,
+                    message: '',
                   ),
                 ),
-                if (children.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: AppEmptyView(
-                      title: context.l10n.adminEmpty,
-                      message: '',
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: AppLayout.pageInsets(
-                      context,
-                      top: 0,
-                      bottom: AppSpacing.xxxl * 2,
-                    ),
-                    sliver: ResponsiveCardSliver(
-                      itemCount: children.length,
-                      itemBuilder: (context, i) =>
-                          _card(context, tree, children[i], isRoot: false),
-                    ),
-                  ),
               ],
+            )
+          : ResponsiveCardList(
+              key: const ValueKey('admin-category-roots'),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: AppLayout.pageInsets(
+                context,
+                bottom: AppSpacing.xxxl * 2,
+              ),
+              itemCount: tree.roots.length,
+              itemBuilder: (context, i) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: _card(context, tree, tree.roots[i], isRoot: true),
+              ),
             ),
-          );
-        }
-
-        return PopScope(
-          canPop: wide || selected == null,
-          onPopInvokedWithResult: (didPop, result) {
-            if (!didPop && selected != null) {
-              onSelected(tree.byId[selected.text('parent_id')]?.id);
-            }
-          },
-          child: wide
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+    );
+    Widget branch() {
+      if (selected == null) {
+        return AppEmptyView(message: context.l10n.adminChooseCategory);
+      }
+      final children = tree.children(selected.id);
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        child: CustomScrollView(
+          key: ValueKey('admin-category-branch-${selected.id}'),
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: AppLayout.pageInsets(context),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(width: AppLayout.summaryWidth, child: roots()),
-                    const VerticalDivider(width: AppSpacing.md),
-                    Expanded(child: branch()),
+                    TextButton.icon(
+                      key: const ValueKey('admin-category-back'),
+                      onPressed: () =>
+                          onSelected(tree.byId[selected.text('parent_id')]?.id),
+                      icon: const BackButtonIcon(),
+                      label: Text(
+                        selected.text('parent_id').isEmpty
+                            ? context.l10n.adminBackToCategories
+                            : tree.byId[selected.text('parent_id')]?.label(
+                                    Localizations.localeOf(
+                                      context,
+                                    ).languageCode,
+                                  ) ??
+                                  context.l10n.adminBackToCategories,
+                      ),
+                    ),
+                    Text(
+                      tree.label(
+                        selected.id,
+                        Localizations.localeOf(context).languageCode,
+                      ),
+                      style: context.text.titleMedium,
+                      key: const ValueKey('admin-category-path'),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ResponsiveContent(
+                      alignment: AlignmentDirectional.topStart,
+                      child: _card(
+                        context,
+                        tree,
+                        selected,
+                        isRoot: false,
+                        selected: true,
+                      ),
+                    ),
+                    if (onAddChild != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.sm),
+                        child: OutlinedButton.icon(
+                          key: const ValueKey('admin-add-subcategory'),
+                          onPressed: () => onAddChild!(selected),
+                          icon: const Icon(Icons.add),
+                          label: Text(context.l10n.adminAddSubcategory),
+                        ),
+                      ),
                   ],
-                )
-              : selected == null
-              ? roots()
-              : branch(),
-        );
+                ),
+              ),
+            ),
+            if (children.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppEmptyView(
+                  title: context.l10n.adminEmpty,
+                  message: '',
+                ),
+              )
+            else
+              SliverPadding(
+                padding: AppLayout.pageInsets(
+                  context,
+                  top: 0,
+                  bottom: AppSpacing.xxxl * 2,
+                ),
+                sliver: ResponsiveCardSliver(
+                  itemCount: children.length,
+                  itemBuilder: (context, i) =>
+                      _card(context, tree, children[i], isRoot: false),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return PopScope(
+      canPop: selected == null,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && selected != null) {
+          onSelected(tree.byId[selected.text('parent_id')]?.id);
+        }
       },
+      child: selected == null ? roots() : branch(),
     );
   }
 
@@ -273,24 +257,8 @@ class AdminCategoryHierarchy extends StatelessWidget {
 class AdminCategoryHierarchySkeleton extends StatelessWidget {
   const AdminCategoryHierarchySkeleton({super.key});
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      Widget cards() => Padding(
-        padding: AppLayout.pageInsets(context),
-        child: const SkeletonCardList(minItemWidth: AppLayout.cardMinWidth),
-      );
-      if (constraints.maxWidth <
-          AppBreakpoints.compactDesktop * AppLayout.textScale(context)) {
-        return cards();
-      }
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(width: AppLayout.summaryWidth, child: cards()),
-          const VerticalDivider(width: AppSpacing.md),
-          Expanded(child: cards()),
-        ],
-      );
-    },
+  Widget build(BuildContext context) => Padding(
+    padding: AppLayout.pageInsets(context),
+    child: const SkeletonCardList(minItemWidth: AppLayout.cardMinWidth),
   );
 }

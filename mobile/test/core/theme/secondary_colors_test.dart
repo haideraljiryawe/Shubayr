@@ -79,10 +79,6 @@ void main() {
       expect(nav.labelTextStyle!.resolve(disabled)!.color, oldMuted);
       expect(nav.iconTheme!.resolve(selected)!.color, colors.primary);
       expect(nav.labelTextStyle!.resolve(selected)!.color, colors.primaryDark);
-      expect(
-        theme.navigationRailTheme.unselectedIconTheme!.color,
-        colors.textMuted,
-      );
       expect(theme.tabBarTheme.unselectedLabelColor, colors.textMuted);
       // Updating semantic colours must not alter typography or control metrics.
       final oldTheme = AppTheme.fromColors(

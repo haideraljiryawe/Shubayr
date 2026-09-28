@@ -582,9 +582,6 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
       } else {
         final categoryTree = AdminCategoryTree(options);
         for (final option in options) {
-          if (field == 'category_id' && option.text('parent_id').isEmpty) {
-            continue;
-          }
           if (field == 'parent_id') {
             var candidate = option;
             final seen = <String>{};
@@ -613,8 +610,8 @@ class _AdminRecordFormState extends ConsumerState<AdminRecordForm> {
         }
       }
       final selected = _draft[field] as String?;
-      // Retain a legacy root/missing category on edit without offering it as a
-      // new assignment. A main-category list scope cannot seed a new product.
+      // Retain an unavailable category on edit without offering it as a new
+      // assignment. Existing main categories are regular selectable options.
       final retainedProductCategory =
           field == 'category_id' &&
           selected != null &&

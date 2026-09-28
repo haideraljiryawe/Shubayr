@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'dart:async';
 import 'package:shubayr/core/error/failure.dart';
+import 'package:shubayr/core/layout/app_layout.dart';
 import 'package:shubayr/core/widgets/app_button.dart';
 import 'package:shubayr/core/widgets/state_views.dart';
 import 'package:flutter/material.dart';
@@ -456,22 +457,23 @@ void main() {
             find.byKey(const ValueKey('admin-category-order-child')),
             findsOneWidget,
           );
-          if (width >= 900 * 1.4) {
-            final root = tester.getCenter(
-              find.byKey(const ValueKey('admin-category-main')),
-            );
-            final child = tester.getCenter(
-              find.byKey(const ValueKey('admin-category-child')),
-            );
-            expect(
-              locale == 'ar' ? root.dx > child.dx : root.dx < child.dx,
-              isTrue,
-            );
-          } else {
-            expect(
-              find.byKey(const ValueKey('admin-category-main')),
-              findsNothing,
-            );
+          expect(
+            find.byKey(const ValueKey('admin-category-main')),
+            findsNothing,
+          );
+          final selectedCard = tester.getRect(
+            find.byKey(const ValueKey('admin-category-selected-main')),
+          );
+          expect(selectedCard.width, lessThanOrEqualTo(AppLayout.readingWidth));
+          final inset = AppLayout.pageHorizontal(
+            tester.element(find.byType(AdminCategoryHierarchy)),
+          );
+          expect(
+            locale == 'ar' ? width - selectedCard.right : selectedCard.left,
+            closeTo(inset, 0.01),
+          );
+          if (width < AppLayout.compactWidth) {
+            expect(selectedCard.width, closeTo(width - inset * 2, 0.01));
           }
           await media.tap(
             tester,

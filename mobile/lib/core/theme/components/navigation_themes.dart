@@ -34,10 +34,6 @@ abstract final class NavigationThemes {
   static const double bottomBarIndicatorWidth = 50;
   static const double bottomBarIndicatorThickness = 5;
 
-  /// Icon size in the wide-layout navigation rail (left untouched by the
-  /// phone-oriented refinement above).
-  static const double railIconSize = 24;
-
   /// Bottom navigation.
   ///
   /// Deliberately has no selected indicator: the Material 3 pill is switched
@@ -84,21 +80,6 @@ abstract final class NavigationThemes {
           ),
         ),
       );
-
-  static NavigationRailThemeData navigationRail(
-    AppColors c,
-    TextTheme text,
-  ) => NavigationRailThemeData(
-    backgroundColor: c.surface,
-    indicatorColor: c.primarySoft,
-    indicatorShape: const RoundedRectangleBorder(
-      borderRadius: AppRadii.pillAll,
-    ),
-    selectedIconTheme: IconThemeData(color: c.primaryDark, size: 24),
-    unselectedIconTheme: IconThemeData(color: c.textMuted, size: 24),
-    selectedLabelTextStyle: text.labelMedium?.copyWith(color: c.primaryDark),
-    unselectedLabelTextStyle: text.labelMedium?.copyWith(color: c.textMuted),
-  );
 
   static ChipThemeData chip(AppColors c, TextTheme text) => ChipThemeData(
     backgroundColor: c.surfaceAlt,

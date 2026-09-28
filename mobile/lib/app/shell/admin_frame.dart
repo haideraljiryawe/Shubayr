@@ -87,11 +87,12 @@ class _AdminFrameState extends ConsumerState<AdminFrame> {
   Widget build(BuildContext context) {
     final staff =
         ref.watch(sessionControllerProvider).value?.role == UserRole.staff;
-    final desktop = staff && AppLayout.isDesktop(context) && _isAdminRoute;
+    final wideHeader =
+        staff && AppLayout.usesWideHeader(context) && _isAdminRoute;
     // Keep the Router under the same keyed parent across breakpoint changes.
     return Column(
       children: [
-        if (desktop)
+        if (wideHeader)
           GlobalAdminHeader(
             onAccount: () {
               if (_currentPath != AppRoutes.settings) {
@@ -103,7 +104,7 @@ class _AdminFrameState extends ConsumerState<AdminFrame> {
           key: const ValueKey('app-routed-content'),
           child: MediaQuery.removePadding(
             context: context,
-            removeTop: desktop,
+            removeTop: wideHeader,
             child: widget.child,
           ),
         ),

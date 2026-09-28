@@ -24,9 +24,14 @@ class ProductListScreen extends ConsumerStatefulWidget {
     this.initialQuery = const ProductQuery(),
     this.parentCategoryId,
     this.offersOnly = false,
+    this.categoryHeaderSliver,
   });
 
   final ProductQuery initialQuery;
+
+  /// Category navigation shares the products' scroll area when opened from
+  /// the Categories tab. Products remain assigned to their actual category.
+  final Widget? categoryHeaderSliver;
 
   /// A fixed discount scope, distinct from the optional Offers toggle.
   final bool offersOnly;
@@ -224,6 +229,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 state: state,
                 onRetry: _controller.retry,
                 onScroll: _onScroll,
+                headerSliver: widget.categoryHeaderSliver,
               ),
             ),
           ],
@@ -278,9 +284,11 @@ class _Body extends StatelessWidget {
     required this.onRetry,
     required this.onScroll,
     required this.scroll,
+    this.headerSliver,
   });
 
   final ProductListState state;
+  final Widget? headerSliver;
   final ScrollController scroll;
   final VoidCallback onRetry;
   final bool Function(ScrollNotification) onScroll;
@@ -289,8 +297,11 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     if (state.loadingInitial) {
       return CustomScrollView(
-        physics: const NeverScrollableScrollPhysics(),
+        physics: headerSliver == null
+            ? const NeverScrollableScrollPhysics()
+            : null,
         slivers: [
+          ?headerSliver,
           SliverPadding(
             padding: AppLayout.pageInsets(context),
             sliver: ProductGridSliver(
@@ -306,15 +317,17 @@ class _Body extends StatelessWidget {
       // Preserve centered states when they fit and allow scrolling otherwise.
       return CustomScrollView(
         slivers: [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: state.error != null
-                ? AppErrorView(error: state.error, onRetry: onRetry)
-                : AppEmptyView(
-                    icon: Icons.search_off_outlined,
-                    message: context.l10n.searchNoResults,
-                  ),
-          ),
+          ?headerSliver,
+          if (state.error != null || headerSliver == null)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: state.error != null
+                  ? AppErrorView(error: state.error, onRetry: onRetry)
+                  : AppEmptyView(
+                      icon: Icons.search_off_outlined,
+                      message: context.l10n.searchNoResults,
+                    ),
+            ),
         ],
       );
     }
@@ -324,6 +337,7 @@ class _Body extends StatelessWidget {
       child: CustomScrollView(
         controller: scroll,
         slivers: [
+          ?headerSliver,
           SliverPadding(
             padding: AppLayout.pageInsets(context),
             sliver: ProductGridSliver(

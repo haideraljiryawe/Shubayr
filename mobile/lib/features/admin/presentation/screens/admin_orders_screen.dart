@@ -1,5 +1,4 @@
 import '../../../../core/config/app_config.dart';
-import '../../../../core/theme/tokens/app_radii.dart';
 import '../widgets/admin_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'dart:async';
@@ -73,18 +72,13 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       context: context,
       firstDate: DateTime(1900),
       lastDate: DateTime(now.year + 1, 12, 31),
-      builder: (context, child) => AppLayout.isDesktop(context)
-          ? Center(
-              child: ConstrainedBox(
-                key: const ValueKey('admin-date-range-dialog'),
-                constraints: const BoxConstraints(
-                  maxWidth: AppLayout.dateRangeWidth,
-                  maxHeight: AppLayout.dateRangeHeight,
-                ),
-                child: ClipRRect(borderRadius: AppRadii.lgAll, child: child!),
-              ),
-            )
-          : child!,
+      builder: (context, child) => Center(
+        child: ConstrainedBox(
+          key: const ValueKey('admin-date-range-dialog'),
+          constraints: const BoxConstraints(maxWidth: AppLayout.dateRangeWidth),
+          child: child!,
+        ),
+      ),
       initialDateRange: query.from == null || query.to == null
           ? null
           : DateTimeRange(start: query.from!, end: query.to!),

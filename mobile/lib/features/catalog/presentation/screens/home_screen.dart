@@ -69,8 +69,17 @@ class HomeScreen extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
+          // Another client (such as the admin web app) may have changed the
+          // catalog. Drop cached details too, so reopening a product cannot
+          // resurrect the old price, category or media after this refresh.
+          ref.invalidate(productProvider);
+          ref.invalidate(availabilityProvider);
+          ref.invalidate(categoryFeedProvider);
           ref.invalidate(offerCategoriesProvider);
           await Future.wait([
+            ref
+                .refresh(categoriesProvider.future)
+                .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
             ref
                 .refresh(homeOffersProvider.future)
                 .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
@@ -80,6 +89,7 @@ class HomeScreen extends ConsumerWidget {
           ]);
         },
         child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
           children: [
             const HomeBanners(),

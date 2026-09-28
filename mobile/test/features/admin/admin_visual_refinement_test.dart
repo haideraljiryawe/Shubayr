@@ -92,7 +92,7 @@ void main() {
   for (final locale in ['ar', 'en']) {
     for (final edit in [false, true]) {
       testWidgets(
-        'product picker offers only subcategory paths $locale edit=$edit',
+        'product picker offers main categories and subcategory paths $locale edit=$edit',
         (tester) async {
           media.size(tester, 390);
           final repo = repository();
@@ -111,21 +111,35 @@ void main() {
           );
           await tester.pumpAndSettle();
           final picker = productPicker(tester);
-          expect(picker.items!.map((i) => i.value), ['phones', 'audio', 'men']);
+          expect(picker.items!.map((i) => i.value), [
+            'main',
+            'phones',
+            'audio',
+            'other',
+            'men',
+          ]);
           expect(picker.items!.every((i) => i.enabled), isTrue);
           expect(
             picker.items!.map((i) => (i.child as Text).data),
             locale == 'ar'
-                ? ['إلكترونيات / هواتف', 'إلكترونيات / صوتيات', 'ملابس / رجالي']
+                ? [
+                    'إلكترونيات',
+                    'إلكترونيات / هواتف',
+                    'إلكترونيات / صوتيات',
+                    'ملابس',
+                    'ملابس / رجالي',
+                  ]
                 : [
+                    'Electronics',
                     'Electronics / Phones',
                     'Electronics / Audio',
+                    'Clothes',
                     'Clothes / Men',
                   ],
           );
           expect(
             tester.state<FormFieldState<String>>(categoryField()).value,
-            edit ? 'phones' : null,
+            edit ? 'phones' : 'main',
           );
           if (!edit) {
             await tester.enterText(
@@ -140,11 +154,12 @@ void main() {
               find.byKey(const ValueKey('sale_price')),
               '1',
             );
+          }
+          if (!edit) {
             await save(tester);
-            expect(
-              repo.writes,
-              isEmpty,
-            ); // Root scope must not become an assignment.
+            expect(repo.writes.single.input['category_id'], 'main');
+            expect(tester.takeException(), isNull);
+            return;
           }
           await media.tap(tester, categoryField());
           await media.tap(
@@ -165,7 +180,7 @@ void main() {
     }
 
     testWidgets(
-      'legacy root assignment is retained but cannot be newly selected $locale',
+      'main category assignment can be retained and selected again $locale',
       (tester) async {
         media.size(tester, 390);
         final repo = repository();
@@ -182,20 +197,22 @@ void main() {
         await tester.pumpAndSettle();
         final picker = productPicker(tester);
         expect(picker.items!.where((i) => i.enabled).map((i) => i.value), [
+          'main',
           'phones',
           'audio',
+          'other',
           'men',
         ]);
         expect(
           picker.items!.singleWhere((i) => i.value == 'main').enabled,
-          isFalse,
+          isTrue,
         );
         expect(
           tester
               .widget<DropdownButtonFormField<String>>(categoryField())
               .decoration
               .helperText,
-          isNotEmpty,
+          isNull,
         );
         expect(
           tester.state<FormFieldState<String>>(categoryField()).value,
@@ -226,7 +243,7 @@ void main() {
         );
         expect(
           productPicker(tester).items!.map((i) => i.value),
-          isNot(contains('main')),
+          contains('main'),
         );
         await save(tester);
         expect(repo.writes.last.input['category_id'], 'phones');

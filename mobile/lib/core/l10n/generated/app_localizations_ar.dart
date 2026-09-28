@@ -1679,7 +1679,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminRetainedProductCategory =>
-      'التصنيف الحالي محفوظ، لكنه غير متاح للإسناد الجديد. يمكنك إبقاؤه لهذا المنتج أو اختيار قسم فرعي لتغييره.';
+      'التصنيف الحالي محفوظ، لكنه غير متاح للإسناد الجديد. يمكنك إبقاؤه لهذا المنتج أو اختيار قسم آخر لتغييره.';
 
   @override
   String get adminDiscountType => 'نوع الخصم';

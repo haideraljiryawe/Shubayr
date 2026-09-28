@@ -148,8 +148,7 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
 
     return Scaffold(
       appBar: adminAppBar(context, ref, title: adminTitle(l, r)),
-      floatingActionButton:
-          !AppLayout.isDesktop(context) && r.canCreate && canWrite
+      floatingActionButton: r.canCreate && canWrite
           ? FloatingActionButton.extended(
               onPressed: () => _form(),
               label: Text(
@@ -163,10 +162,6 @@ class _AdminListScreenState extends ConsumerState<AdminListScreen> {
       body: Column(
         children: [
           AdminListToolbar(
-            addLabel: r == AdminResource.categories
-                ? l.adminAddMainCategory
-                : null,
-            onAdd: r.canCreate && canWrite ? () => _form() : null,
             fields: [
               if (r.canSearch)
                 TextField(

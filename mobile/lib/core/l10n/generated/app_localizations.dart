@@ -3311,7 +3311,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminRetainedProductCategory.
   ///
   /// In en, this message translates to:
-  /// **'The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it.'**
+  /// **'The current category is retained but unavailable for new assignments. Keep it for this product or choose another category to change it.'**
   String get adminRetainedProductCategory;
 
   /// No description provided for @adminDiscountType.

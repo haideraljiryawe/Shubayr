@@ -197,105 +197,105 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
     if (widget.banners.isEmpty) return const SizedBox.shrink();
     final generation = _generation;
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final imageWidth = math.min(
-          constraints.maxWidth - AppLayout.pageHorizontal(context) * 2,
-          AppLayout.detailWidth,
-        );
-        final height = _bannerHeight(context, imageWidth, widget.banners);
-        return MouseRegion(
-          onEnter: (_) {
-            _hovering = true;
-            _schedule();
-          },
-          onExit: (_) {
-            _hovering = false;
-            _schedule();
-          },
-          child: Focus(
-            onFocusChange: (value) {
-              _focused = value;
+    return ResponsiveContent(
+      maxWidth: AppLayout.readingWidth + AppLayout.pageHorizontal(context) * 2,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final imageWidth =
+              constraints.maxWidth - AppLayout.pageHorizontal(context) * 2;
+          final height = _bannerHeight(context, imageWidth, widget.banners);
+          return MouseRegion(
+            onEnter: (_) {
+              _hovering = true;
               _schedule();
             },
-            onKeyEvent: (_, event) {
-              if (!_multiple || event is! KeyDownEvent) {
-                return KeyEventResult.ignored;
-              }
-              if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-                _move(rtl ? -1 : 1);
-                return KeyEventResult.handled;
-              }
-              if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-                _move(rtl ? 1 : -1);
-                return KeyEventResult.handled;
-              }
-              return KeyEventResult.ignored;
+            onExit: (_) {
+              _hovering = false;
+              _schedule();
             },
-            child: Listener(
-              onPointerDown: (event) {
-                _pointers.add(event.pointer);
+            child: Focus(
+              onFocusChange: (value) {
+                _focused = value;
                 _schedule();
               },
-              onPointerUp: (event) {
-                _pointers.remove(event.pointer);
-                _schedule();
+              onKeyEvent: (_, event) {
+                if (!_multiple || event is! KeyDownEvent) {
+                  return KeyEventResult.ignored;
+                }
+                if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                  _move(rtl ? -1 : 1);
+                  return KeyEventResult.handled;
+                }
+                if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                  _move(rtl ? 1 : -1);
+                  return KeyEventResult.handled;
+                }
+                return KeyEventResult.ignored;
               },
-              onPointerCancel: (event) {
-                _pointers.remove(event.pointer);
-                _schedule();
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    height: height,
-                    child: NotificationListener<ScrollNotification>(
-                      onNotification: (notification) {
-                        if (generation != _generation ||
-                            notification.depth != 0) {
+              child: Listener(
+                onPointerDown: (event) {
+                  _pointers.add(event.pointer);
+                  _schedule();
+                },
+                onPointerUp: (event) {
+                  _pointers.remove(event.pointer);
+                  _schedule();
+                },
+                onPointerCancel: (event) {
+                  _pointers.remove(event.pointer);
+                  _schedule();
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: height,
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (notification) {
+                          if (generation != _generation ||
+                              notification.depth != 0) {
+                            return false;
+                          }
+                          if (notification is ScrollStartNotification) {
+                            _timer?.cancel();
+                          }
+                          if (notification is ScrollEndNotification) {
+                            _settled(generation);
+                          }
                           return false;
-                        }
-                        if (notification is ScrollStartNotification) {
-                          _timer?.cancel();
-                        }
-                        if (notification is ScrollEndNotification) {
-                          _settled(generation);
-                        }
-                        return false;
-                      },
-                      child: ScrollConfiguration(
-                        behavior: ScrollConfiguration.of(context).copyWith(
-                          dragDevices: {
-                            ...ScrollConfiguration.of(context).dragDevices,
-                            PointerDeviceKind.mouse,
-                          },
-                        ),
-                        // Only the full viewport clips paging. Each image owns
-                        // its inset and rounded clip, so both pages can cross
-                        // the resting image bounds while tracking a drag.
-                        child: PageView.builder(
-                          key: ValueKey(generation),
-                          controller: _controller,
-                          physics: _multiple
-                              ? const PageScrollPhysics()
-                              : const NeverScrollableScrollPhysics(),
-                          itemCount: _multiple ? widget.banners.length + 2 : 1,
-                          onPageChanged: (page) {
-                            if (generation != _generation) return;
-                            setState(() {
-                              _page = page;
-                              _selectedId = widget.banners[_index(page)].id;
-                            });
-                          },
-                          itemBuilder: (context, page) => Padding(
-                            padding: AppLayout.pageInsets(
-                              context,
-                              top: 0,
-                              bottom: 0,
-                            ),
-                            child: ResponsiveContent(
-                              maxWidth: AppLayout.detailWidth,
+                        },
+                        child: ScrollConfiguration(
+                          behavior: ScrollConfiguration.of(context).copyWith(
+                            dragDevices: {
+                              ...ScrollConfiguration.of(context).dragDevices,
+                              PointerDeviceKind.mouse,
+                            },
+                          ),
+                          // Only the full viewport clips paging. Each image owns
+                          // its inset and rounded clip, so both pages can cross
+                          // the resting image bounds while tracking a drag.
+                          child: PageView.builder(
+                            key: ValueKey(generation),
+                            controller: _controller,
+                            physics: _multiple
+                                ? const PageScrollPhysics()
+                                : const NeverScrollableScrollPhysics(),
+                            itemCount: _multiple
+                                ? widget.banners.length + 2
+                                : 1,
+                            onPageChanged: (page) {
+                              if (generation != _generation) return;
+                              setState(() {
+                                _page = page;
+                                _selectedId = widget.banners[_index(page)].id;
+                              });
+                            },
+                            itemBuilder: (context, page) => Padding(
+                              padding: AppLayout.pageInsets(
+                                context,
+                                top: 0,
+                                bottom: 0,
+                              ),
                               child: ClipRRect(
                                 key: ValueKey('banner-page-$page'),
                                 borderRadius: AppRadii.bannerAll,
@@ -311,64 +311,67 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
                         ),
                       ),
                     ),
-                  ),
-                  if (_multiple)
-                    Padding(
-                      padding: EdgeInsetsDirectional.only(
-                        top: AppSpacing.sm,
-                        start: AppLayout.pageHorizontal(context),
-                        end: AppLayout.pageHorizontal(context),
-                      ),
-                      child: Semantics(
-                        label: context.l10n.bannerPosition(
-                          '${_index(_page) + 1}',
-                          '${widget.banners.length}',
+                    if (_multiple)
+                      Padding(
+                        padding: EdgeInsetsDirectional.only(
+                          top: AppSpacing.sm,
+                          start: AppLayout.pageHorizontal(context),
+                          end: AppLayout.pageHorizontal(context),
                         ),
-                        child: Center(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                for (var i = 0; i < widget.banners.length; i++)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: AppSpacing.xs,
-                                    ),
-                                    child: DecoratedBox(
-                                      key: ValueKey(
-                                        'banner-dot-$i-${i == _index(_page)}',
+                        child: Semantics(
+                          label: context.l10n.bannerPosition(
+                            '${_index(_page) + 1}',
+                            '${widget.banners.length}',
+                          ),
+                          child: Center(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (
+                                    var i = 0;
+                                    i < widget.banners.length;
+                                    i++
+                                  )
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.xs,
                                       ),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(
-                                          AppRadii.pill,
+                                      child: DecoratedBox(
+                                        key: ValueKey(
+                                          'banner-dot-$i-${i == _index(_page)}',
                                         ),
-                                        color: i == _index(_page)
-                                            ? context.colors.primary
-                                            : context.colors.primary.withValues(
-                                                alpha: 0.25,
-                                              ),
-                                      ),
-                                      child: SizedBox(
-                                        width: i == _index(_page)
-                                            ? AppSpacing.xl
-                                            : AppSpacing.sm,
-                                        height: AppSpacing.xs,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadii.pill,
+                                          ),
+                                          color: i == _index(_page)
+                                              ? context.colors.primary
+                                              : context.colors.primary
+                                                    .withValues(alpha: 0.25),
+                                        ),
+                                        child: SizedBox(
+                                          width: i == _index(_page)
+                                              ? AppSpacing.xl
+                                              : AppSpacing.sm,
+                                          height: AppSpacing.xs,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
@@ -392,7 +395,7 @@ double _bannerHeight(
     return height;
   }
 
-  var height = width / AppLayout.homeBannerAspectRatio(width);
+  var height = width / AppLayout.homeBannerAspectRatio;
   for (final banner in banners) {
     final title = measure(banner.title, context.text.titleLarge);
     final subtitle = measure(banner.subtitle ?? '', context.text.bodyMedium);
@@ -504,7 +507,7 @@ class HomeBannerSkeleton extends StatelessWidget {
       0,
     ),
     child: ResponsiveContent(
-      maxWidth: AppLayout.detailWidth,
+      maxWidth: AppLayout.readingWidth,
       child: LayoutBuilder(
         builder: (context, constraints) => Skeleton(
           height: _bannerHeight(context, constraints.maxWidth, const []),

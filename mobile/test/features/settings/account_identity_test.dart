@@ -155,12 +155,8 @@ void main() {
         await tester.pumpAndSettle();
         final avatarBounds = tester.getRect(find.byType(UserAvatar));
         final nameBounds = tester.getRect(find.text('أحمد Ahmed'));
-        expect(
-          locale == 'ar'
-              ? avatarBounds.left > nameBounds.right
-              : avatarBounds.right < nameBounds.left,
-          isTrue,
-        );
+        expect(avatarBounds.bottom, lessThan(nameBounds.top));
+        expect(avatarBounds.center.dx, closeTo(nameBounds.center.dx, 0.01));
         expect(find.byType(UserAvatar), findsOneWidget);
         expect(find.byIcon(Icons.photo_camera_outlined), findsNothing);
         await tester.pumpWidget(const SizedBox.shrink());

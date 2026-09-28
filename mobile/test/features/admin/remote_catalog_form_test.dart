@@ -24,23 +24,25 @@ void main() {
     'discount_value',
     'discount_ends_at',
     'unchanged',
+    'category_id',
+    'create',
   ]) {
     testWidgets(
-      'remote editor PATCH $field preserves omitted schedule and variants',
+      'remote editor $field supports root assignment and preserves omitted fields',
       (tester) async {
         final writes = <Map<String, dynamic>>[];
         final dio = Dio()
           ..interceptors.add(
             InterceptorsWrapper(
               onRequest: (r, h) {
-                if (r.method == 'PATCH') {
+                if (r.method == 'PATCH' || r.method == 'POST') {
                   writes.add(Map<String, dynamic>.from(r.data as Map));
                 }
                 h.resolve(
                   Response(
                     requestOptions: r,
                     statusCode: 200,
-                    data: r.method == 'PATCH'
+                    data: r.method == 'PATCH' || r.method == 'POST'
                         ? {
                             ...scheduled,
                             ...Map<String, dynamic>.from(r.data as Map),
@@ -99,8 +101,13 @@ void main() {
                       context,
                       MaterialPageRoute<void>(
                         builder: (_) => AdminRecordForm(
-                          query: const AdminQuery(AdminResource.products),
-                          record: AdminRecord(scheduled),
+                          query: AdminQuery(
+                            AdminResource.products,
+                            categoryId: field == 'create' ? 'root' : null,
+                          ),
+                          record: field == 'create'
+                              ? null
+                              : AdminRecord(scheduled),
                         ),
                       ),
                     ),
@@ -120,7 +127,25 @@ void main() {
           'discount_ends_at' => '2027-03-01T09:00:00Z',
           _ => '',
         };
-        if (field != 'unchanged') {
+        if (field == 'create') {
+          await tester.enterText(
+            find.byKey(const ValueKey('name_en')),
+            'Cooler',
+          );
+          await tester.enterText(find.byKey(const ValueKey('name_ar')), 'مبرد');
+          await tester.enterText(find.byKey(const ValueKey('price')), '100');
+        } else if (field == 'category_id') {
+          final picker = find.byWidgetPredicate(
+            (w) =>
+                w is DropdownButtonFormField<String> &&
+                w.key.toString().contains('category_id-'),
+          );
+          await tester.ensureVisible(picker);
+          await tester.tap(picker);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Root').last);
+          await tester.pumpAndSettle();
+        } else if (field != 'unchanged') {
           await tester.enterText(find.byKey(ValueKey(field)), changed);
         }
         if (field == 'discount_value') {
@@ -150,11 +175,17 @@ void main() {
           }
         }
         await save(tester);
-        if (field == 'unchanged') {
+        if (field == 'create') {
+          expect(writes.single['category_id'], 'root');
+          expect(writes.single['name_en'], 'Cooler');
+          expect(writes.single['price'], 100);
+        } else if (field == 'unchanged') {
           expect(writes, isEmpty);
         } else {
           expect(writes.single, {
-            field: field == 'discount_value'
+            field: field == 'category_id'
+                ? 'root'
+                : field == 'discount_value'
                 ? 15
                 : field == 'discount_ends_at'
                 ? '2027-03-01T09:00:00.000Z'

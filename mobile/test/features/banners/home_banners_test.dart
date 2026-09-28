@@ -104,15 +104,15 @@ void main() {
         final size = tester.getSize(
           find.byKey(const ValueKey('banner-page-0')),
         );
-        // Current artwork starts at 2:1 and becomes panoramic on wider layouts.
+        // Artwork keeps one aspect ratio across window sizes.
         final aspectRatio = size.width / size.height;
-        expect(aspectRatio, inInclusiveRange(2.0, 4.0));
+        expect(aspectRatio, closeTo(2.0, 0.001));
         if (width <= 390) expect(aspectRatio, closeTo(2.0, 0.001));
         if (width <= 390) {
           expect(size.height, (width - AppSpacing.screenMobileH * 2) / 2);
         }
-        // The current wide layout caps artwork at 1440px with a 4:1 ratio.
-        if (width == 1920) expect(size, const Size(1440, 360));
+        // Artwork and its pager stay at a readable tablet width.
+        if (width == 1920) expect(size, const Size(760, 380));
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(_host(const HomeBannerSkeleton()));
         await tester.pump();
@@ -124,7 +124,7 @@ void main() {
   for (final width in [390.0, 1920.0]) {
     for (final lang in ['ar', 'en']) {
       testWidgets(
-        'full viewport slow drag tracks both inset images before release at $width $lang',
+        'bounded viewport slow drag tracks both inset images before release at $width $lang',
         (tester) async {
           tester.view.physicalSize = Size(width, 1600);
           tester.view.devicePixelRatio = 1;
@@ -139,15 +139,15 @@ void main() {
           final current = find.byKey(const ValueKey('banner-page-1'));
           final adjacent = find.byKey(const ValueKey('banner-page-2'));
           final initial = tester.getRect(current);
-          expect(viewport.left, 0);
-          expect(viewport.width, width);
+          expect(viewport.center.dx, width / 2);
+          expect(viewport.width, width == 390 ? width : 792);
           expect(
             tester.widget<PageView>(pager).controller!.viewportFraction,
             1,
           );
           expect(
             initial.width,
-            width == 390 ? width - AppSpacing.screenMobileH * 2 : 1440,
+            width == 390 ? width - AppSpacing.screenMobileH * 2 : 760,
           );
           expect(initial.center.dx, viewport.center.dx);
           expect(adjacent.hitTestable(), findsNothing);
@@ -157,7 +157,7 @@ void main() {
           // measure frame-by-frame motion while the finger is still down.
           await gesture.moveBy(Offset(direction * 40, 0));
           await tester.pump(const Duration(milliseconds: 16));
-          await gesture.moveBy(Offset(direction * width * 0.3, 0));
+          await gesture.moveBy(Offset(direction * viewport.width * 0.3, 0));
           await tester.pump(const Duration(milliseconds: 100));
           final before = tester.getRect(current);
           expect(before.left, isNot(closeTo(initial.left, 1)));
@@ -165,15 +165,15 @@ void main() {
             tester.getRect(adjacent).intersect(viewport).width,
             greaterThan(0),
           );
-          // Both images extend into the screen margins during the drag.
+          // Both images extend into the pager margins during the drag.
           // No rounded clip outside PageView can hide those moving edges.
           expect(
             find.ancestor(of: pager, matching: find.byType(ClipRRect)),
             findsNothing,
           );
           for (final entry in [
-            (current, lang == 'ar' ? width - 4 : 4.0),
-            (adjacent, lang == 'ar' ? 4.0 : width - 4),
+            (current, lang == 'ar' ? viewport.right - 4 : viewport.left + 4),
+            (adjacent, lang == 'ar' ? viewport.left + 4 : viewport.right - 4),
           ]) {
             expect(
               tester
@@ -194,7 +194,7 @@ void main() {
             tester.getRect(adjacent).left - neighborBefore.left,
             closeTo(direction * 30, 0.1),
           );
-          await gesture.moveBy(Offset(direction * width * 0.3, 0));
+          await gesture.moveBy(Offset(direction * viewport.width * 0.3, 0));
           await tester.pump(const Duration(milliseconds: 100));
           // The logical indicator changes during the drag, before pointer-up.
           final active = find.byKey(const ValueKey('banner-dot-1-true'));
@@ -715,7 +715,11 @@ void main() {
           expect(opened, Uri.parse(first.linkUrl!));
           await tester.drag(
             find.byType(PageView),
-            Offset(lang == 'ar' ? width * 0.8 : -width * 0.8, 0),
+            Offset(
+              tester.getSize(find.byType(PageView)).width *
+                  (lang == 'ar' ? 0.8 : -0.8),
+              0,
+            ),
           );
           await tester.pumpAndSettle();
           expect(find.text('Second banner').hitTestable(), findsOneWidget);

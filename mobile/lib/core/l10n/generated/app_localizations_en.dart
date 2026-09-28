@@ -1692,7 +1692,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminRetainedProductCategory =>
-      'The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it.';
+      'The current category is retained but unavailable for new assignments. Keep it for this product or choose another category to change it.';
 
   @override
   String get adminDiscountType => 'Discount type';

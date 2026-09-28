@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/layout/app_layout.dart';
 import '../../core/l10n/l10n_context.dart';
 import '../../core/theme/components/navigation_themes.dart';
 import '../../core/theme/theme_context.dart';
@@ -35,9 +34,7 @@ Widget _badged(BuildContext context, Widget child, int count) {
 
 /// Customer navigation shell.
 ///
-/// Adaptive by width: a bottom navigation bar on phones, a side rail on
-/// tablets and the web. Both drive the same `StatefulNavigationShell`, so
-/// there is no duplicated navigation logic between form factors.
+/// One bottom navigation bar across window sizes, driving the same shell.
 ///
 /// Branch order matches `app_router.dart`: Home · Categories · Cart · Orders ·
 /// Account. A signed-out guest sees only the three public destinations; Cart
@@ -45,14 +42,11 @@ Widget _badged(BuildContext context, Widget child, int count) {
 class CustomerShell extends ConsumerWidget {
   const CustomerShell({super.key, required this.navigationShell});
 
-  static const double railBreakpoint = AppBreakpoints.compactDesktop;
-
   final StatefulNavigationShell navigationShell;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final colors = context.colors;
     final isSignedIn =
         ref.watch(sessionControllerProvider).value?.isSignedIn ?? false;
 
@@ -126,47 +120,13 @@ class CustomerShell extends ConsumerWidget {
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final useRail = constraints.maxWidth >= railBreakpoint;
-
-        if (useRail) {
-          return Scaffold(
-            body: Row(
-              children: [
-                NavigationRail(
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: onSelect,
-                  labelType: NavigationRailLabelType.all,
-                  destinations: [
-                    for (final d in destinations)
-                      NavigationRailDestination(
-                        icon: _badged(context, Icon(d.icon), d.badge),
-                        selectedIcon: _badged(
-                          context,
-                          Icon(d.selectedIcon),
-                          d.badge,
-                        ),
-                        label: Text(d.label),
-                      ),
-                  ],
-                ),
-                VerticalDivider(width: 1, color: colors.divider),
-                Expanded(child: navigationShell),
-              ],
-            ),
-          );
-        }
-
-        return Scaffold(
-          body: navigationShell,
-          bottomNavigationBar: _BottomNavBar(
-            destinations: destinations,
-            selectedIndex: selectedIndex,
-            onSelected: onSelect,
-          ),
-        );
-      },
+    return Scaffold(
+      body: navigationShell,
+      bottomNavigationBar: _BottomNavBar(
+        destinations: destinations,
+        selectedIndex: selectedIndex,
+        onSelected: onSelect,
+      ),
     );
   }
 }
