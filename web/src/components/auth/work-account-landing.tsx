@@ -1,13 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { BriefcaseBusiness, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, BriefcaseBusiness, LogOut } from "lucide-react";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import type { WorkRole } from "@/lib/work-account";
+import { WORK_HOME, type WorkRole } from "@/lib/work-account";
 
 /**
  * The only page a work account sees on the storefront.
@@ -15,8 +15,7 @@ import type { WorkRole } from "@/lib/work-account";
  * Shopping, the cart, the wishlist and customer addresses are all refused to
  * work accounts by the API, so rather than render a store full of buttons that
  * would each fail, the session gets one honest page: who they are signed in as,
- * where their work happens, and the way out. The full agent and monitor work
- * pages arrive after backend build phase 2.
+ * the way to their work pages, and the way out.
  */
 export function WorkAccountLanding({ role }: { role: WorkRole }) {
   const t = useTranslations("workAccount");
@@ -48,8 +47,15 @@ export function WorkAccountLanding({ role }: { role: WorkRole }) {
           </p>
         </div>
         <p className="max-w-md text-text-muted">{t("body")}</p>
-        <p className="max-w-md text-sm text-text-muted">{t("comingSoon")}</p>
         <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href={WORK_HOME[role]}
+            data-testid="work-account-home"
+            className={buttonClasses({ variant: "primary" })}
+          >
+            {t("openWork")}
+            <ArrowRight className="size-4 rtl-flip" aria-hidden />
+          </Link>
           <Button
             variant="secondary"
             data-testid="work-account-signout"
@@ -63,6 +69,7 @@ export function WorkAccountLanding({ role }: { role: WorkRole }) {
           </Button>
           <LocaleSwitcher />
         </div>
+        <p className="max-w-md text-sm text-text-muted">{t("shopHint")}</p>
       </Card>
     </div>
   );

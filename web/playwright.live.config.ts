@@ -35,6 +35,7 @@ export default defineConfig({
     "**/live-account.spec.ts",
     "**/live-wishlist.spec.ts",
     "**/live-work-account.spec.ts",
+    "**/live-work-pages.spec.ts",
   ],
   timeout: 90000,
   use: {
@@ -53,10 +54,11 @@ export default defineConfig({
     env: {
       NEXT_PUBLIC_USE_MOCKS: "false",
       // Every domain, exactly as this repo flips them — wishlist included
-      // since the backend module landed (#55).
+      // since the backend module landed (#55), and the build-phase-2 work
+      // pages and inbox since API 6.1 (#58).
       NEXT_PUBLIC_LIVE_DOMAINS:
         "auth,profile,catalog,banners,cart,checkout,orders,addresses," +
-        "returns,loyalty,reviews,notifications,wishlist",
+        "returns,loyalty,reviews,notifications,wishlist,monitor,deliveries,inbox",
       NEXT_PUBLIC_API_URL: api,
     },
   },

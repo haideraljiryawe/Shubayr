@@ -24,3 +24,11 @@ export const DELIVERY_FEE = envNumber(
   process.env.NEXT_PUBLIC_DELIVERY_FEE,
   5,
 );
+
+/**
+ * The store's timezone. GET /monitor/orders reads `date_from`/`date_to` as
+ * Asia/Baghdad calendar days (the contract fixes it; StoreSettings has no
+ * timezone field yet), so the date filters, their "today" and every time the
+ * work pages print are computed here rather than in the browser's own zone.
+ */
+export const STORE_TIME_ZONE = "Asia/Baghdad";
