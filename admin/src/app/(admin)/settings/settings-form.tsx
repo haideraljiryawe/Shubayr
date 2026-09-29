@@ -41,6 +41,7 @@ const UNITS: Record<NumberKey, "currency" | "minutes" | "days" | "units" | "perc
   default_low_stock_threshold: "units",
   backdating_window_days: "days",
   markup_alert_percent: "percent",
+  sale_rounding_multiple: "currency",
 };
 
 export function SettingsForm({
@@ -95,7 +96,7 @@ export function SettingsForm({
   }
 
   const numberField = (key: NumberKey) => (
-    <Field key={`${key}-${generation}`} label={t(`fields.${key}`)} error={error(`numbers.${key}`)} hint={t(`units.${UNITS[key]}`, { currency: baseCurrency })} name={key}>
+    <Field key={`${key}-${generation}`} label={t(`fields.${key}`)} error={error(`numbers.${key}`)} hint={key === "sale_rounding_multiple" ? t("roundingHint") : t(`units.${UNITS[key]}`, { currency: baseCurrency })} name={key}>
       <DecimalInput
         value={form.numbers[key]}
         data-testid={`setting-${key}`}
@@ -259,6 +260,7 @@ export function SettingsForm({
           {numberField("default_low_stock_threshold")}
           {numberField("backdating_window_days")}
           {numberField("markup_alert_percent")}
+          {numberField("sale_rounding_multiple")}
         </div>
         <h3 className="mt-4 font-semibold">{t("thresholds.title")}</h3>
         <p className="text-sm text-text-muted">{t("thresholds.body")}</p>

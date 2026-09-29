@@ -117,7 +117,7 @@ The browser never sees a token and never calls the API directly.
 | `/orders` | `orders.view` | Server-side status filter, order-number search, date range and pagination (all in the URL) |
 | `/orders/[id]` | `orders.view` (+ each action's key) | Lines, customer, address, delivery, timeline; accept / start preparing / mark ready / hand over / cancel (reason required), assign a delivery agent |
 | `/notifications` (+ header bell) | session | The staff member's inbox: live unread count, dropdown, all/unread, mark one / mark all |
-| `/settings` | `settings.manage` | Store data, delivery fee, timezone, business hours, closed days, acceptance alert, auto-cancel (off by default, own timeout and warning), low-stock threshold, back-dating window, markup alert %, unusual-change thresholds; change history old → new (with `audit.view`) |
+| `/settings` | `settings.manage` | Store data, delivery fee, timezone, business hours, closed days, acceptance alert, auto-cancel (off by default, own timeout and warning), low-stock threshold, back-dating window, markup alert %, sale-price rounding multiple (8.0), unusual-change thresholds; change history old → new (with `audit.view`) |
 | `/finance/currencies` | `ledger.view` (+ `settings.manage` to enable, `fx_rates.update` to record) | Currencies (base locked); rates written "1 USD = … IQD", per-1 or per-100 entry with a per-1 preview, required reason, "not from today" warnings, history with old → new and who |
 | `/finance/cash-accounts` | `cash_accounts.manage` | Accounts with ledger balances; create, rename, (de)activate, delete unused; opening-balance document; transfer (review, then confirm) |
 | `/finance/periods`, `/finance/periods/[month]` | `ledger.view` (+ `period.close`, `period.reopen`) | Recent months open/closed; the API's close checklist; close; reopen with a required reason; close history and differences at re-close |
@@ -210,8 +210,9 @@ and runs the live suite against it.
   decodes both.
 - **Settings values are barely validated by the API** (only unknown keys,
   weekdays and thresholds), so `src/lib/finance/settings.ts` checks every
-  value before it is sent. The weekday numbering (0–6) is not specified; this
-  app uses 0 = Sunday.
+  value before it is sent. The weekday numbering (0–6) is not specified (still
+  undocumented in contract 8.0.0); this app uses 0 = Sunday — re-check once
+  the backend documents it.
 - **No single reads for finance documents or journal entries**
   (`GET /admin/ledger/entries/{id}`, a document by id): the ledger links by
   `source_id` filter, and a reversal shows the id of the entry it reverses.

@@ -437,7 +437,8 @@
       "auto_cancel_warning_minutes": "التحذير قبل الإلغاء بـ",
       "default_low_stock_threshold": "حد انخفاض المخزون الافتراضي",
       "backdating_window_days": "نافذة التاريخ السابق",
-      "markup_alert_percent": "نسبة تنبيه هامش الربح"
+      "markup_alert_percent": "نسبة تنبيه هامش الربح",
+      "sale_rounding_multiple": "مضاعف تقريب سعر البيع"
     },
     "units": {
       "currency": "بعملة الأساس ({currency})",
@@ -487,7 +488,8 @@
       "empty": "لا توجد تغييرات مسجلة بعد.",
       "unknownActor": "مستخدم غير معروف",
       "hoursOf": "ساعات اليوم {day}"
-    }
+    },
+    "roundingHint": "صفر يعني دقة عملة الأساس؛ غير ذلك تُقرَّب الأسعار المرتبطة بالعملة لأعلى إلى هذا المضاعف."
   },
   "currencies": {
     "title": "العملات وأسعار الصرف",

@@ -81,6 +81,16 @@ describe("settings form", () => {
     });
   });
 
+  it("sale rounding (contract 8.0) is a whole number and optional", () => {
+    const form = toForm(SETTINGS);
+    expect(form.numbers.sale_rounding_multiple).toBe("");
+    form.numbers.sale_rounding_multiple = "250.5";
+    expect(validate(form, 0)).toEqual({ "numbers.sale_rounding_multiple": "number" });
+    form.numbers.sale_rounding_multiple = "٢٥٠";
+    expect(validate(form, 0)).toEqual({});
+    expect(buildPatch(toForm(SETTINGS), form).settings).toEqual({ sale_rounding_multiple: "250" });
+  });
+
   it("checks business hours and closed days", () => {
     const form = toForm(SETTINGS);
     form.hours[0].closes_at = "08:00";

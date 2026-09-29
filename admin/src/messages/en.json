@@ -437,7 +437,8 @@
       "auto_cancel_warning_minutes": "Warn before cancelling by",
       "default_low_stock_threshold": "Default low-stock threshold",
       "backdating_window_days": "Back-dating window",
-      "markup_alert_percent": "Markup alert percentage"
+      "markup_alert_percent": "Markup alert percentage",
+      "sale_rounding_multiple": "Sale price rounding multiple"
     },
     "units": {
       "currency": "In the base currency ({currency})",
@@ -487,7 +488,8 @@
       "empty": "No changes recorded yet.",
       "unknownActor": "Unknown user",
       "hoursOf": "Hours of day {day}"
-    }
+    },
+    "roundingHint": "Zero uses the base currency's precision; otherwise currency-linked prices round up to this multiple."
   },
   "currencies": {
     "title": "Currencies and exchange rates",

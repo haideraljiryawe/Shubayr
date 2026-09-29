@@ -25,6 +25,7 @@ export const NUMBER_KEYS = [
   "default_low_stock_threshold",
   "backdating_window_days",
   "markup_alert_percent",
+  "sale_rounding_multiple",
 ] as const;
 export const THRESHOLD_KEYS = ["cost", "price", "quantity", "exchange_rate"] as const;
 
@@ -145,6 +146,8 @@ function numberRules(form: SettingsForm, basePrecision: number): Record<NumberKe
     default_low_stock_threshold: { integer: true, min: 0, max: 1_000_000, required: true },
     backdating_window_days: { integer: true, min: 1, max: 3650, required: true },
     markup_alert_percent: { min: 0, max: 1000, maxDecimals: 2 },
+    // Contract 8.0: whole base-currency units; 0 rounds to its precision.
+    sale_rounding_multiple: { integer: true, min: 0, max: 1_000_000 },
   };
 }
 
