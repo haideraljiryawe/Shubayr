@@ -7,7 +7,7 @@ import { CartService } from './cart.service';
 const product = {
   id: 'product-1',
   category_id: 'category-1',
-  price: '20.15',
+  price: '20150',
   discount_type: 'percentage',
   discount_value: '50',
   discount_starts_at: new Date('2020-01-01'),
@@ -29,9 +29,10 @@ describe('CartService', () => {
               product_id: 'product-1',
               variant_id: 'variant-1',
               quantity: 2,
-              unit_price: '999.99',
+              unit_price: '999999',
+              currency_code: 'IQD',
               product,
-              variant: { price_delta: '0.05' },
+              variant: { price_delta: '50' },
             },
           ],
         }),
@@ -47,22 +48,24 @@ describe('CartService', () => {
     expect(await service.get('user-1')).toEqual({
       id: 'cart-1',
       coupon_code: null,
+      currency: 'IQD',
       items: [
         {
           id: 'item-1',
           product_id: 'product-1',
           variant_id: 'variant-1',
           quantity: 2,
-          unit_price: 10.13,
-          line_total: 20.26,
+          unit_price: 10125,
+          line_total: 20250,
+          currency: 'IQD',
           available_qty: 4,
           available: true,
         },
       ],
-      subtotal: 20.26,
+      subtotal: 20250,
       discount: 0,
       delivery_fee: 0,
-      total: 20.26,
+      total: 20250,
     });
     expect(prisma.cart.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { user_id: 'user-1' } }),
@@ -124,6 +127,7 @@ describe('CartService', () => {
       usage_limit: null,
       used_count: 0,
       expires_at: null,
+      currency_code: 'IQD',
     };
     let applied = false;
     const prisma = {
@@ -148,9 +152,9 @@ describe('CartService', () => {
                 product_id: 'product-1',
                 variant_id: 'variant-1',
                 quantity: 2,
-                unit_price: '999.99',
+                unit_price: '999999',
                 product,
-                variant: { price_delta: '0.05' },
+                variant: { price_delta: '50' },
               },
             ],
           }),
@@ -167,8 +171,8 @@ describe('CartService', () => {
     await service.applyCoupon('user-1', { code: 'SHUBAYR10' });
     const discounted = await service.get('user-1');
     expect(discounted.coupon_code).toBe('SHUBAYR10');
-    expect(discounted.discount).toBe(2.03);
-    expect(discounted.total).toBe(18.23);
+    expect(discounted.discount).toBe(2025);
+    expect(discounted.total).toBe(18225);
 
     const restored = await service.removeCoupon('user-1');
     expect(restored.coupon_code).toBeNull();

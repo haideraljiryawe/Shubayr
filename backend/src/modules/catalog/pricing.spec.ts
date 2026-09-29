@@ -29,23 +29,23 @@ describe('percentage discount math', () => {
     });
   });
 
-  it('rounds the discounted price to two decimals', () => {
-    // 19.99 * 0.85 = 16.9915
+  it('rounds the discounted price to whole IQD', () => {
+    // 1,999 * 0.85 = 1,699.15 IQD
     expect(
       computeProductPricing(
-        { price: 19.99, discount_type: 'percentage', discount_value: 15 },
+        { price: 1999, discount_type: 'percentage', discount_value: 15 },
         FEBRUARY,
       ),
-    ).toMatchObject({ discounted_price: 16.99, effective_price: 16.99 });
+    ).toMatchObject({ discounted_price: 1699, effective_price: 1699 });
   });
 
-  it('rounds the known 20.15 at 50% boundary half-up to 10.08', () => {
+  it('rounds a half-dinar boundary away from zero', () => {
     expect(
       computeProductPricing(
-        { price: 20.15, discount_type: 'percentage', discount_value: 50 },
+        { price: 20151, discount_type: 'percentage', discount_value: 50 },
         FEBRUARY,
       ),
-    ).toMatchObject({ discounted_price: 10.08, effective_price: 10.08 });
+    ).toMatchObject({ discounted_price: 10076, effective_price: 10076 });
   });
 
   it('reads Prisma Decimal-style values', () => {
@@ -103,30 +103,30 @@ describe('amount discount math', () => {
   });
 
   it('rounds discount_percent to a whole number', () => {
-    // 3.33 / 10 = 33.3%
+    // 3,330 / 10,000 = 33.3%
     expect(
       computeProductPricing(
-        { price: 10, discount_type: 'amount', discount_value: 3.33 },
+        { price: 10000, discount_type: 'amount', discount_value: 3330 },
         FEBRUARY,
       ),
-    ).toMatchObject({ discounted_price: 6.67, discount_percent: 33 });
+    ).toMatchObject({ discounted_price: 6670, discount_percent: 33 });
   });
 });
 
 describe('financial precision policy', () => {
-  it('calculates cart and checkout line totals in minor units', () => {
-    expect(calculateLineTotal('20.15', 3)).toBe(60.45);
+  it('calculates cart and checkout line totals in exact IQD units', () => {
+    expect(calculateLineTotal('20150', 3)).toBe(60450);
   });
 
   it('supports the minimum stored amount and rejects invalid quantities', () => {
-    expect(calculateLineTotal('0.01', 1)).toBe(0.01);
-    expect(() => calculateLineTotal('1.00', -1)).toThrow(RangeError);
+    expect(calculateLineTotal('1', 1)).toBe(1);
+    expect(() => calculateLineTotal('1', -1)).toThrow(RangeError);
   });
 });
 
 describe('product pricing PATCH semantics', () => {
   const scheduled = {
-    price: '20.15',
+    price: '20150',
     discount_type: 'percentage',
     discount_value: '50.00',
     discount_starts_at: '2026-02-01T00:00:00Z',
@@ -138,14 +138,14 @@ describe('product pricing PATCH semantics', () => {
   });
 
   it('distinguishes omission from explicit null clearing', () => {
-    expect(mergeProductPricingPatch(scheduled, { price: '25.00' })).toEqual({
+    expect(mergeProductPricingPatch(scheduled, { price: '25000' })).toEqual({
       ...scheduled,
-      price: '25.00',
+      price: '25000',
     });
     expect(
       mergeProductPricingPatch(scheduled, { discount_type: null }),
     ).toEqual({
-      price: '20.15',
+      price: '20150',
       discount_type: null,
       discount_value: null,
       discount_starts_at: null,
@@ -218,10 +218,10 @@ describe('scheduled discount windows', () => {
 
 describe('products with no discount', () => {
   it('charges the regular price', () => {
-    expect(computeProductPricing({ price: 12.5 }, FEBRUARY)).toEqual({
+    expect(computeProductPricing({ price: 12500 }, FEBRUARY)).toEqual({
       on_sale: false,
       discounted_price: null,
-      effective_price: 12.5,
+      effective_price: 12500,
       discount_percent: null,
     });
   });
@@ -229,10 +229,10 @@ describe('products with no discount', () => {
   it('ignores an unknown discount_type', () => {
     expect(
       computeProductPricing(
-        { price: 12.5, discount_type: 'bogus', discount_value: 5 },
+        { price: 12500, discount_type: 'bogus', discount_value: 5 },
         FEBRUARY,
       ),
-    ).toMatchObject({ on_sale: false, effective_price: 12.5 });
+    ).toMatchObject({ on_sale: false, effective_price: 12500 });
   });
 });
 

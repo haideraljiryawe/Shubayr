@@ -10,7 +10,7 @@ const product = {
   name_en: 'Coffee',
   name_ar: 'Ù‚Ù‡ÙˆØ©',
   description: null,
-  price: '20.15',
+  price: '20150',
   discount_type: 'percentage',
   discount_value: '50',
   discount_starts_at: new Date('2020-01-01T00:00:00Z'),
@@ -61,7 +61,7 @@ describe('ProductsService', () => {
       {} as never,
     );
     await expect(
-      service.update(product.id, { floor_price: 20.16 }),
+      service.update(product.id, { floor_price: 20151 }),
     ).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
@@ -155,7 +155,7 @@ describe('ProductsService', () => {
       {} as never,
     );
     const result = await service.getAdmin(product.id);
-    expect(result.effective_price).toBe(10.08);
+    expect(result.effective_price).toBe(10075);
     expect(result.on_sale).toBe(true);
     expect(result.images.map(({ is_primary }) => is_primary)).toEqual([
       true,

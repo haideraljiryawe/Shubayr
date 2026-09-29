@@ -108,6 +108,7 @@ try {
     NODE_OPTIONS:
       `${process.env.NODE_OPTIONS ?? ''} --import=./test/openapi-response-validator.mjs`.trim(),
   };
+  await run('test/financial-core.acceptance.mjs', [], acceptanceEnv);
   await run('test/real-data.acceptance.mjs', [], acceptanceEnv);
   await run('test/access-model.acceptance.mjs', [], acceptanceEnv);
   await run('test/backend-followups.acceptance.mjs', [], acceptanceEnv);

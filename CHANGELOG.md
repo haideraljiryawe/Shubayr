@@ -1,5 +1,29 @@
 # Changelog
 
+## 7.0.0 - 2026-09-29
+
+### Added
+
+- Currency administration with IQD as the seeded base currency, dated exchange
+  rates, normalized per-unit quotations, stale-rate warnings, and audited
+  permissioned updates.
+- Concurrency-safe document numbering, idempotent operation replay, drafts,
+  Baghdad accounting-date validation, and protected backdating.
+- An immutable double-entry ledger with a seeded chart of accounts, source-event
+  idempotency, reversals, balances, trial balance, and original-currency detail.
+- Cash and bank account administration, opening balances, same-currency
+  transfers, accounting-period close/reopen workflows, and close snapshots.
+- Audited financial settings for business hours, closed days, and protection
+  thresholds, plus full OpenAPI and acceptance coverage for the financial core.
+
+### Changed
+
+- Monetary storage now records explicit currency codes and uses exact
+  `DECIMAL(20,6)` persistence; development catalog prices are realistic IQD
+  amounts.
+- The API contract is version 7.0.0 and documents the financial administration
+  endpoints and currency-bearing commerce responses.
+
 ## 6.2.0 - 2026-09-28
 
 ### Added

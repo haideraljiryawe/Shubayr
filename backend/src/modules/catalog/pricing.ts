@@ -5,6 +5,7 @@
 type Decimalish = number | string | { toString(): string };
 
 export const DISCOUNT_TYPES = ['percentage', 'amount'] as const;
+export const SALES_CURRENCY_PRECISION = 0;
 
 export type DiscountType = (typeof DISCOUNT_TYPES)[number];
 
@@ -64,11 +65,11 @@ function divideRoundHalfAway(numerator: bigint, denominator: bigint): bigint {
 }
 
 export function moneyToMinorUnits(value: Decimalish): bigint {
-  return decimalToScaled(value, 2);
+  return decimalToScaled(value, SALES_CURRENCY_PRECISION);
 }
 
 export function minorUnitsToMoney(value: bigint): number {
-  return Number(value) / 100;
+  return Number(value);
 }
 
 /** Cart/order line totals use the same integer-minor-unit policy. */

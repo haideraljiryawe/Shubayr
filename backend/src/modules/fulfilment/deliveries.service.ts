@@ -337,6 +337,10 @@ export class DeliveriesService {
   }
 
   private present(row: Delivery) {
-    return { ...row, delivery_fee: Number(row.delivery_fee) };
+    return {
+      ...row,
+      delivery_fee: Number(row.delivery_fee),
+      currency: row.currency_code,
+    };
   }
 }
