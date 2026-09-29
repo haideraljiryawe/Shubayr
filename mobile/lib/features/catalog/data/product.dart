@@ -13,6 +13,7 @@ class ProductVariant {
     this.sku = '',
     this.attributes = const {},
     this.priceDelta = 0,
+    this.currency,
   });
 
   final String id;
@@ -20,6 +21,8 @@ class ProductVariant {
   final Map<String, dynamic> attributes;
   @JsonKey(name: 'price_delta')
   final num priceDelta;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) =>
       _$ProductVariantFromJson(json);
@@ -39,6 +42,7 @@ class Product {
     required this.nameAr,
     this.description = '',
     this.price = 0,
+    this.currency,
     this.discountType,
     this.discountValue,
     this.discountStartsAt,
@@ -75,6 +79,8 @@ class Product {
   final String nameAr;
   final String description;
   final num price;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
   @JsonKey(name: 'discount_type')
   final String? discountType;
   @JsonKey(name: 'discount_value')
@@ -214,6 +220,7 @@ class Product {
         nameAr: nameAr,
         description: description,
         price: price,
+        currency: currency,
         discountType: discountType,
         discountValue: discountValue,
         discountStartsAt: discountStartsAt,

@@ -1,5 +1,5 @@
 name: shubayr
-description: "Shubayr — multi-role commerce app (customer, delivery, admin)."
+description: "Shubayr — commerce app for customers, delivery agents and order monitors."
 publish_to: 'none'
 version: 1.0.0+1
 

@@ -1,11 +1,10 @@
+import 'package:shubayr/features/monitoring/data/monitor_repository.dart';
+import 'package:shubayr/features/notifications/data/notification_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/network/api_client.dart';
 import 'package:shubayr/features/address/data/address.dart';
 import 'package:shubayr/features/address/data/address_repository_remote.dart';
-import 'package:shubayr/features/admin/data/admin_order_repository_remote.dart';
-import 'package:shubayr/features/admin/data/admin_repository_remote.dart';
-import 'package:shubayr/features/admin/domain/admin_repository.dart';
 import 'package:shubayr/features/auth/data/auth_repository_remote.dart';
 import 'package:shubayr/features/banners/data/banner_repository_remote.dart';
 import 'package:shubayr/features/cart/data/cart_repository_remote.dart';
@@ -102,19 +101,17 @@ void main() {
       },
     );
 
-    test('administrator reads real catalog and orders', () async {
-      await signIn('+9647700000001', 'admin');
-      final admin = AdminRepositoryRemote(api);
-      expect((await admin.fetch(AdminResource.products)).items, isNotEmpty);
-      expect((await admin.fetch(AdminResource.categories)).items, isNotEmpty);
-      expect(
-        (await AdminOrderRepositoryRemote(api).fetchOrders()).data,
-        isNotEmpty,
-      );
+    test('monitor reads orders and notification inbox', () async {
+      await signIn('+9647700000008', 'order_monitor');
+      final repository = MonitorRepository(api);
+      final page = await repository.fetch();
+      if (page.items.isNotEmpty) await repository.detail(page.items.first.id);
+      await NotificationRepository(api).fetch();
+      await NotificationRepository(api).unreadCount();
     });
 
     test('delivery agent reads assigned deliveries', () async {
-      await signIn('+9647700000005', 'delivery');
+      await signIn('+9647700000005', 'delivery_agent');
       final page = await DeliveryRepositoryRemote(api).fetchAssigned();
       expect(page.data, isNotEmpty);
     });

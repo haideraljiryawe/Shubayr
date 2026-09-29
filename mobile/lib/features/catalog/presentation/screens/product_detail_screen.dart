@@ -153,7 +153,7 @@ class _DetailState extends ConsumerState<_Detail> {
     final selectedVariant = _selectedVariant;
     final price = formatMoney(
       product.salePrice + (selectedVariant?.priceDelta ?? 0),
-      currencyCode: brand.currencyCode,
+      currencyCode: product.currency ?? brand.currencyCode,
       localeCode: lang,
     );
     final stock = _resolveStock(availability, selectedVariant);
@@ -198,7 +198,6 @@ class _DetailState extends ConsumerState<_Detail> {
                               ),
                               const SizedBox(width: AppSpacing.md),
                             ],
-                            if (product.isNegotiable) _NegotiableBadge(),
                           ],
                         ),
                         const SizedBox(height: AppSpacing.md),
@@ -377,29 +376,6 @@ class _VariantSelector extends StatelessWidget {
             },
           ),
       ],
-    );
-  }
-}
-
-class _NegotiableBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.accentSoft,
-        borderRadius: AppRadii.pillAll,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: 4,
-        ),
-        child: Text(
-          context.l10n.productNegotiable,
-          style: context.text.labelMedium?.copyWith(color: colors.textPrimary),
-        ),
-      ),
     );
   }
 }

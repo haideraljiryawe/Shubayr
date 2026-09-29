@@ -1,10 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/network/api_client.dart';
-import 'package:shubayr/features/admin/data/admin_repository_mock.dart';
-import 'package:shubayr/features/admin/data/admin_repository_remote.dart';
-import 'package:shubayr/features/admin/domain/admin_repository.dart';
-import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_remote.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
@@ -190,28 +186,6 @@ void main() {
       });
       await catalog.fetchProducts();
       expect(requests.last.queryParameters.containsKey('on_sale'), isFalse);
-      final admin = AdminRepositoryRemote(ApiClient(dio));
-      for (final original in <num?>[100, null]) {
-        await admin.save(AdminResource.products, {
-          ...base.toJson(),
-          'price': original ?? 80,
-          'discount_type': original == null ? null : 'percentage',
-          'discount_value': original == null ? null : 20,
-          'discount_starts_at': '2026-10-01T09:00:00.000Z',
-          'discount_ends_at': '2026-10-02T09:00:00.000Z',
-          'discount_percent': 99,
-        }, id: original == null ? 'p1' : null);
-        final data = requests.last.data as Map;
-        expect(data.containsKey('sale_price'), isFalse);
-        expect(data.containsKey('compare_at_price'), isFalse);
-        expect(data['price'], original ?? 80);
-        expect(data['discount_type'], original == null ? null : 'percentage');
-        expect(data['discount_value'], original == null ? null : 20);
-        expect(data['discount_starts_at'], '2026-10-01T09:00:00.000Z');
-        expect(data['discount_ends_at'], '2026-10-02T09:00:00.000Z');
-        expect(data.containsKey('discount_percent'), isFalse);
-        expect(requests.last.method, original == null ? 'PATCH' : 'POST');
-      }
     },
   );
 
@@ -297,51 +271,6 @@ void main() {
         0,
       );
       expect((await catalog.fetchProducts()).total, 90);
-    },
-  );
-
-  test(
-    'admin edits/removes offers; catalog and cart retain sale price',
-    () async {
-      final admin = AdminRepositoryMock(catalog: catalog, delay: Duration.zero);
-      final original = (await admin.fetch(AdminResource.products)).items.first;
-      final sale = original.json['sale_price'] as num;
-      var saved = await admin.save(AdminResource.products, {
-        ...original.json,
-        'compare_at_price': sale * 2,
-        'discount_percent': 99,
-      }, id: original.id);
-      expect(saved.json['discount_percent'], 50);
-      expect((await catalog.fetchProduct(original.id)).discountPercent, 50);
-      final cart = CartRepositoryMock(delay: Duration.zero);
-      await cart.addItem(productId: original.id, quantity: 2);
-      expect((await cart.fetchCart()).subtotal, sale * 2);
-      // Changing the selling price must recalculate, even when original is omitted.
-      final input = {...saved.json, 'sale_price': sale * 1.5}
-        ..remove('compare_at_price');
-      saved = await admin.save(AdminResource.products, input, id: original.id);
-      expect(saved.json['discount_percent'], 25);
-      for (final value in <num?>[null, sale, sale / 2]) {
-        await admin.save(AdminResource.products, {
-          ...saved.json,
-          'compare_at_price': value,
-        }, id: original.id);
-        final p = await catalog.fetchProduct(original.id);
-        expect(p.discountPercent, isNull);
-        expect(p.isOnSale, isFalse);
-        expect(
-          (await catalog.fetchProducts(
-            onSale: true,
-          )).data.any((p) => p.id == original.id),
-          isFalse,
-        );
-      }
-      final created = await admin.save(AdminResource.products, {
-        ...original.json,
-        'compare_at_price': sale * 2,
-      });
-      expect(created.json['discount_percent'], 50);
-      expect((await catalog.fetchProduct(created.id)).isOnSale, isTrue);
     },
   );
 }

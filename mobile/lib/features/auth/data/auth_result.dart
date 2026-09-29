@@ -14,7 +14,7 @@ class AuthResult {
 
   final String? accessToken;
 
-  /// Stored for the refresh endpoint; automatic rotation is not wired yet.
+  /// Used for automatic rotation and sign-out revocation.
   final String? refreshToken;
   final User? user;
 

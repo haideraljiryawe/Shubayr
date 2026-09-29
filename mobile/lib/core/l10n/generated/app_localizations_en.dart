@@ -62,7 +62,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorNetwork =>
-      'No internet connection. Check your network and try again.';
+      'Could not connect to the server. Check your connection and try again.';
 
   @override
   String get errorTimeout => 'The request took too long. Please try again.';
@@ -415,6 +415,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orderStatusFailedDelivery => 'Delivery failed';
+
+  @override
+  String get orderStatusRejected => 'Rejected';
 
   @override
   String get orderStatusCancelled => 'Cancelled';
@@ -1736,4 +1739,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orderStatusReadyForDispatch => 'Ready for dispatch';
+
+  @override
+  String get roleMonitor => 'Order monitor';
+
+  @override
+  String get monitorTitle => 'Order monitoring';
+
+  @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String get notificationsEmpty => 'No notifications yet';
+
+  @override
+  String get actionLoadMore => 'Load more';
 }

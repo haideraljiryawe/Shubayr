@@ -199,10 +199,7 @@ class _InlineError extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        TextButton(
-          onPressed: onRetry,
-          child: Text(context.l10n.actionRetry),
-        ),
+        TextButton(onPressed: onRetry, child: Text(context.l10n.actionRetry)),
       ],
     );
   }

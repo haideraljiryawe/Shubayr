@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,6 +88,9 @@ Widget _host(
 ProviderContainer _container(_Catalog catalog) {
   final container = ProviderContainer(
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       catalogRepositoryProvider.overrideWithValue(catalog),
       brandProvider.overrideWithValue(const Brand.bundled()),
     ],

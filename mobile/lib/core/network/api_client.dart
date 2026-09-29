@@ -86,6 +86,41 @@ final dioProvider = Provider<Dio>((ref) {
   dio.interceptors.add(
     AuthInterceptor(
       readToken: tokens.readAccessToken,
+      retry: dio.fetch<dynamic>,
+      refresh: () async {
+        final access = await tokens.readAccessToken();
+        final refresh = await tokens.readRefreshToken();
+        if (refresh == null) return false;
+        final client = Dio(
+          BaseOptions(
+            baseUrl: config.apiBaseUrl,
+            connectTimeout: AppConfig.connectTimeout,
+            receiveTimeout: AppConfig.receiveTimeout,
+          ),
+        );
+        try {
+          final response = await client.post<Map<String, dynamic>>(
+            '/auth/refresh',
+            data: {'refresh_token': refresh},
+          );
+          if (await tokens.readAccessToken() != access ||
+              await tokens.readRefreshToken() != refresh) {
+            return false;
+          }
+          final nextAccess = response.data?['access_token'] as String?;
+          final nextRefresh = response.data?['refresh_token'] as String?;
+          if (nextAccess == null || nextRefresh == null) return false;
+          await tokens.save(accessToken: nextAccess, refreshToken: nextRefresh);
+          return true;
+        } on DioException catch (e) {
+          if (e.response?.statusCode == 401 || e.response?.statusCode == 422) {
+            return false;
+          }
+          rethrow;
+        } finally {
+          client.close();
+        }
+      },
       onUnauthorized: () async {
         if (!ref.mounted) return;
         ref.read(unauthorizedSignalProvider.notifier).raise();
@@ -94,6 +129,7 @@ final dioProvider = Provider<Dio>((ref) {
   );
   if (kDebugMode) dio.interceptors.add(LoggingInterceptor());
 
+  ref.onDispose(() => dio.close(force: true));
   return dio;
 });
 

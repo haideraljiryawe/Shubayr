@@ -17,20 +17,22 @@ import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/widgets/state_views.dart';
-import '../../../auth/domain/permissions.dart';
-import '../../../auth/presentation/widgets/permission_gate.dart';
+import '../../../auth/domain/user_role.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../notifications/presentation/notification_button.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/delivery.dart';
 import '../delivery_status.dart';
 import '../providers/delivery_providers.dart';
 
-class DeliveryHomeScreen extends StatelessWidget {
+class DeliveryHomeScreen extends ConsumerWidget {
   const DeliveryHomeScreen({super.key});
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
     appBar: AppBar(
       title: Text(context.l10n.deliveryTitle),
       actions: [
+        const NotificationButton(),
         IconButton(
           onPressed: () => context.push(AppRoutes.settings),
           icon: const Icon(Icons.person_outline),
@@ -38,15 +40,9 @@ class DeliveryHomeScreen extends StatelessWidget {
         ),
       ],
     ),
-    body: PermissionGate(
-      permission: Permissions.deliveryAssigned,
-      fallback: AppEmptyView(
-        icon: Icons.lock_outline,
-        title: context.l10n.deliveryNoAccess,
-        message: '',
-      ),
-      child: const _DeliveriesList(),
-    ),
+    body: ref.watch(sessionControllerProvider).value?.role == UserRole.delivery
+        ? const _DeliveriesList()
+        : AppEmptyView(title: context.l10n.deliveryNoAccess, message: ''),
   );
 }
 
@@ -212,7 +208,7 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
     final statusColor = deliveryStatusColor(colors, delivery.status);
     final fee = formatMoney(
       delivery.deliveryFee,
-      currencyCode: brand.currencyCode,
+      currencyCode: delivery.currency ?? brand.currencyCode,
       localeCode: Localizations.localeOf(context).languageCode,
     );
     return AppCard(

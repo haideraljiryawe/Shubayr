@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,7 +18,12 @@ void main() {
     repository = OrderHistoryRepository();
     container = ProviderContainer(
       retry: (retryCount, error) => null,
-      overrides: [orderRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
+        dataSourceProvider.overrideWithValue(DataSource.mock),
+        orderRepositoryProvider.overrideWithValue(repository),
+      ],
     );
   });
   tearDown(() => container.dispose());

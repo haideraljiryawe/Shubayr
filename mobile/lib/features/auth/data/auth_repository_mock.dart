@@ -1,17 +1,16 @@
 import '../../../core/error/failure.dart';
 import '../domain/auth_repository.dart';
 import '../domain/profile_update.dart';
-import '../domain/permissions.dart';
 import 'auth_result.dart';
 import 'user.dart';
 
-/// In-memory auth for development before the backend is live.
+/// In-memory authentication fixture for explicitly overridden automated tests.
 ///
 /// Shapes match the `User` schema and the `verify-otp` response in
 /// `api/openapi.yaml`. Any 6-digit code is accepted.
 ///
-/// Dev convenience: the last digit of the phone number picks which area you
-/// land in — `…1` signs in as a delivery agent, `…2` as staff, anything else
+/// Test fixture convenience: the last digit of the phone number picks which area you
+/// land in — `…1` signs in as a delivery agent, `…2` as order monitor, anything else
 /// as a customer. This exists only so all three routing areas are reachable
 /// without a backend; it is not API behaviour.
 class AuthRepositoryMock implements AuthRepository {
@@ -38,13 +37,7 @@ class AuthRepositoryMock implements AuthRepository {
     final role = _roleForPhone(phone);
     final user =
         _profiles[phone] ??
-        User(
-          id: 'mock-user',
-          name: null,
-          phone: phone,
-          role: role,
-          permissions: Permissions.byRole[role] ?? const [],
-        );
+        User(id: 'mock-user', name: null, phone: phone, role: role);
     _signedIn = user;
     _profiles[phone] = user;
     return AuthResult(
@@ -52,6 +45,11 @@ class AuthRepositoryMock implements AuthRepository {
       refreshToken: 'mock-refresh-token',
       user: user,
     );
+  }
+
+  @override
+  Future<void> logout(String refreshToken) async {
+    _signedIn = null;
   }
 
   @override
@@ -78,8 +76,8 @@ class AuthRepositoryMock implements AuthRepository {
   static String _roleForPhone(String phone) {
     final lastDigit = phone.isEmpty ? '' : phone.substring(phone.length - 1);
     return switch (lastDigit) {
-      '1' => 'delivery',
-      '2' => 'admin',
+      '1' => 'delivery_agent',
+      '2' => 'order_monitor',
       _ => 'customer',
     };
   }

@@ -20,7 +20,7 @@
   "stateEmptyTitle": "Nothing here yet",
   "stateEmptyMessage": "Once there is something to show, it will appear here.",
   "stateErrorTitle": "Something went wrong",
-  "errorNetwork": "No internet connection. Check your network and try again.",
+  "errorNetwork": "Could not connect to the server. Check your connection and try again.",
   "errorTimeout": "The request took too long. Please try again.",
   "errorServer": "The server could not complete the request.",
   "errorUnauthorized": "Your session has expired. Please sign in again.",
@@ -163,6 +163,7 @@
   "orderStatusOutForDelivery": "Out for delivery",
   "orderStatusDelivered": "Delivered",
   "orderStatusFailedDelivery": "Delivery failed",
+  "orderStatusRejected": "Rejected",
   "orderStatusCancelled": "Cancelled",
   "orderStatusReturnRequested": "Return requested",
   "orderStatusReturned": "Returned",
@@ -708,5 +709,10 @@
   "adminCategorySlug": "Category URL slug",
   "addressInternationalPhoneHint": "Use an international number starting with + and country code; no country code is added automatically.",
   "mediaUploadHint": "Images upload when saved. JPEG, PNG, WebP or AVIF, up to 8 MiB per image.",
-  "orderStatusReadyForDispatch": "Ready for dispatch"
+  "orderStatusReadyForDispatch": "Ready for dispatch",
+  "roleMonitor": "Order monitor",
+  "monitorTitle": "Order monitoring",
+  "notificationsTitle": "Notifications",
+  "notificationsEmpty": "No notifications yet",
+  "actionLoadMore": "Load more"
 }

@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:shubayr/features/banners/presentation/providers/banner_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +22,9 @@ Future<ProviderContainer> _guestContainer() async {
   return ProviderContainer(
     retry: (retryCount, error) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       // Banner networking is covered separately; keep navigation tests deterministic.
       homeBannersProvider.overrideWith((ref) async => []),
       prefsStoreProvider.overrideWithValue(prefs),

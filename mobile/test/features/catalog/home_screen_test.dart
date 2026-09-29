@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:shubayr/app/router/app_router.dart';
 import 'package:shubayr/app/router/app_routes.dart';
 import 'package:flutter/material.dart';
@@ -111,6 +113,9 @@ Future<ProviderContainer> _container() async {
   return ProviderContainer(
     retry: (retryCount, error) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
       catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),

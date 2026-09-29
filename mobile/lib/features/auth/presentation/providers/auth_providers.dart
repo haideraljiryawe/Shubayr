@@ -43,7 +43,7 @@ class SessionController extends AsyncNotifier<Session> {
   Future<Session> build() async {
     _sessionRevision++;
     ref.onDispose(() => _sessionRevision++);
-    // A 401 ends the session; automatic token refresh is a separate task.
+    // The interceptor raises this only when token rotation cannot restore access.
     ref.listen(unauthorizedSignalProvider, (previous, next) {
       if (previous != null && next != previous) signOut();
     });
@@ -54,7 +54,9 @@ class SessionController extends AsyncNotifier<Session> {
 
     try {
       final user = await ref.read(authRepositoryProvider).currentUser();
-      return Session.signedIn(user);
+      final session = Session.signedIn(user);
+      if (!session.isSignedIn) throw const AppFailure.unauthorized();
+      return session;
     } on AppFailure {
       if (!ref.mounted) return const Session.signedOut();
       await ref.read(tokenStoreProvider).clear();
@@ -68,10 +70,10 @@ class SessionController extends AsyncNotifier<Session> {
 
   /// `POST /auth/verify-otp` — stores the token and opens the session.
   Future<void> verifyOtp({required String phone, required String code}) async {
-    _sessionRevision++;
+    final revision = ++_sessionRevision;
     final repository = ref.read(authRepositoryProvider);
     final result = await repository.verifyOtp(phone: phone, code: code);
-    if (!ref.mounted) return;
+    if (!ref.mounted || revision != _sessionRevision) return;
 
     final accessToken = result.accessToken;
     if (accessToken == null || accessToken.isEmpty) {
@@ -84,7 +86,12 @@ class SessionController extends AsyncNotifier<Session> {
 
     final user = result.user ?? await repository.currentUser();
     if (!ref.mounted) return;
-    state = AsyncData(Session.signedIn(user));
+    final session = Session.signedIn(user);
+    if (!session.isSignedIn) {
+      await ref.read(tokenStoreProvider).clear();
+      throw const AppFailure(FailureKind.forbidden);
+    }
+    state = AsyncData(session);
   }
 
   /// Commit the server result only to the session that requested this edit.
@@ -113,18 +120,21 @@ class SessionController extends AsyncNotifier<Session> {
 
   Future<void> signOut() async {
     _sessionRevision++;
-    await ref.read(tokenStoreProvider).clear();
+    final repository = ref.read(authRepositoryProvider);
+    final store = ref.read(tokenStoreProvider);
+    final refreshToken = await store.readRefreshToken();
+    await store.clear();
     if (!ref.mounted) return;
     state = const AsyncData(Session.signedOut());
+    if (refreshToken != null) {
+      try {
+        await repository.logout(refreshToken);
+      } catch (_) {
+        // Local credentials are always removed, including when offline.
+      }
+    }
   }
 }
 
 final sessionControllerProvider =
     AsyncNotifierProvider<SessionController, Session>(SessionController.new);
-
-/// The current session's RBAC permission keys (empty for guests and
-/// customers). Screens read this — or use `PermissionGate` — to hide actions
-/// the user's role does not grant.
-final permissionsProvider = Provider<List<String>>(
-  (ref) => ref.watch(sessionControllerProvider).value?.permissions ?? const [],
-);

@@ -28,6 +28,7 @@ abstract final class SignInDestination {
       AppRoutes.addresses,
       AppRoutes.profile,
       AppRoutes.settings,
+      AppRoutes.notifications,
     };
     final detail =
         RegExp(r'^/(products|orders|categories)/[^/]+$').hasMatch(uri.path) ||

@@ -35,6 +35,9 @@ void main() {
       SignInDestination.resolve('/products/p5', UserRole.delivery),
       '/delivery',
     );
-    expect(SignInDestination.resolve('/cart', UserRole.staff), '/admin');
+    expect(
+      SignInDestination.resolve('/cart', UserRole.monitor),
+      '/monitor/orders',
+    );
   });
 }

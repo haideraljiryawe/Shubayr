@@ -2,16 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Where repositories read their data from.
 enum DataSource {
-  /// In-memory fixtures. Default while the API contract is being completed.
+  /// In-memory fixtures available only through explicit test overrides.
   mock,
 
   /// Live HTTP calls against [AppConfig.apiBaseUrl].
-  remote;
-
-  static DataSource parse(String raw) => switch (raw.trim().toLowerCase()) {
-    'remote' => DataSource.remote,
-    _ => DataSource.mock,
-  };
+  remote,
 }
 
 /// Build-time configuration, supplied with `--dart-define`.
@@ -28,9 +23,7 @@ class AppConfig {
       'API_URL',
       defaultValue: 'http://localhost:8000/api/v1',
     ),
-    dataSource: DataSource.parse(
-      const String.fromEnvironment('DATA_SOURCE', defaultValue: 'mock'),
-    ),
+    dataSource: DataSource.remote,
   );
 
   final String apiBaseUrl;
@@ -45,9 +38,8 @@ final appConfigProvider = Provider<AppConfig>(
   (ref) => AppConfig.fromEnvironment(),
 );
 
-/// The effective data source. A feature can be flipped to `remote`
-/// independently by overriding its own repository provider — see
-/// `docs` in the mobile README.
+/// Production always uses remote. Tests explicitly override this provider or
+/// individual repositories to avoid contacting a backend.
 final dataSourceProvider = Provider<DataSource>(
   (ref) => ref.watch(appConfigProvider).dataSource,
 );

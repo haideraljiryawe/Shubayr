@@ -27,7 +27,7 @@ class ProductCard extends ConsumerWidget {
     final lang = Localizations.localeOf(context).languageCode;
     final price = formatMoney(
       product.salePrice,
-      currencyCode: brand.currencyCode,
+      currencyCode: product.currency ?? brand.currencyCode,
       localeCode: lang,
     );
 

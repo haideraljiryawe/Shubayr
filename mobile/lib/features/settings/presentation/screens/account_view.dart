@@ -1,3 +1,4 @@
+import '../../../notifications/presentation/notification_button.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
@@ -25,7 +26,7 @@ import '../providers/settings_providers.dart';
 /// Reachable by everyone — a guest sees a sign-in prompt plus the app
 /// preferences (language, appearance) and support links, because those are
 /// device settings, not account data. Shared by the customer "Account" tab and
-/// the delivery/admin areas (shown there in a sheet).
+/// the delivery/monitor areas.
 class AccountView extends ConsumerWidget {
   const AccountView({super.key});
 
@@ -50,6 +51,18 @@ class AccountView extends ConsumerWidget {
                       ? _ProfileCard(session: session!)
                       : const _SignInCard(),
                   const SizedBox(height: AppSpacing.lg),
+                  if (isSignedIn) ...[
+                    AppCard(
+                      padding: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: const Icon(Icons.notifications_outlined),
+                        title: Text(l10n.notificationsTitle),
+                        trailing: const NotificationButton(),
+                        onTap: () => context.push(AppRoutes.notifications),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
                   if (isSignedIn && session?.role == UserRole.customer) ...[
                     AppCard(
                       padding: EdgeInsets.zero,
@@ -143,7 +156,7 @@ class _ProfileCard extends StatelessWidget {
     final user = session.user!;
     final roleLabel = switch (session.role) {
       UserRole.delivery => l10n.roleDelivery,
-      UserRole.staff => l10n.roleStaff,
+      UserRole.monitor => l10n.roleMonitor,
       _ => l10n.roleCustomer,
     };
     final identity = Column(

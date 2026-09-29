@@ -52,7 +52,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final brand = ref.read(brandProvider);
     return formatMoney(
       amount,
-      currencyCode: brand.currencyCode,
+      currencyCode:
+          _placed?.currency ??
+          ref.read(cartControllerProvider).value?.currency ??
+          brand.currencyCode,
       localeCode: Localizations.localeOf(context).languageCode,
     );
   }

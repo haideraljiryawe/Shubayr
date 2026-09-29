@@ -1,3 +1,4 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -137,6 +138,8 @@ void main() {
             double scale = 1,
           }) => ProviderScope(
             overrides: [
+              notificationSyncProvider.overrideWith((ref) {}),
+              unreadCountProvider.overrideWith((ref) async => 0),
               dataSourceProvider.overrideWithValue(DataSource.remote),
               apiClientProvider.overrideWithValue(ApiClient(dio)),
               prefsStoreProvider.overrideWithValue(prefs),

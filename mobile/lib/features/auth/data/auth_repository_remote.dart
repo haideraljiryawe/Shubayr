@@ -22,9 +22,17 @@ class AuthRepositoryRemote implements AuthRepository {
   }) async {
     final json = await _api.post<Map<String, dynamic>>(
       '/auth/verify-otp',
-      body: {'phone': phone, 'code': code},
+      body: {'phone': phone, 'code': code, 'client': 'mobile'},
     );
     return AuthResult.fromJson(json);
+  }
+
+  @override
+  Future<void> logout(String refreshToken) async {
+    await _api.dio.post<void>(
+      '/auth/logout',
+      data: {'refresh_token': refreshToken},
+    );
   }
 
   @override

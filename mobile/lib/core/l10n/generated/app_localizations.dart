@@ -203,7 +203,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorNetwork.
   ///
   /// In en, this message translates to:
-  /// **'No internet connection. Check your network and try again.'**
+  /// **'Could not connect to the server. Check your connection and try again.'**
   String get errorNetwork;
 
   /// No description provided for @errorTimeout.
@@ -877,6 +877,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delivery failed'**
   String get orderStatusFailedDelivery;
+
+  /// No description provided for @orderStatusRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get orderStatusRejected;
 
   /// No description provided for @orderStatusCancelled.
   ///
@@ -3391,6 +3397,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ready for dispatch'**
   String get orderStatusReadyForDispatch;
+
+  /// No description provided for @roleMonitor.
+  ///
+  /// In en, this message translates to:
+  /// **'Order monitor'**
+  String get roleMonitor;
+
+  /// No description provided for @monitorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order monitoring'**
+  String get monitorTitle;
+
+  /// No description provided for @notificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsTitle;
+
+  /// No description provided for @notificationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet'**
+  String get notificationsEmpty;
+
+  /// No description provided for @actionLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get actionLoadMore;
 }
 
 class _AppLocalizationsDelegate

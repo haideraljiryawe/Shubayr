@@ -1,3 +1,6 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
+import 'helpers/test_session.dart';
 import 'package:shubayr/features/banners/data/home_banner.dart';
 import 'package:shubayr/features/banners/presentation/providers/banner_providers.dart';
 import 'package:flutter/material.dart';
@@ -18,10 +21,6 @@ import 'package:shubayr/features/wishlist/presentation/screens/wishlist_screen.d
 import 'package:shubayr/features/auth/presentation/screens/sign_in_screen.dart';
 import 'package:shubayr/features/auth/presentation/screens/verify_otp_screen.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
-import 'package:shubayr/features/admin/presentation/providers/admin_providers.dart';
-import 'package:shubayr/features/admin/presentation/providers/admin_order_providers.dart';
-import 'package:shubayr/features/admin/domain/admin_repository.dart';
-import 'package:shubayr/features/admin/data/admin_order_repository_mock.dart';
 import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
 import 'package:shubayr/features/cart/presentation/providers/cart_providers.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
@@ -33,11 +32,6 @@ import 'package:shubayr/features/orders/presentation/providers/order_providers.d
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 import 'package:shubayr/features/address/presentation/providers/address_providers.dart';
 import 'package:shubayr/features/delivery/presentation/providers/delivery_providers.dart';
-import 'package:shubayr/features/admin/presentation/screens/admin_home_screen.dart';
-import 'package:shubayr/features/admin/presentation/screens/admin_hub_screen.dart';
-import 'package:shubayr/features/admin/presentation/screens/admin_list_screen.dart';
-import 'package:shubayr/features/admin/presentation/screens/admin_record_form.dart';
-import 'package:shubayr/features/admin/presentation/screens/admin_orders_screen.dart';
 import 'package:shubayr/features/address/presentation/screens/address_form_screen.dart';
 import 'package:shubayr/features/address/presentation/screens/addresses_screen.dart';
 import 'package:shubayr/features/catalog/presentation/screens/home_screen.dart';
@@ -53,7 +47,6 @@ import 'package:shubayr/features/settings/presentation/screens/profile_screen.da
 import 'package:shubayr/features/settings/presentation/screens/account_view.dart';
 import 'package:shubayr/features/delivery/presentation/screens/delivery_home_screen.dart';
 import 'core/layout/app_layout_test.dart' show responsiveWidths;
-import 'features/admin/support/admin_fakes.dart';
 import 'features/address/support/address_fakes.dart';
 import 'features/delivery/support/delivery_fakes.dart';
 
@@ -123,23 +116,6 @@ void main() {
         final cart = CartRepositoryMock(delay: Duration.zero);
         await tester.runAsync(() => cart.addItem(productId: 'p1', quantity: 2));
         for (final screen in <Widget>[
-          const AdminHomeScreen(),
-          const AdminHubScreen(catalog: true),
-          const AdminListScreen(resource: AdminResource.users),
-          const AdminOrdersScreen(),
-          const AdminListScreen(resource: AdminResource.warehouses),
-          const AdminListScreen(
-            resource: AdminResource.locations,
-            warehouseId: 'warehouse-1',
-          ),
-          const AdminRecordForm(query: AdminQuery(AdminResource.products)),
-          const AdminRecordForm(query: AdminQuery(AdminResource.roles)),
-          for (final resource in [
-            AdminResource.categories,
-            AdminResource.users,
-            AdminResource.suppliers,
-          ])
-            AdminRecordForm(query: AdminQuery(resource)),
           const AddressFormScreen(),
           const AddressesScreen(),
           const WishlistScreen(),
@@ -164,13 +140,16 @@ void main() {
               retry: (retryCount, error) => null,
               key: UniqueKey(),
               overrides: [
+                notificationSyncProvider.overrideWith((ref) {}),
+                unreadCountProvider.overrideWith((ref) async => 0),
+                dataSourceProvider.overrideWithValue(DataSource.mock),
                 prefsStoreProvider.overrideWithValue(prefs),
                 tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
                 sessionControllerProvider.overrideWith(
-                  () => AdminTestSession(
+                  () => TestSession(
                     initial: screen is DeliveryHomeScreen
                         ? agentSession
-                        : adminSession,
+                        : customerSession,
                   ),
                 ),
                 brandProvider.overrideWithValue(const Brand.bundled()),
@@ -182,10 +161,6 @@ void main() {
                       imageUrl: '',
                     ),
                   ],
-                ),
-                adminRepositoryProvider.overrideWithValue(RecordingAdmin()),
-                adminOrderRepositoryProvider.overrideWithValue(
-                  AdminOrderRepositoryMock(delay: Duration.zero),
                 ),
                 cartRepositoryProvider.overrideWithValue(cart),
                 catalogRepositoryProvider.overrideWithValue(_Catalog()),
@@ -240,9 +215,7 @@ void main() {
           }
           if (scale == 1 &&
               width >= 900 &&
-              ((screen is AdminListScreen &&
-                      screen.resource == AdminResource.users) ||
-                  screen is OrdersScreen ||
+              (screen is OrdersScreen ||
                   screen is DeliveryHomeScreen ||
                   screen is AddressesScreen)) {
             final cards = find.byType(AppCard);

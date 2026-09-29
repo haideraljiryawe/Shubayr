@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import '../../helpers/product_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +52,9 @@ ProviderContainer _container() {
   final container = ProviderContainer(
     retry: (_, _) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       brandProvider.overrideWithValue(const Brand.bundled()),
       catalogRepositoryProvider.overrideWithValue(
         CatalogRepositoryMock(delay: Duration.zero),

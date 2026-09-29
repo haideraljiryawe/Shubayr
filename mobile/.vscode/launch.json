@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Shubayr — iOS Simulator (Remote)",
+      "presentation": {
+        "order": 1
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/lib/main.dart",
+      "cwd": "${workspaceFolder}",
+      "deviceId": "iPhone 17 Pro",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define=API_URL=http://localhost:8000/api/v1"
+      ]
+    },
+    {
+      "name": "Shubayr — Chrome Preview (Remote)",
+      "presentation": {
+        "order": 2
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/lib/main.dart",
+      "cwd": "${workspaceFolder}",
+      "deviceId": "chrome",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define=API_URL=http://localhost:8000/api/v1",
+        "--web-hostname=localhost",
+        "--web-port=7357"
+      ]
+    }
+  ]
+}

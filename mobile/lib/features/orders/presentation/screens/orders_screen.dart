@@ -255,7 +255,7 @@ class _OrderCard extends ConsumerWidget {
               Text(
                 formatMoney(
                   order.total,
-                  currencyCode: brand.currencyCode,
+                  currencyCode: order.currency ?? brand.currencyCode,
                   localeCode: lang,
                 ),
                 style: context.text.titleSmall?.copyWith(

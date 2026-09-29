@@ -1,17 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shubayr/features/auth/data/user.dart';
-import 'package:shubayr/features/auth/domain/permissions.dart';
 import 'package:shubayr/features/auth/domain/session.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/features/delivery/data/delivery.dart';
 import 'package:shubayr/features/delivery/data/delivery_repository_mock.dart';
 
 const agentSession = Session.signedIn(
-  User(
-    id: 'agent',
-    role: 'delivery',
-    permissions: [Permissions.deliveryAssigned],
-  ),
+  User(id: 'agent', role: 'delivery_agent'),
 );
 
 class DeliveryTestSession extends SessionController {

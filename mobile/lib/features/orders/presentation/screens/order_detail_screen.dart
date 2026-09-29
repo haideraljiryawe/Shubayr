@@ -41,11 +41,11 @@ class OrderDetailScreen extends ConsumerStatefulWidget {
 class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   bool _cancelling = false;
 
-  String _money(num amount) {
+  String _money(num amount, {String? currency}) {
     final brand = ref.read(brandProvider);
     return formatMoney(
       amount,
-      currencyCode: brand.currencyCode,
+      currencyCode: currency ?? brand.currencyCode,
       localeCode: Localizations.localeOf(context).languageCode,
     );
   }
@@ -133,14 +133,23 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                         children: [
                           for (var i = 0; i < o.items.length; i++) ...[
                             if (i > 0) const Divider(height: AppSpacing.xl),
-                            _OrderItemTile(item: o.items[i], money: _money),
+                            _OrderItemTile(
+                              item: o.items[i],
+                              money: (amount) => _money(
+                                amount,
+                                currency: o.items[i].currency ?? o.currency,
+                              ),
+                            ),
                           ],
                         ],
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _SectionTitle(l10n.orderSummary),
-                    _Summary(order: o, money: _money),
+                    _Summary(
+                      order: o,
+                      money: (amount) => _money(amount, currency: o.currency),
+                    ),
                     if (o.status == 'delivered' && o.items.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.lg),
                       AppButton(

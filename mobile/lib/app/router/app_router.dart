@@ -1,3 +1,6 @@
+import '../../features/monitoring/presentation/monitor_orders_screen.dart';
+import '../../features/monitoring/presentation/monitor_detail_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,11 +11,6 @@ import '../../core/widgets/state_views.dart';
 import '../../features/address/data/address.dart';
 import '../../features/address/presentation/screens/address_form_screen.dart';
 import '../../features/address/presentation/screens/addresses_screen.dart';
-import '../../features/admin/presentation/screens/admin_home_screen.dart';
-import '../../features/admin/presentation/screens/admin_orders_screen.dart';
-import '../../features/admin/presentation/screens/admin_hub_screen.dart';
-import '../../features/admin/presentation/screens/admin_list_screen.dart';
-import '../../features/admin/domain/admin_repository.dart';
 import '../../features/orders/presentation/screens/checkout_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/after_sales_screens.dart';
@@ -265,7 +263,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // Shared full-screen pages any signed-in role reaches with a back button:
-      // the account-settings page (staff/delivery open it here) and the profile
+      // the account-settings page (monitor/delivery open it here) and the profile
       // editor (reached from the account/profile row).
       GoRoute(
         path: AppRoutes.settings,
@@ -334,43 +332,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const DeliveryHomeScreen(),
       ),
       GoRoute(
-        path: AppRoutes.admin,
-        name: AppRoutes.adminName,
-        builder: (context, state) => const AdminHomeScreen(),
-      ),
-
-      GoRoute(
-        path: AppRoutes.adminOrders,
-        builder: (_, _) => const AdminOrdersScreen(),
+        path: AppRoutes.monitor,
+        name: AppRoutes.monitorName,
+        builder: (_, _) => const MonitorOrdersScreen(),
       ),
       GoRoute(
-        path: AppRoutes.adminCatalog,
-        builder: (_, _) => const AdminHubScreen(catalog: true),
+        path: AppRoutes.monitorDetail,
+        builder: (_, state) =>
+            MonitorDetailScreen(orderId: state.pathParameters['id']!),
       ),
       GoRoute(
-        path: AppRoutes.adminUsers,
-        builder: (_, _) => const AdminHubScreen(catalog: false),
-      ),
-      GoRoute(
-        path: AppRoutes.adminManage,
-        builder: (context, state) {
-          final resource = AdminResource.values
-              .where(
-                (r) =>
-                    r.name == state.pathParameters['resource'] &&
-                    r != AdminResource.permissions,
-              )
-              .firstOrNull;
-          if (resource == null) {
-            return Scaffold(
-              body: AppEmptyView(title: context.l10n.routeNotFoundTitle),
-            );
-          }
-          return AdminListScreen(
-            resource: resource,
-            warehouseId: state.uri.queryParameters['warehouse'],
-          );
-        },
+        path: AppRoutes.notifications,
+        builder: (_, _) => const NotificationsScreen(),
       ),
 
       // Developer-only design gallery. The redirect above only lets this

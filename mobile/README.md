@@ -1,15 +1,12 @@
-# Shubayr — Mobile & Admin (Flutter)
+# Shubayr — Flutter phone application
 
-> Current guest sign-in and customer after-sales mock workflows are documented in
-> [Customer mock journeys](docs/customer-mock-progress.md). The older feature and
-> API-blocker inventory below predates those implementations and must not be used
-> as the current backlog; check the code and root OpenAPI contract.
+Flutter for **guests, customers, delivery agents and order monitors**. All
+administrative operations belong to the separate Next.js Web Admin. The retained
+Chrome launch is an isolated development preview of this phone app.
 
-One Flutter codebase for **Customer + Delivery + Admin**, also building for
-**Flutter Web** (admin dashboard). See
-[`../docs/setup/SETUP_MOBILE.md`](../docs/setup/SETUP_MOBILE.md) for full
-environment setup and [`../prompts/MOBILE_CLAUDE_FULL.md`](../prompts/MOBILE_CLAUDE_FULL.md)
-for the authoritative build prompt.
+See [API 7.1 migration progress](docs/app-access-v6-progress.md) for the current
+scope, implemented behavior, deferred backend phases and acceptance checklist.
+Historical admin/mock progress documents do not define the current backlog.
 
 Branding is **white-label**: the store name, logo, primary colour and currency
 come from `GET /settings` at runtime — nothing brand-specific is hard-coded.
@@ -28,8 +25,8 @@ and the current upgrade verification status.
 
 ```bash
 flutter pub get
-flutter run                        # device/emulator (customer/delivery)
-flutter run -d chrome              # admin web dashboard
+flutter run                        # phone app (server-assigned role)
+flutter run -d chrome --web-hostname=localhost --web-port=7357  # isolated preview
 flutter test
 flutter analyze
 ```
@@ -42,7 +39,7 @@ integration gaps, see [Local real-data development](docs/local-real-data.md).
 | Define | Values | Default | Purpose |
 |---|---|---|---|
 | `API_URL` | any URL | `http://localhost:8000/api/v1` | Backend base URL |
-| `DATA_SOURCE` | `mock` \| `remote` | `mock` | Which repositories the app builds |
+| Runtime data | `remote` | `remote` | Live backend; no fixture fallback |
 
 ```bash
 # Against the real API once the backend is up:
@@ -50,10 +47,10 @@ flutter run --dart-define=API_URL=http://localhost:8000/api/v1 \
             --dart-define=DATA_SOURCE=remote
 ```
 
-While `DATA_SOURCE=mock`, signing in accepts **any 6-digit code**. The last
-digit of the phone number picks the area you land in — `…1` delivery agent,
-`…2` staff, anything else customer. That is a mock-only dev affordance, not API
-behaviour.
+Normal application launches always use remote repositories. Fixture repositories
+are retained only for explicit automated-test overrides. `DATA_SOURCE=mock`
+does not enable a mock application. Use work phones configured by Web Admin;
+the OTP response determines the role.
 
 ### Code generation
 
@@ -84,7 +81,7 @@ lib/
 │   ├── shell/                        # customer navigation shell (bar ⇄ rail)
 │   └── splash_screen.dart
 ├── core/
-│   ├── config/                       # dart-define configuration, data-source switch
+│   ├── config/                       # remote API configuration, explicit test overrides
 │   ├── network/                      # Dio client, interceptors, AppFailure mapping
 │   ├── storage/                      # secure token store, shared-prefs store
 │   ├── error/                        # AppFailure + localised messages
@@ -94,97 +91,16 @@ lib/
 │   └── utils/                        # currency, validators, hex colours
 └── features/
     ├── settings/  auth/              # implemented
-    ├── catalog/  cart/  orders/      # placeholder screens (next phase)
-    └── delivery/  admin/             # routing shells only
+    ├── catalog/  cart/  orders/      # customer commerce
+    ├── delivery/  monitoring/        # role-specific work pages
+    └── notifications/                # saved inbox and read synchronization
 ```
 
 Each feature is `data/` (models + repository implementations), `domain/`
 (repository interface + domain types), `presentation/` (providers + screens).
 
-### Mock ⇄ remote repositories
+### Current work
 
-Every feature declares an interface in `domain/` and two implementations in
-`data/`: `…RepositoryMock` and `…RepositoryRemote` (Dio). One provider picks
-between them from `DATA_SOURCE`:
-
-```dart
-final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
-  return switch (ref.watch(dataSourceProvider)) {
-    DataSource.mock   => const SettingsRepositoryMock(),
-    DataSource.remote => SettingsRepositoryRemote(ref.watch(apiClientProvider)),
-  };
-});
-```
-
-Presentation code only ever sees the interface, so flipping a feature to the
-real API changes no UI code. A single feature can be moved to `remote` ahead of
-the others by overriding its provider in a `ProviderScope`. Both
-implementations throw the same `AppFailure`, so error handling is identical.
-
-**Mocks are only written for endpoints whose response schema exists in
-`api/openapi.yaml`.** Endpoints documented as bare `"200": { description: OK }`
-get no mock — inventing a shape would harden a guess.
-
-### Design system
-
-Colour, type, spacing, radii, shadow and motion values live in
-`core/theme/tokens/`. `AppColors` (a `ThemeExtension`) is the semantic layer —
-`primary`, `primaryDark`, `primaryLight`, `primarySoft`, `onPrimary`, `accent`,
-`background`, `surface`, `surfaceAlt`, `textPrimary/Secondary/Muted`, `border`,
-`divider`, `success`, `warning`, `danger`, `info`.
-
-Widgets read `context.colors` / `context.text`. **Colour literals are allowed in
-`core/theme/tokens/color_primitives.dart` only** — never in feature widgets.
-
-`AppColors.fromSeed(primary)` derives the brand shades from a single colour,
-which is what makes runtime white-labelling work: `GET /settings` supplies
-`primary_color`, everything else stays bundled. Material 3 is the base, with
-elevation tinting switched off so surfaces keep the warm neutral palette.
-
-### Localisation
-
-Arabic-first (`ar` default, `en` secondary), ARB files in `core/l10n/arb/`, the
-choice persisted in shared preferences. Layout mirrors automatically; use
-`EdgeInsetsDirectional` and `start`/`end` in new widgets.
-
-### Fonts
-
-Cairo, bundled from local assets only — never fetched over the network. All four
-weights used by `AppTypography` (400/500/600/700) are present and declared in
-`pubspec.yaml`; see [`assets/fonts/README.md`](assets/fonts/README.md).
-
-### Startup
-
-Native launch screen (warm off-white on Android, iOS and web) → `bootstrap()`
-loads shared preferences → first frame with the cached brand and locale →
-session restore and settings refresh continue in the background. There is no
-artificial delay, and `Skeleton` / `SkeletonList` are in place so content
-screens can render immediately and fill in as data lands.
-
----
-
-## Not implemented yet (waiting on the API contract)
-
-These are blocked by `api/openapi.yaml`, not by effort:
-
-| Area | Blocker |
-|---|---|
-| Address book, checkout | no addresses endpoints |
-| Permission-gated admin UI | no `permissions[]` on the user |
-| Silent token refresh | no `/auth/refresh` — a 401 signs the user out |
-| Order history, tracking, cancel | no response schemas |
-| Reviews | `Order.items[]` has no `order_item_id` |
-| Wishlist | no response schema, no delete endpoint |
-| Push notifications | no device-token endpoint |
-| Stock availability | no stock field on `Product` |
-| Warehouses/locations, purchasing, inventory, picking, returns, reports, admin CRUD | no response schemas |
-| Delivery agent workflows | `/deliveries/assigned` has no response schema |
-
-Catalog and cart screens are placeholders on purpose: they are the next feature
-phase, not a contract gap.
-
-## Working agreement
-
-All app work stays inside `mobile/`. Branch off the latest `main`, use Conventional
-Commits, and open a PR into `main`. Delete the task branch after merge — see the
-repository `CONTRIBUTING.md`.
+Follow [ROADMAP.md](ROADMAP.md) and the API 7.1 progress record. Older progress
+records are historical evidence, not implementation instructions. Tests use
+isolated fixtures; final integration uses the actual development API.

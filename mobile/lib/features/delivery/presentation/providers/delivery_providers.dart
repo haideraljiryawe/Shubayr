@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/network/api_client.dart';
-import '../../../auth/domain/permissions.dart';
 import '../../../auth/domain/user_role.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../data/delivery.dart';
@@ -15,10 +14,7 @@ final _agentProvider = Provider((ref) {
   final session = ref.watch(sessionControllerProvider).value;
   return (
     id: session?.user?.id,
-    allowed:
-        session?.isSignedIn == true &&
-        session?.role == UserRole.delivery &&
-        session?.can(Permissions.deliveryAssigned) == true,
+    allowed: session?.isSignedIn == true && session?.role == UserRole.delivery,
   );
 });
 

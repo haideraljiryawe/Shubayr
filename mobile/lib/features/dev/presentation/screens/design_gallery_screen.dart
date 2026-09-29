@@ -386,9 +386,12 @@ class _Type extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(name, style: context.text.labelSmall?.copyWith(
-          color: context.colors.textMuted,
-        )),
+        Text(
+          name,
+          style: context.text.labelSmall?.copyWith(
+            color: context.colors.textMuted,
+          ),
+        ),
         Text('نص عربي · English text', style: style),
       ],
     ),

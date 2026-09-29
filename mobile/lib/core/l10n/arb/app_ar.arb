@@ -17,7 +17,7 @@
   "stateEmptyTitle": "لا يوجد شيء هنا بعد",
   "stateEmptyMessage": "سيظهر المحتوى هنا فور توفره.",
   "stateErrorTitle": "حدث خطأ ما",
-  "errorNetwork": "لا يوجد اتصال بالإنترنت. تحقّق من الشبكة وحاول مرة أخرى.",
+  "errorNetwork": "تعذّر الاتصال بالخادم. تحقّق من الاتصال وحاول مرة أخرى.",
   "errorTimeout": "استغرق الطلب وقتًا طويلًا. حاول مرة أخرى.",
   "errorServer": "تعذّر على الخادم إكمال الطلب.",
   "errorUnauthorized": "انتهت صلاحية الجلسة. الرجاء تسجيل الدخول مجددًا.",
@@ -130,6 +130,7 @@
   "orderStatusOutForDelivery": "قيد التوصيل",
   "orderStatusDelivered": "تم التوصيل",
   "orderStatusFailedDelivery": "تعذّر التوصيل",
+  "orderStatusRejected": "مرفوض",
   "orderStatusCancelled": "ملغى",
   "orderStatusReturnRequested": "طلب إرجاع",
   "orderStatusReturned": "مُرجَع",
@@ -603,5 +604,10 @@
   "adminCategorySlug": "معرّف رابط القسم",
   "addressInternationalPhoneHint": "أدخل رقمًا دوليًا يبدأ بـ + ورمز البلد؛ لا يُضاف رمز البلد تلقائيًا.",
   "mediaUploadHint": "تُرفع الصور عند الحفظ. JPEG وPNG وWebP وAVIF، بحد أقصى 8 MiB للصورة.",
-  "orderStatusReadyForDispatch": "جاهز للإرسال"
+  "orderStatusReadyForDispatch": "جاهز للإرسال",
+  "roleMonitor": "متابع الطلبات",
+  "monitorTitle": "متابعة الطلبات",
+  "notificationsTitle": "الإشعارات",
+  "notificationsEmpty": "لا توجد إشعارات حتى الآن",
+  "actionLoadMore": "تحميل المزيد"
 }

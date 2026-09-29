@@ -1,3 +1,4 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,9 @@ import 'support/address_fakes.dart';
 Future<ProviderContainer> _start(RecordingAddresses repo) async {
   final container = ProviderContainer(
     overrides: [
+      dataSourceProvider.overrideWithValue(DataSource.mock),
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
       sessionControllerProvider.overrideWith(AddressTestSession.new),
       addressRepositoryProvider.overrideWithValue(repo),
     ],
@@ -258,6 +262,8 @@ void main() {
     final repo = RecordingAddresses();
     final remote = ProviderContainer(
       overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
         dataSourceProvider.overrideWithValue(DataSource.remote),
         sessionControllerProvider.overrideWith(AddressTestSession.new),
         addressRepositoryProvider.overrideWithValue(repo),

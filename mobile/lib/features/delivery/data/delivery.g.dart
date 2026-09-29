@@ -12,6 +12,7 @@ Delivery _$DeliveryFromJson(Map<String, dynamic> json) => Delivery(
   agentId: json['agent_id'] as String?,
   status: json['status'] as String,
   deliveryFee: json['delivery_fee'] as num? ?? 0,
+  currency: json['currency'] as String?,
   dispatchedAt: json['dispatched_at'] == null
       ? null
       : DateTime.parse(json['dispatched_at'] as String),
@@ -26,6 +27,7 @@ Map<String, dynamic> _$DeliveryToJson(Delivery instance) => <String, dynamic>{
   'agent_id': instance.agentId,
   'status': instance.status,
   'delivery_fee': instance.deliveryFee,
+  'currency': ?instance.currency,
   'dispatched_at': instance.dispatchedAt?.toIso8601String(),
   'delivered_at': instance.deliveredAt?.toIso8601String(),
 };

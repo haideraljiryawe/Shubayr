@@ -11,6 +11,7 @@ class Delivery {
     this.agentId,
     required this.status,
     this.deliveryFee = 0,
+    this.currency,
     this.dispatchedAt,
     this.deliveredAt,
   });
@@ -23,6 +24,8 @@ class Delivery {
   final String status;
   @JsonKey(name: 'delivery_fee')
   final num deliveryFee;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
   @JsonKey(name: 'dispatched_at')
   final DateTime? dispatchedAt;
   @JsonKey(name: 'delivered_at')

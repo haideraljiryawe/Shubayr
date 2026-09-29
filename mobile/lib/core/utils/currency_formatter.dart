@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 
-/// Formats money using the currency code from `StoreSettings.currency`.
+/// Formats money using the resource currency, or store settings for legacy data.
 ///
 /// The API returns plain numbers plus a currency code; the symbol and digit
 /// grouping come from the active locale, so IQD renders correctly in both

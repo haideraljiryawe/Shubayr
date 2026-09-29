@@ -12,6 +12,7 @@ ProductVariant _$ProductVariantFromJson(Map<String, dynamic> json) =>
       sku: json['sku'] as String? ?? '',
       attributes: json['attributes'] as Map<String, dynamic>? ?? const {},
       priceDelta: json['price_delta'] as num? ?? 0,
+      currency: json['currency'] as String?,
     );
 
 Map<String, dynamic> _$ProductVariantToJson(ProductVariant instance) =>
@@ -20,6 +21,7 @@ Map<String, dynamic> _$ProductVariantToJson(ProductVariant instance) =>
       'sku': instance.sku,
       'attributes': instance.attributes,
       'price_delta': instance.priceDelta,
+      'currency': ?instance.currency,
     };
 
 Product _$ProductFromJson(Map<String, dynamic> json) => Product(
@@ -29,6 +31,7 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
   nameAr: json['name_ar'] as String,
   description: json['description'] as String? ?? '',
   price: json['price'] as num? ?? 0,
+  currency: json['currency'] as String?,
   discountType: json['discount_type'] as String?,
   discountValue: json['discount_value'] as num?,
   discountStartsAt: json['discount_starts_at'] == null
@@ -68,6 +71,7 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
   'name_ar': instance.nameAr,
   'description': instance.description,
   'price': instance.price,
+  'currency': ?instance.currency,
   'discount_type': instance.discountType,
   'discount_value': instance.discountValue,
   'discount_starts_at': instance.discountStartsAt?.toIso8601String(),

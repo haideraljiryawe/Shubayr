@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
@@ -61,6 +63,9 @@ void main() {
       final provider = productListControllerProvider(initial);
       final container = ProviderContainer(
         overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
+          dataSourceProvider.overrideWithValue(DataSource.mock),
           catalogRepositoryProvider.overrideWithValue(
             CatalogRepositoryMock(delay: Duration.zero),
           ),

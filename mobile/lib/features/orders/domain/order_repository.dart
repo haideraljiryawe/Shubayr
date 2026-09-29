@@ -14,7 +14,11 @@ abstract interface class OrderRepository {
 
   /// `GET /orders` — the customer's orders, newest first. [status] filters by
   /// a single [OrderStatus] value when given.
-  Future<OrderPage> fetchOrders({String? status, int page = 1, int perPage = 20});
+  Future<OrderPage> fetchOrders({
+    String? status,
+    int page = 1,
+    int perPage = 20,
+  });
 
   /// `GET /orders/{id}` — a single order with its items.
   Future<Order> fetchOrder(String id);

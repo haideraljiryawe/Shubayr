@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import '../../helpers/product_filters.dart';
 import 'dart:async';
 
@@ -35,6 +37,9 @@ Future<ProviderContainer> _container({
   final container = ProviderContainer(
     retry: (_, _) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       if (loadCategories != null)
         categoriesProvider.overrideWith((ref) => loadCategories()),
       if (loadOffers != null)
@@ -87,6 +92,9 @@ void main() {
       }
       final container = ProviderContainer(
         overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
+          dataSourceProvider.overrideWithValue(DataSource.mock),
           catalogRepositoryProvider.overrideWithValue(repository),
           categoriesProvider.overrideWith(
             (ref) async => [

@@ -1,9 +1,10 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/error/failure.dart';
 import 'package:shubayr/features/auth/data/user.dart';
-import 'package:shubayr/features/auth/domain/permissions.dart';
 import 'package:shubayr/features/auth/domain/session.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/features/delivery/data/delivery.dart';
@@ -23,6 +24,9 @@ void main() {
     container = ProviderContainer(
       retry: (retryCount, error) => null,
       overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
+        dataSourceProvider.overrideWithValue(DataSource.mock),
         sessionControllerProvider.overrideWith(() => session),
         deliveryRepositoryProvider.overrideWithValue(repo),
       ],
@@ -66,13 +70,7 @@ void main() {
     final newPage = Completer<DeliveryPage>();
     repo.onFetch = (_) => newPage.future;
     session.setSession(
-      const Session.signedIn(
-        User(
-          id: 'next',
-          role: 'delivery',
-          permissions: [Permissions.deliveryAssigned],
-        ),
-      ),
+      const Session.signedIn(User(id: 'next', role: 'delivery_agent')),
     );
     final next = container.read(deliveriesProvider.future);
     expect(notifier.isRefreshing, isFalse);
@@ -232,10 +230,10 @@ void main() {
   for (final next in [
     const Session.signedOut(),
     const Session.signedIn(User(id: 'customer', role: 'customer')),
-    const Session.signedIn(User(id: 'agent', role: 'delivery')),
+    const Session.signedIn(User(id: 'agent', role: 'order_monitor')),
   ]) {
     test(
-      'denies reads and writes without agent role and permission: ${next.user?.role} ${next.user?.permissions}',
+      'denies reads and writes outside the delivery role: ${next.user?.role} ${next.user?.permissions}',
       () async {
         session.setSession(next);
         await expectLater(
@@ -264,13 +262,7 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
       session.setSession(
-        const Session.signedIn(
-          User(
-            id: 'next-agent',
-            role: 'delivery',
-            permissions: [Permissions.deliveryAssigned],
-          ),
-        ),
+        const Session.signedIn(User(id: 'next-agent', role: 'delivery_agent')),
       );
       await container.read(deliveriesProvider.future);
       repo.onUpdate = null;

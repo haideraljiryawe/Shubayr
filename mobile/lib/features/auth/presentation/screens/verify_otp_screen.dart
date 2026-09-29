@@ -86,7 +86,7 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
         AppRoutes.cart,
         AppRoutes.orders,
         AppRoutes.delivery,
-        AppRoutes.admin,
+        AppRoutes.monitor,
       };
       if (rootPages.contains(Uri.parse(destination).path)) {
         router.go(destination);

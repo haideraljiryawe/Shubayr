@@ -6,11 +6,18 @@ part 'cart.g.dart';
 /// keeps the cart server-side, so it is only available while signed in.
 @JsonSerializable(explicitToJson: true)
 class Cart {
-  const Cart({this.id, this.items = const [], this.subtotal = 0});
+  const Cart({
+    this.id,
+    this.items = const [],
+    this.subtotal = 0,
+    this.currency,
+  });
 
   final String? id;
   final List<CartItem> items;
   final num subtotal;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
 
   bool get isEmpty => items.isEmpty;
 
@@ -32,6 +39,7 @@ class CartItem {
     this.variantId,
     this.quantity = 1,
     this.unitPrice = 0,
+    this.currency,
   });
 
   final String id;
@@ -42,6 +50,8 @@ class CartItem {
   final int quantity;
   @JsonKey(name: 'unit_price')
   final num unitPrice;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
 
   num get lineTotal => unitPrice * quantity;
 
@@ -51,6 +61,7 @@ class CartItem {
     variantId: variantId,
     quantity: quantity ?? this.quantity,
     unitPrice: unitPrice,
+    currency: currency,
   );
 
   factory CartItem.fromJson(Map<String, dynamic> json) =>

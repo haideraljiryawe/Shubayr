@@ -40,18 +40,13 @@ class OrderRepositoryRemote implements OrderRepository {
   }) async => OrderPage.fromJson(
     await _api.get<Map<String, dynamic>>(
       '/orders',
-      query: {
-        'status': ?status,
-        'page': '$page',
-        'per_page': '$perPage',
-      },
+      query: {'status': ?status, 'page': '$page', 'per_page': '$perPage'},
     ),
   );
 
   @override
-  Future<Order> fetchOrder(String id) async => Order.fromJson(
-    await _api.get<Map<String, dynamic>>('/orders/$id'),
-  );
+  Future<Order> fetchOrder(String id) async =>
+      Order.fromJson(await _api.get<Map<String, dynamic>>('/orders/$id'));
 
   @override
   Future<OrderTracking> fetchTracking(String id) async =>

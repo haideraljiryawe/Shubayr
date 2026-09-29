@@ -1,3 +1,4 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -98,6 +99,8 @@ void main() {
       return ProviderContainer(
         retry: (retryCount, error) => null,
         overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
           prefsStoreProvider.overrideWithValue(prefs),
           settingsRepositoryProvider.overrideWithValue(repository),
         ],
@@ -186,6 +189,8 @@ void main() {
       final mockContainer = ProviderContainer(
         retry: (retryCount, error) => null,
         overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
           prefsStoreProvider.overrideWithValue(prefs),
           appConfigProvider.overrideWithValue(
             const AppConfig(
@@ -204,6 +209,8 @@ void main() {
       final remoteContainer = ProviderContainer(
         retry: (retryCount, error) => null,
         overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
           prefsStoreProvider.overrideWithValue(prefs),
           appConfigProvider.overrideWithValue(
             const AppConfig(

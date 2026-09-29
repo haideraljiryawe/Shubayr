@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +14,9 @@ Future<ProviderContainer> start(RecordingProfile repo) async {
   final container = ProviderContainer(
     retry: (retryCount, error) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       authRepositoryProvider.overrideWithValue(repo),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
     ],

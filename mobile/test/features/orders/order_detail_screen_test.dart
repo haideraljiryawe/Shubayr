@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -7,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/theme/brand.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
+import 'package:shubayr/core/utils/currency_formatter.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:shubayr/features/orders/data/order.dart';
@@ -58,6 +61,9 @@ Widget _host(
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
     orderProvider('o1').overrideWith((ref) async => order),
     orderTrackingProvider('o1').overrideWith((ref) async => _tracking),
     productProvider('p1').overrideWith(
@@ -77,6 +83,35 @@ Widget _host(
 );
 
 void main() {
+  for (final locale in ['ar', 'en']) {
+    testWidgets(
+      'rejected order shows saved currency and cannot be cancelled: $locale',
+      (tester) async {
+        final order = Order.fromJson({
+          'id': 'o1',
+          'order_number': 'SH-9',
+          'status': 'rejected',
+          'currency': 'USD',
+          'subtotal': 12.75,
+          'total': 12.75,
+        });
+        await tester.pumpWidget(_host(order, locale: locale));
+        await tester.pumpAndSettle();
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(Scaffold).first),
+        );
+        expect(find.text(l10n.orderStatusRejected), findsOneWidget);
+        expect(find.text(l10n.orderCancel), findsNothing);
+        expect(
+          find.text(
+            formatMoney(12.75, currencyCode: 'USD', localeCode: locale),
+          ),
+          findsWidgets,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   for (final width in [390.0, 600.0, 1200.0, 1920.0]) {
     for (final locale in ['ar', 'en']) {
       testWidgets('historical item skips catalog at $width / $locale', (

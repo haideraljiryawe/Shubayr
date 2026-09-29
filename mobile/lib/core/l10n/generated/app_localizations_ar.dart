@@ -61,7 +61,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorNetwork =>
-      'لا يوجد اتصال بالإنترنت. تحقّق من الشبكة وحاول مرة أخرى.';
+      'تعذّر الاتصال بالخادم. تحقّق من الاتصال وحاول مرة أخرى.';
 
   @override
   String get errorTimeout => 'استغرق الطلب وقتًا طويلًا. حاول مرة أخرى.';
@@ -408,6 +408,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get orderStatusFailedDelivery => 'تعذّر التوصيل';
+
+  @override
+  String get orderStatusRejected => 'مرفوض';
 
   @override
   String get orderStatusCancelled => 'ملغى';
@@ -1723,4 +1726,19 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get orderStatusReadyForDispatch => 'جاهز للإرسال';
+
+  @override
+  String get roleMonitor => 'متابع الطلبات';
+
+  @override
+  String get monitorTitle => 'متابعة الطلبات';
+
+  @override
+  String get notificationsTitle => 'الإشعارات';
+
+  @override
+  String get notificationsEmpty => 'لا توجد إشعارات حتى الآن';
+
+  @override
+  String get actionLoadMore => 'تحميل المزيد';
 }

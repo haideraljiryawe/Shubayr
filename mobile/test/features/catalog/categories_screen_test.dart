@@ -1,3 +1,4 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -77,6 +78,8 @@ Widget _host({
   return ProviderScope(
     retry: (_, _) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
       dataSourceProvider.overrideWithValue(dataSource),
       categoriesProvider.overrideWith(
         (ref) => load?.call() ?? Future.value(_tree),

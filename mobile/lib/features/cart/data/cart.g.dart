@@ -14,12 +14,14 @@ Cart _$CartFromJson(Map<String, dynamic> json) => Cart(
           .toList() ??
       const [],
   subtotal: json['subtotal'] as num? ?? 0,
+  currency: json['currency'] as String?,
 );
 
 Map<String, dynamic> _$CartToJson(Cart instance) => <String, dynamic>{
   'id': instance.id,
   'items': instance.items.map((e) => e.toJson()).toList(),
   'subtotal': instance.subtotal,
+  'currency': ?instance.currency,
 };
 
 CartItem _$CartItemFromJson(Map<String, dynamic> json) => CartItem(
@@ -28,6 +30,7 @@ CartItem _$CartItemFromJson(Map<String, dynamic> json) => CartItem(
   variantId: json['variant_id'] as String?,
   quantity: (json['quantity'] as num?)?.toInt() ?? 1,
   unitPrice: json['unit_price'] as num? ?? 0,
+  currency: json['currency'] as String?,
 );
 
 Map<String, dynamic> _$CartItemToJson(CartItem instance) => <String, dynamic>{
@@ -36,4 +39,5 @@ Map<String, dynamic> _$CartItemToJson(CartItem instance) => <String, dynamic>{
   'variant_id': instance.variantId,
   'quantity': instance.quantity,
   'unit_price': instance.unitPrice,
+  'currency': ?instance.currency,
 };

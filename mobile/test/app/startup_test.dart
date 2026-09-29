@@ -1,3 +1,7 @@
+import 'package:shubayr/features/monitoring/presentation/monitor_providers.dart';
+import '../features/monitoring/monitoring_test.dart' show RecordingMonitor;
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -61,6 +65,10 @@ void main() {
       final container = ProviderContainer(
         retry: (retryCount, error) => null,
         overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
+          dataSourceProvider.overrideWithValue(DataSource.mock),
+          monitorRepositoryProvider.overrideWithValue(RecordingMonitor()),
           prefsStoreProvider.overrideWithValue(
             PrefsStore(await SharedPreferences.getInstance()),
           ),
@@ -90,7 +98,10 @@ void main() {
       await tester.pump();
       expect(router.routeInformationProvider.value.uri.path, '/categories');
       await tester.pumpAndSettle();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
       expect(find.byType(SplashScreen), findsNothing);
@@ -241,8 +252,8 @@ void main() {
   for (final outcome in [
     'guest',
     'customer',
-    'delivery',
-    'admin',
+    'delivery_agent',
+    'order_monitor',
     'offline',
     'storage-error',
   ]) {
@@ -262,6 +273,10 @@ void main() {
       final container = ProviderContainer(
         retry: (retryCount, error) => null,
         overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
+          dataSourceProvider.overrideWithValue(DataSource.mock),
+          monitorRepositoryProvider.overrideWithValue(RecordingMonitor()),
           prefsStoreProvider.overrideWithValue(PrefsStore(prefs)),
           tokenStoreProvider.overrideWithValue(tokens),
           authRepositoryProvider.overrideWithValue(auth),
@@ -310,8 +325,8 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(router.routeInformationProvider.value.uri.path, switch (outcome) {
-        'delivery' => '/delivery',
-        'admin' => '/admin',
+        'delivery_agent' => '/delivery',
+        'order_monitor' => '/monitor/orders',
         _ => '/home',
       });
       await tester.pump(const Duration(seconds: 1));
@@ -321,7 +336,10 @@ void main() {
       );
       await refresh;
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
       expect(find.byType(SplashScreen), findsNothing);

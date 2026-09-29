@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/network/api_client.dart';
-import 'package:shubayr/features/admin/data/admin_order_repository_mock.dart';
 import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
@@ -172,9 +171,7 @@ void main() {
 
       final cart = CartRepositoryMock(delay: Duration.zero);
       final repo = OrderRepositoryMock(cart, delay: Duration.zero);
-      final admin = AdminOrderRepositoryMock(delay: Duration.zero);
       final seed = (await repo.fetchOrders()).data.first;
-      final adminSeed = (await admin.fetchOrders()).data.first;
 
       final atPurchase = Product.fromMock({
         ...original.firstWhere((p) => p.id == 'p1').toMock(),
@@ -224,14 +221,6 @@ void main() {
         (await repo.fetchOrder(seed.id)).items.first.toJson(),
         seed.items.first.toJson(),
       );
-      expect(
-        (await admin.updateStatus(
-          adminSeed.id,
-          'confirmed',
-        )).items.single.toJson(),
-        adminSeed.items.single.toJson(),
-      );
-      expect(adminSeed.items.single.productNameEn, isNotEmpty);
     },
   );
 }

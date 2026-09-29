@@ -1,3 +1,4 @@
+import '../features/notifications/presentation/notification_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,7 +10,7 @@ import '../core/theme/theme_mode_controller.dart';
 import '../core/theme/tokens/app_motion.dart';
 import '../features/settings/presentation/providers/settings_providers.dart';
 import 'router/app_router.dart';
-import 'shell/admin_frame.dart';
+import 'shell/monitor_frame.dart';
 
 /// The application root.
 ///
@@ -21,6 +22,7 @@ class ShubayrApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(notificationSyncProvider);
     final brand = ref.watch(brandProvider);
     final locale = ref.watch(localeControllerProvider);
     final themeMode = ref.watch(themeModeControllerProvider);
@@ -47,7 +49,7 @@ class ShubayrApp extends ConsumerWidget {
           child: SafeArea(
             top: false,
             bottom: false,
-            child: AdminFrame(router: router, child: child!),
+            child: MonitorFrame(router: router, child: child!),
           ),
         );
       },

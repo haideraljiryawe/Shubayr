@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +28,9 @@ void main() {
     container = ProviderContainer(
       retry: (retryCount, error) => null,
       overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
+        dataSourceProvider.overrideWithValue(DataSource.mock),
         sessionControllerProvider.overrideWith(() => session),
         addressRepositoryProvider.overrideWithValue(repo),
       ],

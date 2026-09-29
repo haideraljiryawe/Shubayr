@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 import 'package:shubayr/features/auth/domain/session.dart';
 import 'package:shubayr/features/auth/data/user.dart';
@@ -44,6 +46,9 @@ Widget _host(
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
     sessionControllerProvider.overrideWith(TestSession.new),
     wishlistRepositoryProvider.overrideWithValue(repository),
     brandProvider.overrideWithValue(const Brand.bundled()),

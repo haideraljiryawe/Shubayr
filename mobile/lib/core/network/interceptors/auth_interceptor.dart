@@ -1,26 +1,34 @@
 import 'package:dio/dio.dart';
 
-/// Attaches the bearer token to every request that needs one.
-///
-/// `GET /settings`, `/categories`, `/products` and the OTP endpoints are
-/// declared `security: []` in the contract, so a missing token is not an error.
-///
-/// Refresh-token rotation is not wired into this interceptor yet. A 401
-/// propagates as unauthorized and the session layer signs the user out.
+/// App tokens never authorize admin calls. Expired tokens rotate once, with
+/// concurrent requests sharing a refresh and retries bounded to one per request.
 class AuthInterceptor extends Interceptor {
-  AuthInterceptor({required this.readToken, required this.onUnauthorized});
-
+  AuthInterceptor({
+    required this.readToken,
+    required this.onUnauthorized,
+    this.refresh,
+    this.retry,
+  });
   final Future<String?> Function() readToken;
   final Future<void> Function() onUnauthorized;
+  final Future<bool> Function()? refresh;
+  final Future<Response<dynamic>> Function(RequestOptions)? retry;
+  Future<bool>? _refreshing;
+  String? _rotatedFrom, _rotatedTo;
+  bool _publicAuth(String path) => path.startsWith('/auth/');
 
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final token = await readToken();
-    if (token != null && token.isNotEmpty) {
-      options.headers['Authorization'] = 'Bearer $token';
+    if (!_publicAuth(options.path)) {
+      final token = await readToken();
+      if (token != null && token.isNotEmpty) {
+        options.headers['Authorization'] = 'Bearer $token';
+      } else {
+        options.headers.remove('Authorization');
+      }
     }
     handler.next(options);
   }
@@ -30,9 +38,53 @@ class AuthInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    if (err.response?.statusCode == 401) {
-      await onUnauthorized();
+    final request = err.requestOptions;
+    if (err.response?.statusCode != 401 || _publicAuth(request.path)) {
+      handler.next(err);
+      return;
     }
+    final token = await readToken();
+    // Ignore a response from a session that has since signed out.
+    if (token == null) {
+      handler.next(err);
+      return;
+    }
+    final failedToken = request.headers['Authorization'];
+    final alreadyRotated =
+        failedToken == 'Bearer $_rotatedFrom' && token == _rotatedTo;
+    if (failedToken != 'Bearer $token' && !alreadyRotated) {
+      handler.next(err);
+      return;
+    }
+    if (request.extra['authRetried'] != true &&
+        refresh != null &&
+        retry != null) {
+      try {
+        var rotated = alreadyRotated;
+        if (!rotated) {
+          final pending = _refreshing ??= refresh!();
+          try {
+            rotated = await pending;
+            if (rotated) {
+              _rotatedFrom = token;
+              _rotatedTo = await readToken();
+            }
+          } finally {
+            if (identical(_refreshing, pending)) _refreshing = null;
+          }
+        }
+        if (rotated && await readToken() != null) {
+          request.extra['authRetried'] = true;
+          handler.resolve(await retry!(request));
+          return;
+        }
+      } on DioException catch (e) {
+        // Connectivity failures must not erase a valid refresh token.
+        handler.next(e);
+        return;
+      }
+    }
+    if (await readToken() == token) await onUnauthorized();
     handler.next(err);
   }
 }

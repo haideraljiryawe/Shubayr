@@ -61,7 +61,7 @@ class CartScreen extends ConsumerWidget {
                     itemBuilder: (_, i) => _CartLine(item: c.items[i]),
                   ),
                 ),
-                _CartFooter(subtotal: c.subtotal),
+                _CartFooter(subtotal: c.subtotal, currency: c.currency),
               ],
             ),
           );
@@ -99,7 +99,7 @@ class _CartLine extends ConsumerWidget {
     final variantLabel = _variantLabel(product);
     final lineTotal = formatMoney(
       item.lineTotal,
-      currencyCode: brand.currencyCode,
+      currencyCode: item.currency ?? brand.currencyCode,
       localeCode: lang,
     );
 
@@ -187,9 +187,10 @@ class _Thumb extends StatelessWidget {
 }
 
 class _CartFooter extends ConsumerWidget {
-  const _CartFooter({required this.subtotal});
+  const _CartFooter({required this.subtotal, this.currency});
 
   final num subtotal;
+  final String? currency;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -199,7 +200,7 @@ class _CartFooter extends ConsumerWidget {
     final brand = ref.watch(brandProvider);
     final total = formatMoney(
       subtotal,
-      currencyCode: brand.currencyCode,
+      currencyCode: currency ?? brand.currencyCode,
       localeCode: lang,
     );
 

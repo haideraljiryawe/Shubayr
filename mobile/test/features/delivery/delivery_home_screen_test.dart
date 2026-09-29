@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -26,6 +28,9 @@ Widget _host(
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
     sessionControllerProvider.overrideWith(
       () => DeliveryTestSession(initial: session),
     ),
@@ -80,13 +85,7 @@ void main() {
     repo.onFetch = (_) => newPage.future;
     (container.read(sessionControllerProvider.notifier) as DeliveryTestSession)
         .setSession(
-          const Session.signedIn(
-            User(
-              id: 'next',
-              role: 'delivery',
-              permissions: ['delivery.assigned'],
-            ),
-          ),
+          const Session.signedIn(User(id: 'next', role: 'delivery_agent')),
         );
     await tester.pump();
     await tester.pump();
@@ -265,14 +264,16 @@ void main() {
     expect(find.byType(RefreshProgressIndicator), findsNothing);
   });
 
-  testWidgets('agent without permission sees no list or status actions', (
+  testWidgets('monitor sees no delivery list or status actions', (
     tester,
   ) async {
     final repo = RecordingDeliveries();
     await tester.pumpWidget(
       _host(
         repo,
-        session: const Session.signedIn(User(id: 'agent', role: 'delivery')),
+        session: const Session.signedIn(
+          User(id: 'agent', role: 'order_monitor'),
+        ),
       ),
     );
     await tester.pumpAndSettle();

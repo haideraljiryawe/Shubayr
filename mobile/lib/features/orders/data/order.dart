@@ -10,30 +10,12 @@ const remoteOrderStatuses = [
   'dispatched',
   'delivered',
   'failed',
+  'rejected',
   'cancelled',
   'return_requested',
   'returned',
 ];
-const remoteStaffOrderStatuses = [
-  'confirmed',
-  'preparing',
-  'ready_for_dispatch',
-  'dispatched',
-];
 
-/// Fulfilment transitions verified against the orders service; delivery and
-/// return outcomes are owned by their respective workflows.
-List<String> remoteStaffNextStatuses(String status) => switch (status) {
-  'pending' => ['confirmed'],
-  'confirmed' => ['preparing'],
-  'preparing' => ['ready_for_dispatch'],
-  'ready_for_dispatch' => ['dispatched'],
-  _ => [],
-};
-
-/// A placed order. Shapes match `Order` in `api/openapi.yaml`. Amounts are
-/// computed by the server (subtotal, delivery fee, discount, total); the client
-/// only sends the address and an optional coupon.
 @JsonSerializable(explicitToJson: true)
 class Order {
   const Order({
@@ -46,6 +28,7 @@ class Order {
     this.deliveryFee = 0,
     this.discount = 0,
     this.total = 0,
+    this.currency,
     this.placedAt,
     this.items = const [],
   });
@@ -63,6 +46,8 @@ class Order {
   final num deliveryFee;
   final num discount;
   final num total;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
   @JsonKey(name: 'placed_at')
   final DateTime? placedAt;
   final List<OrderItem> items;
@@ -85,6 +70,7 @@ class OrderItem {
     this.quantity = 1,
     this.unitPrice = 0,
     this.lineTotal = 0,
+    this.currency,
   }) : imageSnapshotProvided = imageSnapshotProvided ?? (imageUrl != null);
 
   final String id;
@@ -119,6 +105,8 @@ class OrderItem {
   final num unitPrice;
   @JsonKey(name: 'line_total')
   final num lineTotal;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     final item = _$OrderItemFromJson(json);
@@ -129,6 +117,7 @@ class OrderItem {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       lineTotal: item.lineTotal,
+      currency: item.currency,
       productNameAr: item.productNameAr,
       productNameEn: item.productNameEn,
       imageUrl: item.imageUrl,

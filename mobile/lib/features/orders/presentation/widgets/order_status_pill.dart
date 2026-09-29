@@ -30,11 +30,13 @@ class OrderStatusPill extends StatelessWidget {
         children: [
           Icon(orderStatusIcon(status), size: 14, color: color),
           const SizedBox(width: AppSpacing.xs),
-          Text(
-            orderStatusLabel(context.l10n, status),
-            style: context.text.labelMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              orderStatusLabel(context.l10n, status),
+              style: context.text.labelMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

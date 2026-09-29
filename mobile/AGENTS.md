@@ -61,7 +61,7 @@ above, proceed within that exact scope and explain the impact.
   feature widget.
 - Theme controls centrally through `ButtonThemes`, `InputTheme`, and
   `NavigationThemes`. Reuse shared widgets such as `AppButton`, `AppCard`,
-  `ProductCard`, `PermissionGate`, and the shared state views.
+  `ProductCard`, and the shared state views.
 - Ensure every text/background pair remains readable in light and dark modes.
   Use the matching on-token: `onPrimary` on `primary`, `textPrimary` on
   `accentSoft` or `primarySoft`, and `onAccent` only on solid `accent`.
@@ -130,10 +130,13 @@ above, proceed within that exact scope and explain the impact.
 
 ## Data and API conventions
 
-- Follow the repository pattern and preserve the mock/remote data-source switch.
-- Develop against the repository-root contract `api/openapi.yaml` with
-  `DATA_SOURCE=mock` unless the user explicitly requests a different source or
-  environment.
+- Follow the repository pattern. Normal application launches always use remote
+  repositories against the repository-root contract `api/openapi.yaml`.
+- Keep fixture repositories only for explicit automated-test overrides; never
+  fall back to fixtures when the API fails. Chrome is an isolated development
+  preview of the phone app, not the production Web Admin or web store.
+- App roles are customer, delivery_agent, and order_monitor. Administrative
+  operations belong to the separate Web Admin; monitoring is read-only.
 - Do not invent fields or silently diverge from the OpenAPI contract.
 
 ## Verification

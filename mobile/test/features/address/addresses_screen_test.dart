@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +19,9 @@ class _FixedAddresses extends AddressesController {
 Widget _host(List<Address> list) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
     addressesControllerProvider.overrideWith(() => _FixedAddresses(list)),
   ],
   child: const MaterialApp(

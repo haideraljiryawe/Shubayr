@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -52,7 +54,12 @@ Widget _host({
   void Function(Product)? onTap,
 }) => ProviderScope(
   retry: (retryCount, error) => null,
-  overrides: [brandProvider.overrideWithValue(const Brand.bundled())],
+  overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
+    brandProvider.overrideWithValue(const Brand.bundled()),
+  ],
   child: MaterialApp(
     locale: Locale(locale),
     localizationsDelegates: AppLocalizations.localizationsDelegates,

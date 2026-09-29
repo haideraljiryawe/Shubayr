@@ -26,7 +26,7 @@ class ProductPromotion extends ConsumerWidget {
     final brand = ref.watch(brandProvider);
     String money(num value) => formatMoney(
       value,
-      currencyCode: brand.currencyCode,
+      currencyCode: product.currency ?? brand.currencyCode,
       localeCode: Localizations.localeOf(context).languageCode,
     );
     final original = money(product.compareAtPrice!);
