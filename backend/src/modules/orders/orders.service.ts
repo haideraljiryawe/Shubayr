@@ -15,7 +15,7 @@ import { calculateLineTotal } from '../catalog/pricing';
 import {
   activeCoupon,
   calculateCartTotals,
-  cartUnitPrice,
+  skuUnitPrice,
   MAX_CART_ITEM_QUANTITY,
 } from './cart-pricing';
 import {
@@ -132,7 +132,11 @@ export class OrdersService {
       const at = new Date();
       const lines = [];
       for (const item of cart.items) {
-        if (item.quantity < 1 || item.quantity > MAX_CART_ITEM_QUANTITY) {
+        const requestedQuantity = Number(item.quantity);
+        if (
+          requestedQuantity <= 0 ||
+          requestedQuantity > MAX_CART_ITEM_QUANTITY
+        ) {
           throw new ConflictException('Cart quantity is invalid');
         }
         let visible;
@@ -157,6 +161,12 @@ export class OrdersService {
           : null;
         if (item.variant_id && !variant)
           throw new ConflictException('A cart variant is unavailable');
+        if (!variant) throw new ConflictException('A cart SKU is unavailable');
+        if (variant.whole_units_only && !Number.isInteger(requestedQuantity)) {
+          throw new ConflictException(
+            'This SKU accepts whole-unit quantities only',
+          );
+        }
         const [stock, reserved, held] = await Promise.all([
           tx.batchStock.findMany({
             where: {
@@ -187,9 +197,9 @@ export class OrdersService {
           }),
         ]);
         const available =
-          stock.reduce((sum, row) => sum + row.quantity, 0) -
-          reserved.reduce((sum, row) => sum + row.quantity, 0) -
-          held.reduce((sum, row) => sum + row.quantity, 0);
+          stock.reduce((sum, row) => sum + Number(row.quantity), 0) -
+          reserved.reduce((sum, row) => sum + Number(row.quantity), 0) -
+          held.reduce((sum, row) => sum + Number(row.quantity), 0);
         const alreadyRequested = lines
           .filter(
             (line) =>
@@ -197,21 +207,17 @@ export class OrdersService {
               line.variant_id === item.variant_id,
           )
           .reduce((sum, line) => sum + line.quantity, 0);
-        if (available < alreadyRequested + item.quantity)
+        if (available < alreadyRequested + requestedQuantity)
           throw new ConflictException(
             'Requested quantity exceeds available stock',
           );
-        const unit_price = cartUnitPrice(
-          product,
-          variant?.price_delta ?? 0,
-          at,
-        );
+        const unit_price = skuUnitPrice(product, variant, at);
         lines.push({
           product_id: product.id,
           variant_id: item.variant_id,
-          quantity: item.quantity,
+          quantity: requestedQuantity,
           unit_price,
-          line_total: calculateLineTotal(unit_price, item.quantity),
+          line_total: calculateLineTotal(unit_price, requestedQuantity),
           product_name_ar: product.name_ar,
           product_name_en: product.name_en,
           image_url: product.images[0]?.url ?? null,
@@ -278,7 +284,7 @@ export class OrdersService {
           order_item_id: entry.id,
           product_id: entry.product_id,
           variant_id: entry.variant_id,
-          quantity: entry.quantity,
+          quantity: Number(entry.quantity),
         })),
       });
       if (coupon)
@@ -493,7 +499,7 @@ export class OrdersService {
         variant_id: item.variant_id,
         product_name_ar: item.product_name_ar,
         product_name_en: item.product_name_en,
-        quantity: item.quantity,
+        quantity: Number(item.quantity),
         unit_price: Number(item.unit_price),
         line_total: Number(item.line_total),
         currency: item.currency_code,
@@ -789,7 +795,7 @@ export class OrdersService {
         product_name_ar: item.product_name_ar,
         product_name_en: item.product_name_en,
         image_url: item.image_url,
-        quantity: item.quantity,
+        quantity: Number(item.quantity),
         unit_price: Number(item.unit_price),
         line_total: Number(item.line_total),
         currency: item.currency_code,

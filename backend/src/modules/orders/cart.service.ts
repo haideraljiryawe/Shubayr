@@ -16,7 +16,7 @@ import {
 import {
   activeCoupon,
   calculateCartTotals,
-  cartUnitPrice,
+  skuUnitPrice,
   MAX_CART_ITEM_QUANTITY,
 } from './cart-pricing';
 
@@ -43,11 +43,13 @@ export class CartService {
   }
 
   async add(userId: string, input: AddCartItemDto) {
-    const variantId = input.variant_id ?? null;
-    const { unitPrice, availableQty } = await this.sellable(
+    const sellable = await this.sellable(
       input.product_id,
-      variantId,
+      input.variant_id ?? null,
     );
+    const variantId = sellable.variantId;
+    const { unitPrice, availableQty } = sellable;
+    this.requireQuantityUnit(input.quantity, sellable.wholeUnitsOnly);
     const { id: cartId } = await this.getOrCreate(userId);
     await this.prisma.$transaction(async (tx) => {
       await this.lockCart(tx, cartId);
@@ -58,7 +60,7 @@ export class CartService {
           variant_id: variantId,
         },
       });
-      const quantity = (existing?.quantity ?? 0) + input.quantity;
+      const quantity = Number(existing?.quantity ?? 0) + input.quantity;
       this.requireAvailable(quantity, availableQty);
       if (existing) {
         await tx.cartItem.update({
@@ -89,10 +91,9 @@ export class CartService {
       where: { id, cart: { user_id: userId } },
     });
     if (!item) throw new NotFoundException('Cart item not found');
-    const { unitPrice, availableQty } = await this.sellable(
-      item.product_id,
-      item.variant_id,
-    );
+    const sellable = await this.sellable(item.product_id, item.variant_id);
+    const { unitPrice, availableQty } = sellable;
+    this.requireQuantityUnit(input.quantity, sellable.wholeUnitsOnly);
     this.requireAvailable(input.quantity, availableQty);
     await this.prisma.cartItem.update({
       where: { id },
@@ -161,11 +162,7 @@ export class CartService {
     const at = new Date();
     const items = await Promise.all(
       cart.items.map(async (item) => {
-        const unit_price = cartUnitPrice(
-          item.product,
-          item.variant?.price_delta ?? 0,
-          at,
-        );
+        const unit_price = skuUnitPrice(item.product, item.variant, at);
         let available_qty = 0;
         try {
           const availability = await this.products.availability(
@@ -183,12 +180,12 @@ export class CartService {
           id: item.id,
           product_id: item.product_id,
           variant_id: item.variant_id,
-          quantity: item.quantity,
+          quantity: Number(item.quantity),
           unit_price,
-          line_total: calculateLineTotal(unit_price, item.quantity),
+          line_total: calculateLineTotal(unit_price, Number(item.quantity)),
           currency: item.currency_code,
           available_qty,
-          available: available_qty >= item.quantity,
+          available: available_qty >= Number(item.quantity),
         };
       }),
     );
@@ -206,19 +203,28 @@ export class CartService {
     const product = await this.products.getPublic(productId);
     const variant = variantId
       ? product.variants.find((entry) => entry.id === variantId)
-      : null;
+      : product.variants.length === 1
+        ? product.variants[0]
+        : null;
     if (variantId && !variant) {
       throw new UnprocessableEntityException(
         'Variant does not belong to product',
       );
     }
+    if (!variant) {
+      throw new UnprocessableEntityException(
+        'variant_id is required when a product has multiple SKUs',
+      );
+    }
     const availability = await this.products.availability(productId, true);
     const availableQty =
-      availability.variants.find((entry) => entry.variant_id === variantId)
+      availability.variants.find((entry) => entry.variant_id === variant.id)
         ?.available_qty ?? 0;
     return {
-      unitPrice: cartUnitPrice(product, variant?.price_delta ?? 0),
+      unitPrice: variant.effective_price,
       availableQty,
+      variantId: variant.id,
+      wholeUnitsOnly: variant.whole_units_only,
     };
   }
 
@@ -230,6 +236,17 @@ export class CartService {
     }
     if (quantity > availableQty) {
       throw new ConflictException('Requested quantity exceeds available stock');
+    }
+  }
+
+  private requireQuantityUnit(quantity: number, wholeUnitsOnly: boolean): void {
+    if (wholeUnitsOnly && !Number.isInteger(quantity)) {
+      throw new UnprocessableEntityException({
+        status: 422,
+        code: 'SKU_WHOLE_UNITS_ONLY',
+        message: 'This SKU accepts whole-unit quantities only',
+        errors: [],
+      });
     }
   }
 

@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { MediaService } from '../media/media.service';
+import { AuditService } from '../audit/audit.service';
+import { ConvertCategoryToBrandDto } from './dto/brand.dto';
 import { CategoryQueryDto } from './dto/catalog-query.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -31,6 +33,7 @@ export class CategoriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    private readonly audit: AuditService,
   ) {}
 
   async list(query: CategoryQueryDto, includeHidden: boolean) {
@@ -58,11 +61,8 @@ export class CategoriesService {
       const depth = this.depthOf(input.parent_id, rows);
       if (depth === null)
         throw new NotFoundException('Parent category not found');
-      if (depth >= 4) {
-        throw new UnprocessableEntityException(
-          'Category depth cannot exceed 4',
-        );
-      }
+      if (depth >= 1)
+        throw this.depthError('A subcategory cannot have children');
     }
     if (input.slug) await this.ensureSlugAvailable(input.slug);
 
@@ -122,10 +122,11 @@ export class CategoriesService {
         throw new NotFoundException('Parent category not found');
       }
       const subtreeDepth = this.subtreeDepth(id, rows);
-      if ((parentDepth ?? -1) + 1 + subtreeDepth > 4) {
-        throw new UnprocessableEntityException(
-          'Reparenting would make the category subtree deeper than 4',
-        );
+      if (input.parent_id && parentDepth !== 0) {
+        throw this.depthError('A subcategory cannot have children');
+      }
+      if (input.parent_id && subtreeDepth > 0) {
+        throw this.depthError('A category with children cannot become a child');
       }
     }
 
@@ -152,6 +153,83 @@ export class CategoriesService {
       );
     }
     await this.prisma.category.delete({ where: { id } });
+  }
+
+  async convertToBrand(
+    id: string,
+    input: ConvertCategoryToBrandDto,
+    actorId: string,
+  ) {
+    const [source, target] = await Promise.all([
+      this.prisma.category.findUnique({
+        where: { id },
+        include: { children: { select: { id: true } } },
+      }),
+      this.prisma.category.findUnique({
+        where: { id: input.target_category_id },
+      }),
+    ]);
+    if (!source) throw new NotFoundException('Category not found');
+    if (!target) throw new NotFoundException('Target category not found');
+    if (!target.parent_id) {
+      throw this.depthError('Products must move to a subcategory');
+    }
+    if (source.id === target.id) {
+      throw new ConflictException('Source and target categories must differ');
+    }
+    if (source.children.length) {
+      throw new ConflictException(
+        'Convert only a leaf category after reviewing its children',
+      );
+    }
+    if (input.logo_url) await this.media.requireManagedUrl(input.logo_url);
+    const existing = await this.prisma.brand.findUnique({
+      where: { slug: input.slug },
+    });
+    if (existing) throw new ConflictException('Brand slug already exists');
+    return this.prisma.$transaction(async (tx) => {
+      const brand = await tx.brand.create({
+        data: {
+          name_en: input.name_en.trim(),
+          name_ar: input.name_ar.trim(),
+          slug: input.slug,
+          logo_url: input.logo_url,
+          is_visible: input.is_visible ?? source.is_visible,
+          sort_order: input.sort_order ?? source.sort_order,
+        },
+      });
+      const moved = await tx.product.updateMany({
+        where: { category_id: id },
+        data: { category_id: target.id, brand_id: brand.id },
+      });
+      await tx.category.delete({ where: { id } });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'catalog.category.convert_to_brand',
+        entityType: 'brand',
+        entityId: brand.id,
+        before: source,
+        after: {
+          brand,
+          target_category_id: target.id,
+          moved_products: moved.count,
+        },
+      });
+      return {
+        brand,
+        moved_products: moved.count,
+        target_category_id: target.id,
+      };
+    });
+  }
+
+  private depthError(message: string) {
+    return new UnprocessableEntityException({
+      status: 422,
+      code: 'CATEGORY_MAX_DEPTH',
+      message,
+      errors: [],
+    });
   }
 
   private categoryData(input: CreateCategoryDto | UpdateCategoryDto) {

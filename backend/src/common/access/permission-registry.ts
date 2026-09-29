@@ -11,6 +11,7 @@ export const PERMISSION_REGISTRY = {
   'catalog.brands': ['catalog', 'Manage brands'],
   'catalog.products': ['catalog', 'Manage products and banners'],
   'prices.change': ['catalog', 'Change sale prices'],
+  'prices.publish_linked': ['catalog', 'Publish linked SKU prices'],
   'cost.view': ['purchasing', 'View product cost'],
   'suppliers.view': ['purchasing', 'View suppliers'],
   'suppliers.manage': ['purchasing', 'Manage suppliers'],

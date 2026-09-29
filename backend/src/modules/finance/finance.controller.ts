@@ -18,6 +18,11 @@ import type { AuthenticatedRequestUser } from '../../common/guards/permissions.g
 import { Prisma } from '../../generated/prisma/client';
 import { CashAccountService } from './cash-account.service';
 import { CurrencyService } from './currency.service';
+import { LinkedPricingService } from './linked-pricing.service';
+import {
+  LinkedPriceApplyDto,
+  LinkedPricePreviewDto,
+} from './dto/linked-price.dto';
 import { DraftService } from './draft.service';
 import {
   AsOfQueryDto,
@@ -63,7 +68,10 @@ export class CurrencyController {
 
 @Controller('admin/exchange-rates')
 export class ExchangeRateController {
-  constructor(private readonly currencies: CurrencyService) {}
+  constructor(
+    private readonly currencies: CurrencyService,
+    private readonly linkedPrices: LinkedPricingService,
+  ) {}
 
   @Get()
   @AdminPolicy('ledger.view')
@@ -75,6 +83,33 @@ export class ExchangeRateController {
   @AdminPolicy('fx_rates.update')
   create(@Req() request: AdminRequest, @Body() input: ExchangeRateCreateDto) {
     return this.currencies.createRate(request.user.id, input);
+  }
+
+  @Post('linked-price-preview')
+  @AdminPolicy('fx_rates.update')
+  previewLinked(
+    @Req() request: AdminRequest,
+    @Body() input: LinkedPricePreviewDto,
+  ) {
+    return this.linkedPrices.preview(request.user.id, input);
+  }
+
+  @Post('save-rate-only')
+  @AdminPolicy('fx_rates.update')
+  saveRateOnly(
+    @Req() request: AdminRequest,
+    @Body() input: LinkedPriceApplyDto,
+  ) {
+    return this.linkedPrices.applyRateOnly(request.user.id, input);
+  }
+
+  @Post('publish-linked-prices')
+  @AdminPolicy('fx_rates.update', 'prices.publish_linked')
+  publishLinked(
+    @Req() request: AdminRequest,
+    @Body() input: LinkedPriceApplyDto,
+  ) {
+    return this.linkedPrices.publish(request.user.id, input);
   }
 
   @Get(':code/applicable')

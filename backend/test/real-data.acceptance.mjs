@@ -123,6 +123,17 @@ check(
   'Persisted category edit',
   'category edit must persist',
 );
+const productCategory = await json('/admin/categories', {
+  method: 'POST',
+  token: admin.access_token,
+  expected: 201,
+  body: {
+    parent_id: category.id,
+    name_en: `Acceptance Category ${suffix}`,
+    name_ar: `Acceptance Category ${suffix}`,
+    slug: `acceptance-category-${suffix}`,
+  },
+});
 
 const starts = new Date(Date.now() - 60_000).toISOString();
 const ends = new Date(Date.now() + 60 * 60 * 1000).toISOString();
@@ -131,7 +142,7 @@ const product = await json('/admin/products', {
   token: admin.access_token,
   expected: 201,
   body: {
-    category_id: category.id,
+    category_id: productCategory.id,
     name_en: `Acceptance Product ${suffix}`,
     name_ar: `منتج القبول ${suffix}`,
     description: 'Created through the protected HTTP API',

@@ -244,9 +244,6 @@ function demo(
     // No fixture schedules a discount, so both bounds stay open.
     discount_starts_at: null,
     discount_ends_at: null,
-    is_negotiable: false,
-    floor_price: null,
-    points_price: null,
     tracks_expiry: false,
     rating_avg,
     status: "active",
@@ -658,8 +655,6 @@ if (headphones) {
     "https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=1200&q=80",
   ].map((url, index) => productImage(`p1-img-${index + 1}`, url, index));
-  headphones.points_price = 8900;
-  headphones.is_negotiable = true;
   headphones.description =
     "سماعات لاسلكية عالية الجودة مع عزل ضوضاء ووقت تشغيل طويل للبطارية.";
 }

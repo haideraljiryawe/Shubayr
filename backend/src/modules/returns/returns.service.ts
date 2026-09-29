@@ -79,7 +79,13 @@ export class ReturnsService {
       await tx.$queryRaw`SELECT id FROM orders WHERE id = ${input.order_id}::uuid FOR UPDATE`;
       const order = await tx.order.findUnique({
         where: { id: input.order_id },
-        include: { items: true },
+        include: {
+          items: {
+            include: {
+              variant: { select: { whole_units_only: true } },
+            },
+          },
+        },
       });
       if (!order || order.status !== 'delivered') {
         throw new ConflictException('Only delivered orders can be returned');
@@ -102,23 +108,27 @@ export class ReturnsService {
         const item = orderItems.get(entry.order_item_id);
         if (!item)
           throw new UnprocessableEntityException('Item is not on this order');
+        this.requireQuantityUnit(entry.quantity, item.variant.whole_units_only);
         const reserved = previous
           .filter((prior) => prior.order_item_id === item.id)
           .reduce(
             (sum, prior) =>
               sum +
-              (prior.return.status === 'requested'
-                ? prior.quantity
-                : prior.approved_quantity),
+              Number(
+                prior.return.status === 'requested'
+                  ? prior.quantity
+                  : prior.approved_quantity,
+              ),
             0,
           );
-        if (entry.quantity > item.quantity - reserved) {
+        if (entry.quantity > Number(item.quantity) - reserved) {
           throw new UnprocessableEntityException(
             'Return quantity exceeds eligible quantity',
           );
         }
-        expectedMinor +=
-          moneyToMinorUnits(item.unit_price) * BigInt(entry.quantity);
+        expectedMinor += moneyToMinorUnits(
+          calculateLineTotal(item.unit_price, entry.quantity),
+        );
         return {
           order_item_id: item.id,
           quantity: entry.quantity,
@@ -169,7 +179,17 @@ export class ReturnsService {
         await tx.$queryRaw`SELECT id FROM returns WHERE id = ${id}::uuid FOR UPDATE`;
         const current = await tx.return.findUnique({
           where: { id },
-          include: { items: { include: { order_item: true } } },
+          include: {
+            items: {
+              include: {
+                order_item: {
+                  include: {
+                    variant: { select: { whole_units_only: true } },
+                  },
+                },
+              },
+            },
+          },
         });
         if (!current) throw new NotFoundException('Return not found');
         if (current.status !== 'requested')
@@ -196,14 +216,18 @@ export class ReturnsService {
         let refundMinor = 0n;
         let approvedTotal = 0;
         const requestedTotal = current.items.reduce(
-          (sum, item) => sum + item.quantity,
+          (sum, item) => sum + Number(item.quantity),
           0,
         );
         for (const item of current.items) {
           const decision =
             input.decision === 'approve' ? decisions.get(item.id) : undefined;
           const approved = decision?.approved_quantity ?? 0;
-          if (approved > item.quantity) {
+          this.requireQuantityUnit(
+            approved,
+            item.order_item.variant.whole_units_only,
+          );
+          if (approved > Number(item.quantity)) {
             throw new UnprocessableEntityException(
               'Approved quantity exceeds request',
             );
@@ -248,7 +272,9 @@ export class ReturnsService {
             },
           });
           approvedTotal += approved;
-          refundMinor += moneyToMinorUnits(item.unit_price) * BigInt(approved);
+          refundMinor += moneyToMinorUnits(
+            calculateLineTotal(item.unit_price, approved),
+          );
         }
         const status =
           approvedTotal === 0
@@ -348,14 +374,15 @@ export class ReturnsService {
         for (const item of approved) {
           returned.set(
             item.order_item_id,
-            (returned.get(item.order_item_id) ?? 0) + item.approved_quantity,
+            (returned.get(item.order_item_id) ?? 0) +
+              Number(item.approved_quantity),
           );
         }
         const fullyReturned =
           current.refund_amount.gt(0) &&
           order.items.length > 0 &&
           order.items.every(
-            (item) => (returned.get(item.id) ?? 0) === item.quantity,
+            (item) => (returned.get(item.id) ?? 0) === Number(item.quantity),
           );
         if (
           fullyReturned &&
@@ -423,7 +450,10 @@ export class ReturnsService {
       },
       select: { approved_quantity: true },
     });
-    let offset = prior.reduce((sum, item) => sum + item.approved_quantity, 0);
+    let offset = prior.reduce(
+      (sum, item) => sum + Number(item.approved_quantity),
+      0,
+    );
     let remaining = quantity;
     let firstBatchId: string | null = null;
     const origins = await tx.stockReservation.findMany({
@@ -433,8 +463,9 @@ export class ReturnsService {
     });
     for (const origin of origins) {
       if (remaining === 0) break;
-      if (offset >= origin.quantity) {
-        offset -= origin.quantity;
+      const originQuantity = Number(origin.quantity);
+      if (offset >= originQuantity) {
+        offset -= originQuantity;
         continue;
       }
       if (
@@ -445,7 +476,7 @@ export class ReturnsService {
           'Origin batch does not match returned order line',
         );
       }
-      const amount = Math.min(remaining, origin.quantity - offset);
+      const amount = Math.min(remaining, originQuantity - offset);
       offset = 0;
       firstBatchId ??= origin.batch_id;
       await this.recordRestock(
@@ -489,6 +520,17 @@ export class ReturnsService {
       );
     }
     return firstBatchId!;
+  }
+
+  private requireQuantityUnit(quantity: number, wholeUnitsOnly: boolean): void {
+    if (wholeUnitsOnly && !Number.isInteger(quantity)) {
+      throw new UnprocessableEntityException({
+        status: 422,
+        code: 'SKU_WHOLE_UNITS_ONLY',
+        message: 'This SKU accepts whole-unit quantities only',
+        errors: [],
+      });
+    }
   }
 
   private async recordRestock(
@@ -562,15 +604,18 @@ export class ReturnsService {
       items: row.items.map((item) => ({
         id: item.id,
         order_item_id: item.order_item_id,
-        quantity: item.quantity,
-        approved_quantity: item.approved_quantity,
+        quantity: Number(item.quantity),
+        approved_quantity: Number(item.approved_quantity),
         customer_reason: item.customer_reason,
         unit_price: Number(item.unit_price),
         currency: item.currency_code,
-        expected_refund: calculateLineTotal(item.unit_price, item.quantity),
+        expected_refund: calculateLineTotal(
+          item.unit_price,
+          Number(item.quantity),
+        ),
         approved_refund: calculateLineTotal(
           item.unit_price,
-          item.approved_quantity,
+          Number(item.approved_quantity),
         ),
         condition: item.condition,
         restock: item.restock,

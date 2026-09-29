@@ -237,7 +237,7 @@ function orderItem(
   return {
     id: `oi-${productId}`,
     product_id: productId,
-    variant_id: null,
+    variant_id: product?.variants?.[0]?.id ?? `variant-${productId}`,
     // Name and image are snapshots taken when the order was placed, so a
     // later rename or re-photograph never rewrites order history.
     product_name_ar: product?.name_ar ?? "",
