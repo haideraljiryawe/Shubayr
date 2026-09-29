@@ -17,6 +17,7 @@ export const ORDER_STATUS_TONES: Record<OrderStatus, BadgeTone> = {
   dispatched: "primary",
   delivered: "success",
   failed: "error",
+  rejected: "error",
   cancelled: "error",
   return_requested: "warning",
   returned: "neutral",

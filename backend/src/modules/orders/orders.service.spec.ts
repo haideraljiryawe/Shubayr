@@ -151,6 +151,81 @@ describe('OrdersService', () => {
     });
   });
 
+  it('rejects only a pending order, releases its hold, and notifies customer and monitors', async () => {
+    const tx = {
+      $queryRaw: jest.fn(),
+      order: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          user_id: 'customer-1',
+          status: 'pending',
+        }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          user_id: 'customer-1',
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      orderStatusEvent: { create: jest.fn() },
+      simpleStockHold: { updateMany: jest.fn() },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+    const notifications = {
+      record: jest.fn(),
+      recordOrderMonitors: jest.fn(),
+    };
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      audit,
+      notifications as never,
+    );
+    jest.spyOn(service, 'getAdmin').mockResolvedValue({} as never);
+
+    await service.rejectAdmin('staff-1', 'order-1', {
+      reason: 'Cannot fulfil this order',
+    });
+
+    expect(tx.order.updateMany).toHaveBeenCalledWith({
+      where: { id: 'order-1', status: 'pending' },
+      data: { status: 'rejected' },
+    });
+    expect(tx.simpleStockHold.updateMany).toHaveBeenCalledWith({
+      where: { order_id: 'order-1', status: 'held' },
+      data: { status: 'released', released_at: expect.any(Date) as Date },
+    });
+    expect(notifications.record).toHaveBeenCalledWith(
+      tx,
+      'customer-1',
+      'order_rejected',
+      'order',
+      'order-1',
+      '',
+    );
+    expect(notifications.recordOrderMonitors).toHaveBeenCalledWith(
+      tx,
+      'order_rejected',
+      'order-1',
+      expect.any(String),
+    );
+    expect(audit.record).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        actorId: 'staff-1',
+        action: 'order.reject',
+        before: { status: 'pending' },
+        after: {
+          status: 'rejected',
+          reason: 'Cannot fulfil this order',
+        },
+      }),
+    );
+  });
+
   it('rejects a disallowed staff transition without writing an event', async () => {
     const tx = {
       $queryRaw: jest.fn(),

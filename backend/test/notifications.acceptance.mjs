@@ -207,7 +207,7 @@ try {
   const enabled = (prefs, type, channel) =>
     prefs.preferences.find((p) => p.type === type && p.channel === channel)
       ?.enabled;
-  check(defaults.preferences.length, 26, 'all type/channel pairs returned');
+  check(defaults.preferences.length, 28, 'all type/channel pairs returned');
   check(
     enabled(defaults, 'delivered', 'push'),
     true,
@@ -218,6 +218,11 @@ try {
     enabled(defaults, 'order_confirmed', 'sms'),
     true,
     'critical SMS defaults on',
+  );
+  check(
+    enabled(defaults, 'order_rejected', 'push'),
+    true,
+    'rejected-order push defaults on',
   );
   await request('/me/notification-preferences', {
     token: b,

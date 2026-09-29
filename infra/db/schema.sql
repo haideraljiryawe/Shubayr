@@ -204,7 +204,7 @@ CREATE TABLE notification_channel_preferences (
     CONSTRAINT notification_channel_preferences_type_check CHECK (type IN
       ('order_placed','order_confirmed','order_status_changed','out_for_delivery','delivered',
        'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo',
-       'new_order','order_cancelled','delivery_assigned')),
+       'new_order','order_cancelled','order_rejected','delivery_assigned')),
     CONSTRAINT notification_channel_preferences_channel_check CHECK (channel IN ('push','sms')),
     CONSTRAINT notification_channel_preferences_critical_check
       CHECK (NOT (type = 'order_confirmed' AND channel = 'sms' AND enabled = false))
@@ -231,7 +231,7 @@ CREATE TABLE notification_events (
     CONSTRAINT notification_events_type_check CHECK (type IN
       ('order_placed','order_confirmed','order_status_changed','out_for_delivery','delivered',
        'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo',
-       'new_order','order_cancelled','delivery_assigned'))
+       'new_order','order_cancelled','order_rejected','delivery_assigned'))
 );
 
 CREATE TABLE notification_stream_events (
@@ -510,7 +510,7 @@ CREATE TABLE orders (
     idempotency_fingerprint VARCHAR(64),
     status          VARCHAR(30) NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending','confirmed','preparing','ready_for_dispatch',
-                          'dispatched','delivered','failed','cancelled',
+                          'dispatched','delivered','failed','rejected','cancelled',
                           'return_requested','returned')),
     payment_method  VARCHAR(20) NOT NULL DEFAULT 'cod',
     subtotal        NUMERIC(12,2) NOT NULL DEFAULT 0,
@@ -548,7 +548,7 @@ CREATE TABLE order_status_events (
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     status VARCHAR(30) NOT NULL
         CHECK (status IN ('pending','confirmed','preparing','ready_for_dispatch',
-                          'dispatched','delivered','failed','cancelled',
+                          'dispatched','delivered','failed','rejected','cancelled',
                           'return_requested','returned')),
     note TEXT,
     at TIMESTAMPTZ NOT NULL DEFAULT now()

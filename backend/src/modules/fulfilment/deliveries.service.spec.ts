@@ -4,7 +4,10 @@ jest.mock('@nestjs/config', () => ({ ConfigService: class {} }));
 
 import { ACCESS_POLICY_KEY } from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
-import { DeliveriesController } from './deliveries.controller';
+import {
+  DeliveriesController,
+  DeliveryAgentsController,
+} from './deliveries.controller';
 import { DeliveriesService } from './deliveries.service';
 import { DeliveryStatus } from './dto/assigned-deliveries-query.dto';
 
@@ -175,5 +178,88 @@ describe('DeliveriesController', () => {
         },
       ],
     ]);
+  });
+
+  it('protects the delivery-agent picker with only orders.assign_agent', () => {
+    expect(
+      Reflect.getMetadata(
+        ACCESS_POLICY_KEY,
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        DeliveryAgentsController.prototype.list,
+      ),
+    ).toEqual({
+      access: 'authenticated',
+      surfaces: ['admin'],
+      permissions: ['orders.assign_agent'],
+    });
+  });
+});
+
+describe('DeliveriesService delivery-agent picker', () => {
+  it('searches active delivery work accounts before stable pagination', async () => {
+    const rows = [
+      {
+        id: 'agent-1',
+        name: 'Delivery A',
+        phone: '+9647700000005',
+        work_profile: { name: 'Courier A' },
+      },
+    ];
+    const prisma = {
+      user: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue(rows),
+      },
+      $transaction: jest.fn((queries: Promise<unknown>[]) =>
+        Promise.all(queries),
+      ),
+    };
+    const service = new DeliveriesService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await service.listAgents({
+      q: 'Courier',
+      page: 2,
+      per_page: 10,
+    });
+
+    expect(result).toEqual({
+      page: 2,
+      per_page: 10,
+      total: 1,
+      data: [{ id: 'agent-1', name: 'Courier A', phone: '+9647700000005' }],
+    });
+    expect(prisma.user.findMany).toHaveBeenCalledWith({
+      where: {
+        is_active: true,
+        role: { is: { name: 'delivery_agent' } },
+        work_profile: {
+          is: { app_role: 'delivery_agent', is_active: true },
+        },
+        OR: [
+          { name: { contains: 'Courier', mode: 'insensitive' } },
+          { phone: { contains: 'Courier' } },
+          {
+            work_profile: {
+              is: {
+                name: { contains: 'Courier', mode: 'insensitive' },
+              },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        work_profile: { select: { name: true } },
+      },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      skip: 10,
+      take: 10,
+    });
   });
 });
