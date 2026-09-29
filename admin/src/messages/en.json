@@ -11,7 +11,8 @@
     "presets": "Permission presets",
     "workPhones": "Work phones",
     "openMenu": "Open menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "orders": "Orders"
   },
   "auth": {
     "signIn": "Sign in",
@@ -127,7 +128,8 @@
     "section": {
       "staff": "Create, edit and deactivate staff accounts, and reset passwords.",
       "presets": "Ready-made permission sets you assign to staff.",
-      "workPhones": "Register or revoke delivery-agent and order-monitor phones."
+      "workPhones": "Register or revoke delivery-agent and order-monitor phones.",
+      "orders": "Follow orders and move them along, as your permissions allow."
     },
     "comingTitle": "Coming next",
     "comingBody": "Orders, catalog, stock and accounting arrive with the next backend phases.",
@@ -278,5 +280,124 @@
       "nameHint": "Shown on their profile and on the orders assigned to them.",
       "role": "Role"
     }
+  },
+  "orders": {
+    "title": "Orders",
+    "description": "Every order with status, search and dates. What you can change depends on your permissions and the order's state.",
+    "status": {
+      "pending": "Awaiting acceptance",
+      "confirmed": "Confirmed",
+      "preparing": "Preparing",
+      "ready_for_dispatch": "Ready for dispatch",
+      "dispatched": "Out for delivery",
+      "delivered": "Delivered",
+      "failed": "Delivery failed",
+      "cancelled": "Cancelled",
+      "return_requested": "Return requested",
+      "returned": "Returned"
+    },
+    "deliveryStatus": {
+      "assigned": "Assigned",
+      "out_for_delivery": "Out for delivery",
+      "delivered": "Delivered",
+      "failed": "Failed",
+      "returned": "Returned"
+    },
+    "allStatuses": "All statuses",
+    "filterStatus": "Status",
+    "search": "Search by order number",
+    "from": "From",
+    "to": "To",
+    "clearDates": "Clear dates",
+    "invalidRange": "The start date is after the end date, so the date range was ignored.",
+    "utcNote": "The date range is in UTC, as the server applies it today.",
+    "empty": "No matching orders.",
+    "columns": {
+      "number": "Order",
+      "customer": "Customer",
+      "status": "Status",
+      "total": "Total",
+      "placed": "Placed",
+      "agent": "Agent"
+    },
+    "noAgent": "No agent",
+    "noName": "No name",
+    "back": "Back to orders",
+    "detail": {
+      "customer": "Customer",
+      "address": "Delivery address",
+      "items": "Items",
+      "quantity": "Qty",
+      "unitPrice": "Unit price",
+      "lineTotal": "Line total",
+      "summary": "Summary",
+      "subtotal": "Subtotal",
+      "deliveryFee": "Delivery fee",
+      "discount": "Discount",
+      "total": "Total",
+      "payment": "Payment",
+      "cod": "Cash on delivery",
+      "delivery": "Delivery",
+      "agent": "Agent",
+      "noDelivery": "This order has no delivery.",
+      "timeline": "Timeline",
+      "noTimeline": "No events yet.",
+      "actions": "Actions",
+      "noActions": "There is nothing you can do on this order in its current state."
+    },
+    "action": {
+      "accept": "Accept order",
+      "prepare": "Start preparing",
+      "markReady": "Mark ready",
+      "dispatch": "Hand over to agent",
+      "cancel": "Cancel order (reason required)"
+    },
+    "confirm": {
+      "accept": "Accept this order?",
+      "prepare": "Move this order into preparation?",
+      "markReady": "Mark this order ready for dispatch?",
+      "dispatch": "Hand this order to the agent? The goods leave the warehouse into their custody.",
+      "cancel": "Cancel order",
+      "cancelBody": "The order is cancelled before dispatch and its stock reservation released. The reason is kept in the order timeline and audit log.",
+      "yes": "Confirm"
+    },
+    "dispatchBlocked": {
+      "noDelivery": "Can't hand over: this order has no delivery.",
+      "noAgent": "Assign an agent first, then hand the order over.",
+      "deliveryNotAssigned": "The delivery is not in the “assigned” state, so it can't be handed over."
+    },
+    "assign": {
+      "title": "Assign agent",
+      "reassign": "Change agent",
+      "pick": "Choose an agent",
+      "submit": "Assign",
+      "done": "Agent assigned",
+      "noAgents": "No active delivery agents are registered.",
+      "cannotList": "Listing delivery agents needs the user-management permission (users.manage)."
+    },
+    "done": "Order updated",
+    "conflict": "This order changed before your action was saved — it is now “{status}”. The page has been refreshed to show what you can do now.",
+    "conflictGeneric": "This order changed before your action was saved, so the page has been refreshed. Check its current state.",
+    "forbidden": "The server refused this action: you no longer have the permission it needs. The page has been refreshed to show what you can do now."
+  },
+  "inbox": {
+    "title": "Notifications",
+    "bell": "Notifications",
+    "bellUnread": "Notifications, {count} unread",
+    "all": "All",
+    "unread": "Unread",
+    "markRead": "Mark as read",
+    "markAllRead": "Mark all as read",
+    "viewAll": "View all notifications",
+    "empty": "No notifications.",
+    "emptyUnread": "No unread notifications.",
+    "live": "Live",
+    "reconnecting": "Reconnecting…",
+    "failed": "Couldn't update the notification.",
+    "loadFailed": "Couldn't load notifications.",
+    "retry": "Try again",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page} of {pages}"
   }
 }
