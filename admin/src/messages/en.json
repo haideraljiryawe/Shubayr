@@ -12,7 +12,12 @@
     "workPhones": "Work phones",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "orders": "Orders"
+    "orders": "Orders",
+    "currencies": "Currencies & rates",
+    "cashAccounts": "Cash & bank accounts",
+    "periods": "Periods & close",
+    "ledger": "Ledger",
+    "settings": "Store settings"
   },
   "auth": {
     "signIn": "Sign in",
@@ -129,7 +134,12 @@
       "staff": "Create, edit and deactivate staff accounts, and reset passwords.",
       "presets": "Ready-made permission sets you assign to staff.",
       "workPhones": "Register or revoke delivery-agent and order-monitor phones.",
-      "orders": "Follow orders and move them along, as your permissions allow."
+      "orders": "Follow orders and move them along, as your permissions allow.",
+      "currencies": "Enable currencies and record exchange rates with their history.",
+      "cashAccounts": "Cash boxes and bank accounts, their balances and transfers.",
+      "periods": "Accounting periods, the close checklist and reopening.",
+      "ledger": "Trial balance and entries by account and document.",
+      "settings": "Store data, business hours, timeouts and protection thresholds."
     },
     "comingTitle": "Coming next",
     "comingBody": "Orders, catalog, stock and accounting arrive with the next backend phases.",
@@ -399,5 +409,312 @@
     "previous": "Previous",
     "next": "Next",
     "pageOf": "Page {page} of {pages}"
+  },
+  "financeSettings": {
+    "title": "Store settings",
+    "description": "Store data, business hours, order timeouts and protection thresholds. Every save is recorded in the audit log with its old and new values.",
+    "saved": "Settings saved",
+    "save": "Save settings",
+    "timezoneHint": "IANA format, e.g. Asia/Baghdad.",
+    "autoCancelOff": "Auto-cancel is off (the default): a late order is only alerted about, never cancelled.",
+    "fixErrors": "Some fields are not valid. Fix them and save again — nothing was sent.",
+    "noChanges": "There are no changes to save.",
+    "sections": {
+      "store": "Store",
+      "hours": "Business hours and closed days",
+      "orders": "Order timeouts",
+      "controls": "Controls and protection thresholds"
+    },
+    "fields": {
+      "store_name": "Store name",
+      "store_address": "Address",
+      "store_phone": "Store phone",
+      "timezone": "Timezone",
+      "delivery_fee": "Delivery fee",
+      "acceptance_alert_timeout_minutes": "Alert when an order is not accepted within",
+      "auto_cancel_enabled": "Automatically cancel orders that are not accepted",
+      "auto_cancel_timeout_minutes": "Auto-cancel after",
+      "auto_cancel_warning_minutes": "Warn before cancelling by",
+      "default_low_stock_threshold": "Default low-stock threshold",
+      "backdating_window_days": "Back-dating window",
+      "markup_alert_percent": "Markup alert percentage"
+    },
+    "units": {
+      "currency": "In the base currency ({currency})",
+      "minutes": "Minutes",
+      "days": "Days",
+      "units": "Units",
+      "percent": "Percent"
+    },
+    "errors": {
+      "required": "This field is required.",
+      "number": "Enter a valid number within the allowed range, without thousands separators.",
+      "tooLong": "The text is too long.",
+      "phone": "Use the international format, e.g. +9647701234567.",
+      "timezone": "Unknown timezone. Use the IANA format, e.g. Asia/Baghdad.",
+      "time": "Enter the time as HH:MM.",
+      "closesBeforeOpens": "Closing time must be after opening time.",
+      "warningNotBeforeTimeout": "The warning must come before the cancellation.",
+      "duplicateDate": "This day is listed twice.",
+      "range": "Enter a whole percentage from 0 to 100."
+    },
+    "hours": {
+      "day": "Day",
+      "closed": "Closed",
+      "opens": "Opens",
+      "closes": "Closes",
+      "closedFor": "{day} closed"
+    },
+    "closedDays": {
+      "title": "Closed days",
+      "none": "No closed days recorded.",
+      "date": "Date",
+      "reason": "Reason (optional)",
+      "remove": "Remove day",
+      "add": "Add a closed day"
+    },
+    "thresholds": {
+      "title": "Unusual-change thresholds",
+      "body": "Any change above these percentages is shown for confirmation before it is saved.",
+      "cost": "Cost",
+      "price": "Price",
+      "quantity": "Quantity",
+      "exchange_rate": "Exchange rate"
+    },
+    "history": {
+      "title": "Change history",
+      "needsAudit": "Seeing the change history needs the audit-log permission (audit.view).",
+      "empty": "No changes recorded yet.",
+      "unknownActor": "Unknown user",
+      "hoursOf": "Hours of day {day}"
+    }
+  },
+  "currencies": {
+    "title": "Currencies and exchange rates",
+    "description": "The base currency is fixed. Rates are entered by hand and kept with their date and who set them; a rate of 1 is never assumed.",
+    "currencies": "Currencies",
+    "base": "Base currency",
+    "on": "Enabled",
+    "off": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable",
+    "enabled": "Currency enabled",
+    "disabled": "Currency disabled",
+    "baseLocked": "The base currency is locked: it cannot be disabled, or changed after the first movement. Used currencies are disabled, never deleted.",
+    "staleCurrent": "The latest {code} rate is not from today (effective since {date}). Update it before using it for today's documents.",
+    "noForeign": "No foreign currency is enabled to record a rate for.",
+    "rateSaved": "Rate saved: {rate}",
+    "columns": {
+      "code": "Code",
+      "name": "Name",
+      "symbol": "Symbol",
+      "precision": "Decimals",
+      "status": "Status"
+    },
+    "history": {
+      "title": "Exchange-rate history",
+      "empty": "No exchange rate has been recorded yet.",
+      "effective": "Effective",
+      "rate": "Rate",
+      "previous": "Old → new",
+      "by": "By",
+      "reason": "Reason",
+      "recorded": "Recorded {at}",
+      "first": "First rate"
+    },
+    "form": {
+      "title": "Record an exchange rate",
+      "currency": "Currency",
+      "basis": "Entry basis",
+      "rate": "Rate: {amount} {code} = … {base}",
+      "ratePlaceholder": "Enter the rate",
+      "previewEmpty": "Enter the rate to see: 1 {code} = … {base}",
+      "effective": "Effective from",
+      "effectiveHint": "In store time (Baghdad).",
+      "reason": "Reason",
+      "notToday": "The effective date is not today. Make sure that is intended.",
+      "submit": "Save rate"
+    },
+    "errors": {
+      "rateRequired": "Enter the rate — no rate is ever assumed.",
+      "rateInvalid": "Enter a valid rate.",
+      "ratePositive": "The rate must be greater than zero.",
+      "rateDecimals": "The rate allows at most 10 decimals.",
+      "effective": "Enter the effective date and time.",
+      "reason": "Write a reason of at least 3 characters."
+    }
+  },
+  "cashAccounts": {
+    "title": "Cash and bank accounts",
+    "description": "Balances come from the ledger. A transfer is a numbered document, posted exactly once.",
+    "empty": "No cash or bank accounts yet.",
+    "columns": {
+      "name": "Name",
+      "kind": "Type",
+      "balance": "Balance",
+      "baseBalance": "In base currency",
+      "status": "Status"
+    },
+    "kind": {
+      "cash": "Cash box",
+      "bank": "Bank account"
+    },
+    "active": "Active",
+    "inactive": "Inactive",
+    "edit": "Edit",
+    "openingBalance": "Opening balance",
+    "delete": "Delete",
+    "deleteTitle": "Delete “{name}”?",
+    "deleteBody": "An account can be deleted only if it has no movements; a used account is deactivated instead.",
+    "deleted": "Account deleted",
+    "createTitle": "New account",
+    "currency": "Currency",
+    "create": "Create account",
+    "created": "“{name}” created",
+    "editTitle": "Edit “{name}”",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saved": "Saved",
+    "close": "Close",
+    "openingTitle": "Opening balance for “{name}”",
+    "openingBody": "One opening-balance document per account, posted to the ledger on its date.",
+    "amountIn": "Amount ({code})",
+    "documentDate": "Document date",
+    "backdateReason": "Reason for back-dating",
+    "backdateHint": "Only for a date older than the back-dating window; needs permission.",
+    "postOpening": "Post opening balance",
+    "errors": {
+      "name": "At least 2 characters.",
+      "amount": "Enter an amount greater than zero.",
+      "precision": "This currency allows at most {precision} decimals.",
+      "date": "Enter the document date.",
+      "future": "Future dates are not allowed.",
+      "to": "Choose the account to transfer to.",
+      "reason": "Write a reason of at least 3 characters."
+    },
+    "transfer": {
+      "title": "Transfer between accounts",
+      "needTwo": "A transfer needs at least two active accounts.",
+      "from": "From",
+      "to": "To",
+      "sameCurrency": "Same currency only.",
+      "pick": "Choose an account",
+      "amount": "Amount",
+      "reason": "Reason",
+      "review": "Review transfer",
+      "edit": "Edit",
+      "confirm": "Confirm and post transfer",
+      "another": "New transfer",
+      "fixAndReview": "Change the details, then review the transfer again."
+    }
+  },
+  "posting": {
+    "posted": "Document {number} posted.",
+    "viewEntries": "View its entries",
+    "checking": "The answer was lost. Checking with the server whether the document was posted before trying anything else…",
+    "notPosted": "Confirmed: the document was not posted. You can retry safely — no duplicate will be created.",
+    "retry": "Retry",
+    "processing": "The server is still processing this document.",
+    "checkAgain": "Check again",
+    "periodClosed": "The accounting period for this date is closed, so the server refused to post. Choose a date in an open period, or ask for the period to be reopened."
+  },
+  "periods": {
+    "title": "Periods and monthly close",
+    "description": "Closing is manual, after review. Afterwards the server refuses any posting dated inside the period; reopening is an exception with a recorded reason.",
+    "columns": {
+      "month": "Month",
+      "status": "Status",
+      "closedAt": "Closed",
+      "reopened": "Reopened",
+      "closes": "Closes"
+    },
+    "status": {
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "back": "Back to periods",
+    "monthTitle": "Period {month}",
+    "reopenedAt": "Reopened {at}. Reason: {reason}",
+    "closedToast": "{month} closed",
+    "reopenedToast": "{month} reopened",
+    "checklist": {
+      "title": "Close checklist",
+      "needsPermission": "The close checklist and closing need the period-close permission (period.close).",
+      "failed": "Couldn't load the close checklist.",
+      "count": "Count: {count}",
+      "advisory": "for information",
+      "blocked": "The period can't be closed until the failing items are resolved."
+    },
+    "checks": {
+      "balanced_journals": "Unbalanced journal entries",
+      "unposted_drafts": "Unposted drafts",
+      "posted_journals": "Entries posted in the period"
+    },
+    "future": "This period has not ended yet.",
+    "closeNote": "Close note (optional)",
+    "closeNoteHint": "Kept with the close snapshot.",
+    "close": "Close period",
+    "closedBody": "Closed since {at}. Any posting dated inside it is refused.",
+    "reopen": "Reopen period",
+    "reopenNeedsPermission": "Reopening needs the period-reopen permission (period.reopen).",
+    "reopenTitle": "Reopen {month}?",
+    "reopenBody": "Reopening is an exception: it is recorded with your reason, the previous close is kept for reference, and the differences are shown at re-close.",
+    "differences": {
+      "title": "Differences at close #{sequence}",
+      "none": "No differences from the previous close.",
+      "account": "Account",
+      "before": "Before",
+      "after": "After"
+    },
+    "history": {
+      "title": "Close history",
+      "empty": "This period has never been closed.",
+      "entry": "Close #{sequence} — {at}",
+      "reference": "Reference snapshot (first close)."
+    }
+  },
+  "ledger": {
+    "title": "Trial balance",
+    "description": "Account balances in the base currency as of a date. Read-only.",
+    "asOf": "As of",
+    "asOfDate": "As of {date}",
+    "asOfNow": "To date",
+    "balanced": "Balanced",
+    "unbalanced": "Not balanced",
+    "totals": "Totals",
+    "columns": {
+      "code": "Code",
+      "account": "Account",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance",
+      "document": "Document",
+      "dates": "Dates",
+      "lines": "Lines",
+      "links": "Links"
+    },
+    "entriesTitle": "Journal entries",
+    "entriesDescription": "Entries by account, document or date. A posted entry is never edited; it is corrected by a reversal.",
+    "source": {
+      "cash_opening_balance": "Opening balance",
+      "cash_transfer": "Cash transfer",
+      "journal_reversal": "Reversal"
+    },
+    "reversal": "Reversal",
+    "accountingDate": "Posted: {date}",
+    "documentDate": "Document date: {date}",
+    "sourceEntries": "All entries of this document",
+    "reverses": "Reverses entry {id}",
+    "findReversal": "Its reversal (if any)",
+    "readOnly": "This screen is read-only.",
+    "noEntries": "No matching entries.",
+    "filters": {
+      "account": "Account",
+      "anyAccount": "All accounts",
+      "source": "Document type",
+      "anySource": "All types",
+      "from": "From",
+      "to": "To"
+    }
   }
 }

@@ -36,8 +36,27 @@ describe("visibleNav", () => {
       "dashboard",
       "orders",
     ]);
+    // The finance screens follow their own permissions, independently.
+    expect(visibleNav(["ledger.view"]).map((item) => item.key)).toEqual([
+      "dashboard",
+      "currencies",
+      "periods",
+      "ledger",
+    ]);
+    expect(visibleNav(["cash_accounts.manage", "settings.manage"]).map((item) => item.key)).toEqual([
+      "dashboard",
+      "cashAccounts",
+      "settings",
+    ]);
     expect(
-      visibleNav(["users.manage", "roles.manage", "orders.view"]),
+      visibleNav([
+        "users.manage",
+        "roles.manage",
+        "orders.view",
+        "ledger.view",
+        "cash_accounts.manage",
+        "settings.manage",
+      ]),
     ).toHaveLength(NAV_ITEMS.length);
   });
 
