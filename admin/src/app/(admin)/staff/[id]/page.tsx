@@ -6,7 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { loadAccessCatalog } from "@/lib/api/access-catalog";
-import { load, serverApi } from "@/lib/api/server";
+import { listRows, load, serverApi } from "@/lib/api/server";
 import { StaffEditor } from "./staff-editor";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,7 +25,7 @@ export default async function StaffDetailPage({
   // The contract has no GET /admin/staff/{id}; the list is the only read.
   const staff = await load(api.GET("/admin/staff"));
   if (!staff.ok) return <PageError error={staff.error} />;
-  const user = staff.data.find((row) => row.id === id);
+  const user = listRows(staff.data).find((row) => row.id === id);
   if (!user) notFound();
   const catalog = await loadAccessCatalog();
 

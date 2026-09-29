@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
-import { load, serverApi } from "@/lib/api/server";
+import { listRows, load, serverApi } from "@/lib/api/server";
 import {
   clampPage,
   paginate,
@@ -35,10 +35,11 @@ export default async function WorkPhonesPage({
   const phones = await load(api.GET("/admin/work-phones"));
   if (!phones.ok) return <PageError error={phones.error} />;
 
-  // GET /admin/work-phones takes no query parameters; filter and page here.
+  // An unparameterized request keeps the legacy array response. Normalize it
+  // before applying the existing server-side table logic.
   const needle = params.q.toLocaleLowerCase();
   const digits = params.q.replace(/\D/g, "");
-  const rows = phones.data
+  const rows = listRows(phones.data)
     .map(toWorkPhoneRow)
     .filter(
       (row) =>

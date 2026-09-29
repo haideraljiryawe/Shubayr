@@ -1,6 +1,6 @@
 import "server-only";
 import type { Permission, PermissionPreset } from "../permissions";
-import { load, serverApi } from "./server";
+import { listRows, load, serverApi } from "./server";
 
 export interface AccessCatalog {
   presets: PermissionPreset[];
@@ -22,5 +22,5 @@ export async function loadAccessCatalog(): Promise<AccessCatalog | null> {
     load(api.GET("/admin/permissions")),
   ]);
   if (!presets.ok || !permissions.ok) return null;
-  return { presets: presets.data, permissions: permissions.data };
+  return { presets: listRows(presets.data), permissions: permissions.data };
 }
