@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   STAFF_FILTER_KEYS,
   STAFF_SORT_KEYS,
-  queryStaff,
-  type StaffUser,
-} from "@/lib/staff-query";
+  asPage,
+  lastPage,
+  presetListQuery,
+  staffListQuery,
+  workPhoneListQuery,
+} from "@/lib/list-queries";
 import { clampPage, paginate, parseTableParams } from "@/lib/table-params";
 
 describe("parseTableParams", () => {
@@ -66,119 +69,39 @@ describe("parseTableParams", () => {
   });
 });
 
-function staff(
-  overrides: Partial<StaffUser> & { id: string; username: string },
-): StaffUser {
-  return {
-    name: overrides.username,
-    email: null,
-    is_active: true,
-    must_change_password: false,
-    permission_version: 1,
-    presets: [],
-    extra_grants: [],
-    created_at: "2026-09-01T00:00:00.000Z",
-    updated_at: "2026-09-01T00:00:00.000Z",
-    ...overrides,
-  };
-}
+describe("list queries — the table's URL state as API parameters", () => {
+  const base = { q: "", page: 2, perPage: 50, sort: "name" as const, dir: "desc" as const, filters: {} };
 
-describe("queryStaff", () => {
-  const rows = [
-    staff({
-      id: "1",
-      username: "admin",
-      name: "Development Admin",
-      presets: [{ id: "p-super", name: "super_admin" }],
-    }),
-    staff({
-      id: "2",
-      username: "catalog",
-      name: "كاتالوج",
-      email: "cat@example.com",
-      presets: [{ id: "p-cat", name: "catalog_editor" }],
-    }),
-    staff({
-      id: "3",
-      username: "old.hand",
-      name: "Old Hand",
-      is_active: false,
-      created_at: "2025-01-01T00:00:00.000Z",
-    }),
-    staff({
-      id: "4",
-      username: "newbie",
-      name: "Newbie",
-      must_change_password: true,
-      created_at: "2026-09-27T00:00:00.000Z",
-    }),
-  ];
-  const base = {
-    q: "",
-    page: 1,
-    perPage: 20,
-    sort: "name" as const,
-    dir: "asc" as const,
-    filters: {},
-  };
-
-  it("searches username, name and email, case-insensitively", () => {
-    expect(
-      queryStaff(rows, { ...base, q: "ADMIN" }).rows.map((row) => row.id),
-    ).toEqual(["1"]);
-    expect(
-      queryStaff(rows, { ...base, q: "example.com" }).rows.map((row) => row.id),
-    ).toEqual(["2"]);
-    expect(
-      queryStaff(rows, { ...base, q: "كاتا" }).rows.map((row) => row.id),
-    ).toEqual(["2"]);
+  it("passes search, paging and sort straight through", () => {
+    expect(staffListQuery({ ...base, q: "ahmed" })).toEqual({
+      q: "ahmed", page: 2, per_page: 50, sort: "name", dir: "desc",
+    });
+    expect(staffListQuery(base)).not.toHaveProperty("q");
   });
 
-  it("filters by status and preset", () => {
+  it("keeps only filter values the API accepts", () => {
+    const preset = "10000000-0000-4000-8000-000000000001";
+    expect(staffListQuery({ ...base, filters: { status: "must_change", preset } })).toMatchObject({
+      status: "must_change",
+      preset,
+    });
+    const junk = staffListQuery({ ...base, filters: { status: "sleeping", preset: "p-cat" } });
+    expect(junk).not.toHaveProperty("status");
+    expect(junk).not.toHaveProperty("preset");
+    expect(presetListQuery({ ...base, filters: { kind: "custom" } })).toMatchObject({ kind: "custom" });
+    expect(presetListQuery({ ...base, filters: { kind: "weird" } })).not.toHaveProperty("kind");
     expect(
-      queryStaff(rows, { ...base, filters: { status: "inactive" } }).rows.map(
-        (row) => row.id,
-      ),
-    ).toEqual(["3"]);
-    expect(
-      queryStaff(rows, {
-        ...base,
-        filters: { status: "must_change" },
-      }).rows.map((row) => row.id),
-    ).toEqual(["4"]);
-    expect(
-      queryStaff(rows, { ...base, filters: { status: "active" } }).total,
-    ).toBe(3);
-    expect(
-      queryStaff(rows, { ...base, filters: { preset: "p-cat" } }).rows.map(
-        (row) => row.id,
-      ),
-    ).toEqual(["2"]);
+      workPhoneListQuery({ ...base, sort: "phone", filters: { role: "order_monitor", status: "revoked" } }),
+    ).toMatchObject({ role: "order_monitor", status: "revoked", sort: "phone" });
+    expect(workPhoneListQuery({ ...base, filters: { role: "admin" } })).not.toHaveProperty("role");
   });
 
-  it("sorts both ways and pages without overlap", () => {
-    const byDate = { ...base, sort: "created_at" as const };
-    expect(queryStaff(rows, byDate).rows.map((row) => row.id)).toEqual([
-      "3",
-      "1",
-      "2",
-      "4",
-    ]);
-    expect(
-      queryStaff(rows, { ...byDate, dir: "desc" }).rows.map((row) => row.id),
-    ).toEqual(["4", "2", "1", "3"]);
-
-    const first = queryStaff(rows, { ...base, perPage: 10, page: 1 });
-    expect(first.total).toBe(4);
-    const paged = [1, 2].flatMap(
-      (page) => queryStaff(rows, { ...byDate, perPage: 2, page }).rows,
-    );
-    expect(paged.map((row) => row.id)).toEqual(["3", "1", "2", "4"]);
-  });
-
-  it("clamps a page past the end to the last page", () => {
-    const result = queryStaff(rows, { ...base, perPage: 10, page: 7 });
-    expect(result.page).toBe(1);
-    expect(result.rows).toHaveLength(4);
+  it("reads the page envelope, and a bare array as one page", () => {
+    expect(asPage({ data: [1, 2], total: 42, page: 3, per_page: 2 }, 20)).toEqual({
+      rows: [1, 2], total: 42, page: 3, perPage: 2,
+    });
+    expect(asPage([1, 2, 3], 20)).toEqual({ rows: [1, 2, 3], total: 3, page: 1, perPage: 20 });
+    expect(lastPage(41, 20)).toBe(3);
+    expect(lastPage(0, 20)).toBe(1);
   });
 });

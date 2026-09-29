@@ -37,7 +37,7 @@ function order(
 
 describe("availableActions — permission AND state", () => {
   it.each([
-    ["pending", ["accept", "cancel"]],
+    ["pending", ["accept", "reject", "cancel"]],
     ["confirmed", ["prepare", "cancel"]],
     ["preparing", ["markReady", "cancel"]],
     ["ready_for_dispatch", ["dispatch", "cancel"]],
@@ -45,6 +45,7 @@ describe("availableActions — permission AND state", () => {
     ["delivered", []],
     ["failed", []],
     ["cancelled", []],
+    ["rejected", []],
     ["return_requested", []],
     ["returned", []],
   ] as const)("%s with every permission → %j", (status, expected) => {
@@ -62,18 +63,18 @@ describe("availableActions — permission AND state", () => {
     expect(availableActions(order("ready_for_dispatch"), [])).toEqual([]);
   });
 
-  it("never offers a Reject that would record a cancellation", () => {
-    // orders.reject alone opens nothing until the API has a reject route.
-    expect(availableActions(order("pending"), ["orders.reject"])).toEqual([]);
-    expect(availableActions(order("pending"), ["orders.cancel"])).toEqual([
-      "cancel",
-    ]);
-    expect(availableActions(order("pending"), ALL)).not.toContain("reject");
+  it("Reject is its own permission, and only for pending orders", () => {
+    expect(availableActions(order("pending"), ["orders.reject"])).toEqual(["reject"]);
+    expect(availableActions(order("pending"), ["orders.cancel"])).toEqual(["cancel"]);
+    for (const status of ["confirmed", "preparing", "ready_for_dispatch", "dispatched"] as const) {
+      expect(availableActions(order(status), ["orders.reject"]), status).toEqual([]);
+    }
   });
 
   it("never offers to cancel or reject a paid order", () => {
     const paid = { payments: [{ status: "paid" as const }] };
     expect(availableActions(order("pending", paid), ALL)).toEqual(["accept"]);
+    expect(canAssignAgent(order("rejected"), ALL)).toBe(false);
     expect(availableActions(order("confirmed", paid), ALL)).toEqual([
       "prepare",
     ]);

@@ -109,13 +109,14 @@ The browser never sees a token and never calls the API directly.
 | `/login` | — | Username + password; wrong password, **lockout** (429 `ACCOUNT_LOCKED`: 5 failures → 15 min) and rate-limit messages |
 | `/change-password` | session | Forced while a temporary password is in force (every other page redirects here); password policy checklist |
 | `/` | session | Dashboard placeholder with the sections the user may open |
-| `/staff` | `users.manage` | Search, status/preset filters, sort, pagination |
+| `/staff` | `users.manage` | Search, status/preset filters, sort, pagination — all on the API |
 | `/staff/new` | `users.manage` (+ `roles.manage` for pickers) | Temporary password (generator), presets, extra grants, audit reason |
 | `/staff/[id]` | same | Profile · access (presets + extra grants) · reset password · deactivate/reactivate |
-| `/presets`, `/presets/new`, `/presets/[id]` | `roles.manage` | Permission picker grouped by area; delete non-system presets |
-| `/work-phones` | `users.manage` | Register a phone as delivery agent / order monitor with the person's name; change role; revoke |
+| `/presets`, `/presets/new`, `/presets/[id]` | `roles.manage` | Search, kind filter, sort and pagination on the API; permission picker grouped by area; delete non-system presets |
+| `/work-phones` | `users.manage` | Search, role/status filters, sort and pagination on the API; register a phone as delivery agent / order monitor with the person's name; change role; revoke |
 | `/orders` | `orders.view` | Server-side status filter, order-number search, date range and pagination (all in the URL) |
-| `/orders/[id]` | `orders.view` (+ each action's key) | Lines, customer, address, delivery, timeline; accept / start preparing / mark ready / hand over / cancel (reason required), assign a delivery agent |
+| `/orders/[id]` | `orders.view` (+ each action's key) | Lines, customer, address, delivery, timeline; accept / **reject** (pending only, reason required) / start preparing / mark ready / hand over / cancel (reason required); assign a delivery agent from a server-searched picker |
+| `/audit` | `audit.view` | The audit log: actor, action, entity (type and id) and store-day date-range filters, server-side pagination, reason and before → after per record |
 | `/notifications` (+ header bell) | session | The staff member's inbox: live unread count, dropdown, all/unread, mark one / mark all |
 | `/settings` | `settings.manage` | Store data, delivery fee, timezone, business hours, closed days, acceptance alert, auto-cancel (off by default, own timeout and warning), low-stock threshold, back-dating window, markup alert %, sale-price rounding multiple (8.0), unusual-change thresholds; change history old → new (with `audit.view`) |
 | `/finance/currencies` | `ledger.view` (+ `settings.manage` to enable, `fx_rates.update` to record) | Currencies (base locked); rates written "1 USD = … IQD", per-1 or per-100 entry with a per-1 preview, required reason, "not from today" warnings, history with old → new and who |
@@ -129,13 +130,18 @@ The browser never sees a token and never calls the API directly.
 permissions AND the order's state allow them (`src/lib/orders.ts`, unit-tested).
 The API still decides: a 409 (the order moved on — someone else acted) re-reads
 the order, says what it is now and refreshes the buttons; a 403 (a permission
-revoked meanwhile) refreshes and says so. Gaps, until the backend follow-up:
+revoked meanwhile) refreshes and says so.
 
-- **No Reject.** The API has no rejected status or reject route; a "reject"
-  through the cancel route would record a cancellation and skew reports, so
-  pending orders offer Cancel (reason required) to `orders.cancel` holders.
-- **Agent picker needs `users.manage`.** Agents are listed from
-  `GET /admin/work-phones`; a user with only `orders.assign_agent` sees a note.
+- **Reject is not a cancel.** `POST /admin/orders/{id}/reject` (`orders.reject`,
+  contract 8.0) is offered for pending orders only, needs a reason, and
+  records the order as `rejected` — its own status, so reports can tell a
+  store's refusal from a cancellation.
+- **Agent picker:** `GET /admin/delivery-agents` (`orders.assign_agent` only —
+  no `users.manage`), searched by name or phone on the server; the newest
+  search wins.
+
+Gaps, until the backend follow-up:
+
 - **Order date filter is UTC.** `GET /admin/orders` reads `from`/`to` as UTC
   days, unlike the monitor list's Asia/Baghdad days.
 - **No staff-targeted notifications yet** (they arrive with order lifecycle
@@ -156,8 +162,6 @@ are formatted digit by digit (`src/lib/finance/money.ts`) — no floats — and 
 always shown with their currency code. `DecimalInput` accepts Arabic-Indic,
 Persian and Latin digits and refuses ambiguous separators, like `NumberInput`.
 
-The audit log is not a screen yet (PR E).
-
 ## Building blocks for later screens
 
 - `DataTable` (`src/components/table`) — server-side pagination, sort and
@@ -176,9 +180,10 @@ The audit log is not a screen yet (PR E).
 
 - **Unit** (`npm test`, Vitest): cookies and refresh de-duplication, proxy
   path allow-list, error classification and 422 mapping, nav filtering, table
-  params and staff query, permission grouping, phones, password policy,
-  localized numbers; exact money rounding and formatting, per-100 → per-1
-  rates, settings validation and patching, period lists, operation outcomes.
+  params and list queries, audit filters, permission grouping, phones,
+  password policy, localized numbers; exact money rounding and formatting,
+  per-100 → per-1 rates, settings validation and patching, period lists,
+  operation outcomes, direct ledger links.
 - **Live** (`npm run test:live`): a real browser → this BFF → a real API.
   Point it at a stack with `ADMIN_LIVE_API` (default `http://localhost:8000/api/v1`);
   an unreachable API **fails** the run. Each run creates its own uniquely named
@@ -195,15 +200,8 @@ and runs the live suite against it.
 
 ## Known API gaps (worked around here)
 
-- `GET /admin/staff`, `/admin/presets` and `/admin/work-phones` take no
-  query parameters and return everything, so search/filter/sort/pagination
-  run in this app's **server** (never in the browser). The table's URL
-  contract is already the one a paginated endpoint would take.
 - There is no `GET /admin/staff/{id}` or `/admin/presets/{id}`; detail pages
-  read the list.
-- `GET /admin/work-phones` serves the number as `user.phone`, while the
-  contract documents a top-level `phone`; both shapes are read
-  (`src/lib/work-phones.ts`).
+  read the unqueried list (which still answers every row).
 - `POST /auth/verify-otp` answers 201 where the contract says 200.
 - **Journal-entry list rows carry no reversal links**
   (`GET /admin/ledger/entries` omits `reverses`/`reversals`); a row links to

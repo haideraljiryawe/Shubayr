@@ -16,7 +16,8 @@ export type NavKey =
   | "settings"
   | "staff"
   | "presets"
-  | "workPhones";
+  | "workPhones"
+  | "audit";
 
 export interface NavItem {
   key: NavKey;
@@ -37,6 +38,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "staff", href: "/staff", requires: ["users.manage"] },
   { key: "presets", href: "/presets", requires: ["roles.manage"] },
   { key: "workPhones", href: "/work-phones", requires: ["users.manage"] },
+  { key: "audit", href: "/audit", requires: ["audit.view"] },
 ];
 
 export function visibleNav(

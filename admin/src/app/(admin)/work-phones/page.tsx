@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
-import { listRows, load, serverApi } from "@/lib/api/server";
+import { load, serverApi } from "@/lib/api/server";
 import {
-  clampPage,
-  paginate,
-  parseTableParams,
-  type RawSearchParams,
-} from "@/lib/table-params";
+  WORK_PHONE_FILTER_KEYS,
+  WORK_PHONE_SORT_KEYS,
+  asPage,
+  lastPage,
+  workPhoneListQuery,
+} from "@/lib/list-queries";
+import { parseTableParams, type RawSearchParams } from "@/lib/table-params";
 import { toWorkPhoneRow } from "@/lib/work-phones";
 import { WorkPhonesView } from "./work-phones-view";
 
@@ -17,8 +19,6 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("workPhones") };
 }
 
-const SORT_KEYS = ["name", "phone", "role"] as const;
-
 export default async function WorkPhonesPage({
   searchParams,
 }: {
@@ -26,48 +26,34 @@ export default async function WorkPhonesPage({
 }) {
   const t = await getTranslations("workPhones");
   const params = parseTableParams(await searchParams, {
-    sortKeys: SORT_KEYS,
+    sortKeys: WORK_PHONE_SORT_KEYS,
     defaultSort: "name",
-    filterKeys: ["role", "status"],
+    filterKeys: WORK_PHONE_FILTER_KEYS,
   });
 
+  // Search, filters, sort and paging all run on the API (contract 6.2+).
   const api = await serverApi();
-  const phones = await load(api.GET("/admin/work-phones"));
+  let phones = await load(api.GET("/admin/work-phones", { params: { query: workPhoneListQuery(params) } }));
   if (!phones.ok) return <PageError error={phones.error} />;
-
-  // An unparameterized request keeps the legacy array response. Normalize it
-  // before applying the existing server-side table logic.
-  const needle = params.q.toLocaleLowerCase();
-  const digits = params.q.replace(/\D/g, "");
-  const rows = listRows(phones.data)
-    .map(toWorkPhoneRow)
-    .filter(
-      (row) =>
-        (!params.q ||
-          row.name.toLocaleLowerCase().includes(needle) ||
-          (digits !== "" && row.phone.replace(/\D/g, "").includes(digits))) &&
-        (!params.filters.role || row.role === params.filters.role) &&
-        (params.filters.status !== "active" || row.isActive) &&
-        (params.filters.status !== "revoked" || !row.isActive),
-    )
-    .sort((a, b) => {
-      const key = params.sort;
-      const order = String(a[key]).localeCompare(String(b[key]), "ar");
-      return (
-        (order || a.id.localeCompare(b.id)) * (params.dir === "desc" ? -1 : 1)
-      );
-    });
-  const page = clampPage(params.page, rows.length, params.perPage);
+  let page = asPage(phones.data, params.perPage);
+  if (page.rows.length === 0 && page.total > 0 && params.page > 1) {
+    const last = lastPage(page.total, params.perPage);
+    phones = await load(
+      api.GET("/admin/work-phones", { params: { query: workPhoneListQuery({ ...params, page: last }) } }),
+    );
+    if (!phones.ok) return <PageError error={phones.error} />;
+    page = asPage(phones.data, params.perPage);
+  }
 
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
       <WorkPhonesView
-        rows={paginate(rows, page, params.perPage)}
+        rows={page.rows.map(toWorkPhoneRow)}
         state={{
-          page,
+          page: page.page,
           perPage: params.perPage,
-          total: rows.length,
+          total: page.total,
           sort: params.sort,
           dir: params.dir,
         }}
