@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AdminPolicy } from '../../common/decorators/access-policy.decorator';
+import { AdminAnyPermissionPolicy } from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { Prisma } from '../../generated/prisma/client';
 import { CashAccountService } from './cash-account.service';
@@ -184,6 +185,12 @@ export class LedgerController {
     return this.ledger.entries(query);
   }
 
+  @Get('entries/:id')
+  @AdminPolicy('ledger.view')
+  get(@Param('id', uuid) id: string) {
+    return this.ledger.get(id);
+  }
+
   @Get('trial-balance')
   @AdminPolicy('ledger.view')
   trialBalance(@Query() query: AsOfQueryDto) {
@@ -260,6 +267,17 @@ export class CashTransfersController {
   @Post()
   create(@Req() request: AdminRequest, @Body() input: CashTransferDto) {
     return this.cash.transfer(request.user, input);
+  }
+}
+
+@Controller('admin/financial-documents')
+export class FinancialDocumentsController {
+  constructor(private readonly cash: CashAccountService) {}
+
+  @Get(':id')
+  @AdminAnyPermissionPolicy('ledger.view', 'cash_accounts.manage')
+  get(@Param('id', uuid) id: string) {
+    return this.cash.getDocument(id);
   }
 }
 

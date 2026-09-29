@@ -7,6 +7,7 @@ import {
   CurrencyController,
   DraftsController,
   ExchangeRateController,
+  FinancialDocumentsController,
   LedgerController,
   OperationsController,
 } from './finance.controller';
@@ -28,6 +29,7 @@ import { PeriodService } from './period.service';
     LedgerController,
     CashAccountsController,
     CashTransfersController,
+    FinancialDocumentsController,
     AccountingPeriodsController,
   ],
   providers: [

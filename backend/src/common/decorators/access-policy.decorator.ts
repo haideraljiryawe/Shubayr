@@ -16,6 +16,7 @@ export type AccessPolicy = {
   surfaces?: readonly AuthSurface[];
   appRoles?: readonly AppRole[];
   permissions?: readonly PermissionKey[];
+  anyPermissions?: readonly PermissionKey[];
   permissionFromBody?: DynamicPermission;
   allowPasswordChange?: boolean;
   label?: string;
@@ -38,6 +39,11 @@ export const AdminPolicy = (
   ...permissions: PermissionKey[]
 ): MethodDecorator & ClassDecorator =>
   Policy({ access: 'authenticated', surfaces: ['admin'], permissions });
+
+export const AdminAnyPermissionPolicy = (
+  ...anyPermissions: PermissionKey[]
+): MethodDecorator & ClassDecorator =>
+  Policy({ access: 'authenticated', surfaces: ['admin'], anyPermissions });
 
 export const AnySessionPolicy = (): MethodDecorator & ClassDecorator =>
   Policy({ access: 'authenticated', surfaces: ['admin', 'app'] });

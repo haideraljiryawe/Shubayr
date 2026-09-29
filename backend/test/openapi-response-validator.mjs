@@ -5,6 +5,61 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { parse } from 'yaml';
 
+export function strictResponseSchema(value) {
+  if (Array.isArray(value)) return value.map(strictResponseSchema);
+  if (!value || typeof value !== 'object') return value;
+
+  if (Array.isArray(value.allOf)) {
+    const branches = value.allOf.map(strictResponseSchema);
+    if (
+      branches.every(
+        (branch) =>
+          branch &&
+          typeof branch === 'object' &&
+          (branch.type === 'object' || branch.properties),
+      )
+    ) {
+      const { allOf: _allOf, ...outer } = value;
+      value = {
+        ...branches.reduce(
+          (combined, branch) => ({
+            ...combined,
+            ...branch,
+            properties: {
+              ...(combined.properties ?? {}),
+              ...(branch.properties ?? {}),
+            },
+            required: [
+              ...new Set([
+                ...(combined.required ?? []),
+                ...(branch.required ?? []),
+              ]),
+            ],
+          }),
+          {},
+        ),
+        ...outer,
+      };
+    } else {
+      value = { ...value, allOf: branches };
+    }
+  }
+
+  const normalized = Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      key === 'allOf' ? item : strictResponseSchema(item),
+    ]),
+  );
+  if (
+    (normalized.type === 'object' || normalized.properties) &&
+    normalized.additionalProperties === undefined
+  ) {
+    normalized.additionalProperties = false;
+  }
+  return normalized;
+}
+
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
 if (api) {
   const document = parse(
@@ -103,20 +158,33 @@ if (api) {
       if (mediaType === 'text/event-stream') return response;
       if (schema.type === 'string' && schema.format === 'binary') {
         const bytes = await response.clone().arrayBuffer();
-        assert.ok(bytes.byteLength > 0, `OpenAPI binary response is empty: ${key}`);
+        assert.ok(
+          bytes.byteLength > 0,
+          `OpenAPI binary response is empty: ${key}`,
+        );
         return response;
       }
       let validate = validators.get(key);
       if (!validate) {
-        validate = ajv.compile(dereference(schema));
+        validate = ajv.compile(strictResponseSchema(dereference(schema)));
         validators.set(key, validate);
       }
-      const payload = mediaType === 'application/json'
-        ? await response.clone().json()
-        : await response.clone().text();
+      const payload =
+        mediaType === 'application/json'
+          ? await response.clone().json()
+          : await response.clone().text();
       assert.ok(
         validate(payload),
-        `OpenAPI response schema mismatch: ${key}: ${ajv.errorsText(validate.errors, { separator: '; ' })}`,
+        `OpenAPI response schema mismatch: ${key}: ${(validate.errors ?? [])
+          .map(
+            (error) =>
+              `${error.instancePath || '/'} ${error.message ?? 'is invalid'}${
+                error.keyword === 'additionalProperties'
+                  ? ` (${error.params.additionalProperty})`
+                  : ''
+              }`,
+          )
+          .join('; ')}`,
       );
     } else if (response.status !== 204 && mediaType === 'application/json') {
       const text = await response.clone().text();

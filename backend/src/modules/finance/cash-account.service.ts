@@ -52,6 +52,31 @@ export class CashAccountService {
     return this.present(account);
   }
 
+  async getDocument(id: string) {
+    const [opening, transfer] = await Promise.all([
+      this.prisma.cashOpeningBalance.findUnique({
+        where: { id },
+        include: {
+          cash_account: { select: { id: true, name: true, kind: true } },
+        },
+      }),
+      this.prisma.cashTransfer.findUnique({
+        where: { id },
+        include: {
+          from_account: { select: { id: true, name: true, kind: true } },
+          to_account: { select: { id: true, name: true, kind: true } },
+        },
+      }),
+    ]);
+    if (opening) {
+      return this.presentOpeningBalance(opening);
+    }
+    if (transfer) {
+      return this.presentTransfer(transfer);
+    }
+    throw new NotFoundException('Financial document not found');
+  }
+
   async create(actorId: string, input: CreateCashAccountDto) {
     const currency = await this.requireCurrency(input.currency_code);
     const suffix = randomUUID().replaceAll('-', '').slice(0, 10).toUpperCase();
@@ -243,9 +268,11 @@ export class CashAccountService {
             created_by: actor.id,
             journal_entry_id: journal.id,
           },
-          include: { journal_entry: true },
+          include: {
+            cash_account: { select: { id: true, name: true, kind: true } },
+          },
         });
-        return { ...document, amount: document.amount.toString() };
+        return this.presentOpeningBalance(document);
       },
     });
   }
@@ -340,9 +367,12 @@ export class CashAccountService {
             created_by: actor.id,
             journal_entry_id: journal.id,
           },
-          include: { journal_entry: true },
+          include: {
+            from_account: { select: { id: true, name: true, kind: true } },
+            to_account: { select: { id: true, name: true, kind: true } },
+          },
         });
-        return { ...document, amount: document.amount.toString() };
+        return this.presentTransfer(document);
       },
     });
   }
@@ -386,6 +416,68 @@ export class CashAccountService {
     if (!currency?.enabled)
       throw new UnprocessableEntityException('Currency is not enabled');
     return currency;
+  }
+
+  private presentOpeningBalance(document: {
+    id: string;
+    document_number: string;
+    amount: Prisma.Decimal;
+    currency_code: string;
+    document_date: Date;
+    accounting_date: Date;
+    backdate_reason: string | null;
+    created_by: string;
+    journal_entry_id: string;
+    created_at: Date;
+    cash_account: { id: string; name: string; kind: string };
+  }) {
+    return {
+      document_type: 'cash_opening_balance' as const,
+      id: document.id,
+      document_number: document.document_number,
+      amount: document.amount,
+      currency_code: document.currency_code,
+      document_date: document.document_date,
+      accounting_date: document.accounting_date,
+      backdate_reason: document.backdate_reason,
+      created_by: document.created_by,
+      journal_entry_id: document.journal_entry_id,
+      created_at: document.created_at,
+      cash_account: document.cash_account,
+    };
+  }
+
+  private presentTransfer(document: {
+    id: string;
+    document_number: string;
+    amount: Prisma.Decimal;
+    currency_code: string;
+    document_date: Date;
+    accounting_date: Date;
+    backdate_reason: string | null;
+    reason: string;
+    created_by: string;
+    journal_entry_id: string;
+    created_at: Date;
+    from_account: { id: string; name: string; kind: string };
+    to_account: { id: string; name: string; kind: string };
+  }) {
+    return {
+      document_type: 'cash_transfer' as const,
+      id: document.id,
+      document_number: document.document_number,
+      amount: document.amount,
+      currency_code: document.currency_code,
+      document_date: document.document_date,
+      accounting_date: document.accounting_date,
+      backdate_reason: document.backdate_reason,
+      reason: document.reason,
+      created_by: document.created_by,
+      journal_entry_id: document.journal_entry_id,
+      created_at: document.created_at,
+      from_account: document.from_account,
+      to_account: document.to_account,
+    };
   }
 
   private validAmount(value: string, precision: number): Prisma.Decimal {

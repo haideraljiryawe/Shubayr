@@ -7,6 +7,7 @@ import { Reflector } from '@nestjs/core';
 import { PERMISSION_KEYS } from '../access/permission-registry';
 import {
   ACCESS_POLICY_KEY,
+  AdminAnyPermissionPolicy,
   type AccessPolicy,
 } from '../decorators/access-policy.decorator';
 import {
@@ -153,7 +154,9 @@ function expected(
   }
   if (user.surface === 'admin') {
     const requiresPermission = Boolean(
-      policy.permissions?.length || policy.permissionFromBody,
+      policy.permissions?.length ||
+      policy.anyPermissions?.length ||
+      policy.permissionFromBody,
     );
     if (requiresPermission && user.permissions.length === 0) return false;
   }
@@ -212,4 +215,36 @@ describe('route authorization matrix', () => {
       }
     }
   }
+});
+
+describe('alternative permission policies', () => {
+  const guard = new PermissionsGuard(new Reflector());
+
+  class AlternativeController {
+    @AdminAnyPermissionPolicy('ledger.view', 'cash_accounts.manage')
+    handler(this: void) {}
+  }
+
+  const handler = AlternativeController.prototype.handler;
+  const context = (permissions: string[]) =>
+    ({
+      getHandler: () => handler,
+      getClass: () => AlternativeController,
+      switchToHttp: () => ({
+        getRequest: () => ({ user: { ...admin, permissions }, body: {} }),
+      }),
+    }) as unknown as ExecutionContext;
+
+  it.each([['ledger.view'], ['cash_accounts.manage']])(
+    'accepts any declared permission (%s)',
+    (permission) => {
+      expect(guard.canActivate(context([permission]))).toBe(true);
+    },
+  );
+
+  it('rejects a caller with neither declared permission', () => {
+    expect(() => guard.canActivate(context([]))).toThrow(
+      'Missing required permission',
+    );
+  });
 });

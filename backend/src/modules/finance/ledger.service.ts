@@ -256,6 +256,22 @@ export class LedgerService {
     };
   }
 
+  async get(entryId: string) {
+    const entry = await this.prisma.journalEntry.findUnique({
+      where: { id: entryId },
+      include: {
+        lines: { include: { account: true } },
+        reverses: { select: { id: true, document_number: true } },
+        reversals: {
+          select: { id: true, document_number: true },
+          orderBy: { posted_at: 'asc' },
+        },
+      },
+    });
+    if (!entry) throw new NotFoundException('Journal entry not found');
+    return this.presentEntry(entry);
+  }
+
   async trialBalance(asOf?: string) {
     const accounts = await this.prisma.ledgerAccount.findMany({
       where: { enabled: true },
