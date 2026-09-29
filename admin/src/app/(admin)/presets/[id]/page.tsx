@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Badge, PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
-import { load, serverApi } from "@/lib/api/server";
+import { listRows, load, serverApi } from "@/lib/api/server";
 import { PresetForm } from "../preset-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -26,7 +26,7 @@ export default async function PresetPage({
   if (!presets.ok) return <PageError error={presets.error} />;
   if (!permissions.ok) return <PageError error={permissions.error} />;
   // No GET /admin/presets/{id} in the contract: read it from the list.
-  const preset = presets.data.find((row) => row.id === id);
+  const preset = listRows(presets.data).find((row) => row.id === id);
   if (!preset) notFound();
 
   return (

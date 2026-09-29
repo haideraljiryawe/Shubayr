@@ -26,8 +26,8 @@ async function request(path, { token, method = 'GET', body, expected = 200 } = {
   return payload;
 }
 async function login(phone) {
-  const challenge = await request('/auth/request-otp', { method: 'POST', body: { phone }, expected: 201 });
-  const session = await request('/auth/verify-otp', { method: 'POST', body: { phone, code: challenge.dev_otp }, expected: 201 });
+  const challenge = await request('/auth/request-otp', { method: 'POST', body: { phone }, expected: 200 });
+  const session = await request('/auth/verify-otp', { method: 'POST', body: { phone, code: challenge.dev_otp }, expected: 200 });
   return session.access_token;
 }
 async function adminLogin() {
@@ -70,9 +70,9 @@ try {
   await db.query('BEGIN');
   try {
     await db.query(`INSERT INTO orders (id,user_id,order_number,status,payment_method,subtotal,delivery_fee,discount,total,delivery_contact_phone,delivery_city)
-      VALUES ($1,$2,$3,'delivered','cod',35.79,0,0,35.79,'+9647700090006','Baghdad')`, [orderId, customerId, `VERIFY-RETURN-${orderId.slice(0, 8)}`]);
+      VALUES ($1,$2,$3,'delivered','cod',35790,0,0,35790,'+9647700090006','Baghdad')`, [orderId, customerId, `VERIFY-RETURN-${orderId.slice(0, 8)}`]);
     await db.query(`INSERT INTO order_items (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total)
-      VALUES ($1,$2,$3,$4,'Test product A','Test product A',3,10.08,30.24),($5,$2,$6,$7,'Test product B','Test product B',1,5.55,5.55)`, [firstId, orderId, productA, variantA, secondId, productB, variantB]);
+      VALUES ($1,$2,$3,$4,'Test product A','Test product A',3,10080,30240),($5,$2,$6,$7,'Test product B','Test product B',1,5550,5550)`, [firstId, orderId, productA, variantA, secondId, productB, variantB]);
     await db.query("INSERT INTO deliveries (id,order_id,status,delivery_fee,dispatched_at,delivered_at) VALUES ($1,$2,'delivered',0,now(),now())", [deliveryId, orderId]);
     await db.query('UPDATE orders SET delivery_id=$1 WHERE id=$2', [deliveryId, orderId]);
     await db.query("INSERT INTO stock_reservations (order_id,order_item_id,batch_id,location_id,quantity,status) VALUES ($1,$2,$3,$4,3,'consumed')", [orderId, firstId, batchA, location]);
@@ -87,7 +87,7 @@ try {
   await open([line(firstId, 4)], 422);
   const first = await open([line(firstId, 1), line(secondId, 1, 'Damaged in transit')]);
   check(first.status, 'requested', 'return begins requested');
-  check(first.expected_refund, 15.63, 'expected refund uses snapshot cents');
+  check(first.expected_refund, 15630, 'expected refund uses whole-IQD snapshots');
   await request(`/returns/${first.id}/inspect`, { token: customer, method: 'POST', expected: 403, body: { decision: 'reject' } });
   const firstA = first.items.find((entry) => entry.order_item_id === firstId);
   const firstB = first.items.find((entry) => entry.order_item_id === secondId);
@@ -98,8 +98,8 @@ try {
     ],
   } });
   check(reviewed.status, 'approved', 'all requested units approved');
-  check(reviewed.refund_amount, 15.63, 'approved refund uses immutable snapshots');
-  check(reviewed.refund.amount, 15.63, 'ledger amount matches approved units');
+  check(reviewed.refund_amount, 15630, 'approved refund uses immutable snapshots');
+  check(reviewed.refund.amount, 15630, 'ledger amount matches approved units');
   check(reviewed.refund.status, 'obligation', 'COD refund stays an obligation');
   check(Number(await scalar('SELECT quantity AS value FROM batch_stock WHERE batch_id=$1 AND location_id=$2', [batchA, location])), stockBefore + 1, 'sellable return increases batch stock');
   check(Number(await scalar('SELECT count(*)::int AS value FROM stock_movements WHERE return_item_id=$1', [firstA.id])), 1, 'sellable line has one movement');
@@ -116,7 +116,7 @@ try {
     decision: 'approve', items: [{ return_item_id: second.items[0].id, approved_quantity: 1, condition: 'opened' }],
   } });
   check(partially.status, 'partially_approved', 'line can be partly approved');
-  check(partially.refund_amount, 10.08, 'refund excludes rejected unit');
+  check(partially.refund_amount, 10080, 'refund excludes rejected unit');
   check(Number(await scalar('SELECT count(*)::int AS value FROM stock_movements WHERE return_item_id=$1', [second.items[0].id])), 0, 'opened line does not restock');
   await request(`/returns/${second.id}/complete`, { token: admin, method: 'POST' });
   await open([line(firstId, 2)], 422);

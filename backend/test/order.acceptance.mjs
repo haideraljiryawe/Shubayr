@@ -44,7 +44,7 @@ async function login(phone) {
   const challenge = await request('/auth/request-otp', {
     method: 'POST',
     body: { phone },
-    expected: 201,
+    expected: 200,
   });
   check(
     challenge.dev_otp,
@@ -54,7 +54,7 @@ async function login(phone) {
   return request('/auth/verify-otp', {
     method: 'POST',
     body: { phone, code: challenge.dev_otp },
-    expected: 201,
+    expected: 200,
   });
 }
 
@@ -96,13 +96,13 @@ const productId = '40000000-0000-4000-8000-000000000001';
 await request(`/admin/products/${productId}`, {
   method: 'PATCH',
   token: admin.access_token,
-  body: { price: 20.15 },
+  body: { price: 20150 },
 });
 const product = await request(`/products/${productId}`);
 check(
   product.effective_price,
-  10.08,
-  'seeded active 50% discount must round 20.15 to 10.08',
+  10075,
+  'seeded active 50% discount must produce 10,075 IQD',
 );
 const variant = product.variants.find((entry) => entry.sku === 'SEED-001-STD');
 assert.ok(variant, 'seeded standard variant must exist');
@@ -135,23 +135,23 @@ const initialCart = await request('/cart/items', {
 });
 check(
   initialCart.items[0].unit_price,
-  10.08,
+  10075,
   'cart must use server price, not client price',
 );
-check(initialCart.subtotal, 20.16, 'line totals must use rounded money');
+check(initialCart.subtotal, 20150, 'line totals must use whole-IQD money');
 
 await request(`/admin/products/${productId}`, {
   method: 'PATCH',
   token: admin.access_token,
-  body: { price: 30.15 },
+  body: { price: 30150 },
 });
 const repricedCart = await request('/cart', { token: customer.access_token });
 check(
   repricedCart.items[0].unit_price,
-  15.08,
+  15075,
   'cart must reprice after catalog change',
 );
-check(repricedCart.subtotal, 30.16, 'repriced quantity two subtotal');
+check(repricedCart.subtotal, 30150, 'repriced quantity two subtotal');
 await request('/coupons/validate', {
   method: 'POST',
   token: customer.access_token,
@@ -159,20 +159,20 @@ await request('/coupons/validate', {
 });
 const couponCart = await request('/cart', { token: customer.access_token });
 check(couponCart.coupon_code, 'SHUBAYR10', 'seeded live coupon must apply');
-check(couponCart.discount, 3.02, '10% coupon uses shared half-away rounding');
-check(couponCart.total, 27.14, 'checkout preview total includes coupon');
+check(couponCart.discount, 3015, '10% coupon uses shared half-away rounding');
+check(couponCart.total, 27135, 'checkout preview total includes coupon');
 const withoutCoupon = await request('/cart/coupon', {
   method: 'DELETE',
   token: customer.access_token,
 });
 check(withoutCoupon.coupon_code, null, 'remove detaches coupon');
 check(withoutCoupon.discount, 0, 'remove clears coupon discount');
-check(withoutCoupon.total, 30.16, 'remove restores undiscounted total');
+check(withoutCoupon.total, 30150, 'remove restores undiscounted total');
 const repeatedRemoval = await request('/cart/coupon', {
   method: 'DELETE',
   token: customer.access_token,
 });
-check(repeatedRemoval.total, 30.16, 'removing twice is safe');
+check(repeatedRemoval.total, 30150, 'removing twice is safe');
 await request('/coupons/validate', {
   method: 'POST',
   token: customer.access_token,
@@ -204,9 +204,9 @@ const placed = await request('/orders', {
   expected: 201,
 });
 check(placed.status, 'pending', 'new COD order starts pending');
-check(placed.items[0].unit_price, 15.08, 'checkout snaps current server price');
-check(placed.items[0].line_total, 30.16, 'checkout snaps line total');
-check(placed.total, 27.14, 'checkout recomputes coupon-inclusive total');
+check(placed.items[0].unit_price, 15075, 'checkout snaps current server price');
+check(placed.items[0].line_total, 30150, 'checkout snaps line total');
+check(placed.total, 27135, 'checkout recomputes coupon-inclusive total');
 check(
   placed.delivery_contact_phone,
   '+9647700080006',
@@ -275,14 +275,14 @@ check(
 await request(`/admin/products/${productId}`, {
   method: 'PATCH',
   token: admin.access_token,
-  body: { price: 50.15 },
+  body: { price: 50150 },
 });
 const snapshot = await request(`/orders/${placed.id}`, {
   token: customer.access_token,
 });
 check(
   snapshot.items[0].unit_price,
-  15.08,
+  15075,
   'later catalog price edits cannot rewrite order price',
 );
 check(

@@ -21,10 +21,13 @@ import {
   CreateStaffDto,
   ReasonDto,
   RegisterWorkPhoneDto,
+  PresetListQueryDto,
   SetStaffAccessDto,
   SetStaffPasswordDto,
   UpdatePresetDto,
   UpdateStaffDto,
+  StaffListQueryDto,
+  WorkPhoneListQueryDto,
 } from './dto/access.dto';
 
 type AdminRequest = Request & { user: AuthenticatedRequestUser };
@@ -36,8 +39,8 @@ export class StaffController {
   constructor(private readonly access: AccessManagementService) {}
 
   @Get()
-  list() {
-    return this.access.listStaff();
+  list(@Query() query: StaffListQueryDto) {
+    return this.access.listStaff(query);
   }
 
   @Post()
@@ -79,8 +82,8 @@ export class PresetsController {
   constructor(private readonly access: AccessManagementService) {}
 
   @Get()
-  list() {
-    return this.access.listPresets();
+  list(@Query() query: PresetListQueryDto) {
+    return this.access.listPresets(query);
   }
 
   @Post()
@@ -125,8 +128,8 @@ export class WorkPhonesController {
   constructor(private readonly access: AccessManagementService) {}
 
   @Get()
-  list() {
-    return this.access.listWorkPhones();
+  list(@Query() query: WorkPhoneListQueryDto) {
+    return this.access.listWorkPhones(query);
   }
 
   @Post()

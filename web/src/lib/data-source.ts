@@ -31,6 +31,9 @@ export const DOMAINS = [
   "reviews",
   "loyalty",
   "notifications",
+  "monitor",
+  "deliveries",
+  "inbox",
 ] as const;
 
 export type Domain = (typeof DOMAINS)[number];
@@ -64,6 +67,13 @@ const LIVE_BY_DEFAULT: readonly Domain[] = [
   // — probed against the running API, not just read off openapi.yaml, which
   // documented these routes long before the server implemented them.
   "wishlist",
+  // Build phase 2 (API 6.1, #58): the order monitor's read-only list and
+  // detail, the delivery agent's assigned deliveries, and the durable
+  // notification inbox with its SSE stream — probed against a running API
+  // built from main before being listed.
+  "monitor",
+  "deliveries",
+  "inbox",
 ];
 
 function isDomain(value: string): value is Domain {

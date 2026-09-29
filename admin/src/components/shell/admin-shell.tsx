@@ -11,6 +11,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  ClipboardList,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -24,6 +25,7 @@ import type { components } from "@/types/api";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { isNavActive, visibleNav, type NavKey } from "@/lib/nav";
+import { NotificationBell } from "@/components/inbox/notification-bell";
 import { LocaleSwitch } from "./locale-switch";
 import { hardNavigate } from "@/lib/hard-navigate";
 
@@ -56,6 +58,7 @@ async function fetchSession(): Promise<SessionResult> {
 
 const ICONS: Record<NavKey, LucideIcon> = {
   dashboard: LayoutDashboard,
+  orders: ClipboardList,
   staff: Users,
   presets: KeyRound,
   workPhones: Smartphone,
@@ -203,6 +206,7 @@ export function AdminShell({
                 {user.username}
               </p>
             </div>
+            <NotificationBell />
             <LocaleSwitch />
             <Button
               variant="ghost"

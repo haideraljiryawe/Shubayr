@@ -22,8 +22,8 @@ async function request(path, { token, method = 'GET', body, expected = 200 } = {
   return payload;
 }
 async function login(phone) {
-  const challenge = await request('/auth/request-otp', { method: 'POST', body: { phone }, expected: 201 });
-  return (await request('/auth/verify-otp', { method: 'POST', body: { phone, code: challenge.dev_otp }, expected: 201 })).access_token;
+  const challenge = await request('/auth/request-otp', { method: 'POST', body: { phone }, expected: 200 });
+  return (await request('/auth/verify-otp', { method: 'POST', body: { phone, code: challenge.dev_otp }, expected: 200 })).access_token;
 }
 async function adminLogin() {
   return (await request('/admin/auth/login', { method: 'POST', body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' }, expected: 201 })).access_token;
@@ -75,7 +75,7 @@ try {
   const redeemed = await request('/loyalty/redeem', { token: customer, method: 'POST', expected: 201, body: { points: 1, note: 'Acceptance spend' } });
   check(redeemed.entry.points, -1, 'redeem writes a negative delta');
   check(redeemed.points_balance, afterEarn.points_balance - 1, 'redeem lowers balance');
-  check(redeemed.redemption_value, 0.01, 'server computes indicative redemption value');
+  check(redeemed.redemption_value, 1, 'server computes whole-IQD redemption value');
   const staffRead = await request(`/admin/loyalty/${userId}?per_page=100`, { token: admin });
   check(staffRead.points_balance, redeemed.points_balance, 'staff sees customer ledger balance');
   await request(`/admin/loyalty/${userId}/adjust`, { token: admin, method: 'POST', body: { points: -(redeemed.points_balance + 1), reason: 'Too large' }, expected: 409 });
@@ -100,7 +100,7 @@ try {
   check(product.is_negotiable, true, 'seeded product is negotiable');
   check(product.points_price, 250, 'seeded points cost exists');
   check(product.floor_price <= product.price, true, 'seeded floor is within regular price');
-  await request(`/admin/products/${productId}`, { token: admin, method: 'PATCH', body: { floor_price: product.price + 0.01 }, expected: 422 });
+  await request(`/admin/products/${productId}`, { token: admin, method: 'PATCH', body: { floor_price: product.price + 1 }, expected: 422 });
   await request(`/admin/products/${productId}`, { token: admin, method: 'PATCH', body: { points_price: -1 }, expected: 422 });
   const changed = await request(`/admin/products/${productId}`, { token: admin, method: 'PATCH', body: { floor_price: product.price, points_price: 300 } });
   check(changed.floor_price, product.price, 'valid floor persists');

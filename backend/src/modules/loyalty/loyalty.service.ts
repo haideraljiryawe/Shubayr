@@ -41,8 +41,7 @@ export class LoyaltyService {
     const rate = this.config.get<number>('LOYALTY_POINTS_PER_CURRENCY_UNIT', 1);
     const eligibleMinor =
       moneyToMinorUnits(order.subtotal) - moneyToMinorUnits(order.discount);
-    const pointsBig =
-      (eligibleMinor > 0n ? eligibleMinor / 100n : 0n) * BigInt(rate);
+    const pointsBig = (eligibleMinor > 0n ? eligibleMinor : 0n) * BigInt(rate);
     if (pointsBig === 0n) return null;
     if (pointsBig > 2_147_483_647n)
       throw new UnprocessableEntityException(

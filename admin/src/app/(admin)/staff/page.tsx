@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Plus } from "lucide-react";
 import { buttonClasses, PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
-import { load, serverApi } from "@/lib/api/server";
+import { listRows, load, serverApi } from "@/lib/api/server";
 import {
   STAFF_FILTER_KEYS,
   STAFF_SORT_KEYS,
@@ -37,7 +37,7 @@ export default async function StaffPage({
   // not offered — the list itself only needs users.manage.
   const presets = await load(api.GET("/admin/presets"));
 
-  const page = queryStaff(staff.data, params);
+  const page = queryStaff(listRows(staff.data), params);
 
   return (
     <>
@@ -65,7 +65,9 @@ export default async function StaffPage({
           dir: params.dir,
         }}
         presets={
-          presets.ok ? presets.data.map(({ id, name }) => ({ id, name })) : null
+          presets.ok
+            ? listRows(presets.data).map(({ id, name }) => ({ id, name }))
+            : null
         }
       />
     </>

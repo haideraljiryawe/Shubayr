@@ -13,6 +13,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { BannersModule } from './modules/banners/banners.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { FulfilmentModule } from './modules/fulfilment/fulfilment.module';
+import { FinanceModule } from './modules/finance/finance.module';
 import { HealthModule } from './modules/health/health.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { LoyaltyModule } from './modules/loyalty/loyalty.module';
@@ -54,6 +55,7 @@ import { WishlistModule } from './modules/wishlist/wishlist.module';
     InventoryModule,
     OrdersModule,
     FulfilmentModule,
+    FinanceModule,
     ReturnsModule,
     LoyaltyModule,
     MediaModule,

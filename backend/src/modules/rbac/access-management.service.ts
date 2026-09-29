@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PERMISSION_REGISTRY } from '../../common/access/permission-registry';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { hashPassword } from '../auth/password';
@@ -12,10 +13,13 @@ import {
   CreatePresetDto,
   CreateStaffDto,
   RegisterWorkPhoneDto,
+  PresetListQueryDto,
   SetStaffAccessDto,
   SetStaffPasswordDto,
   UpdatePresetDto,
   UpdateStaffDto,
+  StaffListQueryDto,
+  WorkPhoneListQueryDto,
 } from './dto/access.dto';
 import { PermissionResolverService } from './permission-resolver.service';
 
@@ -38,13 +42,69 @@ export class AccessManagementService {
     );
   }
 
-  async listStaff() {
-    const rows = await this.prisma.user.findMany({
-      where: { username: { not: null } },
-      include: staffInclude,
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    });
-    return rows.map((row) => this.presentStaff(row));
+  async listStaff(query: StaffListQueryDto) {
+    const conditions: Prisma.UserWhereInput[] = [];
+    if (query.q) {
+      conditions.push({
+        OR: [
+          { username: { contains: query.q, mode: 'insensitive' } },
+          { name: { contains: query.q, mode: 'insensitive' } },
+          { email: { contains: query.q, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (query.permission_key) {
+      conditions.push({
+        OR: [
+          {
+            permission_grants: {
+              some: { permission: { key: query.permission_key } },
+            },
+          },
+          {
+            permission_presets: {
+              some: {
+                preset: {
+                  permissions: {
+                    some: { permission: { key: query.permission_key } },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      });
+    }
+    const where: Prisma.UserWhereInput = {
+      username: { not: null },
+      ...(conditions.length ? { AND: conditions } : {}),
+      ...(query.status === 'active' ? { is_active: true } : {}),
+      ...(query.status === 'inactive' ? { is_active: false } : {}),
+      ...(query.status === 'must_change' ? { must_change_password: true } : {}),
+      ...(query.preset
+        ? { permission_presets: { some: { preset_id: query.preset } } }
+        : {}),
+    };
+    const paginated = Object.values(query).some((value) => value !== undefined);
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    const direction = query.dir ?? 'asc';
+    const sort = query.sort ?? 'name';
+    const orderBy: Prisma.UserOrderByWithRelationInput[] = [
+      { [sort]: direction },
+      { id: direction },
+    ];
+    const [rows, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        include: staffInclude,
+        orderBy,
+        ...(paginated ? { skip: (page - 1) * perPage, take: perPage } : {}),
+      }),
+      paginated ? this.prisma.user.count({ where }) : Promise.resolve(0),
+    ]);
+    const data = rows.map((row) => this.presentStaff(row));
+    return paginated ? { page, per_page: perPage, total, data } : data;
   }
 
   async createStaff(actorId: string, input: CreateStaffDto) {
@@ -239,11 +299,48 @@ export class AccessManagementService {
     return this.presentStaff(row);
   }
 
-  async listPresets() {
-    return this.prisma.permissionPreset.findMany({
-      include: { permissions: { include: { permission: true } } },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    });
+  async listPresets(query: PresetListQueryDto) {
+    const where: Prisma.PermissionPresetWhereInput = {
+      ...(query.q
+        ? {
+            OR: [
+              { name: { contains: query.q, mode: 'insensitive' } },
+              { description: { contains: query.q, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(query.kind === 'system' ? { is_system: true } : {}),
+      ...(query.kind === 'custom' ? { is_system: false } : {}),
+      ...(query.permission_key
+        ? {
+            permissions: {
+              some: { permission: { key: query.permission_key } },
+            },
+          }
+        : {}),
+    };
+    const paginated = Object.values(query).some((value) => value !== undefined);
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    const direction = query.dir ?? 'asc';
+    const orderBy: Prisma.PermissionPresetOrderByWithRelationInput[] = [
+      query.sort === 'permissions'
+        ? { permissions: { _count: direction } }
+        : { name: direction },
+      { id: direction },
+    ];
+    const [data, total] = await Promise.all([
+      this.prisma.permissionPreset.findMany({
+        where,
+        include: { permissions: { include: { permission: true } } },
+        orderBy,
+        ...(paginated ? { skip: (page - 1) * perPage, take: perPage } : {}),
+      }),
+      paginated
+        ? this.prisma.permissionPreset.count({ where })
+        : Promise.resolve(0),
+    ]);
+    return paginated ? { page, per_page: perPage, total, data } : data;
   }
 
   async createPreset(actorId: string, input: CreatePresetDto) {
@@ -381,11 +478,50 @@ export class AccessManagementService {
     for (const user of affected) this.resolver.evictUser(user.user_id);
   }
 
-  async listWorkPhones() {
-    return this.prisma.workProfile.findMany({
-      include: { user: { select: { phone: true } } },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    });
+  async listWorkPhones(query: WorkPhoneListQueryDto) {
+    const where: Prisma.WorkProfileWhereInput = {
+      ...(query.q
+        ? {
+            OR: [
+              { name: { contains: query.q, mode: 'insensitive' } },
+              {
+                user: {
+                  phone: { contains: query.q, mode: 'insensitive' },
+                },
+              },
+            ],
+          }
+        : {}),
+      ...(query.role ? { app_role: query.role } : {}),
+      ...(query.status === 'active' ? { is_active: true } : {}),
+      ...(query.status === 'revoked' ? { is_active: false } : {}),
+    };
+    const paginated = Object.values(query).some((value) => value !== undefined);
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    const direction = query.dir ?? 'asc';
+    const orderBy: Prisma.WorkProfileOrderByWithRelationInput[] = [
+      query.sort === 'phone'
+        ? { user: { phone: direction } }
+        : query.sort === 'role'
+          ? { app_role: direction }
+          : { name: direction },
+      { id: direction },
+    ];
+    const [rows, total] = await Promise.all([
+      this.prisma.workProfile.findMany({
+        where,
+        include: { user: { select: { phone: true } } },
+        orderBy,
+        ...(paginated ? { skip: (page - 1) * perPage, take: perPage } : {}),
+      }),
+      paginated ? this.prisma.workProfile.count({ where }) : Promise.resolve(0),
+    ]);
+    const data = rows.map(({ user, ...row }) => ({
+      ...row,
+      phone: user.phone,
+    }));
+    return paginated ? { page, per_page: perPage, total, data } : data;
   }
 
   async registerWorkPhone(actorId: string, input: RegisterWorkPhoneDto) {

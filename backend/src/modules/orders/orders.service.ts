@@ -23,6 +23,7 @@ import {
   OrderStatus,
   AdminOrderQueryDto,
   CancelOrderDto,
+  RejectOrderDto,
   PlaceOrderDto,
   UpdateOrderStatusDto,
   MonitorOrderQueryDto,
@@ -40,6 +41,7 @@ const nextStatuses: Record<OrderStatus, readonly OrderStatus[]> = {
   return_requested: ['returned'],
   returned: [],
   cancelled: [],
+  rejected: [],
 };
 const orderInclude = { items: true } satisfies Prisma.OrderInclude;
 type OrderRow = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
@@ -494,7 +496,9 @@ export class OrdersService {
         quantity: item.quantity,
         unit_price: Number(item.unit_price),
         line_total: Number(item.line_total),
+        currency: item.currency_code,
       })),
+      currency: order.currency_code,
       subtotal: Number(order.subtotal),
       delivery_fee: Number(order.delivery_fee),
       discount: Number(order.discount),
@@ -556,6 +560,50 @@ export class OrdersService {
         cancellableStatuses,
         actorId,
         input.reason,
+      );
+    });
+    return this.getAdmin(id);
+  }
+
+  async rejectAdmin(actorId: string, id: string, input: RejectOrderDto) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
+      const order = await tx.order.findUnique({ where: { id } });
+      if (!order) throw new NotFoundException('Order not found');
+      const updated = await tx.order.updateMany({
+        where: { id, status: 'pending' },
+        data: { status: 'rejected' },
+      });
+      if (!updated.count) {
+        throw new ConflictException('Only a pending order can be rejected');
+      }
+      const now = new Date();
+      await tx.orderStatusEvent.create({
+        data: {
+          order_id: id,
+          status: 'rejected',
+          note: input.reason,
+          at: now,
+        },
+      });
+      await tx.simpleStockHold.updateMany({
+        where: { order_id: id, status: 'held' },
+        data: { status: 'released', released_at: now },
+      });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'order.reject',
+        entityType: 'order',
+        entityId: id,
+        before: { status: order.status },
+        after: { status: 'rejected', reason: input.reason },
+      });
+      await this.recordOrderNotification(tx, id, 'rejected');
+      await this.notifications?.recordOrderMonitors(
+        tx,
+        'order_rejected',
+        id,
+        now.toISOString(),
       );
     });
     return this.getAdmin(id);
@@ -695,11 +743,13 @@ export class OrdersService {
     if (!this.notifications) return;
     const order = await tx.order.findUniqueOrThrow({ where: { id } });
     const type =
-      status === 'confirmed'
-        ? 'order_confirmed'
-        : status === 'dispatched'
-          ? 'out_for_delivery'
-          : 'order_status_changed';
+      status === 'rejected'
+        ? 'order_rejected'
+        : status === 'confirmed'
+          ? 'order_confirmed'
+          : status === 'dispatched'
+            ? 'out_for_delivery'
+            : 'order_status_changed';
     await this.notifications.record(
       tx,
       order.user_id,
@@ -722,6 +772,7 @@ export class OrdersService {
       delivery_fee: Number(row.delivery_fee),
       discount: Number(row.discount),
       total: Number(row.total),
+      currency: row.currency_code,
       delivery_contact_phone: row.delivery_contact_phone,
       delivery_address_label: row.delivery_address_label,
       delivery_city: row.delivery_city,
@@ -741,6 +792,7 @@ export class OrdersService {
         quantity: item.quantity,
         unit_price: Number(item.unit_price),
         line_total: Number(item.line_total),
+        currency: item.currency_code,
         reviewed: Boolean(item.reviewed),
       })),
     };
@@ -766,6 +818,7 @@ export class OrdersService {
         method: payment.method,
         status: payment.status,
         amount: Number(payment.amount),
+        currency: payment.currency_code,
         paid_at: payment.paid_at,
       })),
       delivery: row.delivery
@@ -773,6 +826,7 @@ export class OrdersService {
             id: row.delivery.id,
             status: row.delivery.status,
             delivery_fee: Number(row.delivery.delivery_fee),
+            currency: row.delivery.currency_code,
             dispatched_at: row.delivery.dispatched_at,
             delivered_at: row.delivery.delivered_at,
             agent: row.delivery.agent,

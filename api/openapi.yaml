@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 6.1.0
+  version: 7.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -22,12 +22,10 @@ info:
     omitted fields are unchanged, while null is accepted only for explicitly
     nullable fields and clears that field.
 
-    Money policy: API money values are decimal JSON numbers with at most two
-    fractional digits and are stored as NUMERIC(*,2). Calculations use integer
-    minor units and round once at the resulting money boundary, half away from
-    zero. Percentage values have at most two fractional digits. Cart line
-    totals, checkout totals, persisted order amounts, filters, and response
-    pricing all use this policy.
+    Money policy: every money-bearing resource identifies its ISO currency.
+    Amounts are stored exactly and displayed at that currency's configured
+    precision (IQD 0, USD 2). The ledger preserves original-currency amount and
+    exchange rate while balancing exactly in the configured base currency.
   license:
     name: Proprietary — Shubayr project
     identifier: LicenseRef-Proprietary
@@ -56,6 +54,7 @@ tags:
   - name: Notifications
   - name: Monitoring
   - name: Admin
+  - name: Finance
 
 security:
   - bearerAuth: []
@@ -313,6 +312,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AddressPage" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Addresses]
       summary: Create a delivery address
@@ -328,6 +328,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Address" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
   /addresses/{id}:
     get:
@@ -486,6 +487,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /cart/items:
     post:
       tags: [Cart]
@@ -507,6 +509,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
   /cart/coupon:
     delete:
       tags: [Cart]
@@ -559,6 +563,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/WishlistPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Wishlist]
       summary: Add a product to the wishlist
@@ -577,6 +582,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/WishlistItem" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
   /wishlist/{productId}:
     delete:
       tags: [Wishlist]
@@ -661,6 +668,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Order" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "409":
           description: Cart empty, item unavailable, coupon invalid, or idempotency conflict
           content:
@@ -705,7 +713,7 @@ paths:
               schema: { $ref: "#/components/schemas/Order" }
         "404": { $ref: "#/components/responses/NotFound" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { description: Status does not allow cancellation }
+        "409": { $ref: "#/components/responses/Conflict" }
   /orders/{id}/status:
     patch:
       tags: [Admin]
@@ -740,7 +748,7 @@ paths:
               schema: { $ref: "#/components/schemas/AdminOrder" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { description: Invalid status transition }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- REVIEWS ----------------
@@ -797,6 +805,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Review" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -918,6 +927,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LoyaltyAccount" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /loyalty/redeem:
     post:
       tags: [Loyalty]
@@ -938,6 +948,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LoyaltyRedemption" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/loyalty/{userId}:
@@ -1278,6 +1289,9 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Return" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /returns/queue:
     get:
@@ -1330,6 +1344,7 @@ paths:
               schema: { $ref: "#/components/schemas/Return" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /returns/{id}/complete:
     post:
@@ -1346,6 +1361,7 @@ paths:
               schema: { $ref: "#/components/schemas/Return" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   # ---------------- DELIVERIES (agent) ----------------
   /deliveries:
@@ -1736,6 +1752,24 @@ paths:
               schema: { $ref: "#/components/schemas/AdminOrderPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-agents:
+    get:
+      tags: [Admin]
+      summary: List active delivery agents available for assignment
+      description: Server-side search and pagination for staff assigning deliveries; users.manage is not required.
+      x-permission: orders.assign_agent
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 80 }, description: "case-insensitive name or phone search" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated active delivery agents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryAgentPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/orders/{id}:
     get:
       tags: [Admin]
@@ -1789,7 +1823,7 @@ paths:
               schema: { $ref: "#/components/schemas/AdminOrder" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { description: Illegal transition or dispatch handoff is incomplete }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/orders/{id}/cancel:
     post:
@@ -1819,7 +1853,38 @@ paths:
               schema: { $ref: "#/components/schemas/AdminOrder" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { description: Order is not cancellable }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/orders/{id}/reject:
+    post:
+      tags: [Admin]
+      summary: Reject a pending order and release its stock holds
+      x-permission: orders.reject
+      description: >
+        Rejection is distinct from cancellation and is allowed only while the
+        order is pending. A non-empty reason is stored in the timeline and
+        audit trail; the reservation is released and customer and order
+        monitors receive a durable notification.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Rejected order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADMIN: PRODUCTS CRUD ----------------
@@ -1944,6 +2009,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Category" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/categories/{id}:
@@ -1966,6 +2032,7 @@ paths:
               schema: { $ref: "#/components/schemas/Category" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
     delete:
       tags: [Admin]
       summary: Delete a category
@@ -2061,10 +2128,29 @@ paths:
       summary: List staff accounts and their preset/extra grants
       x-surface: admin
       x-permission: users.manage
+      parameters:
+        - { $ref: "#/components/parameters/Search" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, inactive, must_change] }
+        - name: preset
+          in: query
+          schema: { type: string, format: uuid }
+        - name: permission_key
+          in: query
+          schema: { type: string }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [name, username, created_at], default: name }
+        - name: dir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
       responses:
         "200":
           description: Staff accounts
-          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/StaffUser" } } } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/StaffUserListResponse" } } }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
@@ -2124,8 +2210,24 @@ paths:
       summary: List permission presets
       x-surface: admin
       x-permission: roles.manage
+      parameters:
+        - { $ref: "#/components/parameters/Search" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: kind
+          in: query
+          schema: { type: string, enum: [system, custom] }
+        - name: permission_key
+          in: query
+          schema: { type: string }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [name, permissions], default: name }
+        - name: dir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
       responses:
-        "200": { description: Presets, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/PermissionPreset" } } } } }
+        "200": { description: Presets, content: { application/json: { schema: { $ref: "#/components/schemas/PermissionPresetListResponse" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
@@ -2182,8 +2284,24 @@ paths:
       summary: List pre-registered work phones
       x-surface: admin
       x-permission: users.manage
+      parameters:
+        - { $ref: "#/components/parameters/Search" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - name: role
+          in: query
+          schema: { type: string, enum: [delivery_agent, order_monitor] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, revoked] }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [name, phone, role], default: name }
+        - name: dir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
       responses:
-        "200": { description: Work phones, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/WorkPhone" } } } } }
+        "200": { description: Work phones, content: { application/json: { schema: { $ref: "#/components/schemas/WorkPhoneListResponse" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
@@ -2214,6 +2332,402 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: List audit records newest first
+      description: Results use creation time descending with ID descending as a stable tiebreak.
+      x-surface: admin
+      x-permission: audit.view
+      parameters:
+        - name: actor
+          in: query
+          description: Actor UUID, username, or name search.
+          schema: { type: string, maxLength: 160 }
+        - name: action
+          in: query
+          schema: { type: string, maxLength: 80 }
+        - name: entity_type
+          in: query
+          schema: { type: string, maxLength: 80 }
+        - name: entity_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated audit records
+          content: { application/json: { schema: { $ref: "#/components/schemas/AuditLogList" } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/currencies:
+    get:
+      tags: [Finance]
+      summary: List configured currencies
+      x-surface: admin
+      x-permission: ledger.view
+      responses:
+        "200":
+          description: Currencies
+          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Currency" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/currencies/{code}:
+    patch:
+      tags: [Finance]
+      summary: Enable a currency or select the base before the first movement
+      x-surface: admin
+      x-permission: settings.manage
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Z]{3}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                enabled: { type: boolean }
+                is_base: { type: boolean }
+      responses:
+        "200": { description: Updated currency, content: { application/json: { schema: { $ref: "#/components/schemas/Currency" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/exchange-rates:
+    get:
+      tags: [Finance]
+      summary: List exchange-rate history newest first
+      x-surface: admin
+      x-permission: ledger.view
+      parameters:
+        - name: currency_code
+          in: query
+          schema: { type: string, pattern: '^[A-Z]{3}$' }
+      responses:
+        "200": { description: Rates, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ExchangeRate" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Finance]
+      summary: Record an effective exchange rate
+      description: Input is `1 foreign = X base`; basis 100 is normalized to basis 1 before storage.
+      x-surface: admin
+      x-permission: fx_rates.update
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ExchangeRateInput" } } }
+      responses:
+        "201": { description: Recorded rate, content: { application/json: { schema: { $ref: "#/components/schemas/ExchangeRate" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/exchange-rates/{code}/applicable:
+    get:
+      tags: [Finance]
+      summary: Resolve the latest rate effective at a date
+      x-surface: admin
+      x-permission: ledger.view
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Z]{3}$' }
+        - name: at
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+      responses:
+        "200": { description: Applicable rate with stale-today warning, content: { application/json: { schema: { $ref: "#/components/schemas/ExchangeRate" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/operations/{operationId}:
+    get:
+      tags: [Finance]
+      summary: Get the caller's idempotent operation outcome
+      x-surface: admin
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        "200": { description: Operation outcome, content: { application/json: { schema: { $ref: "#/components/schemas/OperationOutcome" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/drafts:
+    get:
+      tags: [Finance]
+      summary: List the caller's financial document drafts
+      x-surface: admin
+      responses:
+        "200": { description: Drafts, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/DocumentDraft" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/drafts/{documentType}:
+    parameters:
+      - name: documentType
+        in: path
+        required: true
+        schema: { type: string, maxLength: 60 }
+    get:
+      tags: [Finance]
+      summary: Get the caller's draft
+      x-surface: admin
+      responses:
+        "200": { description: Draft, content: { application/json: { schema: { $ref: "#/components/schemas/DocumentDraft" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Finance]
+      summary: Save the caller's draft without financial effect
+      x-surface: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [payload]
+              properties:
+                payload: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Saved draft, content: { application/json: { schema: { $ref: "#/components/schemas/DocumentDraft" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Finance]
+      summary: Discard the caller's draft
+      x-surface: admin
+      responses:
+        "204": { description: Draft discarded }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/ledger/entries:
+    get:
+      tags: [Finance]
+      summary: List immutable journal entries
+      x-surface: admin
+      x-permission: ledger.view
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - { name: account_code, in: query, schema: { type: string } }
+        - { name: source_type, in: query, schema: { type: string } }
+        - { name: source_id, in: query, schema: { type: string, format: uuid } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Journal page, content: { application/json: { schema: { $ref: "#/components/schemas/JournalEntryPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/ledger/entries/{id}/reversal:
+    post:
+      tags: [Finance]
+      summary: Post the one allowed reversal for an immutable entry
+      x-surface: admin
+      x-permission: ledger.reverse
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AuditReason" } } } }
+      responses:
+        "201": { description: Reversal entry, content: { application/json: { schema: { $ref: "#/components/schemas/JournalEntry" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/ledger/trial-balance:
+    get:
+      tags: [Finance]
+      summary: Get trial balance
+      x-surface: admin
+      x-permission: ledger.view
+      parameters:
+        - { name: as_of, in: query, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Trial balance, content: { application/json: { schema: { $ref: "#/components/schemas/TrialBalance" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/ledger/accounts/{code}/balance:
+    get:
+      tags: [Finance]
+      summary: Get a ledger account balance
+      x-surface: admin
+      x-permission: ledger.view
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string } }
+        - { name: as_of, in: query, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Account balance, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/cash-accounts:
+    get:
+      tags: [Finance]
+      summary: List cash and bank accounts with ledger-derived balances
+      x-surface: admin
+      x-permission: cash_accounts.manage
+      responses:
+        "200": { description: Accounts, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/CashAccount" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Finance]
+      summary: Create a cash or bank account
+      x-surface: admin
+      x-permission: cash_accounts.manage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashAccountInput" } } } }
+      responses:
+        "201": { description: Created account, content: { application/json: { schema: { $ref: "#/components/schemas/CashAccount" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-accounts/{id}:
+    get:
+      tags: [Finance]
+      summary: Read a cash or bank account with its ledger-derived balance
+      x-surface: admin
+      x-permission: cash_accounts.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Cash account, content: { application/json: { schema: { $ref: "#/components/schemas/CashAccount" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Finance]
+      summary: Rename or activate a cash account
+      x-surface: admin
+      x-permission: cash_accounts.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 2, maxLength: 160 }
+                is_active: { type: boolean }
+      responses:
+        "200": { description: Updated account, content: { application/json: { schema: { $ref: "#/components/schemas/CashAccount" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Finance]
+      summary: Delete an unused cash account; accounts with movements must be disabled
+      x-surface: admin
+      x-permission: cash_accounts.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "204": { description: Unused account deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/cash-accounts/{id}/opening-balance:
+    post:
+      tags: [Finance]
+      summary: Post a cash account opening-balance document
+      x-surface: admin
+      x-permission: cash_accounts.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/OpeningBalanceInput" } } } }
+      responses:
+        "201": { description: Posted opening balance, content: { application/json: { schema: { $ref: "#/components/schemas/FinancialDocument" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-transfers:
+    post:
+      tags: [Finance]
+      summary: Post a numbered same-currency transfer
+      x-surface: admin
+      x-permission: cash_accounts.manage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashTransferInput" } } } }
+      responses:
+        "201": { description: Posted transfer, content: { application/json: { schema: { $ref: "#/components/schemas/FinancialDocument" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/accounting-periods:
+    get:
+      tags: [Finance]
+      summary: List accounting periods and close history
+      x-surface: admin
+      x-permission: ledger.view
+      responses:
+        "200": { description: Periods, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/AccountingPeriod" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/accounting-periods/{month}/checklist:
+    get:
+      tags: [Finance]
+      summary: Run the close checklist
+      x-surface: admin
+      x-permission: period.close
+      parameters: [{ name: month, in: path, required: true, schema: { type: string, pattern: '^\d{4}-\d{2}$' } }]
+      responses:
+        "200": { description: Checklist, content: { application/json: { schema: { $ref: "#/components/schemas/PeriodChecklist" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/accounting-periods/{month}/close:
+    post:
+      tags: [Finance]
+      summary: Close a period and save a sequenced trial-balance snapshot
+      x-surface: admin
+      x-permission: period.close
+      parameters: [{ name: month, in: path, required: true, schema: { type: string, pattern: '^\d{4}-\d{2}$' } }]
+      requestBody: { required: false, content: { application/json: { schema: { type: object, additionalProperties: false, properties: { reason: { type: string, maxLength: 500 } } } } } }
+      responses:
+        "201": { description: Period close, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/accounting-periods/{month}/reopen:
+    post:
+      tags: [Finance]
+      summary: Reopen a closed period with a mandatory reason
+      x-surface: admin
+      x-permission: period.reopen
+      parameters: [{ name: month, in: path, required: true, schema: { type: string, pattern: '^\d{4}-\d{2}$' } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AuditReason" } } } }
+      responses:
+        "201": { description: Reopened period, content: { application/json: { schema: { $ref: "#/components/schemas/AccountingPeriod" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /admin/settings:
+    get:
+      tags: [Finance]
+      summary: Read all audited operational and financial settings
+      x-surface: admin
+      x-permission: settings.manage
+      responses:
+        "200": { description: Settings, content: { application/json: { schema: { $ref: "#/components/schemas/AdminFinancialSettings" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Finance]
+      summary: Update operational and financial settings atomically
+      x-surface: admin
+      x-permission: settings.manage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AdminFinancialSettingsPatch" } } } }
+      responses:
+        "200": { description: Updated settings, content: { application/json: { schema: { $ref: "#/components/schemas/AdminFinancialSettings" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2236,6 +2750,11 @@ components:
       in: query
       required: false
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Search:
+      name: q
+      in: query
+      required: false
+      schema: { type: string, maxLength: 160 }
     Reason:
       name: reason
       in: query
@@ -2273,8 +2792,7 @@ components:
 
     Money:
       type: number
-      multipleOf: 0.01
-      description: Decimal money amount with at most two fractional digits; rounded half away from zero at money boundaries.
+      description: Decimal money amount displayed at the associated currency precision (IQD 0, USD 2).
 
     MediaObject:
       type: object
@@ -2483,17 +3001,18 @@ components:
         name_en: { type: string }
         name_ar: { type: string }
         description: { type: [string, "null"] }
-        price: { $ref: "#/components/schemas/Money", description: "Regular selling price." }
+        price: { $ref: "#/components/schemas/Money", multipleOf: 1, description: "Regular selling price in whole IQD." }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         discount_type: { type: [string, "null"], enum: [percentage, amount, null], description: "Discount kind, or null when the product has no discount defined." }
         discount_value: { type: [number, "null"], multipleOf: 0.01, description: "For `percentage`, the percentage off (10 means 10%, at most two decimals). For `amount`, the currency amount subtracted from `price`. Null when `discount_type` is null." }
         discount_starts_at: { type: [string, "null"], format: date-time, description: "Start of the scheduled discount window; null means the discount is active immediately." }
         discount_ends_at: { type: [string, "null"], format: date-time, description: "End of the scheduled discount window; null means the discount never expires." }
         on_sale: { type: boolean, readOnly: true, description: "Computed: true when discount_type is set AND now() falls inside [discount_starts_at, discount_ends_at], treating null bounds as open." }
-        discounted_price: { type: [number, "null"], multipleOf: 0.01, readOnly: true, description: "Computed in integer minor units when on_sale is true and rounded half away from zero; null when on_sale is false." }
+        discounted_price: { type: [number, "null"], multipleOf: 1, readOnly: true, description: "Computed in whole IQD when on_sale is true and rounded half away from zero; null when on_sale is false." }
         effective_price: { $ref: "#/components/schemas/Money", readOnly: true, description: "The price the customer pays. Cart and order pricing use this exact value." }
         discount_percent: { type: [integer, "null"], readOnly: true, description: "Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false." }
         is_negotiable: { type: boolean }
-        floor_price: { type: [number, "null"], description: "Negotiation floor, at most the regular price." }
+        floor_price: { type: [number, "null"], multipleOf: 1, description: "Negotiation floor in whole IQD, at most the regular price." }
         points_price: { type: [integer, "null"], description: "Persisted points cost for future negotiation UI; no customer negotiation endpoint yet." }
         tracks_expiry: { type: boolean }
         rating_avg: { type: number, description: "Cached average of published product reviews only, reconciled transactionally from review rows and rounded to two decimals half away from zero." }
@@ -2541,13 +3060,13 @@ components:
         name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
         name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
         description: { type: [string, "null"] }
-        price: { $ref: "#/components/schemas/Money", minimum: 0, description: "Regular selling price." }
+        price: { $ref: "#/components/schemas/Money", multipleOf: 1, minimum: 0, description: "Regular selling price in whole IQD." }
         discount_type: { type: [string, "null"], enum: [percentage, amount, null], default: null, description: "Null (the default) means no discount and clears any discount already stored." }
         discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0, description: "Required when discount_type is set, and must be null or omitted otherwise. percentage: at most 100. amount: strictly less than price." }
         discount_starts_at: { type: [string, "null"], format: date-time, description: "Optional window start; null means the discount is active immediately." }
         discount_ends_at: { type: [string, "null"], format: date-time, description: "Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set." }
         is_negotiable: { type: boolean, default: false, description: "Requires floor_price when true." }
-        floor_price: { type: [number, "null"], minimum: 0, description: "Must not exceed price." }
+        floor_price: { type: [number, "null"], multipleOf: 1, minimum: 0, description: "Whole-IQD value that must not exceed price." }
         points_price: { type: [integer, "null"], minimum: 0, description: "Data-only points cost; negotiation UI is deferred." }
         tracks_expiry: { type: boolean, default: false }
         status: { type: string, enum: [active, hidden, archived], default: active }
@@ -2567,7 +3086,7 @@ components:
             properties:
               sku: { type: string }
               attributes: { type: object, additionalProperties: true }
-              price_delta: { type: number }
+              price_delta: { type: integer }
 
     ProductPatch:
       type: object
@@ -2579,13 +3098,13 @@ components:
         name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
         name_ar: { type: string, minLength: 1, pattern: '.*\S.*' }
         description: { type: [string, "null"] }
-        price: { $ref: "#/components/schemas/Money", minimum: 0 }
+        price: { $ref: "#/components/schemas/Money", multipleOf: 1, minimum: 0 }
         discount_type: { type: [string, "null"], enum: [percentage, amount, null] }
         discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0 }
         discount_starts_at: { type: [string, "null"], format: date-time }
         discount_ends_at: { type: [string, "null"], format: date-time }
         is_negotiable: { type: boolean }
-        floor_price: { type: [number, "null"], multipleOf: 0.01, minimum: 0, description: "Must not exceed the merged regular price." }
+        floor_price: { type: [number, "null"], multipleOf: 1, minimum: 0, description: "Whole-IQD value that must not exceed the merged regular price." }
         points_price: { type: [integer, "null"], minimum: 0 }
         tracks_expiry: { type: boolean }
         status: { type: string, enum: [active, hidden, archived] }
@@ -2608,7 +3127,7 @@ components:
               id: { type: string, format: uuid, description: "Existing variant to update; omit to match on sku or to add a new variant." }
               sku: { type: string }
               attributes: { type: object, additionalProperties: true }
-              price_delta: { type: number, multipleOf: 0.01 }
+              price_delta: { type: integer }
 
     ProductImage:
       type: object
@@ -2714,8 +3233,9 @@ components:
       properties:
         id: { type: string, format: uuid }
         sku: { type: string }
-        attributes: { type: object, additionalProperties: true }
-        price_delta: { type: number }
+        attributes: { type: [object, "null"], additionalProperties: true }
+        price_delta: { type: integer }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
 
     ProductAvailability:
       type: object
@@ -2746,15 +3266,16 @@ components:
 
     Cart:
       type: object
-      required: [id, items, subtotal, discount, delivery_fee, total, coupon_code]
+      required: [id, items, subtotal, discount, delivery_fee, total, coupon_code, currency]
       properties:
         id: { type: string, format: uuid }
         coupon_code: { type: [string, "null"] }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         items:
           type: array
           items:
             type: object
-            required: [id, product_id, variant_id, quantity, unit_price, line_total, available, available_qty]
+            required: [id, product_id, variant_id, quantity, unit_price, line_total, currency, available, available_qty]
             properties:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
@@ -2762,6 +3283,7 @@ components:
               quantity: { type: integer, minimum: 1, maximum: 99 }
               unit_price: { $ref: "#/components/schemas/Money", description: "Current server-time effective_price plus the selected variant's price_delta, floored at zero." }
               line_total: { $ref: "#/components/schemas/Money" }
+              currency: { type: string, pattern: '^[A-Z]{3}$' }
               available: { type: boolean, description: "False when the product is hidden/inactive or available_qty is below quantity. Checkout rejects unavailable lines." }
               available_qty: { type: integer, minimum: 0 }
         subtotal: { $ref: "#/components/schemas/Money" }
@@ -2789,10 +3311,12 @@ components:
 
     Coupon:
       type: object
+      required: [code, type, value, currency]
       properties:
         code: { type: string }
         type: { type: string, enum: [percentage, fixed] }
         value: { type: number }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
 
     OrderStatus:
       type: string
@@ -2805,6 +3329,7 @@ components:
         - dispatched
         - delivered
         - failed
+        - rejected
         - cancelled
         - return_requested
         - returned
@@ -2821,6 +3346,7 @@ components:
         quantity: { type: integer }
         unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order." }
         line_total: { $ref: "#/components/schemas/Money" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         reviewed: { type: boolean, readOnly: true, description: True when the caller already has a product review for this order item. }
 
     Order:
@@ -2836,6 +3362,7 @@ components:
         delivery_fee: { $ref: "#/components/schemas/Money" }
         discount: { $ref: "#/components/schemas/Money" }
         total: { $ref: "#/components/schemas/Money" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         delivery_contact_phone: { type: string, description: Immutable checkout snapshot. }
         delivery_address_label: { type: [string, "null"], description: Immutable checkout snapshot. }
         delivery_city: { type: string, description: Immutable checkout snapshot. }
@@ -2928,6 +3455,25 @@ components:
             data:
               type: array
               items: { $ref: "#/components/schemas/AdminOrder" }
+
+    DeliveryAgent:
+      type: object
+      additionalProperties: false
+      required: [id, name, phone]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+
+    DeliveryAgentPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/DeliveryAgent" }
 
     MonitorOrderListItem:
       type: object
@@ -3292,9 +3838,10 @@ components:
         approved_quantity: { type: integer }
         customer_reason: { type: string }
         unit_price: { $ref: "#/components/schemas/Money", description: Immutable order-line unit price. }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         expected_refund: { $ref: "#/components/schemas/Money" }
         approved_refund: { $ref: "#/components/schemas/Money" }
-        condition: { type: [string, "null"], enum: [sellable, opened, damaged] }
+        condition: { type: [string, "null"], enum: [sellable, opened, damaged, null] }
         restock: { type: boolean }
         batch_id: { type: [string, "null"], format: uuid }
 
@@ -3309,6 +3856,7 @@ components:
         reason: { type: [string, "null"] }
         expected_refund: { $ref: "#/components/schemas/Money" }
         refund_amount: { $ref: "#/components/schemas/Money" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         reviewed_by: { type: [string, "null"], format: uuid }
         reviewed_at: { type: [string, "null"], format: date-time }
         completed_at: { type: [string, "null"], format: date-time }
@@ -3329,6 +3877,7 @@ components:
         order_id: { type: string, format: uuid }
         return_id: { type: string, format: uuid }
         amount: { $ref: "#/components/schemas/Money" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         status: { type: string, enum: [obligation] }
         reason: { type: string }
         created_by: { type: string, format: uuid }
@@ -3352,6 +3901,7 @@ components:
         agent_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
         delivery_fee: { type: number }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         dispatched_at: { type: [string, "null"], format: date-time }
         delivered_at: { type: [string, "null"], format: date-time }
 
@@ -3402,7 +3952,7 @@ components:
       additionalProperties: false
       required: [type, channel, enabled]
       properties:
-        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, delivery_assigned] }
+        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, order_rejected, delivery_assigned] }
         channel: { type: string, enum: [push, sms] }
         enabled: { type: boolean }
 
@@ -3469,6 +4019,21 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    StaffUserList:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/StaffUser" } }
+
+    StaffUserListResponse:
+      description: A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope.
+      oneOf:
+        - type: array
+          items: { $ref: "#/components/schemas/StaffUser" }
+        - $ref: "#/components/schemas/StaffUserList"
+
     StaffCreate:
       allOf:
         - $ref: "#/components/schemas/AuditReason"
@@ -3532,9 +4097,24 @@ components:
             description: { type: [string, "null"], maxLength: 255 }
             permission_keys: { type: array, uniqueItems: true, items: { type: string } }
 
+    PermissionPresetList:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/PermissionPreset" } }
+
+    PermissionPresetListResponse:
+      description: A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope.
+      oneOf:
+        - type: array
+          items: { $ref: "#/components/schemas/PermissionPreset" }
+        - $ref: "#/components/schemas/PermissionPresetList"
+
     WorkPhone:
       type: object
-      required: [id, user_id, name, app_role, is_active]
+      required: [id, user_id, phone, name, app_role, is_active]
       properties:
         id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
@@ -3542,6 +4122,56 @@ components:
         name: { type: string }
         app_role: { type: string, enum: [delivery_agent, order_monitor] }
         is_active: { type: boolean }
+
+    WorkPhoneList:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/WorkPhone" } }
+
+    WorkPhoneListResponse:
+      description: A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope.
+      oneOf:
+        - type: array
+          items: { $ref: "#/components/schemas/WorkPhone" }
+        - $ref: "#/components/schemas/WorkPhoneList"
+
+    AuditActor:
+      type: object
+      required: [id, username, name]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: [string, "null"] }
+        name: { type: [string, "null"] }
+
+    AuditLog:
+      type: object
+      required: [id, actor_id, actor, action, entity_type, entity_id, before, after, ip, reason, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        actor_id: { type: [string, "null"], format: uuid }
+        actor:
+          oneOf:
+            - $ref: "#/components/schemas/AuditActor"
+            - type: "null"
+        action: { type: string }
+        entity_type: { type: string }
+        entity_id: { type: [string, "null"], format: uuid }
+        before: { type: [object, array, string, number, boolean, "null"] }
+        after: { type: [object, array, string, number, boolean, "null"] }
+        ip: { type: [string, "null"] }
+        reason: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+
+    AuditLogList:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/AuditLog" } }
 
     WorkPhoneInput:
       allOf:
@@ -3638,3 +4268,224 @@ components:
         logo_url: { type: string }
         primary_color: { type: string }
         currency: { type: string, example: IQD }
+
+    ExactDecimal:
+      oneOf:
+        - { type: string, pattern: '^-?\d+(?:\.\d+)?$' }
+        - { type: number }
+
+    Currency:
+      type: object
+      required: [code, name_ar, name_en, symbol, display_precision, is_base, enabled, created_at, updated_at]
+      properties:
+        code: { type: string, pattern: '^[A-Z]{3}$' }
+        name_ar: { type: string }
+        name_en: { type: string }
+        symbol: { type: string }
+        display_precision: { type: integer, minimum: 0, maximum: 6 }
+        is_base: { type: boolean }
+        enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ExchangeRateInput:
+      type: object
+      additionalProperties: false
+      required: [currency_code, rate, basis, effective_at, reason]
+      properties:
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        rate: { type: string, pattern: '^\d+(?:\.\d{1,10})?$' }
+        basis: { type: integer, enum: [1, 100] }
+        effective_at: { type: string, format: date-time }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    ExchangeRate:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        base_currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        rate: { $ref: "#/components/schemas/ExactDecimal" }
+        effective_at: { type: [string, "null"], format: date-time }
+        set_by: { type: string, format: uuid }
+        reason: { type: string }
+        created_at: { type: string, format: date-time }
+        direction: { type: string }
+        not_from_today: { type: boolean }
+
+    OperationOutcome:
+      type: object
+      required: [id, user_id, operation_id, endpoint, payload_hash, status, response_status, response, created_at, completed_at]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        operation_id: { type: string }
+        endpoint: { type: string }
+        payload_hash: { type: string }
+        status: { type: string, enum: [processing, completed] }
+        response_status: { type: [integer, "null"] }
+        response: {}
+        created_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+
+    DocumentDraft:
+      type: object
+      required: [id, user_id, document_type, payload, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        document_type: { type: string }
+        payload: { type: object, additionalProperties: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    JournalEntry:
+      type: object
+      required: [id, document_number, source_type, source_id, event, document_date, accounting_date, created_by, posted_at, lines]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        source_type: { type: string }
+        source_id: { type: string, format: uuid }
+        event: { type: string }
+        document_date: { type: string, format: date-time }
+        accounting_date: { type: string, format: date-time }
+        description: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        posted_at: { type: string, format: date-time }
+        reverses_id: { type: [string, "null"], format: uuid }
+        lines:
+          type: array
+          minItems: 2
+          items:
+            type: object
+            additionalProperties: true
+            required: [debit_base, credit_base, currency_code, original_amount, exchange_rate]
+            properties:
+              debit_base: { $ref: "#/components/schemas/ExactDecimal" }
+              credit_base: { $ref: "#/components/schemas/ExactDecimal" }
+              currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+              original_amount: { $ref: "#/components/schemas/ExactDecimal" }
+              exchange_rate: { $ref: "#/components/schemas/ExactDecimal" }
+
+    JournalEntryPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/JournalEntry" } }
+
+    TrialBalance:
+      type: object
+      required: [as_of, currency_code, debit_total, credit_total, balanced, data]
+      properties:
+        as_of: { type: [string, "null"], format: date }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        debit_total: { $ref: "#/components/schemas/ExactDecimal" }
+        credit_total: { $ref: "#/components/schemas/ExactDecimal" }
+        balanced: { type: boolean }
+        data: { type: array, items: { type: object, additionalProperties: true } }
+
+    CashAccountInput:
+      type: object
+      additionalProperties: false
+      required: [name, kind, currency_code]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        kind: { type: string, enum: [cash, bank] }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+
+    CashAccount:
+      type: object
+      required: [id, name, kind, currency_code, ledger_account_id, is_active, balance, base_balance, base_currency_code]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [cash, bank] }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        ledger_account_id: { type: string, format: uuid }
+        is_active: { type: boolean }
+        balance: { $ref: "#/components/schemas/ExactDecimal" }
+        base_balance: { $ref: "#/components/schemas/ExactDecimal" }
+        base_currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+
+    FinancialDocumentInput:
+      type: object
+      required: [operation_id, document_date]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+
+    OpeningBalanceInput:
+      allOf:
+        - $ref: "#/components/schemas/FinancialDocumentInput"
+        - type: object
+          required: [amount]
+          properties:
+            amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+
+    CashTransferInput:
+      allOf:
+        - $ref: "#/components/schemas/FinancialDocumentInput"
+        - type: object
+          required: [from_account_id, to_account_id, amount, reason]
+          properties:
+            from_account_id: { type: string, format: uuid }
+            to_account_id: { type: string, format: uuid }
+            amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+
+    FinancialDocument:
+      type: object
+      required: [id, document_number, currency_code, document_date, accounting_date, created_by, journal_entry_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        amount: { $ref: "#/components/schemas/ExactDecimal" }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        document_date: { type: string, format: date-time }
+        accounting_date: { type: string, format: date-time }
+        created_by: { type: string, format: uuid }
+        journal_entry_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    AccountingPeriod:
+      type: object
+      required: [month, status]
+      properties:
+        month: { type: string, format: date-time }
+        status: { type: string, enum: [open, closed] }
+        closed_at: { type: [string, "null"], format: date-time }
+        closed_by: { type: [string, "null"], format: uuid }
+        reopened_at: { type: [string, "null"], format: date-time }
+        reopened_by: { type: [string, "null"], format: uuid }
+        reopen_reason: { type: [string, "null"] }
+
+    PeriodChecklist:
+      type: object
+      required: [month, can_close, checks]
+      properties:
+        month: { type: string, pattern: '^\d{4}-\d{2}$' }
+        can_close: { type: boolean }
+        checks: { type: array, items: { type: object, additionalProperties: true } }
+
+    AdminFinancialSettings:
+      type: object
+      required: [settings, business_hours, closed_days, protection_thresholds]
+      properties:
+        settings: { type: object, additionalProperties: { type: [string, "null"] } }
+        business_hours: { type: array, items: { type: object, additionalProperties: true } }
+        closed_days: { type: array, items: { type: object, additionalProperties: true } }
+        protection_thresholds: { type: object, additionalProperties: true }
+
+    AdminFinancialSettingsPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        settings: { type: object, additionalProperties: { type: [string, "null"] } }
+        business_hours: { type: array, items: { type: object, additionalProperties: true } }
+        closed_days: { type: array, items: { type: object, additionalProperties: true } }
+        protection_thresholds: { type: object, additionalProperties: { type: integer, minimum: 0, maximum: 100 } }

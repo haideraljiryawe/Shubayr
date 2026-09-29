@@ -35,6 +35,17 @@ import {
   listMockMyReviews,
 } from "./mock-account";
 import {
+  getMockMonitorOrder,
+  listMockDeliveries,
+  listMockInbox,
+  listMockMonitorOrders,
+  markAllMockRead,
+  markMockRead,
+  mockUnreadCount,
+  updateMockDelivery,
+} from "./mock-work";
+import { STORE_TIME_ZONE } from "./config";
+import {
   demoProducts,
   mockAvailabilityFor,
   mockCouponFor,
@@ -98,6 +109,22 @@ export type NotificationPreferenceEntry =
   Schemas["NotificationPreferenceEntry"];
 export type NotificationType = NotificationPreferenceEntry["type"];
 export type NotificationChannel = NotificationPreferenceEntry["channel"];
+
+/* Work pages and the notification center (API 6.1, build phase 2). */
+export type MonitorOrderPage = Schemas["MonitorOrderPage"];
+export type MonitorOrderListItem = Schemas["MonitorOrderListItem"];
+export type MonitorOrderDetail = Schemas["MonitorOrderDetail"];
+export type MonitorOrderQuery = NonNullable<
+  paths["/monitor/orders"]["get"]["parameters"]["query"]
+>;
+export type Delivery = Schemas["Delivery"];
+export type DeliveryPage = Schemas["DeliveryPage"];
+export type DeliveryStatus = NonNullable<Delivery["status"]>;
+/** Named for the inbox so it never shadows the DOM's `Notification`. */
+export type InboxNotification = Schemas["Notification"];
+export type NotificationPage = Schemas["NotificationPage"];
+export type StreamTicket =
+  paths["/notifications/stream-ticket"]["post"]["responses"]["201"]["content"]["application/json"];
 
 /** Request bodies, straight from the contract. */
 export type ReturnRequest =
@@ -272,6 +299,16 @@ export async function withFreshToken<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * Every call keeps its 10-second ceiling; a caller's own signal (a search box
+ * cancelling the request its previous keystroke started) is added to it
+ * rather than replacing it.
+ */
+function withTimeout(signal: AbortSignal | null | undefined): AbortSignal {
+  const timeout = AbortSignal.timeout(10_000);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
 function buildUrl(path: string, query?: Query): string {
   const url = new URL(`${API_URL}${path}`);
   for (const [key, value] of Object.entries(query ?? {})) {
@@ -287,7 +324,7 @@ async function request<T>(
   const token = accessToken();
   const response = await fetch(buildUrl(path, query), {
     ...init,
-    signal: init.signal ?? AbortSignal.timeout(10_000),
+    signal: withTimeout(init.signal),
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -310,7 +347,7 @@ async function requestNoContent(
   const token = accessToken();
   const response = await fetch(buildUrl(path, query), {
     ...init,
-    signal: init.signal ?? AbortSignal.timeout(10_000),
+    signal: withTimeout(init.signal),
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -1161,6 +1198,189 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ preferences }),
       });
+    });
+  },
+
+  /* ------------------------------------------- order monitor (6.1) */
+
+  /**
+   * The order monitor's read-only list. Everything is filtered and paged on
+   * the server, and `status_counts` is counted without the status filter so
+   * every chip keeps its number while one is selected. `signal` lets a search
+   * box cancel the request its previous keystroke started.
+   */
+  async listMonitorOrders(
+    query: MonitorOrderQuery,
+    { signal }: { signal?: AbortSignal } = {},
+  ): Promise<MonitorOrderPage> {
+    return withFreshToken(async () => {
+      if (!isLive("monitor")) {
+        await mockLatency(120);
+        requireMockAuth();
+        signal?.throwIfAborted();
+        return listMockMonitorOrders(query, STORE_TIME_ZONE);
+      }
+      return request<MonitorOrderPage>("/monitor/orders", {
+        query: { ...query },
+        signal,
+      });
+    });
+  },
+
+  /** One order for the monitor: no product images, nothing to act on. */
+  async getMonitorOrder(id: string): Promise<MonitorOrderDetail> {
+    return withFreshToken(async () => {
+      if (!isLive("monitor")) {
+        await mockLatency(120);
+        requireMockAuth();
+        const order = getMockMonitorOrder(id);
+        if (!order) throw new ApiError(404, `Order ${id} not found`);
+        return order;
+      }
+      return request<MonitorOrderDetail>(
+        `/monitor/orders/${encodeURIComponent(id)}`,
+      );
+    });
+  },
+
+  /* ------------------------------------------- delivery agent (6.1) */
+
+  /** The signed-in agent's own deliveries, newest dispatch first. */
+  async listAssignedDeliveries(
+    query: { status?: DeliveryStatus; page?: number; per_page?: number } = {},
+  ): Promise<DeliveryPage> {
+    return withFreshToken(async () => {
+      if (!isLive("deliveries")) {
+        await mockLatency(120);
+        requireMockAuth();
+        return listMockDeliveries(
+          query.status,
+          query.page ?? 1,
+          query.per_page ?? 20,
+        );
+      }
+      return request<DeliveryPage>("/deliveries/assigned", { query });
+    });
+  },
+
+  /**
+   * Move one of the agent's deliveries along. The server owns the transition
+   * table and answers 409 when the delivery (or its order) has moved on.
+   */
+  async updateDeliveryStatus(
+    id: string,
+    status: Exclude<DeliveryStatus, "assigned">,
+  ): Promise<Delivery> {
+    return withFreshToken(async () => {
+      if (!isLive("deliveries")) {
+        await mockLatency();
+        requireMockAuth();
+        const updated = updateMockDelivery(id, status);
+        if (updated === null) throw new ApiError(404, "Delivery not found");
+        if (updated === "conflict") {
+          throw new ApiError(409, "Delivery status transition is not allowed", "CONFLICT");
+        }
+        return updated;
+      }
+      return request<Delivery>(`/deliveries/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+    });
+  },
+
+  /* ---------------------------------------- notification inbox (6.1) */
+
+  /** The caller's saved notifications, newest first. */
+  async listNotifications(
+    query: { page?: number; per_page?: number; unread?: boolean } = {},
+  ): Promise<NotificationPage> {
+    return withFreshToken(async () => {
+      if (!isLive("inbox")) {
+        await mockLatency(120);
+        requireMockAuth();
+        return listMockInbox(
+          query.page ?? 1,
+          query.per_page ?? 20,
+          query.unread ?? false,
+        );
+      }
+      return request<NotificationPage>("/me/notifications", {
+        // `unread=false` is the server's default; sending it only when set
+        // keeps the URL honest about which filter is on.
+        query: { ...query, unread: query.unread || undefined },
+      });
+    });
+  },
+
+  async getUnreadCount(): Promise<number> {
+    return withFreshToken(async () => {
+      if (!isLive("inbox")) {
+        await mockLatency(60);
+        requireMockAuth();
+        return mockUnreadCount();
+      }
+      const body = await request<{ unread_count: number }>(
+        "/me/notifications/unread-count",
+      );
+      return body.unread_count;
+    });
+  },
+
+  async markNotificationRead(
+    id: string,
+  ): Promise<{ id: string; read_at: string }> {
+    return withFreshToken(async () => {
+      if (!isLive("inbox")) {
+        await mockLatency(80);
+        requireMockAuth();
+        const result = markMockRead(id);
+        if (!result) throw new ApiError(404, "Notification not found");
+        return result;
+      }
+      return request<{ id: string; read_at: string }>(
+        `/me/notifications/${encodeURIComponent(id)}/read`,
+        { method: "PATCH" },
+      );
+    });
+  },
+
+  async markAllNotificationsRead(): Promise<{
+    updated: number;
+    read_at: string;
+  }> {
+    return withFreshToken(async () => {
+      if (!isLive("inbox")) {
+        await mockLatency(80);
+        requireMockAuth();
+        return markAllMockRead();
+      }
+      return request<{ updated: number; read_at: string }>(
+        "/me/notifications/read-all",
+        { method: "PATCH" },
+      );
+    });
+  },
+
+  /**
+   * A single-use, 60-second ticket for one SSE connection. The bearer token
+   * travels only on this POST; the stream URL carries the ticket instead, so
+   * the token never lands in a URL, a proxy log or the browser history.
+   */
+  async createStreamTicket(): Promise<StreamTicket> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<StreamTicket>("/notifications/stream-ticket", {
+        method: "POST",
+      });
+    });
+  },
+
+  /** Where to point the EventSource; `since` resumes after that event id. */
+  notificationStreamUrl(ticket: string, since?: string | null): string {
+    return buildUrl("/notifications/stream", {
+      ticket,
+      since: since ?? undefined,
     });
   },
 

@@ -45,12 +45,12 @@ async function login(phone) {
   const challenge = await request('/auth/request-otp', {
     method: 'POST',
     body: { phone },
-    expected: 201,
+    expected: 200,
   });
   return request('/auth/verify-otp', {
     method: 'POST',
     body: { phone, code: challenge.dev_otp },
-    expected: 201,
+    expected: 200,
   });
 }
 
@@ -66,17 +66,47 @@ async function scalar(sql, values = []) {
 }
 
 try {
-  const [adminSession, warehouseSession, agentSession, customerSession] =
+  const [
+    adminSession,
+    operationsSession,
+    warehouseSession,
+    agentSession,
+    customerSession,
+  ] =
     await Promise.all([
       adminLogin('admin', 'Shubayr-Dev-Admin!2026'),
+      adminLogin('operations', 'Shubayr-Dev-Staff!2026'),
       adminLogin('stock', 'Shubayr-Dev-Staff!2026'),
       login('+9647700000005'),
       login('+9647700000006'),
     ]);
   const admin = adminSession.access_token;
+  const operations = operationsSession.access_token;
   const warehouse = warehouseSession.access_token;
   const agent = agentSession.access_token;
   const customerId = customerSession.user.id;
+
+  const agentPage = await request('/admin/delivery-agents?per_page=1', {
+    token: operations,
+  });
+  check(agentPage.data.length, 1, 'delivery-agent picker paginates');
+  check(agentPage.total >= 2, true, 'delivery-agent picker lists active agents');
+  check(
+    Object.keys(agentPage.data[0]).sort(),
+    ['id', 'name', 'phone'],
+    'delivery-agent picker exposes only assignment fields',
+  );
+  const searchedAgents = await request(
+    `/admin/delivery-agents?q=${encodeURIComponent('Delivery B')}`,
+    { token: operations },
+  );
+  check(searchedAgents.total, 1, 'delivery-agent picker searches server-side');
+  check(
+    searchedAgents.data[0].phone,
+    '+9647700000007',
+    'delivery-agent search returns the matching active work phone',
+  );
+  await request('/admin/staff', { token: operations, expected: 403 });
 
   const all = await request('/admin/orders?per_page=100', { token: admin });
   check(
@@ -338,6 +368,111 @@ try {
   const available = (payload) =>
     payload.variants.find((variant) => variant.variant_id === variantId)
       .available_qty;
+
+  const rejectable = all.data.find(
+    (order) => order.order_number === 'DEV-ORDER-9',
+  );
+  await db.query("UPDATE orders SET status='pending' WHERE id=$1", [
+    rejectable.id,
+  ]);
+  await db.query(
+    "UPDATE simple_stock_holds SET status='held', released_at=NULL WHERE order_id=$1",
+    [rejectable.id],
+  );
+  await request(`/admin/orders/${rejectable.id}/reject`, {
+    token: operations,
+    method: 'POST',
+    body: { reason: '   ' },
+    expected: 422,
+  });
+  await request(`/admin/orders/${rejectable.id}/reject`, {
+    token: warehouse,
+    method: 'POST',
+    body: { reason: 'not permitted' },
+    expected: 403,
+  });
+  const rejectedProductId = rejectable.items[0].product_id;
+  const rejectedVariantId = rejectable.items[0].variant_id;
+  const rejectedStockBefore = await request(
+    `/products/${rejectedProductId}/availability`,
+  );
+  const rejected = await request(`/admin/orders/${rejectable.id}/reject`, {
+    token: operations,
+    method: 'POST',
+    body: { reason: 'Item cannot be fulfilled' },
+  });
+  check(rejected.status, 'rejected', 'operations rejects a pending order');
+  check(
+    await scalar(
+      'SELECT status AS value FROM simple_stock_holds WHERE order_id=$1',
+      [rejectable.id],
+    ),
+    'released',
+    'rejection releases the stock hold',
+  );
+  const rejectedStockAfter = await request(
+    `/products/${rejectedProductId}/availability`,
+  );
+  const rejectedAvailability = (payload) =>
+    payload.variants.find(
+      (variant) => variant.variant_id === rejectedVariantId,
+    ).available_qty;
+  check(
+    rejectedAvailability(rejectedStockAfter),
+    rejectedAvailability(rejectedStockBefore) + rejectable.items[0].quantity,
+    'rejection restores available stock',
+  );
+  check(
+    await scalar(
+      'SELECT note AS value FROM order_status_events WHERE order_id=$1 AND status=$2 ORDER BY at DESC LIMIT 1',
+      [rejectable.id, 'rejected'],
+    ),
+    'Item cannot be fulfilled',
+    'rejection reason is retained in the timeline',
+  );
+  check(
+    Number(
+      await scalar(
+        "SELECT count(*)::int AS value FROM audit_logs WHERE action='order.reject' AND entity_id=$1",
+        [rejectable.id],
+      ),
+    ),
+    1,
+    'rejection is audited',
+  );
+  check(
+    Number(
+      await scalar(
+        "SELECT count(*)::int AS value FROM notification_events WHERE type='order_rejected' AND entity_id=$1 AND target_role='customer'",
+        [rejectable.id],
+      ),
+    ),
+    1,
+    'rejection notifies the customer',
+  );
+  check(
+    Number(
+      await scalar(
+        "SELECT count(*)::int AS value FROM notification_events WHERE type='order_rejected' AND entity_id=$1 AND target_role='order_monitor'",
+        [rejectable.id],
+      ),
+    ) >= 1,
+    true,
+    'rejection emits the monitor event',
+  );
+  await request(`/admin/orders/${rejectable.id}/reject`, {
+    token: operations,
+    method: 'POST',
+    body: { reason: 'second rejection' },
+    expected: 409,
+  });
+  await request(`/admin/orders/${rejectable.id}/cancel`, {
+    token: admin,
+    method: 'POST',
+    body: { reason: 'rejection is not cancellation' },
+    expected: 409,
+  });
+
   const stockBefore = await request(`/products/${productId}/availability`);
   const cancelled = await request(`/admin/orders/${cancellable.id}/cancel`, {
     token: admin,

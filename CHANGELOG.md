@@ -1,5 +1,75 @@
 # Changelog
 
+## 7.1.0 - 2026-09-29
+
+### Added
+
+- A permissioned pending-order rejection route with a required reason,
+  reservation release, audit trail, and durable customer/monitor notification.
+- A searchable, paginated active-delivery-agent picker protected only by
+  `orders.assign_agent`.
+
+### Changed
+
+- The API contract is version 7.1.0 and generated web/admin types are refreshed
+  in the same change.
+- API-contract CI now independently gates web and admin type generation and
+  typechecking whenever `api/openapi.yaml` changes.
+
+## 7.0.0 - 2026-09-29
+
+### Added
+
+- Currency administration with IQD as the seeded base currency, dated exchange
+  rates, normalized per-unit quotations, stale-rate warnings, and audited
+  permissioned updates.
+- Concurrency-safe document numbering, idempotent operation replay, drafts,
+  Baghdad accounting-date validation, and protected backdating.
+- An immutable double-entry ledger with a seeded chart of accounts, source-event
+  idempotency, reversals, balances, trial balance, and original-currency detail.
+- Cash and bank account administration, opening balances, same-currency
+  transfers, accounting-period close/reopen workflows, and close snapshots.
+- Audited financial settings for business hours, closed days, and protection
+  thresholds, plus full OpenAPI and acceptance coverage for the financial core.
+
+### Changed
+
+- Monetary storage now records explicit currency codes and uses exact
+  `DECIMAL(20,6)` persistence; development catalog prices are realistic IQD
+  amounts.
+- The API contract is version 7.0.0 and documents the financial administration
+  endpoints and currency-bearing commerce responses.
+
+## 6.2.0 - 2026-09-28
+
+### Added
+
+- Trusted-proxy client IP resolution shared by rate limits and audit logging.
+- Permissioned, filtered, paginated audit-log reads for the Web Admin.
+- Server-side search, filters, sorting, and pagination for staff, permission
+  presets, and work-phone access lists while retaining no-query v6.1 array
+  responses and matching the Web Admin table URL contract.
+- OpenAPI response status and schema validation across the acceptance suite.
+
+### Fixed
+
+- Work-phone list rows now expose the documented top-level `phone` field.
+- OTP request, OTP verification, and token refresh return their documented
+  HTTP 200 status codes.
+- Product image responses no longer leak the undocumented `product_id` field.
+- Product variant responses now document nullable `attributes` as emitted for
+  variants without attribute metadata.
+- The protected category-create operation now documents its reachable 401 response.
+- Category updates now document their reachable 422 validation response.
+- Customer shopping operations now document the work-account 403 response.
+- Wishlist creation now documents its reachable 422 validation response.
+- Cart item creation now documents its reachable 422 validation response.
+- Customer and admin order conflict responses now declare the standard JSON
+  error schema.
+- Return request, inspection, and completion operations now document their
+  reachable not-found and conflict responses.
+- Return items now allow the nullable pre-inspection `condition` emitted by the API.
+
 ## 6.1.0 - 2026-09-28
 
 ### Added

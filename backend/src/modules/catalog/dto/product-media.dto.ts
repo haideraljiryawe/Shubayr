@@ -4,7 +4,6 @@ import {
   IsArray,
   IsIn,
   IsInt,
-  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -42,7 +41,7 @@ export class ProductVariantInputDto {
   attributes?: Record<string, unknown>;
 
   @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsInt()
   price_delta?: number;
 }
 

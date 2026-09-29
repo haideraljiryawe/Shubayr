@@ -1,10 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Bell, LogIn, ShoppingCart } from "lucide-react";
+import { LogIn, ShoppingCart } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { IconButton } from "@/components/ui/icon-button";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
@@ -14,7 +13,9 @@ import { DesktopNav } from "./desktop-nav";
 import { LocaleSwitcher } from "./locale-switcher";
 import { LocationSelector } from "./location-selector";
 import { Logo } from "./logo";
+import { NotificationBell } from "./notification-bell";
 import { SearchForm } from "./search-form";
+import { WorkNav } from "./work-nav";
 
 /**
  * Responsive adaptation of the mockup header. On mobile the search drops to its
@@ -54,12 +55,13 @@ export function Header() {
           )}
 
           <div className="ms-auto flex shrink-0 items-center gap-1">
+            {workRole ? <WorkNav role={workRole} /> : null}
+
+            {/* Every signed-in role has an inbox, work accounts included. */}
+            {isAuthenticated ? <NotificationBell /> : null}
+
             {workRole ? null : (
               <>
-                <IconButton label={t("notifications")} variant="ghost">
-                  <Bell className="size-5" aria-hidden />
-                </IconButton>
-
                 <span className="relative inline-flex">
                   <Link
                     href="/cart"

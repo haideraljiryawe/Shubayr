@@ -26,6 +26,7 @@ const environment = {
   ...process.env,
   DATABASE_URL: testUrl.toString(),
   APP_ENV: 'development',
+  TRUSTED_PROXIES: process.env.TRUSTED_PROXIES ?? '127.0.0.1/32',
 };
 const node = process.execPath;
 const prisma = 'node_modules/prisma/build/index.js';
@@ -104,9 +105,13 @@ try {
     ...environment,
     ACCEPTANCE_API_URL: apiUrl,
     ACCEPTANCE_DATABASE_NAME: name,
+    NODE_OPTIONS:
+      `${process.env.NODE_OPTIONS ?? ''} --import=./test/openapi-response-validator.mjs`.trim(),
   };
+  await run('test/financial-core.acceptance.mjs', [], acceptanceEnv);
   await run('test/real-data.acceptance.mjs', [], acceptanceEnv);
   await run('test/access-model.acceptance.mjs', [], acceptanceEnv);
+  await run('test/backend-followups.acceptance.mjs', [], acceptanceEnv);
   await run('test/wishlist.acceptance.mjs', [], acceptanceEnv);
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
   await run('test/admin-orders.acceptance.mjs', [], acceptanceEnv);

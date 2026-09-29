@@ -43,12 +43,12 @@ async function request(
 async function otpLogin(phone, extra = {}) {
   const challenge = await request('/auth/request-otp', {
     method: 'POST',
-    expected: 201,
+    expected: 200,
     body: { phone },
   });
   return request('/auth/verify-otp', {
     method: 'POST',
-    expected: 201,
+    expected: 200,
     body: { phone, code: challenge.dev_otp, client: 'mobile', ...extra },
   });
 }
@@ -69,7 +69,7 @@ check(
 );
 const refreshedAdmin = await request('/auth/refresh', {
   method: 'POST',
-  expected: 201,
+  expected: 200,
   body: { refresh_token: adminSession.refresh_token },
 });
 const admin = refreshedAdmin.access_token;
@@ -86,7 +86,7 @@ check(
 );
 const refreshedApp = await request('/auth/refresh', {
   method: 'POST',
-  expected: 201,
+  expected: 200,
   body: { refresh_token: adminApp.refresh_token },
 });
 const forged = await request('/admin/staff', {
@@ -109,7 +109,7 @@ await request('/auth/refresh', {
 const rolePhone = '+9647700888801';
 const roleChallenge = await request('/auth/request-otp', {
   method: 'POST',
-  expected: 201,
+  expected: 200,
   body: { phone: rolePhone },
 });
 await request('/auth/verify-otp', {

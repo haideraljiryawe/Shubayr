@@ -17,6 +17,7 @@ import {
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { DeliveriesService } from './deliveries.service';
 import { AssignedDeliveriesQueryDto } from './dto/assigned-deliveries-query.dto';
+import { DeliveryAgentsQueryDto } from './dto/delivery-agents-query.dto';
 import {
   AssignDeliveryDto,
   CreateDeliveryRatingDto,
@@ -72,5 +73,16 @@ export class DeliveriesController {
     @Body() input: CreateDeliveryRatingDto,
   ) {
     return this.deliveries.rate(request.user.id, request.user.role!, id, input);
+  }
+}
+
+@Controller('admin/delivery-agents')
+export class DeliveryAgentsController {
+  constructor(private readonly deliveries: DeliveriesService) {}
+
+  @Get()
+  @AdminPolicy('orders.assign_agent')
+  list(@Query() query: DeliveryAgentsQueryDto) {
+    return this.deliveries.listAgents(query);
   }
 }

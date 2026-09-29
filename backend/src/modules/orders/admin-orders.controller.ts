@@ -19,6 +19,7 @@ import type { AuthenticatedRequestUser } from '../../common/guards/permissions.g
 import {
   AdminOrderQueryDto,
   CancelOrderDto,
+  RejectOrderDto,
   UpdateOrderStatusDto,
 } from './dto/order.dto';
 import { OrdersService } from './orders.service';
@@ -74,5 +75,16 @@ export class AdminOrdersController {
     @Body() input: CancelOrderDto,
   ) {
     return this.orders.cancelAdmin(request.user.id, id, input);
+  }
+
+  @Post(':id/reject')
+  @AdminPolicy('orders.reject')
+  @HttpCode(200)
+  reject(
+    @Req() request: StaffRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: RejectOrderDto,
+  ) {
+    return this.orders.rejectAdmin(request.user.id, id, input);
   }
 }

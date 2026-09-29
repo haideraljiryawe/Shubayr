@@ -518,6 +518,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
@@ -547,6 +548,7 @@ export interface paths {
                         "application/json": components["schemas"]["Address"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -903,6 +905,7 @@ export interface paths {
                         "application/json": components["schemas"]["Cart"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
@@ -951,6 +954,8 @@ export interface paths {
                         "application/json": components["schemas"]["Cart"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -1091,6 +1096,7 @@ export interface paths {
                         "application/json": components["schemas"]["WishlistPage"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
@@ -1120,6 +1126,8 @@ export interface paths {
                         "application/json": components["schemas"]["WishlistItem"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -1282,6 +1290,7 @@ export interface paths {
                         "application/json": components["schemas"]["Order"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 /** @description Cart empty, item unavailable, coupon invalid, or idempotency conflict */
                 409: {
                     headers: {
@@ -1411,13 +1420,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Status does not allow cancellation */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
+                409: components["responses"]["Conflict"];
             };
         };
         delete?: never;
@@ -1474,13 +1477,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Invalid status transition */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -1596,6 +1593,7 @@ export interface paths {
                         "application/json": components["schemas"]["Review"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
                 409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
@@ -1858,6 +1856,7 @@ export interface paths {
                         "application/json": components["schemas"]["LoyaltyAccount"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
@@ -1903,6 +1902,7 @@ export interface paths {
                         "application/json": components["schemas"]["LoyaltyRedemption"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
@@ -2595,6 +2595,9 @@ export interface paths {
                         "application/json": components["schemas"]["Return"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -2694,6 +2697,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -2738,6 +2742,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
             };
         };
         delete?: never;
@@ -3546,6 +3551,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/delivery-agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active delivery agents available for assignment
+         * @description Server-side search and pagination for staff assigning deliveries; users.manage is not required.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description case-insensitive name or phone search */
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated active delivery agents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryAgentPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/orders/{id}": {
         parameters: {
             query?: never;
@@ -3634,13 +3685,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Illegal transition or dispatch handoff is incomplete */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -3687,13 +3732,58 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Order is not cancellable */
-                409: {
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/orders/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a pending order and release its stock holds
+         * @description Rejection is distinct from cancellation and is allowed only while the order is pending. A non-empty reason is stored in the timeline and audit trail; the reservation is released and customer and order monitors receive a durable notification.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Rejected order detail */
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["AdminOrder"];
+                    };
                 };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -3938,6 +4028,7 @@ export interface paths {
                         "application/json": components["schemas"]["Category"];
                     };
                 };
+                401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 422: components["responses"]["Validation"];
             };
@@ -4017,6 +4108,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
             };
         };
         trace?: never;
@@ -4188,7 +4280,16 @@ export interface paths {
         /** List staff accounts and their preset/extra grants */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    q?: components["parameters"]["Search"];
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    status?: "active" | "inactive" | "must_change";
+                    preset?: string;
+                    permission_key?: string;
+                    sort?: "name" | "username" | "created_at";
+                    dir?: "asc" | "desc";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -4201,7 +4302,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StaffUser"][];
+                        "application/json": components["schemas"]["StaffUserListResponse"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -4393,7 +4494,15 @@ export interface paths {
         /** List permission presets */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    q?: components["parameters"]["Search"];
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    kind?: "system" | "custom";
+                    permission_key?: string;
+                    sort?: "name" | "permissions";
+                    dir?: "asc" | "desc";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -4406,7 +4515,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PermissionPreset"][];
+                        "application/json": components["schemas"]["PermissionPresetListResponse"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -4561,7 +4670,15 @@ export interface paths {
         /** List pre-registered work phones */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    q?: components["parameters"]["Search"];
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    role?: "delivery_agent" | "order_monitor";
+                    status?: "active" | "revoked";
+                    sort?: "name" | "phone" | "role";
+                    dir?: "asc" | "desc";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -4574,7 +4691,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["WorkPhone"][];
+                        "application/json": components["schemas"]["WorkPhoneListResponse"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -4660,6 +4777,1080 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List audit records newest first
+         * @description Results use creation time descending with ID descending as a stable tiebreak.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Actor UUID, username, or name search. */
+                    actor?: string;
+                    action?: string;
+                    entity_type?: string;
+                    entity_id?: string;
+                    from?: string;
+                    to?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated audit records */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuditLogList"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/currencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List configured currencies */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Currencies */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Currency"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/currencies/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Enable a currency or select the base before the first movement */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        enabled?: boolean;
+                        is_base?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated currency */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Currency"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/exchange-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List exchange-rate history newest first */
+        get: {
+            parameters: {
+                query?: {
+                    currency_code?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Rates */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExchangeRate"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /**
+         * Record an effective exchange rate
+         * @description Input is `1 foreign = X base`; basis 100 is normalized to basis 1 before storage.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExchangeRateInput"];
+                };
+            };
+            responses: {
+                /** @description Recorded rate */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExchangeRate"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/exchange-rates/{code}/applicable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve the latest rate effective at a date */
+        get: {
+            parameters: {
+                query: {
+                    at: string;
+                };
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Applicable rate with stale-today warning */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExchangeRate"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/operations/{operationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the caller's idempotent operation outcome */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    operationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Operation outcome */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OperationOutcome"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the caller's financial document drafts */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Drafts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DocumentDraft"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/drafts/{documentType}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentType: string;
+            };
+            cookie?: never;
+        };
+        /** Get the caller's draft */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    documentType: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Draft */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DocumentDraft"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        /** Save the caller's draft without financial effect */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    documentType: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        payload: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Saved draft */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DocumentDraft"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        post?: never;
+        /** Discard the caller's draft */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    documentType: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Draft discarded */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ledger/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List immutable journal entries */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    account_code?: string;
+                    source_type?: string;
+                    source_id?: string;
+                    from?: string;
+                    to?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Journal page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["JournalEntryPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ledger/entries/{id}/reversal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post the one allowed reversal for an immutable entry */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AuditReason"];
+                };
+            };
+            responses: {
+                /** @description Reversal entry */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["JournalEntry"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ledger/trial-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get trial balance */
+        get: {
+            parameters: {
+                query?: {
+                    as_of?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Trial balance */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TrialBalance"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ledger/accounts/{code}/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a ledger account balance */
+        get: {
+            parameters: {
+                query?: {
+                    as_of?: string;
+                };
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Account balance */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cash-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List cash and bank accounts with ledger-derived balances */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Accounts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashAccount"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Create a cash or bank account */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CashAccountInput"];
+                };
+            };
+            responses: {
+                /** @description Created account */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashAccount"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cash-accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a cash or bank account with its ledger-derived balance */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Cash account */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashAccount"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Delete an unused cash account; accounts with movements must be disabled */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Unused account deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Rename or activate a cash account */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        is_active?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated account */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashAccount"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/cash-accounts/{id}/opening-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post a cash account opening-balance document */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OpeningBalanceInput"];
+                };
+            };
+            responses: {
+                /** @description Posted opening balance */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FinancialDocument"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cash-transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post a numbered same-currency transfer */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CashTransferInput"];
+                };
+            };
+            responses: {
+                /** @description Posted transfer */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FinancialDocument"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/accounting-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List accounting periods and close history */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Periods */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingPeriod"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/accounting-periods/{month}/checklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run the close checklist */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    month: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Checklist */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PeriodChecklist"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/accounting-periods/{month}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close a period and save a sequenced trial-balance snapshot */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    month: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        reason?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Period close */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/accounting-periods/{month}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reopen a closed period with a mandatory reason */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    month: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AuditReason"];
+                };
+            };
+            responses: {
+                /** @description Reopened period */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingPeriod"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read all audited operational and financial settings */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Settings */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminFinancialSettings"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        /** Update operational and financial settings atomically */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminFinancialSettingsPatch"];
+                };
+            };
+            responses: {
+                /** @description Updated settings */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminFinancialSettings"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4681,7 +5872,7 @@ export interface components {
             /** @example quantity must not be less than 1 */
             message: string;
         };
-        /** @description Decimal money amount with at most two fractional digits; rounded half away from zero at money boundaries. */
+        /** @description Decimal money amount displayed at the associated currency precision (IQD 0, USD 2). */
         Money: number;
         MediaObject: {
             /** Format: uuid */
@@ -4874,8 +6065,9 @@ export interface components {
             name_en?: string;
             name_ar?: string;
             description?: string | null;
-            /** @description Regular selling price. */
+            /** @description Regular selling price in whole IQD. */
             price?: components["schemas"]["Money"];
+            currency?: string;
             /**
              * @description Discount kind, or null when the product has no discount defined.
              * @enum {string|null}
@@ -4895,14 +6087,14 @@ export interface components {
             discount_ends_at?: string | null;
             /** @description Computed: true when discount_type is set AND now() falls inside [discount_starts_at, discount_ends_at], treating null bounds as open. */
             readonly on_sale?: boolean;
-            /** @description Computed in integer minor units when on_sale is true and rounded half away from zero; null when on_sale is false. */
+            /** @description Computed in whole IQD when on_sale is true and rounded half away from zero; null when on_sale is false. */
             readonly discounted_price?: number | null;
             /** @description The price the customer pays. Cart and order pricing use this exact value. */
             readonly effective_price?: components["schemas"]["Money"];
             /** @description Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false. */
             readonly discount_percent?: number | null;
             is_negotiable?: boolean;
-            /** @description Negotiation floor, at most the regular price. */
+            /** @description Negotiation floor in whole IQD, at most the regular price. */
             floor_price?: number | null;
             /** @description Persisted points cost for future negotiation UI; no customer negotiation endpoint yet. */
             points_price?: number | null;
@@ -4941,7 +6133,7 @@ export interface components {
             /** @description Required non-whitespace Arabic name. */
             name_ar: string;
             description?: string | null;
-            /** @description Regular selling price. */
+            /** @description Regular selling price in whole IQD. */
             price: components["schemas"]["Money"];
             /**
              * @description Null (the default) means no discount and clears any discount already stored.
@@ -4966,7 +6158,7 @@ export interface components {
              * @default false
              */
             is_negotiable: boolean;
-            /** @description Must not exceed price. */
+            /** @description Whole-IQD value that must not exceed price. */
             floor_price?: number | null;
             /** @description Data-only points cost; negotiation UI is deferred. */
             points_price?: number | null;
@@ -5009,7 +6201,7 @@ export interface components {
             /** Format: date-time */
             discount_ends_at?: string | null;
             is_negotiable?: boolean;
-            /** @description Must not exceed the merged regular price. */
+            /** @description Whole-IQD value that must not exceed the merged regular price. */
             floor_price?: number | null;
             points_price?: number | null;
             tracks_expiry?: boolean;
@@ -5138,8 +6330,9 @@ export interface components {
             sku?: string;
             attributes?: {
                 [key: string]: unknown;
-            };
+            } | null;
             price_delta?: number;
+            currency?: string;
         };
         /** @description Computed availability (on-hand minus active batch reservations and temporary COD holds) per product & variant. */
         ProductAvailability: {
@@ -5163,6 +6356,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             coupon_code: string | null;
+            currency: string;
             items: {
                 /** Format: uuid */
                 id: string;
@@ -5174,6 +6368,7 @@ export interface components {
                 /** @description Current server-time effective_price plus the selected variant's price_delta, floored at zero. */
                 unit_price: components["schemas"]["Money"];
                 line_total: components["schemas"]["Money"];
+                currency: string;
                 /** @description False when the product is hidden/inactive or available_qty is below quantity. Checkout rejects unavailable lines. */
                 available: boolean;
                 available_qty: number;
@@ -5197,16 +6392,17 @@ export interface components {
             data: components["schemas"]["WishlistItem"][];
         };
         Coupon: {
-            code?: string;
+            code: string;
             /** @enum {string} */
-            type?: "percentage" | "fixed";
-            value?: number;
+            type: "percentage" | "fixed";
+            value: number;
+            currency: string;
         };
         /**
          * @description Canonical order lifecycle status (matches orders.status in schema.sql).
          * @enum {string}
          */
-        OrderStatus: "pending" | "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched" | "delivered" | "failed" | "cancelled" | "return_requested" | "returned";
+        OrderStatus: "pending" | "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched" | "delivered" | "failed" | "rejected" | "cancelled" | "return_requested" | "returned";
         OrderItem: {
             /**
              * Format: uuid
@@ -5230,6 +6426,7 @@ export interface components {
             /** @description The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order. */
             unit_price?: components["schemas"]["Money"];
             line_total?: components["schemas"]["Money"];
+            currency?: string;
             /** @description True when the caller already has a product review for this order item. */
             readonly reviewed?: boolean;
         };
@@ -5254,6 +6451,7 @@ export interface components {
             delivery_fee?: components["schemas"]["Money"];
             discount?: components["schemas"]["Money"];
             total?: components["schemas"]["Money"];
+            currency?: string;
             /** @description Immutable checkout snapshot. */
             delivery_contact_phone?: string;
             /** @description Immutable checkout snapshot. */
@@ -5340,6 +6538,15 @@ export interface components {
         };
         AdminOrderPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["AdminOrder"][];
+        };
+        DeliveryAgent: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            phone: string;
+        };
+        DeliveryAgentPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["DeliveryAgent"][];
         };
         MonitorOrderListItem: {
             /** Format: uuid */
@@ -5656,6 +6863,7 @@ export interface components {
             customer_reason?: string;
             /** @description Immutable order-line unit price. */
             unit_price?: components["schemas"]["Money"];
+            currency?: string;
             expected_refund?: components["schemas"]["Money"];
             approved_refund?: components["schemas"]["Money"];
             /** @enum {string|null} */
@@ -5678,6 +6886,7 @@ export interface components {
             reason?: string | null;
             expected_refund?: components["schemas"]["Money"];
             refund_amount?: components["schemas"]["Money"];
+            currency?: string;
             /** Format: uuid */
             reviewed_by?: string | null;
             /** Format: date-time */
@@ -5698,6 +6907,7 @@ export interface components {
             /** Format: uuid */
             return_id?: string;
             amount?: components["schemas"]["Money"];
+            currency?: string;
             /** @enum {string} */
             status?: "obligation";
             reason?: string;
@@ -5719,6 +6929,7 @@ export interface components {
             /** @enum {string} */
             status?: "assigned" | "out_for_delivery" | "delivered" | "failed" | "returned";
             delivery_fee?: number;
+            currency?: string;
             /** Format: date-time */
             dispatched_at?: string | null;
             /** Format: date-time */
@@ -5753,7 +6964,7 @@ export interface components {
         };
         NotificationPreferenceEntry: {
             /** @enum {string} */
-            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "delivery_assigned";
+            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "order_rejected" | "delivery_assigned";
             /** @enum {string} */
             channel: "push" | "sms";
             enabled: boolean;
@@ -5807,6 +7018,11 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        StaffUserList: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["StaffUser"][];
+        };
+        /** @description A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope. */
+        StaffUserListResponse: components["schemas"]["StaffUser"][] | components["schemas"]["StaffUserList"];
         StaffCreate: components["schemas"]["AuditReason"] & {
             username: string;
             name: string;
@@ -5844,16 +7060,52 @@ export interface components {
             description?: string | null;
             permission_keys?: string[];
         };
+        PermissionPresetList: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["PermissionPreset"][];
+        };
+        /** @description A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope. */
+        PermissionPresetListResponse: components["schemas"]["PermissionPreset"][] | components["schemas"]["PermissionPresetList"];
         WorkPhone: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
             user_id: string;
-            phone?: string;
+            phone: string;
             name: string;
             /** @enum {string} */
             app_role: "delivery_agent" | "order_monitor";
             is_active: boolean;
+        };
+        WorkPhoneList: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["WorkPhone"][];
+        };
+        /** @description A bare array is retained for v6.1 clients when no query parameters are sent; queried calls use the standard list envelope. */
+        WorkPhoneListResponse: components["schemas"]["WorkPhone"][] | components["schemas"]["WorkPhoneList"];
+        AuditActor: {
+            /** Format: uuid */
+            id: string;
+            username: string | null;
+            name: string | null;
+        };
+        AuditLog: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            actor_id: string | null;
+            actor: components["schemas"]["AuditActor"] | null;
+            action: string;
+            entity_type: string;
+            /** Format: uuid */
+            entity_id: string | null;
+            before: Record<string, never> | unknown[] | string | number | boolean | null;
+            after: Record<string, never> | unknown[] | string | number | boolean | null;
+            ip: string | null;
+            reason: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AuditLogList: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["AuditLog"][];
         };
         WorkPhoneInput: components["schemas"]["AuditReason"] & {
             phone: string;
@@ -5921,6 +7173,225 @@ export interface components {
             /** @example IQD */
             currency?: string;
         };
+        ExactDecimal: string | number;
+        Currency: {
+            code: string;
+            name_ar: string;
+            name_en: string;
+            symbol: string;
+            display_precision: number;
+            is_base: boolean;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ExchangeRateInput: {
+            currency_code: string;
+            rate: string;
+            /** @enum {integer} */
+            basis: 1 | 100;
+            /** Format: date-time */
+            effective_at: string;
+            reason: string;
+        };
+        ExchangeRate: {
+            /** Format: uuid */
+            id?: string;
+            currency_code?: string;
+            base_currency_code?: string;
+            rate?: components["schemas"]["ExactDecimal"];
+            /** Format: date-time */
+            effective_at?: string | null;
+            /** Format: uuid */
+            set_by?: string;
+            reason?: string;
+            /** Format: date-time */
+            created_at?: string;
+            direction?: string;
+            not_from_today?: boolean;
+        };
+        OperationOutcome: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            user_id: string;
+            operation_id: string;
+            endpoint: string;
+            payload_hash: string;
+            /** @enum {string} */
+            status: "processing" | "completed";
+            response_status: number | null;
+            response: unknown;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+        };
+        DocumentDraft: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            user_id: string;
+            document_type: string;
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        JournalEntry: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            source_type: string;
+            /** Format: uuid */
+            source_id: string;
+            event: string;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            description?: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            posted_at: string;
+            /** Format: uuid */
+            reverses_id?: string | null;
+            lines: ({
+                debit_base: components["schemas"]["ExactDecimal"];
+                credit_base: components["schemas"]["ExactDecimal"];
+                currency_code: string;
+                original_amount: components["schemas"]["ExactDecimal"];
+                exchange_rate: components["schemas"]["ExactDecimal"];
+            } & {
+                [key: string]: unknown;
+            })[];
+        };
+        JournalEntryPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["JournalEntry"][];
+        };
+        TrialBalance: {
+            /** Format: date */
+            as_of: string | null;
+            currency_code: string;
+            debit_total: components["schemas"]["ExactDecimal"];
+            credit_total: components["schemas"]["ExactDecimal"];
+            balanced: boolean;
+            data: {
+                [key: string]: unknown;
+            }[];
+        };
+        CashAccountInput: {
+            name: string;
+            /** @enum {string} */
+            kind: "cash" | "bank";
+            currency_code: string;
+        };
+        CashAccount: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "cash" | "bank";
+            currency_code: string;
+            /** Format: uuid */
+            ledger_account_id: string;
+            is_active: boolean;
+            balance: components["schemas"]["ExactDecimal"];
+            base_balance: components["schemas"]["ExactDecimal"];
+            base_currency_code: string;
+        };
+        FinancialDocumentInput: {
+            operation_id: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+        };
+        OpeningBalanceInput: components["schemas"]["FinancialDocumentInput"] & {
+            amount: string;
+        };
+        CashTransferInput: components["schemas"]["FinancialDocumentInput"] & {
+            /** Format: uuid */
+            from_account_id: string;
+            /** Format: uuid */
+            to_account_id: string;
+            amount: string;
+            reason: string;
+        };
+        FinancialDocument: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            amount?: components["schemas"]["ExactDecimal"];
+            currency_code: string;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            journal_entry_id: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AccountingPeriod: {
+            /** Format: date-time */
+            month: string;
+            /** @enum {string} */
+            status: "open" | "closed";
+            /** Format: date-time */
+            closed_at?: string | null;
+            /** Format: uuid */
+            closed_by?: string | null;
+            /** Format: date-time */
+            reopened_at?: string | null;
+            /** Format: uuid */
+            reopened_by?: string | null;
+            reopen_reason?: string | null;
+        };
+        PeriodChecklist: {
+            month: string;
+            can_close: boolean;
+            checks: {
+                [key: string]: unknown;
+            }[];
+        };
+        AdminFinancialSettings: {
+            settings: {
+                [key: string]: string | null;
+            };
+            business_hours: {
+                [key: string]: unknown;
+            }[];
+            closed_days: {
+                [key: string]: unknown;
+            }[];
+            protection_thresholds: {
+                [key: string]: unknown;
+            };
+        };
+        AdminFinancialSettingsPatch: {
+            settings?: {
+                [key: string]: string | null;
+            };
+            business_hours?: {
+                [key: string]: unknown;
+            }[];
+            closed_days?: {
+                [key: string]: unknown;
+            }[];
+            protection_thresholds?: {
+                [key: string]: number;
+            };
+        };
     };
     responses: {
         /** @description Missing/invalid token (`UNAUTHORIZED`) */
@@ -5982,6 +7453,7 @@ export interface components {
         PathId: string;
         Page: number;
         PerPage: number;
+        Search: string;
         Reason: string;
     };
     requestBodies: never;

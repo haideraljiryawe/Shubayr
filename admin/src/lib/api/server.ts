@@ -28,6 +28,11 @@ export async function serverApi() {
 
 export type Loaded<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
+/** Normalize list endpoints that preserve their legacy array response. */
+export function listRows<T>(value: T[] | { data: T[] }): T[] {
+  return Array.isArray(value) ? value : value.data;
+}
+
 /**
  * Await an openapi-fetch call and sort the outcome for a page.
  *

@@ -13,6 +13,7 @@ import {
   AdminAuthController,
   AuthController,
 } from '../../modules/auth/auth.controller';
+import { AuditController } from '../../modules/audit/audit.controller';
 import { MeController } from '../../modules/auth/me.controller';
 import {
   AdminBannersController,
@@ -58,6 +59,7 @@ import {
 } from './permissions.guard';
 
 const controllers: Type[] = [
+  AuditController,
   AuthController,
   AdminAuthController,
   MeController,

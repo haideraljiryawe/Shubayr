@@ -32,9 +32,13 @@ describe("visibleNav", () => {
       "staff",
       "workPhones",
     ]);
-    expect(visibleNav(["users.manage", "roles.manage"])).toHaveLength(
-      NAV_ITEMS.length,
-    );
+    expect(visibleNav(["orders.view"]).map((item) => item.key)).toEqual([
+      "dashboard",
+      "orders",
+    ]);
+    expect(
+      visibleNav(["users.manage", "roles.manage", "orders.view"]),
+    ).toHaveLength(NAV_ITEMS.length);
   });
 
   it("marks nested routes active, and the dashboard only at the root", () => {

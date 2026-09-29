@@ -180,3 +180,78 @@ export async function signIn(
   // The redirect is what tells us the session is actually established.
   await page.waitForURL((url) => !url.pathname.includes("/login"));
 }
+
+/* ------------------------------------------------------ minting orders */
+
+/** Stock sits on the variant; the variantless SKU is seeded at zero. */
+const EARBUDS = "40000000-0000-4000-8000-000000000001";
+const EARBUDS_VARIANT = "50000000-0000-4000-8000-000000000001";
+const SEEDED_ADDRESS = "10000000-0000-4000-8000-000000000001";
+
+export interface PlacedOrder {
+  id: string;
+  order_number: string;
+  delivery_id: string;
+}
+
+/**
+ * Place a fresh COD order as the seeded customer. A new order notifies every
+ * active order monitor (`new_order`), which is what the inbox specs lean on.
+ */
+export async function placeOrder(request: APIRequestContext): Promise<PlacedOrder> {
+  const customer = await customerToken(request);
+  const cart = await (
+    await request.get(`${API}/cart`, { headers: bearer(customer) })
+  ).json();
+  for (const item of cart.items ?? []) {
+    await request.delete(`${API}/cart/items/${item.id}`, {
+      headers: bearer(customer),
+    });
+  }
+  await request.post(`${API}/cart/items`, {
+    headers: bearer(customer),
+    data: { product_id: EARBUDS, variant_id: EARBUDS_VARIANT, quantity: 1 },
+  });
+  const placed = await request.post(`${API}/orders`, {
+    headers: {
+      ...bearer(customer),
+      "Idempotency-Key": `live-work-${Date.now()}-${Math.random()}`,
+    },
+    data: { address_id: SEEDED_ADDRESS, payment_method: "cod" },
+  });
+  expect(placed.ok(), await placed.text()).toBe(true);
+  return (await placed.json()) as PlacedOrder;
+}
+
+/** Walk an order through staff transitions, in order. */
+export async function advanceOrder(
+  request: APIRequestContext,
+  orderId: string,
+  statuses: string[],
+): Promise<void> {
+  const admin = await staffToken(request);
+  for (const status of statuses) {
+    const moved = await request.patch(`${API}/admin/orders/${orderId}/status`, {
+      headers: bearer(admin),
+      data: { status },
+    });
+    expect(moved.ok(), `${status}: ${await moved.text()}`).toBe(true);
+  }
+}
+
+/** Assign a delivery to the seeded delivery agent. */
+export async function assignToAgent(
+  request: APIRequestContext,
+  deliveryId: string,
+): Promise<void> {
+  const admin = await staffToken(request);
+  const agent = await tokenFor(request, AGENT_E164);
+  const me = await (
+    await request.get(`${API}/me`, { headers: bearer(agent) })
+  ).json();
+  const assigned = await request.patch(`${API}/deliveries/${deliveryId}/assign`, {
+    headers: bearer(admin),
+    data: { agent_id: me.id },
+  });
+  expect(assigned.ok(), await assigned.text()).toBe(true);
+}

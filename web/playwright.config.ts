@@ -14,6 +14,9 @@ process.env.NEXT_PUBLIC_USE_MOCKS ??= "true";
 
 const errors = process.env.CATALOG_ERROR_TESTS === "true";
 const streaming = process.env.CATALOG_STREAMING_TESTS === "true";
+// The work pages and the inbox, driven fully "live" against the scripted API
+// in tests/fake-api.ts: `WORK_TESTS=true npx playwright test`.
+const work = process.env.WORK_TESTS === "true";
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
 const apiPort = Number(process.env.PLAYWRIGHT_API_PORT ?? 3101);
 export default defineConfig({
@@ -22,7 +25,9 @@ export default defineConfig({
     ? "**/catalog-errors.spec.ts"
     : streaming
       ? "**/catalog-streaming.spec.ts"
-      : [
+      : work
+        ? ["**/work-pages.spec.ts", "**/inbox.spec.ts"]
+        : [
           "**/catalog.spec.ts",
           "**/catalog-data.spec.ts",
           "**/product.spec.ts",
@@ -50,10 +55,12 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120000,
     env: {
-      NEXT_PUBLIC_USE_MOCKS: errors || streaming ? "false" : "true",
-      NEXT_PUBLIC_API_URL: streaming
-        ? `http://127.0.0.1:${apiPort}/api/v1`
-        : "http://127.0.0.1:1/api/v1",
+      NEXT_PUBLIC_USE_MOCKS: errors || streaming || work ? "false" : "true",
+      ...(work ? { NEXT_PUBLIC_LIVE_DOMAINS: "all" } : {}),
+      NEXT_PUBLIC_API_URL:
+        streaming || work
+          ? `http://127.0.0.1:${apiPort}/api/v1`
+          : "http://127.0.0.1:1/api/v1",
     },
   },
 });

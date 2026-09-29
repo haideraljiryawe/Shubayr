@@ -537,6 +537,7 @@ async function main(): Promise<void> {
     for (const [nameEn, nameAr, price, childIndex] of department.products) {
       const number = productNumber++;
       const productId = seedId(4, number);
+      const iqdPrice = Math.round(price * 1000);
       const discount =
         number === 1
           ? {
@@ -563,10 +564,11 @@ async function main(): Promise<void> {
         name_en: nameEn,
         name_ar: nameAr,
         description: `${nameEn} from the seeded Shubayr development catalog.`,
-        price,
+        price: iqdPrice,
+        currency_code: 'IQD',
         ...discount,
         is_negotiable: number === 3,
-        floor_price: number === 3 ? Math.round(price * 80) / 100 : null,
+        floor_price: number === 3 ? Math.round(iqdPrice * 0.8) : null,
         points_price: number === 3 ? 250 : null,
         status: 'active',
         tracks_expiry: department.slug === 'grocery',
@@ -609,14 +611,16 @@ async function main(): Promise<void> {
           update: {
             product_id: productId,
             attributes: { option: variantIndex === 0 ? 'standard' : 'plus' },
-            price_delta: variantIndex === 0 ? 0 : 3,
+            price_delta: variantIndex === 0 ? 0 : 3000,
+            currency_code: 'IQD',
           },
           create: {
             id: variantId,
             product_id: productId,
             sku,
             attributes: { option: variantIndex === 0 ? 'standard' : 'plus' },
-            price_delta: variantIndex === 0 ? 0 : 3,
+            price_delta: variantIndex === 0 ? 0 : 3000,
+            currency_code: 'IQD',
           },
         });
         const batchId = seedId(7, variantNumber);
@@ -626,7 +630,8 @@ async function main(): Promise<void> {
             product_id: productId,
             variant_id: variant.id,
             lot_number: `SEED-${number}`,
-            purchase_cost: Math.max(1, Math.round(price * 60) / 100),
+            purchase_cost: Math.max(1, Math.round(iqdPrice * 0.6)),
+            currency_code: 'IQD',
             qty_received: 100,
           },
           create: {
@@ -634,7 +639,8 @@ async function main(): Promise<void> {
             product_id: productId,
             variant_id: variant.id,
             lot_number: `SEED-${number}`,
-            purchase_cost: Math.max(1, Math.round(price * 60) / 100),
+            purchase_cost: Math.max(1, Math.round(iqdPrice * 0.6)),
+            currency_code: 'IQD',
             qty_received: 100,
           },
         });

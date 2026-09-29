@@ -34,10 +34,10 @@ async function request(path, { token, method = 'GET', body, expected = 200 } = {
 
 async function login(phone) {
   const challenge = await request('/auth/request-otp', {
-    method: 'POST', expected: 201, body: { phone },
+    method: 'POST', expected: 200, body: { phone },
   });
   return (await request('/auth/verify-otp', {
-    method: 'POST', expected: 201, body: { phone, code: challenge.dev_otp },
+    method: 'POST', expected: 200, body: { phone, code: challenge.dev_otp },
   })).access_token;
 }
 
@@ -112,7 +112,7 @@ try {
     ({ product_id }) => product_id === discountedProductId,
   );
   check(discounted.product.on_sale, true, 'list computes the active sale server-side');
-  check(discounted.product.effective_price, 10.08, 'list applies the active discount');
+  check(discounted.product.effective_price, 10075, 'list applies the active IQD discount');
 
   const otherList = await request('/wishlist?per_page=100', { token: other });
   check(otherList.total, 0, 'another customer cannot read the owner wishlist');

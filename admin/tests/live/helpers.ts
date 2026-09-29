@@ -62,6 +62,37 @@ export async function requireLiveApi(
     throw new Error(`No API at ${API}, but the admin live suite requires one.`);
   }
   test.skip(!up, `No API at ${API}.`);
+  await awaitHeadroom(request);
+}
+
+/**
+ * Start each test with room in the API's rate-limit window.
+ *
+ * The API limits 120 requests a minute per address, and the browser (through
+ * the BFF) and this runner share one address, so a test that starts with a
+ * nearly spent window fails halfway — as a 429 on GET /me, which the layout
+ * shows as "server unreachable". Waiting only when the window is already
+ * empty is not enough; this waits until `min` requests remain, and extends
+ * the test's timeout by the time spent waiting.
+ */
+export async function awaitHeadroom(
+  request: APIRequestContext,
+  min = 70,
+): Promise<void> {
+  const started = Date.now();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await request.get(`${API}/settings`, { timeout: 5_000 });
+    const headers = response.headers();
+    const remaining = Number(headers["x-ratelimit-remaining"] ?? "999");
+    if (response.status() !== 429 && remaining >= min) break;
+    const reset = Number(
+      headers["retry-after"] ?? headers["x-ratelimit-reset"] ?? "5",
+    );
+    const seconds = Number.isFinite(reset) ? Math.min(Math.max(reset, 1), 60) : 5;
+    await new Promise((resolve) => setTimeout(resolve, seconds * 1000 + 500));
+  }
+  const waited = Date.now() - started;
+  if (waited > 1000) test.info().setTimeout(test.info().timeout + waited);
 }
 
 /** Wait out the API's rate-limit window when a probe says it is exhausted. */
@@ -248,4 +279,111 @@ export async function uiLogin(
 export async function uiLoginAsAdmin(page: Page): Promise<void> {
   await uiLogin(page, ADMIN_USERNAME, ADMIN_PASSWORD);
   await expect(page.getByTestId("dashboard")).toBeVisible();
+}
+
+/* ------------------------------------------------------------ orders */
+
+/** The seeded customer, and the admin's own phone (the same user as `admin`). */
+export const CUSTOMER_PHONE = "+9647700000006";
+export const ADMIN_PHONE = "+9647700000001";
+
+const EARBUDS = "40000000-0000-4000-8000-000000000001";
+const EARBUDS_VARIANT = "50000000-0000-4000-8000-000000000001";
+
+const appTokens = new Map<string, string>();
+
+/** An app-surface token for a phone, through the dev OTP. */
+export async function phoneToken(
+  request: APIRequestContext,
+  phone: string,
+): Promise<string> {
+  const cached = appTokens.get(phone);
+  if (cached) return cached;
+  await awaitQuota(request);
+  await request.post(`${API}/auth/request-otp`, { data: { phone } });
+  const verified = await request.post(`${API}/auth/verify-otp`, {
+    data: { phone, code: DEV_OTP, client: "web_store" },
+  });
+  expect(verified.ok(), await verified.text()).toBe(true);
+  const token = (await verified.json()).access_token as string;
+  appTokens.set(phone, token);
+  return token;
+}
+
+export interface PlacedOrder {
+  id: string;
+  order_number: string;
+  delivery_id: string;
+}
+
+/**
+ * Place a fresh one-line COD order as `phone`. Placing it as ADMIN_PHONE puts
+ * an `order_placed` notification in the admin's own inbox — the staff
+ * account and that phone are one user, and the inbox is shared across
+ * surfaces — which is how the inbox specs get live events (API 7.0 has no
+ * staff-targeted events yet).
+ */
+export async function placeOrder(
+  request: APIRequestContext,
+  phone: string = CUSTOMER_PHONE,
+): Promise<PlacedOrder> {
+  const token = await phoneToken(request, phone);
+  const headers = bearer(token);
+  const addresses = await (
+    await request.get(`${API}/addresses`, { headers })
+  ).json();
+  let addressId = (addresses.data ?? addresses)?.[0]?.id as string | undefined;
+  if (!addressId) {
+    const created = await request.post(`${API}/addresses`, {
+      headers,
+      data: { label: "Live", city: "واسط", area: "الكوت", contact_phone: phone },
+    });
+    expect(created.ok(), await created.text()).toBe(true);
+    addressId = (await created.json()).id;
+  }
+  const cart = await (await request.get(`${API}/cart`, { headers })).json();
+  for (const item of cart.items ?? []) {
+    await request.delete(`${API}/cart/items/${item.id}`, { headers });
+  }
+  const added = await request.post(`${API}/cart/items`, {
+    headers,
+    data: { product_id: EARBUDS, variant_id: EARBUDS_VARIANT, quantity: 1 },
+  });
+  expect(added.ok(), await added.text()).toBe(true);
+  const placed = await request.post(`${API}/orders`, {
+    headers: {
+      ...headers,
+      "Idempotency-Key": `admin-live-${Date.now()}-${Math.random()}`,
+    },
+    data: { address_id: addressId, payment_method: "cod" },
+  });
+  expect(placed.ok(), await placed.text()).toBe(true);
+  return (await placed.json()) as PlacedOrder;
+}
+
+/** Move an order through staff transitions as the seeded admin. */
+export async function advanceOrder(
+  request: APIRequestContext,
+  orderId: string,
+  statuses: string[],
+): Promise<void> {
+  const token = await adminApiToken(request);
+  for (const status of statuses) {
+    const moved = await request.patch(`${API}/admin/orders/${orderId}/status`, {
+      headers: bearer(token),
+      data: { status },
+    });
+    expect(moved.ok(), `${status}: ${await moved.text()}`).toBe(true);
+  }
+}
+
+export async function orderStatus(
+  request: APIRequestContext,
+  orderId: string,
+): Promise<string> {
+  const response = await request.get(`${API}/admin/orders/${orderId}`, {
+    headers: bearer(await adminApiToken(request)),
+  });
+  expect(response.ok()).toBe(true);
+  return (await response.json()).status as string;
 }

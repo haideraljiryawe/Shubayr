@@ -20,12 +20,14 @@ export interface WorkPhoneRow {
 /**
  * Normalise GET /admin/work-phones rows.
  *
- * The contract documents `phone` on the row, but API 6.1 serves it nested as
- * `user.phone` (the raw work-profile record). Accept either, so the screen is
- * right today and stays right once the backend matches its contract.
+ * The contract documents `phone` on the row. Accept the older nested
+ * `user.phone` shape as well so cached legacy responses remain harmless.
  */
 export function toWorkPhoneRow(
-  raw: WorkPhone & { user?: { phone?: string | null } },
+  raw: Omit<WorkPhone, "phone"> & {
+    phone?: string | null;
+    user?: { phone?: string | null };
+  },
 ): WorkPhoneRow {
   return {
     id: raw.id,

@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Plus } from "lucide-react";
 import { buttonClasses, PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
-import { load, serverApi } from "@/lib/api/server";
+import { listRows, load, serverApi } from "@/lib/api/server";
 import { presetKeys } from "@/lib/permissions";
 import {
   clampPage,
@@ -37,10 +37,10 @@ export default async function PresetsPage({
   const presets = await load(api.GET("/admin/presets"));
   if (!presets.ok) return <PageError error={presets.error} />;
 
-  // Like the staff list, GET /admin/presets has no query parameters, so the
-  // search, filter, sort and page are applied here on the server.
+  // An unparameterized request keeps the legacy array response. Normalize the
+  // documented union before applying the existing server-side table logic.
   const needle = params.q.toLocaleLowerCase();
-  const rows: PresetRow[] = presets.data
+  const rows: PresetRow[] = listRows(presets.data)
     .map((preset) => ({
       id: preset.id,
       name: preset.name,

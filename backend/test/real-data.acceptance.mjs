@@ -38,7 +38,7 @@ async function login(phone) {
   const requested = await json('/auth/request-otp', {
     method: 'POST',
     body: { phone },
-    expected: 201,
+    expected: 200,
   });
   check(
     requested.dev_otp,
@@ -48,7 +48,7 @@ async function login(phone) {
   return json('/auth/verify-otp', {
     method: 'POST',
     body: { phone, code: requested.dev_otp },
-    expected: 201,
+    expected: 200,
   });
 }
 
@@ -135,7 +135,7 @@ const product = await json('/admin/products', {
     name_en: `Acceptance Product ${suffix}`,
     name_ar: `منتج القبول ${suffix}`,
     description: 'Created through the protected HTTP API',
-    price: 20.15,
+    price: 20150,
     discount_type: 'percentage',
     discount_value: 25,
     discount_starts_at: starts,
@@ -179,7 +179,7 @@ check(
   product.images[1].id,
   'media reorder must persist',
 );
-check(editedProduct.effective_price, 10.08, '20.15 at 50% must round to 10.08');
+check(editedProduct.effective_price, 10075, '20,150 IQD at 50% must equal 10,075 IQD');
 check(
   editedProduct.on_sale,
   true,
@@ -212,7 +212,7 @@ check(
 );
 check(
   publicProduct.effective_price,
-  10.08,
+  10075,
   'guest must receive server-computed effective price',
 );
 
