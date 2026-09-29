@@ -698,6 +698,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List visible brands */
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Visible brands in display order */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BrandPage"];
+                    };
+                };
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/banners": {
         parameters: {
             query?: never;
@@ -755,6 +796,8 @@ export interface paths {
                     q?: string;
                     /** @description Category UUID; products remain filtered by category_id, not slug. */
                     category_id?: string;
+                    /** @description One or more brand UUIDs; a comma-separated value is also accepted. */
+                    brand_id?: string[];
                     /** @description Lower bound on effective_price, so an active discount moves a product into range. */
                     min_price?: number;
                     /** @description Upper bound on effective_price, so an active discount moves a product into range. */
@@ -870,6 +913,47 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{id}/negotiations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Removed negotiation endpoint
+         * @description Price negotiation was removed in contract v8 and creation is always refused.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Negotiation has been removed */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -2285,7 +2369,7 @@ export interface paths {
                         batch_id: string;
                         /** Format: uuid */
                         location_id: string;
-                        /** @description signed delta */
+                        /** @description signed delta in the SKU base unit */
                         quantity: number;
                         reason: string;
                     };
@@ -3809,6 +3893,7 @@ export interface paths {
                 query?: {
                     q?: string;
                     category_id?: string;
+                    brand_id?: string[];
                     min_price?: number;
                     max_price?: number;
                     on_sale?: boolean;
@@ -4108,6 +4193,196 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/categories/{id}/convert-to-brand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Convert a reviewed leaf category to a brand
+         * @description Atomically creates the brand, moves the category's products to the selected subcategory, assigns the brand, deletes the source category, and records an audit event.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CategoryBrandConversionInput"];
+                };
+            };
+            responses: {
+                /** @description Converted category */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryBrandConversion"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search and list all brands */
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated brands */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BrandPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        /** Create a brand */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrandInput"];
+                };
+            };
+            responses: {
+                /** @description Created brand */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Brand"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/brands/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an unused brand
+         * @description A brand assigned to products must be hidden instead of deleted.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update a brand */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrandPatch"];
+                };
+            };
+            responses: {
+                /** @description Updated brand */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Brand"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -5018,6 +5293,146 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/exchange-rates/linked-price-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview a pricing rate across every linked SKU
+         * @description Returns old/new prices and signed percentage changes plus a short-lived, actor-bound token. No rate or product price is changed.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LinkedPricePreviewInput"];
+                };
+            };
+            responses: {
+                /** @description Linked-price preview */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LinkedPricePreview"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/exchange-rates/save-rate-only": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save the previewed rate without publishing linked prices
+         * @description Linked SKUs keep their published price and are marked as awaiting this new rate.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LinkedPriceApplyInput"];
+                };
+            };
+            responses: {
+                /** @description Rate saved */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LinkedPriceApplyResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/exchange-rates/publish-linked-prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Atomically save a rate and publish one linked-price version
+         * @description Refuses an expired or stale preview. Conversion and configured upward rounding occur before product discounts.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LinkedPriceApplyInput"];
+                };
+            };
+            responses: {
+                /** @description Rate and linked prices published */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LinkedPriceApplyResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -6016,7 +6431,7 @@ export interface components {
             is_visible?: boolean;
             children?: components["schemas"]["Category"][];
         };
-        /** @description Creates a root or child category. Maximum depth is five levels, root depth 0 through depth 4. */
+        /** @description Creates either a root department or one direct child category. A subcategory cannot have children. */
         CategoryCreate: {
             /** Format: uuid */
             parent_id?: string | null;
@@ -6038,7 +6453,7 @@ export interface components {
             /** @default true */
             is_visible: boolean;
         };
-        /** @description All fields are optional. parent_id null moves to root; a category cannot be its own parent or a descendant of itself, and reparenting cannot make any subtree node deeper than depth 4. */
+        /** @description All fields are optional. parent_id null moves to root; a subcategory cannot have children and a category with children cannot become a child. */
         CategoryPatch: {
             /** Format: uuid */
             parent_id?: string | null;
@@ -6056,12 +6471,72 @@ export interface components {
             sort_order?: number;
             is_visible?: boolean;
         };
+        Brand: {
+            /** Format: uuid */
+            id: string;
+            name_en: string;
+            name_ar: string;
+            slug: string;
+            /** Format: uri */
+            logo_url: string | null;
+            is_visible: boolean;
+            sort_order: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        BrandInput: {
+            name_en: string;
+            name_ar: string;
+            slug: string;
+            /** Format: uri */
+            logo_url?: string | null;
+            /** @default true */
+            is_visible: boolean;
+            /** @default 0 */
+            sort_order: number;
+        };
+        BrandPatch: {
+            name_en?: string;
+            name_ar?: string;
+            slug?: string;
+            /** Format: uri */
+            logo_url?: string | null;
+            is_visible?: boolean;
+            sort_order?: number;
+        };
+        BrandPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["Brand"][];
+        };
+        CategoryBrandConversionInput: {
+            name_en: string;
+            name_ar: string;
+            slug: string;
+            /** Format: uri */
+            logo_url?: string | null;
+            /** @default true */
+            is_visible: boolean;
+            /** @default 0 */
+            sort_order: number;
+            /** Format: uuid */
+            target_category_id: string;
+        };
+        CategoryBrandConversion: {
+            brand: components["schemas"]["Brand"];
+            moved_products: number;
+            /** Format: uuid */
+            target_category_id: string;
+        };
         /** @description A catalog product. `in_stock` and `available_qty` are computed at read time (sum of batch_stock minus active batch reservations and temporary COD order holds); they are not stored on the product. Pricing works the same way: the product stores a regular `price` plus a discount DEFINITION (`discount_type`, `discount_value` and the scheduled window `discount_starts_at`/`discount_ends_at`), and the server derives `on_sale`, `discounted_price`, `effective_price` and `discount_percent` on every read. Those four are never stored, because a scheduled window changes what they mean as the clock moves. Reads populate an empty or missing `name_ar`/`name_en` from the other language so locale-specific clients never receive a blank name. */
         Product: {
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
             category_id?: string;
+            /** Format: uuid */
+            brand_id?: string | null;
+            brand?: components["schemas"]["Brand"] | null;
             name_en?: string;
             name_ar?: string;
             description?: string | null;
@@ -6093,11 +6568,6 @@ export interface components {
             readonly effective_price?: components["schemas"]["Money"];
             /** @description Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false. */
             readonly discount_percent?: number | null;
-            is_negotiable?: boolean;
-            /** @description Negotiation floor in whole IQD, at most the regular price. */
-            floor_price?: number | null;
-            /** @description Persisted points cost for future negotiation UI; no customer negotiation endpoint yet. */
-            points_price?: number | null;
             tracks_expiry?: boolean;
             /** @description Cached average of published product reviews only, reconciled transactionally from review rows and rounded to two decimals half away from zero. */
             rating_avg?: number;
@@ -6107,8 +6577,17 @@ export interface components {
             status?: "active" | "hidden" | "archived";
             /** @description computed: available_qty > 0 */
             in_stock?: boolean;
+            /**
+             * @description Best availability state among the product's SKUs.
+             * @enum {string}
+             */
+            availability?: "out_of_stock" | "low_stock" | "in_stock";
             /** @description computed: on-hand minus active batch reservations and temporary COD holds */
             available_qty?: number;
+            /** Format: date-time */
+            published_at?: string | null;
+            /** Format: date-time */
+            price_approved_at?: string | null;
             /** @description Ordered by sort_order; the first image is primary. */
             images?: components["schemas"]["ProductImage"][];
             variants?: components["schemas"]["ProductVariant"][];
@@ -6128,6 +6607,8 @@ export interface components {
         ProductInput: {
             /** Format: uuid */
             category_id: string;
+            /** Format: uuid */
+            brand_id?: string | null;
             /** @description Required non-whitespace English name. */
             name_en: string;
             /** @description Required non-whitespace Arabic name. */
@@ -6153,22 +6634,18 @@ export interface components {
              * @description Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set.
              */
             discount_ends_at?: string | null;
-            /**
-             * @description Requires floor_price when true.
-             * @default false
-             */
-            is_negotiable: boolean;
-            /** @description Whole-IQD value that must not exceed price. */
-            floor_price?: number | null;
-            /** @description Data-only points cost; negotiation UI is deferred. */
-            points_price?: number | null;
             /** @default false */
             tracks_expiry: boolean;
             /**
-             * @default active
+             * @default hidden
              * @enum {string}
              */
             status: "active" | "hidden" | "archived";
+            /**
+             * @description Publishing also requires at least one SKU with an approved effective selling price.
+             * @default false
+             */
+            published: boolean;
             /** @description Ordered creation list; array index becomes sort_order and index 0 is primary. */
             images?: {
                 /**
@@ -6177,18 +6654,14 @@ export interface components {
                  */
                 url: string;
             }[];
-            variants?: {
-                sku?: string;
-                attributes?: {
-                    [key: string]: unknown;
-                };
-                price_delta?: number;
-            }[];
+            variants: components["schemas"]["ProductVariantInput"][];
         };
         /** @description All ProductInput fields are optional on PATCH. Omission preserves the stored value. Explicit null clears a nullable field; discount_type null clears discount_type, discount_value, discount_starts_at, and discount_ends_at together. */
         ProductPatch: {
             /** Format: uuid */
             category_id?: string;
+            /** Format: uuid */
+            brand_id?: string | null;
             name_en?: string;
             name_ar?: string;
             description?: string | null;
@@ -6200,28 +6673,45 @@ export interface components {
             discount_starts_at?: string | null;
             /** Format: date-time */
             discount_ends_at?: string | null;
-            is_negotiable?: boolean;
-            /** @description Whole-IQD value that must not exceed the merged regular price. */
-            floor_price?: number | null;
-            points_price?: number | null;
             tracks_expiry?: boolean;
             /** @enum {string} */
             status?: "active" | "hidden" | "archived";
+            published?: boolean;
             /** @description Applied atomically in array order; the image at final position 0 is primary. */
             media_operations?: components["schemas"]["ProductMediaOperation"][];
             /** @description Replaces the variant set in place. Each entry is matched to an existing variant by `id` when supplied and otherwise by `sku`, so an update never reissues variant ids. Omitting a variant removes it; removing one still referenced by inventory, cart, purchasing or order history is rejected with 422. */
-            variants?: {
-                /**
-                 * Format: uuid
-                 * @description Existing variant to update; omit to match on sku or to add a new variant.
-                 */
-                id?: string;
-                sku?: string;
-                attributes?: {
-                    [key: string]: unknown;
-                };
-                price_delta?: number;
-            }[];
+            variants?: components["schemas"]["ProductVariantInput"][];
+        };
+        ProductVariantInput: {
+            /**
+             * Format: uuid
+             * @description Existing SKU identity on update.
+             */
+            id?: string;
+            sku: string;
+            attributes?: {
+                [key: string]: unknown;
+            };
+            /**
+             * @deprecated
+             * @description Compatibility input; translated to a fixed selling_price override.
+             */
+            price_delta?: number;
+            /** @default piece */
+            base_unit: string;
+            /** @default true */
+            whole_units_only: boolean;
+            /** @description Fixed-price override; null inherits the product price. */
+            selling_price?: number | null;
+            /** @description Null inherits the store default. */
+            low_stock_threshold?: number | null;
+            /**
+             * @default fixed
+             * @enum {string}
+             */
+            pricing_mode: "fixed" | "linked";
+            reference_currency_code?: string | null;
+            reference_price?: number | null;
         };
         ProductImage: {
             /** Format: uuid */
@@ -6333,24 +6823,63 @@ export interface components {
             } | null;
             price_delta?: number;
             currency?: string;
+            base_unit?: string;
+            whole_units_only?: boolean;
+            /** @description Fixed override; null inherits the product price. */
+            selling_price?: number | null;
+            low_stock_threshold?: number | null;
+            /** @enum {string} */
+            pricing_mode?: "fixed" | "linked";
+            reference_currency_code?: string | null;
+            reference_price?: number | null;
+            published_price?: number | null;
+            /** Format: date-time */
+            price_approved_at?: string | null;
+            /** Format: uuid */
+            price_version_id?: string | null;
+            /** Format: uuid */
+            awaiting_rate_id?: string | null;
+            on_sale?: boolean;
+            discounted_price?: number | null;
+            /** @description SKU price after linked conversion or fixed inheritance, then product discount. */
+            effective_price?: number;
+            discount_percent?: number | null;
+            available_qty?: number;
+            /** @enum {string} */
+            availability?: "out_of_stock" | "low_stock" | "in_stock";
+            in_stock?: boolean;
         };
         /** @description Computed availability (on-hand minus active batch reservations and temporary COD holds) per product & variant. */
         ProductAvailability: {
             /** Format: uuid */
             product_id?: string;
             in_stock?: boolean;
+            /** @enum {string} */
+            availability?: "out_of_stock" | "low_stock" | "in_stock";
             /** @description total sellable across variants */
             available_qty?: number;
             variants?: {
                 /** Format: uuid */
-                variant_id?: string | null;
+                variant_id?: string;
                 sku?: string;
+                base_unit?: string;
+                whole_units_only?: boolean;
+                low_stock_threshold?: number;
                 available_qty?: number;
+                /** @enum {string} */
+                availability?: "out_of_stock" | "low_stock" | "in_stock";
                 in_stock?: boolean;
             }[];
         };
         ProductPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Product"][];
+            facets?: {
+                brands: {
+                    /** Format: uuid */
+                    brand_id: string;
+                    count: number;
+                }[];
+            };
         };
         Cart: {
             /** Format: uuid */
@@ -6363,9 +6892,9 @@ export interface components {
                 /** Format: uuid */
                 product_id: string;
                 /** Format: uuid */
-                variant_id: string | null;
+                variant_id: string;
                 quantity: number;
-                /** @description Current server-time effective_price plus the selected variant's price_delta, floored at zero. */
+                /** @description Current per-SKU effective price after conversion and product discount. */
                 unit_price: components["schemas"]["Money"];
                 line_total: components["schemas"]["Money"];
                 currency: string;
@@ -6412,7 +6941,7 @@ export interface components {
             /** Format: uuid */
             product_id?: string;
             /** Format: uuid */
-            variant_id?: string | null;
+            variant_id?: string;
             /** @description Arabic product name captured when the order is created. */
             product_name_ar?: string;
             /** @description English product name captured when the order is created. */
@@ -7172,6 +7701,9 @@ export interface components {
             primary_color?: string;
             /** @example IQD */
             currency?: string;
+            default_low_stock_threshold?: string;
+            /** @description Zero uses base-currency precision; otherwise linked prices round upward to this multiple. */
+            sale_rounding_multiple?: string;
         };
         ExactDecimal: string | number;
         Currency: {
@@ -7211,6 +7743,49 @@ export interface components {
             created_at?: string;
             direction?: string;
             not_from_today?: boolean;
+        };
+        LinkedPricePreviewInput: {
+            currency_code: string;
+            rate: number;
+            /** @enum {integer} */
+            basis: 1 | 100;
+            /** Format: date-time */
+            effective_at: string;
+            reason: string;
+        };
+        LinkedPricePreviewItem: {
+            /** Format: uuid */
+            variant_id: string;
+            sku: string;
+            old_price: number | null;
+            new_price: number;
+            /** @description Signed percentage; decreases are negative. */
+            percent_change: number | null;
+        };
+        LinkedPricePreview: {
+            /** Format: uuid */
+            preview_token: string;
+            /** Format: date-time */
+            expires_at: string;
+            currency_code: string;
+            old_rate: number | null;
+            new_rate: number;
+            linked_sku_count: number;
+            rounding_multiple: number;
+            items: components["schemas"]["LinkedPricePreviewItem"][];
+        };
+        LinkedPriceApplyInput: {
+            /** Format: uuid */
+            preview_token: string;
+        };
+        LinkedPriceApplyResult: {
+            /** @enum {string} */
+            mode: "rate_only" | "published";
+            /** Format: uuid */
+            exchange_rate_id: string;
+            /** Format: uuid */
+            price_version_id: string | null;
+            linked_sku_count: number;
         };
         OperationOutcome: {
             /** Format: uuid */

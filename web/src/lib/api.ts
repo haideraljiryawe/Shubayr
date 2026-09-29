@@ -223,7 +223,10 @@ async function toApiError(
   return error;
 }
 
-type Query = Record<string, string | number | boolean | undefined>;
+type Query = Record<
+  string,
+  string | number | boolean | readonly string[] | undefined
+>;
 
 /* ---------------------------------------------------------------------------
  * Credentials.
@@ -312,7 +315,11 @@ function withTimeout(signal: AbortSignal | null | undefined): AbortSignal {
 function buildUrl(path: string, query?: Query): string {
   const url = new URL(`${API_URL}${path}`);
   for (const [key, value] of Object.entries(query ?? {})) {
-    if (value !== undefined) url.searchParams.set(key, String(value));
+    if (Array.isArray(value)) {
+      for (const item of value) url.searchParams.append(key, item);
+    } else if (value !== undefined) {
+      url.searchParams.set(key, String(value));
+    }
   }
   return url.toString();
 }
@@ -516,7 +523,7 @@ export const api = {
         data: matches.slice((page - 1) * perPage, page * perPage),
       };
     }
-    return request<ProductPage>("/products", { query: { ...query } });
+    return request<ProductPage>("/products", { query });
   },
 
   /** Map the shared banner contract into the existing home carousel view. */

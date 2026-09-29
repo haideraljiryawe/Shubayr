@@ -24,18 +24,41 @@ describe('catalog write contract', () => {
       price: 20150,
       discount_type: 'percentage',
       discount_value: 50,
-      is_negotiable: false,
-      floor_price: null,
-      points_price: 200,
       tracks_expiry: true,
       status: 'active',
       images: [{ url: 'https://cdn.example.com/one.jpg' }],
       variants: [
-        { sku: 'APPLE-1', attributes: { size: '1kg' }, price_delta: 0 },
+        {
+          sku: 'APPLE-1',
+          attributes: { size: '1kg' },
+          base_unit: 'kg',
+          whole_units_only: false,
+          selling_price: 20500,
+          low_stock_threshold: 1,
+        },
       ],
     });
     await expect(validate(input)).resolves.toEqual([]);
   });
+
+  it.each(['is_negotiable', 'floor_price', 'points_price'])(
+    'refuses removed negotiation field %s',
+    async (field) => {
+      await expect(
+        pipe.transform(
+          {
+            category_id: CATEGORY_ID,
+            name_en: 'Apples',
+            name_ar: 'ØªÙØ§Ø­',
+            price: 20,
+            variants: [{ sku: 'APPLE-1' }],
+            [field]: field === 'is_negotiable' ? true : 10,
+          },
+          { type: 'body', metatype: CreateProductDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    },
+  );
 
   it('rejects unknown and read-only product properties', async () => {
     await expect(

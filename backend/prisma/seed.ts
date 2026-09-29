@@ -70,6 +70,7 @@ const presetGrants: Record<string, string[]> = {
     'catalog.brands',
     'catalog.products',
     'prices.change',
+    'prices.publish_linked',
   ],
   stock_controller: [
     'cost.view',
@@ -279,6 +280,7 @@ async function main(): Promise<void> {
     ['currency', 'IQD'],
     ['primary_color', '#0B2A54'],
     ['logo_url', ''],
+    ['sale_rounding_multiple', '0'],
   ] as const) {
     await prisma.storeSetting.upsert({
       where: { key },
@@ -455,6 +457,36 @@ async function main(): Promise<void> {
   const activeEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
   const futureStart = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const futureEnd = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000);
+  const brandIds: string[] = [];
+  for (const [index, brand] of [
+    ['Shubayr Select', 'مختارات شُبير', 'shubayr-select'],
+    ['Nova', 'نوفا', 'nova'],
+    ['Atlas', 'أطلس', 'atlas'],
+    ['Luma', 'لوما', 'luma'],
+  ].entries()) {
+    const id = seedId(1, 700 + index);
+    brandIds.push(id);
+    await prisma.brand.upsert({
+      where: { id },
+      update: {
+        name_en: brand[0],
+        name_ar: brand[1],
+        slug: brand[2],
+        logo_url: imageUrls[index],
+        is_visible: true,
+        sort_order: index,
+      },
+      create: {
+        id,
+        name_en: brand[0],
+        name_ar: brand[1],
+        slug: brand[2],
+        logo_url: imageUrls[index],
+        is_visible: true,
+        sort_order: index,
+      },
+    });
+  }
   const warehouseId = seedId(9, 1);
   const locationId = seedId(9, 2);
   await prisma.warehouse.upsert({
@@ -561,16 +593,16 @@ async function main(): Promise<void> {
               };
       const productData = {
         category_id: childIds[childIndex],
+        brand_id: brandIds[(number - 1) % brandIds.length],
         name_en: nameEn,
         name_ar: nameAr,
         description: `${nameEn} from the seeded Shubayr development catalog.`,
         price: iqdPrice,
         currency_code: 'IQD',
         ...discount,
-        is_negotiable: number === 3,
-        floor_price: number === 3 ? Math.round(iqdPrice * 0.8) : null,
-        points_price: number === 3 ? 250 : null,
         status: 'active',
+        published_at: now,
+        price_approved_at: now,
         tracks_expiry: department.slug === 'grocery',
       };
       await prisma.product.upsert({
@@ -613,6 +645,12 @@ async function main(): Promise<void> {
             attributes: { option: variantIndex === 0 ? 'standard' : 'plus' },
             price_delta: variantIndex === 0 ? 0 : 3000,
             currency_code: 'IQD',
+            base_unit: 'piece',
+            whole_units_only: true,
+            selling_price: variantIndex === 0 ? null : iqdPrice + 3000,
+            pricing_mode: 'fixed',
+            price_approved_at: now,
+            updated_at: now,
           },
           create: {
             id: variantId,
@@ -621,6 +659,12 @@ async function main(): Promise<void> {
             attributes: { option: variantIndex === 0 ? 'standard' : 'plus' },
             price_delta: variantIndex === 0 ? 0 : 3000,
             currency_code: 'IQD',
+            base_unit: 'piece',
+            whole_units_only: true,
+            selling_price: variantIndex === 0 ? null : iqdPrice + 3000,
+            pricing_mode: 'fixed',
+            price_approved_at: now,
+            updated_at: now,
           },
         });
         const batchId = seedId(7, variantNumber);
@@ -722,11 +766,7 @@ async function main(): Promise<void> {
     users.get('delivery')!,
     now,
   );
-  await seedLoyaltyDemo(
-    users.get('customer')!,
-    users.get('delivery')!,
-    users.get('admin')!,
-  );
+  await seedLoyaltyDemo(users.get('customer')!, users.get('delivery')!);
   await seedWishlist(users.get('customer')!);
   await seedProductReviewDemo(users.get('customer')!, users.get('admin')!);
   await seedNotificationDemo(users.get('customer')!);
@@ -924,7 +964,6 @@ async function seedProductReviewDemo(
 async function seedLoyaltyDemo(
   customerId: string,
   agentId: string,
-  adminId: string,
 ): Promise<void> {
   const account = await prisma.loyaltyAccount.upsert({
     where: { user_id: customerId },
@@ -983,26 +1022,6 @@ async function seedLoyaltyDemo(
       },
     });
   }
-  const negotiable = await prisma.product.findUniqueOrThrow({
-    where: { id: seedId(4, 3) },
-  });
-  await prisma.auditLog.upsert({
-    where: { id: seedId(1, 305) },
-    update: {},
-    create: {
-      id: seedId(1, 305),
-      actor_id: adminId,
-      action: 'catalog.negotiation.create',
-      entity_type: 'product',
-      entity_id: seedId(4, 3),
-      after: {
-        is_negotiable: true,
-        floor_price: Number(negotiable.floor_price),
-        points_price: 250,
-        seed_demo: true,
-      },
-    },
-  });
 }
 
 async function seedPartialReturnDemo(

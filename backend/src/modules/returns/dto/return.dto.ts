@@ -4,6 +4,7 @@ import {
   IsArray,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -21,7 +22,7 @@ export class RequestReturnLineDto {
   @IsUUID()
   order_item_id!: string;
 
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(1)
   quantity!: number;
 
@@ -54,7 +55,7 @@ export class InspectReturnLineDto {
   @IsUUID()
   return_item_id!: string;
 
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
   approved_quantity!: number;
 

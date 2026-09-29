@@ -19,6 +19,7 @@ const MANAGED_KEYS = new Set([
   'default_low_stock_threshold',
   'backdating_window_days',
   'markup_alert_percent',
+  'sale_rounding_multiple',
 ]);
 
 function jsonValue(value: unknown): Prisma.InputJsonValue {

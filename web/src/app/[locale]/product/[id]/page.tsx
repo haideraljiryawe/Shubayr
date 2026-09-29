@@ -107,9 +107,6 @@ export default async function ProductPage({ params, searchParams }: Props) {
           ? t("inStock")
           : t("outOfStockLabel"),
     },
-    product.is_negotiable
-      ? { label: t("negotiableSpec"), value: t("yes") }
-      : null,
     ...(product.variants ?? [])
       .filter((variant) => variant.sku)
       .slice(0, 1)

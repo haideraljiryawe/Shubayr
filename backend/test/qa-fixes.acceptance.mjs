@@ -54,7 +54,14 @@ try {
   const child = await request('/admin/categories', { token: admin, method: 'POST', expected: 201,
     body: { name_en: `QA Child ${tag}`, name_ar: `QA Child ${tag}`, slug: `qa-child-${tag}`, parent_id: parent.id } });
   const product = await request('/admin/products', { token: admin, method: 'POST', expected: 201,
-    body: { category_id: child.id, name_en: `QA Product ${tag}`, name_ar: `QA Product ${tag}`, price: 100, status: 'active' } });
+    body: {
+      category_id: child.id,
+      name_en: `QA Product ${tag}`,
+      name_ar: `QA Product ${tag}`,
+      price: 100,
+      status: 'active',
+      variants: [{ sku: `QA-${tag}-PUBLIC`, base_unit: 'piece', whole_units_only: true }],
+    } });
 
   const listsProduct = async (token) =>
     (await request(`/products?category_id=${child.id}&per_page=100`, token ? { token } : {}))
@@ -141,7 +148,8 @@ try {
   // runs against the MERGED stored+incoming state.
   const patchTarget = await request('/admin/products', { token: admin, method: 'POST', expected: 201,
     body: { category_id: child.id, name_en: `QA Patch ${tag}`, name_ar: `QA Patch AR ${tag}`, price: 100,
-      description: 'original', status: 'active' } });
+      description: 'original', status: 'active',
+      variants: [{ sku: `QA-${tag}-PATCH`, base_unit: 'piece', whole_units_only: true }] } });
 
   for (const field of ['category_id', 'price', 'name_en', 'name_ar', 'status', 'is_negotiable', 'tracks_expiry']) {
     const rejected = await request(`/admin/products/${patchTarget.id}`, { token: admin, method: 'PATCH', expected: 422,

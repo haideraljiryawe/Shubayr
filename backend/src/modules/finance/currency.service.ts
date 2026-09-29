@@ -102,6 +102,13 @@ export class CurrencyService {
           reason: input.reason,
         },
       });
+      await tx.productVariant.updateMany({
+        where: {
+          pricing_mode: 'linked',
+          reference_currency_code: input.currency_code,
+        },
+        data: { awaiting_rate_id: rate.id, updated_at: new Date() },
+      });
       await this.audit.record(tx, {
         actorId,
         action: 'exchange_rate.create',

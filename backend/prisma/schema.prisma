@@ -26,31 +26,34 @@ model StoreSetting {
 }
 
 model Currency {
-  code              String         @id(map: "currencies_pkey") @db.Char(3)
-  name_ar           String         @db.VarChar(120)
-  name_en           String         @db.VarChar(120)
-  symbol            String         @db.VarChar(20)
-  display_precision Int
-  is_base           Boolean        @default(false)
-  enabled           Boolean        @default(true)
-  created_at        DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at        DateTime       @default(now()) @db.Timestamptz(6)
-  exchange_rates    ExchangeRate[]
-  journal_lines     JournalLine[]
-  cash_accounts     CashAccount[]
+  code               String           @id(map: "currencies_pkey") @db.Char(3)
+  name_ar            String           @db.VarChar(120)
+  name_en            String           @db.VarChar(120)
+  symbol             String           @db.VarChar(20)
+  display_precision  Int
+  is_base            Boolean          @default(false)
+  enabled            Boolean          @default(true)
+  created_at         DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime         @default(now()) @db.Timestamptz(6)
+  exchange_rates     ExchangeRate[]
+  reference_variants ProductVariant[] @relation("VariantReferenceCurrency")
+  journal_lines      JournalLine[]
+  cash_accounts      CashAccount[]
 
   @@map("currencies")
 }
 
 model ExchangeRate {
-  id            String   @id(map: "exchange_rates_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  currency_code String   @db.Char(3)
-  rate          Decimal  @db.Decimal(24, 10)
-  effective_at  DateTime @db.Timestamptz(6)
-  set_by        String   @db.Uuid
-  reason        String   @db.VarChar(500)
-  created_at    DateTime @default(now()) @db.Timestamptz(6)
-  currency      Currency @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "exchange_rates_currency_code_fkey")
+  id                String           @id(map: "exchange_rates_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  currency_code     String           @db.Char(3)
+  rate              Decimal          @db.Decimal(24, 10)
+  effective_at      DateTime         @db.Timestamptz(6)
+  set_by            String           @db.Uuid
+  reason            String           @db.VarChar(500)
+  created_at        DateTime         @default(now()) @db.Timestamptz(6)
+  currency          Currency         @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "exchange_rates_currency_code_fkey")
+  awaiting_variants ProductVariant[] @relation("VariantAwaitingRate")
+  price_versions    PriceVersion[]
 
   @@index([currency_code, effective_at(sort: Desc), id(sort: Desc)], map: "idx_exchange_rates_applicable")
   @@map("exchange_rates")
@@ -604,6 +607,22 @@ model Category {
   @@map("categories")
 }
 
+model Brand {
+  id         String    @id(map: "brands_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name_en    String    @db.VarChar(120)
+  name_ar    String    @db.VarChar(120)
+  slug       String    @unique(map: "brands_slug_key") @db.VarChar(140)
+  logo_url   String?   @db.Text
+  is_visible Boolean   @default(true)
+  sort_order Int       @default(0)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @db.Timestamptz(6)
+  products   Product[]
+
+  @@index([is_visible, sort_order, id], map: "idx_brands_public")
+  @@map("brands")
+}
+
 model Banner {
   id         String    @id(map: "banners_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title      String    @db.VarChar(200)
@@ -624,6 +643,7 @@ model Banner {
 model Product {
   id                     String                @id(map: "products_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   category_id            String                @db.Uuid
+  brand_id               String?               @db.Uuid
   name_en                String                @db.VarChar(200)
   name_ar                String                @db.VarChar(200)
   description            String?               @db.Text
@@ -635,16 +655,16 @@ model Product {
   discount_value         Decimal?              @db.Decimal(20, 6)
   discount_starts_at     DateTime?             @db.Timestamptz(6)
   discount_ends_at       DateTime?             @db.Timestamptz(6)
-  is_negotiable          Boolean               @default(false)
-  floor_price            Decimal?              @db.Decimal(20, 6)
-  points_price           Int?
   tracks_expiry          Boolean               @default(false)
   rating_avg             Decimal               @default(0) @db.Decimal(3, 2)
   rating_count           Int                   @default(0)
   status                 String                @default("active") @db.VarChar(20)
+  published_at           DateTime?             @db.Timestamptz(6)
+  price_approved_at      DateTime?             @db.Timestamptz(6)
   created_at             DateTime              @default(now()) @db.Timestamptz(6)
   updated_at             DateTime              @default(now()) @db.Timestamptz(6)
   category               Category              @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "products_category_id_fkey")
+  brand                  Brand?                @relation(fields: [brand_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "products_brand_id_fkey")
   variants               ProductVariant[]
   images                 ProductImage[]
   purchase_invoice_items PurchaseInvoiceItem[]
@@ -656,6 +676,7 @@ model Product {
   simple_stock_holds     SimpleStockHold[]
 
   @@index([category_id], map: "idx_products_category")
+  @@index([brand_id], map: "idx_products_brand")
   @@index([status], map: "idx_products_status")
   // idx_products_discount_window backs GET /products?on_sale=true. It is a
   // partial index (WHERE discount_type IS NOT NULL) in infra/db/schema.sql,
@@ -664,20 +685,68 @@ model Product {
 }
 
 model ProductVariant {
-  id                     String                @id(map: "product_variants_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  product_id             String                @db.Uuid
-  sku                    String                @unique(map: "product_variants_sku_key") @db.VarChar(80)
-  attributes             Json?                 @db.JsonB
-  price_delta            Decimal               @default(0) @db.Decimal(20, 6)
-  currency_code          String                @default("IQD") @db.Char(3)
-  product                Product               @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_variants_product_id_fkey")
-  purchase_invoice_items PurchaseInvoiceItem[]
-  inventory_batches      InventoryBatch[]
-  cart_items             CartItem[]
-  order_items            OrderItem[]
-  simple_stock_holds     SimpleStockHold[]
+  id                      String                @id(map: "product_variants_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id              String                @db.Uuid
+  sku                     String                @unique(map: "product_variants_sku_key") @db.VarChar(80)
+  attributes              Json?                 @db.JsonB
+  price_delta             Decimal               @default(0) @db.Decimal(20, 6)
+  currency_code           String                @default("IQD") @db.Char(3)
+  base_unit               String                @default("piece") @db.VarChar(32)
+  whole_units_only        Boolean               @default(true)
+  selling_price           Decimal?              @db.Decimal(20, 6)
+  low_stock_threshold     Decimal?              @db.Decimal(20, 3)
+  pricing_mode            String                @default("fixed") @db.VarChar(16)
+  reference_currency_code String?               @db.Char(3)
+  reference_price         Decimal?              @db.Decimal(20, 6)
+  published_price         Decimal?              @db.Decimal(20, 6)
+  price_approved_at       DateTime?             @db.Timestamptz(6)
+  price_version_id        String?               @db.Uuid
+  awaiting_rate_id        String?               @db.Uuid
+  updated_at              DateTime              @default(now()) @db.Timestamptz(6)
+  product                 Product               @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_variants_product_id_fkey")
+  reference_currency      Currency?             @relation("VariantReferenceCurrency", fields: [reference_currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "product_variants_reference_currency_code_fkey")
+  price_version           PriceVersion?         @relation(fields: [price_version_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "product_variants_price_version_id_fkey")
+  awaiting_rate           ExchangeRate?         @relation("VariantAwaitingRate", fields: [awaiting_rate_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "product_variants_awaiting_rate_id_fkey")
+  purchase_invoice_items  PurchaseInvoiceItem[]
+  inventory_batches       InventoryBatch[]
+  cart_items              CartItem[]
+  order_items             OrderItem[]
+  simple_stock_holds      SimpleStockHold[]
 
+  @@index([pricing_mode, reference_currency_code], map: "idx_product_variants_linked")
   @@map("product_variants")
+}
+
+model PriceVersion {
+  id                String           @id(map: "price_versions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version           Int              @unique(map: "price_versions_version_key") @default(autoincrement())
+  exchange_rate_id  String           @db.Uuid
+  currency_code     String           @db.Char(3)
+  rate              Decimal          @db.Decimal(24, 10)
+  rounding_multiple Decimal          @default(0) @db.Decimal(20, 6)
+  published_by      String           @db.Uuid
+  variant_count     Int
+  published_at      DateTime         @default(now()) @db.Timestamptz(6)
+  exchange_rate     ExchangeRate     @relation(fields: [exchange_rate_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_versions_exchange_rate_id_fkey")
+  variants          ProductVariant[]
+
+  @@index([currency_code, published_at(sort: Desc)], map: "idx_price_versions_currency")
+  @@map("price_versions")
+}
+
+model LinkedPricePreview {
+  id            String   @id(map: "linked_price_previews_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_id      String   @db.Uuid
+  currency_code String   @db.Char(3)
+  proposed_rate Decimal  @db.Decimal(24, 10)
+  effective_at  DateTime @db.Timestamptz(6)
+  reason        String   @db.VarChar(500)
+  fingerprint   String   @db.Char(64)
+  expires_at    DateTime @db.Timestamptz(6)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([actor_id, expires_at], map: "idx_linked_price_previews_actor")
+  @@map("linked_price_previews")
 }
 
 model ProductImage {
@@ -728,15 +797,15 @@ model PurchaseInvoiceItem {
   id                String           @id(map: "purchase_invoice_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   invoice_id        String           @db.Uuid
   product_id        String           @db.Uuid
-  variant_id        String?          @db.Uuid
-  quantity          Int
+  variant_id        String           @db.Uuid
+  quantity          Decimal          @db.Decimal(20, 3)
   unit_cost         Decimal          @db.Decimal(20, 6)
   currency_code     String           @default("IQD") @db.Char(3)
   lot_number        String?          @db.VarChar(80)
   expiry_date       DateTime?        @db.Date
   invoice           PurchaseInvoice  @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "purchase_invoice_items_invoice_id_fkey")
   product           Product          @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoice_items_product_id_fkey")
-  variant           ProductVariant?  @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoice_items_variant_id_fkey")
+  variant           ProductVariant   @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoice_items_variant_id_fkey")
   inventory_batches InventoryBatch[]
 
   @@map("purchase_invoice_items")
@@ -773,17 +842,17 @@ model WarehouseLocation {
 model InventoryBatch {
   id                    String               @id(map: "inventory_batches_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   product_id            String               @db.Uuid
-  variant_id            String?              @db.Uuid
+  variant_id            String               @db.Uuid
   supplier_id           String?              @db.Uuid
   po_item_id            String?              @db.Uuid
   lot_number            String?              @db.VarChar(80)
   expiry_date           DateTime?            @db.Date
   purchase_cost         Decimal              @db.Decimal(20, 6)
   currency_code         String               @default("IQD") @db.Char(3)
-  qty_received          Int
+  qty_received          Decimal              @db.Decimal(20, 3)
   entry_date            DateTime             @default(now()) @db.Timestamptz(6)
   product               Product              @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inventory_batches_product_id_fkey")
-  variant               ProductVariant?      @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inventory_batches_variant_id_fkey")
+  variant               ProductVariant       @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inventory_batches_variant_id_fkey")
   supplier              Supplier?            @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inventory_batches_supplier_id_fkey")
   purchase_invoice_item PurchaseInvoiceItem? @relation(fields: [po_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inventory_batches_po_item_id_fkey")
   batch_stock           BatchStock[]
@@ -801,7 +870,7 @@ model BatchStock {
   id          String            @id(map: "batch_stock_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   batch_id    String            @db.Uuid
   location_id String            @db.Uuid
-  quantity    Int               @default(0)
+  quantity    Decimal           @default(0) @db.Decimal(20, 3)
   batch       InventoryBatch    @relation(fields: [batch_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "batch_stock_batch_id_fkey")
   location    WarehouseLocation @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "batch_stock_location_id_fkey")
 
@@ -817,7 +886,7 @@ model StockMovement {
   type           String             @db.VarChar(20)
   from_location  String?            @db.Uuid
   to_location    String?            @db.Uuid
-  quantity       Int
+  quantity       Decimal            @db.Decimal(20, 3)
   reference      String?            @db.VarChar(120)
   user_id        String?            @db.Uuid
   return_item_id String?            @db.Uuid
@@ -847,16 +916,16 @@ model Cart {
 }
 
 model CartItem {
-  id            String          @id(map: "cart_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  cart_id       String          @db.Uuid
-  product_id    String          @db.Uuid
-  variant_id    String?         @db.Uuid
-  quantity      Int
-  unit_price    Decimal         @db.Decimal(20, 6)
-  currency_code String          @default("IQD") @db.Char(3)
-  cart          Cart            @relation(fields: [cart_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cart_items_cart_id_fkey")
-  product       Product         @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cart_items_product_id_fkey")
-  variant       ProductVariant? @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cart_items_variant_id_fkey")
+  id            String         @id(map: "cart_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cart_id       String         @db.Uuid
+  product_id    String         @db.Uuid
+  variant_id    String         @db.Uuid
+  quantity      Decimal        @db.Decimal(20, 3)
+  unit_price    Decimal        @db.Decimal(20, 6)
+  currency_code String         @default("IQD") @db.Char(3)
+  cart          Cart           @relation(fields: [cart_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cart_items_cart_id_fkey")
+  product       Product        @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cart_items_product_id_fkey")
+  variant       ProductVariant @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cart_items_variant_id_fkey")
 
   @@map("cart_items")
 }
@@ -943,18 +1012,18 @@ model OrderItem {
   id                 String             @id(map: "order_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   order_id           String             @db.Uuid
   product_id         String             @db.Uuid
-  variant_id         String?            @db.Uuid
+  variant_id         String             @db.Uuid
   product_name_ar    String             @db.VarChar(200)
   product_name_en    String             @db.VarChar(200)
   image_url          String?            @db.VarChar(400)
-  quantity           Int
+  quantity           Decimal            @db.Decimal(20, 3)
   unit_price         Decimal            @db.Decimal(20, 6)
   line_total         Decimal            @db.Decimal(20, 6)
   currency_code      String             @default("IQD") @db.Char(3)
   reviewed           Boolean            @default(false)
   order              Order              @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "order_items_order_id_fkey")
   product            Product            @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "order_items_product_id_fkey")
-  variant            ProductVariant?    @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "order_items_variant_id_fkey")
+  variant            ProductVariant     @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "order_items_variant_id_fkey")
   stock_reservations StockReservation[]
   pick_list_items    PickListItem[]
   return_items       ReturnItem[]
@@ -980,19 +1049,19 @@ model OrderStatusEvent {
 /// Temporary sellable-stock decrement. The inventory slice will replace this
 /// with FEFO batch reservations and picking, without pretending to allocate batches here.
 model SimpleStockHold {
-  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id      String          @db.Uuid
-  order_item_id String          @unique @db.Uuid
-  product_id    String          @db.Uuid
-  variant_id    String?         @db.Uuid
-  quantity      Int
-  status        String          @default("held") @db.VarChar(20)
-  deducted_at   DateTime?       @db.Timestamptz(6)
-  released_at   DateTime?       @db.Timestamptz(6)
-  order         Order           @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  order_item    OrderItem       @relation(fields: [order_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  product       Product         @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  variant       ProductVariant? @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id      String         @db.Uuid
+  order_item_id String         @unique @db.Uuid
+  product_id    String         @db.Uuid
+  variant_id    String         @db.Uuid
+  quantity      Decimal        @db.Decimal(20, 3)
+  status        String         @default("held") @db.VarChar(20)
+  deducted_at   DateTime?      @db.Timestamptz(6)
+  released_at   DateTime?      @db.Timestamptz(6)
+  order         Order          @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  order_item    OrderItem      @relation(fields: [order_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product       Product        @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  variant       ProductVariant @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([product_id, variant_id, status])
   @@map("simple_stock_holds")
@@ -1020,7 +1089,7 @@ model StockReservation {
   order_item_id String?           @db.Uuid
   batch_id      String            @db.Uuid
   location_id   String            @db.Uuid
-  quantity      Int
+  quantity      Decimal           @db.Decimal(20, 3)
   status        String            @default("reserved") @db.VarChar(20)
   created_at    DateTime          @default(now()) @db.Timestamptz(6)
   order         Order             @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "stock_reservations_order_id_fkey")
@@ -1051,7 +1120,7 @@ model PickListItem {
   order_item_id String?           @db.Uuid
   batch_id      String            @db.Uuid
   location_id   String            @db.Uuid
-  quantity      Int
+  quantity      Decimal           @db.Decimal(20, 3)
   picked        Boolean           @default(false)
   pick_list     PickList          @relation(fields: [pick_list_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "pick_list_items_pick_list_id_fkey")
   order_item    OrderItem?        @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "pick_list_items_order_item_id_fkey")
@@ -1109,8 +1178,8 @@ model ReturnItem {
   id                String          @id(map: "return_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   return_id         String          @db.Uuid
   order_item_id     String          @db.Uuid
-  quantity          Int
-  approved_quantity Int             @default(0)
+  quantity          Decimal         @db.Decimal(20, 3)
+  approved_quantity Decimal         @default(0) @db.Decimal(20, 3)
   customer_reason   String          @db.Text
   unit_price        Decimal         @db.Decimal(20, 6)
   currency_code     String          @default("IQD") @db.Char(3)

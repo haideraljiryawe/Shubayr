@@ -1,9 +1,11 @@
 import 'reflect-metadata';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsArray,
   IsIn,
   IsInt,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -43,6 +45,39 @@ export class ProductVariantInputDto {
   @IsOptional()
   @IsInt()
   price_delta?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  base_unit?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  whole_units_only?: boolean;
+
+  @IsOptional()
+  @IsInt({ message: 'IQD selling_price must use whole dinars' })
+  @Min(0)
+  selling_price?: number | null;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0)
+  low_stock_threshold?: number | null;
+
+  @IsOptional()
+  @IsIn(['fixed', 'linked'])
+  pricing_mode?: 'fixed' | 'linked';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(3)
+  reference_currency_code?: string | null;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  reference_price?: number | null;
 }
 
 export class ProductMediaOperationDto {

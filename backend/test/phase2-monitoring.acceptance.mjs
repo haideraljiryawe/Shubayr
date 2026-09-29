@@ -123,9 +123,14 @@ try {
   }
   await db.query(
     `INSERT INTO order_items
-     (id,order_id,product_id,product_name_ar,product_name_en,image_url,quantity,unit_price,line_total)
-     VALUES ($1,$2,$3,'دواء تجريبي','Monitor item','https://example.test/secret.jpg',2,5,10)`,
-    [randomUUID(), ids[0], '40000000-0000-4000-8000-000000000001'],
+     (id,order_id,product_id,variant_id,product_name_ar,product_name_en,image_url,quantity,unit_price,line_total)
+     VALUES ($1,$2,$3,$4,'دواء تجريبي','Monitor item','https://example.test/secret.jpg',2,5,10)`,
+    [
+      randomUUID(),
+      ids[0],
+      '40000000-0000-4000-8000-000000000001',
+      '50000000-0000-4000-8000-000000000001',
+    ],
   );
 
   const searched = await request(

@@ -77,10 +77,13 @@ export function calculateLineTotal(
   unitPrice: Decimalish,
   quantity: number,
 ): number {
-  if (!Number.isSafeInteger(quantity) || quantity < 0) {
-    throw new RangeError('quantity must be a non-negative safe integer');
+  if (!Number.isFinite(quantity) || quantity < 0) {
+    throw new RangeError('quantity must be a non-negative decimal');
   }
-  return minorUnitsToMoney(moneyToMinorUnits(unitPrice) * BigInt(quantity));
+  const scaledQuantity = decimalToScaled(quantity, 3);
+  return minorUnitsToMoney(
+    divideRoundHalfAway(moneyToMinorUnits(unitPrice) * scaledQuantity, 1_000n),
+  );
 }
 
 /** Percentage of a money amount, rounded once at the minor-unit boundary. */

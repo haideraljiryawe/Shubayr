@@ -143,7 +143,7 @@ export function CheckoutFlow() {
     const items: OrderItem[] = lines.map((line) => ({
       id: line.id,
       product_id: line.product_id,
-      variant_id: line.variant_id,
+      variant_id: line.variant_id ?? undefined,
       quantity: line.quantity,
       unit_price: line.unit_price,
       line_total: line.line_total,

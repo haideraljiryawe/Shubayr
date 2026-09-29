@@ -85,12 +85,19 @@ try {
   await open([line(firstId, 1)], 409, ownOrders.data.find((order) => order.order_number === 'DEV-ORDER-3').id);
   await open([line(firstId, 1)], 404, orderId, other);
   await open([line(firstId, 4)], 422);
+  await open([line(firstId, 2.5)], 422);
   const first = await open([line(firstId, 1), line(secondId, 1, 'Damaged in transit')]);
   check(first.status, 'requested', 'return begins requested');
   check(first.expected_refund, 15630, 'expected refund uses whole-IQD snapshots');
   await request(`/returns/${first.id}/inspect`, { token: customer, method: 'POST', expected: 403, body: { decision: 'reject' } });
   const firstA = first.items.find((entry) => entry.order_item_id === firstId);
   const firstB = first.items.find((entry) => entry.order_item_id === secondId);
+  await request(`/returns/${first.id}/inspect`, { token: admin, method: 'POST', expected: 422, body: {
+    decision: 'approve', items: [
+      { return_item_id: firstA.id, approved_quantity: 0.5, condition: 'sellable' },
+      { return_item_id: firstB.id, approved_quantity: 1, condition: 'damaged' },
+    ],
+  } });
   const reviewed = await request(`/returns/${first.id}/inspect`, { token: admin, method: 'POST', body: {
     decision: 'approve', items: [
       { return_item_id: firstA.id, approved_quantity: 1, condition: 'sellable' },

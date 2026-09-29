@@ -1,5 +1,36 @@
 # Changelog
 
+## 8.0.0 - 2026-09-29
+
+### Breaking
+
+- Catalog quantities are exact three-decimal base-unit values, and every cart,
+  order, stock, and return line now identifies a SKU. Whole-unit SKUs reject
+  fractional quantities.
+- Negotiation fields and behavior have been removed. Legacy open negotiations
+  are closed and only their reservations are released; historical sales remain
+  unchanged.
+
+### Added
+
+- Independent bilingual brands with visibility and sorting, permissioned admin
+  CRUD, public listing, product filters and facet counts, and Meilisearch brand
+  fields.
+- Per-SKU base units, price overrides or linked foreign reference pricing,
+  low-stock thresholds, effective prices, and three-state availability.
+- Audited category-to-brand conversion and a depth-report command for reviewing
+  pre-existing category trees.
+- Linked-price previews with stale-token protection, rate-only saves, and atomic
+  versioned rate-and-price publishing with configurable approved rounding.
+
+### Changed
+
+- Category writes enforce a two-level maximum, including re-parenting rules.
+- Catalog publication requires complete publishing data and approved product and
+  SKU prices; stock changes alone never publish a product.
+- The API contract is version 8.0.0, with refreshed generated web and admin API
+  types.
+
 ## 7.1.0 - 2026-09-29
 
 ### Added
