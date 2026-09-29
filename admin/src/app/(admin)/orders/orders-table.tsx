@@ -66,7 +66,10 @@ export function OrdersTable({
     {
       key: "total",
       header: t("columns.total"),
-      cell: (order) => formatMoney(order.total, currency, locale),
+      // Contract 7.0: every order names its own currency; the store's is
+      // only the fallback for an older API.
+      cell: (order) =>
+        formatMoney(order.total, order.currency ?? currency, locale),
     },
     {
       key: "placed",

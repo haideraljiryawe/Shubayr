@@ -122,6 +122,23 @@ function open(): void {
   });
 }
 
+/** Offline: stop pretending the stream is up. Online: resume at once. */
+function onOffline(): void {
+  if (!running) return;
+  if (retry) clearTimeout(retry);
+  retry = null;
+  source?.close();
+  source = null;
+  set({ stream: "reconnecting" });
+}
+
+function onOnline(): void {
+  if (!running) return;
+  attempt = 0;
+  void refreshCount();
+  open();
+}
+
 function onVisible(): void {
   if (document.visibilityState === "visible" && running) {
     void refreshCount();
@@ -134,12 +151,16 @@ export const inbox = {
     if (running) return;
     running = true;
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
     void refreshCount();
     open();
   },
   stop(): void {
     running = false;
     document.removeEventListener("visibilitychange", onVisible);
+    window.removeEventListener("offline", onOffline);
+    window.removeEventListener("online", onOnline);
     if (retry) clearTimeout(retry);
     retry = null;
     source?.close();

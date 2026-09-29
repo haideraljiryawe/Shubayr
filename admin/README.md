@@ -1,9 +1,10 @@
 # Shubayr — Web Admin (Next.js)
 
 The staff back office: username + password sign-in, permission-driven screens,
-Arabic-first with full RTL. This first slice is **access management** — staff
-accounts, permission presets, per-user grants and work phones. Operations
-screens (orders, catalog, stock, cash…) follow the backend build phases.
+Arabic-first with full RTL. It covers **access management** (staff accounts,
+permission presets, per-user grants, work phones), **order operations** and
+the staff **notification inbox**. Further operations screens (catalog, stock,
+cash…) follow the backend build phases.
 
 ## Run
 
@@ -65,9 +66,20 @@ The browser never sees a token and never calls the API directly.
 - **Logout** — `POST /api/auth/logout` revokes the refresh token with
   `POST /auth/logout` (best effort) and expires both cookies.
 - **Browser → API** — `/api/proxy/<path>` forwards method, query and JSON body
-  with the bearer token attached server-side. Only `/admin/*` is reachable,
-  never `/admin/auth/*` (token-minting routes have their own handlers) and
-  never dot segments.
+  with the bearer token attached server-side. Reachable: `/admin/*` (never
+  `/admin/auth/*`, whose token-minting routes have their own handlers), plus a
+  short allowlist pinned to method and shape — the caller's own inbox
+  (`GET /me/notifications[/unread-count]`, `PATCH …/{id}/read`,
+  `PATCH …/read-all`) and `PATCH /deliveries/{id}/assign`
+  (`src/lib/session/proxy-paths.ts`). Never dot segments.
+- **Notification stream** — `GET /api/notifications/stream` mints the API's
+  single-use stream ticket server-side, opens the API's SSE stream with it and
+  pipes the events back, so the browser holds neither a token nor a ticket.
+  The browser's own `EventSource` reconnect sends `Last-Event-ID`, which the
+  handler forwards; every reconnect gets a fresh ticket. The handler writes an
+  SSE comment first — Next sends a streamed response's headers only with its
+  first chunk, and the API is silent until an event or its 15 s heartbeat.
+  `Cache-Control: no-transform` keeps compression from buffering it.
 - **CSRF** — SameSite=Strict, plus every state-changing BFF call must carry
   `Origin: ADMIN_ORIGIN`.
 - **Server components** read the access cookie and call the API directly with
@@ -100,9 +112,28 @@ The browser never sees a token and never calls the API directly.
 | `/staff/[id]` | same | Profile · access (presets + extra grants) · reset password · deactivate/reactivate |
 | `/presets`, `/presets/new`, `/presets/[id]` | `roles.manage` | Permission picker grouped by area; delete non-system presets |
 | `/work-phones` | `users.manage` | Register a phone as delivery agent / order monitor with the person's name; change role; revoke |
+| `/orders` | `orders.view` | Server-side status filter, order-number search, date range and pagination (all in the URL) |
+| `/orders/[id]` | `orders.view` (+ each action's key) | Lines, customer, address, delivery, timeline; accept / start preparing / mark ready / hand over / cancel (reason required), assign a delivery agent |
+| `/notifications` (+ header bell) | session | The staff member's inbox: live unread count, dropdown, all/unread, mark one / mark all |
 
-The audit log is not a screen yet: API 6.1 records every change (actor, time,
-reason) but exposes no read endpoint for it.
+**Order actions** show only when BOTH the staff member's current
+permissions AND the order's state allow them (`src/lib/orders.ts`, unit-tested).
+The API still decides: a 409 (the order moved on — someone else acted) re-reads
+the order, says what it is now and refreshes the buttons; a 403 (a permission
+revoked meanwhile) refreshes and says so. Gaps, until the backend follow-up:
+
+- **No Reject.** The API has no rejected status or reject route; a "reject"
+  through the cancel route would record a cancellation and skew reports, so
+  pending orders offer Cancel (reason required) to `orders.cancel` holders.
+- **Agent picker needs `users.manage`.** Agents are listed from
+  `GET /admin/work-phones`; a user with only `orders.assign_agent` sees a note.
+- **Order date filter is UTC.** `GET /admin/orders` reads `from`/`to` as UTC
+  days, unlike the monitor list's Asia/Baghdad days.
+- **No staff-targeted notifications yet** (they arrive with order lifecycle
+  v2). The inbox is the user's own and shared across surfaces, so the live
+  specs drive it through the admin's linked phone account.
+
+The audit log is not a screen yet (PR E).
 
 ## Building blocks for later screens
 

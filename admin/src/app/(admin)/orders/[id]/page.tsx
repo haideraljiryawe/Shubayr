@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { PageError } from "@/components/shell/page-error";
 import { load, serverApi } from "@/lib/api/server";
-import { listRows } from "@/lib/api/list";
+import { listRows } from "@/lib/api/server";
 import { toWorkPhoneRow } from "@/lib/work-phones";
 import { OrderDetailView, type AgentOption } from "./order-detail";
 

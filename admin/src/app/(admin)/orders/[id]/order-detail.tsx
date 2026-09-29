@@ -60,7 +60,6 @@ export function OrderDetailView({
   const router = useRouter();
   const toast = useToast();
   const dateTime = useStoreDateTime();
-  const money = (amount: number | undefined) => formatMoney(amount, currency, locale);
 
   // The last answer this page received, shown until the next server render
   // (router.refresh) brings a new `initial`, which then wins. Not a remount:
@@ -72,6 +71,10 @@ export function OrderDetailView({
   const order =
     override && override.from === initial ? override.value : initial;
   const setOrder = (value: AdminOrder) => setOverride({ from: initial, value });
+  // Contract 7.0: the order names its own currency; the store's is only the
+  // fallback for an older API.
+  const money = (amount: number | undefined) =>
+    formatMoney(amount, order.currency ?? currency, locale);
   const [pending, setPending] = useState<OrderAction | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [agentId, setAgentId] = useState("");

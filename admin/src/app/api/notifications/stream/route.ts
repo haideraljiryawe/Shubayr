@@ -15,6 +15,36 @@ import { applySession, forward, respond } from "@/lib/session/bff";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The API sends nothing after its headers until an event or its 15-second
+ * heartbeat, and Next writes a streamed response's headers only with the
+ * first body chunk — so without this the browser would wait up to 15 s for
+ * the stream to open. An SSE comment goes out at once instead, with a
+ * reconnect delay for the browser's own retry.
+ */
+function withOpening(
+  upstream: ReadableStream<Uint8Array>,
+): ReadableStream<Uint8Array> {
+  const reader = upstream.getReader();
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("retry: 3000\n: open\n\n"));
+    },
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) controller.close();
+        else controller.enqueue(value);
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
+}
+
 function resumePoint(request: NextRequest): string | null {
   const value =
     request.headers.get("last-event-id") ??
@@ -61,15 +91,14 @@ export async function GET(request: NextRequest) {
     return new NextResponse(null, { status: upstream.status || 502 });
   }
 
-  const response = new NextResponse(upstream.body, {
+  const response = new NextResponse(withOpening(upstream.body), {
     status: 200,
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
+      // no-transform keeps compression middleware from buffering the stream.
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
-      // Never buffered by a reverse proxy, never compressed in one lump.
       "X-Accel-Buffering": "no",
-      "Content-Encoding": "none",
     },
   });
   if (ticket.refreshed) applySession(response, ticket.refreshed);
