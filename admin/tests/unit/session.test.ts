@@ -157,4 +157,25 @@ describe("isProxyablePath", () => {
   ])("%s → %s", (path, allowed) => {
     expect(isProxyablePath(path)).toBe(allowed);
   });
+
+  const id = "10000000-0000-4000-8000-000000000001";
+  it.each([
+    ["GET", "/me/notifications", true],
+    ["GET", "/me/notifications/unread-count", true],
+    ["PATCH", "/me/notifications/read-all", true],
+    ["PATCH", `/me/notifications/${id}/read`, true],
+    ["PATCH", `/deliveries/${id}/assign`, true],
+    // Each extra route is pinned to its method and shape…
+    ["DELETE", "/me/notifications", false],
+    ["POST", `/deliveries/${id}/assign`, false],
+    ["PATCH", `/deliveries/${id}`, false],
+    ["GET", "/deliveries/assigned", false],
+    ["PATCH", "/me/notifications/not-a-uuid/read", false],
+    // …and the stream ticket is minted only by the BFF's own stream route.
+    ["POST", "/notifications/stream-ticket", false],
+    ["GET", "/notifications/stream", false],
+    ["GET", "/me/notification-preferences", false],
+  ])("%s %s → %s", (method, path, allowed) => {
+    expect(isProxyablePath(path, method)).toBe(allowed);
+  });
 });

@@ -6,7 +6,7 @@
  * pages call the API regardless and render a clean 403 when it refuses.
  * ------------------------------------------------------------------------- */
 
-export type NavKey = "dashboard" | "staff" | "presets" | "workPhones";
+export type NavKey = "dashboard" | "orders" | "staff" | "presets" | "workPhones";
 
 export interface NavItem {
   key: NavKey;
@@ -17,6 +17,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", href: "/", requires: [] },
+  { key: "orders", href: "/orders", requires: ["orders.view"] },
   { key: "staff", href: "/staff", requires: ["users.manage"] },
   { key: "presets", href: "/presets", requires: ["roles.manage"] },
   { key: "workPhones", href: "/work-phones", requires: ["users.manage"] },

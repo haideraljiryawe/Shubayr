@@ -12,7 +12,8 @@ import { isProxyablePath } from "@/lib/session/proxy-paths";
  *
  * Forwards the method, query and JSON body to the API with the session's
  * bearer token attached server-side, refreshing it when needed. Only admin
- * routes are reachable; the auth routes have dedicated handlers because they
+ * routes are reachable (plus the few exact operations in proxy-paths.ts);
+ * the auth routes have dedicated handlers because they
  * mint or clear cookies. The API still decides every permission — this proxy
  * adds none and removes none.
  */
@@ -24,7 +25,7 @@ async function handle(
 
   const { path } = await params;
   const apiPath = `/${path.map(encodeURIComponent).join("/")}`;
-  if (!isProxyablePath(apiPath)) {
+  if (!isProxyablePath(apiPath, request.method)) {
     return NextResponse.json(
       { status: 404, code: "NOT_FOUND", message: "Not proxied", errors: [] },
       { status: 404 },
