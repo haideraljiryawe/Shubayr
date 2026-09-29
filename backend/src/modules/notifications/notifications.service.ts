@@ -149,7 +149,8 @@ export class NotificationsService
 
   async recordOrderMonitors(
     tx: Prisma.TransactionClient,
-    type: 'new_order' | 'order_cancelled' | 'delivery_failed',
+    type:
+      'new_order' | 'order_cancelled' | 'order_rejected' | 'delivery_failed',
     orderId: string,
     suffix = '',
   ) {

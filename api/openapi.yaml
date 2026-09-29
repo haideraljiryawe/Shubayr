@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 7.0.0
+  version: 7.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1752,6 +1752,24 @@ paths:
               schema: { $ref: "#/components/schemas/AdminOrderPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-agents:
+    get:
+      tags: [Admin]
+      summary: List active delivery agents available for assignment
+      description: Server-side search and pagination for staff assigning deliveries; users.manage is not required.
+      x-permission: orders.assign_agent
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 80 }, description: "case-insensitive name or phone search" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated active delivery agents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryAgentPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/orders/{id}:
     get:
       tags: [Admin]
@@ -1830,6 +1848,37 @@ paths:
       responses:
         "200":
           description: Cancelled order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/orders/{id}/reject:
+    post:
+      tags: [Admin]
+      summary: Reject a pending order and release its stock holds
+      x-permission: orders.reject
+      description: >
+        Rejection is distinct from cancellation and is allowed only while the
+        order is pending. A non-empty reason is stored in the timeline and
+        audit trail; the reservation is released and customer and order
+        monitors receive a durable notification.
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Rejected order detail
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AdminOrder" }
@@ -3280,6 +3329,7 @@ components:
         - dispatched
         - delivered
         - failed
+        - rejected
         - cancelled
         - return_requested
         - returned
@@ -3405,6 +3455,25 @@ components:
             data:
               type: array
               items: { $ref: "#/components/schemas/AdminOrder" }
+
+    DeliveryAgent:
+      type: object
+      additionalProperties: false
+      required: [id, name, phone]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+
+    DeliveryAgentPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/DeliveryAgent" }
 
     MonitorOrderListItem:
       type: object
@@ -3883,7 +3952,7 @@ components:
       additionalProperties: false
       required: [type, channel, enabled]
       properties:
-        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, delivery_assigned] }
+        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, order_rejected, delivery_assigned] }
         channel: { type: string, enum: [push, sms] }
         enabled: { type: boolean }
 

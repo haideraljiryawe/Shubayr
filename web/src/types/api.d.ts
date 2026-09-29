@@ -3551,6 +3551,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/delivery-agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active delivery agents available for assignment
+         * @description Server-side search and pagination for staff assigning deliveries; users.manage is not required.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description case-insensitive name or phone search */
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated active delivery agents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryAgentPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/orders/{id}": {
         parameters: {
             query?: never;
@@ -3676,6 +3722,57 @@ export interface paths {
             };
             responses: {
                 /** @description Cancelled order detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrder"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/orders/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a pending order and release its stock holds
+         * @description Rejection is distinct from cancellation and is allowed only while the order is pending. A non-empty reason is stored in the timeline and audit trail; the reservation is released and customer and order monitors receive a durable notification.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Rejected order detail */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -6305,7 +6402,7 @@ export interface components {
          * @description Canonical order lifecycle status (matches orders.status in schema.sql).
          * @enum {string}
          */
-        OrderStatus: "pending" | "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched" | "delivered" | "failed" | "cancelled" | "return_requested" | "returned";
+        OrderStatus: "pending" | "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched" | "delivered" | "failed" | "rejected" | "cancelled" | "return_requested" | "returned";
         OrderItem: {
             /**
              * Format: uuid
@@ -6441,6 +6538,15 @@ export interface components {
         };
         AdminOrderPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["AdminOrder"][];
+        };
+        DeliveryAgent: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            phone: string;
+        };
+        DeliveryAgentPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["DeliveryAgent"][];
         };
         MonitorOrderListItem: {
             /** Format: uuid */
@@ -6858,7 +6964,7 @@ export interface components {
         };
         NotificationPreferenceEntry: {
             /** @enum {string} */
-            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "delivery_assigned";
+            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "order_rejected" | "delivery_assigned";
             /** @enum {string} */
             channel: "push" | "sms";
             enabled: boolean;

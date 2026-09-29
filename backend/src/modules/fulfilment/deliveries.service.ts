@@ -10,6 +10,7 @@ import { AuditService } from '../audit/audit.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AssignedDeliveriesQueryDto } from './dto/assigned-deliveries-query.dto';
+import { DeliveryAgentsQueryDto } from './dto/delivery-agents-query.dto';
 import {
   AssignDeliveryDto,
   CreateDeliveryRatingDto,
@@ -39,6 +40,59 @@ export class DeliveriesService {
 
   listAll(query: AssignedDeliveriesQueryDto) {
     return this.list({}, query);
+  }
+
+  async listAgents(query: DeliveryAgentsQueryDto) {
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    const q = query.q?.trim();
+    const where: Prisma.UserWhereInput = {
+      is_active: true,
+      role: { is: { name: 'delivery_agent' } },
+      work_profile: {
+        is: { app_role: 'delivery_agent', is_active: true },
+      },
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: 'insensitive' as const } },
+              { phone: { contains: q } },
+              {
+                work_profile: {
+                  is: {
+                    name: { contains: q, mode: 'insensitive' as const },
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          work_profile: { select: { name: true } },
+        },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip: (page - 1) * perPage,
+        take: perPage,
+      }),
+    ]);
+    return {
+      page,
+      per_page: perPage,
+      total,
+      data: rows.map((row) => ({
+        id: row.id,
+        name: row.work_profile?.name ?? row.name ?? '',
+        phone: row.phone ?? '',
+      })),
+    };
   }
 
   private async list(

@@ -11,6 +11,7 @@ export const notificationTypes = [
   'promo',
   'new_order',
   'order_cancelled',
+  'order_rejected',
   'delivery_assigned',
 ] as const;
 export type NotificationType = (typeof notificationTypes)[number];
@@ -64,6 +65,7 @@ export function bilingualMessage(type: NotificationType) {
     promo: ['عرض من شُبير', 'لديك عرض جديد.'],
     new_order: ['طلب جديد', 'تم استلام طلب جديد للمتابعة.'],
     order_cancelled: ['تم إلغاء طلب', 'تم إلغاء طلب ويتطلب المتابعة.'],
+    order_rejected: ['تم رفض الطلب', 'تم رفض الطلب وإطلاق حجز المخزون.'],
     delivery_assigned: ['مهمة توصيل جديدة', 'تم إسناد طلب جديد إليك.'],
   };
   const english: Record<NotificationType, [string, string]> = {
@@ -87,6 +89,10 @@ export function bilingualMessage(type: NotificationType) {
     order_cancelled: [
       'Order cancelled',
       'An order was cancelled and may need attention.',
+    ],
+    order_rejected: [
+      'Order rejected',
+      'The order was rejected and its stock reservation was released.',
     ],
     delivery_assigned: ['New delivery', 'A delivery has been assigned to you.'],
   };

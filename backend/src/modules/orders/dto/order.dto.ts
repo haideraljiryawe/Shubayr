@@ -21,6 +21,7 @@ export const ORDER_STATUSES = [
   'dispatched',
   'delivered',
   'failed',
+  'rejected',
   'cancelled',
   'return_requested',
   'returned',
@@ -151,3 +152,5 @@ export class CancelOrderDto {
   @MaxLength(500)
   reason!: string;
 }
+
+export class RejectOrderDto extends CancelOrderDto {}

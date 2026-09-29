@@ -1,5 +1,21 @@
 # Changelog
 
+## 7.1.0 - 2026-09-29
+
+### Added
+
+- A permissioned pending-order rejection route with a required reason,
+  reservation release, audit trail, and durable customer/monitor notification.
+- A searchable, paginated active-delivery-agent picker protected only by
+  `orders.assign_agent`.
+
+### Changed
+
+- The API contract is version 7.1.0 and generated web/admin types are refreshed
+  in the same change.
+- API-contract CI now independently gates web and admin type generation and
+  typechecking whenever `api/openapi.yaml` changes.
+
 ## 7.0.0 - 2026-09-29
 
 ### Added
