@@ -5,7 +5,6 @@ import {
   IsDate,
   IsIn,
   IsInt,
-  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -130,10 +129,7 @@ export class ProductWriteDto extends BilingualNameDto {
   @IsString()
   description?: string | null;
 
-  @IsNumber(
-    { maxDecimalPlaces: 2 },
-    { message: 'price must be a number with at most 2 decimal places' },
-  )
+  @IsInt({ message: 'IQD price must use whole dinars' })
   @Min(0, { message: 'price must not be negative' })
   price!: number;
 
@@ -165,7 +161,7 @@ export class ProductWriteDto extends BilingualNameDto {
   is_negotiable?: boolean;
 
   @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsInt({ message: 'IQD floor_price must use whole dinars' })
   @Min(0)
   floor_price?: number | null;
 

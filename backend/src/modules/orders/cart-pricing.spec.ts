@@ -11,26 +11,26 @@ describe('server cart pricing', () => {
     expect(
       cartUnitPrice(
         {
-          price: '20.15',
+          price: '20150',
           discount_type: 'percentage',
           discount_value: '50.00',
           discount_starts_at: '2026-09-18T00:00:00Z',
           discount_ends_at: '2026-09-20T00:00:00Z',
         },
-        '0.05',
+        '50',
         now,
       ),
-    ).toBe(10.13);
+    ).toBe(10125);
   });
 
   it('caps a negative variant delta at zero', () => {
-    expect(cartUnitPrice({ price: '1.00' }, '-2.00', now)).toBe(0);
+    expect(cartUnitPrice({ price: '1000' }, '-2000', now)).toBe(0);
   });
 
   it('rounds coupon percentages half away from zero at the total boundary', () => {
     expect(
       calculateCartTotals(
-        [{ unit_price: '20.15', quantity: 1 }],
+        [{ unit_price: '20150', quantity: 1 }],
         {
           code: 'HALF',
           type: 'percentage',
@@ -42,10 +42,10 @@ describe('server cart pricing', () => {
         now,
       ),
     ).toEqual({
-      subtotal: 20.15,
-      discount: 10.08,
+      subtotal: 20150,
+      discount: 10075,
       delivery_fee: 0,
-      total: 10.07,
+      total: 10075,
     });
   });
 

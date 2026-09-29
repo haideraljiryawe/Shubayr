@@ -21,7 +21,7 @@ describe('catalog write contract', () => {
       name_en: 'Apples',
       name_ar: 'تفاح',
       description: 'Fresh',
-      price: 20.15,
+      price: 20150,
       discount_type: 'percentage',
       discount_value: 50,
       is_negotiable: false,

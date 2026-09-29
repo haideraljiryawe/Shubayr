@@ -323,6 +323,7 @@ export class ProductsService {
     return {
       ...product,
       price: Number(product.price),
+      currency: product.currency_code,
       discount_value:
         product.discount_value === null ? null : Number(product.discount_value),
       floor_price:
@@ -340,6 +341,7 @@ export class ProductsService {
       variants: product.variants.map((variant) => ({
         ...variant,
         price_delta: Number(variant.price_delta),
+        currency: variant.currency_code,
       })),
     };
   }
@@ -362,6 +364,16 @@ export class ProductsService {
     variants: ProductVariantInputDto[],
     productId?: string,
   ): Promise<void> {
+    if (
+      variants.some(
+        ({ price_delta: priceDelta }) =>
+          priceDelta !== undefined && !Number.isInteger(priceDelta),
+      )
+    ) {
+      throw new UnprocessableEntityException(
+        'IQD variant price deltas must use whole dinars',
+      );
+    }
     const skus = variants.map(({ sku }) => sku);
     if (new Set(skus).size !== skus.length) {
       throw new ConflictException('Variant SKUs must be unique');
@@ -486,6 +498,14 @@ export class ProductsService {
       product.floor_price == null
         ? null
         : this.decimalNumber(product.floor_price);
+    if (
+      !Number.isInteger(price) ||
+      (floor !== null && !Number.isInteger(floor))
+    ) {
+      throw new UnprocessableEntityException(
+        'IQD customer prices must use whole dinars',
+      );
+    }
     if (floor !== null && (floor < 0 || floor > price)) {
       throw new UnprocessableEntityException(
         'floor_price must be between zero and price',
@@ -533,6 +553,11 @@ export class ProductsService {
     if (product.discount_type === 'amount' && value >= price) {
       throw new UnprocessableEntityException(
         'Amount discount must be less than price',
+      );
+    }
+    if (product.discount_type === 'amount' && !Number.isInteger(value)) {
+      throw new UnprocessableEntityException(
+        'IQD amount discounts must use whole dinars',
       );
     }
     const starts = product.discount_starts_at

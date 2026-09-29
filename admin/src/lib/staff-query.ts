@@ -16,12 +16,10 @@ export interface StaffPage {
 /**
  * Search, filter, sort and paginate the staff list — on the server.
  *
- * API 6.1's GET /admin/staff returns every account in one array with no query
- * parameters, so this runs in the admin's server component, never in the
- * browser: the page ships one page of rows, and the table's URL contract is
- * the same one a paginated endpoint would take. When the API grows `q`,
- * `page` and `sort` on that route, the page passes them through and this
- * function goes away.
+ * Unparameterized GET /admin/staff calls retain the legacy array response, so
+ * this runs in the admin's server component, never in the browser. The page
+ * ships one page of rows while newer callers can use the API's server-side
+ * `q`, filters and pagination directly.
  */
 export function queryStaff(
   all: readonly StaffUser[],

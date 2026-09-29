@@ -743,8 +743,8 @@ export function mockReviewsFor(productId: string): Review[] {
  * /coupons/validate defines, so the UI has one rejection path to handle.
  */
 export const mockCoupons: Coupon[] = [
-  { code: "SHUBAYR10", type: "percentage", value: 10 },
-  { code: "WELCOME5", type: "fixed", value: 5 },
+  { code: "SHUBAYR10", type: "percentage", value: 10, currency: "IQD" },
+  { code: "WELCOME5", type: "fixed", value: 5, currency: "IQD" },
 ];
 
 export function mockCouponFor(code: string): Coupon | undefined {

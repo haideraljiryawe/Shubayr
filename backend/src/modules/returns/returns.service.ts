@@ -554,6 +554,7 @@ export class ReturnsService {
       reason: row.reason,
       expected_refund: Number(row.expected_refund),
       refund_amount: Number(row.refund_amount),
+      currency: row.currency_code,
       reviewed_by: row.reviewed_by,
       reviewed_at: row.reviewed_at,
       completed_at: row.completed_at,
@@ -565,6 +566,7 @@ export class ReturnsService {
         approved_quantity: item.approved_quantity,
         customer_reason: item.customer_reason,
         unit_price: Number(item.unit_price),
+        currency: item.currency_code,
         expected_refund: calculateLineTotal(item.unit_price, item.quantity),
         approved_refund: calculateLineTotal(
           item.unit_price,
@@ -580,6 +582,7 @@ export class ReturnsService {
             order_id: row.refund.order_id,
             return_id: row.refund.return_id,
             amount: Number(row.refund.amount),
+            currency: row.refund.currency_code,
             status: row.refund.status,
             reason: row.refund.reason,
             created_by: row.refund.created_by,

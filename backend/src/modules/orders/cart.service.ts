@@ -126,6 +126,7 @@ export class CartService {
       code: coupon!.code,
       type: coupon!.type,
       value: Number(coupon!.value),
+      currency: coupon!.currency_code,
     };
   }
 
@@ -185,6 +186,7 @@ export class CartService {
           quantity: item.quantity,
           unit_price,
           line_total: calculateLineTotal(unit_price, item.quantity),
+          currency: item.currency_code,
           available_qty,
           available: available_qty >= item.quantity,
         };
@@ -194,6 +196,7 @@ export class CartService {
     return {
       id: cart.id,
       coupon_code: coupon?.code ?? null,
+      currency: 'IQD',
       items,
       ...calculateCartTotals(items, coupon, at),
     };
