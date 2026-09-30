@@ -465,7 +465,7 @@
       "closesBeforeOpens": "Closing time must be after opening time.",
       "warningNotBeforeTimeout": "The warning must come before the cancellation.",
       "duplicateDate": "This day is listed twice.",
-      "range": "Enter a whole percentage from 0 to 100."
+      "range": "Enter a percentage from 0 to 100, with at most two decimals."
     },
     "hours": {
       "day": "Day",
