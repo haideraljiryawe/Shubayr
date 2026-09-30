@@ -104,3 +104,30 @@ export function parseLocalizedNumber(
     return { ok: false, error: "above_max" };
   return { ok: true, value };
 }
+
+export type DecimalParseResult =
+  { ok: true; value: string | null } | { ok: false; error: NumberParseError };
+
+/**
+ * The same rules as parseLocalizedNumber, but the result is the canonical
+ * decimal STRING ("1450.25"), never a float. Money and exchange rates go to
+ * the API as exact strings, so 0.1 + 0.2 never happens on the way. Leading
+ * zeros are dropped ("007" → "7", ".5" → "0.5"); trailing fractional zeros
+ * are kept, because "1.50" and "1.5" may mean different precisions.
+ */
+export function parseLocalizedDecimal(
+  raw: string,
+  options: NumberParseOptions = {},
+): DecimalParseResult {
+  const checked = parseLocalizedNumber(raw, options);
+  if (!checked.ok) return checked;
+  if (checked.value === null) return { ok: true, value: null };
+  const latin = normalizeDigits(raw.replace(/[‎‏؜]/g, "").trim())
+    .replace(/^−/, "-")
+    .replace(/[.٫]/, ".");
+  const negative = latin.startsWith("-");
+  const [whole, fraction] = latin.replace(/^-/, "").split(".");
+  const integer = (whole ?? "").replace(/^0+(?=\d)/, "") || "0";
+  const text = fraction !== undefined ? `${integer}.${fraction}` : integer;
+  return { ok: true, value: negative ? `-${text}` : text };
+}
