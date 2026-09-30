@@ -270,7 +270,7 @@ export function SettingsForm({
               <DecimalInput
                 value={form.thresholds[key]}
                 data-testid={`threshold-${key}`}
-                parse={{ integer: true }}
+                parse={{ maxDecimals: 2 }}
                 onValueChange={(_value, text) => update((draft) => void (draft.thresholds[key] = text))}
               />
             </Field>

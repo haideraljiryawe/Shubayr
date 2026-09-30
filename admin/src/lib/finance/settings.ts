@@ -1,13 +1,12 @@
 import type { components } from "@/types/api";
 import { parseLocalizedDecimal, parseLocalizedNumber } from "@/lib/number";
-import { decimalValue } from "./money";
 
 /* ---------------------------------------------------------------------------
  * Store settings (GET/PUT /admin/settings), as a form.
  *
- * The API stores every setting as a string (or null) and validates almost
- * nothing about the values — unknown keys, weekdays and thresholds only — so
- * this module is where a value is checked before it is sent: numbers through
+ * The API stores every setting as a string (or null) and, since contract 8.1,
+ * validates the values too; this module checks them first so an error shows
+ * next to its field before anything is sent: numbers through
  * the localized parser (Arabic-Indic digits yes, ambiguous separators no),
  * times as HH:MM, the timezone against the platform's IANA list.
  * ------------------------------------------------------------------------- */
@@ -34,9 +33,9 @@ export type NumberKey = (typeof NUMBER_KEYS)[number];
 export type ThresholdKey = (typeof THRESHOLD_KEYS)[number];
 
 /**
- * Weekdays as the API numbers them. The contract does not say which day 0
- * is; this follows the JavaScript / PostgreSQL convention (0 = Sunday) and
- * lists them from Saturday, the first working day in Iraq.
+ * Weekdays as the API numbers them: 0 = Sunday … 6 = Saturday (contract
+ * 8.1, the JavaScript / PostgreSQL convention). Listed from Saturday, the
+ * first working day in Iraq.
  */
 export const WEEKDAY_ORDER = [6, 0, 1, 2, 3, 4, 5] as const;
 
@@ -71,27 +70,24 @@ export function toForm(settings: AdminSettings): SettingsForm {
     NUMBER_KEYS.map((key) => [key, values[key] ?? ""]),
   ) as Record<NumberKey, string>;
   const byDay = new Map(
-    (settings.business_hours ?? []).map((row) => [Number(row.weekday), row]),
+    (settings.business_hours ?? []).map((row) => [row.weekday, row]),
   );
   const hours = WEEKDAY_ORDER.map((weekday) => {
-    const row = byDay.get(weekday) ?? {};
+    const row = byDay.get(weekday);
     return {
       weekday,
-      opens_at: String(row.opens_at ?? ""),
-      closes_at: String(row.closes_at ?? ""),
-      is_closed: Boolean(row.is_closed),
+      opens_at: row?.opens_at ?? "",
+      closes_at: row?.closes_at ?? "",
+      is_closed: row?.is_closed ?? false,
     };
   });
   const closedDays = (settings.closed_days ?? []).map((row) => ({
-    date: String(row.date ?? "").slice(0, 10),
-    reason: String(row.reason ?? ""),
+    date: row.date.slice(0, 10),
+    reason: row.reason ?? "",
   }));
   const raw = settings.protection_thresholds ?? {};
   const thresholds = Object.fromEntries(
-    THRESHOLD_KEYS.map((key) => {
-      const value = decimalValue((raw as Record<string, unknown>)[key]);
-      return [key, value === null ? "" : String(value)];
-    }),
+    THRESHOLD_KEYS.map((key) => [key, raw[key] === undefined ? "" : String(raw[key])]),
   ) as Record<ThresholdKey, string>;
   return {
     text,
@@ -151,6 +147,9 @@ function numberRules(form: SettingsForm, basePrecision: number): Record<NumberKe
   };
 }
 
+/** Thresholds are percentages in hundredths (contract 8.1: multipleOf 0.01). */
+const THRESHOLD_RULE: NumberRule = { min: 0, max: 100, maxDecimals: 2, required: true };
+
 /** Parsed value of a number field, or null when empty / invalid. */
 function parsed(text: string, rule: NumberRule): number | null {
   const result = parseLocalizedNumber(text, rule);
@@ -199,12 +198,7 @@ export function validate(form: SettingsForm, basePrecision: number): SettingsErr
   });
 
   for (const key of THRESHOLD_KEYS) {
-    const result = parseLocalizedNumber(form.thresholds[key], {
-      integer: true,
-      min: 0,
-      max: 100,
-      required: true,
-    });
+    const result = parseLocalizedNumber(form.thresholds[key], THRESHOLD_RULE);
     if (!result.ok) errors[`thresholds.${key}`] = result.error === "required" ? "required" : "range";
   }
   return errors;
@@ -257,7 +251,7 @@ export function buildPatch(before: SettingsForm, after: SettingsForm): AdminSett
   const thresholds: Record<string, number> = {};
   for (const key of THRESHOLD_KEYS) {
     if (after.thresholds[key] !== before.thresholds[key]) {
-      const value = parsed(after.thresholds[key], { integer: true });
+      const value = parsed(after.thresholds[key], THRESHOLD_RULE);
       if (value !== null) thresholds[key] = value;
     }
   }
@@ -295,8 +289,7 @@ function flatten(value: unknown): Record<string, string> {
   for (const [key, item] of Object.entries(
     (root.protection_thresholds as Record<string, unknown>) ?? {},
   )) {
-    const value = decimalValue(item);
-    out[`protection_thresholds.${key}`] = value === null ? "" : String(value);
+    out[`protection_thresholds.${key}`] = item === null || item === undefined ? "" : String(item);
   }
   return out;
 }

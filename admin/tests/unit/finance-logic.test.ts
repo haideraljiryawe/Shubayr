@@ -6,6 +6,7 @@ import {
   resolveOutcome,
   type OperationOutcome,
 } from "@/lib/finance/operations";
+import { documentHref, entryHref, sourceDocumentHref } from "@/lib/finance/links";
 import { periodRows, recentMonths, type AccountingPeriod } from "@/lib/finance/periods";
 import {
   buildPatch,
@@ -34,24 +35,50 @@ const SETTINGS: AdminSettings = {
     opens_at: "09:00",
     closes_at: "17:00",
     is_closed: weekday === 5,
+    updated_at: "2026-09-29T00:00:00.000Z",
   })),
   closed_days: [],
-  // Exactly as API 7.0 serialises them (decimal.js internals).
-  protection_thresholds: {
-    cost: { s: 1, e: 1, d: [50] },
-    price: { s: 1, e: 1, d: [50] },
-    quantity: { s: 1, e: 1, d: [50] },
-    exchange_rate: { s: 1, e: 1, d: [50] },
-  },
+  // Contract 8.1: plain JSON numbers.
+  protection_thresholds: { cost: 50, price: 50, quantity: 50, exchange_rate: 12.5 },
 };
 
 describe("settings form", () => {
   it("reads the API shape, thresholds included", () => {
     const form = toForm(SETTINGS);
     expect(form.thresholds.cost).toBe("50");
+    expect(form.thresholds.exchange_rate).toBe("12.5");
     expect(form.hours.map((row) => row.weekday)).toEqual([6, 0, 1, 2, 3, 4, 5]);
     expect(form.hours.find((row) => row.weekday === 5)?.is_closed).toBe(true);
     expect(validate(form, 0)).toEqual({});
+  });
+
+  it("weekday 0 is Sunday and 6 is Saturday (contract 8.1)", () => {
+    const form = toForm({
+      ...SETTINGS,
+      business_hours: SETTINGS.business_hours.map((row) => ({ ...row, is_closed: row.weekday === 6 })),
+    });
+    // Listed from Saturday; only Saturday (6) is closed.
+    expect(form.hours[0]).toMatchObject({ weekday: 6, is_closed: true });
+    expect(form.hours.filter((row) => row.is_closed).map((row) => row.weekday)).toEqual([6]);
+  });
+
+  it("thresholds take hundredths, 0–100", () => {
+    const form = toForm(SETTINGS);
+    form.thresholds.cost = "12.25";
+    form.thresholds.price = "12.255";
+    form.thresholds.quantity = "101";
+    expect(validate(form, 0)).toEqual({
+      "thresholds.price": "range",
+      "thresholds.quantity": "range",
+    });
+    form.thresholds.price = "٧٫٥";
+    form.thresholds.quantity = "100";
+    expect(validate(form, 0)).toEqual({});
+    expect(buildPatch(toForm(SETTINGS), form).protection_thresholds).toEqual({
+      cost: 12.25,
+      price: 7.5,
+      quantity: 100,
+    });
   });
 
   it("validates numbers with the localized rules, by field", () => {
@@ -177,5 +204,18 @@ describe("operations — posting exactly once", () => {
   it("recognises the closed-period refusal", () => {
     expect(isClosedPeriod(new ApiError(409, "The accounting period is closed"))).toBe(true);
     expect(isClosedPeriod(new ApiError(409, "Cash account is inactive"))).toBe(false);
+  });
+});
+
+describe("direct ledger links (contract 8.1)", () => {
+  it("links an entry and a document by id", () => {
+    expect(entryHref("e1")).toBe("/finance/ledger/entries/e1");
+    expect(documentHref("d1")).toBe("/finance/documents/d1");
+  });
+
+  it("links a source document only for documents that have a page", () => {
+    expect(sourceDocumentHref({ source_type: "cash_transfer", source_id: "d1" })).toBe("/finance/documents/d1");
+    expect(sourceDocumentHref({ source_type: "cash_opening_balance", source_id: "d2" })).toBe("/finance/documents/d2");
+    expect(sourceDocumentHref({ source_type: "journal_reversal", source_id: "e1" })).toBeNull();
   });
 });

@@ -612,13 +612,14 @@
   },
   "posting": {
     "posted": "Document {number} posted.",
-    "viewEntries": "View its entries",
     "checking": "The answer was lost. Checking with the server whether the document was posted before trying anything else…",
     "notPosted": "Confirmed: the document was not posted. You can retry safely — no duplicate will be created.",
     "retry": "Retry",
     "processing": "The server is still processing this document.",
     "checkAgain": "Check again",
-    "periodClosed": "The accounting period for this date is closed, so the server refused to post. Choose a date in an open period, or ask for the period to be reopened."
+    "periodClosed": "The accounting period for this date is closed, so the server refused to post. Choose a date in an open period, or ask for the period to be reopened.",
+    "viewDocument": "Open the document",
+    "viewEntry": "View its journal entry"
   },
   "periods": {
     "title": "Periods and monthly close",
@@ -707,7 +708,6 @@
     "documentDate": "Document date: {date}",
     "sourceEntries": "All entries of this document",
     "reverses": "Reverses entry {id}",
-    "findReversal": "Its reversal (if any)",
     "readOnly": "This screen is read-only.",
     "noEntries": "No matching entries.",
     "filters": {
@@ -717,6 +717,37 @@
       "anySource": "All types",
       "from": "From",
       "to": "To"
+    },
+    "allEntries": "All journal entries",
+    "openDocument": "Open the source document",
+    "reversesEntry": "This entry reverses <entry></entry>.",
+    "reversedBy": "Reversed by",
+    "notReversed": "Not reversed.",
+    "detail": {
+      "accountingDate": "Accounting date",
+      "documentDate": "Document date",
+      "postedAt": "Posted at",
+      "description": "Description",
+      "original": "Original amount × rate"
     }
+  },
+  "documents": {
+    "title": "Financial document",
+    "type": {
+      "cash_opening_balance": "Opening balance",
+      "cash_transfer": "Cash transfer"
+    },
+    "cashAccounts": "Cash accounts",
+    "amount": "Amount",
+    "account": "Account",
+    "from": "From",
+    "to": "To",
+    "reason": "Reason",
+    "documentDate": "Document date",
+    "accountingDate": "Accounting date",
+    "backdateReason": "Backdating reason",
+    "createdAt": "Posted at",
+    "viewEntry": "View its journal entry",
+    "entryNeedsLedger": "Viewing its journal entry needs the ledger permission."
   }
 }

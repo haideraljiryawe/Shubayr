@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Alert, Button } from "@/components/ui";
 import { FormError } from "@/components/forms/form-error";
 import { errorKind } from "@/lib/api/errors";
+import { documentHref, entryHref } from "@/lib/finance/links";
 import { isClosedPeriod } from "@/lib/finance/operations";
 import type { PostingState } from "./use-posting";
 
@@ -25,12 +26,12 @@ export function PostingStatus({
       return (
         <Alert tone="success" data-testid="posting-done">
           {t("posted", { number: state.document.document_number })}{" "}
-          <Link
-            className="font-semibold underline"
-            href={`/finance/ledger/entries?source_id=${state.document.id}`}
-            data-testid="posting-entries"
-          >
-            {t("viewEntries")}
+          <Link className="font-semibold underline" href={documentHref(state.document.id)} data-testid="posting-document">
+            {t("viewDocument")}
+          </Link>
+          {" · "}
+          <Link className="font-semibold underline" href={entryHref(state.document.journal_entry_id)} data-testid="posting-entries">
+            {t("viewEntry")}
           </Link>
         </Alert>
       );

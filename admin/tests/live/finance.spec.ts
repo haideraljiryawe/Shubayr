@@ -175,6 +175,19 @@ test("a transfer double-submit produces ONE document", async ({ page, request })
   expect(await cashTransferCount(request)).toBe(before + 1);
   await expect(page.locator(`[data-testid="account-row"][data-name="${from}"] [data-testid="account-balance"]`)).toHaveText("97,500 IQD");
 
+  // Direct links (contract 8.1): the posted document, then its journal entry.
+  await page.getByTestId("posting-document").click();
+  await expect(page.getByTestId("document-view")).toHaveAttribute("data-type", "cash_transfer");
+  await expect(page.getByTestId("document-amount")).toHaveText("2,500 IQD");
+  await expect(page.getByTestId("document-from")).toHaveText(from);
+  await expect(page.getByTestId("document-to")).toHaveText(to);
+  const documentNumber = await page.getByTestId("document-number").innerText();
+  await page.getByTestId("document-entry").click();
+  await expect(page.getByTestId("entry-view")).toBeVisible();
+  await expect(page.getByTestId("entry-line")).toHaveCount(2);
+  await page.getByTestId("entry-document-link").click();
+  await expect(page.getByTestId("document-number")).toHaveText(documentNumber);
+
   // At the API: two requests with one operation id are one document.
   const operationId = `op-${crypto.randomUUID()}`;
   const toId = (await api(request, "GET", "/admin/cash-accounts")).body.find((row: { name: string }) => row.name === to).id;
@@ -309,4 +322,38 @@ test("a permission-limited user sees only the screens they may use", async ({ pa
     data: { currency_code: "USD", rate: "1450", basis: 1, effective_at: new Date().toISOString(), reason: "Not allowed" },
   });
   expect(write.status()).toBe(403);
+});
+
+test("an entry links straight to its document, the entry it reverses and its reversal", async ({ page, request }) => {
+  const account = unique("Reversed");
+  const accountId = await createAccount(request, account);
+  const opening = await api(request, "POST", `/admin/cash-accounts/${accountId}/opening-balance`, {
+    operation_id: `op-${crypto.randomUUID()}`, amount: "4000", document_date: storeDay(),
+  });
+  expect(opening.status, JSON.stringify(opening.body)).toBe(201);
+  const reversal = await api(request, "POST", `/admin/ledger/entries/${opening.body.journal_entry_id}/reversal`, {
+    reason: "Live test reversal",
+  });
+  expect(reversal.status, JSON.stringify(reversal.body)).toBe(201);
+
+  await uiLoginAsAdmin(page);
+  // The list links each row to its entry, and a reversal to what it reverses.
+  await page.goto(`/finance/ledger/entries?source_type=journal_reversal&source_id=${opening.body.journal_entry_id}`);
+  await expect(page.getByTestId("entry-number")).toHaveText(reversal.body.document_number);
+  await page.getByTestId("entry-number").click();
+  await expect(page.getByTestId("entry-view")).toBeVisible();
+  await expect(page.getByTestId("entry-reverses")).toBeVisible();
+  await expect(page.getByTestId("entry-document-link")).toHaveCount(0);
+  await page.getByTestId("entry-reverses").click();
+
+  // The original: reversed by the entry above, and its opening-balance document.
+  await expect(page.getByTestId("entry-reversed-by")).toHaveText(reversal.body.document_number);
+  await page.getByTestId("entry-document-link").click();
+  await expect(page.getByTestId("document-view")).toHaveAttribute("data-type", "cash_opening_balance");
+  await expect(page.getByTestId("document-account")).toHaveText(account);
+  await expect(page.getByTestId("document-amount")).toHaveText("4,000 IQD");
+
+  // Unknown ids are a 404 page, not an error.
+  const missing = await page.goto(`/finance/ledger/entries/${crypto.randomUUID()}`);
+  expect(missing?.status()).toBe(404);
 });

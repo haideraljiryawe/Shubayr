@@ -109,42 +109,6 @@ export function decimalPlaces(value: string): number {
 }
 
 /**
- * A number from the API that may arrive as a decimal.js object.
- *
- * API 7.0 serialises `protection_thresholds` values as the internals of a
- * Prisma Decimal (`{"s":1,"e":1,"d":[50]}`) instead of the integers its
- * contract promises. This rebuilds the value from sign, exponent and base-1e7
- * limbs, and passes plain numbers and numeric strings through.
- */
-export function decimalValue(raw: unknown): number | null {
-  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-  if (typeof raw === "string" && raw.trim() !== "") {
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  if (raw && typeof raw === "object") {
-    const { s, e, d } = raw as { s?: unknown; e?: unknown; d?: unknown };
-    if (
-      (s === 1 || s === -1) &&
-      typeof e === "number" &&
-      Array.isArray(d) &&
-      d.every((limb) => typeof limb === "number")
-    ) {
-      const limbs = d as number[];
-      const digits =
-        String(limbs[0] ?? 0) +
-        limbs
-          .slice(1)
-          .map((limb) => String(limb).padStart(7, "0"))
-          .join("");
-      const value = Number(`${digits.slice(0, 1)}.${digits.slice(1) || "0"}e${e}`);
-      return Number.isFinite(value) ? s * value : null;
-    }
-  }
-  return null;
-}
-
-/**
  * An exchange rate written with its direction: "1 USD = 1,450 IQD". Every
  * digit the rate has is kept (up to the 10 the API allows); only trailing
  * zeros of the fraction go.

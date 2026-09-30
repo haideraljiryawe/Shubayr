@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  decimalValue,
   formatAmount,
   formatRate,
   isPositive,
@@ -81,24 +80,6 @@ describe("parseLocalizedDecimal", () => {
       ok: false,
       error: "too_many_decimals",
     });
-  });
-});
-
-describe("decimalValue — API 7.0 serialises thresholds as decimal.js internals", () => {
-  it("rebuilds the number from sign, exponent and limbs", () => {
-    expect(decimalValue({ s: 1, e: 1, d: [50] })).toBe(50);
-    expect(decimalValue({ s: 1, e: 0, d: [5] })).toBe(5);
-    expect(decimalValue({ s: -1, e: 2, d: [125] })).toBe(-125);
-    expect(decimalValue({ s: 1, e: -1, d: [5000000] })).toBe(0.5);
-    expect(decimalValue({ s: 1, e: 6, d: [1234567, 5000000] })).toBe(1234567.5);
-  });
-
-  it("passes plain values through and rejects junk", () => {
-    expect(decimalValue(20)).toBe(20);
-    expect(decimalValue("35")).toBe(35);
-    expect(decimalValue(null)).toBeNull();
-    expect(decimalValue({ s: 1 })).toBeNull();
-    expect(decimalValue("x")).toBeNull();
   });
 });
 

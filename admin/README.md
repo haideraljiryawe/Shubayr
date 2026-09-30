@@ -121,7 +121,9 @@ The browser never sees a token and never calls the API directly.
 | `/finance/currencies` | `ledger.view` (+ `settings.manage` to enable, `fx_rates.update` to record) | Currencies (base locked); rates written "1 USD = … IQD", per-1 or per-100 entry with a per-1 preview, required reason, "not from today" warnings, history with old → new and who |
 | `/finance/cash-accounts` | `cash_accounts.manage` | Accounts with ledger balances; create, rename, (de)activate, delete unused; opening-balance document; transfer (review, then confirm) |
 | `/finance/periods`, `/finance/periods/[month]` | `ledger.view` (+ `period.close`, `period.reopen`) | Recent months open/closed; the API's close checklist; close; reopen with a required reason; close history and differences at re-close |
-| `/finance/ledger`, `/finance/ledger/entries` | `ledger.view` | Trial balance as of a date; entries by account, document or date (server-paged), with source-document and reversal links. Read-only |
+| `/finance/ledger`, `/finance/ledger/entries` | `ledger.view` | Trial balance as of a date; entries by account, document or date (server-paged), each linking to its own page. Read-only |
+| `/finance/ledger/entries/[id]` | `ledger.view` | One journal entry (8.1): lines, dates, a direct link to its source document, and to the entry it reverses or the entries that reverse it. Read-only |
+| `/finance/documents/[id]` | `ledger.view` or `cash_accounts.manage` | One posted opening balance or cash transfer (8.1), with a direct link to its journal entry (for `ledger.view`). A successful posting links here and to the entry |
 
 **Order actions** show only when BOTH the staff member's current
 permissions AND the order's state allow them (`src/lib/orders.ts`, unit-tested).
@@ -203,21 +205,9 @@ and runs the live suite against it.
   contract documents a top-level `phone`; both shapes are read
   (`src/lib/work-phones.ts`).
 - `POST /auth/verify-otp` answers 201 where the contract says 200.
-- **Protection thresholds arrive as decimal.js internals.**
-  `GET /admin/settings` serialises `protection_thresholds` values as
-  `{"s":1,"e":1,"d":[50]}` (a Prisma `Decimal` not converted) instead of the
-  integers the contract promises; `decimalValue` in `src/lib/finance/money.ts`
-  decodes both.
-- **Settings values are barely validated by the API** (only unknown keys,
-  weekdays and thresholds), so `src/lib/finance/settings.ts` checks every
-  value before it is sent. The weekday numbering (0–6) is not specified (still
-  undocumented in contract 8.0.0); this app uses 0 = Sunday — re-check once
-  the backend documents it.
-- **No single reads for finance documents or journal entries**
-  (`GET /admin/ledger/entries/{id}`, a document by id): the ledger links by
-  `source_id` filter, and a reversal shows the id of the entry it reverses.
-- `AccountingPeriod` in the contract lacks the `closes` array the list
-  endpoint returns (with each close's `differences`); it is read anyway.
+- **Journal-entry list rows carry no reversal links**
+  (`GET /admin/ledger/entries` omits `reverses`/`reversals`); a row links to
+  the entry's own page, which has them.
 - Exchange rates record only the setter's id; names come from the audit log
   for staff with `audit.view`.
 - **Client IP behind the BFF:** every admin request reaches the API from this

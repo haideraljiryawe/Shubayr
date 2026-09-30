@@ -10,21 +10,12 @@ import {
   type Column,
   type TableState,
 } from "@/components/table/data-table";
+import { entryHref, sourceDocumentHref } from "@/lib/finance/links";
 import { formatAmount } from "@/lib/finance/money";
 import type { components } from "@/types/api";
 
 type Entry = components["schemas"]["JournalEntry"];
 type EntryPage = components["schemas"]["JournalEntryPage"];
-
-interface Line {
-  debit_base: string;
-  credit_base: string;
-  currency_code: string;
-  original_amount: string;
-  exchange_rate: string;
-  memo?: string | null;
-  account?: { code?: string; name_ar?: string; name_en?: string };
-}
 
 /** The source types that post today (API 7.0), for the filter. */
 const SOURCE_TYPES = ["cash_opening_balance", "cash_transfer", "journal_reversal"] as const;
@@ -61,7 +52,9 @@ export function EntriesView({
       header: t("columns.document"),
       cell: (entry) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold" dir="ltr" data-testid="entry-number">{entry.document_number}</span>
+          <Link className="font-semibold text-primary-dark hover:underline" href={entryHref(entry.id)} dir="ltr" data-testid="entry-number">
+            {entry.document_number}
+          </Link>
           <span className="text-xs text-text-muted">{t.has(`source.${entry.source_type}`) ? t(`source.${entry.source_type}`) : entry.source_type}</span>
           {entry.reverses_id ? (
             <Badge tone="warning" data-testid="entry-reversal">{t("reversal")}</Badge>
@@ -85,17 +78,17 @@ export function EntriesView({
       cell: (entry) => (
         <table className="w-full text-xs">
           <tbody>
-            {(entry.lines as unknown as Line[]).map((line, index) => (
-              <tr key={index}>
+            {entry.lines.map((line) => (
+              <tr key={line.id}>
                 <td className="py-0.5 pe-2">
                   <Link
-                    href={entriesHref({ account_code: line.account?.code ?? "" })}
+                    href={entriesHref({ account_code: line.account.code })}
                     className="text-primary-dark hover:underline"
                     dir="ltr"
                   >
-                    {line.account?.code}
+                    {line.account.code}
                   </Link>{" "}
-                  {line.account ? accountName(line.account) : ""}
+                  {accountName(line.account)}
                 </td>
                 <td className="py-0.5 text-end" dir="ltr">{Number(line.debit_base) ? money(line.debit_base) : ""}</td>
                 <td className="py-0.5 text-end" dir="ltr">{Number(line.credit_base) ? money(line.credit_base) : ""}</td>
@@ -113,25 +106,27 @@ export function EntriesView({
     {
       key: "links",
       header: <span className="sr-only">{t("columns.links")}</span>,
-      cell: (entry) => (
-        <div className="flex flex-col gap-1 text-xs">
-          {entry.description ? <span className="text-text-muted">{entry.description}</span> : null}
-          <Link className="text-primary-dark hover:underline" href={entriesHref({ source_id: entry.source_id })} data-testid="entry-source-link">
-            {t("sourceEntries")}
-          </Link>
-          {entry.reverses_id ? (
-            <span className="text-text-muted" dir="ltr">{t("reverses", { id: entry.reverses_id.slice(0, 8) })}</span>
-          ) : (
-            <Link
-              className="text-primary-dark hover:underline"
-              href={entriesHref({ source_type: "journal_reversal", source_id: entry.id })}
-              data-testid="entry-reversal-link"
-            >
-              {t("findReversal")}
+      cell: (entry) => {
+        const document = sourceDocumentHref(entry);
+        return (
+          <div className="flex flex-col gap-1 text-xs">
+            {entry.description ? <span className="text-text-muted">{entry.description}</span> : null}
+            {document ? (
+              <Link className="text-primary-dark hover:underline" href={document} data-testid="entry-document-link">
+                {t("openDocument")}
+              </Link>
+            ) : null}
+            <Link className="text-primary-dark hover:underline" href={entriesHref({ source_id: entry.source_id })} data-testid="entry-source-link">
+              {t("sourceEntries")}
             </Link>
-          )}
-        </div>
-      ),
+            {entry.reverses_id ? (
+              <Link className="text-primary-dark hover:underline" href={entryHref(entry.reverses_id)} data-testid="entry-reverses">
+                {t("reverses", { id: entry.reverses_id.slice(0, 8) })}
+              </Link>
+            ) : null}
+          </div>
+        );
+      },
     },
   ];
 

@@ -9,10 +9,9 @@ import type { components } from "@/types/api";
 export type AccountingPeriod = components["schemas"]["AccountingPeriod"];
 
 /**
- * One close of a period. GET /admin/accounting-periods returns them nested
- * as `closes` (newest first) although the contract's AccountingPeriod does
- * not declare the field; `differences` compares a re-close with the close
- * before it.
+ * One close of a period, nested in AccountingPeriod as `closes` (newest
+ * first). Contract 8.1 declares the field but leaves `differences` rows
+ * untyped; they compare a re-close with the close before it.
  */
 export interface PeriodClose {
   sequence: number;
@@ -58,7 +57,7 @@ export function periodRows(periods: readonly AccountingPeriod[], months: readonl
   const all = [...new Set([...months, ...byMonth.keys()])].sort().reverse();
   return all.map((month) => {
     const period = byMonth.get(month);
-    const closes = ((period as { closes?: PeriodClose[] } | undefined)?.closes ?? []).slice();
+    const closes = ((period?.closes ?? []) as PeriodClose[]).slice();
     return {
       month,
       status: period?.status === "closed" ? "closed" : "open",
