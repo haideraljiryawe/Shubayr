@@ -8,6 +8,7 @@ const mockUpdateSearchableAttributes = jest.fn();
 const mockUpdateSortableAttributes = jest.fn();
 const mockAddDocuments = jest.fn();
 const mockDeleteDocument = jest.fn();
+const mockWaitForTask = jest.fn();
 const mockIndex = jest.fn(() => ({
   updateFilterableAttributes: mockUpdateFilterableAttributes,
   updateSearchableAttributes: mockUpdateSearchableAttributes,
@@ -17,7 +18,10 @@ const mockIndex = jest.fn(() => ({
 }));
 
 jest.mock('meilisearch', () => ({
-  Meilisearch: jest.fn(() => ({ index: mockIndex })),
+  Meilisearch: jest.fn(() => ({
+    index: mockIndex,
+    tasks: { waitForTask: mockWaitForTask },
+  })),
 }));
 
 describe('CatalogSearchService outage handling', () => {
@@ -48,8 +52,9 @@ describe('CatalogSearchService outage handling', () => {
     mockUpdateFilterableAttributes.mockResolvedValue(undefined);
     mockUpdateSearchableAttributes.mockResolvedValue(undefined);
     mockUpdateSortableAttributes.mockResolvedValue(undefined);
-    mockAddDocuments.mockResolvedValue(undefined);
-    mockDeleteDocument.mockResolvedValue(undefined);
+    mockAddDocuments.mockResolvedValue({ taskUid: 1 });
+    mockDeleteDocument.mockResolvedValue({ taskUid: 2 });
+    mockWaitForTask.mockResolvedValue({ status: 'succeeded' });
   });
 
   it('drops the client when startup synchronization cannot reach search', async () => {
@@ -68,18 +73,34 @@ describe('CatalogSearchService outage handling', () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it('does not fail a committed catalog write when indexing later fails', async () => {
+  it('keeps the durable marker on outage and clears it after recovery', async () => {
+    const update = jest.fn().mockResolvedValue(undefined);
     const prisma = {
       product: {
         findUnique: jest.fn().mockResolvedValue(product),
+        update,
       },
     } as unknown as PrismaService;
     const service = new CatalogSearchService(prisma);
-    Object.assign(service, { client: { index: mockIndex } });
+    Object.assign(service, {
+      client: { index: mockIndex, tasks: { waitForTask: mockWaitForTask } },
+    });
     mockAddDocuments.mockRejectedValueOnce(new Error('search unavailable'));
 
     await expect(service.indexProduct(product.id)).resolves.toBeUndefined();
+    expect(update).not.toHaveBeenCalled();
+
+    Object.assign(service, {
+      client: { index: mockIndex, tasks: { waitForTask: mockWaitForTask } },
+    });
     await expect(service.indexProduct(product.id)).resolves.toBeUndefined();
-    expect(mockAddDocuments).toHaveBeenCalledTimes(1);
+    expect(mockAddDocuments).toHaveBeenCalledTimes(2);
+    expect(update).toHaveBeenCalledWith({
+      where: { id: product.id },
+      data: {
+        search_sync_required: false,
+        search_synced_at: expect.any(Date) as Date,
+      },
+    });
   });
 });

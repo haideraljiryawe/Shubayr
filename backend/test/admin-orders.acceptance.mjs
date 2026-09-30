@@ -56,7 +56,9 @@ async function login(phone) {
 
 function adminLogin(username, password) {
   return request('/admin/auth/login', {
-    method: 'POST', body: { username, password }, expected: 201,
+    method: 'POST',
+    body: { username, password },
+    expected: 201,
   });
 }
 
@@ -72,14 +74,13 @@ try {
     warehouseSession,
     agentSession,
     customerSession,
-  ] =
-    await Promise.all([
-      adminLogin('admin', 'Shubayr-Dev-Admin!2026'),
-      adminLogin('operations', 'Shubayr-Dev-Staff!2026'),
-      adminLogin('stock', 'Shubayr-Dev-Staff!2026'),
-      login('+9647700000005'),
-      login('+9647700000006'),
-    ]);
+  ] = await Promise.all([
+    adminLogin('admin', 'Shubayr-Dev-Admin!2026'),
+    adminLogin('operations', 'Shubayr-Dev-Staff!2026'),
+    adminLogin('stock', 'Shubayr-Dev-Staff!2026'),
+    login('+9647700000005'),
+    login('+9647700000006'),
+  ]);
   const admin = adminSession.access_token;
   const operations = operationsSession.access_token;
   const warehouse = warehouseSession.access_token;
@@ -90,7 +91,11 @@ try {
     token: operations,
   });
   check(agentPage.data.length, 1, 'delivery-agent picker paginates');
-  check(agentPage.total >= 2, true, 'delivery-agent picker lists active agents');
+  check(
+    agentPage.total >= 2,
+    true,
+    'delivery-agent picker lists active agents',
+  );
   check(
     Object.keys(agentPage.data[0]).sort(),
     ['id', 'name', 'phone'],
@@ -319,11 +324,11 @@ try {
   );
   check(
     await scalar(
-      'SELECT status AS value FROM simple_stock_holds WHERE order_id=$1',
+      'SELECT status AS value FROM stock_reservations WHERE order_id=$1 LIMIT 1',
       [pending.id],
     ),
-    'deducted',
-    'dispatch converts hold to deducted',
+    'consumed',
+    'dispatch consumes the lot reservation',
   );
 
   await request(`/deliveries/${pending.delivery.id}`, {
@@ -372,13 +377,29 @@ try {
   const rejectable = all.data.find(
     (order) => order.order_number === 'DEV-ORDER-9',
   );
-  await db.query("UPDATE orders SET status='pending' WHERE id=$1", [
-    rejectable.id,
-  ]);
-  await db.query(
-    "UPDATE simple_stock_holds SET status='held', released_at=NULL WHERE order_id=$1",
-    [rejectable.id],
-  );
+  await db.query('BEGIN');
+  try {
+    await db.query("UPDATE orders SET status='pending' WHERE id=$1", [
+      rejectable.id,
+    ]);
+    await db.query(
+      `UPDATE batch_stock AS stock
+       SET reserved = stock.reserved + reservation.quantity
+       FROM stock_reservations AS reservation
+       WHERE reservation.order_id = $1
+         AND stock.batch_id = reservation.batch_id
+         AND stock.location_id = reservation.location_id`,
+      [rejectable.id],
+    );
+    await db.query(
+      "UPDATE stock_reservations SET status='reserved', released_at=NULL WHERE order_id=$1",
+      [rejectable.id],
+    );
+    await db.query('COMMIT');
+  } catch (error) {
+    await db.query('ROLLBACK');
+    throw error;
+  }
   await request(`/admin/orders/${rejectable.id}/reject`, {
     token: operations,
     method: 'POST',
@@ -404,19 +425,18 @@ try {
   check(rejected.status, 'rejected', 'operations rejects a pending order');
   check(
     await scalar(
-      'SELECT status AS value FROM simple_stock_holds WHERE order_id=$1',
+      'SELECT status AS value FROM stock_reservations WHERE order_id=$1 LIMIT 1',
       [rejectable.id],
     ),
     'released',
-    'rejection releases the stock hold',
+    'rejection releases the lot reservation',
   );
   const rejectedStockAfter = await request(
     `/products/${rejectedProductId}/availability`,
   );
   const rejectedAvailability = (payload) =>
-    payload.variants.find(
-      (variant) => variant.variant_id === rejectedVariantId,
-    ).available_qty;
+    payload.variants.find((variant) => variant.variant_id === rejectedVariantId)
+      .available_qty;
   check(
     rejectedAvailability(rejectedStockAfter),
     rejectedAvailability(rejectedStockBefore) + rejectable.items[0].quantity,
@@ -488,11 +508,11 @@ try {
   );
   check(
     await scalar(
-      'SELECT status AS value FROM simple_stock_holds WHERE order_id=$1',
+      'SELECT status AS value FROM stock_reservations WHERE order_id=$1 LIMIT 1',
       [cancellable.id],
     ),
     'released',
-    'cancellation marks hold released',
+    'cancellation marks the lot reservation released',
   );
   check(
     await scalar('SELECT status AS value FROM payments WHERE order_id=$1', [

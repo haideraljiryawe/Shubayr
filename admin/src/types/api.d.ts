@@ -4051,6 +4051,46 @@ export interface paths {
         };
         trace?: never;
     };
+    "/admin/products/reindex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reindex all products and clear durable search-sync markers after success */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Search catch-up result */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            queued: number;
+                            synchronized: boolean;
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/categories": {
         parameters: {
             query?: never;
@@ -6286,6 +6326,778 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/inventory/warehouses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List warehouses and locations */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Warehouses */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Warehouse"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Create a warehouse */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WarehouseInput"];
+                };
+            };
+            responses: {
+                /** @description Warehouse */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Warehouse"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/warehouses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a warehouse that has never been used */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Rename or deactivate an unused warehouse */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WarehousePatch"];
+                };
+            };
+            responses: {
+                /** @description Warehouse */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Warehouse"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/inventory/warehouses/{id}/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a warehouse location without requiring a fixed hierarchy */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WarehouseLocationInput"];
+                };
+            };
+            responses: {
+                /** @description Location */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WarehouseLocation"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/locations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a location that has never been used */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update or deactivate an unused location */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WarehouseLocationPatch"];
+                };
+            };
+            responses: {
+                /** @description Location */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WarehouseLocation"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/inventory/balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read lot/location balances and allocatable availability */
+        get: {
+            parameters: {
+                query?: {
+                    variant_id?: string;
+                    location_id?: string;
+                    warehouse_id?: string;
+                    batch_id?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Balances */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryBalancePage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/lots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List lots; cost fields require cost.view */
+        get: {
+            parameters: {
+                query?: {
+                    variant_id?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Lots */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryLotPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/lots/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one lot; cost fields require cost.view */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Lot */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryLot"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the append-only stock movement ledger; costs require cost.view */
+        get: {
+            parameters: {
+                query?: {
+                    variant_id?: string;
+                    batch_id?: string;
+                    location_id?: string;
+                    custody_party_id?: string;
+                    type?: "receive" | "reserve" | "release" | "issue_to_custody" | "custody_to_sold" | "return_in" | "transfer" | "adjust" | "write_down";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Movements */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StockMovementPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/openings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List opening inventory documents; cost fields require cost.view */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Opening documents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryDocumentPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Post opening inventory and its balanced ledger entry */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InventoryOpeningInput"];
+                };
+            };
+            responses: {
+                /** @description Posted opening */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryOpening"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List stock transfer documents */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Transfer documents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryDocumentPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Transfer unreserved stock between locations without changing SKU value */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StockTransferInput"];
+                };
+            };
+            responses: {
+                /** @description Posted transfer */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StockTransfer"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List physical count documents */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Count documents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryDocumentPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Snapshot a scoped physical count draft */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StockCountInput"];
+                };
+            };
+            responses: {
+                /** @description Count draft */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StockCount"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/counts/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a count only if its scope has not moved since snapshot */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StockCountApproval"];
+                };
+            };
+            responses: {
+                /** @description Approved count */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StockCount"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/write-downs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List inventory write-down documents; cost fields require cost.view */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Write-down documents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryDocumentPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Write down non-sellable stock to inventory loss */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InventoryWriteDownInput"];
+                };
+            };
+            responses: {
+                /** @description Posted write-down */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryWriteDown"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/documents/{type}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one inventory document; cost fields require cost.view */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    type: "opening" | "transfer" | "count" | "write_down";
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Inventory document */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryOpening"] | components["schemas"]["StockTransfer"] | components["schemas"]["StockCount"] | components["schemas"]["InventoryWriteDown"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/settings": {
         parameters: {
             query?: never;
@@ -6369,6 +7181,15 @@ export interface components {
             code: string;
             /** @example quantity must not be less than 1 */
             message: string;
+            /** @description Exact requested quantity for an inventory conflict. */
+            requested?: string;
+            /** @description Exact currently allocatable quantity for an inventory conflict. */
+            available?: string;
+            /**
+             * Format: uuid
+             * @description SKU involved in an inventory conflict.
+             */
+            variant_id?: string;
         };
         /** @description Decimal money amount displayed at the associated currency precision (IQD 0, USD 2). */
         Money: number;
@@ -7387,24 +8208,31 @@ export interface components {
             /** Format: uuid */
             product_id?: string;
             /** Format: uuid */
-            variant_id?: string | null;
+            variant_id?: string;
             /** Format: uuid */
             supplier_id?: string | null;
             /** Format: uuid */
             po_item_id?: string | null;
             lot_number?: string | null;
-            /** Format: date */
+            /** Format: date-time */
             expiry_date?: string | null;
             purchase_cost?: number;
+            currency_code?: string;
             qty_received?: number;
+            landed_cost_share?: number;
+            source_type?: string;
+            /** Format: uuid */
+            source_id?: string | null;
             /** Format: date-time */
             entry_date?: string;
+            batch_stock?: components["schemas"]["LotBalance"][];
+            custody?: number;
         };
         BatchPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["InventoryBatch"][];
         };
         /** @enum {string} */
-        StockMovementType: "purchase" | "sale" | "transfer" | "return_in" | "reserve" | "release" | "adjustment";
+        StockMovementType: "receive" | "reserve" | "release" | "issue_to_custody" | "custody_to_sold" | "return_in" | "transfer" | "adjust" | "write_down";
         StockMovement: {
             /** Format: uuid */
             id?: string;
@@ -7419,8 +8247,22 @@ export interface components {
             reference?: string | null;
             /** Format: uuid */
             user_id?: string | null;
+            /** Format: uuid */
+            return_item_id?: string | null;
+            /** @description Present only with cost.view. */
+            unit_cost_iqd?: number;
+            source_type?: string;
+            /** Format: uuid */
+            source_id?: string | null;
+            /** Format: uuid */
+            custody_party_id?: string | null;
             /** Format: date-time */
             created_at?: string;
+            batch?: {
+                /** Format: uuid */
+                variant_id: string;
+                lot_number: string | null;
+            };
         };
         StockMovementPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["StockMovement"][];
@@ -7431,6 +8273,11 @@ export interface components {
             name?: string;
             code?: string;
             is_active?: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+            locations?: components["schemas"]["WarehouseLocation"][];
         };
         WarehousePage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Warehouse"][];
@@ -7444,6 +8291,302 @@ export interface components {
             aisle?: string | null;
             shelf?: string | null;
             bin?: string | null;
+            code?: string;
+            description?: string | null;
+            is_sellable?: boolean;
+            is_active?: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        WarehouseInput: {
+            code: string;
+            name: string;
+        };
+        WarehousePatch: {
+            code?: string;
+            name?: string;
+            is_active?: boolean;
+        };
+        WarehouseLocationInput: {
+            code: string;
+            description?: string;
+            /** @default true */
+            is_sellable: boolean;
+        };
+        WarehouseLocationPatch: {
+            code?: string;
+            description?: string;
+            is_sellable?: boolean;
+            is_active?: boolean;
+        };
+        LotBalance: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            location_id: string;
+            quantity: number;
+            reserved: number;
+            available: number;
+            location: components["schemas"]["WarehouseLocation"];
+        };
+        InventoryLot: components["schemas"]["InventoryBatch"];
+        InventoryLotPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["InventoryLot"][];
+        };
+        InventoryBalance: {
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            location_id: string;
+            /** Format: uuid */
+            warehouse_id: string;
+            quantity: number;
+            reserved: number;
+            available: number;
+            custody: number;
+            /** Format: uuid */
+            variant_id: string;
+            sku: string;
+            /** Format: uuid */
+            product_id: string;
+            lot_number: string | null;
+            /** Format: date-time */
+            expiry_date: string | null;
+            location_code: string;
+            is_sellable: boolean;
+        };
+        InventoryBalancePage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["InventoryBalance"][];
+        };
+        InventoryOperationFields: {
+            operation_id: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+        };
+        InventoryOpeningInput: components["schemas"]["InventoryOperationFields"] & {
+            lines: {
+                /** Format: uuid */
+                variant_id: string;
+                /** Format: uuid */
+                location_id: string;
+                lot_number?: string;
+                /** Format: date */
+                expiry_date?: string;
+                quantity: string;
+                unit_cost_iqd: string;
+                landed_cost_share?: string;
+            }[];
+        };
+        CompactJournalLink: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+        };
+        InventoryOpeningLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            opening_id: string;
+            /** Format: uuid */
+            variant_id: string;
+            /** Format: uuid */
+            location_id: string;
+            /** Format: uuid */
+            lot_id: string;
+            quantity: number;
+            unit_cost_iqd?: number;
+            landed_cost_share?: number;
+            /** Format: date-time */
+            expiry_date: string | null;
+        };
+        InventoryOpening: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            /** @enum {string} */
+            status: "posted";
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            journal_entry_id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            posted_at: string;
+            lines: components["schemas"]["InventoryOpeningLine"][];
+            journal_entry: components["schemas"]["CompactJournalLink"];
+        };
+        StockTransferInput: {
+            operation_id: string;
+            /** Format: date */
+            document_date: string;
+            reason: string;
+            lines: {
+                /** Format: uuid */
+                batch_id: string;
+                /** Format: uuid */
+                from_location_id: string;
+                /** Format: uuid */
+                to_location_id: string;
+                quantity: string;
+            }[];
+        };
+        StockTransferLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            transfer_id: string;
+            /** Format: uuid */
+            variant_id: string;
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            from_location_id: string;
+            /** Format: uuid */
+            to_location_id: string;
+            quantity: number;
+        };
+        StockTransfer: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            /** Format: date-time */
+            document_date: string;
+            /** @enum {string} */
+            status: "posted";
+            reason: string;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            posted_at: string;
+            lines: components["schemas"]["StockTransferLine"][];
+        };
+        StockCountInput: {
+            /** Format: uuid */
+            warehouse_id?: string;
+            /** Format: uuid */
+            location_id?: string;
+            /** Format: uuid */
+            variant_id?: string;
+            reason: string;
+        };
+        StockCountApproval: components["schemas"]["InventoryOperationFields"] & {
+            lines: {
+                /** Format: uuid */
+                batch_id: string;
+                /** Format: uuid */
+                location_id: string;
+                counted_quantity: string;
+            }[];
+        };
+        StockCountLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            count_id: string;
+            /** Format: uuid */
+            variant_id: string;
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            location_id: string;
+            system_quantity: number;
+            counted_quantity: number;
+            difference: number;
+        };
+        StockCount: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string | null;
+            /** Format: uuid */
+            warehouse_id: string | null;
+            /** Format: uuid */
+            location_id: string | null;
+            /** Format: uuid */
+            variant_id: string | null;
+            /** Format: date-time */
+            snapshot_at: string;
+            /** @enum {string} */
+            status: "draft" | "approved";
+            reason: string;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            approved_by: string | null;
+            /** Format: uuid */
+            journal_entry_id: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            approved_at: string | null;
+            lines: components["schemas"]["StockCountLine"][];
+            journal_entry: components["schemas"]["CompactJournalLink"] | null;
+        };
+        InventoryWriteDownInput: components["schemas"]["InventoryOperationFields"] & {
+            reason: string;
+            lines: {
+                /** Format: uuid */
+                batch_id: string;
+                /** Format: uuid */
+                location_id: string;
+                quantity: string;
+            }[];
+        };
+        InventoryWriteDownLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            write_down_id: string;
+            /** Format: uuid */
+            variant_id: string;
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            location_id: string;
+            quantity: number;
+            unit_cost_iqd?: number;
+        };
+        InventoryWriteDown: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            reason: string;
+            /** @enum {string} */
+            status: "posted";
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            journal_entry_id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            posted_at: string;
+            lines: components["schemas"]["InventoryWriteDownLine"][];
+            journal_entry: components["schemas"]["CompactJournalLink"];
+        };
+        InventoryDocumentPage: components["schemas"]["Pagination"] & {
+            data: (components["schemas"]["InventoryOpening"] | components["schemas"]["StockTransfer"] | components["schemas"]["StockCount"] | components["schemas"]["InventoryWriteDown"])[];
         };
         WarehouseLocationPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["WarehouseLocation"][];

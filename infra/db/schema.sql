@@ -1631,3 +1631,7 @@ ON CONFLICT DO NOTHING;
 -- =====================================================================
 -- END OF SCHEMA — Shubayr v2.0
 -- =====================================================================
+
+-- Phase 5 inventory schema is kept in the Prisma migration so bootstrap and
+-- migration paths execute the exact same DDL.
+\ir ../../backend/prisma/migrations/20260930040000_inventory_costing/migration.sql

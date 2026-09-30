@@ -207,7 +207,10 @@ export class ProductsService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.product.update({ where: { id }, data });
+      await tx.product.update({
+        where: { id },
+        data: { ...data, search_sync_required: true },
+      });
       if (actorId) {
         await this.audit.record(tx, {
           actorId,
@@ -244,7 +247,7 @@ export class ProductsService {
   async archive(id: string): Promise<void> {
     const result = await this.prisma.product.updateMany({
       where: { id },
-      data: { status: 'archived' },
+      data: { status: 'archived', search_sync_required: true },
     });
     if (result.count !== 1) throw new NotFoundException('Product not found');
     await this.search?.indexProduct(id);
@@ -280,37 +283,33 @@ export class ProductsService {
         throw new NotFoundException('Product not found');
       }
     }
-    const [stock, reservations, simpleHolds] = await this.prisma.$transaction([
-      this.prisma.batchStock.findMany({
-        where: {
-          batch: {
-            product_id: id,
-            OR: [{ expiry_date: null }, { expiry_date: { gte: new Date() } }],
-          },
+    const stock = await this.prisma.batchStock.findMany({
+      where: {
+        batch: {
+          product_id: id,
+          OR: [{ expiry_date: null }, { expiry_date: { gte: new Date() } }],
         },
-        select: { quantity: true, batch: { select: { variant_id: true } } },
-      }),
-      this.prisma.stockReservation.findMany({
-        where: { batch: { product_id: id }, status: 'reserved' },
-        select: { quantity: true, batch: { select: { variant_id: true } } },
-      }),
-      this.prisma.simpleStockHold.findMany({
-        where: { product_id: id, status: { in: ['held', 'deducted'] } },
-        select: { quantity: true, variant_id: true },
-      }),
-    ]);
+        location: {
+          is_active: true,
+          is_sellable: true,
+          warehouse: { is_active: true },
+        },
+      },
+      select: {
+        quantity: true,
+        reserved: true,
+        batch: { select: { variant_id: true } },
+      },
+    });
     const quantities = new Map<string, number>();
     for (const item of stock) {
       const key = item.batch.variant_id;
-      quantities.set(key, (quantities.get(key) ?? 0) + Number(item.quantity));
-    }
-    for (const item of reservations) {
-      const key = item.batch.variant_id;
-      quantities.set(key, (quantities.get(key) ?? 0) - Number(item.quantity));
-    }
-    for (const item of simpleHolds) {
-      const key = item.variant_id;
-      quantities.set(key, (quantities.get(key) ?? 0) - Number(item.quantity));
+      quantities.set(
+        key,
+        (quantities.get(key) ?? 0) +
+          Number(item.quantity) -
+          Number(item.reserved ?? 0),
+      );
     }
     const defaultThreshold = await this.defaultLowStockThreshold();
     const variants = product.variants.map((stored) => {
@@ -494,10 +493,14 @@ export class ProductsService {
     const {
       currency_code: _currencyCode,
       category: _category,
+      search_sync_required: _searchSyncRequired,
+      search_synced_at: _searchSyncedAt,
       ...publicProduct
     } = product;
     void _currencyCode;
     void _category;
+    void _searchSyncRequired;
+    void _searchSyncedAt;
     return {
       ...publicProduct,
       price: Number(product.price),
@@ -769,19 +772,17 @@ export class ProductsService {
     ids: string[],
   ): Promise<Set<string>> {
     const where = { variant_id: { in: ids } } as const;
-    const [batches, cartItems, orderItems, invoiceItems, holds] =
-      await Promise.all([
-        tx.inventoryBatch.findMany({ where, select: { variant_id: true } }),
-        tx.cartItem.findMany({ where, select: { variant_id: true } }),
-        tx.orderItem.findMany({ where, select: { variant_id: true } }),
-        tx.purchaseInvoiceItem.findMany({
-          where,
-          select: { variant_id: true },
-        }),
-        tx.simpleStockHold.findMany({ where, select: { variant_id: true } }),
-      ]);
+    const [batches, cartItems, orderItems, invoiceItems] = await Promise.all([
+      tx.inventoryBatch.findMany({ where, select: { variant_id: true } }),
+      tx.cartItem.findMany({ where, select: { variant_id: true } }),
+      tx.orderItem.findMany({ where, select: { variant_id: true } }),
+      tx.purchaseInvoiceItem.findMany({
+        where,
+        select: { variant_id: true },
+      }),
+    ]);
     return new Set(
-      [...batches, ...cartItems, ...orderItems, ...invoiceItems, ...holds]
+      [...batches, ...cartItems, ...orderItems, ...invoiceItems]
         .map(({ variant_id }) => variant_id)
         .filter((id): id is string => id !== null),
     );

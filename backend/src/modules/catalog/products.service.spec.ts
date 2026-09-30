@@ -46,7 +46,7 @@ function availabilityMocks() {
 }
 
 describe('ProductsService', () => {
-  it('subtracts active COD holds as well as batch reservations from sellable stock', async () => {
+  it('subtracts lot reservations from sellable stock', async () => {
     const prisma = {
       product: {
         findUnique: jest.fn().mockResolvedValue({
@@ -68,20 +68,8 @@ describe('ProductsService', () => {
         findMany: jest
           .fn()
           .mockResolvedValue([
-            { quantity: 5, batch: { variant_id: 'variant-id' } },
+            { quantity: 5, reserved: 3, batch: { variant_id: 'variant-id' } },
           ]),
-      },
-      stockReservation: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([
-            { quantity: 1, batch: { variant_id: 'variant-id' } },
-          ]),
-      },
-      simpleStockHold: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ quantity: 2, variant_id: 'variant-id' }]),
       },
       $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
         Promise.all(operations),
@@ -188,7 +176,10 @@ describe('ProductsService', () => {
       {} as never,
     );
     await service.update(product.id, { name_en: 'Fresh Coffee' });
-    expect(updateData).toEqual({ name_en: 'Fresh Coffee' });
+    expect(updateData).toEqual({
+      name_en: 'Fresh Coffee',
+      search_sync_required: true,
+    });
   });
 
   it('applies remove and move media operations with contiguous order', async () => {

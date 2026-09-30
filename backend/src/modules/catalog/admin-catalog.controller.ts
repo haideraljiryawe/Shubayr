@@ -29,6 +29,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
+import { CatalogSearchService } from './catalog-search.service';
 
 @RequirePermissions('catalog.categories')
 @Controller('admin/categories')
@@ -110,11 +111,19 @@ export class AdminBrandsController {
 @RequirePermissions('catalog.products')
 @Controller('admin/products')
 export class AdminProductsController {
-  constructor(private readonly products: ProductsService) {}
+  constructor(
+    private readonly products: ProductsService,
+    private readonly search: CatalogSearchService,
+  ) {}
 
   @Get()
   list(@Query() query: ProductQueryDto) {
     return this.products.listAdmin(query);
+  }
+
+  @Post('reindex')
+  reindex() {
+    return this.search.reindexAll();
   }
 
   @Get(':id')

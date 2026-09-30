@@ -114,6 +114,11 @@ jobs:
         options: >-
           --health-cmd="redis-cli ping" --health-interval=10s
           --health-timeout=5s --health-retries=5
+      search:
+        image: getmeili/meilisearch:v1.9
+        env:
+          MEILI_MASTER_KEY: masterKey_acceptance
+        ports: [ "7700:7700" ]
     env:
       APP_ENV: development
       NODE_ENV: test

@@ -43,5 +43,11 @@ import { PeriodService } from './period.service';
     PeriodService,
     LinkedPricingService,
   ],
+  exports: [
+    DateRulesService,
+    DocumentNumberService,
+    LedgerService,
+    OperationService,
+  ],
 })
 export class FinanceModule {}

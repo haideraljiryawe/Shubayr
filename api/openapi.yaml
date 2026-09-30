@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 8.1.0
+  version: 8.2.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1979,6 +1979,7 @@ paths:
               schema: { $ref: "#/components/schemas/Product" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+
     patch:
       tags: [Admin]
       summary: Update a product
@@ -2011,6 +2012,25 @@ paths:
         "204": { description: Deleted }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/products/reindex:
+    post:
+      tags: [Admin]
+      summary: Reindex all products and clear durable search-sync markers after success
+      x-permission: catalog.products
+      responses:
+        "201":
+          description: Search catch-up result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [queued, synchronized]
+                properties:
+                  queued: { type: integer, minimum: 0 }
+                  synchronized: { type: boolean }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   # ---------------- ADMIN: CATEGORIES CRUD ----------------
   /admin/categories:
@@ -2893,6 +2913,247 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  # ---------------- ADMIN: INVENTORY & COSTING ----------------
+  /admin/inventory/warehouses:
+    get:
+      tags: [Inventory]
+      summary: List warehouses and locations
+      x-permission: inventory.view
+      responses:
+        "200": { description: Warehouses, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Warehouse" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      summary: Create a warehouse
+      x-permission: inventory.manage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseInput" } } } }
+      responses:
+        "201": { description: Warehouse, content: { application/json: { schema: { $ref: "#/components/schemas/Warehouse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/warehouses/{id}:
+    patch:
+      tags: [Inventory]
+      summary: Rename or deactivate an unused warehouse
+      x-permission: inventory.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehousePatch" } } } }
+      responses:
+        "200": { description: Warehouse, content: { application/json: { schema: { $ref: "#/components/schemas/Warehouse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Inventory]
+      summary: Delete a warehouse that has never been used
+      x-permission: inventory.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/inventory/warehouses/{id}/locations:
+    post:
+      tags: [Inventory]
+      summary: Create a warehouse location without requiring a fixed hierarchy
+      x-permission: inventory.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseLocationInput" } } } }
+      responses:
+        "201": { description: Location, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseLocation" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/locations/{id}:
+    patch:
+      tags: [Inventory]
+      summary: Update or deactivate an unused location
+      x-permission: inventory.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseLocationPatch" } } } }
+      responses:
+        "200": { description: Location, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseLocation" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Inventory]
+      summary: Delete a location that has never been used
+      x-permission: inventory.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/inventory/balances:
+    get:
+      tags: [Inventory]
+      summary: Read lot/location balances and allocatable availability
+      x-permission: inventory.view
+      parameters:
+        - { name: variant_id, in: query, schema: { type: string, format: uuid } }
+        - { name: location_id, in: query, schema: { type: string, format: uuid } }
+        - { name: warehouse_id, in: query, schema: { type: string, format: uuid } }
+        - { name: batch_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Balances, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryBalancePage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/lots:
+    get:
+      tags: [Inventory]
+      summary: List lots; cost fields require cost.view
+      x-permission: inventory.view
+      parameters:
+        - { name: variant_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Lots, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryLotPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/inventory/lots/{id}:
+    get:
+      tags: [Inventory]
+      summary: Read one lot; cost fields require cost.view
+      x-permission: inventory.view
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Lot, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryLot" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/inventory/movements:
+    get:
+      tags: [Inventory]
+      summary: Read the append-only stock movement ledger; costs require cost.view
+      x-permission: inventory.view
+      parameters:
+        - { name: variant_id, in: query, schema: { type: string, format: uuid } }
+        - { name: batch_id, in: query, schema: { type: string, format: uuid } }
+        - { name: location_id, in: query, schema: { type: string, format: uuid } }
+        - { name: custody_party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [receive, reserve, release, issue_to_custody, custody_to_sold, return_in, transfer, adjust, write_down] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Movements, content: { application/json: { schema: { $ref: "#/components/schemas/StockMovementPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/inventory/openings:
+    get:
+      tags: [Inventory]
+      summary: List opening inventory documents; cost fields require cost.view
+      x-permission: inventory.view
+      parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PerPage" }]
+      responses:
+        "200": { description: Opening documents, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryDocumentPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      summary: Post opening inventory and its balanced ledger entry
+      x-permission: inventory.manage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryOpeningInput" } } } }
+      responses:
+        "201": { description: Posted opening, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryOpening" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/transfers:
+    get:
+      tags: [Inventory]
+      summary: List stock transfer documents
+      x-permission: inventory.view
+      parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PerPage" }]
+      responses:
+        "200": { description: Transfer documents, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryDocumentPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      summary: Transfer unreserved stock between locations without changing SKU value
+      x-permission: inventory.transfer
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StockTransferInput" } } } }
+      responses:
+        "201": { description: Posted transfer, content: { application/json: { schema: { $ref: "#/components/schemas/StockTransfer" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/counts:
+    get:
+      tags: [Inventory]
+      summary: List physical count documents
+      x-permission: inventory.view
+      parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PerPage" }]
+      responses:
+        "200": { description: Count documents, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryDocumentPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      summary: Snapshot a scoped physical count draft
+      x-permission: inventory.count
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StockCountInput" } } } }
+      responses:
+        "201": { description: Count draft, content: { application/json: { schema: { $ref: "#/components/schemas/StockCount" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/counts/{id}/approve:
+    post:
+      tags: [Inventory]
+      summary: Approve a count only if its scope has not moved since snapshot
+      x-permission: inventory.adjust
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StockCountApproval" } } } }
+      responses:
+        "201": { description: Approved count, content: { application/json: { schema: { $ref: "#/components/schemas/StockCount" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/write-downs:
+    get:
+      tags: [Inventory]
+      summary: List inventory write-down documents; cost fields require cost.view
+      x-permission: inventory.view
+      parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PerPage" }]
+      responses:
+        "200": { description: Write-down documents, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryDocumentPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      summary: Write down non-sellable stock to inventory loss
+      x-permission: inventory.write_down
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryWriteDownInput" } } } }
+      responses:
+        "201": { description: Posted write-down, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryWriteDown" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/documents/{type}/{id}:
+    get:
+      tags: [Inventory]
+      summary: Read one inventory document; cost fields require cost.view
+      x-permission: inventory.view
+      parameters:
+        - { name: type, in: path, required: true, schema: { type: string, enum: [opening, transfer, count, write_down] } }
+        - { $ref: "#/components/parameters/PathId" }
+      responses:
+        "200":
+          description: Inventory document
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: "#/components/schemas/InventoryOpening" }
+                  - { $ref: "#/components/schemas/StockTransfer" }
+                  - { $ref: "#/components/schemas/StockCount" }
+                  - { $ref: "#/components/schemas/InventoryWriteDown" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /admin/settings:
     get:
       tags: [Finance]
@@ -2974,6 +3235,9 @@ components:
         field: { type: string, example: items.0.quantity }
         code: { type: string, example: min }
         message: { type: string, example: quantity must not be less than 1 }
+        requested: { type: string, description: Exact requested quantity for an inventory conflict. }
+        available: { type: string, description: Exact currently allocatable quantity for an inventory conflict. }
+        variant_id: { type: string, format: uuid, description: SKU involved in an inventory conflict. }
 
     Money:
       type: number
@@ -4021,17 +4285,26 @@ components:
 
     InventoryBatch:
       type: object
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         product_id: { type: string, format: uuid }
-        variant_id: { type: [string, "null"], format: uuid }
+        variant_id: { type: string, format: uuid }
         supplier_id: { type: [string, "null"], format: uuid }
         po_item_id: { type: [string, "null"], format: uuid }
         lot_number: { type: [string, "null"] }
-        expiry_date: { type: [string, "null"], format: date }
+        expiry_date: { type: [string, "null"], format: date-time }
         purchase_cost: { type: number }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         qty_received: { type: number, multipleOf: 0.001 }
+        landed_cost_share: { type: number, minimum: 0 }
+        source_type: { type: string }
+        source_id: { type: [string, "null"], format: uuid }
         entry_date: { type: string, format: date-time }
+        batch_stock:
+          type: array
+          items: { $ref: "#/components/schemas/LotBalance" }
+        custody: { type: number, multipleOf: 0.001 }
 
     BatchPage:
       allOf:
@@ -4045,10 +4318,11 @@ components:
 
     StockMovementType:
       type: string
-      enum: [purchase, sale, transfer, return_in, reserve, release, adjustment]
+      enum: [receive, reserve, release, issue_to_custody, custody_to_sold, return_in, transfer, adjust, write_down]
 
     StockMovement:
       type: object
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         batch_id: { type: string, format: uuid }
@@ -4058,7 +4332,19 @@ components:
         quantity: { type: number, multipleOf: 0.001 }
         reference: { type: [string, "null"] }
         user_id: { type: [string, "null"], format: uuid }
+        return_item_id: { type: [string, "null"], format: uuid }
+        unit_cost_iqd: { type: number, minimum: 0, description: Present only with cost.view. }
+        source_type: { type: string }
+        source_id: { type: [string, "null"], format: uuid }
+        custody_party_id: { type: [string, "null"], format: uuid }
         created_at: { type: string, format: date-time }
+        batch:
+          type: object
+          additionalProperties: false
+          required: [variant_id, lot_number]
+          properties:
+            variant_id: { type: string, format: uuid }
+            lot_number: { type: [string, "null"] }
 
     StockMovementPage:
       allOf:
@@ -4072,11 +4358,15 @@ components:
 
     Warehouse:
       type: object
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         code: { type: string }
         is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        locations: { type: array, items: { $ref: "#/components/schemas/WarehouseLocation" } }
 
     WarehousePage:
       allOf:
@@ -4090,6 +4380,7 @@ components:
 
     WarehouseLocation:
       type: object
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         warehouse_id: { type: string, format: uuid }
@@ -4097,6 +4388,353 @@ components:
         aisle: { type: [string, "null"] }
         shelf: { type: [string, "null"] }
         bin: { type: [string, "null"] }
+        code: { type: string }
+        description: { type: [string, "null"] }
+        is_sellable: { type: boolean }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    WarehouseInput:
+      type: object
+      additionalProperties: false
+      required: [code, name]
+      properties:
+        code: { type: string, minLength: 2, maxLength: 40 }
+        name: { type: string, minLength: 2, maxLength: 120 }
+
+    WarehousePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        code: { type: string, minLength: 2, maxLength: 40 }
+        name: { type: string, minLength: 2, maxLength: 120 }
+        is_active: { type: boolean }
+
+    WarehouseLocationInput:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 40 }
+        description: { type: string, maxLength: 500 }
+        is_sellable: { type: boolean, default: true }
+
+    WarehouseLocationPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        code: { type: string, minLength: 1, maxLength: 40 }
+        description: { type: string, maxLength: 500 }
+        is_sellable: { type: boolean }
+        is_active: { type: boolean }
+
+    LotBalance:
+      type: object
+      additionalProperties: false
+      required: [id, batch_id, location_id, quantity, reserved, available, location]
+      properties:
+        id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        quantity: { type: number, multipleOf: 0.001 }
+        reserved: { type: number, multipleOf: 0.001 }
+        available: { type: number, multipleOf: 0.001 }
+        location: { $ref: "#/components/schemas/WarehouseLocation" }
+
+    InventoryLot:
+      $ref: "#/components/schemas/InventoryBatch"
+
+    InventoryLotPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/InventoryLot" } }
+
+    InventoryBalance:
+      type: object
+      additionalProperties: false
+      required: [batch_id, location_id, warehouse_id, quantity, reserved, available, custody, variant_id, sku, product_id, lot_number, expiry_date, location_code, is_sellable]
+      properties:
+        batch_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        warehouse_id: { type: string, format: uuid }
+        quantity: { type: number, multipleOf: 0.001 }
+        reserved: { type: number, multipleOf: 0.001 }
+        available: { type: number, multipleOf: 0.001 }
+        custody: { type: number, multipleOf: 0.001 }
+        variant_id: { type: string, format: uuid }
+        sku: { type: string }
+        product_id: { type: string, format: uuid }
+        lot_number: { type: [string, "null"] }
+        expiry_date: { type: [string, "null"], format: date-time }
+        location_code: { type: string }
+        is_sellable: { type: boolean }
+
+    InventoryBalancePage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/InventoryBalance" } }
+
+    InventoryOperationFields:
+      type: object
+      additionalProperties: false
+      required: [operation_id, document_date]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+
+    InventoryOpeningInput:
+      allOf:
+        - $ref: "#/components/schemas/InventoryOperationFields"
+        - type: object
+          required: [lines]
+          properties:
+            lines:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [variant_id, location_id, quantity, unit_cost_iqd]
+                properties:
+                  variant_id: { type: string, format: uuid }
+                  location_id: { type: string, format: uuid }
+                  lot_number: { type: string, maxLength: 80 }
+                  expiry_date: { type: string, format: date }
+                  quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+                  unit_cost_iqd: { type: string, pattern: '^\d+(?:\.\d{1,12})?$' }
+                  landed_cost_share: { type: string, pattern: '^\d+(?:\.\d{1,12})?$' }
+
+    CompactJournalLink:
+      type: object
+      additionalProperties: false
+      required: [id, document_number]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+
+    InventoryOpeningLine:
+      type: object
+      additionalProperties: false
+      required: [id, opening_id, variant_id, location_id, lot_id, quantity, expiry_date]
+      properties:
+        id: { type: string, format: uuid }
+        opening_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        lot_id: { type: string, format: uuid }
+        quantity: { type: number, multipleOf: 0.001 }
+        unit_cost_iqd: { type: number, minimum: 0 }
+        landed_cost_share: { type: number, minimum: 0 }
+        expiry_date: { type: [string, "null"], format: date-time }
+
+    InventoryOpening:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, document_date, accounting_date, status, created_by, journal_entry_id, created_at, posted_at, lines, journal_entry]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        document_date: { type: string, format: date-time }
+        accounting_date: { type: string, format: date-time }
+        status: { type: string, enum: [posted] }
+        created_by: { type: string, format: uuid }
+        journal_entry_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        posted_at: { type: string, format: date-time }
+        lines: { type: array, items: { $ref: "#/components/schemas/InventoryOpeningLine" } }
+        journal_entry: { $ref: "#/components/schemas/CompactJournalLink" }
+
+    StockTransferInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, document_date, reason, lines]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        document_date: { type: string, format: date }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [batch_id, from_location_id, to_location_id, quantity]
+            properties:
+              batch_id: { type: string, format: uuid }
+              from_location_id: { type: string, format: uuid }
+              to_location_id: { type: string, format: uuid }
+              quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+
+    StockTransferLine:
+      type: object
+      additionalProperties: false
+      required: [id, transfer_id, variant_id, batch_id, from_location_id, to_location_id, quantity]
+      properties:
+        id: { type: string, format: uuid }
+        transfer_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        from_location_id: { type: string, format: uuid }
+        to_location_id: { type: string, format: uuid }
+        quantity: { type: number, multipleOf: 0.001 }
+
+    StockTransfer:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, document_date, status, reason, created_by, created_at, posted_at, lines]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        document_date: { type: string, format: date-time }
+        status: { type: string, enum: [posted] }
+        reason: { type: string }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        posted_at: { type: string, format: date-time }
+        lines: { type: array, items: { $ref: "#/components/schemas/StockTransferLine" } }
+
+    StockCountInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        warehouse_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    StockCountApproval:
+      allOf:
+        - $ref: "#/components/schemas/InventoryOperationFields"
+        - type: object
+          required: [lines]
+          properties:
+            lines:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [batch_id, location_id, counted_quantity]
+                properties:
+                  batch_id: { type: string, format: uuid }
+                  location_id: { type: string, format: uuid }
+                  counted_quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+
+    StockCountLine:
+      type: object
+      additionalProperties: false
+      required: [id, count_id, variant_id, batch_id, location_id, system_quantity, counted_quantity, difference]
+      properties:
+        id: { type: string, format: uuid }
+        count_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        system_quantity: { type: number, multipleOf: 0.001 }
+        counted_quantity: { type: number, multipleOf: 0.001 }
+        difference: { type: number, multipleOf: 0.001 }
+
+    StockCount:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, warehouse_id, location_id, variant_id, snapshot_at, status, reason, created_by, approved_by, journal_entry_id, created_at, approved_at, lines, journal_entry]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: [string, "null"] }
+        warehouse_id: { type: [string, "null"], format: uuid }
+        location_id: { type: [string, "null"], format: uuid }
+        variant_id: { type: [string, "null"], format: uuid }
+        snapshot_at: { type: string, format: date-time }
+        status: { type: string, enum: [draft, approved] }
+        reason: { type: string }
+        created_by: { type: string, format: uuid }
+        approved_by: { type: [string, "null"], format: uuid }
+        journal_entry_id: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        approved_at: { type: [string, "null"], format: date-time }
+        lines: { type: array, items: { $ref: "#/components/schemas/StockCountLine" } }
+        journal_entry:
+          oneOf:
+            - { $ref: "#/components/schemas/CompactJournalLink" }
+            - { type: "null" }
+
+    InventoryWriteDownInput:
+      allOf:
+        - $ref: "#/components/schemas/InventoryOperationFields"
+        - type: object
+          required: [reason, lines]
+          properties:
+            reason: { type: string, minLength: 3, maxLength: 500 }
+            lines:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [batch_id, location_id, quantity]
+                properties:
+                  batch_id: { type: string, format: uuid }
+                  location_id: { type: string, format: uuid }
+                  quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+
+    InventoryWriteDownLine:
+      type: object
+      additionalProperties: false
+      required: [id, write_down_id, variant_id, batch_id, location_id, quantity]
+      properties:
+        id: { type: string, format: uuid }
+        write_down_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        quantity: { type: number, multipleOf: 0.001 }
+        unit_cost_iqd: { type: number, minimum: 0 }
+
+    InventoryWriteDown:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, document_date, accounting_date, reason, status, created_by, journal_entry_id, created_at, posted_at, lines, journal_entry]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        document_date: { type: string, format: date-time }
+        accounting_date: { type: string, format: date-time }
+        reason: { type: string }
+        status: { type: string, enum: [posted] }
+        created_by: { type: string, format: uuid }
+        journal_entry_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        posted_at: { type: string, format: date-time }
+        lines: { type: array, items: { $ref: "#/components/schemas/InventoryWriteDownLine" } }
+        journal_entry: { $ref: "#/components/schemas/CompactJournalLink" }
+
+    InventoryDocumentPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                oneOf:
+                  - { $ref: "#/components/schemas/InventoryOpening" }
+                  - { $ref: "#/components/schemas/StockTransfer" }
+                  - { $ref: "#/components/schemas/StockCount" }
+                  - { $ref: "#/components/schemas/InventoryWriteDown" }
 
     WarehouseLocationPage:
       allOf:

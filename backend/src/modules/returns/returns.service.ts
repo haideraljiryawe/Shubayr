@@ -5,10 +5,11 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import type { OrderItem, Prisma } from '../../generated/prisma/client';
+import type { Prisma } from '../../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { InventoryService } from '../inventory/inventory.service';
 import {
   calculateLineTotal,
   minorUnitsToMoney,
@@ -31,6 +32,7 @@ export class ReturnsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly inventory: InventoryService,
     private readonly notifications?: NotificationsService,
   ) {}
 
@@ -241,14 +243,32 @@ export class ReturnsService {
           const restock = condition === 'sellable';
           let batchId: string | null = null;
           if (restock) {
-            batchId = await this.restock(
+            batchId = await this.inventory.returnToStock(
               tx,
               current.id,
               item.id,
-              item.order_item,
+              item.order_item.id,
               approved,
               actorId,
             );
+            const movements = await tx.stockMovement.findMany({
+              where: { return_item_id: item.id, type: 'return_in' },
+            });
+            for (const movement of movements) {
+              await this.audit.record(tx, {
+                actorId,
+                action: 'return.restock',
+                entityType: 'stock_movement',
+                entityId: movement.id,
+                after: {
+                  return_item_id: item.id,
+                  batch_id: movement.batch_id,
+                  location_id: movement.to_location,
+                  quantity: movement.quantity,
+                  unit_cost_iqd: movement.unit_cost_iqd,
+                },
+              });
+            }
           }
           await tx.returnItem.update({
             where: { id: item.id },
@@ -434,94 +454,6 @@ export class ReturnsService {
     return this.get(id);
   }
 
-  private async restock(
-    tx: Prisma.TransactionClient,
-    returnId: string,
-    returnItemId: string,
-    orderItem: OrderItem,
-    quantity: number,
-    actorId: string,
-  ): Promise<string> {
-    const prior = await tx.returnItem.findMany({
-      where: {
-        order_item_id: orderItem.id,
-        return_id: { not: returnId },
-        approved_quantity: { gt: 0 },
-      },
-      select: { approved_quantity: true },
-    });
-    let offset = prior.reduce(
-      (sum, item) => sum + Number(item.approved_quantity),
-      0,
-    );
-    let remaining = quantity;
-    let firstBatchId: string | null = null;
-    const origins = await tx.stockReservation.findMany({
-      where: { order_item_id: orderItem.id, status: 'consumed' },
-      include: { batch: true },
-      orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
-    });
-    for (const origin of origins) {
-      if (remaining === 0) break;
-      const originQuantity = Number(origin.quantity);
-      if (offset >= originQuantity) {
-        offset -= originQuantity;
-        continue;
-      }
-      if (
-        origin.batch.product_id !== orderItem.product_id ||
-        origin.batch.variant_id !== orderItem.variant_id
-      ) {
-        throw new ConflictException(
-          'Origin batch does not match returned order line',
-        );
-      }
-      const amount = Math.min(remaining, originQuantity - offset);
-      offset = 0;
-      firstBatchId ??= origin.batch_id;
-      await this.recordRestock(
-        tx,
-        returnId,
-        returnItemId,
-        origin.batch_id,
-        origin.location_id,
-        amount,
-        actorId,
-        false,
-      );
-      remaining -= amount;
-    }
-    if (remaining > 0) {
-      const location = await tx.warehouseLocation.findFirst({
-        where: { warehouse: { is_active: true } },
-        orderBy: { id: 'asc' },
-      });
-      if (!location)
-        throw new ConflictException('No active returns stock location');
-      const batch = await tx.inventoryBatch.create({
-        data: {
-          product_id: orderItem.product_id,
-          variant_id: orderItem.variant_id,
-          lot_number: `RETURN-${returnItemId}`,
-          purchase_cost: 0,
-          qty_received: remaining,
-        },
-      });
-      firstBatchId ??= batch.id;
-      await this.recordRestock(
-        tx,
-        returnId,
-        returnItemId,
-        batch.id,
-        location.id,
-        remaining,
-        actorId,
-        true,
-      );
-    }
-    return firstBatchId!;
-  }
-
   private requireQuantityUnit(quantity: number, wholeUnitsOnly: boolean): void {
     if (wholeUnitsOnly && !Number.isInteger(quantity)) {
       throw new UnprocessableEntityException({
@@ -531,50 +463,6 @@ export class ReturnsService {
         errors: [],
       });
     }
-  }
-
-  private async recordRestock(
-    tx: Prisma.TransactionClient,
-    returnId: string,
-    returnItemId: string,
-    batchId: string,
-    locationId: string,
-    quantity: number,
-    actorId: string,
-    adjustment: boolean,
-  ) {
-    await tx.batchStock.upsert({
-      where: {
-        batch_id_location_id: { batch_id: batchId, location_id: locationId },
-      },
-      update: { quantity: { increment: quantity } },
-      create: { batch_id: batchId, location_id: locationId, quantity },
-    });
-    const movement = await tx.stockMovement.create({
-      data: {
-        batch_id: batchId,
-        return_item_id: returnItemId,
-        type: 'return_in',
-        from_location: null,
-        to_location: locationId,
-        quantity,
-        reference: `${adjustment ? 'return-adjustment' : 'return-origin'}:${returnId}`,
-        user_id: actorId,
-      },
-    });
-    await this.audit.record(tx, {
-      actorId,
-      action: 'return.restock',
-      entityType: 'stock_movement',
-      entityId: movement.id,
-      after: {
-        return_item_id: returnItemId,
-        batch_id: batchId,
-        location_id: locationId,
-        quantity,
-        adjustment,
-      },
-    });
   }
 
   private async get(id: string) {

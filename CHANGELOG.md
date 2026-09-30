@@ -1,5 +1,26 @@
 # Changelog
 
+## 8.2.0 - 2026-09-30
+
+### Added
+
+- Phase-5 warehouse and free-form location management, lot/location balances,
+  opening-stock documents, transfers, physical counts, write-downs, and
+  permissioned inventory reads.
+- FIFO/FEFO lot reservation with row-level locking, delivery-custody holdings,
+  moving weighted-average SKU costing, original-issue-cost returns, and
+  inventory/COGS ledger postings through the shared phase-3 ledger service.
+- Durable product search catch-up markers, periodic retry, and an admin
+  reindex-all operation.
+
+### Changed
+
+- Catalog availability now comes from lot on-hand less persisted reservations;
+  the temporary COD-hold table has been removed.
+- Seed stock is posted through immutable opening-stock documents and movements.
+- The API contract is version 8.2.0, with refreshed generated web and admin API
+  types.
+
 ## 8.1.0 - 2026-09-29
 
 ### Added
