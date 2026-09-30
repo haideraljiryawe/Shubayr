@@ -8,8 +8,10 @@ import { listRows, load, serverApi } from "@/lib/api/server";
 import {
   STAFF_FILTER_KEYS,
   STAFF_SORT_KEYS,
-  queryStaff,
-} from "@/lib/staff-query";
+  asPage,
+  lastPage,
+  staffListQuery,
+} from "@/lib/list-queries";
 import { parseTableParams, type RawSearchParams } from "@/lib/table-params";
 import { StaffTable } from "./staff-table";
 
@@ -30,14 +32,24 @@ export default async function StaffPage({
     filterKeys: STAFF_FILTER_KEYS,
   });
 
+  // Search, filters, sort and paging all run on the API (contract 6.2+).
   const api = await serverApi();
-  const staff = await load(api.GET("/admin/staff"));
+  let staff = await load(api.GET("/admin/staff", { params: { query: staffListQuery(params) } }));
   if (!staff.ok) return <PageError error={staff.error} />;
+  let page = asPage(staff.data, params.perPage);
+  // A stale URL past the last page (rows were removed): show the last one.
+  if (page.rows.length === 0 && page.total > 0 && params.page > 1) {
+    const last = lastPage(page.total, params.perPage);
+    staff = await load(
+      api.GET("/admin/staff", { params: { query: staffListQuery({ ...params, page: last }) } }),
+    );
+    if (!staff.ok) return <PageError error={staff.error} />;
+    page = asPage(staff.data, params.perPage);
+  }
   // The preset filter needs roles.manage; without it the filter is simply
   // not offered — the list itself only needs users.manage.
   const presets = await load(api.GET("/admin/presets"));
 
-  const page = queryStaff(listRows(staff.data), params);
 
   return (
     <>

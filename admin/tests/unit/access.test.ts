@@ -48,6 +48,10 @@ describe("visibleNav", () => {
       "cashAccounts",
       "settings",
     ]);
+    expect(visibleNav(["audit.view"]).map((item) => item.key)).toEqual([
+      "dashboard",
+      "audit",
+    ]);
     expect(
       visibleNav([
         "users.manage",
@@ -56,6 +60,7 @@ describe("visibleNav", () => {
         "ledger.view",
         "cash_accounts.manage",
         "settings.manage",
+        "audit.view",
       ]),
     ).toHaveLength(NAV_ITEMS.length);
   });

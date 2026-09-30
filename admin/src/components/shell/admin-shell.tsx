@@ -21,6 +21,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  ScrollText,
   Smartphone,
   Users,
   X,
@@ -72,6 +73,7 @@ const ICONS: Record<NavKey, LucideIcon> = {
   staff: Users,
   presets: KeyRound,
   workPhones: Smartphone,
+  audit: ScrollText,
 };
 
 /**

@@ -17,7 +17,8 @@
     "cashAccounts": "Cash & bank accounts",
     "periods": "Periods & close",
     "ledger": "Ledger",
-    "settings": "Store settings"
+    "settings": "Store settings",
+    "audit": "Audit log"
   },
   "auth": {
     "signIn": "Sign in",
@@ -139,7 +140,8 @@
       "cashAccounts": "Cash boxes and bank accounts, their balances and transfers.",
       "periods": "Accounting periods, the close checklist and reopening.",
       "ledger": "Trial balance and entries by account and document.",
-      "settings": "Store data, business hours, timeouts and protection thresholds."
+      "settings": "Store data, business hours, timeouts and protection thresholds.",
+      "audit": "Who changed what, when and why — filter by user, action, entity and date."
     },
     "comingTitle": "Coming next",
     "comingBody": "Orders, catalog, stock and accounting arrive with the next backend phases.",
@@ -304,7 +306,8 @@
       "failed": "Delivery failed",
       "cancelled": "Cancelled",
       "return_requested": "Return requested",
-      "returned": "Returned"
+      "returned": "Returned",
+      "rejected": "Rejected"
     },
     "deliveryStatus": {
       "assigned": "Assigned",
@@ -360,7 +363,8 @@
       "prepare": "Start preparing",
       "markReady": "Mark ready",
       "dispatch": "Hand over to agent",
-      "cancel": "Cancel order (reason required)"
+      "cancel": "Cancel order (reason required)",
+      "reject": "Reject order"
     },
     "confirm": {
       "accept": "Accept this order?",
@@ -369,7 +373,9 @@
       "dispatch": "Hand this order to the agent? The goods leave the warehouse into their custody.",
       "cancel": "Cancel order",
       "cancelBody": "The order is cancelled before dispatch and its stock reservation released. The reason is kept in the order timeline and audit log.",
-      "yes": "Confirm"
+      "yes": "Confirm",
+      "reject": "Reject order",
+      "rejectBody": "Only pending orders can be rejected. It is recorded as its own “rejected” status, separate from a cancellation. The reservation is released, the customer and order monitors are notified, and the reason is kept in the order timeline and audit log."
     },
     "dispatchBlocked": {
       "noDelivery": "Can't hand over: this order has no delivery.",
@@ -383,7 +389,9 @@
       "submit": "Assign",
       "done": "Agent assigned",
       "noAgents": "No active delivery agents are registered.",
-      "cannotList": "Listing delivery agents needs the user-management permission (users.manage)."
+      "search": "Search agents by name or phone",
+      "noMatch": "No agent matches.",
+      "refine": "Showing {shown} of {total} — narrow the search to reach the rest."
     },
     "done": "Order updated",
     "conflict": "This order changed before your action was saved — it is now “{status}”. The page has been refreshed to show what you can do now.",
@@ -457,7 +465,7 @@
       "closesBeforeOpens": "Closing time must be after opening time.",
       "warningNotBeforeTimeout": "The warning must come before the cancellation.",
       "duplicateDate": "This day is listed twice.",
-      "range": "Enter a whole percentage from 0 to 100."
+      "range": "Enter a percentage from 0 to 100, with at most two decimals."
     },
     "hours": {
       "day": "Day",
@@ -749,5 +757,33 @@
     "createdAt": "Posted at",
     "viewEntry": "View its journal entry",
     "entryNeedsLedger": "Viewing its journal entry needs the ledger permission."
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Every sensitive change with who made it, when, why, and the values before and after. Filtered and paged on the server, newest first.",
+    "empty": "No matching records.",
+    "system": "System",
+    "reason": "Reason",
+    "moreChanges": "and {count} more changes",
+    "invalidRange": "The start date is after the end date, so the date range was ignored.",
+    "timezoneNote": "Dates and times are in store time (Baghdad).",
+    "columns": {
+      "when": "When",
+      "actor": "User",
+      "action": "Action",
+      "entity": "Entity",
+      "change": "Change"
+    },
+    "filters": {
+      "actor": "User",
+      "actorHint": "Name or username",
+      "action": "Action",
+      "anyAction": "All actions",
+      "entity": "Entity type",
+      "anyEntity": "All types",
+      "entityId": "Entity id",
+      "from": "From",
+      "to": "To"
+    }
   }
 }

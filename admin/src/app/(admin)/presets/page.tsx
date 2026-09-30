@@ -4,22 +4,22 @@ import { getTranslations } from "next-intl/server";
 import { Plus } from "lucide-react";
 import { buttonClasses, PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
-import { listRows, load, serverApi } from "@/lib/api/server";
-import { presetKeys } from "@/lib/permissions";
+import { load, serverApi } from "@/lib/api/server";
 import {
-  clampPage,
-  paginate,
-  parseTableParams,
-  type RawSearchParams,
-} from "@/lib/table-params";
+  PRESET_FILTER_KEYS,
+  PRESET_SORT_KEYS,
+  asPage,
+  lastPage,
+  presetListQuery,
+} from "@/lib/list-queries";
+import { presetKeys } from "@/lib/permissions";
+import { parseTableParams, type RawSearchParams } from "@/lib/table-params";
 import { PresetTable, type PresetRow } from "./preset-table";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
   return { title: t("presets") };
 }
-
-const SORT_KEYS = ["name", "permissions"] as const;
 
 export default async function PresetsPage({
   searchParams,
@@ -28,44 +28,31 @@ export default async function PresetsPage({
 }) {
   const t = await getTranslations("presets");
   const params = parseTableParams(await searchParams, {
-    sortKeys: SORT_KEYS,
+    sortKeys: PRESET_SORT_KEYS,
     defaultSort: "name",
-    filterKeys: ["kind"],
+    filterKeys: PRESET_FILTER_KEYS,
   });
 
+  // Search, filter, sort and paging all run on the API (contract 6.2+).
   const api = await serverApi();
-  const presets = await load(api.GET("/admin/presets"));
+  let presets = await load(api.GET("/admin/presets", { params: { query: presetListQuery(params) } }));
   if (!presets.ok) return <PageError error={presets.error} />;
-
-  // An unparameterized request keeps the legacy array response. Normalize the
-  // documented union before applying the existing server-side table logic.
-  const needle = params.q.toLocaleLowerCase();
-  const rows: PresetRow[] = listRows(presets.data)
-    .map((preset) => ({
-      id: preset.id,
-      name: preset.name,
-      description: preset.description ?? null,
-      isSystem: preset.is_system,
-      permissions: presetKeys(preset).length,
-    }))
-    .filter(
-      (row) =>
-        (!needle ||
-          row.name.toLocaleLowerCase().includes(needle) ||
-          (row.description ?? "").toLocaleLowerCase().includes(needle)) &&
-        (params.filters.kind !== "system" || row.isSystem) &&
-        (params.filters.kind !== "custom" || !row.isSystem),
-    )
-    .sort((a, b) => {
-      const order =
-        params.sort === "permissions"
-          ? a.permissions - b.permissions
-          : a.name.localeCompare(b.name);
-      return (
-        (order || a.id.localeCompare(b.id)) * (params.dir === "desc" ? -1 : 1)
-      );
-    });
-  const page = clampPage(params.page, rows.length, params.perPage);
+  let page = asPage(presets.data, params.perPage);
+  if (page.rows.length === 0 && page.total > 0 && params.page > 1) {
+    const last = lastPage(page.total, params.perPage);
+    presets = await load(
+      api.GET("/admin/presets", { params: { query: presetListQuery({ ...params, page: last }) } }),
+    );
+    if (!presets.ok) return <PageError error={presets.error} />;
+    page = asPage(presets.data, params.perPage);
+  }
+  const rows: PresetRow[] = page.rows.map((preset) => ({
+    id: preset.id,
+    name: preset.name,
+    description: preset.description ?? null,
+    isSystem: preset.is_system,
+    permissions: presetKeys(preset).length,
+  }));
 
   return (
     <>
@@ -84,11 +71,11 @@ export default async function PresetsPage({
         }
       />
       <PresetTable
-        rows={paginate(rows, page, params.perPage)}
+        rows={rows}
         state={{
-          page,
+          page: page.page,
           perPage: params.perPage,
-          total: rows.length,
+          total: page.total,
           sort: params.sort,
           dir: params.dir,
         }}
