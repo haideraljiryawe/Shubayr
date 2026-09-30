@@ -33,13 +33,22 @@ class DeliveryRepositoryMock implements DeliveryRepository {
   late final List<Delivery> _items;
 
   @override
-  Future<DeliveryPage> fetchAssigned({int page = 1, int perPage = 20}) async {
+  Future<DeliveryPage> fetchAssigned({
+    String? status,
+    int page = 1,
+    int perPage = 20,
+  }) async {
     await Future<void>.delayed(delay);
+    final filtered = _items.where(
+      (item) => status == null || item.status == status,
+    );
     return DeliveryPage(
       page: page,
       perPage: perPage,
-      total: _items.length,
-      data: List.unmodifiable(_items.skip((page - 1) * perPage).take(perPage)),
+      total: filtered.length,
+      data: List.unmodifiable(
+        filtered.skip((page - 1) * perPage).take(perPage),
+      ),
     );
   }
 
@@ -53,15 +62,19 @@ class DeliveryRepositoryMock implements DeliveryRepository {
     if (index < 0) throw const AppFailure(FailureKind.notFound);
     final item = _items[index];
     if (item.status == status) return item;
+    if (!item.nextStatuses.contains(status)) {
+      throw const AppFailure(FailureKind.validation, statusCode: 409);
+    }
     final now = DateTime.now();
     return _items[index] = Delivery(
       id: item.id,
       orderId: item.orderId,
       agentId: item.agentId,
       deliveryFee: item.deliveryFee,
+      currency: item.currency,
       status: status,
       dispatchedAt: item.dispatchedAt ?? now,
-      deliveredAt: status == 'delivered' ? now : null,
+      deliveredAt: status == 'delivered' ? now : item.deliveredAt,
     );
   }
 }

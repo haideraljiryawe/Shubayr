@@ -50,7 +50,9 @@ class _DeliveriesList extends ConsumerWidget {
   const _DeliveriesList();
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final feedbackContext = context;
     final value = ref.watch(deliveriesProvider);
+    final selected = ref.watch(deliveryStatusFilterProvider);
     final controller = ref.read(deliveriesProvider.notifier);
     void loadIfNearEnd(ScrollMetrics metrics) {
       final list = ref.read(deliveriesProvider).value;
@@ -61,69 +63,150 @@ class _DeliveriesList extends ConsumerWidget {
       }
     }
 
-    return AsyncValueView(
-      value: value,
-      skipLoadingOnReload: controller.isRefreshing,
-      loading: ResponsiveCardList(
-        itemCount: 4,
-        minItemWidth: AppLayout.orderMinWidth,
-        physics: const NeverScrollableScrollPhysics(),
-        itemBuilder: (_, _) => const _DeliverySkeleton(),
-      ),
-      onRetry: controller.refresh,
-      builder: (context, list) => RefreshIndicator(
-        onRefresh: controller.refresh,
-        child: NotificationListener<ScrollMetricsNotification>(
-          onNotification: (event) {
-            if (event.depth == 0) loadIfNearEnd(event.metrics);
-            return false;
-          },
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (event) {
-              if (event.depth == 0) loadIfNearEnd(event.metrics);
-              return false;
-            },
-            child: list.items.isEmpty
-                ? CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    slivers: [
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: AppEmptyView(
-                          icon: Icons.local_shipping_outlined,
-                          title: context.l10n.deliveryEmptyTitle,
-                          message: context.l10n.deliveryEmptyMessage,
+    return Column(
+      children: [
+        _DeliveryStatusFilterBar(
+          selected: selected,
+          enabled: value.value?.updatingId == null && !controller.isRefreshing,
+          onSelected: ref.read(deliveryStatusFilterProvider.notifier).select,
+        ),
+        Expanded(
+          child: AsyncValueView(
+            value: value,
+            skipLoadingOnReload: controller.isRefreshing,
+            loading: ResponsiveCardList(
+              itemCount: 4,
+              minItemWidth: AppLayout.orderMinWidth,
+              physics: const NeverScrollableScrollPhysics(),
+              itemBuilder: (_, _) => const _DeliverySkeleton(),
+            ),
+            onRetry: controller.refresh,
+            builder: (context, list) => RefreshIndicator(
+              onRefresh: controller.refresh,
+              child: NotificationListener<ScrollMetricsNotification>(
+                onNotification: (event) {
+                  if (event.depth == 0) loadIfNearEnd(event.metrics);
+                  return false;
+                },
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (event) {
+                    if (event.depth == 0) loadIfNearEnd(event.metrics);
+                    return false;
+                  },
+                  child: list.items.isEmpty
+                      ? CustomScrollView(
+                          key: ValueKey(selected),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: [
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: AppEmptyView(
+                                icon: Icons.local_shipping_outlined,
+                                title: selected == null
+                                    ? context.l10n.deliveryEmptyTitle
+                                    : context.l10n.deliveryFilterEmpty,
+                                message: selected == null
+                                    ? context.l10n.deliveryEmptyMessage
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        )
+                      : ResponsiveCardList(
+                          key: ValueKey(selected),
+                          minItemWidth: AppLayout.orderMinWidth,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: AppLayout.pageInsets(context),
+                          itemCount: list.items.length,
+                          footer: list.loadMoreError != null
+                              ? AppErrorView(
+                                  error: list.loadMoreError,
+                                  onRetry: controller.loadMore,
+                                )
+                              : list.loadingMore
+                              ? const _DeliverySkeleton()
+                              : null,
+                          itemBuilder: (context, index) {
+                            return _DeliveryCard(
+                              key: ValueKey(list.items[index].id),
+                              delivery: list.items[index],
+                              busy: list.updatingId == list.items[index].id,
+                              enabled:
+                                  !value.isLoading && list.updatingId == null,
+                              onUpdated: () {
+                                if (feedbackContext.mounted) {
+                                  showAppSnackBarMessage(
+                                    feedbackContext,
+                                    message: feedbackContext
+                                        .l10n
+                                        .deliveryStatusUpdated,
+                                  );
+                                }
+                              },
+                              onFailed: (failure) {
+                                if (feedbackContext.mounted) {
+                                  showAppSnackBarMessage(
+                                    feedbackContext,
+                                    message: failure.statusCode == 409
+                                        ? feedbackContext
+                                              .l10n
+                                              .deliveryStatusConflict
+                                        : failure.localizedMessage(
+                                            feedbackContext.l10n,
+                                          ),
+                                  );
+                                }
+                              },
+                            );
+                          },
                         ),
-                      ),
-                    ],
-                  )
-                : ResponsiveCardList(
-                    minItemWidth: AppLayout.orderMinWidth,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: AppLayout.pageInsets(context),
-                    itemCount: list.items.length,
-                    footer: list.loadMoreError != null
-                        ? AppErrorView(
-                            error: list.loadMoreError,
-                            onRetry: controller.loadMore,
-                          )
-                        : list.loadingMore
-                        ? const _DeliverySkeleton()
-                        : null,
-                    itemBuilder: (context, index) {
-                      return _DeliveryCard(
-                        key: ValueKey(list.items[index].id),
-                        delivery: list.items[index],
-                        busy: list.updatingId == list.items[index].id,
-                        enabled: !value.isLoading && list.updatingId == null,
-                      );
-                    },
-                  ),
+                ),
+              ),
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
+}
+
+class _DeliveryStatusFilterBar extends StatelessWidget {
+  const _DeliveryStatusFilterBar({
+    required this.selected,
+    required this.enabled,
+    required this.onSelected,
+  });
+  final String? selected;
+  final bool enabled;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    padding: AppLayout.pageInsets(
+      context,
+      top: AppSpacing.xs,
+      bottom: AppSpacing.xs,
+    ),
+    child: Row(
+      children: [
+        for (final status in <String?>[null, ...Delivery.statuses])
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
+            child: ChoiceChip(
+              label: Text(
+                status == null
+                    ? context.l10n.deliveryFilterAll
+                    : deliveryStatusLabel(context.l10n, status),
+              ),
+              selected: selected == status,
+              showCheckmark: false,
+              onSelected: enabled ? (_) => onSelected(status) : null,
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 class _DeliveryCard extends ConsumerStatefulWidget {
@@ -132,7 +215,11 @@ class _DeliveryCard extends ConsumerStatefulWidget {
     required this.delivery,
     required this.busy,
     required this.enabled,
+    required this.onUpdated,
+    required this.onFailed,
   });
+  final VoidCallback onUpdated;
+  final ValueChanged<AppFailure> onFailed;
   final Delivery delivery;
   final bool busy;
   final bool enabled;
@@ -147,7 +234,9 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
     setState(() => _dialogOpen = true);
     final l10n = context.l10n;
     final id = widget.delivery.id;
-    final previousStatus = widget.delivery.status;
+    final nextStatuses = widget.delivery.nextStatuses;
+    final onUpdated = widget.onUpdated;
+    final onFailed = widget.onFailed;
     String? selection;
     try {
       final status = await showDialog<String>(
@@ -159,12 +248,11 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
               isExpanded: true,
               decoration: InputDecoration(labelText: l10n.deliverySelectStatus),
               items: [
-                for (final status in Delivery.updateStatuses)
-                  if (status != previousStatus)
-                    DropdownMenuItem(
-                      value: status,
-                      child: Text(deliveryStatusLabel(l10n, status)),
-                    ),
+                for (final status in nextStatuses)
+                  DropdownMenuItem(
+                    value: status,
+                    child: Text(deliveryStatusLabel(l10n, status)),
+                  ),
               ],
               onChanged: (value) => setDialogState(() => selection = value),
             ),
@@ -187,13 +275,10 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
       final saved = await ref
           .read(deliveriesProvider.notifier)
           .updateStatus(id, status);
-      if (saved && mounted) {
-        showAppSnackBarMessage(context, message: l10n.deliveryStatusUpdated);
-      }
+      if (saved) onUpdated();
     } catch (error) {
-      if (!mounted) return;
       final failure = error is AppFailure ? error : const AppFailure.unknown();
-      showAppSnackBarMessage(context, message: failure.localizedMessage(l10n));
+      onFailed(failure);
     } finally {
       if (mounted) setState(() => _dialogOpen = false);
     }
@@ -262,13 +347,15 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
               style: context.text.bodySmall,
             ),
           ],
-          const SizedBox(height: AppSpacing.md),
-          AppButton(
-            label: l10n.deliveryUpdateStatus,
-            variant: AppButtonVariant.secondary,
-            isLoading: widget.busy,
-            onPressed: widget.enabled && !_dialogOpen ? _update : null,
-          ),
+          if (delivery.nextStatuses.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(
+              label: l10n.deliveryUpdateStatus,
+              variant: AppButtonVariant.secondary,
+              isLoading: widget.busy,
+              onPressed: widget.enabled && !_dialogOpen ? _update : null,
+            ),
+          ],
         ],
       ),
     );

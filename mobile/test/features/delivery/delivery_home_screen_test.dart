@@ -63,7 +63,169 @@ Future<void> _chooseStatus(WidgetTester tester, String status) async {
   await tester.pumpAndSettle();
 }
 
+Finder _listScroll() => find
+    .descendant(
+      of: find.byType(RefreshIndicator),
+      matching: find.byType(Scrollable),
+    )
+    .first;
+
 void main() {
+  testWidgets(
+    'filter remains available on empty/error results and retry keeps selection',
+    (tester) async {
+      final repo = RecordingDeliveries();
+      await tester.pumpWidget(_host(repo));
+      await tester.pumpAndSettle();
+      repo.onFetch = (_) async => throw const AppFailure.network();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Assigned'));
+      await tester.pumpAndSettle();
+      expect(repo.requests.last.status, 'assigned');
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.byType(ChoiceChip), findsNWidgets(6));
+      repo.onFetch = (r) async => deliveryPage(r, total: 0);
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+      expect(repo.requests.last.status, 'assigned');
+      expect(find.text('No deliveries with this status'), findsOneWidget);
+      repo.onFetch = null;
+      await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
+      await tester.pumpAndSettle();
+      expect(repo.requests.last.status, isNull);
+      expect(find.text('Order reference'), findsWidgets);
+    },
+  );
+
+  testWidgets('filtered save removes the card and still confirms success', (
+    tester,
+  ) async {
+    final repo = RecordingDeliveries();
+    await tester.pumpWidget(_host(repo));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Assigned'));
+    await tester.pumpAndSettle();
+    await _chooseStatus(tester, 'Out for delivery');
+    await tester.tap(find.widgetWithText(TextButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('10000000-0000-4000-8000-000000000001')),
+      findsNothing,
+    );
+    expect(find.text('Delivery status updated'), findsOneWidget);
+    expect(repo.requests.last.status, 'assigned');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('conflict refreshes stale card and shows localized feedback', (
+    tester,
+  ) async {
+    final repo = RecordingDeliveries()
+      ..onFetch = (r) async => deliveryPage(r, total: 1);
+    await tester.pumpWidget(_host(repo));
+    await tester.pumpAndSettle();
+    repo.onUpdate = (_, _) async =>
+        throw const AppFailure(FailureKind.validation, statusCode: 409);
+    repo.onFetch = (_) async => const DeliveryPage(
+      total: 1,
+      data: [Delivery(id: 'd0', orderId: 'order-0', status: 'failed')],
+    );
+    await _chooseStatus(tester, 'Out for delivery');
+    await tester.tap(find.widgetWithText(TextButton, 'Save'));
+    await tester.pumpAndSettle();
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(DeliveryHomeScreen)),
+    );
+    expect(find.text(l10n.deliveryStatusConflict), findsOneWidget);
+    expect(find.text(l10n.deliveryStatusUpdated), findsNothing);
+    expect(find.widgetWithText(AppButton, 'Update status'), findsNothing);
+    expect(repo.requests, hasLength(2));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  for (final entry in <String, List<String>>{
+    'assigned': ['Out for delivery'],
+    'out_for_delivery': ['Delivered', 'Delivery failed'],
+    'delivered': ['Returned'],
+    'failed': [],
+    'returned': [],
+    'unknown': [],
+  }.entries) {
+    testWidgets('offers only contracted actions for ${entry.key}', (
+      tester,
+    ) async {
+      final repo = RecordingDeliveries()
+        ..onFetch = (_) async => DeliveryPage(
+          total: 1,
+          data: [Delivery(id: 'd0', orderId: 'order-0', status: entry.key)],
+        );
+      await tester.pumpWidget(_host(repo));
+      await tester.pumpAndSettle();
+      final action = find.widgetWithText(AppButton, 'Update status');
+      if (entry.value.isEmpty) {
+        expect(action, findsNothing);
+      } else {
+        await tester.tap(action);
+        await tester.pumpAndSettle();
+        final dropdown = tester.widget<DropdownButton<String>>(
+          find.byType(DropdownButton<String>),
+        );
+        final labels = dropdown.items!
+            .map((item) => (item.child as Text).data)
+            .toList();
+        expect(labels, entry.value);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final width in [
+    599.0,
+    600.0,
+    899.0,
+    900.0,
+    1199.0,
+    1200.0,
+    1535.0,
+    1536.0,
+    1920.0,
+  ]) {
+    testWidgets(
+      'filter, cards and empty/error states fit $width with large Arabic text',
+      (tester) async {
+        await tester.binding.setSurfaceSize(Size(width, 1000));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final pending = Completer<DeliveryPage>();
+        final repo = RecordingDeliveries()..onFetch = (_) => pending.future;
+        await tester.pumpWidget(
+          _host(repo, locale: 'ar', dark: width >= 900, textScale: 2),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        pending.complete(
+          const DeliveryPage(
+            total: 1,
+            data: [Delivery(id: 'd0', orderId: 'order-0', status: 'assigned')],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('order-0'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(DeliveryHomeScreen)),
+        );
+        repo.onFetch = (_) async => const DeliveryPage();
+        container.read(deliveryStatusFilterProvider.notifier).select('failed');
+        await tester.pumpAndSettle();
+        expect(find.text('لا توجد توصيلات بهذه الحالة'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        repo.onFetch = (_) async => throw const AppFailure.network();
+        await container.read(deliveriesProvider.notifier).refresh();
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('refresh keeps content but a new session hides previous data', (
     tester,
   ) async {
@@ -94,7 +256,9 @@ void main() {
     await tester.pump();
     await refresh;
     expect(find.text('Retry'), findsNothing);
-    newPage.complete(deliveryPage((page: 1, perPage: 20), total: 0));
+    newPage.complete(
+      deliveryPage((status: null, page: 1, perPage: 20), total: 0),
+    );
     await tester.pumpAndSettle();
     expect(container.read(deliveriesProvider).hasError, isFalse);
     expect(find.text('order-0'), findsNothing);
@@ -117,7 +281,12 @@ void main() {
       await tester.pumpWidget(_host(repo));
       await tester.pumpAndSettle();
       final last = find.text('20000000-0000-4000-8000-000000000045');
-      await tester.scrollUntilVisible(last, 600, maxScrolls: 60);
+      await tester.scrollUntilVisible(
+        last,
+        600,
+        maxScrolls: 60,
+        scrollable: _listScroll(),
+      );
       await tester.pumpAndSettle();
       expect(last, findsOneWidget);
       expect(repo.requests.map((r) => r.page), [1, 2, 3]);
@@ -183,11 +352,11 @@ void main() {
         ..onUpdate = (_, _) async => throw const AppFailure.network();
       await tester.pumpWidget(_host(repo));
       await tester.pumpAndSettle();
-      await _chooseStatus(tester, 'Delivered');
+      await _chooseStatus(tester, 'Out for delivery');
       await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
       await tester.pumpAndSettle();
       expect(repo.updates, isEmpty);
-      await _chooseStatus(tester, 'Delivered');
+      await _chooseStatus(tester, 'Out for delivery');
       await tester.tap(find.widgetWithText(TextButton, 'Save'));
       await tester.pumpAndSettle();
       expect(
@@ -228,7 +397,12 @@ void main() {
       };
     await tester.pumpWidget(_host(repo));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Retry'), 700, maxScrolls: 30);
+    await tester.scrollUntilVisible(
+      find.text('Retry'),
+      700,
+      maxScrolls: 30,
+      scrollable: _listScroll(),
+    );
     await tester.pumpAndSettle();
     final container = ProviderScope.containerOf(
       tester.element(find.byType(DeliveryHomeScreen)),
@@ -240,7 +414,12 @@ void main() {
     repo.onFetch = (r) async => deliveryPage(r);
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('order-44'), 700, maxScrolls: 30);
+    await tester.scrollUntilVisible(
+      find.text('order-44'),
+      700,
+      maxScrolls: 30,
+      scrollable: _listScroll(),
+    );
     expect(repo.requests.map((r) => r.page), [1, 2, 2, 3]);
   });
 
@@ -254,11 +433,13 @@ void main() {
     expect(find.text('No assigned deliveries'), findsOneWidget);
     final pending = Completer<DeliveryPage>();
     repo.onFetch = (_) => pending.future;
-    await tester.drag(find.byType(Scrollable), const Offset(0, 500));
+    await tester.drag(_listScroll(), const Offset(0, 500));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.byType(RefreshProgressIndicator), findsOneWidget);
-    pending.complete(deliveryPage((page: 1, perPage: 20), total: 1));
+    pending.complete(
+      deliveryPage((status: null, page: 1, perPage: 20), total: 1),
+    );
     await tester.pumpAndSettle();
     expect(find.text('order-0'), findsOneWidget);
     expect(find.byType(RefreshProgressIndicator), findsNothing);
@@ -313,7 +494,7 @@ void main() {
             await tester.pumpAndSettle();
             await tester.tap(find.byType(DropdownButtonFormField<String>));
             await tester.pumpAndSettle();
-            await tester.tap(find.text(l10n.deliveryDelivered).last);
+            await tester.tap(find.text(l10n.deliveryOutForDelivery).last);
             await tester.pumpAndSettle();
             expect(tester.takeException(), isNull);
             await tester.tap(

@@ -9,8 +9,8 @@
       },
       "type": "dart",
       "request": "launch",
-      "program": "${workspaceFolder}/lib/main.dart",
-      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
       "deviceId": "iPhone 17 Pro",
       "flutterMode": "debug",
       "toolArgs": [
@@ -27,8 +27,8 @@
       },
       "type": "dart",
       "request": "launch",
-      "program": "${workspaceFolder}/lib/main.dart",
-      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
       "deviceId": "chrome",
       "flutterMode": "debug",
       "toolArgs": [
@@ -48,7 +48,7 @@
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev -- --hostname localhost",
-      "cwd": "${workspaceFolder}/../admin",
+      "cwd": "${workspaceFolder}/admin",
       "env": {
         "API_URL": "http://localhost:8000/api/v1",
         "ADMIN_ORIGIN": "http://localhost:3200",

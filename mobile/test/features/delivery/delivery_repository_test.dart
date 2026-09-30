@@ -44,8 +44,11 @@ void main() {
       expect((await repo.fetchAssigned()).data.first.status, 'delivered');
       expect(delivered.orderId, original.orderId);
       expect(delivered.deliveryFee, original.deliveryFee);
+      final returned = await repo.updateStatus(original.id, 'returned');
+      expect(returned.status, 'returned');
+      expect(returned.deliveredAt, delivered.deliveredAt);
       await expectLater(
-        repo.updateStatus(original.id, 'returned'),
+        repo.updateStatus(original.id, 'delivered'),
         throwsA(isA<AppFailure>()),
       );
       await expectLater(
@@ -91,16 +94,22 @@ void main() {
         );
       addTearDown(dio.close);
       final repo = DeliveryRepositoryRemote(ApiClient(dio));
-      final page = await repo.fetchAssigned(page: 3);
+      final page = await repo.fetchAssigned(status: 'delivered', page: 3);
+      await repo.fetchAssigned(page: 3);
       expect(page.page, 3);
       expect(page.total, 41);
       expect(page.data.single.deliveredAt, delivery.deliveredAt);
-      await repo.updateStatus('delivery-id', 'delivered');
+      await repo.updateStatus('delivery-id', 'returned');
       expect(requests.first.path, '/deliveries/assigned');
-      expect(requests.first.queryParameters, {'page': 3, 'per_page': 20});
+      expect(requests.first.queryParameters, {
+        'status': 'delivered',
+        'page': 3,
+        'per_page': 20,
+      });
+      expect(requests[1].queryParameters, {'page': 3, 'per_page': 20});
       expect(requests.last.path, '/deliveries/delivery-id');
       expect(requests.last.method, 'PATCH');
-      expect(requests.last.data, {'status': 'delivered'});
+      expect(requests.last.data, {'status': 'returned'});
     },
   );
 }

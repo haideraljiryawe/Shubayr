@@ -7,13 +7,16 @@ class DeliveryRepositoryRemote implements DeliveryRepository {
   final ApiClient _api;
 
   @override
-  Future<DeliveryPage> fetchAssigned({int page = 1, int perPage = 20}) async =>
-      DeliveryPage.fromJson(
-        await _api.get<Map<String, dynamic>>(
-          '/deliveries/assigned',
-          query: {'page': page, 'per_page': perPage},
-        ),
-      );
+  Future<DeliveryPage> fetchAssigned({
+    String? status,
+    int page = 1,
+    int perPage = 20,
+  }) async => DeliveryPage.fromJson(
+    await _api.get<Map<String, dynamic>>(
+      '/deliveries/assigned',
+      query: {'status': ?status, 'page': page, 'per_page': perPage},
+    ),
+  );
 
   @override
   Future<Delivery> updateStatus(String id, String status) async =>

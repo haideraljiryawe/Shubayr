@@ -26,6 +26,25 @@ final deliveryRepositoryProvider = Provider<DeliveryRepository>((ref) {
   };
 });
 
+/// Like monitor filters, the selection belongs to the current work account.
+class DeliveryStatusFilter extends Notifier<String?> {
+  @override
+  String? build() {
+    ref.watch(_agentProvider);
+    return null;
+  }
+
+  void select(String? status) {
+    if (status != null && !Delivery.statuses.contains(status)) {
+      throw const AppFailure(FailureKind.validation);
+    }
+    if (status != state) state = status;
+  }
+}
+
+final deliveryStatusFilterProvider =
+    NotifierProvider<DeliveryStatusFilter, String?>(DeliveryStatusFilter.new);
+
 class DeliveryListState {
   const DeliveryListState({
     required this.page,
@@ -48,7 +67,7 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
   int _generation = 0;
   int? _refreshGeneration;
 
-  /// A manual refresh keeps visible data; a new session/repository must reload.
+  /// Refreshing the same query keeps data; a new account or filter must reload.
   bool get isRefreshing => _refreshGeneration == _generation && state.isLoading;
 
   Future<void> _operations = Future.value();
@@ -57,16 +76,25 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
   Future<DeliveryListState> build() async {
     final agent = ref.watch(_agentProvider);
     final repo = ref.watch(deliveryRepositoryProvider);
+    final status = ref.watch(deliveryStatusFilterProvider);
     ++_generation;
     _operations = Future.value();
     ref.onDispose(() => _generation++);
     if (!agent.allowed) throw const AppFailure.unauthorized();
-    final page = await _fetch(repo, 1);
+    final page = await _fetch(repo, 1, status);
     return DeliveryListState(page: page, items: List.unmodifiable(page.data));
   }
 
-  Future<DeliveryPage> _fetch(DeliveryRepository repo, int number) async {
-    final page = await repo.fetchAssigned(page: number, perPage: _perPage);
+  Future<DeliveryPage> _fetch(
+    DeliveryRepository repo,
+    int number,
+    String? status,
+  ) async {
+    final page = await repo.fetchAssigned(
+      status: status,
+      page: number,
+      perPage: _perPage,
+    );
     if (page.page != number ||
         page.perPage != _perPage ||
         (page.data.isEmpty && (number - 1) * _perPage < page.total)) {
@@ -75,11 +103,15 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
     return page;
   }
 
-  Future<void> refresh() => _enqueue((generation) async {
+  Future<void> _reload(int generation) async {
     _refreshGeneration = generation;
     state = const AsyncLoading<DeliveryListState>();
     try {
-      final page = await _fetch(ref.read(deliveryRepositoryProvider), 1);
+      final page = await _fetch(
+        ref.read(deliveryRepositoryProvider),
+        1,
+        ref.read(deliveryStatusFilterProvider),
+      );
       if (generation != _generation) return;
       state = AsyncData(
         DeliveryListState(page: page, items: List.unmodifiable(page.data)),
@@ -87,7 +119,9 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
     } catch (error, stack) {
       if (generation == _generation) state = AsyncError(error, stack);
     }
-  }, allowLoadFailure: true);
+  }
+
+  Future<void> refresh() => _enqueue(_reload, allowLoadFailure: true);
 
   Future<void> loadMore() {
     final current = state.value;
@@ -113,6 +147,7 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
         final page = await _fetch(
           ref.read(deliveryRepositoryProvider),
           latest.page.page + 1,
+          ref.read(deliveryStatusFilterProvider),
         );
         if (generation != _generation) return;
         final items = {for (final item in latest.items) item.id: item};
@@ -136,8 +171,9 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
   }
 
   /// Reads and writes share a queue: refresh/append cannot overwrite a saved
-  /// status. A new session gets its own queue and ignores old responses/errors.
+  /// status. A new account/filter gets its own queue and ignores old results.
   Future<bool> updateStatus(String id, String status) async {
+    final generationAtStart = _generation;
     var saved = false;
     await _enqueue((generation) async {
       if (!Delivery.updateStatuses.contains(status)) {
@@ -147,6 +183,9 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
       final item = current.items.where((item) => item.id == id).firstOrNull;
       if (item == null) throw const AppFailure(FailureKind.notFound);
       if (item.status == status) return;
+      if (!item.nextStatuses.contains(status)) {
+        throw const AppFailure(FailureKind.validation);
+      }
       state = AsyncData(
         DeliveryListState(
           page: current.page,
@@ -171,13 +210,23 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
           ),
         );
         saved = true;
-      } catch (_) {
+        // A status change alters membership and page boundaries of a filtered
+        // query. Reload from page one rather than guessing the new total.
+        if (ref.read(deliveryStatusFilterProvider) != null) {
+          await _reload(generation);
+        }
+      } catch (error) {
         if (generation != _generation) return;
         state = AsyncData(current);
+        if (error is AppFailure && error.statusCode == 409) {
+          // A stale order or delivery state is authoritative on the server.
+          // Do not enqueue refresh here: this write already owns the queue.
+          await _reload(generation);
+        }
         rethrow;
       }
     });
-    return saved;
+    return saved && generationAtStart == _generation;
   }
 
   Future<void> _enqueue(

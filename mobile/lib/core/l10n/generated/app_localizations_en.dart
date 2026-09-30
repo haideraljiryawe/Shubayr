@@ -429,6 +429,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orderStatusReturned => 'Returned';
 
   @override
+  String get deliveryFilterAll => 'All';
+
+  @override
+  String get deliveryFilterEmpty => 'No deliveries with this status';
+
+  @override
+  String get deliveryStatusConflict =>
+      'The current state does not allow this action. Check the delivery and order status before trying again.';
+
+  @override
   String get deliveryTitle => 'Deliveries';
 
   @override

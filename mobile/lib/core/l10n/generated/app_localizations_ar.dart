@@ -422,6 +422,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get orderStatusReturned => 'مُرجَع';
 
   @override
+  String get deliveryFilterAll => 'الكل';
+
+  @override
+  String get deliveryFilterEmpty => 'لا توجد توصيلات بهذه الحالة';
+
+  @override
+  String get deliveryStatusConflict =>
+      'لا تسمح الحالة الحالية بتنفيذ هذا الإجراء. تحقّق من حالة التوصيل والطلب وحاول مرة أخرى.';
+
+  @override
   String get deliveryTitle => 'التوصيل';
 
   @override

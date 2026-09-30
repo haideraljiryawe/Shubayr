@@ -17,7 +17,7 @@ class DeliveryTestSession extends SessionController {
   void setSession(Session session) => state = AsyncData(session);
 }
 
-typedef DeliveryRequest = ({int page, int perPage});
+typedef DeliveryRequest = ({String? status, int page, int perPage});
 
 class RecordingDeliveries extends DeliveryRepositoryMock {
   RecordingDeliveries() : super(agentId: 'agent', delay: Duration.zero);
@@ -26,11 +26,15 @@ class RecordingDeliveries extends DeliveryRepositoryMock {
   Future<DeliveryPage> Function(DeliveryRequest)? onFetch;
   Future<Delivery> Function(String, String)? onUpdate;
   @override
-  Future<DeliveryPage> fetchAssigned({int page = 1, int perPage = 20}) {
-    final request = (page: page, perPage: perPage);
+  Future<DeliveryPage> fetchAssigned({
+    String? status,
+    int page = 1,
+    int perPage = 20,
+  }) {
+    final request = (status: status, page: page, perPage: perPage);
     requests.add(request);
     return onFetch?.call(request) ??
-        super.fetchAssigned(page: page, perPage: perPage);
+        super.fetchAssigned(status: status, page: page, perPage: perPage);
   }
 
   @override
@@ -54,7 +58,7 @@ DeliveryPage deliveryPage(DeliveryRequest request, {int total = 45}) =>
           Delivery(
             id: 'd$i',
             orderId: 'order-$i',
-            status: 'assigned',
+            status: request.status ?? 'assigned',
             deliveryFee: 5000,
           ),
       ],

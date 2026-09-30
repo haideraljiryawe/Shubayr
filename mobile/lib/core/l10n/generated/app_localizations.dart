@@ -902,6 +902,24 @@ abstract class AppLocalizations {
   /// **'Returned'**
   String get orderStatusReturned;
 
+  /// No description provided for @deliveryFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get deliveryFilterAll;
+
+  /// No description provided for @deliveryFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No deliveries with this status'**
+  String get deliveryFilterEmpty;
+
+  /// No description provided for @deliveryStatusConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'The current state does not allow this action. Check the delivery and order status before trying again.'**
+  String get deliveryStatusConflict;
+
   /// No description provided for @deliveryTitle.
   ///
   /// In en, this message translates to:

@@ -35,6 +35,132 @@ void main() {
   });
   tearDown(() => container.dispose());
 
+  test(
+    'filter is applied to every page and resets for a different agent',
+    () async {
+      repo.onFetch = (r) async => deliveryPage(r);
+      container.read(deliveryStatusFilterProvider.notifier).select('failed');
+      await container.read(deliveriesProvider.future);
+      await controller().loadMore();
+      expect(repo.requests.map((r) => (r.status, r.page)), [
+        ('failed', 1),
+        ('failed', 2),
+      ]);
+      expect(list().items.every((item) => item.status == 'failed'), isTrue);
+      container.read(deliveryStatusFilterProvider.notifier).select('returned');
+      await container.read(deliveriesProvider.future);
+      expect(list().page.page, 1);
+      expect(list().items, hasLength(20));
+      expect(repo.requests.last.status, 'returned');
+      session.setSession(
+        const Session.signedIn(User(id: 'next', role: 'delivery_agent')),
+      );
+      await container.read(deliveriesProvider.future);
+      expect(container.read(deliveryStatusFilterProvider), isNull);
+      expect(repo.requests.last.status, isNull);
+    },
+  );
+
+  test(
+    'late append from a previous filter cannot contaminate the next one',
+    () async {
+      repo.onFetch = (r) async => deliveryPage(r);
+      container.read(deliveryStatusFilterProvider.notifier).select('assigned');
+      await container.read(deliveriesProvider.future);
+      final pending = Completer<DeliveryPage>();
+      repo.onFetch = (_) => pending.future;
+      final oldAppend = controller().loadMore();
+      await Future<void>.delayed(Duration.zero);
+      repo.onFetch = (r) async => deliveryPage(r, total: 2);
+      container.read(deliveryStatusFilterProvider.notifier).select('returned');
+      await container.read(deliveriesProvider.future);
+      pending.complete(
+        deliveryPage((status: 'assigned', page: 2, perPage: 20)),
+      );
+      await oldAppend;
+      expect(list().items, hasLength(2));
+      expect(list().items.every((item) => item.status == 'returned'), isTrue);
+      expect(list().page.page, 1);
+      expect(list().loadingMore, isFalse);
+    },
+  );
+
+  test('filtered save reloads authoritative membership and total', () async {
+    container.read(deliveryStatusFilterProvider.notifier).select('assigned');
+    await container.read(deliveriesProvider.future);
+    expect(list().page.total, 9);
+    final id = list().items.first.id;
+    expect(await controller().updateStatus(id, 'out_for_delivery'), isTrue);
+    expect(list().items.any((item) => item.id == id), isFalse);
+    expect(list().page.total, 8);
+    expect(list().page.page, 1);
+    expect(list().hasMore, isFalse);
+    expect(repo.requests.map((r) => r.status), ['assigned', 'assigned']);
+  });
+
+  test(
+    'save remains successful when the following filtered reload fails',
+    () async {
+      container.read(deliveryStatusFilterProvider.notifier).select('assigned');
+      await container.read(deliveriesProvider.future);
+      final id = list().items.first.id;
+      repo.onFetch = (_) async => throw const AppFailure.network();
+      expect(await controller().updateStatus(id, 'out_for_delivery'), isTrue);
+      expect(container.read(deliveriesProvider).hasError, isTrue);
+      repo.onFetch = null;
+      await controller().refresh();
+      expect(list().page.total, 8);
+      expect(repo.updates, hasLength(1));
+    },
+  );
+
+  test(
+    '409 refreshes current server state and still reports the rejected action',
+    () async {
+      await container.read(deliveriesProvider.future);
+      final previous = list().items.first;
+      const conflict = AppFailure(FailureKind.validation, statusCode: 409);
+      repo.onUpdate = (_, _) async => throw conflict;
+      repo.onFetch = (_) async => DeliveryPage(
+        total: 1,
+        data: [
+          Delivery.fromJson({...previous.toJson(), 'status': 'failed'}),
+        ],
+      );
+      await expectLater(
+        controller().updateStatus(previous.id, 'out_for_delivery'),
+        throwsA(same(conflict)),
+      );
+      expect(list().items.single.status, 'failed');
+      expect(list().updatingId, isNull);
+      expect(repo.requests, hasLength(2));
+      await expectLater(
+        controller().updateStatus(previous.id, 'delivered'),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(repo.updates, hasLength(1));
+    },
+  );
+
+  test(
+    'delivered can become returned; failed and returned never write',
+    () async {
+      await container.read(deliveriesProvider.future);
+      final delivered = list().items.firstWhere(
+        (item) => item.status == 'delivered',
+      );
+      expect(await controller().updateStatus(delivered.id, 'returned'), isTrue);
+      final failed = list().items.firstWhere((item) => item.status == 'failed');
+      for (final id in [delivered.id, failed.id]) {
+        await expectLater(
+          controller().updateStatus(id, 'out_for_delivery'),
+          throwsA(isA<AppFailure>()),
+        );
+      }
+      expect(repo.updates, hasLength(1));
+    },
+  );
+
   test('refresh retains data, reports failure and can recover', () async {
     final previous = await container.read(deliveriesProvider.future);
     final pending = Completer<DeliveryPage>();
@@ -52,7 +178,8 @@ void main() {
     expect(failed.isLoading, isFalse);
     expect(failed.error, isA<AppFailure>());
     expect(failed.value, same(previous));
-    repo.onFetch = (_) async => deliveryPage((page: 1, perPage: 20), total: 1);
+    repo.onFetch = (_) async =>
+        deliveryPage((status: null, page: 1, perPage: 20), total: 1);
     await notifier.refresh();
     expect(container.read(deliveriesProvider).hasError, isFalse);
     expect(notifier.isRefreshing, isFalse);
@@ -81,7 +208,9 @@ void main() {
     await queuedRefresh;
     expect(repo.requests, hasLength(requests));
     expect(container.read(deliveriesProvider).hasError, isFalse);
-    newPage.complete(deliveryPage((page: 1, perPage: 20), total: 1));
+    newPage.complete(
+      deliveryPage((status: null, page: 1, perPage: 20), total: 1),
+    );
     await next;
     expect(container.read(deliveriesProvider).hasError, isFalse);
     expect(notifier.isRefreshing, isFalse);
@@ -149,14 +278,14 @@ void main() {
       final id = list().items.first.id;
       repo.onUpdate = (_, _) async => throw const AppFailure.network();
       await expectLater(
-        controller().updateStatus(id, 'failed'),
+        controller().updateStatus(id, 'out_for_delivery'),
         throwsA(isA<AppFailure>()),
       );
       expect(list().items.first.status, 'assigned');
       expect(list().updatingId, isNull);
       repo.onUpdate = null;
-      await controller().updateStatus(id, 'failed');
-      expect(list().items.first.status, 'failed');
+      await controller().updateStatus(id, 'out_for_delivery');
+      expect(list().items.first.status, 'out_for_delivery');
     },
   );
 
@@ -166,13 +295,13 @@ void main() {
       await container.read(deliveriesProvider.future);
       final id = list().items.first.id;
       final results = await Future.wait([
-        controller().updateStatus(id, 'delivered'),
-        controller().updateStatus(id, 'delivered'),
+        controller().updateStatus(id, 'out_for_delivery'),
+        controller().updateStatus(id, 'out_for_delivery'),
       ]);
       expect(results, [true, false]);
       expect(repo.updates, hasLength(1));
       await expectLater(
-        controller().updateStatus(id, 'returned'),
+        controller().updateStatus(id, 'assigned'),
         throwsA(isA<AppFailure>()),
       );
       expect(repo.updates, hasLength(1));
@@ -184,20 +313,23 @@ void main() {
     final pending = Completer<Delivery>();
     final original = list().items.first;
     repo.onUpdate = (_, _) => pending.future;
-    final saving = controller().updateStatus(original.id, 'failed');
+    final saving = controller().updateStatus(original.id, 'out_for_delivery');
     await Future<void>.delayed(Duration.zero);
     var refreshed = false;
     final refresh = controller().refresh().then((_) => refreshed = true);
     await Future<void>.delayed(Duration.zero);
     expect(repo.requests, hasLength(1));
     expect(refreshed, isFalse);
-    final saved = Delivery.fromJson({...original.toJson(), 'status': 'failed'});
+    final saved = Delivery.fromJson({
+      ...original.toJson(),
+      'status': 'out_for_delivery',
+    });
     repo.onFetch = (_) async =>
         DeliveryPage(perPage: 20, total: 1, data: [saved]);
     pending.complete(saved);
     await saving;
     await refresh;
-    expect(list().items.single.status, 'failed');
+    expect(list().items.single.status, 'out_for_delivery');
   });
 
   test('append then status update cannot revert the updated item', () async {
@@ -206,7 +338,7 @@ void main() {
     final original = list().items.first;
     repo.onFetch = (_) => pending.future;
     final append = controller().loadMore();
-    final save = controller().updateStatus(original.id, 'delivered');
+    final save = controller().updateStatus(original.id, 'out_for_delivery');
     await Future<void>.delayed(Duration.zero);
     expect(repo.updates, isEmpty);
     pending.complete(
@@ -215,7 +347,7 @@ void main() {
     await append;
     await save;
     expect(list().items, hasLength(20));
-    expect(list().items.first.status, 'delivered');
+    expect(list().items.first.status, 'out_for_delivery');
   });
 
   test('inconsistent empty append becomes a retryable error', () async {
@@ -241,7 +373,7 @@ void main() {
           throwsA(isA<AppFailure>()),
         );
         await expectLater(
-          controller().updateStatus('d0', 'failed'),
+          controller().updateStatus('d0', 'out_for_delivery'),
           throwsA(isA<AppFailure>()),
         );
         expect(repo.requests, isEmpty);
@@ -258,7 +390,7 @@ void main() {
       repo.onUpdate = (_, _) => pending.future;
       final oldSave = controller().updateStatus(
         list().items.first.id,
-        'failed',
+        'out_for_delivery',
       );
       await Future<void>.delayed(Duration.zero);
       session.setSession(
@@ -266,10 +398,13 @@ void main() {
       );
       await container.read(deliveriesProvider.future);
       repo.onUpdate = null;
-      await controller().updateStatus(list().items.first.id, 'delivered');
+      await controller().updateStatus(
+        list().items.first.id,
+        'out_for_delivery',
+      );
       pending.completeError(const AppFailure.network());
       expect(await oldSave, isFalse);
-      expect(list().items.first.status, 'delivered');
+      expect(list().items.first.status, 'out_for_delivery');
     },
   );
 }

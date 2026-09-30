@@ -38,8 +38,22 @@ class Delivery {
     'failed',
     'returned',
   ];
-  // PATCH permits these values; the contract specifies no transition graph.
-  static const updateStatuses = ['out_for_delivery', 'delivered', 'failed'];
+  static const updateStatuses = [
+    'out_for_delivery',
+    'delivered',
+    'failed',
+    'returned',
+  ];
+
+  /// API 7.1 transitions. The server also checks order readiness before dispatch;
+  /// that order state is intentionally absent from the Delivery response.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<String> get nextStatuses => switch (status) {
+    'assigned' => const ['out_for_delivery'],
+    'out_for_delivery' => const ['delivered', 'failed'],
+    'delivered' => const ['returned'],
+    _ => const [],
+  };
 
   factory Delivery.fromJson(Map<String, dynamic> json) =>
       _$DeliveryFromJson(json);

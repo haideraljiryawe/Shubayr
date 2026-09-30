@@ -45,9 +45,23 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full 
 
 The current configuration and phone roles are documented in
 [API 6.1 progress](app-access-v6-progress.md). There are exactly two standalone
-VS Code launches: iOS Simulator (Remote), and Chrome Preview (Remote).
-Both use localhost:8000/api/v1; Chrome uses localhost:7357 for CORS and separate
-browser storage. No combined, mock or website launch is configured.
+VS Code: select **iOS + Web Admin (Remote)** and press F5 to launch the phone
+simulator and Web Admin together against `http://localhost:8000/api/v1`.
+Open `http://localhost:3200` for Web Admin. Stopping either debug session stops
+both sessions in this compound. Start the existing backend before launching.
+
+Standalone profiles remain available: **iOS Simulator (Remote)**,
+**Web Admin (Remote)** and **Chrome Preview (Remote)**. Chrome uses
+`http://localhost:7357` for CORS and separate browser storage; the compound does
+not launch Chrome. Stop an existing standalone session before starting the
+compound to avoid duplicate processes.
+
+Pre-launch tasks use Node.js to check API health and require a free port for
+Admin/Chrome. Admin also requires Node.js >=22.12 and installed dependencies
+(`npm ci` inside `admin`, once). These checks never stop existing processes,
+install packages, start Docker or migrate/seed the database. API health does not
+confirm database migrations or account readiness. Refresh the relevant mobile
+list after an Admin change; shared remote data does not imply live list updates.
 
 Normal application launches always use remote. Development OTP must be obtained
 from the configured backend; fixture OTP and role selection are test-only.
