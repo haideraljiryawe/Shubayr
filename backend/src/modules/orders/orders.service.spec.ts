@@ -105,7 +105,7 @@ describe('OrdersService', () => {
     );
   });
 
-  it('releases the temporary stock hold and appends a tracking event on cancellation', async () => {
+  it('releases lot reservations and appends a tracking event on cancellation', async () => {
     const tx = {
       $queryRaw: jest.fn(),
       order: {
@@ -118,7 +118,6 @@ describe('OrdersService', () => {
       },
       payment: { count: jest.fn().mockResolvedValue(0) },
       orderStatusEvent: { create: jest.fn() },
-      simpleStockHold: { updateMany: jest.fn() },
     };
     const prisma = {
       $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
@@ -131,16 +130,24 @@ describe('OrdersService', () => {
       },
       productReview: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    const service = new OrdersService(prisma as never, {} as never, audit);
+    const inventory = { releaseOrder: jest.fn() };
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      audit,
+      undefined,
+      inventory as never,
+    );
     await service.cancel('user-1', 'order-1');
     expect(tx.order.updateMany).toHaveBeenCalledWith({
       where: { id: 'order-1', status: { in: ['pending', 'confirmed'] } },
       data: { status: 'cancelled' },
     });
-    expect(tx.simpleStockHold.updateMany).toHaveBeenCalledWith({
-      where: { order_id: 'order-1', status: 'held' },
-      data: { status: 'released', released_at: expect.any(Date) as Date },
-    });
+    expect(inventory.releaseOrder).toHaveBeenCalledWith(
+      tx,
+      'order-1',
+      'user-1',
+    );
     expect(tx.orderStatusEvent.create).toHaveBeenCalledWith({
       data: {
         order_id: 'order-1',
@@ -151,7 +158,7 @@ describe('OrdersService', () => {
     });
   });
 
-  it('rejects only a pending order, releases its hold, and notifies customer and monitors', async () => {
+  it('rejects only a pending order, releases reservations, and notifies customer and monitors', async () => {
     const tx = {
       $queryRaw: jest.fn(),
       order: {
@@ -167,7 +174,6 @@ describe('OrdersService', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       orderStatusEvent: { create: jest.fn() },
-      simpleStockHold: { updateMany: jest.fn() },
     };
     const prisma = {
       $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
@@ -178,11 +184,13 @@ describe('OrdersService', () => {
       record: jest.fn(),
       recordOrderMonitors: jest.fn(),
     };
+    const inventory = { releaseOrder: jest.fn() };
     const service = new OrdersService(
       prisma as never,
       {} as never,
       audit,
       notifications as never,
+      inventory as never,
     );
     jest.spyOn(service, 'getAdmin').mockResolvedValue({} as never);
 
@@ -194,10 +202,11 @@ describe('OrdersService', () => {
       where: { id: 'order-1', status: 'pending' },
       data: { status: 'rejected' },
     });
-    expect(tx.simpleStockHold.updateMany).toHaveBeenCalledWith({
-      where: { order_id: 'order-1', status: 'held' },
-      data: { status: 'released', released_at: expect.any(Date) as Date },
-    });
+    expect(inventory.releaseOrder).toHaveBeenCalledWith(
+      tx,
+      'order-1',
+      'staff-1',
+    );
     expect(notifications.record).toHaveBeenCalledWith(
       tx,
       'customer-1',

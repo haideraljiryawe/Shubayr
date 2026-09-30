@@ -23,7 +23,7 @@ export class RequestReturnLineDto {
   order_item_id!: string;
 
   @IsNumber({ maxDecimalPlaces: 3 })
-  @Min(1)
+  @Min(0.001)
   quantity!: number;
 
   @Transform(({ value }: { value: unknown }) =>

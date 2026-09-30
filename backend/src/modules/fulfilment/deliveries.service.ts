@@ -9,6 +9,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { InventoryService } from '../inventory/inventory.service';
 import { AssignedDeliveriesQueryDto } from './dto/assigned-deliveries-query.dto';
 import { DeliveryAgentsQueryDto } from './dto/delivery-agents-query.dto';
 import {
@@ -32,6 +33,7 @@ export class DeliveriesService {
     private readonly loyalty: LoyaltyService,
     private readonly audit: AuditService,
     private readonly notifications?: NotificationsService,
+    private readonly inventory: InventoryService = undefined as unknown as InventoryService,
   ) {}
 
   listAssigned(agentId: string, query: AssignedDeliveriesQueryDto) {
@@ -266,12 +268,20 @@ export class DeliveriesService {
         });
       }
       if (input.status === 'out_for_delivery') {
-        await tx.simpleStockHold.updateMany({
-          where: { order_id: delivery.order_id, status: 'held' },
-          data: { status: 'deducted', deducted_at: now },
-        });
+        await this.inventory.issueOrderToCustody(
+          tx,
+          delivery.order_id,
+          id,
+          agentId,
+          agentId,
+        );
       }
       if (input.status === 'delivered') {
+        await this.inventory.settleCustodyToSold(
+          tx,
+          delivery.order_id,
+          agentId,
+        );
         const payments = await tx.payment.findMany({
           where: {
             order_id: delivery.order_id,

@@ -20,14 +20,14 @@ export class AddCartItemDto {
   variant_id?: string | null;
 
   @IsNumber({ maxDecimalPlaces: 3 })
-  @Min(1)
+  @Min(0.001)
   @Max(MAX_CART_ITEM_QUANTITY)
   quantity!: number;
 }
 
 export class UpdateCartItemDto {
   @IsNumber({ maxDecimalPlaces: 3 })
-  @Min(1)
+  @Min(0.001)
   @Max(MAX_CART_ITEM_QUANTITY)
   quantity!: number;
 }
