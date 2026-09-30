@@ -3,6 +3,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { Prisma } from '../../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AdminSettingsUpdateDto } from './dto/admin-settings.dto';
+import { validateSettingsUpdate } from './settings-validation';
 
 const MANAGED_KEYS = new Set([
   'store_name',
@@ -68,12 +69,33 @@ export class SettingsService {
   }
 
   async updateAdminSettings(actorId: string, input: AdminSettingsUpdateDto) {
-    for (const key of Object.keys(input.settings ?? {})) {
-      if (!MANAGED_KEYS.has(key)) {
-        throw new UnprocessableEntityException(`Unknown setting: ${key}`);
-      }
-    }
     const before = await this.getAdminSettings();
+    const baseCurrency = await this.prisma.currency.findFirst({
+      where: { is_base: true },
+      select: { display_precision: true },
+    });
+    const errors = [
+      ...Object.keys(input.settings ?? {})
+        .filter((key) => !MANAGED_KEYS.has(key))
+        .map((key) => ({
+          field: `settings.${key}`,
+          code: 'unknown',
+          message: `settings.${key} is not a managed setting`,
+        })),
+      ...validateSettingsUpdate(
+        input,
+        before,
+        baseCurrency?.display_precision ?? 0,
+      ),
+    ];
+    if (errors.length) {
+      throw new UnprocessableEntityException({
+        status: 422,
+        code: 'VALIDATION_FAILED',
+        message: 'Request validation failed',
+        errors,
+      });
+    }
     const hoursByWeekday = new Map(
       before.business_hours.map((row) => [row.weekday, row]),
     );
@@ -132,15 +154,13 @@ export class SettingsService {
       for (const [key, percent] of Object.entries(
         input.protection_thresholds ?? {},
       )) {
-        if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
-          throw new UnprocessableEntityException(
-            'Protection thresholds must be whole percentages from 0 to 100',
-          );
-        }
         await tx.protectionThreshold.upsert({
           where: { key },
-          create: { key, percent },
-          update: { percent, updated_at: new Date() },
+          create: { key, percent: new Prisma.Decimal(percent) },
+          update: {
+            percent: new Prisma.Decimal(percent),
+            updated_at: new Date(),
+          },
         });
       }
       await this.audit.record(tx, {

@@ -5658,6 +5658,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/ledger/entries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one immutable journal entry with lines and reversal links */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Journal entry */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["JournalEntry"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/ledger/entries/{id}/reversal": {
         parameters: {
             query?: never;
@@ -6029,6 +6069,49 @@ export interface paths {
                 422: components["responses"]["Validation"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/financial-documents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one posted financial document by id
+         * @description Cash transfers and opening balances require either ledger.view or their own cash_accounts.manage permission.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Posted financial document */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FinancialDocument"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6588,6 +6671,10 @@ export interface components {
             published_at?: string | null;
             /** Format: date-time */
             price_approved_at?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
             /** @description Ordered by sort_order; the first image is primary. */
             images?: components["schemas"]["ProductImage"][];
             variants?: components["schemas"]["ProductVariant"][];
@@ -7037,6 +7124,7 @@ export interface components {
                 /** @enum {string} */
                 status?: "pending" | "paid" | "refunded" | "failed";
                 amount?: components["schemas"]["Money"];
+                currency?: string;
                 /** Format: date-time */
                 paid_at?: string | null;
             }[];
@@ -7046,6 +7134,7 @@ export interface components {
                 /** @enum {string} */
                 status?: "assigned" | "out_for_delivery" | "delivered" | "failed" | "returned";
                 delivery_fee?: components["schemas"]["Money"];
+                currency?: string;
                 /** Format: date-time */
                 dispatched_at?: string | null;
                 /** Format: date-time */
@@ -7129,11 +7218,13 @@ export interface components {
                 quantity: number;
                 unit_price: components["schemas"]["Money"];
                 line_total: components["schemas"]["Money"];
+                currency: string;
             }[];
             subtotal: components["schemas"]["Money"];
             delivery_fee: components["schemas"]["Money"];
             discount: components["schemas"]["Money"];
             total: components["schemas"]["Money"];
+            currency: string;
             /** @enum {string} */
             payment_method: "cod";
             /** Format: date-time */
@@ -7578,10 +7669,14 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
-            description?: string | null;
+            description: string | null;
             is_system: boolean;
-            permissions?: {
-                permission?: components["schemas"]["Permission"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            permissions: {
+                permission: components["schemas"]["Permission"];
             }[];
         };
         PermissionPresetInput: components["schemas"]["AuditReason"] & {
@@ -7604,6 +7699,10 @@ export interface components {
             /** @enum {string} */
             app_role: "delivery_agent" | "order_monitor";
             is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         WorkPhoneList: components["schemas"]["Pagination"] & {
             data: components["schemas"]["WorkPhone"][];
@@ -7837,15 +7936,43 @@ export interface components {
             posted_at: string;
             /** Format: uuid */
             reverses_id?: string | null;
-            lines: ({
+            reverses?: components["schemas"]["JournalEntryLink"] | null;
+            reversals?: components["schemas"]["JournalEntryLink"][];
+            lines: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                entry_id: string;
+                /** Format: uuid */
+                account_id: string;
                 debit_base: components["schemas"]["ExactDecimal"];
                 credit_base: components["schemas"]["ExactDecimal"];
                 currency_code: string;
                 original_amount: components["schemas"]["ExactDecimal"];
                 exchange_rate: components["schemas"]["ExactDecimal"];
-            } & {
-                [key: string]: unknown;
-            })[];
+                memo: string | null;
+                account: components["schemas"]["LedgerAccount"];
+            }[];
+        };
+        JournalEntryLink: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+        };
+        LedgerAccount: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name_ar: string;
+            name_en: string;
+            /** @enum {string} */
+            type: "asset" | "liability" | "equity" | "income" | "contra_revenue" | "expense";
+            /** @enum {string} */
+            normal_side: "debit" | "credit";
+            is_system: boolean;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
         };
         JournalEntryPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["JournalEntry"][];
@@ -7877,6 +8004,12 @@ export interface components {
             /** Format: uuid */
             ledger_account_id: string;
             is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            currency: components["schemas"]["Currency"];
+            ledger_account: components["schemas"]["LedgerAccount"];
             balance: components["schemas"]["ExactDecimal"];
             base_balance: components["schemas"]["ExactDecimal"];
             base_currency_code: string;
@@ -7900,22 +8033,43 @@ export interface components {
             amount: string;
             reason: string;
         };
-        FinancialDocument: {
+        FinancialDocumentBase: {
+            /** @enum {string} */
+            document_type: "cash_opening_balance" | "cash_transfer";
             /** Format: uuid */
             id: string;
             document_number: string;
-            amount?: components["schemas"]["ExactDecimal"];
+            amount: number;
             currency_code: string;
             /** Format: date-time */
             document_date: string;
             /** Format: date-time */
             accounting_date: string;
+            backdate_reason: string | null;
             /** Format: uuid */
             created_by: string;
             /** Format: uuid */
             journal_entry_id: string;
             /** Format: date-time */
             created_at: string;
+        };
+        FinancialDocument: (components["schemas"]["FinancialDocumentBase"] & {
+            /** @constant */
+            document_type?: "cash_opening_balance";
+            cash_account: components["schemas"]["CashAccountLink"];
+        }) | (components["schemas"]["FinancialDocumentBase"] & {
+            /** @constant */
+            document_type?: "cash_transfer";
+            reason: string;
+            from_account: components["schemas"]["CashAccountLink"];
+            to_account: components["schemas"]["CashAccountLink"];
+        });
+        CashAccountLink: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "cash" | "bank";
         };
         AccountingPeriod: {
             /** Format: date-time */
@@ -7931,6 +8085,26 @@ export interface components {
             /** Format: uuid */
             reopened_by?: string | null;
             reopen_reason?: string | null;
+            /** @description Sequenced close and re-close history */
+            closes?: components["schemas"]["PeriodClose"][];
+        };
+        PeriodClose: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            period_month: string;
+            sequence: number;
+            snapshot: {
+                [key: string]: unknown;
+            }[];
+            differences: {
+                [key: string]: unknown;
+            }[] | null;
+            reason: string | null;
+            /** Format: uuid */
+            closed_by: string;
+            /** Format: date-time */
+            created_at: string;
         };
         PeriodChecklist: {
             month: string;
@@ -7943,29 +8117,53 @@ export interface components {
             settings: {
                 [key: string]: string | null;
             };
-            business_hours: {
-                [key: string]: unknown;
-            }[];
-            closed_days: {
-                [key: string]: unknown;
-            }[];
-            protection_thresholds: {
-                [key: string]: unknown;
-            };
+            business_hours: components["schemas"]["BusinessHours"][];
+            closed_days: components["schemas"]["ClosedDay"][];
+            protection_thresholds: components["schemas"]["ProtectionThresholds"];
         };
         AdminFinancialSettingsPatch: {
             settings?: {
                 [key: string]: string | null;
             };
-            business_hours?: {
-                [key: string]: unknown;
-            }[];
-            closed_days?: {
-                [key: string]: unknown;
-            }[];
-            protection_thresholds?: {
-                [key: string]: number;
-            };
+            business_hours?: components["schemas"]["BusinessHoursInput"][];
+            closed_days?: components["schemas"]["ClosedDayInput"][];
+            protection_thresholds?: components["schemas"]["ProtectionThresholds"];
+        };
+        /** @description Persisted weekday convention is 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday. */
+        BusinessHours: {
+            /** @description 0=Sunday; 1=Monday; 2=Tuesday; 3=Wednesday; 4=Thursday; 5=Friday; 6=Saturday. */
+            weekday: number;
+            opens_at: string | null;
+            closes_at: string | null;
+            is_closed: boolean;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description Uses the persisted 0=Sunday through 6=Saturday convention. Closed rows require null times; open rows require HH:MM and opens_at before closes_at. */
+        BusinessHoursInput: {
+            /** @description 0=Sunday; 1=Monday; 2=Tuesday; 3=Wednesday; 4=Thursday; 5=Friday; 6=Saturday. */
+            weekday: number;
+            opens_at: string | null;
+            closes_at: string | null;
+            is_closed: boolean;
+        };
+        ClosedDay: {
+            /** Format: date-time */
+            date: string;
+            reason: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ClosedDayInput: {
+            /** Format: date */
+            date: string;
+            reason?: string;
+        };
+        ProtectionThresholds: {
+            cost?: number;
+            price?: number;
+            quantity?: number;
+            exchange_rate?: number;
         };
     };
     responses: {

@@ -392,9 +392,14 @@ export class DeliveriesService {
 
   private present(row: Delivery) {
     return {
-      ...row,
+      id: row.id,
+      order_id: row.order_id,
+      agent_id: row.agent_id,
+      status: row.status,
       delivery_fee: Number(row.delivery_fee),
       currency: row.currency_code,
+      dispatched_at: row.dispatched_at,
+      delivered_at: row.delivered_at,
     };
   }
 }

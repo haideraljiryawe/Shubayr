@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 8.0.0
+  version: 8.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -26,6 +26,9 @@ info:
     Amounts are stored exactly and displayed at that currency's configured
     precision (IQD 0, USD 2). The ledger preserves original-currency amount and
     exchange rate while balancing exactly in the configured base currency.
+    Database Decimal values cross the JSON boundary as plain numbers, never as
+    decimal-library internals. Deliberately fixed-scale ledger totals and lines
+    are strings where their schema uses ExactDecimal.
   license:
     name: Proprietary — Shubayr project
     identifier: LicenseRef-Proprietary
@@ -2693,6 +2696,17 @@ paths:
         "200": { description: Journal page, content: { application/json: { schema: { $ref: "#/components/schemas/JournalEntryPage" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/ledger/entries/{id}:
+    get:
+      tags: [Finance]
+      summary: Read one immutable journal entry with lines and reversal links
+      x-surface: admin
+      x-permission: ledger.view
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Journal entry, content: { application/json: { schema: { $ref: "#/components/schemas/JournalEntry" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /admin/ledger/entries/{id}/reversal:
     post:
       tags: [Finance]
@@ -2821,6 +2835,19 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/financial-documents/{id}:
+    get:
+      tags: [Finance]
+      summary: Read one posted financial document by id
+      description: Cash transfers and opening balances require either ledger.view or their own cash_accounts.manage permission.
+      x-surface: admin
+      x-permissions-any: [ledger.view, cash_accounts.manage]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Posted financial document, content: { application/json: { schema: { $ref: "#/components/schemas/FinancialDocument" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /admin/accounting-periods:
     get:
@@ -3249,6 +3276,8 @@ components:
         available_qty: { type: number, multipleOf: 0.001, description: "computed: on-hand minus active batch reservations and temporary COD holds" }
         published_at: { type: [string, "null"], format: date-time }
         price_approved_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
         images:
           type: array
           description: Ordered by sort_order; the first image is primary.
@@ -3689,6 +3718,7 @@ components:
                   method: { type: string, enum: [cod] }
                   status: { type: string, enum: [pending, paid, refunded, failed] }
                   amount: { $ref: "#/components/schemas/Money" }
+                  currency: { type: string, pattern: '^[A-Z]{3}$' }
                   paid_at: { type: [string, "null"], format: date-time }
             delivery:
               type: [object, "null"]
@@ -3696,6 +3726,7 @@ components:
                 id: { type: string, format: uuid }
                 status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
                 delivery_fee: { $ref: "#/components/schemas/Money" }
+                currency: { type: string, pattern: '^[A-Z]{3}$' }
                 dispatched_at: { type: [string, "null"], format: date-time }
                 delivered_at: { type: [string, "null"], format: date-time }
                 agent:
@@ -3773,7 +3804,7 @@ components:
     MonitorOrderDetail:
       type: object
       description: Intentionally excludes product image fields.
-      required: [id, order_number, status, customer, shipping_snapshot, items, subtotal, delivery_fee, discount, total, payment_method, placed_at]
+      required: [id, order_number, status, customer, shipping_snapshot, items, subtotal, delivery_fee, discount, total, currency, payment_method, placed_at]
       properties:
         id: { type: string, format: uuid }
         order_number: { type: string }
@@ -3799,7 +3830,7 @@ components:
           type: array
           items:
             type: object
-            required: [id, product_id, variant_id, product_name_ar, product_name_en, quantity, unit_price, line_total]
+            required: [id, product_id, variant_id, product_name_ar, product_name_en, quantity, unit_price, line_total, currency]
             properties:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
@@ -3809,10 +3840,12 @@ components:
               quantity: { type: number, multipleOf: 0.001 }
               unit_price: { $ref: "#/components/schemas/Money" }
               line_total: { $ref: "#/components/schemas/Money" }
+              currency: { type: string, pattern: '^[A-Z]{3}$' }
         subtotal: { $ref: "#/components/schemas/Money" }
         delivery_fee: { $ref: "#/components/schemas/Money" }
         discount: { $ref: "#/components/schemas/Money" }
         total: { $ref: "#/components/schemas/Money" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         payment_method: { type: string, enum: [cod] }
         placed_at: { type: string, format: date-time }
 
@@ -4343,16 +4376,21 @@ components:
 
     PermissionPreset:
       type: object
-      required: [id, name, is_system]
+      additionalProperties: false
+      required: [id, name, description, is_system, created_at, updated_at, permissions]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: [string, "null"] }
         is_system: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
         permissions:
           type: array
           items:
             type: object
+            additionalProperties: false
+            required: [permission]
             properties:
               permission: { $ref: "#/components/schemas/Permission" }
 
@@ -4382,7 +4420,7 @@ components:
 
     WorkPhone:
       type: object
-      required: [id, user_id, phone, name, app_role, is_active]
+      required: [id, user_id, phone, name, app_role, is_active, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
@@ -4390,6 +4428,8 @@ components:
         name: { type: string }
         app_role: { type: string, enum: [delivery_agent, order_monitor] }
         is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
     WorkPhoneList:
       allOf:
@@ -4664,6 +4704,7 @@ components:
 
     JournalEntry:
       type: object
+      additionalProperties: false
       required: [id, document_number, source_type, source_id, event, document_date, accounting_date, created_by, posted_at, lines]
       properties:
         id: { type: string, format: uuid }
@@ -4677,19 +4718,49 @@ components:
         created_by: { type: string, format: uuid }
         posted_at: { type: string, format: date-time }
         reverses_id: { type: [string, "null"], format: uuid }
+        reverses: { oneOf: [{ $ref: "#/components/schemas/JournalEntryLink" }, { type: "null" }] }
+        reversals: { type: array, items: { $ref: "#/components/schemas/JournalEntryLink" } }
         lines:
           type: array
           minItems: 2
           items:
             type: object
-            additionalProperties: true
-            required: [debit_base, credit_base, currency_code, original_amount, exchange_rate]
+            additionalProperties: false
+            required: [id, entry_id, account_id, debit_base, credit_base, currency_code, original_amount, exchange_rate, memo, account]
             properties:
+              id: { type: string, format: uuid }
+              entry_id: { type: string, format: uuid }
+              account_id: { type: string, format: uuid }
               debit_base: { $ref: "#/components/schemas/ExactDecimal" }
               credit_base: { $ref: "#/components/schemas/ExactDecimal" }
               currency_code: { type: string, pattern: '^[A-Z]{3}$' }
               original_amount: { $ref: "#/components/schemas/ExactDecimal" }
               exchange_rate: { $ref: "#/components/schemas/ExactDecimal" }
+              memo: { type: [string, "null"] }
+              account: { $ref: "#/components/schemas/LedgerAccount" }
+
+    JournalEntryLink:
+      type: object
+      additionalProperties: false
+      required: [id, document_number]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+
+    LedgerAccount:
+      type: object
+      additionalProperties: false
+      required: [id, code, name_ar, name_en, type, normal_side, is_system, enabled, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name_ar: { type: string }
+        name_en: { type: string }
+        type: { type: string, enum: [asset, liability, equity, income, contra_revenue, expense] }
+        normal_side: { type: string, enum: [debit, credit] }
+        is_system: { type: boolean }
+        enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
 
     JournalEntryPage:
       allOf:
@@ -4721,7 +4792,8 @@ components:
 
     CashAccount:
       type: object
-      required: [id, name, kind, currency_code, ledger_account_id, is_active, balance, base_balance, base_currency_code]
+      additionalProperties: false
+      required: [id, name, kind, currency_code, ledger_account_id, is_active, created_at, updated_at, currency, ledger_account, balance, base_balance, base_currency_code]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -4729,6 +4801,10 @@ components:
         currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         ledger_account_id: { type: string, format: uuid }
         is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        currency: { $ref: "#/components/schemas/Currency" }
+        ledger_account: { $ref: "#/components/schemas/LedgerAccount" }
         balance: { $ref: "#/components/schemas/ExactDecimal" }
         base_balance: { $ref: "#/components/schemas/ExactDecimal" }
         base_currency_code: { type: string, pattern: '^[A-Z]{3}$' }
@@ -4761,22 +4837,53 @@ components:
             amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
             reason: { type: string, minLength: 3, maxLength: 500 }
 
-    FinancialDocument:
+    FinancialDocumentBase:
       type: object
-      required: [id, document_number, currency_code, document_date, accounting_date, created_by, journal_entry_id, created_at]
+      required: [document_type, id, document_number, amount, currency_code, document_date, accounting_date, backdate_reason, created_by, journal_entry_id, created_at]
       properties:
+        document_type: { type: string, enum: [cash_opening_balance, cash_transfer] }
         id: { type: string, format: uuid }
         document_number: { type: string }
-        amount: { $ref: "#/components/schemas/ExactDecimal" }
+        amount: { type: number, minimum: 0 }
         currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         document_date: { type: string, format: date-time }
         accounting_date: { type: string, format: date-time }
+        backdate_reason: { type: [string, "null"] }
         created_by: { type: string, format: uuid }
         journal_entry_id: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
 
+    FinancialDocument:
+      oneOf:
+        - allOf:
+            - $ref: "#/components/schemas/FinancialDocumentBase"
+            - type: object
+              required: [cash_account]
+              properties:
+                document_type: { const: cash_opening_balance }
+                cash_account: { $ref: "#/components/schemas/CashAccountLink" }
+        - allOf:
+            - $ref: "#/components/schemas/FinancialDocumentBase"
+            - type: object
+              required: [reason, from_account, to_account]
+              properties:
+                document_type: { const: cash_transfer }
+                reason: { type: string }
+                from_account: { $ref: "#/components/schemas/CashAccountLink" }
+                to_account: { $ref: "#/components/schemas/CashAccountLink" }
+
+    CashAccountLink:
+      type: object
+      additionalProperties: false
+      required: [id, name, kind]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [cash, bank] }
+
     AccountingPeriod:
       type: object
+      additionalProperties: false
       required: [month, status]
       properties:
         month: { type: string, format: date-time }
@@ -4786,6 +4893,21 @@ components:
         reopened_at: { type: [string, "null"], format: date-time }
         reopened_by: { type: [string, "null"], format: uuid }
         reopen_reason: { type: [string, "null"] }
+        closes: { type: array, description: Sequenced close and re-close history, items: { $ref: "#/components/schemas/PeriodClose" } }
+
+    PeriodClose:
+      type: object
+      additionalProperties: false
+      required: [id, period_month, sequence, snapshot, differences, reason, closed_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        period_month: { type: string, format: date-time }
+        sequence: { type: integer, minimum: 1 }
+        snapshot: { type: array, items: { type: object, additionalProperties: true } }
+        differences: { type: [array, "null"], items: { type: object, additionalProperties: true } }
+        reason: { type: [string, "null"] }
+        closed_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
 
     PeriodChecklist:
       type: object
@@ -4797,18 +4919,68 @@ components:
 
     AdminFinancialSettings:
       type: object
+      additionalProperties: false
       required: [settings, business_hours, closed_days, protection_thresholds]
       properties:
         settings: { type: object, additionalProperties: { type: [string, "null"] } }
-        business_hours: { type: array, items: { type: object, additionalProperties: true } }
-        closed_days: { type: array, items: { type: object, additionalProperties: true } }
-        protection_thresholds: { type: object, additionalProperties: true }
+        business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHours" } }
+        closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDay" } }
+        protection_thresholds: { $ref: "#/components/schemas/ProtectionThresholds" }
 
     AdminFinancialSettingsPatch:
       type: object
       additionalProperties: false
       properties:
         settings: { type: object, additionalProperties: { type: [string, "null"] } }
-        business_hours: { type: array, items: { type: object, additionalProperties: true } }
-        closed_days: { type: array, items: { type: object, additionalProperties: true } }
-        protection_thresholds: { type: object, additionalProperties: { type: integer, minimum: 0, maximum: 100 } }
+        business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHoursInput" } }
+        closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDayInput" } }
+        protection_thresholds: { $ref: "#/components/schemas/ProtectionThresholds" }
+
+    BusinessHours:
+      type: object
+      additionalProperties: false
+      description: Persisted weekday convention is 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday.
+      required: [weekday, opens_at, closes_at, is_closed, updated_at]
+      properties:
+        weekday: { type: integer, minimum: 0, maximum: 6, description: "0=Sunday; 1=Monday; 2=Tuesday; 3=Wednesday; 4=Thursday; 5=Friday; 6=Saturday." }
+        opens_at: { type: [string, "null"], pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$' }
+        closes_at: { type: [string, "null"], pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$' }
+        is_closed: { type: boolean }
+        updated_at: { type: string, format: date-time }
+
+    BusinessHoursInput:
+      type: object
+      additionalProperties: false
+      description: Uses the persisted 0=Sunday through 6=Saturday convention. Closed rows require null times; open rows require HH:MM and opens_at before closes_at.
+      required: [weekday, opens_at, closes_at, is_closed]
+      properties:
+        weekday: { type: integer, minimum: 0, maximum: 6, description: "0=Sunday; 1=Monday; 2=Tuesday; 3=Wednesday; 4=Thursday; 5=Friday; 6=Saturday." }
+        opens_at: { type: [string, "null"], pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$' }
+        closes_at: { type: [string, "null"], pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$' }
+        is_closed: { type: boolean }
+
+    ClosedDay:
+      type: object
+      additionalProperties: false
+      required: [date, reason, created_at]
+      properties:
+        date: { type: string, format: date-time }
+        reason: { type: [string, "null"], maxLength: 255 }
+        created_at: { type: string, format: date-time }
+
+    ClosedDayInput:
+      type: object
+      additionalProperties: false
+      required: [date]
+      properties:
+        date: { type: string, format: date }
+        reason: { type: string, maxLength: 255 }
+
+    ProtectionThresholds:
+      type: object
+      additionalProperties: false
+      properties:
+        cost: { type: number, minimum: 0, maximum: 100, multipleOf: 0.01 }
+        price: { type: number, minimum: 0, maximum: 100, multipleOf: 0.01 }
+        quantity: { type: number, minimum: 0, maximum: 100, multipleOf: 0.01 }
+        exchange_rate: { type: number, minimum: 0, maximum: 100, multipleOf: 0.01 }

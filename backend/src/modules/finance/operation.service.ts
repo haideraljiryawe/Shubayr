@@ -6,6 +6,7 @@ import {
 import { createHash } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { serializeResponseDecimals } from '../../common/http/decimal-response.interceptor';
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -20,7 +21,7 @@ function canonical(value: unknown): string {
 
 function jsonValue(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(
-    JSON.stringify(value, (_key, item: unknown) =>
+    JSON.stringify(serializeResponseDecimals(value), (_key, item: unknown) =>
       typeof item === 'bigint'
         ? item.toString()
         : item && typeof item === 'object' && 'toJSON' in item

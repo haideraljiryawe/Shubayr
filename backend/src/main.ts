@@ -1,11 +1,12 @@
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { NestFactory, Reflector } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { ApiExceptionFilter } from './common/http/api-exception.filter';
 import { validationExceptionFactory } from './common/http/api-error';
+import { DecimalResponseInterceptor } from './common/http/decimal-response.interceptor';
 import { parseCorsOrigins } from './config/cors';
 import { compileTrustedProxies } from './config/trusted-proxies';
 import { runWithClientIp } from './modules/audit/audit-context';
@@ -39,7 +40,7 @@ async function bootstrap(): Promise<void> {
     }),
   );
   app.useGlobalFilters(new ApiExceptionFilter());
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalInterceptors(new DecimalResponseInterceptor());
   app.enableShutdownHooks();
 
   await app.listen(config.getOrThrow<number>('API_PORT'), '0.0.0.0');

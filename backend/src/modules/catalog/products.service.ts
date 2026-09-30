@@ -446,10 +446,20 @@ export class ProductsService {
       availability.variants.map((entry) => [entry.variant_id, entry]),
     );
     const variants = product.variants.map((variant) => {
+      const {
+        product_id: _productId,
+        currency_code: _currencyCode,
+        updated_at: _updatedAt,
+        ...publicVariant
+      } = variant;
+      void _productId;
+      void _currencyCode;
+      void _updatedAt;
       const regular = this.variantRegularPrice(product, variant);
       const pricing = computeProductPricing({ ...product, price: regular }, at);
+      const stock = byVariant.get(variant.id);
       return {
-        ...variant,
+        ...publicVariant,
         price_delta: regular - Number(product.price),
         selling_price:
           variant.selling_price === null ? null : Number(variant.selling_price),
@@ -467,12 +477,29 @@ export class ProductsService {
             : Number(variant.published_price),
         currency: variant.currency_code,
         ...pricing,
-        ...byVariant.get(variant.id),
+        ...(stock
+          ? {
+              sku: stock.sku,
+              base_unit: stock.base_unit,
+              whole_units_only: stock.whole_units_only,
+              low_stock_threshold: stock.low_stock_threshold,
+              available_qty: stock.available_qty,
+              availability: stock.availability,
+              in_stock: stock.in_stock,
+            }
+          : {}),
       };
     });
     const effectivePrices = variants.map((variant) => variant.effective_price);
+    const {
+      currency_code: _currencyCode,
+      category: _category,
+      ...publicProduct
+    } = product;
+    void _currencyCode;
+    void _category;
     return {
-      ...product,
+      ...publicProduct,
       price: Number(product.price),
       currency: product.currency_code,
       discount_value:

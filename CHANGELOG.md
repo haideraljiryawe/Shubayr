@@ -1,5 +1,31 @@
 # Changelog
 
+## 8.1.0 - 2026-09-29
+
+### Added
+
+- Direct, permissioned reads for journal entries, including lines and reversal
+  links, and for posted cash-opening-balance and cash-transfer documents.
+- Server-side validation for store timezone, weekly business hours, exception
+  dates, financial thresholds, percentages, backdating, automatic cancellation,
+  and base-currency delivery fees.
+- An explicit weekday-number convention: `0` is Sunday through `6` as Saturday,
+  preserving the existing stored meaning.
+
+### Changed
+
+- API responses now serialize Prisma decimals globally as JSON numbers instead
+  of exposing Decimal implementation fields.
+- Acceptance response validation rejects both wrong JSON types and undeclared
+  object properties; the period-close history field is now part of the contract.
+- The API contract is version 8.1.0, with refreshed generated web and admin API
+  types.
+
+### Fixed
+
+- Product, delivery, permission-preset, and order responses no longer expose
+  persistence-only fields that are absent from their public schemas.
+
 ## 8.0.0 - 2026-09-29
 
 ### Breaking

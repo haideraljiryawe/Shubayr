@@ -108,13 +108,24 @@ describe("permissions", () => {
     {
       id: "p1",
       name: "desk",
+      description: null,
       is_system: false,
+      created_at: "2026-09-29T00:00:00.000Z",
+      updated_at: "2026-09-29T00:00:00.000Z",
       permissions: [
         { permission: { key: "orders.view" } },
         { permission: { key: "orders.accept" } },
       ],
     },
-    { id: "p2", name: "empty", is_system: true, permissions: [] },
+    {
+      id: "p2",
+      name: "empty",
+      description: null,
+      is_system: true,
+      created_at: "2026-09-29T00:00:00.000Z",
+      updated_at: "2026-09-29T00:00:00.000Z",
+      permissions: [],
+    },
   ];
 
   it("groups by area in registry order, keys sorted within", () => {
@@ -176,6 +187,8 @@ describe("phones", () => {
       name: "Ali",
       app_role: "delivery_agent" as const,
       is_active: true,
+      created_at: "2026-09-29T00:00:00.000Z",
+      updated_at: "2026-09-29T00:00:00.000Z",
     };
     expect(toWorkPhoneRow({ ...base, phone: "+9647700000005" }).phone).toBe(
       "+9647700000005",
