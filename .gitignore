@@ -1,9 +1,27 @@
 # --- Env & secrets ---
 .env
-*.env.local
+.env.*
+*.env
+*.env.*
 !.env.example
+!.env.*.example
+!*.env.example
+!*.env.*.example
 *.pem
 *.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+**/credentials.json
+**/client_secret*.json
+**/service-account*.json
+**/google-services.json
+**/GoogleService-Info.plist
 
 # --- OS / editor ---
 .DS_Store
