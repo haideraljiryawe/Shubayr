@@ -80,8 +80,8 @@ test("every transition path, with the timeline", async ({ page, request }) => {
   await uiLoginAsAdmin(page);
   await page.goto(`/orders/${order.id}`);
   await expect(status(page)).toHaveAttribute("data-status", "pending");
-  // No Reject until the API has one: pending offers accept and cancel.
-  await expect(page.getByTestId("order-action-reject")).toHaveCount(0);
+  // Pending offers accept, reject (its own route since #65) and cancel.
+  await expect(page.getByTestId("order-action-reject")).toBeVisible();
   await expect(page.getByTestId("order-action-cancel")).toBeVisible();
 
   await page.getByTestId("order-action-accept").click();
@@ -99,12 +99,7 @@ test("every transition path, with the timeline", async ({ page, request }) => {
   // Handover needs an agent: the button explains, then assignment unblocks it.
   await expect(page.getByTestId("order-action-dispatch")).toBeDisabled();
   await expect(page.getByTestId("order-dispatch-blocked")).toBeVisible();
-  const picker = page.getByTestId("assign-agent");
-  const agentValue = await picker
-    .locator("option")
-    .nth(1)
-    .getAttribute("value");
-  await picker.selectOption(agentValue!);
+  await page.getByTestId("agent-option").first().click();
   await page.getByTestId("assign-submit").click();
   await expect(page.getByTestId("delivery-agent")).not.toHaveText(/بلا مندوب|No agent/);
   await expect(page.getByTestId("order-action-dispatch")).toBeEnabled();
@@ -160,14 +155,21 @@ test("a permission-limited user sees only allowed actions; a refusal is handled"
   await expect(page.getByTestId("dashboard")).toBeVisible();
   await expect(page.getByTestId("nav-orders")).toBeVisible();
 
-  // Pending: accept only — no cancel (no orders.cancel), and orders.reject
-  // alone opens nothing.
+  // Pending: accept and reject — no cancel (no orders.cancel).
   await page.goto(`/orders/${pending.id}`);
   const actions = page.getByTestId("order-actions").getByRole("button");
-  await expect(actions).toHaveCount(1);
+  await expect(actions).toHaveCount(2);
   await expect(page.getByTestId("order-action-accept")).toBeVisible();
-  // May assign, but cannot list agents without users.manage: said plainly.
-  await expect(page.getByTestId("assign-cannot-list")).toBeVisible();
+  await expect(page.getByTestId("order-action-reject")).toBeVisible();
+  await expect(page.getByTestId("order-action-cancel")).toHaveCount(0);
+  // Assigning needs orders.assign_agent only: the lookup works without
+  // users.manage (#65), searched on the server.
+  await expect(page.getByTestId("agent-option").first()).toBeVisible();
+  await page.getByTestId("agent-search").fill("Delivery B");
+  await expect(page.getByTestId("agent-option")).toHaveCount(1);
+  await page.getByTestId("agent-option").first().click();
+  await page.getByTestId("assign-submit").click();
+  await expect(page.getByTestId("delivery-agent")).toContainText("Delivery B");
 
   // Confirmed: nothing this user may do.
   await page.goto(`/orders/${confirmed.id}`);
@@ -203,4 +205,32 @@ test("a concurrent change gives a clean conflict message", async ({ page, reques
   // …and the message survives the refresh that brought the new state.
   await page.waitForTimeout(1000);
   await expect(conflict).toBeVisible();
+});
+
+test("reject: pending only, reason required, recorded as rejected", async ({ page, request }) => {
+  const pending = await placeOrder(request);
+  const confirmedOrder = await placeOrder(request);
+  await advanceOrder(request, confirmedOrder.id, ["confirmed"]);
+  await uiLoginAsAdmin(page);
+
+  // Only pending orders can be rejected.
+  await page.goto(`/orders/${confirmedOrder.id}`);
+  await expect(page.getByTestId("order-action-prepare")).toBeVisible();
+  await expect(page.getByTestId("order-action-reject")).toHaveCount(0);
+
+  await page.goto(`/orders/${pending.id}`);
+  await page.getByTestId("order-action-reject").click();
+  const dialog = page.getByTestId("confirm-dialog");
+  // No reason, no rejection.
+  await dialog.getByTestId("confirm-submit").click();
+  await expect(dialog).toBeVisible();
+  await confirm(page, "Out of stock at the branch");
+  await expect(status(page)).toHaveAttribute("data-status", "rejected");
+  await expect(page.getByTestId("order-status").first()).toHaveText("مرفوض");
+  await expect(page.getByTestId("order-timeline")).toContainText("Out of stock at the branch");
+  await expect(page.getByTestId("order-no-actions")).toBeVisible();
+  // Rejected — not cancelled — on the server too, and filterable in the list.
+  expect(await orderStatus(request, pending.id)).toBe("rejected");
+  await page.goto(`/orders?status=rejected&q=${pending.order_number}`);
+  await expect(page.getByTestId("table-row")).toHaveCount(1);
 });

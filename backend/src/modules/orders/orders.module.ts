@@ -8,9 +8,10 @@ import { AddressesController } from './addresses.controller';
 import { AddressesService } from './addresses.service';
 import { AdminOrdersController } from './admin-orders.controller';
 import { MonitorOrdersController } from './monitor-orders.controller';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
-  imports: [CatalogModule],
+  imports: [CatalogModule, InventoryModule],
   controllers: [
     CartController,
     CouponController,

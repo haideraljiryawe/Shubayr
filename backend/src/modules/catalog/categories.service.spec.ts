@@ -51,6 +51,7 @@ describe('CategoriesService', () => {
     const service = new CategoriesService(
       { category: { findMany: jest.fn().mockResolvedValue(rows) } } as never,
       {} as never,
+      {} as never,
     );
 
     const result = await service.list({}, false);
@@ -60,6 +61,7 @@ describe('CategoriesService', () => {
   it('lets admin reads see hidden categories and their subtree', async () => {
     const service = new CategoriesService(
       { category: { findMany: jest.fn().mockResolvedValue(rows) } } as never,
+      {} as never,
       {} as never,
     );
 
@@ -72,6 +74,7 @@ describe('CategoriesService', () => {
     const service = new CategoriesService(
       { category: { findMany: jest.fn().mockResolvedValue(rows) } } as never,
       { requireManagedUrl: jest.fn() } as never,
+      {} as never,
     );
 
     await expect(
@@ -90,7 +93,11 @@ describe('CategoriesService', () => {
         Promise.all(operations),
       ),
     };
-    const service = new CategoriesService(prisma as never, {} as never);
+    const service = new CategoriesService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     await expect(service.remove('root-visible')).rejects.toThrow(
       ConflictException,
     );

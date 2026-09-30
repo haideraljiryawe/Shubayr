@@ -2,7 +2,6 @@ jest.mock('../../database/prisma.service', () => ({ PrismaService: class {} }));
 jest.mock('../media/media.service', () => ({ MediaService: class {} }));
 
 import { ProductsService } from './products.service';
-import { UnprocessableEntityException } from '@nestjs/common';
 
 const product = {
   id: 'product-id',
@@ -15,9 +14,6 @@ const product = {
   discount_value: '50',
   discount_starts_at: new Date('2020-01-01T00:00:00Z'),
   discount_ends_at: new Date('2030-01-01T00:00:00Z'),
-  is_negotiable: false,
-  floor_price: null,
-  points_price: null,
   tracks_expiry: false,
   rating_avg: '4.50',
   status: 'active',
@@ -50,45 +46,30 @@ function availabilityMocks() {
 }
 
 describe('ProductsService', () => {
-  it('rejects an updated negotiation floor above the stored regular price before SQL', async () => {
-    const prisma = {
-      product: { findUnique: jest.fn().mockResolvedValue(product) },
-      $transaction: jest.fn(),
-    };
-    const service = new ProductsService(
-      prisma as never,
-      {} as never,
-      {} as never,
-    );
-    await expect(
-      service.update(product.id, { floor_price: 20151 }),
-    ).rejects.toBeInstanceOf(UnprocessableEntityException);
-    expect(prisma.$transaction).not.toHaveBeenCalled();
-  });
-  it('subtracts active COD holds as well as batch reservations from sellable stock', async () => {
+  it('subtracts lot reservations from sellable stock', async () => {
     const prisma = {
       product: {
         findUnique: jest.fn().mockResolvedValue({
           id: product.id,
           status: 'active',
           category_id: product.category_id,
-          variants: [],
+          variants: [
+            {
+              id: 'variant-id',
+              sku: 'SKU-1',
+              low_stock_threshold: null,
+              base_unit: 'piece',
+              whole_units_only: true,
+            },
+          ],
         }),
       },
       batchStock: {
         findMany: jest
           .fn()
-          .mockResolvedValue([{ quantity: 5, batch: { variant_id: null } }]),
-      },
-      stockReservation: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ quantity: 1, batch: { variant_id: null } }]),
-      },
-      simpleStockHold: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ quantity: 2, variant_id: null }]),
+          .mockResolvedValue([
+            { quantity: 5, reserved: 3, batch: { variant_id: 'variant-id' } },
+          ]),
       },
       $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
         Promise.all(operations),
@@ -195,7 +176,10 @@ describe('ProductsService', () => {
       {} as never,
     );
     await service.update(product.id, { name_en: 'Fresh Coffee' });
-    expect(updateData).toEqual({ name_en: 'Fresh Coffee' });
+    expect(updateData).toEqual({
+      name_en: 'Fresh Coffee',
+      search_sync_required: true,
+    });
   });
 
   it('applies remove and move media operations with contiguous order', async () => {

@@ -97,15 +97,12 @@ try {
 
   const productId = '40000000-0000-4000-8000-000000000003';
   const product = await request(`/admin/products/${productId}`, { token: admin });
-  check(product.is_negotiable, true, 'seeded product is negotiable');
-  check(product.points_price, 250, 'seeded points cost exists');
-  check(product.floor_price <= product.price, true, 'seeded floor is within regular price');
+  check(Object.hasOwn(product, 'is_negotiable'), false, 'negotiation flag is removed');
+  check(Object.hasOwn(product, 'points_price'), false, 'negotiation points cost is removed');
+  check(Object.hasOwn(product, 'floor_price'), false, 'negotiation floor is removed');
   await request(`/admin/products/${productId}`, { token: admin, method: 'PATCH', body: { floor_price: product.price + 1 }, expected: 422 });
   await request(`/admin/products/${productId}`, { token: admin, method: 'PATCH', body: { points_price: -1 }, expected: 422 });
-  const changed = await request(`/admin/products/${productId}`, { token: admin, method: 'PATCH', body: { floor_price: product.price, points_price: 300 } });
-  check(changed.floor_price, product.price, 'valid floor persists');
-  check(changed.points_price, 300, 'valid points cost persists');
-  check(Number(await value("SELECT count(*)::int AS value FROM audit_logs WHERE action='catalog.negotiation.update' AND entity_id=$1", [productId])) >= 1, true, 'negotiation-field edit is audited');
+  check(Number(await value("SELECT count(*)::int AS value FROM information_schema.columns WHERE table_name='products' AND column_name IN ('is_negotiable','floor_price','points_price')")), 0, 'negotiation columns are removed from storage');
   console.log(`Loyalty acceptance: ${assertions} assertions passed (disposable database)`);
 } finally {
   await db.end();

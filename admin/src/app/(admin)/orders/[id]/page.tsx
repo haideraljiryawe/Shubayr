@@ -3,9 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { PageError } from "@/components/shell/page-error";
 import { load, serverApi } from "@/lib/api/server";
-import { listRows } from "@/lib/api/server";
-import { toWorkPhoneRow } from "@/lib/work-phones";
-import { OrderDetailView, type AgentOption } from "./order-detail";
+import { OrderDetailView } from "./order-detail";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -41,25 +39,11 @@ export default async function OrderPage({
   }
   const permissions = me.ok ? (me.data.permissions ?? []) : [];
 
-  // Choosing an agent needs the list of delivery agents, which lives behind
-  // users.manage (GET /admin/work-phones) — there is no narrower read.
-  let agents: AgentOption[] | "forbidden" | null = null;
-  if (permissions.includes("orders.assign_agent")) {
-    const phones = await load(api.GET("/admin/work-phones"));
-    agents = phones.ok
-      ? listRows(phones.data)
-          .map(toWorkPhoneRow)
-          .filter((row) => row.isActive && row.role === "delivery_agent")
-          .map((row) => ({ id: row.userId, name: row.name, phone: row.phone }))
-      : "forbidden";
-  }
-
   return (
     <OrderDetailView
       order={order.data}
       permissions={permissions}
       currency={settings.ok ? (settings.data.currency ?? "USD") : "USD"}
-      agents={agents}
     />
   );
 }

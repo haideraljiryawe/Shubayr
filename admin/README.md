@@ -2,9 +2,11 @@
 
 The staff back office: username + password sign-in, permission-driven screens,
 Arabic-first with full RTL. It covers **access management** (staff accounts,
-permission presets, per-user grants, work phones), **order operations** and
-the staff **notification inbox**. Further operations screens (catalog, stock,
-cash…) follow the backend build phases.
+permission presets, per-user grants, work phones), **order operations**, the
+staff **notification inbox** and the **financial core** (store settings,
+currencies and exchange rates, cash and bank accounts, periods and monthly
+close, ledger views). Further screens (catalog, stock, purchasing…) follow the
+backend build phases.
 
 ## Run
 
@@ -107,33 +109,58 @@ The browser never sees a token and never calls the API directly.
 | `/login` | — | Username + password; wrong password, **lockout** (429 `ACCOUNT_LOCKED`: 5 failures → 15 min) and rate-limit messages |
 | `/change-password` | session | Forced while a temporary password is in force (every other page redirects here); password policy checklist |
 | `/` | session | Dashboard placeholder with the sections the user may open |
-| `/staff` | `users.manage` | Search, status/preset filters, sort, pagination |
+| `/staff` | `users.manage` | Search, status/preset filters, sort, pagination — all on the API |
 | `/staff/new` | `users.manage` (+ `roles.manage` for pickers) | Temporary password (generator), presets, extra grants, audit reason |
 | `/staff/[id]` | same | Profile · access (presets + extra grants) · reset password · deactivate/reactivate |
-| `/presets`, `/presets/new`, `/presets/[id]` | `roles.manage` | Permission picker grouped by area; delete non-system presets |
-| `/work-phones` | `users.manage` | Register a phone as delivery agent / order monitor with the person's name; change role; revoke |
+| `/presets`, `/presets/new`, `/presets/[id]` | `roles.manage` | Search, kind filter, sort and pagination on the API; permission picker grouped by area; delete non-system presets |
+| `/work-phones` | `users.manage` | Search, role/status filters, sort and pagination on the API; register a phone as delivery agent / order monitor with the person's name; change role; revoke |
 | `/orders` | `orders.view` | Server-side status filter, order-number search, date range and pagination (all in the URL) |
-| `/orders/[id]` | `orders.view` (+ each action's key) | Lines, customer, address, delivery, timeline; accept / start preparing / mark ready / hand over / cancel (reason required), assign a delivery agent |
+| `/orders/[id]` | `orders.view` (+ each action's key) | Lines, customer, address, delivery, timeline; accept / **reject** (pending only, reason required) / start preparing / mark ready / hand over / cancel (reason required); assign a delivery agent from a server-searched picker |
+| `/audit` | `audit.view` | The audit log: actor, action, entity (type and id) and store-day date-range filters, server-side pagination, reason and before → after per record |
 | `/notifications` (+ header bell) | session | The staff member's inbox: live unread count, dropdown, all/unread, mark one / mark all |
+| `/settings` | `settings.manage` | Store data, delivery fee, timezone, business hours, closed days, acceptance alert, auto-cancel (off by default, own timeout and warning), low-stock threshold, back-dating window, markup alert %, sale-price rounding multiple (8.0), unusual-change thresholds; change history old → new (with `audit.view`) |
+| `/finance/currencies` | `ledger.view` (+ `settings.manage` to enable, `fx_rates.update` to record) | Currencies (base locked); rates written "1 USD = … IQD", per-1 or per-100 entry with a per-1 preview, required reason, "not from today" warnings, history with old → new and who |
+| `/finance/cash-accounts` | `cash_accounts.manage` | Accounts with ledger balances; create, rename, (de)activate, delete unused; opening-balance document; transfer (review, then confirm) |
+| `/finance/periods`, `/finance/periods/[month]` | `ledger.view` (+ `period.close`, `period.reopen`) | Recent months open/closed; the API's close checklist; close; reopen with a required reason; close history and differences at re-close |
+| `/finance/ledger`, `/finance/ledger/entries` | `ledger.view` | Trial balance as of a date; entries by account, document or date (server-paged), each linking to its own page. Read-only |
+| `/finance/ledger/entries/[id]` | `ledger.view` | One journal entry (8.1): lines, dates, a direct link to its source document, and to the entry it reverses or the entries that reverse it. Read-only |
+| `/finance/documents/[id]` | `ledger.view` or `cash_accounts.manage` | One posted opening balance or cash transfer (8.1), with a direct link to its journal entry (for `ledger.view`). A successful posting links here and to the entry |
 
 **Order actions** show only when BOTH the staff member's current
 permissions AND the order's state allow them (`src/lib/orders.ts`, unit-tested).
 The API still decides: a 409 (the order moved on — someone else acted) re-reads
 the order, says what it is now and refreshes the buttons; a 403 (a permission
-revoked meanwhile) refreshes and says so. Gaps, until the backend follow-up:
+revoked meanwhile) refreshes and says so.
 
-- **No Reject.** The API has no rejected status or reject route; a "reject"
-  through the cancel route would record a cancellation and skew reports, so
-  pending orders offer Cancel (reason required) to `orders.cancel` holders.
-- **Agent picker needs `users.manage`.** Agents are listed from
-  `GET /admin/work-phones`; a user with only `orders.assign_agent` sees a note.
+- **Reject is not a cancel.** `POST /admin/orders/{id}/reject` (`orders.reject`,
+  contract 8.0) is offered for pending orders only, needs a reason, and
+  records the order as `rejected` — its own status, so reports can tell a
+  store's refusal from a cancellation.
+- **Agent picker:** `GET /admin/delivery-agents` (`orders.assign_agent` only —
+  no `users.manage`), searched by name or phone on the server; the newest
+  search wins.
+
+Gaps, until the backend follow-up:
+
 - **Order date filter is UTC.** `GET /admin/orders` reads `from`/`to` as UTC
   days, unlike the monitor list's Asia/Baghdad days.
 - **No staff-targeted notifications yet** (they arrive with order lifecycle
   v2). The inbox is the user's own and shared across surfaces, so the live
   specs drive it through the admin's linked phone account.
 
-The audit log is not a screen yet (PR E).
+**Financial documents post exactly once.** Every posting carries an
+`operation_id` fixed when the person asks to post (at the transfer's review
+step), and the API locks on it: a double click, or a retry, returns the same
+document. The page also drops a second click before any request. When an
+answer is lost (network error, 502–504), the page asks
+`GET /admin/operations/{id}` before offering anything: a completed operation
+shows its document, a 404 means nothing was committed and retrying with the
+same id is safe (`src/lib/finance/operations.ts`, `components/finance`).
+
+**Money and rates are exact.** Amounts and rates travel as decimal strings and
+are formatted digit by digit (`src/lib/finance/money.ts`) — no floats — and are
+always shown with their currency code. `DecimalInput` accepts Arabic-Indic,
+Persian and Latin digits and refuses ambiguous separators, like `NumberInput`.
 
 ## Building blocks for later screens
 
@@ -153,8 +180,10 @@ The audit log is not a screen yet (PR E).
 
 - **Unit** (`npm test`, Vitest): cookies and refresh de-duplication, proxy
   path allow-list, error classification and 422 mapping, nav filtering, table
-  params and staff query, permission grouping, phones, password policy,
-  localized numbers.
+  params and list queries, audit filters, permission grouping, phones,
+  password policy, localized numbers; exact money rounding and formatting,
+  per-100 → per-1 rates, settings validation and patching, period lists,
+  operation outcomes, direct ledger links.
 - **Live** (`npm run test:live`): a real browser → this BFF → a real API.
   Point it at a stack with `ADMIN_LIVE_API` (default `http://localhost:8000/api/v1`);
   an unreachable API **fails** the run. Each run creates its own uniquely named
@@ -171,16 +200,14 @@ and runs the live suite against it.
 
 ## Known API gaps (worked around here)
 
-- `GET /admin/staff`, `/admin/presets` and `/admin/work-phones` take no
-  query parameters and return everything, so search/filter/sort/pagination
-  run in this app's **server** (never in the browser). The table's URL
-  contract is already the one a paginated endpoint would take.
 - There is no `GET /admin/staff/{id}` or `/admin/presets/{id}`; detail pages
-  read the list.
-- `GET /admin/work-phones` serves the number as `user.phone`, while the
-  contract documents a top-level `phone`; both shapes are read
-  (`src/lib/work-phones.ts`).
+  read the unqueried list (which still answers every row).
 - `POST /auth/verify-otp` answers 201 where the contract says 200.
+- **Journal-entry list rows carry no reversal links**
+  (`GET /admin/ledger/entries` omits `reverses`/`reversals`); a row links to
+  the entry's own page, which has them.
+- Exchange rates record only the setter's id; names come from the audit log
+  for staff with `audit.view`.
 - **Client IP behind the BFF:** every admin request reaches the API from this
   server's address. The BFF forwards `X-Forwarded-For`, but the API does not
   trust proxy headers yet, so its per-IP rate limits (120 req/min, 30 logins

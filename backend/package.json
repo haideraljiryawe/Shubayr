@@ -15,7 +15,7 @@
     "start:prod": "node dist/src/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\" \"prisma/seed.ts\"",
     "typecheck": "tsc --noEmit",
-    "test": "jest --runInBand",
+    "test": "jest --runInBand && node --test test/openapi-response-validator.spec.mjs",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
@@ -25,7 +25,8 @@
     "prisma:drift-check": "prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script --exit-code",
     "seed": "ts-node --transpile-only prisma/seed.ts",
     "test:acceptance": "node test/run-acceptance.mjs",
-    "db:drop-verify": "node scripts/drop-verify-dbs.mjs"
+    "db:drop-verify": "node scripts/drop-verify-dbs.mjs",
+    "catalog:depth-report": "node scripts/category-depth-report.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1135.0",

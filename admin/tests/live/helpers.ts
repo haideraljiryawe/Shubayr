@@ -77,22 +77,23 @@ export async function requireLiveApi(
  */
 export async function awaitHeadroom(
   request: APIRequestContext,
-  min = 70,
+  // A signed-in full page load costs ~6 API calls (layout and shell /me, the
+  // bell's count, stream ticket and stream), and the later specs make many.
+  min = 100,
 ): Promise<void> {
-  const started = Date.now();
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const response = await request.get(`${API}/settings`, { timeout: 5_000 });
     const headers = response.headers();
     const remaining = Number(headers["x-ratelimit-remaining"] ?? "999");
-    if (response.status() !== 429 && remaining >= min) break;
+    if (response.status() !== 429 && remaining >= min) return;
     const reset = Number(
       headers["retry-after"] ?? headers["x-ratelimit-reset"] ?? "5",
     );
     const seconds = Number.isFinite(reset) ? Math.min(Math.max(reset, 1), 60) : 5;
+    // Extend BEFORE waiting: the wait runs inside the test's own timeout.
+    test.info().setTimeout(test.info().timeout + seconds * 1000 + 1000);
     await new Promise((resolve) => setTimeout(resolve, seconds * 1000 + 500));
   }
-  const waited = Date.now() - started;
-  if (waited > 1000) test.info().setTimeout(test.info().timeout + waited);
 }
 
 /** Wait out the API's rate-limit window when a probe says it is exhausted. */
@@ -111,25 +112,33 @@ export async function awaitQuota(request: APIRequestContext): Promise<void> {
   }
 }
 
-/** POST /admin/auth/login, retried once behind the rate limit. */
+/**
+ * POST /admin/auth/login, waiting out the rate limit.
+ *
+ * Sign-in has its own throttle (30 a minute per address) on top of the
+ * global one, so a 429 here is waited out per ITS Retry-After — probing the
+ * global quota would come back fine and retry straight into the same 429.
+ * A lockout (ACCOUNT_LOCKED) is an outcome, never retried.
+ */
 export async function apiLogin(
   request: APIRequestContext,
   username: string,
   password: string,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  let response = await request.post(`${API}/admin/auth/login`, {
-    data: { username, password },
-  });
-  if (
-    response.status() === 429 &&
-    (await response.json()).code !== "ACCOUNT_LOCKED"
-  ) {
-    await awaitQuota(request);
-    response = await request.post(`${API}/admin/auth/login`, {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await request.post(`${API}/admin/auth/login`, {
       data: { username, password },
     });
+    const body = (await response.json()) as Record<string, unknown>;
+    if (response.status() !== 429 || body.code === "ACCOUNT_LOCKED" || attempt === 3) {
+      return { status: response.status(), body };
+    }
+    const retryAfter = Number(response.headers()["retry-after"] ?? "20");
+    const seconds = Number.isFinite(retryAfter) ? Math.min(Math.max(retryAfter, 1), 60) : 20;
+    // Extend BEFORE waiting: the wait runs inside the test's own timeout.
+    test.info().setTimeout(test.info().timeout + seconds * 1000 + 1000);
+    await new Promise((resolve) => setTimeout(resolve, seconds * 1000 + 500));
   }
-  return { status: response.status(), body: await response.json() };
 }
 
 let adminToken: string | null = null;

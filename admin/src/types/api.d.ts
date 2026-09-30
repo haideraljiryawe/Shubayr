@@ -698,6 +698,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List visible brands */
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Visible brands in display order */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BrandPage"];
+                    };
+                };
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/banners": {
         parameters: {
             query?: never;
@@ -755,6 +796,8 @@ export interface paths {
                     q?: string;
                     /** @description Category UUID; products remain filtered by category_id, not slug. */
                     category_id?: string;
+                    /** @description One or more brand UUIDs; a comma-separated value is also accepted. */
+                    brand_id?: string[];
                     /** @description Lower bound on effective_price, so an active discount moves a product into range. */
                     min_price?: number;
                     /** @description Upper bound on effective_price, so an active discount moves a product into range. */
@@ -870,6 +913,47 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{id}/negotiations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Removed negotiation endpoint
+         * @description Price negotiation was removed in contract v8 and creation is always refused.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Negotiation has been removed */
+                410: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -2285,7 +2369,7 @@ export interface paths {
                         batch_id: string;
                         /** Format: uuid */
                         location_id: string;
-                        /** @description signed delta */
+                        /** @description signed delta in the SKU base unit */
                         quantity: number;
                         reason: string;
                     };
@@ -3809,6 +3893,7 @@ export interface paths {
                 query?: {
                     q?: string;
                     category_id?: string;
+                    brand_id?: string[];
                     min_price?: number;
                     max_price?: number;
                     on_sale?: boolean;
@@ -3966,6 +4051,46 @@ export interface paths {
         };
         trace?: never;
     };
+    "/admin/products/reindex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reindex all products and clear durable search-sync markers after success */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Search catch-up result */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            queued: number;
+                            synchronized: boolean;
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/categories": {
         parameters: {
             query?: never;
@@ -4108,6 +4233,196 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/categories/{id}/convert-to-brand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Convert a reviewed leaf category to a brand
+         * @description Atomically creates the brand, moves the category's products to the selected subcategory, assigns the brand, deletes the source category, and records an audit event.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CategoryBrandConversionInput"];
+                };
+            };
+            responses: {
+                /** @description Converted category */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryBrandConversion"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search and list all brands */
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated brands */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BrandPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        /** Create a brand */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrandInput"];
+                };
+            };
+            responses: {
+                /** @description Created brand */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Brand"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/brands/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an unused brand
+         * @description A brand assigned to products must be hidden instead of deleted.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update a brand */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrandPatch"];
+                };
+            };
+            responses: {
+                /** @description Updated brand */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Brand"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -5024,6 +5339,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/exchange-rates/linked-price-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview a pricing rate across every linked SKU
+         * @description Returns old/new prices and signed percentage changes plus a short-lived, actor-bound token. No rate or product price is changed.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LinkedPricePreviewInput"];
+                };
+            };
+            responses: {
+                /** @description Linked-price preview */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LinkedPricePreview"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/exchange-rates/save-rate-only": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save the previewed rate without publishing linked prices
+         * @description Linked SKUs keep their published price and are marked as awaiting this new rate.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LinkedPriceApplyInput"];
+                };
+            };
+            responses: {
+                /** @description Rate saved */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LinkedPriceApplyResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/exchange-rates/publish-linked-prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Atomically save a rate and publish one linked-price version
+         * @description Refuses an expired or stale preview. Conversion and configured upward rounding occur before product discounts.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LinkedPriceApplyInput"];
+                };
+            };
+            responses: {
+                /** @description Rate and linked prices published */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LinkedPriceApplyResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/operations/{operationId}": {
         parameters: {
             query?: never;
@@ -5233,6 +5688,46 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/ledger/entries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one immutable journal entry with lines and reversal links */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Journal entry */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["JournalEntry"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;
@@ -5620,6 +6115,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/financial-documents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one posted financial document by id
+         * @description Cash transfers and opening balances require either ledger.view or their own cash_accounts.manage permission.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Posted financial document */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FinancialDocument"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/accounting-periods": {
         parameters: {
             query?: never;
@@ -5788,6 +6326,778 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/inventory/warehouses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List warehouses and locations */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Warehouses */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Warehouse"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Create a warehouse */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WarehouseInput"];
+                };
+            };
+            responses: {
+                /** @description Warehouse */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Warehouse"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/warehouses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a warehouse that has never been used */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Rename or deactivate an unused warehouse */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WarehousePatch"];
+                };
+            };
+            responses: {
+                /** @description Warehouse */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Warehouse"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/inventory/warehouses/{id}/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a warehouse location without requiring a fixed hierarchy */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WarehouseLocationInput"];
+                };
+            };
+            responses: {
+                /** @description Location */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WarehouseLocation"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/locations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a location that has never been used */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update or deactivate an unused location */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WarehouseLocationPatch"];
+                };
+            };
+            responses: {
+                /** @description Location */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WarehouseLocation"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/inventory/balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read lot/location balances and allocatable availability */
+        get: {
+            parameters: {
+                query?: {
+                    variant_id?: string;
+                    location_id?: string;
+                    warehouse_id?: string;
+                    batch_id?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Balances */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryBalancePage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/lots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List lots; cost fields require cost.view */
+        get: {
+            parameters: {
+                query?: {
+                    variant_id?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Lots */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryLotPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/lots/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one lot; cost fields require cost.view */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Lot */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryLot"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the append-only stock movement ledger; costs require cost.view */
+        get: {
+            parameters: {
+                query?: {
+                    variant_id?: string;
+                    batch_id?: string;
+                    location_id?: string;
+                    custody_party_id?: string;
+                    type?: "receive" | "reserve" | "release" | "issue_to_custody" | "custody_to_sold" | "return_in" | "transfer" | "adjust" | "write_down";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Movements */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StockMovementPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/openings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List opening inventory documents; cost fields require cost.view */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Opening documents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryDocumentPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Post opening inventory and its balanced ledger entry */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InventoryOpeningInput"];
+                };
+            };
+            responses: {
+                /** @description Posted opening */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryOpening"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List stock transfer documents */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Transfer documents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryDocumentPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Transfer unreserved stock between locations without changing SKU value */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StockTransferInput"];
+                };
+            };
+            responses: {
+                /** @description Posted transfer */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StockTransfer"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List physical count documents */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Count documents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryDocumentPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Snapshot a scoped physical count draft */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StockCountInput"];
+                };
+            };
+            responses: {
+                /** @description Count draft */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StockCount"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/counts/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a count only if its scope has not moved since snapshot */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StockCountApproval"];
+                };
+            };
+            responses: {
+                /** @description Approved count */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StockCount"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/write-downs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List inventory write-down documents; cost fields require cost.view */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Write-down documents */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryDocumentPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Write down non-sellable stock to inventory loss */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InventoryWriteDownInput"];
+                };
+            };
+            responses: {
+                /** @description Posted write-down */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryWriteDown"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/inventory/documents/{type}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one inventory document; cost fields require cost.view */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    type: "opening" | "transfer" | "count" | "write_down";
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Inventory document */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryOpening"] | components["schemas"]["StockTransfer"] | components["schemas"]["StockCount"] | components["schemas"]["InventoryWriteDown"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/settings": {
         parameters: {
             query?: never;
@@ -5871,6 +7181,15 @@ export interface components {
             code: string;
             /** @example quantity must not be less than 1 */
             message: string;
+            /** @description Exact requested quantity for an inventory conflict. */
+            requested?: string;
+            /** @description Exact currently allocatable quantity for an inventory conflict. */
+            available?: string;
+            /**
+             * Format: uuid
+             * @description SKU involved in an inventory conflict.
+             */
+            variant_id?: string;
         };
         /** @description Decimal money amount displayed at the associated currency precision (IQD 0, USD 2). */
         Money: number;
@@ -6016,7 +7335,7 @@ export interface components {
             is_visible?: boolean;
             children?: components["schemas"]["Category"][];
         };
-        /** @description Creates a root or child category. Maximum depth is five levels, root depth 0 through depth 4. */
+        /** @description Creates either a root department or one direct child category. A subcategory cannot have children. */
         CategoryCreate: {
             /** Format: uuid */
             parent_id?: string | null;
@@ -6038,7 +7357,7 @@ export interface components {
             /** @default true */
             is_visible: boolean;
         };
-        /** @description All fields are optional. parent_id null moves to root; a category cannot be its own parent or a descendant of itself, and reparenting cannot make any subtree node deeper than depth 4. */
+        /** @description All fields are optional. parent_id null moves to root; a subcategory cannot have children and a category with children cannot become a child. */
         CategoryPatch: {
             /** Format: uuid */
             parent_id?: string | null;
@@ -6056,12 +7375,72 @@ export interface components {
             sort_order?: number;
             is_visible?: boolean;
         };
+        Brand: {
+            /** Format: uuid */
+            id: string;
+            name_en: string;
+            name_ar: string;
+            slug: string;
+            /** Format: uri */
+            logo_url: string | null;
+            is_visible: boolean;
+            sort_order: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        BrandInput: {
+            name_en: string;
+            name_ar: string;
+            slug: string;
+            /** Format: uri */
+            logo_url?: string | null;
+            /** @default true */
+            is_visible: boolean;
+            /** @default 0 */
+            sort_order: number;
+        };
+        BrandPatch: {
+            name_en?: string;
+            name_ar?: string;
+            slug?: string;
+            /** Format: uri */
+            logo_url?: string | null;
+            is_visible?: boolean;
+            sort_order?: number;
+        };
+        BrandPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["Brand"][];
+        };
+        CategoryBrandConversionInput: {
+            name_en: string;
+            name_ar: string;
+            slug: string;
+            /** Format: uri */
+            logo_url?: string | null;
+            /** @default true */
+            is_visible: boolean;
+            /** @default 0 */
+            sort_order: number;
+            /** Format: uuid */
+            target_category_id: string;
+        };
+        CategoryBrandConversion: {
+            brand: components["schemas"]["Brand"];
+            moved_products: number;
+            /** Format: uuid */
+            target_category_id: string;
+        };
         /** @description A catalog product. `in_stock` and `available_qty` are computed at read time (sum of batch_stock minus active batch reservations and temporary COD order holds); they are not stored on the product. Pricing works the same way: the product stores a regular `price` plus a discount DEFINITION (`discount_type`, `discount_value` and the scheduled window `discount_starts_at`/`discount_ends_at`), and the server derives `on_sale`, `discounted_price`, `effective_price` and `discount_percent` on every read. Those four are never stored, because a scheduled window changes what they mean as the clock moves. Reads populate an empty or missing `name_ar`/`name_en` from the other language so locale-specific clients never receive a blank name. */
         Product: {
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
             category_id?: string;
+            /** Format: uuid */
+            brand_id?: string | null;
+            brand?: components["schemas"]["Brand"] | null;
             name_en?: string;
             name_ar?: string;
             description?: string | null;
@@ -6093,11 +7472,6 @@ export interface components {
             readonly effective_price?: components["schemas"]["Money"];
             /** @description Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false. */
             readonly discount_percent?: number | null;
-            is_negotiable?: boolean;
-            /** @description Negotiation floor in whole IQD, at most the regular price. */
-            floor_price?: number | null;
-            /** @description Persisted points cost for future negotiation UI; no customer negotiation endpoint yet. */
-            points_price?: number | null;
             tracks_expiry?: boolean;
             /** @description Cached average of published product reviews only, reconciled transactionally from review rows and rounded to two decimals half away from zero. */
             rating_avg?: number;
@@ -6107,8 +7481,21 @@ export interface components {
             status?: "active" | "hidden" | "archived";
             /** @description computed: available_qty > 0 */
             in_stock?: boolean;
+            /**
+             * @description Best availability state among the product's SKUs.
+             * @enum {string}
+             */
+            availability?: "out_of_stock" | "low_stock" | "in_stock";
             /** @description computed: on-hand minus active batch reservations and temporary COD holds */
             available_qty?: number;
+            /** Format: date-time */
+            published_at?: string | null;
+            /** Format: date-time */
+            price_approved_at?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
             /** @description Ordered by sort_order; the first image is primary. */
             images?: components["schemas"]["ProductImage"][];
             variants?: components["schemas"]["ProductVariant"][];
@@ -6128,6 +7515,8 @@ export interface components {
         ProductInput: {
             /** Format: uuid */
             category_id: string;
+            /** Format: uuid */
+            brand_id?: string | null;
             /** @description Required non-whitespace English name. */
             name_en: string;
             /** @description Required non-whitespace Arabic name. */
@@ -6153,22 +7542,18 @@ export interface components {
              * @description Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set.
              */
             discount_ends_at?: string | null;
-            /**
-             * @description Requires floor_price when true.
-             * @default false
-             */
-            is_negotiable: boolean;
-            /** @description Whole-IQD value that must not exceed price. */
-            floor_price?: number | null;
-            /** @description Data-only points cost; negotiation UI is deferred. */
-            points_price?: number | null;
             /** @default false */
             tracks_expiry: boolean;
             /**
-             * @default active
+             * @default hidden
              * @enum {string}
              */
             status: "active" | "hidden" | "archived";
+            /**
+             * @description Publishing also requires at least one SKU with an approved effective selling price.
+             * @default false
+             */
+            published: boolean;
             /** @description Ordered creation list; array index becomes sort_order and index 0 is primary. */
             images?: {
                 /**
@@ -6177,18 +7562,14 @@ export interface components {
                  */
                 url: string;
             }[];
-            variants?: {
-                sku?: string;
-                attributes?: {
-                    [key: string]: unknown;
-                };
-                price_delta?: number;
-            }[];
+            variants: components["schemas"]["ProductVariantInput"][];
         };
         /** @description All ProductInput fields are optional on PATCH. Omission preserves the stored value. Explicit null clears a nullable field; discount_type null clears discount_type, discount_value, discount_starts_at, and discount_ends_at together. */
         ProductPatch: {
             /** Format: uuid */
             category_id?: string;
+            /** Format: uuid */
+            brand_id?: string | null;
             name_en?: string;
             name_ar?: string;
             description?: string | null;
@@ -6200,28 +7581,45 @@ export interface components {
             discount_starts_at?: string | null;
             /** Format: date-time */
             discount_ends_at?: string | null;
-            is_negotiable?: boolean;
-            /** @description Whole-IQD value that must not exceed the merged regular price. */
-            floor_price?: number | null;
-            points_price?: number | null;
             tracks_expiry?: boolean;
             /** @enum {string} */
             status?: "active" | "hidden" | "archived";
+            published?: boolean;
             /** @description Applied atomically in array order; the image at final position 0 is primary. */
             media_operations?: components["schemas"]["ProductMediaOperation"][];
             /** @description Replaces the variant set in place. Each entry is matched to an existing variant by `id` when supplied and otherwise by `sku`, so an update never reissues variant ids. Omitting a variant removes it; removing one still referenced by inventory, cart, purchasing or order history is rejected with 422. */
-            variants?: {
-                /**
-                 * Format: uuid
-                 * @description Existing variant to update; omit to match on sku or to add a new variant.
-                 */
-                id?: string;
-                sku?: string;
-                attributes?: {
-                    [key: string]: unknown;
-                };
-                price_delta?: number;
-            }[];
+            variants?: components["schemas"]["ProductVariantInput"][];
+        };
+        ProductVariantInput: {
+            /**
+             * Format: uuid
+             * @description Existing SKU identity on update.
+             */
+            id?: string;
+            sku: string;
+            attributes?: {
+                [key: string]: unknown;
+            };
+            /**
+             * @deprecated
+             * @description Compatibility input; translated to a fixed selling_price override.
+             */
+            price_delta?: number;
+            /** @default piece */
+            base_unit: string;
+            /** @default true */
+            whole_units_only: boolean;
+            /** @description Fixed-price override; null inherits the product price. */
+            selling_price?: number | null;
+            /** @description Null inherits the store default. */
+            low_stock_threshold?: number | null;
+            /**
+             * @default fixed
+             * @enum {string}
+             */
+            pricing_mode: "fixed" | "linked";
+            reference_currency_code?: string | null;
+            reference_price?: number | null;
         };
         ProductImage: {
             /** Format: uuid */
@@ -6333,24 +7731,63 @@ export interface components {
             } | null;
             price_delta?: number;
             currency?: string;
+            base_unit?: string;
+            whole_units_only?: boolean;
+            /** @description Fixed override; null inherits the product price. */
+            selling_price?: number | null;
+            low_stock_threshold?: number | null;
+            /** @enum {string} */
+            pricing_mode?: "fixed" | "linked";
+            reference_currency_code?: string | null;
+            reference_price?: number | null;
+            published_price?: number | null;
+            /** Format: date-time */
+            price_approved_at?: string | null;
+            /** Format: uuid */
+            price_version_id?: string | null;
+            /** Format: uuid */
+            awaiting_rate_id?: string | null;
+            on_sale?: boolean;
+            discounted_price?: number | null;
+            /** @description SKU price after linked conversion or fixed inheritance, then product discount. */
+            effective_price?: number;
+            discount_percent?: number | null;
+            available_qty?: number;
+            /** @enum {string} */
+            availability?: "out_of_stock" | "low_stock" | "in_stock";
+            in_stock?: boolean;
         };
         /** @description Computed availability (on-hand minus active batch reservations and temporary COD holds) per product & variant. */
         ProductAvailability: {
             /** Format: uuid */
             product_id?: string;
             in_stock?: boolean;
+            /** @enum {string} */
+            availability?: "out_of_stock" | "low_stock" | "in_stock";
             /** @description total sellable across variants */
             available_qty?: number;
             variants?: {
                 /** Format: uuid */
-                variant_id?: string | null;
+                variant_id?: string;
                 sku?: string;
+                base_unit?: string;
+                whole_units_only?: boolean;
+                low_stock_threshold?: number;
                 available_qty?: number;
+                /** @enum {string} */
+                availability?: "out_of_stock" | "low_stock" | "in_stock";
                 in_stock?: boolean;
             }[];
         };
         ProductPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Product"][];
+            facets?: {
+                brands: {
+                    /** Format: uuid */
+                    brand_id: string;
+                    count: number;
+                }[];
+            };
         };
         Cart: {
             /** Format: uuid */
@@ -6363,9 +7800,9 @@ export interface components {
                 /** Format: uuid */
                 product_id: string;
                 /** Format: uuid */
-                variant_id: string | null;
+                variant_id: string;
                 quantity: number;
-                /** @description Current server-time effective_price plus the selected variant's price_delta, floored at zero. */
+                /** @description Current per-SKU effective price after conversion and product discount. */
                 unit_price: components["schemas"]["Money"];
                 line_total: components["schemas"]["Money"];
                 currency: string;
@@ -6412,7 +7849,7 @@ export interface components {
             /** Format: uuid */
             product_id?: string;
             /** Format: uuid */
-            variant_id?: string | null;
+            variant_id?: string;
             /** @description Arabic product name captured when the order is created. */
             product_name_ar?: string;
             /** @description English product name captured when the order is created. */
@@ -6508,6 +7945,7 @@ export interface components {
                 /** @enum {string} */
                 status?: "pending" | "paid" | "refunded" | "failed";
                 amount?: components["schemas"]["Money"];
+                currency?: string;
                 /** Format: date-time */
                 paid_at?: string | null;
             }[];
@@ -6517,6 +7955,7 @@ export interface components {
                 /** @enum {string} */
                 status?: "assigned" | "out_for_delivery" | "delivered" | "failed" | "returned";
                 delivery_fee?: components["schemas"]["Money"];
+                currency?: string;
                 /** Format: date-time */
                 dispatched_at?: string | null;
                 /** Format: date-time */
@@ -6600,11 +8039,13 @@ export interface components {
                 quantity: number;
                 unit_price: components["schemas"]["Money"];
                 line_total: components["schemas"]["Money"];
+                currency: string;
             }[];
             subtotal: components["schemas"]["Money"];
             delivery_fee: components["schemas"]["Money"];
             discount: components["schemas"]["Money"];
             total: components["schemas"]["Money"];
+            currency: string;
             /** @enum {string} */
             payment_method: "cod";
             /** Format: date-time */
@@ -6767,24 +8208,31 @@ export interface components {
             /** Format: uuid */
             product_id?: string;
             /** Format: uuid */
-            variant_id?: string | null;
+            variant_id?: string;
             /** Format: uuid */
             supplier_id?: string | null;
             /** Format: uuid */
             po_item_id?: string | null;
             lot_number?: string | null;
-            /** Format: date */
+            /** Format: date-time */
             expiry_date?: string | null;
             purchase_cost?: number;
+            currency_code?: string;
             qty_received?: number;
+            landed_cost_share?: number;
+            source_type?: string;
+            /** Format: uuid */
+            source_id?: string | null;
             /** Format: date-time */
             entry_date?: string;
+            batch_stock?: components["schemas"]["LotBalance"][];
+            custody?: number;
         };
         BatchPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["InventoryBatch"][];
         };
         /** @enum {string} */
-        StockMovementType: "purchase" | "sale" | "transfer" | "return_in" | "reserve" | "release" | "adjustment";
+        StockMovementType: "receive" | "reserve" | "release" | "issue_to_custody" | "custody_to_sold" | "return_in" | "transfer" | "adjust" | "write_down";
         StockMovement: {
             /** Format: uuid */
             id?: string;
@@ -6799,8 +8247,22 @@ export interface components {
             reference?: string | null;
             /** Format: uuid */
             user_id?: string | null;
+            /** Format: uuid */
+            return_item_id?: string | null;
+            /** @description Present only with cost.view. */
+            unit_cost_iqd?: number;
+            source_type?: string;
+            /** Format: uuid */
+            source_id?: string | null;
+            /** Format: uuid */
+            custody_party_id?: string | null;
             /** Format: date-time */
             created_at?: string;
+            batch?: {
+                /** Format: uuid */
+                variant_id: string;
+                lot_number: string | null;
+            };
         };
         StockMovementPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["StockMovement"][];
@@ -6811,6 +8273,11 @@ export interface components {
             name?: string;
             code?: string;
             is_active?: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+            locations?: components["schemas"]["WarehouseLocation"][];
         };
         WarehousePage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Warehouse"][];
@@ -6824,6 +8291,302 @@ export interface components {
             aisle?: string | null;
             shelf?: string | null;
             bin?: string | null;
+            code?: string;
+            description?: string | null;
+            is_sellable?: boolean;
+            is_active?: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        WarehouseInput: {
+            code: string;
+            name: string;
+        };
+        WarehousePatch: {
+            code?: string;
+            name?: string;
+            is_active?: boolean;
+        };
+        WarehouseLocationInput: {
+            code: string;
+            description?: string;
+            /** @default true */
+            is_sellable: boolean;
+        };
+        WarehouseLocationPatch: {
+            code?: string;
+            description?: string;
+            is_sellable?: boolean;
+            is_active?: boolean;
+        };
+        LotBalance: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            location_id: string;
+            quantity: number;
+            reserved: number;
+            available: number;
+            location: components["schemas"]["WarehouseLocation"];
+        };
+        InventoryLot: components["schemas"]["InventoryBatch"];
+        InventoryLotPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["InventoryLot"][];
+        };
+        InventoryBalance: {
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            location_id: string;
+            /** Format: uuid */
+            warehouse_id: string;
+            quantity: number;
+            reserved: number;
+            available: number;
+            custody: number;
+            /** Format: uuid */
+            variant_id: string;
+            sku: string;
+            /** Format: uuid */
+            product_id: string;
+            lot_number: string | null;
+            /** Format: date-time */
+            expiry_date: string | null;
+            location_code: string;
+            is_sellable: boolean;
+        };
+        InventoryBalancePage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["InventoryBalance"][];
+        };
+        InventoryOperationFields: {
+            operation_id: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+        };
+        InventoryOpeningInput: components["schemas"]["InventoryOperationFields"] & {
+            lines: {
+                /** Format: uuid */
+                variant_id: string;
+                /** Format: uuid */
+                location_id: string;
+                lot_number?: string;
+                /** Format: date */
+                expiry_date?: string;
+                quantity: string;
+                unit_cost_iqd: string;
+                landed_cost_share?: string;
+            }[];
+        };
+        CompactJournalLink: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+        };
+        InventoryOpeningLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            opening_id: string;
+            /** Format: uuid */
+            variant_id: string;
+            /** Format: uuid */
+            location_id: string;
+            /** Format: uuid */
+            lot_id: string;
+            quantity: number;
+            unit_cost_iqd?: number;
+            landed_cost_share?: number;
+            /** Format: date-time */
+            expiry_date: string | null;
+        };
+        InventoryOpening: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            /** @enum {string} */
+            status: "posted";
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            journal_entry_id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            posted_at: string;
+            lines: components["schemas"]["InventoryOpeningLine"][];
+            journal_entry: components["schemas"]["CompactJournalLink"];
+        };
+        StockTransferInput: {
+            operation_id: string;
+            /** Format: date */
+            document_date: string;
+            reason: string;
+            lines: {
+                /** Format: uuid */
+                batch_id: string;
+                /** Format: uuid */
+                from_location_id: string;
+                /** Format: uuid */
+                to_location_id: string;
+                quantity: string;
+            }[];
+        };
+        StockTransferLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            transfer_id: string;
+            /** Format: uuid */
+            variant_id: string;
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            from_location_id: string;
+            /** Format: uuid */
+            to_location_id: string;
+            quantity: number;
+        };
+        StockTransfer: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            /** Format: date-time */
+            document_date: string;
+            /** @enum {string} */
+            status: "posted";
+            reason: string;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            posted_at: string;
+            lines: components["schemas"]["StockTransferLine"][];
+        };
+        StockCountInput: {
+            /** Format: uuid */
+            warehouse_id?: string;
+            /** Format: uuid */
+            location_id?: string;
+            /** Format: uuid */
+            variant_id?: string;
+            reason: string;
+        };
+        StockCountApproval: components["schemas"]["InventoryOperationFields"] & {
+            lines: {
+                /** Format: uuid */
+                batch_id: string;
+                /** Format: uuid */
+                location_id: string;
+                counted_quantity: string;
+            }[];
+        };
+        StockCountLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            count_id: string;
+            /** Format: uuid */
+            variant_id: string;
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            location_id: string;
+            system_quantity: number;
+            counted_quantity: number;
+            difference: number;
+        };
+        StockCount: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string | null;
+            /** Format: uuid */
+            warehouse_id: string | null;
+            /** Format: uuid */
+            location_id: string | null;
+            /** Format: uuid */
+            variant_id: string | null;
+            /** Format: date-time */
+            snapshot_at: string;
+            /** @enum {string} */
+            status: "draft" | "approved";
+            reason: string;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            approved_by: string | null;
+            /** Format: uuid */
+            journal_entry_id: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            approved_at: string | null;
+            lines: components["schemas"]["StockCountLine"][];
+            journal_entry: components["schemas"]["CompactJournalLink"] | null;
+        };
+        InventoryWriteDownInput: components["schemas"]["InventoryOperationFields"] & {
+            reason: string;
+            lines: {
+                /** Format: uuid */
+                batch_id: string;
+                /** Format: uuid */
+                location_id: string;
+                quantity: string;
+            }[];
+        };
+        InventoryWriteDownLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            write_down_id: string;
+            /** Format: uuid */
+            variant_id: string;
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            location_id: string;
+            quantity: number;
+            unit_cost_iqd?: number;
+        };
+        InventoryWriteDown: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            reason: string;
+            /** @enum {string} */
+            status: "posted";
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            journal_entry_id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            posted_at: string;
+            lines: components["schemas"]["InventoryWriteDownLine"][];
+            journal_entry: components["schemas"]["CompactJournalLink"];
+        };
+        InventoryDocumentPage: components["schemas"]["Pagination"] & {
+            data: (components["schemas"]["InventoryOpening"] | components["schemas"]["StockTransfer"] | components["schemas"]["StockCount"] | components["schemas"]["InventoryWriteDown"])[];
         };
         WarehouseLocationPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["WarehouseLocation"][];
@@ -7049,10 +8812,14 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
-            description?: string | null;
+            description: string | null;
             is_system: boolean;
-            permissions?: {
-                permission?: components["schemas"]["Permission"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            permissions: {
+                permission: components["schemas"]["Permission"];
             }[];
         };
         PermissionPresetInput: components["schemas"]["AuditReason"] & {
@@ -7075,6 +8842,10 @@ export interface components {
             /** @enum {string} */
             app_role: "delivery_agent" | "order_monitor";
             is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         WorkPhoneList: components["schemas"]["Pagination"] & {
             data: components["schemas"]["WorkPhone"][];
@@ -7172,6 +8943,9 @@ export interface components {
             primary_color?: string;
             /** @example IQD */
             currency?: string;
+            default_low_stock_threshold?: string;
+            /** @description Zero uses base-currency precision; otherwise linked prices round upward to this multiple. */
+            sale_rounding_multiple?: string;
         };
         ExactDecimal: string | number;
         Currency: {
@@ -7211,6 +8985,49 @@ export interface components {
             created_at?: string;
             direction?: string;
             not_from_today?: boolean;
+        };
+        LinkedPricePreviewInput: {
+            currency_code: string;
+            rate: number;
+            /** @enum {integer} */
+            basis: 1 | 100;
+            /** Format: date-time */
+            effective_at: string;
+            reason: string;
+        };
+        LinkedPricePreviewItem: {
+            /** Format: uuid */
+            variant_id: string;
+            sku: string;
+            old_price: number | null;
+            new_price: number;
+            /** @description Signed percentage; decreases are negative. */
+            percent_change: number | null;
+        };
+        LinkedPricePreview: {
+            /** Format: uuid */
+            preview_token: string;
+            /** Format: date-time */
+            expires_at: string;
+            currency_code: string;
+            old_rate: number | null;
+            new_rate: number;
+            linked_sku_count: number;
+            rounding_multiple: number;
+            items: components["schemas"]["LinkedPricePreviewItem"][];
+        };
+        LinkedPriceApplyInput: {
+            /** Format: uuid */
+            preview_token: string;
+        };
+        LinkedPriceApplyResult: {
+            /** @enum {string} */
+            mode: "rate_only" | "published";
+            /** Format: uuid */
+            exchange_rate_id: string;
+            /** Format: uuid */
+            price_version_id: string | null;
+            linked_sku_count: number;
         };
         OperationOutcome: {
             /** Format: uuid */
@@ -7262,15 +9079,43 @@ export interface components {
             posted_at: string;
             /** Format: uuid */
             reverses_id?: string | null;
-            lines: ({
+            reverses?: components["schemas"]["JournalEntryLink"] | null;
+            reversals?: components["schemas"]["JournalEntryLink"][];
+            lines: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                entry_id: string;
+                /** Format: uuid */
+                account_id: string;
                 debit_base: components["schemas"]["ExactDecimal"];
                 credit_base: components["schemas"]["ExactDecimal"];
                 currency_code: string;
                 original_amount: components["schemas"]["ExactDecimal"];
                 exchange_rate: components["schemas"]["ExactDecimal"];
-            } & {
-                [key: string]: unknown;
-            })[];
+                memo: string | null;
+                account: components["schemas"]["LedgerAccount"];
+            }[];
+        };
+        JournalEntryLink: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+        };
+        LedgerAccount: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name_ar: string;
+            name_en: string;
+            /** @enum {string} */
+            type: "asset" | "liability" | "equity" | "income" | "contra_revenue" | "expense";
+            /** @enum {string} */
+            normal_side: "debit" | "credit";
+            is_system: boolean;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
         };
         JournalEntryPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["JournalEntry"][];
@@ -7302,6 +9147,12 @@ export interface components {
             /** Format: uuid */
             ledger_account_id: string;
             is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            currency: components["schemas"]["Currency"];
+            ledger_account: components["schemas"]["LedgerAccount"];
             balance: components["schemas"]["ExactDecimal"];
             base_balance: components["schemas"]["ExactDecimal"];
             base_currency_code: string;
@@ -7325,22 +9176,43 @@ export interface components {
             amount: string;
             reason: string;
         };
-        FinancialDocument: {
+        FinancialDocumentBase: {
+            /** @enum {string} */
+            document_type: "cash_opening_balance" | "cash_transfer";
             /** Format: uuid */
             id: string;
             document_number: string;
-            amount?: components["schemas"]["ExactDecimal"];
+            amount: number;
             currency_code: string;
             /** Format: date-time */
             document_date: string;
             /** Format: date-time */
             accounting_date: string;
+            backdate_reason: string | null;
             /** Format: uuid */
             created_by: string;
             /** Format: uuid */
             journal_entry_id: string;
             /** Format: date-time */
             created_at: string;
+        };
+        FinancialDocument: (components["schemas"]["FinancialDocumentBase"] & {
+            /** @constant */
+            document_type?: "cash_opening_balance";
+            cash_account: components["schemas"]["CashAccountLink"];
+        }) | (components["schemas"]["FinancialDocumentBase"] & {
+            /** @constant */
+            document_type?: "cash_transfer";
+            reason: string;
+            from_account: components["schemas"]["CashAccountLink"];
+            to_account: components["schemas"]["CashAccountLink"];
+        });
+        CashAccountLink: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "cash" | "bank";
         };
         AccountingPeriod: {
             /** Format: date-time */
@@ -7356,6 +9228,26 @@ export interface components {
             /** Format: uuid */
             reopened_by?: string | null;
             reopen_reason?: string | null;
+            /** @description Sequenced close and re-close history */
+            closes?: components["schemas"]["PeriodClose"][];
+        };
+        PeriodClose: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            period_month: string;
+            sequence: number;
+            snapshot: {
+                [key: string]: unknown;
+            }[];
+            differences: {
+                [key: string]: unknown;
+            }[] | null;
+            reason: string | null;
+            /** Format: uuid */
+            closed_by: string;
+            /** Format: date-time */
+            created_at: string;
         };
         PeriodChecklist: {
             month: string;
@@ -7368,29 +9260,53 @@ export interface components {
             settings: {
                 [key: string]: string | null;
             };
-            business_hours: {
-                [key: string]: unknown;
-            }[];
-            closed_days: {
-                [key: string]: unknown;
-            }[];
-            protection_thresholds: {
-                [key: string]: unknown;
-            };
+            business_hours: components["schemas"]["BusinessHours"][];
+            closed_days: components["schemas"]["ClosedDay"][];
+            protection_thresholds: components["schemas"]["ProtectionThresholds"];
         };
         AdminFinancialSettingsPatch: {
             settings?: {
                 [key: string]: string | null;
             };
-            business_hours?: {
-                [key: string]: unknown;
-            }[];
-            closed_days?: {
-                [key: string]: unknown;
-            }[];
-            protection_thresholds?: {
-                [key: string]: number;
-            };
+            business_hours?: components["schemas"]["BusinessHoursInput"][];
+            closed_days?: components["schemas"]["ClosedDayInput"][];
+            protection_thresholds?: components["schemas"]["ProtectionThresholds"];
+        };
+        /** @description Persisted weekday convention is 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday. */
+        BusinessHours: {
+            /** @description 0=Sunday; 1=Monday; 2=Tuesday; 3=Wednesday; 4=Thursday; 5=Friday; 6=Saturday. */
+            weekday: number;
+            opens_at: string | null;
+            closes_at: string | null;
+            is_closed: boolean;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description Uses the persisted 0=Sunday through 6=Saturday convention. Closed rows require null times; open rows require HH:MM and opens_at before closes_at. */
+        BusinessHoursInput: {
+            /** @description 0=Sunday; 1=Monday; 2=Tuesday; 3=Wednesday; 4=Thursday; 5=Friday; 6=Saturday. */
+            weekday: number;
+            opens_at: string | null;
+            closes_at: string | null;
+            is_closed: boolean;
+        };
+        ClosedDay: {
+            /** Format: date-time */
+            date: string;
+            reason: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ClosedDayInput: {
+            /** Format: date */
+            date: string;
+            reason?: string;
+        };
+        ProtectionThresholds: {
+            cost?: number;
+            price?: number;
+            quantity?: number;
+            exchange_rate?: number;
         };
     };
     responses: {

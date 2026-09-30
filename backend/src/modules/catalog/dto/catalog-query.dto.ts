@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsArray,
   IsUUID,
   Max,
   MaxLength,
@@ -38,6 +39,18 @@ export class ProductQueryDto {
   @IsOptional()
   @IsUUID()
   category_id?: string;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value)
+      ? value
+      : typeof value === 'string'
+        ? value.split(',').filter(Boolean)
+        : value,
+  )
+  @IsArray()
+  @IsUUID('4', { each: true })
+  brand_id?: string[];
 
   @IsOptional()
   @Type(() => Number)

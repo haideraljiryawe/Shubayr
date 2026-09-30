@@ -66,25 +66,40 @@ await request('/admin/exchange-rates', {
   token: admin,
   method: 'POST',
   expected: 422,
-  body: { currency_code: 'USD', rate: '0', basis: 1, effective_at: yesterday, reason: 'invalid zero rate' },
+  body: {
+    currency_code: 'USD',
+    rate: '0',
+    basis: 1,
+    effective_at: yesterday,
+    reason: 'invalid zero rate',
+  },
 });
 await request('/admin/exchange-rates', {
   token: admin,
   method: 'POST',
   expected: 422,
-  body: { currency_code: 'USD', rate: '-1', basis: 1, effective_at: yesterday, reason: 'invalid negative rate' },
+  body: {
+    currency_code: 'USD',
+    rate: '-1',
+    basis: 1,
+    effective_at: yesterday,
+    reason: 'invalid negative rate',
+  },
 });
 const rate = await request('/admin/exchange-rates', {
   token: admin,
   method: 'POST',
   expected: 201,
-  body: { currency_code: 'USD', rate: '131000', basis: 100, effective_at: yesterday, reason: 'acceptance market rate' },
+  body: {
+    currency_code: 'USD',
+    rate: '131000',
+    basis: 100,
+    effective_at: yesterday,
+    reason: 'acceptance market rate',
+  },
 });
 check(Number(rate.rate), 1310, 'per-100 rate is normalized to per-1');
-const applicable = await request(
-  `/admin/exchange-rates/USD/applicable?at=${encodeURIComponent(now.toISOString())}`,
-  { token: admin },
-);
+const applicable = await request(`/admin/exchange-rates/USD/applicable?at=${encodeURIComponent(now.toISOString())}`, { token: admin });
 check(applicable.not_from_today, true, 'older applicable rate carries a stale-today warning');
 
 const cash = await request('/admin/cash-accounts', {
@@ -118,7 +133,10 @@ await request(`/admin/cash-accounts/${disposableAccount.id}`, {
   method: 'DELETE',
   expected: 204,
 });
-await request(`/admin/cash-accounts/${disposableAccount.id}`, { token: admin, expected: 404 });
+await request(`/admin/cash-accounts/${disposableAccount.id}`, {
+  token: admin,
+  expected: 404,
+});
 
 const openingInput = {
   operation_id: `opening-${Date.now()}`,
@@ -131,6 +149,13 @@ const opening = await request(`/admin/cash-accounts/${cash.id}/opening-balance`,
   expected: 201,
   body: openingInput,
 });
+const openingDocument = await request(`/admin/financial-documents/${opening.id}`, { token: admin });
+check(openingDocument.document_type, 'cash_opening_balance', 'single-document read identifies an opening balance');
+check(openingDocument.journal_entry_id, opening.journal_entry_id, 'single-document read links its journal entry');
+const openingJournal = await request(`/admin/ledger/entries/${opening.journal_entry_id}`, { token: admin });
+check(openingJournal.lines.length, 2, 'single-journal read includes its lines');
+check(openingJournal.reverses, null, 'original journal does not reverse another entry');
+check(openingJournal.reversals.length, 0, 'original journal starts without a reversal link');
 await request(`/admin/cash-accounts/${cash.id}`, {
   token: admin,
   method: 'DELETE',
@@ -157,14 +182,22 @@ await request(`/admin/cash-accounts/${bank.id}/opening-balance`, {
   token: admin,
   method: 'POST',
   expected: 422,
-  body: { operation_id: `fraction-${Date.now()}`, document_date: today, amount: '10.5' },
+  body: {
+    operation_id: `fraction-${Date.now()}`,
+    document_date: today,
+    amount: '10.5',
+  },
 });
 const tomorrow = new Date(now.getTime() + 2 * 86_400_000).toISOString().slice(0, 10);
 await request(`/admin/cash-accounts/${bank.id}/opening-balance`, {
   token: admin,
   method: 'POST',
   expected: 422,
-  body: { operation_id: `future-${Date.now()}`, document_date: tomorrow, amount: '10' },
+  body: {
+    operation_id: `future-${Date.now()}`,
+    document_date: tomorrow,
+    amount: '10',
+  },
 });
 
 const oldDate = new Date(now.getTime() - 100 * 86_400_000).toISOString().slice(0, 10);
@@ -187,6 +220,10 @@ await request(`/admin/staff/${operationsLogin.user.id}/access`, {
     reason: 'Financial acceptance date-rule test',
   },
 });
+const ownPermissionDocument = await request(`/admin/financial-documents/${opening.id}`, {
+  token: operationsLogin.access_token,
+});
+check(ownPermissionDocument.id, opening.id, 'document own view permission can read a financial document');
 await request(`/admin/cash-accounts/${backdated.id}/opening-balance`, {
   token: operationsLogin.access_token,
   method: 'POST',
@@ -246,6 +283,9 @@ check(
   true,
   'transfer numbers use prefix, year, and sequence',
 );
+const transferDocument = await request(`/admin/financial-documents/${transfers[0].id}`, { token: admin });
+check(transferDocument.document_type, 'cash_transfer', 'single-document read identifies a cash transfer');
+check(transferDocument.journal_entry_id, transfers[0].journal_entry_id, 'cash-transfer document links its journal entry');
 
 const trial = await request('/admin/ledger/trial-balance', { token: admin });
 check(trial.balanced, true, 'trial balance remains balanced');
@@ -259,15 +299,9 @@ await request('/admin/currencies/USD', {
 
 const database = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await database.connect();
-await assert.rejects(
-  database.query('UPDATE journal_entries SET description = $1 WHERE id = $2', ['tamper', opening.journal_entry_id]),
-  /immutable/i,
-);
+await assert.rejects(database.query('UPDATE journal_entries SET description = $1 WHERE id = $2', ['tamper', opening.journal_entry_id]), /immutable/i);
 assertions += 1;
-await assert.rejects(
-  database.query('DELETE FROM journal_lines WHERE entry_id = $1', [opening.journal_entry_id]),
-  /immutable/i,
-);
+await assert.rejects(database.query('DELETE FROM journal_lines WHERE entry_id = $1', [opening.journal_entry_id]), /immutable/i);
 assertions += 1;
 await database.end();
 
@@ -278,26 +312,74 @@ const reversal = await request(`/admin/ledger/entries/${opening.journal_entry_id
   body: { reason: 'Acceptance correction by reversal' },
 });
 check(reversal.reverses_id, opening.journal_entry_id, 'correction links an immutable reversal');
+const reversedOriginal = await request(`/admin/ledger/entries/${opening.journal_entry_id}`, { token: admin });
+check(reversedOriginal.reversals[0].id, reversal.id, 'single-journal read links the correcting reversal');
+check(reversal.reverses_id, reversedOriginal.id, 'reversal links back to the original journal');
 
-const beforeDraft = await request('/admin/ledger/entries?page=1&per_page=1', { token: admin });
+const beforeDraft = await request('/admin/ledger/entries?page=1&per_page=1', {
+  token: admin,
+});
 await request('/admin/drafts/expense', {
   token: admin,
   method: 'PUT',
   body: { payload: { amount: 12345, memo: 'unposted' } },
 });
-const afterDraft = await request('/admin/ledger/entries?page=1&per_page=1', { token: admin });
+const afterDraft = await request('/admin/ledger/entries?page=1&per_page=1', {
+  token: admin,
+});
 check(afterDraft.total, beforeDraft.total, 'draft save has no ledger effect');
-await request('/admin/drafts/expense', { token: admin, method: 'DELETE', expected: 204 });
+await request('/admin/drafts/expense', {
+  token: admin,
+  method: 'DELETE',
+  expected: 204,
+});
+
+for (const [body, field] of [
+  [{ settings: { timezone: 'Baghdad/Nowhere' } }, 'settings.timezone'],
+  [{ settings: { delivery_fee: '-1' } }, 'settings.delivery_fee'],
+  [{ settings: { backdating_window_days: '0' } }, 'settings.backdating_window_days'],
+  [{ settings: { markup_alert_percent: '101' } }, 'settings.markup_alert_percent'],
+  [{ settings: { auto_cancel_enabled: 'true' } }, 'settings.auto_cancel_timeout_minutes'],
+  [
+    {
+      business_hours: [{ weekday: 7, opens_at: '09:00', closes_at: '17:00', is_closed: false }],
+    },
+    'business_hours.0.weekday',
+  ],
+  [
+    {
+      business_hours: [{ weekday: 0, opens_at: '17:00', closes_at: '09:00', is_closed: false }],
+    },
+    'business_hours.0.closes_at',
+  ],
+  [{ closed_days: [{ date: '2026-02-30' }] }, 'closed_days.0.date'],
+  [{ protection_thresholds: { price: 101 } }, 'protection_thresholds.price'],
+]) {
+  const invalid = await request('/admin/settings', {
+    token: admin,
+    method: 'PUT',
+    expected: 422,
+    body,
+  });
+  check(
+    invalid.errors.some((item) => item.field === field),
+    true,
+    `${field} has a field-specific 422`,
+  );
+}
 
 const settings = await request('/admin/settings', {
   token: admin,
   method: 'PUT',
   body: {
     settings: { delivery_fee: '6000', timezone: 'Asia/Baghdad' },
-    protection_thresholds: { price: 55 },
+    business_hours: [{ weekday: 0, opens_at: '09:00', closes_at: '17:00', is_closed: false }],
+    protection_thresholds: { price: 55.25 },
   },
 });
 check(settings.settings.delivery_fee, '6000', 'financial setting is updated');
+check(settings.business_hours.find((row) => row.weekday === 0).opens_at, '09:00', 'weekday 0 remains Sunday in stored business hours');
+check(settings.protection_thresholds.price, 55.25, 'Decimal thresholds serialize as plain JSON numbers');
 const settingsAudit = await request('/admin/audit-logs?action=settings.update&entity_type=settings&page=1', { token: admin });
 check(settingsAudit.total > 0, true, 'settings update is audited');
 

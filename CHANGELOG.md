@@ -1,5 +1,83 @@
 # Changelog
 
+## 8.2.0 - 2026-09-30
+
+### Added
+
+- Phase-5 warehouse and free-form location management, lot/location balances,
+  opening-stock documents, transfers, physical counts, write-downs, and
+  permissioned inventory reads.
+- FIFO/FEFO lot reservation with row-level locking, delivery-custody holdings,
+  moving weighted-average SKU costing, original-issue-cost returns, and
+  inventory/COGS ledger postings through the shared phase-3 ledger service.
+- Durable product search catch-up markers, periodic retry, and an admin
+  reindex-all operation.
+
+### Changed
+
+- Catalog availability now comes from lot on-hand less persisted reservations;
+  the temporary COD-hold table has been removed.
+- Seed stock is posted through immutable opening-stock documents and movements.
+- The API contract is version 8.2.0, with refreshed generated web and admin API
+  types.
+
+## 8.1.0 - 2026-09-29
+
+### Added
+
+- Direct, permissioned reads for journal entries, including lines and reversal
+  links, and for posted cash-opening-balance and cash-transfer documents.
+- Server-side validation for store timezone, weekly business hours, exception
+  dates, financial thresholds, percentages, backdating, automatic cancellation,
+  and base-currency delivery fees.
+- An explicit weekday-number convention: `0` is Sunday through `6` as Saturday,
+  preserving the existing stored meaning.
+
+### Changed
+
+- API responses now serialize Prisma decimals globally as JSON numbers instead
+  of exposing Decimal implementation fields.
+- Acceptance response validation rejects both wrong JSON types and undeclared
+  object properties; the period-close history field is now part of the contract.
+- The API contract is version 8.1.0, with refreshed generated web and admin API
+  types.
+
+### Fixed
+
+- Product, delivery, permission-preset, and order responses no longer expose
+  persistence-only fields that are absent from their public schemas.
+
+## 8.0.0 - 2026-09-29
+
+### Breaking
+
+- Catalog quantities are exact three-decimal base-unit values, and every cart,
+  order, stock, and return line now identifies a SKU. Whole-unit SKUs reject
+  fractional quantities.
+- Negotiation fields and behavior have been removed. Legacy open negotiations
+  are closed and only their reservations are released; historical sales remain
+  unchanged.
+
+### Added
+
+- Independent bilingual brands with visibility and sorting, permissioned admin
+  CRUD, public listing, product filters and facet counts, and Meilisearch brand
+  fields.
+- Per-SKU base units, price overrides or linked foreign reference pricing,
+  low-stock thresholds, effective prices, and three-state availability.
+- Audited category-to-brand conversion and a depth-report command for reviewing
+  pre-existing category trees.
+- Linked-price previews with stale-token protection, rate-only saves, and atomic
+  versioned rate-and-price publishing with configurable approved rounding.
+
+### Changed
+
+- Category writes enforce a two-level maximum, including re-parenting rules.
+- Catalog publication requires complete publishing data and approved product and
+  SKU prices; stock changes alone never publish a product.
+- The API contract is version 8.0.0, with refreshed generated web and admin API
+  types.
+
 ## 7.1.0 - 2026-09-29
 
 ### Added

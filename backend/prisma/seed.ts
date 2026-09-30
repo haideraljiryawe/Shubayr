@@ -8,7 +8,7 @@ import {
 import { PrismaPg } from '@prisma/adapter-pg';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
-import { PrismaClient } from '../src/generated/prisma/client';
+import { Prisma, PrismaClient } from '../src/generated/prisma/client';
 import {
   calculateLineTotal,
   minorUnitsToMoney,
@@ -70,6 +70,7 @@ const presetGrants: Record<string, string[]> = {
     'catalog.brands',
     'catalog.products',
     'prices.change',
+    'prices.publish_linked',
   ],
   stock_controller: [
     'cost.view',
@@ -81,6 +82,9 @@ const presetGrants: Record<string, string[]> = {
     'inventory.pick',
     'inventory.adjust',
     'inventory.transfer',
+    'inventory.view',
+    'inventory.manage',
+    'inventory.write_down',
   ],
 };
 
@@ -279,6 +283,7 @@ async function main(): Promise<void> {
     ['currency', 'IQD'],
     ['primary_color', '#0B2A54'],
     ['logo_url', ''],
+    ['sale_rounding_multiple', '0'],
   ] as const) {
     await prisma.storeSetting.upsert({
       where: { key },
@@ -455,6 +460,36 @@ async function main(): Promise<void> {
   const activeEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
   const futureStart = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const futureEnd = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000);
+  const brandIds: string[] = [];
+  for (const [index, brand] of [
+    ['Shubayr Select', 'مختارات شُبير', 'shubayr-select'],
+    ['Nova', 'نوفا', 'nova'],
+    ['Atlas', 'أطلس', 'atlas'],
+    ['Luma', 'لوما', 'luma'],
+  ].entries()) {
+    const id = seedId(1, 700 + index);
+    brandIds.push(id);
+    await prisma.brand.upsert({
+      where: { id },
+      update: {
+        name_en: brand[0],
+        name_ar: brand[1],
+        slug: brand[2],
+        logo_url: imageUrls[index],
+        is_visible: true,
+        sort_order: index,
+      },
+      create: {
+        id,
+        name_en: brand[0],
+        name_ar: brand[1],
+        slug: brand[2],
+        logo_url: imageUrls[index],
+        is_visible: true,
+        sort_order: index,
+      },
+    });
+  }
   const warehouseId = seedId(9, 1);
   const locationId = seedId(9, 2);
   await prisma.warehouse.upsert({
@@ -470,6 +505,10 @@ async function main(): Promise<void> {
       aisle: '01',
       shelf: '01',
       bin: '01',
+      code: 'A-01-01-01',
+      description: 'Development sellable stock',
+      is_sellable: true,
+      is_active: true,
     },
     create: {
       id: locationId,
@@ -478,7 +517,17 @@ async function main(): Promise<void> {
       aisle: '01',
       shelf: '01',
       bin: '01',
+      code: 'A-01-01-01',
+      description: 'Development sellable stock',
+      is_sellable: true,
     },
+  });
+
+  const inventoryAccount = await prisma.ledgerAccount.findUniqueOrThrow({
+    where: { code: '1000' },
+  });
+  const equityAccount = await prisma.ledgerAccount.findUniqueOrThrow({
+    where: { code: '3000' },
   });
 
   let categoryNumber = 1;
@@ -561,16 +610,16 @@ async function main(): Promise<void> {
               };
       const productData = {
         category_id: childIds[childIndex],
+        brand_id: brandIds[(number - 1) % brandIds.length],
         name_en: nameEn,
         name_ar: nameAr,
         description: `${nameEn} from the seeded Shubayr development catalog.`,
         price: iqdPrice,
         currency_code: 'IQD',
         ...discount,
-        is_negotiable: number === 3,
-        floor_price: number === 3 ? Math.round(iqdPrice * 0.8) : null,
-        points_price: number === 3 ? 250 : null,
         status: 'active',
+        published_at: now,
+        price_approved_at: now,
         tracks_expiry: department.slug === 'grocery',
       };
       await prisma.product.upsert({
@@ -613,6 +662,12 @@ async function main(): Promise<void> {
             attributes: { option: variantIndex === 0 ? 'standard' : 'plus' },
             price_delta: variantIndex === 0 ? 0 : 3000,
             currency_code: 'IQD',
+            base_unit: 'piece',
+            whole_units_only: true,
+            selling_price: variantIndex === 0 ? null : iqdPrice + 3000,
+            pricing_mode: 'fixed',
+            price_approved_at: now,
+            updated_at: now,
           },
           create: {
             id: variantId,
@@ -621,39 +676,143 @@ async function main(): Promise<void> {
             attributes: { option: variantIndex === 0 ? 'standard' : 'plus' },
             price_delta: variantIndex === 0 ? 0 : 3000,
             currency_code: 'IQD',
+            base_unit: 'piece',
+            whole_units_only: true,
+            selling_price: variantIndex === 0 ? null : iqdPrice + 3000,
+            pricing_mode: 'fixed',
+            price_approved_at: now,
+            updated_at: now,
           },
         });
         const batchId = seedId(7, variantNumber);
-        await prisma.inventoryBatch.upsert({
-          where: { id: batchId },
-          update: {
-            product_id: productId,
-            variant_id: variant.id,
-            lot_number: `SEED-${number}`,
-            purchase_cost: Math.max(1, Math.round(iqdPrice * 0.6)),
-            currency_code: 'IQD',
-            qty_received: 100,
-          },
-          create: {
-            id: batchId,
-            product_id: productId,
-            variant_id: variant.id,
-            lot_number: `SEED-${number}`,
-            purchase_cost: Math.max(1, Math.round(iqdPrice * 0.6)),
-            currency_code: 'IQD',
-            qty_received: 100,
-          },
+        const openingId = seedId(8, 1000 + variantNumber);
+        const existingOpening = await prisma.inventoryOpening.findUnique({
+          where: { id: openingId },
         });
-        await prisma.batchStock.upsert({
-          where: {
-            batch_id_location_id: {
-              batch_id: batchId,
-              location_id: locationId,
-            },
-          },
-          update: { quantity: 100 },
-          create: { batch_id: batchId, location_id: locationId, quantity: 100 },
-        });
+        if (!existingOpening) {
+          const cost = Math.max(1, Math.round(iqdPrice * 0.6));
+          const value = cost * 100;
+          const entryId = seedId(8, 2000 + variantNumber);
+          await prisma.$transaction(async (tx) => {
+            await tx.journalEntry.create({
+              data: {
+                id: entryId,
+                document_number: `SEED-JRN-${String(variantNumber).padStart(6, '0')}`,
+                source_type: 'inventory_opening',
+                source_id: openingId,
+                event: 'post',
+                document_date: now,
+                accounting_date: now,
+                description: 'Development opening inventory',
+                created_by: adminId,
+                lines: {
+                  create: [
+                    {
+                      account_id: inventoryAccount.id,
+                      debit_base: value,
+                      credit_base: 0,
+                      currency_code: 'IQD',
+                      original_amount: value,
+                      exchange_rate: 1,
+                    },
+                    {
+                      account_id: equityAccount.id,
+                      debit_base: 0,
+                      credit_base: value,
+                      currency_code: 'IQD',
+                      original_amount: value,
+                      exchange_rate: 1,
+                    },
+                  ],
+                },
+              },
+            });
+            await tx.inventoryOpening.create({
+              data: {
+                id: openingId,
+                document_number: `SEED-INV-${String(variantNumber).padStart(6, '0')}`,
+                operation_id: `seed-opening-${variantNumber}`,
+                document_date: now,
+                accounting_date: now,
+                created_by: adminId,
+                journal_entry_id: entryId,
+              },
+            });
+            await tx.inventoryBatch.upsert({
+              where: { id: batchId },
+              update: {
+                source_type: 'inventory_opening',
+                source_id: openingId,
+              },
+              create: {
+                id: batchId,
+                product_id: productId,
+                variant_id: variant.id,
+                lot_number: `SEED-${number}`,
+                purchase_cost: cost,
+                currency_code: 'IQD',
+                qty_received: 100,
+                source_type: 'inventory_opening',
+                source_id: openingId,
+              },
+            });
+            await tx.batchStock.upsert({
+              where: {
+                batch_id_location_id: {
+                  batch_id: batchId,
+                  location_id: locationId,
+                },
+              },
+              update: { quantity: 100 },
+              create: {
+                batch_id: batchId,
+                location_id: locationId,
+                quantity: 100,
+              },
+            });
+            await tx.inventoryOpeningLine.create({
+              data: {
+                id: seedId(8, 3000 + variantNumber),
+                opening_id: openingId,
+                variant_id: variant.id,
+                location_id: locationId,
+                lot_id: batchId,
+                quantity: 100,
+                unit_cost_iqd: cost,
+              },
+            });
+            await tx.stockMovement.create({
+              data: {
+                id: seedId(8, 4000 + variantNumber),
+                batch_id: batchId,
+                type: 'receive',
+                to_location: locationId,
+                quantity: 100,
+                unit_cost_iqd: cost,
+                reference: `SEED-INV-${String(variantNumber).padStart(6, '0')}`,
+                source_type: 'inventory_opening',
+                source_id: openingId,
+                user_id: adminId,
+              },
+            });
+            await tx.skuCost.upsert({
+              where: { variant_id: variant.id },
+              update: {
+                book_quantity: 100,
+                book_value_iqd: value,
+                average_cost_iqd: cost,
+                last_landed_cost_iqd: cost,
+              },
+              create: {
+                variant_id: variant.id,
+                book_quantity: 100,
+                book_value_iqd: value,
+                average_cost_iqd: cost,
+                last_landed_cost_iqd: cost,
+              },
+            });
+          });
+        }
       }
     }
   }
@@ -712,6 +871,7 @@ async function main(): Promise<void> {
   });
   await seedCustomerOrders(
     users.get('customer')!,
+    users.get('admin')!,
     users.get('delivery')!,
     secondDeliveryAgent.id,
     now,
@@ -722,11 +882,7 @@ async function main(): Promise<void> {
     users.get('delivery')!,
     now,
   );
-  await seedLoyaltyDemo(
-    users.get('customer')!,
-    users.get('delivery')!,
-    users.get('admin')!,
-  );
+  await seedLoyaltyDemo(users.get('customer')!, users.get('delivery')!);
   await seedWishlist(users.get('customer')!);
   await seedProductReviewDemo(users.get('customer')!, users.get('admin')!);
   await seedNotificationDemo(users.get('customer')!);
@@ -924,7 +1080,6 @@ async function seedProductReviewDemo(
 async function seedLoyaltyDemo(
   customerId: string,
   agentId: string,
-  adminId: string,
 ): Promise<void> {
   const account = await prisma.loyaltyAccount.upsert({
     where: { user_id: customerId },
@@ -983,26 +1138,6 @@ async function seedLoyaltyDemo(
       },
     });
   }
-  const negotiable = await prisma.product.findUniqueOrThrow({
-    where: { id: seedId(4, 3) },
-  });
-  await prisma.auditLog.upsert({
-    where: { id: seedId(1, 305) },
-    update: {},
-    create: {
-      id: seedId(1, 305),
-      actor_id: adminId,
-      action: 'catalog.negotiation.create',
-      entity_type: 'product',
-      entity_id: seedId(4, 3),
-      after: {
-        is_negotiable: true,
-        floor_price: Number(negotiable.floor_price),
-        points_price: 250,
-        seed_demo: true,
-      },
-    },
-  });
 }
 
 async function seedPartialReturnDemo(
@@ -1097,34 +1232,140 @@ async function seedPartialReturnDemo(
     data: { delivery_id: seedId(1, 203) },
   });
   for (let index = 0; index < products.length; index += 1) {
-    await prisma.simpleStockHold.upsert({
-      where: { order_item_id: seedId(1, 201 + index) },
-      update: {},
-      create: {
-        id: seedId(1, 210 + index),
-        order_id: orderId,
-        order_item_id: seedId(1, 201 + index),
-        product_id: products[index].product.id,
-        variant_id: products[index].variant.id,
-        quantity: quantities[index],
-        status: 'deducted',
-        deducted_at: now,
+    const itemId = seedId(1, 201 + index);
+    const batchId = seedId(7, index === 0 ? 1 : 3);
+    const holdingId = seedId(8, 6001 + index);
+    const existingHolding = await prisma.custodyHolding.findUnique({
+      where: { id: holdingId },
+    });
+    if (!existingHolding) {
+      const cost = await prisma.skuCost.findUniqueOrThrow({
+        where: { variant_id: products[index].variant.id },
+      });
+      await prisma.$transaction(async (tx) => {
+        await tx.stockReservation.create({
+          data: {
+            id: seedId(8, 6101 + index),
+            order_id: orderId,
+            order_item_id: itemId,
+            batch_id: batchId,
+            location_id: locationId,
+            quantity: quantities[index],
+            status: 'consumed',
+            consumed_at: now,
+            issue_cost_iqd: cost.average_cost_iqd,
+          },
+        });
+        await tx.custodyHolding.create({
+          data: {
+            id: holdingId,
+            order_id: orderId,
+            order_item_id: itemId,
+            delivery_id: seedId(1, 203),
+            custody_party_id: agentId,
+            batch_id: batchId,
+            quantity: quantities[index],
+            unit_cost_iqd: cost.average_cost_iqd,
+            status: 'sold',
+            settled_at: now,
+          },
+        });
+        await tx.batchStock.update({
+          where: {
+            batch_id_location_id: {
+              batch_id: batchId,
+              location_id: locationId,
+            },
+          },
+          data: { quantity: { decrement: quantities[index] } },
+        });
+        const value = cost.average_cost_iqd.mul(quantities[index]);
+        const bookQuantity = cost.book_quantity.minus(quantities[index]);
+        const bookValue = cost.book_value_iqd.minus(value);
+        await tx.skuCost.update({
+          where: { variant_id: products[index].variant.id },
+          data: {
+            book_quantity: bookQuantity,
+            book_value_iqd: bookValue,
+            average_cost_iqd: bookQuantity.isZero()
+              ? 0
+              : bookValue.div(bookQuantity),
+          },
+        });
+        await tx.stockMovement.createMany({
+          data: [
+            {
+              id: seedId(8, 6201 + index),
+              batch_id: batchId,
+              type: 'issue_to_custody',
+              from_location: locationId,
+              quantity: quantities[index],
+              unit_cost_iqd: cost.average_cost_iqd,
+              reference: 'DEV-PARTIAL-RETURN',
+              source_type: 'order',
+              source_id: orderId,
+              custody_party_id: agentId,
+              user_id: adminId,
+            },
+            {
+              id: seedId(8, 6301 + index),
+              batch_id: batchId,
+              type: 'custody_to_sold',
+              quantity: quantities[index],
+              unit_cost_iqd: cost.average_cost_iqd,
+              reference: 'DEV-PARTIAL-RETURN',
+              source_type: 'order',
+              source_id: orderId,
+              custody_party_id: agentId,
+              user_id: agentId,
+            },
+          ],
+        });
+      });
+    }
+  }
+  const partialHoldings = await prisma.custodyHolding.findMany({
+    where: { order_id: orderId },
+  });
+  const partialIssueValue = partialHoldings.reduce(
+    (sum, holding) => sum.plus(holding.quantity.mul(holding.unit_cost_iqd)),
+    new Prisma.Decimal(0),
+  );
+  if (
+    partialIssueValue.gt(0) &&
+    !(await prisma.journalEntry.findFirst({
+      where: {
+        source_type: 'order',
+        source_id: orderId,
+        event: 'issue_to_custody',
       },
+    }))
+  ) {
+    await prisma.$transaction(async (tx) => {
+      await seedInventoryJournal(tx, {
+        id: seedId(8, 7400),
+        number: 'SEED-ISSUE-000200',
+        sourceId: orderId,
+        event: 'issue_to_custody',
+        debitCode: '1010',
+        creditCode: '1000',
+        value: partialIssueValue,
+        actorId: adminId,
+        at: now,
+      });
+      await seedInventoryJournal(tx, {
+        id: seedId(8, 7401),
+        number: 'SEED-COGS-000200',
+        sourceId: orderId,
+        event: 'custody_to_sold',
+        debitCode: '5000',
+        creditCode: '1010',
+        value: partialIssueValue,
+        actorId: adminId,
+        at: now,
+      });
     });
   }
-  await prisma.stockReservation.upsert({
-    where: { id: seedId(1, 209) },
-    update: {},
-    create: {
-      id: seedId(1, 209),
-      order_id: orderId,
-      order_item_id: seedId(1, 201),
-      batch_id: seedId(7, 1),
-      location_id: locationId,
-      quantity: 3,
-      status: 'consumed',
-    },
-  });
   const refund = minorUnitsToMoney(
     moneyToMinorUnits(prices[0]) + moneyToMinorUnits(prices[1]),
   );
@@ -1170,27 +1411,79 @@ async function seedPartialReturnDemo(
       },
     },
   });
-  await prisma.batchStock.upsert({
-    where: {
-      batch_id_location_id: { batch_id: seedId(7, 1), location_id: locationId },
-    },
-    update: { quantity: 101 },
-    create: { batch_id: seedId(7, 1), location_id: locationId, quantity: 101 },
-  });
-  await prisma.stockMovement.upsert({
+  const seededReturnMovement = await prisma.stockMovement.findUnique({
     where: { id: seedId(1, 208) },
-    update: {},
-    create: {
-      id: seedId(1, 208),
-      batch_id: seedId(7, 1),
-      return_item_id: seedId(1, 205),
-      type: 'return_in',
-      to_location: locationId,
-      quantity: 1,
-      reference: `return-origin:${returnId}`,
-      user_id: adminId,
-    },
   });
+  if (!seededReturnMovement) {
+    const returnCost = await prisma.skuCost.findUniqueOrThrow({
+      where: { variant_id: products[0].variant.id },
+    });
+    await prisma.$transaction(async (tx) => {
+      await tx.batchStock.update({
+        where: {
+          batch_id_location_id: {
+            batch_id: seedId(7, 1),
+            location_id: locationId,
+          },
+        },
+        data: { quantity: { increment: 1 } },
+      });
+      await tx.stockMovement.create({
+        data: {
+          id: seedId(1, 208),
+          batch_id: seedId(7, 1),
+          return_item_id: seedId(1, 205),
+          type: 'return_in',
+          to_location: locationId,
+          quantity: 1,
+          reference: `return-origin:${returnId}`,
+          user_id: adminId,
+          unit_cost_iqd: returnCost.average_cost_iqd,
+          source_type: 'return',
+          source_id: returnId,
+        },
+      });
+      const nextQuantity = returnCost.book_quantity.plus(1);
+      const nextValue = returnCost.book_value_iqd.plus(
+        returnCost.average_cost_iqd,
+      );
+      await tx.skuCost.update({
+        where: { variant_id: products[0].variant.id },
+        data: {
+          book_quantity: nextQuantity,
+          book_value_iqd: nextValue,
+          average_cost_iqd: nextValue.div(nextQuantity),
+        },
+      });
+    });
+  }
+  if (
+    !(await prisma.journalEntry.findFirst({
+      where: {
+        source_type: 'return',
+        source_id: returnId,
+        event: `restock:${seedId(1, 205)}`,
+      },
+    }))
+  ) {
+    const origin = await prisma.custodyHolding.findUniqueOrThrow({
+      where: { id: seedId(8, 6001) },
+    });
+    await prisma.$transaction((tx) =>
+      seedInventoryJournal(tx, {
+        id: seedId(8, 7402),
+        number: 'SEED-RETURN-000204',
+        sourceType: 'return',
+        sourceId: returnId,
+        event: `restock:${seedId(1, 205)}`,
+        debitCode: '1000',
+        creditCode: '5000',
+        value: origin.unit_cost_iqd,
+        actorId: adminId,
+        at: now,
+      }),
+    );
+  }
   await prisma.refundLedgerEntry.upsert({
     where: { return_id: returnId },
     update: {},
@@ -1245,6 +1538,7 @@ async function seedPartialReturnDemo(
 
 async function seedCustomerOrders(
   customerId: string,
+  adminId: string,
   deliveryAgentId: string,
   secondDeliveryAgentId: string,
   now: Date,
@@ -1476,33 +1770,22 @@ async function seedCustomerOrders(
         data: { delivery_id: delivery.id },
       });
     }
-    for (const item of order.items) {
-      await prisma.simpleStockHold.upsert({
-        where: { order_item_id: item.id },
-        update: {},
-        create: {
-          id: seedId(1, 70 + index),
-          order_id: id,
-          order_item_id: item.id,
-          product_id: item.product_id,
-          variant_id: item.variant_id,
-          quantity: item.quantity,
-          status:
-            sample.status === 'cancelled'
-              ? 'released'
-              : dispatched
-                ? 'deducted'
-                : 'held',
-          deducted_at: dispatched
-            ? new Date(placedAt.getTime() + 4 * 3_600_000)
-            : null,
-          released_at:
-            sample.status === 'cancelled'
-              ? new Date(placedAt.getTime() + 3_600_000)
-              : null,
-        },
-      });
-    }
+    await seedOrderInventoryState({
+      orderId: id,
+      orderItemId: itemId,
+      variantId: variant.id,
+      batchId: seedId(7, (sample.product - 1) * 2 + 1),
+      locationId: seedId(9, 2),
+      deliveryId: delivery.id,
+      custodyPartyId: [1, 6].includes(index)
+        ? secondDeliveryAgentId
+        : deliveryAgentId,
+      quantity: sample.quantity,
+      status: sample.status,
+      index,
+      adminId,
+      at: placedAt,
+    });
     if (delivered && order.items[0]) {
       const deliveredItem = order.items[0];
       await prisma.productReview.upsert({
@@ -1538,6 +1821,249 @@ async function seedCustomerOrders(
       });
     }
   }
+}
+
+async function seedOrderInventoryState(input: {
+  orderId: string;
+  orderItemId: string;
+  variantId: string;
+  batchId: string;
+  locationId: string;
+  deliveryId: string;
+  custodyPartyId: string;
+  quantity: number;
+  status: string;
+  index: number;
+  adminId: string;
+  at: Date;
+}): Promise<void> {
+  const existing = await prisma.stockReservation.findFirst({
+    where: { order_id: input.orderId },
+  });
+  if (existing) return;
+
+  const reserved = [
+    'pending',
+    'confirmed',
+    'preparing',
+    'ready_for_dispatch',
+  ].includes(input.status);
+  const issued = ['dispatched', 'delivered', 'failed'].includes(input.status);
+  const sold = input.status === 'delivered';
+  const reservationId = seedId(8, 7000 + input.index);
+  const cost = await prisma.skuCost.findUniqueOrThrow({
+    where: { variant_id: input.variantId },
+  });
+  const value = cost.average_cost_iqd.mul(input.quantity);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.stockReservation.create({
+      data: {
+        id: reservationId,
+        order_id: input.orderId,
+        order_item_id: input.orderItemId,
+        batch_id: input.batchId,
+        location_id: input.locationId,
+        quantity: input.quantity,
+        status: reserved ? 'reserved' : issued ? 'consumed' : 'released',
+        released_at: reserved || issued ? null : input.at,
+        consumed_at: issued ? input.at : null,
+        issue_cost_iqd: issued ? cost.average_cost_iqd : null,
+      },
+    });
+    await tx.stockMovement.create({
+      data: {
+        id: seedId(8, 7100 + input.index * 3),
+        batch_id: input.batchId,
+        type: 'reserve',
+        from_location: input.locationId,
+        to_location: input.locationId,
+        quantity: input.quantity,
+        reference: `DEV-ORDER-${input.index + 1}`,
+        source_type: 'stock_reservation',
+        source_id: reservationId,
+        user_id: input.adminId,
+        created_at: input.at,
+      },
+    });
+    if (reserved) {
+      await tx.batchStock.update({
+        where: {
+          batch_id_location_id: {
+            batch_id: input.batchId,
+            location_id: input.locationId,
+          },
+        },
+        data: { reserved: { increment: input.quantity } },
+      });
+      return;
+    }
+    if (!issued) {
+      await tx.stockMovement.create({
+        data: {
+          id: seedId(8, 7101 + input.index * 3),
+          batch_id: input.batchId,
+          type: 'release',
+          from_location: input.locationId,
+          to_location: input.locationId,
+          quantity: input.quantity,
+          reference: `DEV-ORDER-${input.index + 1}`,
+          source_type: 'stock_reservation',
+          source_id: reservationId,
+          user_id: input.adminId,
+          created_at: input.at,
+        },
+      });
+      return;
+    }
+
+    await tx.batchStock.update({
+      where: {
+        batch_id_location_id: {
+          batch_id: input.batchId,
+          location_id: input.locationId,
+        },
+      },
+      data: { quantity: { decrement: input.quantity } },
+    });
+    const remainingQuantity = cost.book_quantity.minus(input.quantity);
+    const remainingValue = cost.book_value_iqd.minus(value);
+    await tx.skuCost.update({
+      where: { variant_id: input.variantId },
+      data: {
+        book_quantity: remainingQuantity,
+        book_value_iqd: remainingValue,
+        average_cost_iqd: remainingQuantity.isZero()
+          ? 0
+          : remainingValue.div(remainingQuantity),
+      },
+    });
+    await tx.custodyHolding.create({
+      data: {
+        id: seedId(8, 7200 + input.index),
+        order_id: input.orderId,
+        order_item_id: input.orderItemId,
+        delivery_id: input.deliveryId,
+        custody_party_id: input.custodyPartyId,
+        batch_id: input.batchId,
+        quantity: input.quantity,
+        unit_cost_iqd: cost.average_cost_iqd,
+        status: sold ? 'sold' : 'in_custody',
+        issued_at: input.at,
+        settled_at: sold ? input.at : null,
+      },
+    });
+    await tx.stockMovement.create({
+      data: {
+        id: seedId(8, 7101 + input.index * 3),
+        batch_id: input.batchId,
+        type: 'issue_to_custody',
+        from_location: input.locationId,
+        quantity: input.quantity,
+        unit_cost_iqd: cost.average_cost_iqd,
+        reference: `delivery:${input.deliveryId}`,
+        source_type: 'order',
+        source_id: input.orderId,
+        custody_party_id: input.custodyPartyId,
+        user_id: input.adminId,
+        created_at: input.at,
+      },
+    });
+    await seedInventoryJournal(tx, {
+      id: seedId(8, 7300 + input.index * 2),
+      number: `SEED-ISSUE-${String(input.index + 1).padStart(6, '0')}`,
+      sourceId: input.orderId,
+      event: 'issue_to_custody',
+      debitCode: '1010',
+      creditCode: '1000',
+      value,
+      actorId: input.adminId,
+      at: input.at,
+    });
+    if (sold) {
+      await tx.stockMovement.create({
+        data: {
+          id: seedId(8, 7102 + input.index * 3),
+          batch_id: input.batchId,
+          type: 'custody_to_sold',
+          quantity: input.quantity,
+          unit_cost_iqd: cost.average_cost_iqd,
+          reference: `order:${input.orderId}`,
+          source_type: 'order',
+          source_id: input.orderId,
+          custody_party_id: input.custodyPartyId,
+          user_id: input.adminId,
+          created_at: input.at,
+        },
+      });
+      await seedInventoryJournal(tx, {
+        id: seedId(8, 7301 + input.index * 2),
+        number: `SEED-COGS-${String(input.index + 1).padStart(6, '0')}`,
+        sourceId: input.orderId,
+        event: 'custody_to_sold',
+        debitCode: '5000',
+        creditCode: '1010',
+        value,
+        actorId: input.adminId,
+        at: input.at,
+      });
+    }
+  });
+}
+
+async function seedInventoryJournal(
+  tx: Prisma.TransactionClient,
+  input: {
+    id: string;
+    number: string;
+    sourceType?: string;
+    sourceId: string;
+    event: string;
+    debitCode: string;
+    creditCode: string;
+    value: { toString(): string };
+    actorId: string;
+    at: Date;
+  },
+): Promise<void> {
+  const [debit, credit] = await Promise.all([
+    tx.ledgerAccount.findUniqueOrThrow({ where: { code: input.debitCode } }),
+    tx.ledgerAccount.findUniqueOrThrow({ where: { code: input.creditCode } }),
+  ]);
+  await tx.journalEntry.create({
+    data: {
+      id: input.id,
+      document_number: input.number,
+      source_type: input.sourceType ?? 'order',
+      source_id: input.sourceId,
+      event: input.event,
+      document_date: input.at,
+      accounting_date: input.at,
+      description: `Development inventory ${input.event}`,
+      created_by: input.actorId,
+      posted_at: input.at,
+      lines: {
+        create: [
+          {
+            account_id: debit.id,
+            debit_base: input.value.toString(),
+            credit_base: 0,
+            currency_code: 'IQD',
+            original_amount: input.value.toString(),
+            exchange_rate: 1,
+          },
+          {
+            account_id: credit.id,
+            debit_base: 0,
+            credit_base: input.value.toString(),
+            currency_code: 'IQD',
+            original_amount: input.value.toString(),
+            exchange_rate: 1,
+          },
+        ],
+      },
+    },
+  });
 }
 
 function categoryData(

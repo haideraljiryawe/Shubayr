@@ -23,12 +23,14 @@ export const ORDER_STATUSES: readonly OrderStatus[] = [
   "delivered",
   "failed",
   "cancelled",
+  "rejected",
   "return_requested",
   "returned",
 ];
 
 export type OrderAction =
   | "accept"
+  | "reject"
   | "prepare"
   | "markReady"
   | "dispatch"
@@ -46,13 +48,13 @@ export const STATUS_MOVES = {
  * Every permission a move needs. The status moves need the key the API maps
  * from the target status (`x-permission-by-status`).
  *
- * There is deliberately no Reject: the API has no rejected status or reject
- * route yet, and a "reject" that called the cancel route would record the
- * order as cancelled and skew the reports. Pending orders offer Cancel (with
- * its required reason) until the real reject route lands.
+ * Reject (contract 8.0, #65) is its own route and status — pending orders
+ * only, `orders.reject`, reason required — and never a cancellation, so the
+ * reports can tell a store's refusal from a cancelled order.
  */
 export const ACTION_PERMISSIONS: Record<OrderAction, readonly string[]> = {
   accept: ["orders.accept"],
+  reject: ["orders.reject"],
   prepare: ["orders.prepare"],
   markReady: ["orders.mark_ready"],
   dispatch: ["orders.handover"],
@@ -61,14 +63,17 @@ export const ACTION_PERMISSIONS: Record<OrderAction, readonly string[]> = {
 
 /** The moves the order's current status allows, in the order they are shown. */
 const BY_STATUS: Partial<Record<OrderStatus, readonly OrderAction[]>> = {
-  pending: ["accept", "cancel"],
+  pending: ["accept", "reject", "cancel"],
   confirmed: ["prepare", "cancel"],
   preparing: ["markReady", "cancel"],
   ready_for_dispatch: ["dispatch", "cancel"],
 };
 
 /** A reason is required (and audited) for these. */
-export const REASON_ACTIONS: ReadonlySet<OrderAction> = new Set(["cancel"]);
+export const REASON_ACTIONS: ReadonlySet<OrderAction> = new Set([
+  "reject",
+  "cancel",
+]);
 
 function isPaid(order: Pick<AdminOrder, "payments">): boolean {
   return (order.payments ?? []).some((payment) => payment.status === "paid");

@@ -216,8 +216,6 @@ export function ProductDetail({
             price={pricing.price}
             regularPrice={pricing.regularPrice}
             discountPercent={pricing.discountPercent}
-            pointsPrice={product.points_price}
-            isNegotiable={product.is_negotiable}
           />
 
           <AvailabilityBadge qty={maxQty} />

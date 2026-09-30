@@ -149,9 +149,12 @@ describe('validated product PATCH preserves stored pricing', () => {
     );
     expect(write).toHaveBeenCalledWith({
       where: { id: initialProduct.id },
-      data: { name_en: 'Renamed' },
+      data: { name_en: 'Renamed', search_sync_required: true },
     });
-    expect(stored).toMatchObject({ ...initialProduct, name_en: 'Renamed' });
+    expect(stored).toMatchObject({
+      ...initialProduct,
+      name_en: 'Renamed',
+    });
   });
 
   it('uses the stored price for partial amount discounts and keeps the schedule', async () => {

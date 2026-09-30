@@ -126,6 +126,10 @@ export class ProductWriteDto extends BilingualNameDto {
   category_id!: string;
 
   @IsOptional()
+  @IsUUID()
+  brand_id?: string | null;
+
+  @IsOptional()
   @IsString()
   description?: string | null;
 
@@ -158,25 +162,15 @@ export class ProductWriteDto extends BilingualNameDto {
 
   @IsDefinedIfPresent()
   @IsBoolean()
-  is_negotiable?: boolean;
-
-  @IsOptional()
-  @IsInt({ message: 'IQD floor_price must use whole dinars' })
-  @Min(0)
-  floor_price?: number | null;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  points_price?: number | null;
-
-  @IsDefinedIfPresent()
-  @IsBoolean()
   tracks_expiry?: boolean;
 
   @IsDefinedIfPresent()
   @IsIn(['active', 'hidden', 'archived'])
   status?: 'active' | 'hidden' | 'archived';
+
+  @IsDefinedIfPresent()
+  @IsBoolean()
+  published?: boolean;
 
   @IsDefinedIfPresent()
   @IsArray()

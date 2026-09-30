@@ -1,9 +1,9 @@
 "use client";
 
 import { useFormatter } from "next-intl";
+import { STORE_TIME_ZONE } from "@/lib/store-time";
 
-/** The store's timezone (the contract's Asia/Baghdad; not in /settings yet). */
-export const STORE_TIME_ZONE = "Asia/Baghdad";
+export { STORE_TIME_ZONE };
 
 /** Date and time of an instant, in the store's timezone, Latin digits. */
 export function useStoreDateTime(): (iso: string | null | undefined) => string {

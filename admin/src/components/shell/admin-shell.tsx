@@ -11,11 +11,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  BookOpenText,
+  CalendarCheck,
   ClipboardList,
+  Coins,
   KeyRound,
+  Landmark,
+  Settings,
   LayoutDashboard,
   LogOut,
   Menu,
+  ScrollText,
   Smartphone,
   Users,
   X,
@@ -59,9 +65,15 @@ async function fetchSession(): Promise<SessionResult> {
 const ICONS: Record<NavKey, LucideIcon> = {
   dashboard: LayoutDashboard,
   orders: ClipboardList,
+  currencies: Coins,
+  cashAccounts: Landmark,
+  periods: CalendarCheck,
+  ledger: BookOpenText,
+  settings: Settings,
   staff: Users,
   presets: KeyRound,
   workPhones: Smartphone,
+  audit: ScrollText,
 };
 
 /**

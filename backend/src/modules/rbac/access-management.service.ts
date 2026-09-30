@@ -329,7 +329,7 @@ export class AccessManagementService {
         : { name: direction },
       { id: direction },
     ];
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.permissionPreset.findMany({
         where,
         include: { permissions: { include: { permission: true } } },
@@ -340,6 +340,7 @@ export class AccessManagementService {
         ? this.prisma.permissionPreset.count({ where })
         : Promise.resolve(0),
     ]);
+    const data = rows.map((row) => this.presentPreset(row));
     return paginated ? { page, per_page: perPage, total, data } : data;
   }
 
@@ -366,7 +367,7 @@ export class AccessManagementService {
         after: { name: preset.name, permission_keys: input.permission_keys },
         reason: input.reason,
       });
-      return preset;
+      return this.presentPreset(preset);
     });
   }
 
@@ -441,7 +442,7 @@ export class AccessManagementService {
       return updated;
     });
     for (const user of affected) this.resolver.evictUser(user.user_id);
-    return row;
+    return this.presentPreset(row);
   }
 
   async deletePreset(actorId: string, presetId: string, reason: string) {
@@ -678,6 +679,34 @@ export class AccessManagementService {
       extra_grants: row.permission_grants.map((item) => item.permission.key),
       created_at: row.created_at,
       updated_at: row.updated_at,
+    };
+  }
+
+  private presentPreset(row: {
+    id: string;
+    name: string;
+    description: string | null;
+    is_system: boolean;
+    created_at: Date;
+    updated_at: Date;
+    permissions: Array<{
+      permission: { key: string; group: string; description: string | null };
+    }>;
+  }) {
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      is_system: row.is_system,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      permissions: row.permissions.map((item) => ({
+        permission: {
+          key: item.permission.key,
+          group: item.permission.group,
+          description: item.permission.description,
+        },
+      })),
     };
   }
 }

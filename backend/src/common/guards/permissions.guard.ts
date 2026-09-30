@@ -110,6 +110,17 @@ export class PermissionsGuard implements CanActivate {
         );
       }
     }
+    if (policy.anyPermissions?.length) {
+      const granted = new Set(user.permissions);
+      if (
+        !policy.anyPermissions.some((permission) => granted.has(permission))
+      ) {
+        throw this.forbidden(
+          'PERMISSION_DENIED',
+          'Missing required permission',
+        );
+      }
+    }
     return true;
   }
 

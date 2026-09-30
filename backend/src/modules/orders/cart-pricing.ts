@@ -31,6 +31,31 @@ export function cartUnitPrice(
   return minorUnitsToMoney(minor > 0n ? minor : 0n);
 }
 
+export function skuUnitPrice(
+  product: ProductPricingInput,
+  variant:
+    | {
+        pricing_mode?: string;
+        selling_price?: Decimalish | null;
+        published_price?: Decimalish | null;
+        price_delta?: Decimalish;
+      }
+    | null
+    | undefined,
+  at: Date = new Date(),
+): number {
+  const regular =
+    variant?.pricing_mode === 'linked'
+      ? (variant.published_price ?? product.price)
+      : (variant?.selling_price ??
+        minorUnitsToMoney(
+          moneyToMinorUnits(product.price) +
+            moneyToMinorUnits(variant?.price_delta ?? 0),
+        ));
+  return computeProductPricing({ ...product, price: regular }, at)
+    .effective_price;
+}
+
 export function activeCoupon(
   coupon: CartCoupon | null | undefined,
   at: Date = new Date(),

@@ -11,11 +11,12 @@ import { PrismaService } from '../../database/prisma.service';
 import { ProductsService } from '../catalog/products.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { InventoryService } from '../inventory/inventory.service';
 import { calculateLineTotal } from '../catalog/pricing';
 import {
   activeCoupon,
   calculateCartTotals,
-  cartUnitPrice,
+  skuUnitPrice,
   MAX_CART_ITEM_QUANTITY,
 } from './cart-pricing';
 import {
@@ -73,6 +74,7 @@ export class OrdersService {
     private readonly products: ProductsService,
     private readonly audit: AuditService,
     private readonly notifications?: NotificationsService,
+    private readonly inventory: InventoryService = undefined as unknown as InventoryService,
   ) {}
 
   async place(userId: string, input: PlaceOrderDto, rawKey?: string) {
@@ -132,7 +134,11 @@ export class OrdersService {
       const at = new Date();
       const lines = [];
       for (const item of cart.items) {
-        if (item.quantity < 1 || item.quantity > MAX_CART_ITEM_QUANTITY) {
+        const requestedQuantity = Number(item.quantity);
+        if (
+          requestedQuantity <= 0 ||
+          requestedQuantity > MAX_CART_ITEM_QUANTITY
+        ) {
           throw new ConflictException('Cart quantity is invalid');
         }
         let visible;
@@ -157,61 +163,19 @@ export class OrdersService {
           : null;
         if (item.variant_id && !variant)
           throw new ConflictException('A cart variant is unavailable');
-        const [stock, reserved, held] = await Promise.all([
-          tx.batchStock.findMany({
-            where: {
-              batch: {
-                product_id: item.product_id,
-                variant_id: item.variant_id,
-              },
-            },
-            select: { quantity: true },
-          }),
-          tx.stockReservation.findMany({
-            where: {
-              status: 'reserved',
-              batch: {
-                product_id: item.product_id,
-                variant_id: item.variant_id,
-              },
-            },
-            select: { quantity: true },
-          }),
-          tx.simpleStockHold.findMany({
-            where: {
-              product_id: item.product_id,
-              variant_id: item.variant_id,
-              status: { in: ['held', 'deducted'] },
-            },
-            select: { quantity: true },
-          }),
-        ]);
-        const available =
-          stock.reduce((sum, row) => sum + row.quantity, 0) -
-          reserved.reduce((sum, row) => sum + row.quantity, 0) -
-          held.reduce((sum, row) => sum + row.quantity, 0);
-        const alreadyRequested = lines
-          .filter(
-            (line) =>
-              line.product_id === item.product_id &&
-              line.variant_id === item.variant_id,
-          )
-          .reduce((sum, line) => sum + line.quantity, 0);
-        if (available < alreadyRequested + item.quantity)
+        if (!variant) throw new ConflictException('A cart SKU is unavailable');
+        if (variant.whole_units_only && !Number.isInteger(requestedQuantity)) {
           throw new ConflictException(
-            'Requested quantity exceeds available stock',
+            'This SKU accepts whole-unit quantities only',
           );
-        const unit_price = cartUnitPrice(
-          product,
-          variant?.price_delta ?? 0,
-          at,
-        );
+        }
+        const unit_price = skuUnitPrice(product, variant, at);
         lines.push({
           product_id: product.id,
           variant_id: item.variant_id,
-          quantity: item.quantity,
+          quantity: requestedQuantity,
           unit_price,
-          line_total: calculateLineTotal(unit_price, item.quantity),
+          line_total: calculateLineTotal(unit_price, requestedQuantity),
           product_name_ar: product.name_ar,
           product_name_en: product.name_en,
           image_url: product.images[0]?.url ?? null,
@@ -272,15 +236,7 @@ export class OrdersService {
         where: { id: order.id },
         data: { delivery_id: delivery.id },
       });
-      await tx.simpleStockHold.createMany({
-        data: order.items.map((entry) => ({
-          order_id: order.id,
-          order_item_id: entry.id,
-          product_id: entry.product_id,
-          variant_id: entry.variant_id,
-          quantity: entry.quantity,
-        })),
-      });
+      await this.inventory.allocateOrder(tx, order.id, userId);
       if (coupon)
         await tx.coupon.update({
           where: { id: coupon.id },
@@ -493,7 +449,7 @@ export class OrdersService {
         variant_id: item.variant_id,
         product_name_ar: item.product_name_ar,
         product_name_en: item.product_name_en,
-        quantity: item.quantity,
+        quantity: Number(item.quantity),
         unit_price: Number(item.unit_price),
         line_total: Number(item.line_total),
         currency: item.currency_code,
@@ -586,10 +542,7 @@ export class OrdersService {
           at: now,
         },
       });
-      await tx.simpleStockHold.updateMany({
-        where: { order_id: id, status: 'held' },
-        data: { status: 'released', released_at: now },
-      });
+      await this.inventory.releaseOrder(tx, id, actorId);
       await this.audit.record(tx, {
         actorId,
         action: 'order.reject',
@@ -665,10 +618,13 @@ export class OrdersService {
         after: { status: input.status, note: input.note ?? null },
       });
       if (input.status === 'dispatched' && delivery) {
-        await tx.simpleStockHold.updateMany({
-          where: { order_id: id, status: 'held' },
-          data: { status: 'deducted', deducted_at: now },
-        });
+        await this.inventory.issueOrderToCustody(
+          tx,
+          id,
+          delivery.id,
+          delivery.agent_id!,
+          actorId,
+        );
         await tx.delivery.update({
           where: { id: delivery.id },
           data: { status: 'out_for_delivery', dispatched_at: now },
@@ -714,10 +670,7 @@ export class OrdersService {
     await tx.orderStatusEvent.create({
       data: { order_id: id, status: 'cancelled', note: reason, at: now },
     });
-    await tx.simpleStockHold.updateMany({
-      where: { order_id: id, status: 'held' },
-      data: { status: 'released', released_at: now },
-    });
+    await this.inventory.releaseOrder(tx, id, actorId);
     await this.audit.record(tx, {
       actorId,
       action: 'order.cancel',
@@ -789,7 +742,7 @@ export class OrdersService {
         product_name_ar: item.product_name_ar,
         product_name_en: item.product_name_en,
         image_url: item.image_url,
-        quantity: item.quantity,
+        quantity: Number(item.quantity),
         unit_price: Number(item.unit_price),
         line_total: Number(item.line_total),
         currency: item.currency_code,

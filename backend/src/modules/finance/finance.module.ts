@@ -7,6 +7,7 @@ import {
   CurrencyController,
   DraftsController,
   ExchangeRateController,
+  FinancialDocumentsController,
   LedgerController,
   OperationsController,
 } from './finance.controller';
@@ -16,6 +17,7 @@ import { DocumentNumberService } from './document-number.service';
 import { DraftService } from './draft.service';
 import { LedgerService } from './ledger.service';
 import { OperationService } from './operation.service';
+import { LinkedPricingService } from './linked-pricing.service';
 import { PeriodService } from './period.service';
 
 @Module({
@@ -27,6 +29,7 @@ import { PeriodService } from './period.service';
     LedgerController,
     CashAccountsController,
     CashTransfersController,
+    FinancialDocumentsController,
     AccountingPeriodsController,
   ],
   providers: [
@@ -38,6 +41,13 @@ import { PeriodService } from './period.service';
     OperationService,
     CashAccountService,
     PeriodService,
+    LinkedPricingService,
+  ],
+  exports: [
+    DateRulesService,
+    DocumentNumberService,
+    LedgerService,
+    OperationService,
   ],
 })
 export class FinanceModule {}

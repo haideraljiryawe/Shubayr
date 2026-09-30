@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, History, MapPin, Truck, User } from "lucide-react";
-import { Alert, Badge, Button, Card, Select } from "@/components/ui";
+import { Alert, Badge, Button, Card } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { FormError } from "@/components/forms/form-error";
+import { AgentPicker } from "@/components/orders/agent-picker";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { browserApi, unwrap } from "@/lib/api/client";
@@ -24,12 +25,6 @@ import {
   type OrderAction,
   type OrderStatus,
 } from "@/lib/orders";
-
-export interface AgentOption {
-  id: string;
-  name: string;
-  phone: string;
-}
 
 type Notice =
   | { kind: "conflict"; status: OrderStatus | null }
@@ -48,12 +43,10 @@ export function OrderDetailView({
   order: initial,
   permissions,
   currency,
-  agents,
 }: {
   order: AdminOrder;
   permissions: string[];
   currency: string;
-  agents: AgentOption[] | "forbidden" | null;
 }) {
   const t = useTranslations("orders");
   const locale = useLocale();
@@ -108,7 +101,16 @@ export function OrderDetailView({
   async function perform(action: OrderAction, reason: string) {
     setNotice(null);
     try {
-      const next = REASON_ACTIONS.has(action)
+      // Reject and cancel are different routes and different statuses: a
+      // store's refusal of a pending order is never recorded as a cancel.
+      const next = action === "reject"
+        ? await unwrap(
+            browserApi.POST("/admin/orders/{id}/reject", {
+              params: { path: { id } },
+              body: { reason },
+            }),
+          )
+        : action === "cancel"
         ? await unwrap(
             browserApi.POST("/admin/orders/{id}/cancel", {
               params: { path: { id } },
@@ -352,47 +354,28 @@ export function OrderDetailView({
                   </span>
                 </div>
                 {assignable ? (
-                  agents === "forbidden" ? (
-                    <p className="text-xs text-text-muted" data-testid="assign-cannot-list">
-                      {t("assign.cannotList")}
-                    </p>
-                  ) : agents && agents.length === 0 ? (
-                    <p className="text-xs text-text-muted">{t("assign.noAgents")}</p>
-                  ) : agents ? (
-                    <form
-                      className="flex flex-col gap-2"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void assign();
-                      }}
+                  <form
+                    className="flex flex-col gap-2"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void assign();
+                    }}
+                  >
+                    <span className="text-sm font-semibold">
+                      {agent ? t("assign.reassign") : t("assign.title")}
+                    </span>
+                    <AgentPicker value={agentId} onChange={(picked) => setAgentId(picked?.id ?? "")} />
+                    <FormError kind={assignError} />
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      disabled={!agentId}
+                      pending={assigning}
+                      data-testid="assign-submit"
                     >
-                      <label className="flex flex-col gap-1 text-sm font-semibold">
-                        {agent ? t("assign.reassign") : t("assign.title")}
-                        <Select
-                          value={agentId}
-                          onChange={(event) => setAgentId(event.target.value)}
-                          data-testid="assign-agent"
-                        >
-                          <option value="">{t("assign.pick")}</option>
-                          {agents.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.name} · {option.phone}
-                            </option>
-                          ))}
-                        </Select>
-                      </label>
-                      <FormError kind={assignError} />
-                      <Button
-                        type="submit"
-                        variant="secondary"
-                        disabled={!agentId}
-                        pending={assigning}
-                        data-testid="assign-submit"
-                      >
-                        {t("assign.submit")}
-                      </Button>
-                    </form>
-                  ) : null
+                      {t("assign.submit")}
+                    </Button>
+                  </form>
                 ) : null}
               </>
             ) : (
@@ -405,7 +388,13 @@ export function OrderDetailView({
       <ConfirmDialog
         open={pending !== null}
         title={pending ? t(`confirm.${pending}`) : ""}
-        body={pending === "cancel" ? t("confirm.cancelBody") : undefined}
+        body={
+          pending === "cancel"
+            ? t("confirm.cancelBody")
+            : pending === "reject"
+              ? t("confirm.rejectBody")
+              : undefined
+        }
         confirmLabel={pending ? t(`action.${pending}`) : t("confirm.yes")}
         tone={pending && REASON_ACTIONS.has(pending) ? "danger" : "primary"}
         requireReason={pending !== null && REASON_ACTIONS.has(pending)}

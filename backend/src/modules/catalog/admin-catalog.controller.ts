@@ -16,12 +16,20 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { NonEmptyPatchPipe } from '../../common/http/non-empty-patch.pipe';
 import { CategoriesService } from './categories.service';
+import { BrandsService } from './brands.service';
+import {
+  BrandQueryDto,
+  BrandWriteDto,
+  ConvertCategoryToBrandDto,
+  UpdateBrandDto,
+} from './dto/brand.dto';
 import { CategoryQueryDto, ProductQueryDto } from './dto/catalog-query.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
+import { CatalogSearchService } from './catalog-search.service';
 
 @RequirePermissions('catalog.categories')
 @Controller('admin/categories')
@@ -51,16 +59,71 @@ export class AdminCategoriesController {
   remove(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.categories.remove(id);
   }
+
+  @Post(':id/convert-to-brand')
+  @RequirePermissions('catalog.categories', 'catalog.brands')
+  convertToBrand(
+    @Req() request: Request & { user: AuthenticatedRequestUser },
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() input: ConvertCategoryToBrandDto,
+  ) {
+    return this.categories.convertToBrand(id, input, request.user.id);
+  }
+}
+
+@RequirePermissions('catalog.brands')
+@Controller('admin/brands')
+export class AdminBrandsController {
+  constructor(private readonly brands: BrandsService) {}
+
+  @Get()
+  list(@Query() query: BrandQueryDto) {
+    return this.brands.list(query, true);
+  }
+
+  @Post()
+  create(
+    @Req() request: Request & { user: AuthenticatedRequestUser },
+    @Body() input: BrandWriteDto,
+  ) {
+    return this.brands.create(input, request.user.id);
+  }
+
+  @Patch(':id')
+  update(
+    @Req() request: Request & { user: AuthenticatedRequestUser },
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body(new NonEmptyPatchPipe()) input: UpdateBrandDto,
+  ) {
+    return this.brands.update(id, input, request.user.id);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  remove(
+    @Req() request: Request & { user: AuthenticatedRequestUser },
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.brands.remove(id, request.user.id);
+  }
 }
 
 @RequirePermissions('catalog.products')
 @Controller('admin/products')
 export class AdminProductsController {
-  constructor(private readonly products: ProductsService) {}
+  constructor(
+    private readonly products: ProductsService,
+    private readonly search: CatalogSearchService,
+  ) {}
 
   @Get()
   list(@Query() query: ProductQueryDto) {
     return this.products.listAdmin(query);
+  }
+
+  @Post('reindex')
+  reindex() {
+    return this.search.reindexAll();
   }
 
   @Get(':id')

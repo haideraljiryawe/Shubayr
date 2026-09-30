@@ -287,13 +287,23 @@ try {
 
   async function fixture(userId) {
     const orderId = randomUUID();
+    const orderItemId = randomUUID();
     const deliveryId = randomUUID();
+    const reservationId = randomUUID();
+    const batchId = '70000000-0000-4000-8000-000000000001';
+    const locationId = '90000000-0000-4000-8000-000000000002';
     await db.query('BEGIN');
     try {
       await db.query(
         `INSERT INTO orders (id,user_id,order_number,status,payment_method,subtotal,delivery_fee,discount,total,delivery_contact_phone,delivery_city)
         VALUES ($1,$2,$3,'ready_for_dispatch','cod',10,0,0,10,'+9647700000000','Baghdad')`,
         [orderId, userId, `VERIFY-NOTIFY-${orderId.slice(0, 8)}`],
+      );
+      await db.query(
+        `INSERT INTO order_items
+          (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total)
+         VALUES ($1,$2,'40000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001','Notification fixture','Notification fixture',1,10,10)`,
+        [orderItemId, orderId],
       );
       await db.query(
         "INSERT INTO deliveries (id,order_id,agent_id,status,delivery_fee) VALUES ($1,$2,$3,'assigned',0)",
@@ -303,6 +313,30 @@ try {
         deliveryId,
         orderId,
       ]);
+      await db.query(
+        `UPDATE batch_stock
+         SET reserved=reserved+1
+         WHERE batch_id=$1 AND location_id=$2`,
+        [batchId, locationId],
+      );
+      await db.query(
+        `INSERT INTO stock_reservations
+          (id,order_id,order_item_id,batch_id,location_id,quantity,status)
+         VALUES ($1,$2,$3,$4,$5,1,'reserved')`,
+        [reservationId, orderId, orderItemId, batchId, locationId],
+      );
+      await db.query(
+        `INSERT INTO stock_movements
+          (batch_id,type,from_location,to_location,quantity,reference,source_type,source_id,user_id)
+         VALUES ($1,'reserve',$2,$2,1,$3,'stock_reservation',$4,$5)`,
+        [
+          batchId,
+          locationId,
+          `VERIFY-NOTIFY-${orderId.slice(0, 8)}`,
+          reservationId,
+          agentId,
+        ],
+      );
       await db.query('COMMIT');
     } catch (error) {
       await db.query('ROLLBACK');

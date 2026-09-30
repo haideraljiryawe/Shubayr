@@ -109,6 +109,8 @@ try {
       `${process.env.NODE_OPTIONS ?? ''} --import=./test/openapi-response-validator.mjs`.trim(),
   };
   await run('test/financial-core.acceptance.mjs', [], acceptanceEnv);
+  await run('test/catalog-v2.acceptance.mjs', [], acceptanceEnv);
+  await run('test/inventory-costing.acceptance.mjs', [], acceptanceEnv);
   await run('test/real-data.acceptance.mjs', [], acceptanceEnv);
   await run('test/access-model.acceptance.mjs', [], acceptanceEnv);
   await run('test/backend-followups.acceptance.mjs', [], acceptanceEnv);
@@ -122,6 +124,9 @@ try {
   await run('test/notifications.acceptance.mjs', [], acceptanceEnv);
   await run('test/phase2-monitoring.acceptance.mjs', [], acceptanceEnv);
   await run('test/qa-fixes.acceptance.mjs', [], acceptanceEnv);
+  // Keep inventory lifecycle last: delivered/returned rows are intentionally
+  // immutable and cannot be removed without defeating the database guards.
+  await run('test/inventory-lifecycle.acceptance.mjs', [], acceptanceEnv);
 } finally {
   if (api && api.exitCode === null) {
     api.kill();

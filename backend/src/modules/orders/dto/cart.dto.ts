@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
-  IsInt,
+  IsNumber,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -19,15 +19,15 @@ export class AddCartItemDto {
   @IsUUID()
   variant_id?: string | null;
 
-  @IsInt()
-  @Min(1)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
   @Max(MAX_CART_ITEM_QUANTITY)
   quantity!: number;
 }
 
 export class UpdateCartItemDto {
-  @IsInt()
-  @Min(1)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
   @Max(MAX_CART_ITEM_QUANTITY)
   quantity!: number;
 }

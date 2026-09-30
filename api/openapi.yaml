@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 7.1.0
+  version: 8.2.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -26,6 +26,9 @@ info:
     Amounts are stored exactly and displayed at that currency's configured
     precision (IQD 0, USD 2). The ledger preserves original-currency amount and
     exchange rate while balancing exactly in the configured base currency.
+    Database Decimal values cross the JSON boundary as plain numbers, never as
+    decimal-library internals. Deliberately fixed-scale ledger totals and lines
+    are strings where their schema uses ExactDecimal.
   license:
     name: Proprietary — Shubayr project
     identifier: LicenseRef-Proprietary
@@ -394,6 +397,23 @@ paths:
                 items: { $ref: "#/components/schemas/Category" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  /brands:
+    get:
+      tags: [Catalog]
+      summary: List visible brands
+      security: []
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Visible brands in display order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandPage" }
+        "422": { $ref: "#/components/responses/Validation" }
+
   /banners:
     get:
       tags: [Banners]
@@ -421,6 +441,7 @@ paths:
       parameters:
         - { name: q, in: query, schema: { type: string }, description: search text }
         - { name: category_id, in: query, schema: { type: string, format: uuid }, description: "Category UUID; products remain filtered by category_id, not slug." }
+        - { name: brand_id, in: query, schema: { type: array, items: { type: string, format: uuid } }, style: form, explode: true, description: "One or more brand UUIDs; a comma-separated value is also accepted." }
         - { name: min_price, in: query, schema: { type: number }, description: "Lower bound on effective_price, so an active discount moves a product into range." }
         - { name: max_price, in: query, schema: { type: number }, description: "Upper bound on effective_price, so an active discount moves a product into range." }
         - { name: on_sale, in: query, schema: { type: boolean }, description: "When true, return only products with an ACTIVE discount right now: discount_type is set and the server clock falls inside [discount_starts_at, discount_ends_at] (null bounds are open). Scheduled discounts that have not started, and expired ones, are excluded." }
@@ -469,6 +490,20 @@ paths:
               schema: { $ref: "#/components/schemas/ProductAvailability" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /products/{id}/negotiations:
+    post:
+      tags: [Catalog]
+      summary: Removed negotiation endpoint
+      description: Price negotiation was removed in contract v8 and creation is always refused.
+      security: []
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "410":
+          description: Negotiation has been removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   # ---------------- CART ----------------
   /cart:
     get:
@@ -502,7 +537,7 @@ paths:
               properties:
                 product_id: { type: string, format: uuid }
                 variant_id: { type: [string, "null"], format: uuid }
-                quantity: { type: integer, minimum: 1, maximum: 99 }
+                quantity: { type: number, multipleOf: 0.001, minimum: 0.001, maximum: 99 }
       responses:
         "200":
           description: Updated cart
@@ -535,7 +570,7 @@ paths:
               type: object
               required: [quantity]
               properties:
-                quantity: { type: integer, minimum: 1, maximum: 99 }
+                quantity: { type: number, multipleOf: 0.001, minimum: 0.001, maximum: 99 }
       responses:
         "200":
           description: Updated cart
@@ -1051,7 +1086,7 @@ paths:
                     required: [product_id, quantity, unit_cost]
                     properties:
                       product_id: { type: string, format: uuid }
-                      quantity: { type: integer, minimum: 1 }
+                      quantity: { type: number, multipleOf: 0.001, minimum: 0.001 }
                       unit_cost: { type: number }
                       lot_number: { type: string }
                       expiry_date: { type: [string, "null"], format: date }
@@ -1082,7 +1117,7 @@ paths:
                     properties:
                       po_item_id: { type: string, format: uuid }
                       location_id: { type: string, format: uuid }
-                      quantity: { type: integer }
+                      quantity: { type: number, multipleOf: 0.001 }
       responses:
         "200":
           description: Received — batches + stock movements created
@@ -1141,7 +1176,7 @@ paths:
               properties:
                 batch_id: { type: string, format: uuid }
                 location_id: { type: string, format: uuid }
-                quantity: { type: integer, description: "signed delta" }
+                quantity: { type: number, multipleOf: 0.001, description: "signed delta in the SKU base unit" }
                 reason: { type: string }
       responses:
         "200":
@@ -1166,7 +1201,7 @@ paths:
                 batch_id: { type: string, format: uuid }
                 from_location: { type: string, format: uuid }
                 to_location: { type: string, format: uuid }
-                quantity: { type: integer, minimum: 1 }
+                quantity: { type: number, multipleOf: 0.001, minimum: 0.001 }
       responses:
         "200":
           description: Transfer recorded as a stock movement
@@ -1281,7 +1316,7 @@ paths:
                     required: [order_item_id, quantity, reason]
                     properties:
                       order_item_id: { type: string, format: uuid }
-                      quantity: { type: integer, minimum: 1 }
+                      quantity: { type: number, multipleOf: 0.001, minimum: 0.001 }
                       reason: { type: string, minLength: 1, maxLength: 1000 }
       responses:
         "201":
@@ -1334,7 +1369,7 @@ paths:
                     required: [return_item_id, approved_quantity]
                     properties:
                       return_item_id: { type: string, format: uuid }
-                      approved_quantity: { type: integer, minimum: 0 }
+                      approved_quantity: { type: number, multipleOf: 0.001, minimum: 0 }
                       condition: { type: string, enum: [sellable, opened, damaged] }
       responses:
         "200":
@@ -1897,6 +1932,7 @@ paths:
       parameters:
         - { name: q, in: query, schema: { type: string } }
         - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: brand_id, in: query, schema: { type: array, items: { type: string, format: uuid } }, style: form, explode: true }
         - { name: min_price, in: query, schema: { type: number } }
         - { name: max_price, in: query, schema: { type: number } }
         - { name: on_sale, in: query, schema: { type: boolean } }
@@ -1943,6 +1979,7 @@ paths:
               schema: { $ref: "#/components/schemas/Product" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+
     patch:
       tags: [Admin]
       summary: Update a product
@@ -1975,6 +2012,25 @@ paths:
         "204": { description: Deleted }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/products/reindex:
+    post:
+      tags: [Admin]
+      summary: Reindex all products and clear durable search-sync markers after success
+      x-permission: catalog.products
+      responses:
+        "201":
+          description: Search catch-up result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [queued, synchronized]
+                properties:
+                  queued: { type: integer, minimum: 0 }
+                  synchronized: { type: boolean }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   # ---------------- ADMIN: CATEGORIES CRUD ----------------
   /admin/categories:
@@ -2038,6 +2094,81 @@ paths:
       summary: Delete a category
       description: Deletion is allowed only for a leaf category with no products; otherwise returns 409. Use is_visible=false to hide populated categories.
       x-permission: catalog.categories
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /admin/categories/{id}/convert-to-brand:
+    post:
+      tags: [Admin]
+      summary: Convert a reviewed leaf category to a brand
+      description: Atomically creates the brand, moves the category's products to the selected subcategory, assigns the brand, deletes the source category, and records an audit event.
+      x-permissions: [catalog.categories, catalog.brands]
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CategoryBrandConversionInput" }
+      responses:
+        "201":
+          description: Converted category
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CategoryBrandConversion" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/brands:
+    get:
+      tags: [Admin]
+      summary: Search and list all brands
+      x-permission: catalog.brands
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Paginated brands, content: { application/json: { schema: { $ref: "#/components/schemas/BrandPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Admin]
+      summary: Create a brand
+      x-permission: catalog.brands
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/BrandInput" } } }
+      responses:
+        "201": { description: Created brand, content: { application/json: { schema: { $ref: "#/components/schemas/Brand" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/brands/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update a brand
+      x-permission: catalog.brands
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/BrandPatch" } } }
+      responses:
+        "200": { description: Updated brand, content: { application/json: { schema: { $ref: "#/components/schemas/Brand" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Admin]
+      summary: Delete an unused brand
+      description: A brand assigned to products must be hidden instead of deleted.
+      x-permission: catalog.brands
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
@@ -2453,6 +2584,56 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  /admin/exchange-rates/linked-price-preview:
+    post:
+      tags: [Finance]
+      summary: Preview a pricing rate across every linked SKU
+      description: Returns old/new prices and signed percentage changes plus a short-lived, actor-bound token. No rate or product price is changed.
+      x-surface: admin
+      x-permission: fx_rates.update
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/LinkedPricePreviewInput" } } }
+      responses:
+        "201": { description: Linked-price preview, content: { application/json: { schema: { $ref: "#/components/schemas/LinkedPricePreview" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/exchange-rates/save-rate-only:
+    post:
+      tags: [Finance]
+      summary: Save the previewed rate without publishing linked prices
+      description: Linked SKUs keep their published price and are marked as awaiting this new rate.
+      x-surface: admin
+      x-permission: fx_rates.update
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/LinkedPriceApplyInput" } } }
+      responses:
+        "201": { description: Rate saved, content: { application/json: { schema: { $ref: "#/components/schemas/LinkedPriceApplyResult" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/exchange-rates/publish-linked-prices:
+    post:
+      tags: [Finance]
+      summary: Atomically save a rate and publish one linked-price version
+      description: Refuses an expired or stale preview. Conversion and configured upward rounding occur before product discounts.
+      x-surface: admin
+      x-permissions: [fx_rates.update, prices.publish_linked]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/LinkedPriceApplyInput" } } }
+      responses:
+        "201": { description: Rate and linked prices published, content: { application/json: { schema: { $ref: "#/components/schemas/LinkedPriceApplyResult" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
   /admin/operations/{operationId}:
     get:
       tags: [Finance]
@@ -2535,6 +2716,17 @@ paths:
         "200": { description: Journal page, content: { application/json: { schema: { $ref: "#/components/schemas/JournalEntryPage" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/ledger/entries/{id}:
+    get:
+      tags: [Finance]
+      summary: Read one immutable journal entry with lines and reversal links
+      x-surface: admin
+      x-permission: ledger.view
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Journal entry, content: { application/json: { schema: { $ref: "#/components/schemas/JournalEntry" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /admin/ledger/entries/{id}/reversal:
     post:
       tags: [Finance]
@@ -2664,6 +2856,19 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  /admin/financial-documents/{id}:
+    get:
+      tags: [Finance]
+      summary: Read one posted financial document by id
+      description: Cash transfers and opening balances require either ledger.view or their own cash_accounts.manage permission.
+      x-surface: admin
+      x-permissions-any: [ledger.view, cash_accounts.manage]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Posted financial document, content: { application/json: { schema: { $ref: "#/components/schemas/FinancialDocument" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /admin/accounting-periods:
     get:
       tags: [Finance]
@@ -2707,6 +2912,247 @@ paths:
         "201": { description: Reopened period, content: { application/json: { schema: { $ref: "#/components/schemas/AccountingPeriod" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  # ---------------- ADMIN: INVENTORY & COSTING ----------------
+  /admin/inventory/warehouses:
+    get:
+      tags: [Inventory]
+      summary: List warehouses and locations
+      x-permission: inventory.view
+      responses:
+        "200": { description: Warehouses, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Warehouse" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      summary: Create a warehouse
+      x-permission: inventory.manage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseInput" } } } }
+      responses:
+        "201": { description: Warehouse, content: { application/json: { schema: { $ref: "#/components/schemas/Warehouse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/warehouses/{id}:
+    patch:
+      tags: [Inventory]
+      summary: Rename or deactivate an unused warehouse
+      x-permission: inventory.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehousePatch" } } } }
+      responses:
+        "200": { description: Warehouse, content: { application/json: { schema: { $ref: "#/components/schemas/Warehouse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Inventory]
+      summary: Delete a warehouse that has never been used
+      x-permission: inventory.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/inventory/warehouses/{id}/locations:
+    post:
+      tags: [Inventory]
+      summary: Create a warehouse location without requiring a fixed hierarchy
+      x-permission: inventory.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseLocationInput" } } } }
+      responses:
+        "201": { description: Location, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseLocation" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/locations/{id}:
+    patch:
+      tags: [Inventory]
+      summary: Update or deactivate an unused location
+      x-permission: inventory.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseLocationPatch" } } } }
+      responses:
+        "200": { description: Location, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseLocation" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Inventory]
+      summary: Delete a location that has never been used
+      x-permission: inventory.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/inventory/balances:
+    get:
+      tags: [Inventory]
+      summary: Read lot/location balances and allocatable availability
+      x-permission: inventory.view
+      parameters:
+        - { name: variant_id, in: query, schema: { type: string, format: uuid } }
+        - { name: location_id, in: query, schema: { type: string, format: uuid } }
+        - { name: warehouse_id, in: query, schema: { type: string, format: uuid } }
+        - { name: batch_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Balances, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryBalancePage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/lots:
+    get:
+      tags: [Inventory]
+      summary: List lots; cost fields require cost.view
+      x-permission: inventory.view
+      parameters:
+        - { name: variant_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Lots, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryLotPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/inventory/lots/{id}:
+    get:
+      tags: [Inventory]
+      summary: Read one lot; cost fields require cost.view
+      x-permission: inventory.view
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Lot, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryLot" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/inventory/movements:
+    get:
+      tags: [Inventory]
+      summary: Read the append-only stock movement ledger; costs require cost.view
+      x-permission: inventory.view
+      parameters:
+        - { name: variant_id, in: query, schema: { type: string, format: uuid } }
+        - { name: batch_id, in: query, schema: { type: string, format: uuid } }
+        - { name: location_id, in: query, schema: { type: string, format: uuid } }
+        - { name: custody_party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [receive, reserve, release, issue_to_custody, custody_to_sold, return_in, transfer, adjust, write_down] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Movements, content: { application/json: { schema: { $ref: "#/components/schemas/StockMovementPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/inventory/openings:
+    get:
+      tags: [Inventory]
+      summary: List opening inventory documents; cost fields require cost.view
+      x-permission: inventory.view
+      parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PerPage" }]
+      responses:
+        "200": { description: Opening documents, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryDocumentPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      summary: Post opening inventory and its balanced ledger entry
+      x-permission: inventory.manage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryOpeningInput" } } } }
+      responses:
+        "201": { description: Posted opening, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryOpening" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/transfers:
+    get:
+      tags: [Inventory]
+      summary: List stock transfer documents
+      x-permission: inventory.view
+      parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PerPage" }]
+      responses:
+        "200": { description: Transfer documents, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryDocumentPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      summary: Transfer unreserved stock between locations without changing SKU value
+      x-permission: inventory.transfer
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StockTransferInput" } } } }
+      responses:
+        "201": { description: Posted transfer, content: { application/json: { schema: { $ref: "#/components/schemas/StockTransfer" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/counts:
+    get:
+      tags: [Inventory]
+      summary: List physical count documents
+      x-permission: inventory.view
+      parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PerPage" }]
+      responses:
+        "200": { description: Count documents, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryDocumentPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      summary: Snapshot a scoped physical count draft
+      x-permission: inventory.count
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StockCountInput" } } } }
+      responses:
+        "201": { description: Count draft, content: { application/json: { schema: { $ref: "#/components/schemas/StockCount" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/counts/{id}/approve:
+    post:
+      tags: [Inventory]
+      summary: Approve a count only if its scope has not moved since snapshot
+      x-permission: inventory.adjust
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StockCountApproval" } } } }
+      responses:
+        "201": { description: Approved count, content: { application/json: { schema: { $ref: "#/components/schemas/StockCount" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/write-downs:
+    get:
+      tags: [Inventory]
+      summary: List inventory write-down documents; cost fields require cost.view
+      x-permission: inventory.view
+      parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PerPage" }]
+      responses:
+        "200": { description: Write-down documents, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryDocumentPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      summary: Write down non-sellable stock to inventory loss
+      x-permission: inventory.write_down
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryWriteDownInput" } } } }
+      responses:
+        "201": { description: Posted write-down, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryWriteDown" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/inventory/documents/{type}/{id}:
+    get:
+      tags: [Inventory]
+      summary: Read one inventory document; cost fields require cost.view
+      x-permission: inventory.view
+      parameters:
+        - { name: type, in: path, required: true, schema: { type: string, enum: [opening, transfer, count, write_down] } }
+        - { $ref: "#/components/parameters/PathId" }
+      responses:
+        "200":
+          description: Inventory document
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: "#/components/schemas/InventoryOpening" }
+                  - { $ref: "#/components/schemas/StockTransfer" }
+                  - { $ref: "#/components/schemas/StockCount" }
+                  - { $ref: "#/components/schemas/InventoryWriteDown" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /admin/settings:
     get:
@@ -2789,6 +3235,9 @@ components:
         field: { type: string, example: items.0.quantity }
         code: { type: string, example: min }
         message: { type: string, example: quantity must not be less than 1 }
+        requested: { type: string, description: Exact requested quantity for an inventory conflict. }
+        available: { type: string, description: Exact currently allocatable quantity for an inventory conflict. }
+        variant_id: { type: string, format: uuid, description: SKU involved in an inventory conflict. }
 
     Money:
       type: number
@@ -2950,7 +3399,7 @@ components:
     CategoryCreate:
       type: object
       additionalProperties: false
-      description: Creates a root or child category. Maximum depth is five levels, root depth 0 through depth 4.
+      description: Creates either a root department or one direct child category. A subcategory cannot have children.
       required: [name_en, name_ar]
       properties:
         parent_id: { type: [string, "null"], format: uuid }
@@ -2968,7 +3417,7 @@ components:
       type: object
       additionalProperties: false
       minProperties: 1
-      description: All fields are optional. parent_id null moves to root; a category cannot be its own parent or a descendant of itself, and reparenting cannot make any subtree node deeper than depth 4.
+      description: All fields are optional. parent_id null moves to root; a subcategory cannot have children and a category with children cannot become a child.
       properties:
         parent_id: { type: [string, "null"], format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
@@ -2980,6 +3429,75 @@ components:
         icon_key: { type: [string, "null"], pattern: '^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$', maxLength: 80 }
         sort_order: { type: integer, minimum: 0 }
         is_visible: { type: boolean }
+
+    Brand:
+      type: object
+      additionalProperties: false
+      required: [id, name_en, name_ar, slug, logo_url, is_visible, sort_order, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name_en: { type: string }
+        name_ar: { type: string }
+        slug: { type: string }
+        logo_url: { type: [string, "null"], format: uri }
+        is_visible: { type: boolean }
+        sort_order: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    BrandInput:
+      type: object
+      additionalProperties: false
+      required: [name_en, name_ar, slug]
+      properties:
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*' }
+        slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 140 }
+        logo_url: { type: [string, "null"], format: uri }
+        is_visible: { type: boolean, default: true }
+        sort_order: { type: integer, minimum: 0, default: 0 }
+
+    BrandPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*' }
+        slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 140 }
+        logo_url: { type: [string, "null"], format: uri }
+        is_visible: { type: boolean }
+        sort_order: { type: integer, minimum: 0 }
+
+    BrandPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/Brand" } }
+
+    CategoryBrandConversionInput:
+      type: object
+      additionalProperties: false
+      required: [name_en, name_ar, slug, target_category_id]
+      properties:
+        name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
+        name_ar: { type: string, minLength: 1, pattern: '.*\S.*' }
+        slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 140 }
+        logo_url: { type: [string, "null"], format: uri }
+        is_visible: { type: boolean, default: true }
+        sort_order: { type: integer, minimum: 0, default: 0 }
+        target_category_id: { type: string, format: uuid }
+
+    CategoryBrandConversion:
+      type: object
+      additionalProperties: false
+      required: [brand, moved_products, target_category_id]
+      properties:
+        brand: { $ref: "#/components/schemas/Brand" }
+        moved_products: { type: integer, minimum: 0 }
+        target_category_id: { type: string, format: uuid }
 
     Product:
       type: object
@@ -2998,6 +3516,8 @@ components:
       properties:
         id: { type: string, format: uuid }
         category_id: { type: string, format: uuid }
+        brand_id: { type: [string, "null"], format: uuid }
+        brand: { oneOf: [ { $ref: "#/components/schemas/Brand" }, { type: "null" } ] }
         name_en: { type: string }
         name_ar: { type: string }
         description: { type: [string, "null"] }
@@ -3011,15 +3531,17 @@ components:
         discounted_price: { type: [number, "null"], multipleOf: 1, readOnly: true, description: "Computed in whole IQD when on_sale is true and rounded half away from zero; null when on_sale is false." }
         effective_price: { $ref: "#/components/schemas/Money", readOnly: true, description: "The price the customer pays. Cart and order pricing use this exact value." }
         discount_percent: { type: [integer, "null"], readOnly: true, description: "Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false." }
-        is_negotiable: { type: boolean }
-        floor_price: { type: [number, "null"], multipleOf: 1, description: "Negotiation floor in whole IQD, at most the regular price." }
-        points_price: { type: [integer, "null"], description: "Persisted points cost for future negotiation UI; no customer negotiation endpoint yet." }
         tracks_expiry: { type: boolean }
         rating_avg: { type: number, description: "Cached average of published product reviews only, reconciled transactionally from review rows and rounded to two decimals half away from zero." }
         rating_count: { type: integer, description: "Cached count of published product reviews only; review rows are authoritative." }
         status: { type: string, enum: [active, hidden, archived] }
         in_stock: { type: boolean, description: "computed: available_qty > 0" }
-        available_qty: { type: integer, description: "computed: on-hand minus active batch reservations and temporary COD holds" }
+        availability: { type: string, enum: [out_of_stock, low_stock, in_stock], description: "Best availability state among the product's SKUs." }
+        available_qty: { type: number, multipleOf: 0.001, description: "computed: on-hand minus active batch reservations and temporary COD holds" }
+        published_at: { type: [string, "null"], format: date-time }
+        price_approved_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
         images:
           type: array
           description: Ordered by sort_order; the first image is primary.
@@ -3054,9 +3576,10 @@ components:
 
         * Either timestamp may be sent alone: a null start means the discount is
         active immediately, a null end means it never expires.
-      required: [category_id, name_en, name_ar, price]
+      required: [category_id, name_en, name_ar, price, variants]
       properties:
         category_id: { type: string, format: uuid }
+        brand_id: { type: [string, "null"], format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
         name_ar: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace Arabic name. }
         description: { type: [string, "null"] }
@@ -3065,11 +3588,9 @@ components:
         discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0, description: "Required when discount_type is set, and must be null or omitted otherwise. percentage: at most 100. amount: strictly less than price." }
         discount_starts_at: { type: [string, "null"], format: date-time, description: "Optional window start; null means the discount is active immediately." }
         discount_ends_at: { type: [string, "null"], format: date-time, description: "Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set." }
-        is_negotiable: { type: boolean, default: false, description: "Requires floor_price when true." }
-        floor_price: { type: [number, "null"], multipleOf: 1, minimum: 0, description: "Whole-IQD value that must not exceed price." }
-        points_price: { type: [integer, "null"], minimum: 0, description: "Data-only points cost; negotiation UI is deferred." }
         tracks_expiry: { type: boolean, default: false }
-        status: { type: string, enum: [active, hidden, archived], default: active }
+        status: { type: string, enum: [active, hidden, archived], default: hidden }
+        published: { type: boolean, default: false, description: "Publishing also requires at least one SKU with an approved effective selling price." }
         images:
           type: array
           description: Ordered creation list; array index becomes sort_order and index 0 is primary.
@@ -3081,12 +3602,8 @@ components:
               url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
         variants:
           type: array
-          items:
-            type: object
-            properties:
-              sku: { type: string }
-              attributes: { type: object, additionalProperties: true }
-              price_delta: { type: integer }
+          minItems: 1
+          items: { $ref: "#/components/schemas/ProductVariantInput" }
 
     ProductPatch:
       type: object
@@ -3095,6 +3612,7 @@ components:
       description: All ProductInput fields are optional on PATCH. Omission preserves the stored value. Explicit null clears a nullable field; discount_type null clears discount_type, discount_value, discount_starts_at, and discount_ends_at together.
       properties:
         category_id: { type: string, format: uuid }
+        brand_id: { type: [string, "null"], format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
         name_ar: { type: string, minLength: 1, pattern: '.*\S.*' }
         description: { type: [string, "null"] }
@@ -3103,11 +3621,9 @@ components:
         discount_value: { type: [number, "null"], multipleOf: 0.01, exclusiveMinimum: 0 }
         discount_starts_at: { type: [string, "null"], format: date-time }
         discount_ends_at: { type: [string, "null"], format: date-time }
-        is_negotiable: { type: boolean }
-        floor_price: { type: [number, "null"], multipleOf: 1, minimum: 0, description: "Whole-IQD value that must not exceed the merged regular price." }
-        points_price: { type: [integer, "null"], minimum: 0 }
         tracks_expiry: { type: boolean }
         status: { type: string, enum: [active, hidden, archived] }
+        published: { type: boolean }
         media_operations:
           type: array
           description: Applied atomically in array order; the image at final position 0 is primary.
@@ -3120,14 +3636,24 @@ components:
             an update never reissues variant ids. Omitting a variant removes
             it; removing one still referenced by inventory, cart, purchasing
             or order history is rejected with 422.
-          items:
-            type: object
-            additionalProperties: false
-            properties:
-              id: { type: string, format: uuid, description: "Existing variant to update; omit to match on sku or to add a new variant." }
-              sku: { type: string }
-              attributes: { type: object, additionalProperties: true }
-              price_delta: { type: integer }
+          items: { $ref: "#/components/schemas/ProductVariantInput" }
+
+    ProductVariantInput:
+      type: object
+      additionalProperties: false
+      required: [sku]
+      properties:
+        id: { type: string, format: uuid, description: "Existing SKU identity on update." }
+        sku: { type: string, minLength: 1, maxLength: 80 }
+        attributes: { type: object, additionalProperties: true }
+        price_delta: { type: integer, deprecated: true, description: "Compatibility input; translated to a fixed selling_price override." }
+        base_unit: { type: string, minLength: 1, maxLength: 32, default: piece }
+        whole_units_only: { type: boolean, default: true }
+        selling_price: { type: [integer, "null"], minimum: 0, description: "Fixed-price override; null inherits the product price." }
+        low_stock_threshold: { type: [number, "null"], multipleOf: 0.001, minimum: 0, description: "Null inherits the store default." }
+        pricing_mode: { type: string, enum: [fixed, linked], default: fixed }
+        reference_currency_code: { type: [string, "null"], pattern: '^[A-Z]{3}$' }
+        reference_price: { type: [number, "null"], exclusiveMinimum: 0, multipleOf: 0.000001 }
 
     ProductImage:
       type: object
@@ -3236,6 +3762,24 @@ components:
         attributes: { type: [object, "null"], additionalProperties: true }
         price_delta: { type: integer }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
+        base_unit: { type: string }
+        whole_units_only: { type: boolean }
+        selling_price: { type: [number, "null"], multipleOf: 1, description: "Fixed override; null inherits the product price." }
+        low_stock_threshold: { type: [number, "null"], multipleOf: 0.001 }
+        pricing_mode: { type: string, enum: [fixed, linked] }
+        reference_currency_code: { type: [string, "null"], pattern: '^[A-Z]{3}$' }
+        reference_price: { type: [number, "null"], multipleOf: 0.000001 }
+        published_price: { type: [number, "null"], multipleOf: 1 }
+        price_approved_at: { type: [string, "null"], format: date-time }
+        price_version_id: { type: [string, "null"], format: uuid }
+        awaiting_rate_id: { type: [string, "null"], format: uuid }
+        on_sale: { type: boolean }
+        discounted_price: { type: [number, "null"], multipleOf: 1 }
+        effective_price: { type: number, multipleOf: 1, description: "SKU price after linked conversion or fixed inheritance, then product discount." }
+        discount_percent: { type: [integer, "null"] }
+        available_qty: { type: number, multipleOf: 0.001 }
+        availability: { type: string, enum: [out_of_stock, low_stock, in_stock] }
+        in_stock: { type: boolean }
 
     ProductAvailability:
       type: object
@@ -3243,15 +3787,20 @@ components:
       properties:
         product_id: { type: string, format: uuid }
         in_stock: { type: boolean }
-        available_qty: { type: integer, description: "total sellable across variants" }
+        availability: { type: string, enum: [out_of_stock, low_stock, in_stock] }
+        available_qty: { type: number, multipleOf: 0.001, description: "total sellable across variants" }
         variants:
           type: array
           items:
             type: object
             properties:
-              variant_id: { type: [string, "null"], format: uuid }
+              variant_id: { type: string, format: uuid }
               sku: { type: string }
-              available_qty: { type: integer }
+              base_unit: { type: string }
+              whole_units_only: { type: boolean }
+              low_stock_threshold: { type: number, multipleOf: 0.001 }
+              available_qty: { type: number, multipleOf: 0.001 }
+              availability: { type: string, enum: [out_of_stock, low_stock, in_stock] }
               in_stock: { type: boolean }
 
     ProductPage:
@@ -3263,6 +3812,18 @@ components:
             data:
               type: array
               items: { $ref: "#/components/schemas/Product" }
+            facets:
+              type: object
+              required: [brands]
+              properties:
+                brands:
+                  type: array
+                  items:
+                    type: object
+                    required: [brand_id, count]
+                    properties:
+                      brand_id: { type: string, format: uuid }
+                      count: { type: integer, minimum: 0 }
 
     Cart:
       type: object
@@ -3279,13 +3840,13 @@ components:
             properties:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
-              variant_id: { type: [string, "null"], format: uuid }
-              quantity: { type: integer, minimum: 1, maximum: 99 }
-              unit_price: { $ref: "#/components/schemas/Money", description: "Current server-time effective_price plus the selected variant's price_delta, floored at zero." }
+              variant_id: { type: string, format: uuid }
+              quantity: { type: number, multipleOf: 0.001, minimum: 0.001, maximum: 99 }
+              unit_price: { $ref: "#/components/schemas/Money", description: "Current per-SKU effective price after conversion and product discount." }
               line_total: { $ref: "#/components/schemas/Money" }
               currency: { type: string, pattern: '^[A-Z]{3}$' }
               available: { type: boolean, description: "False when the product is hidden/inactive or available_qty is below quantity. Checkout rejects unavailable lines." }
-              available_qty: { type: integer, minimum: 0 }
+              available_qty: { type: number, multipleOf: 0.001, minimum: 0 }
         subtotal: { $ref: "#/components/schemas/Money" }
         discount: { $ref: "#/components/schemas/Money", description: "Valid coupon discount only; catalog markdown is already in unit_price." }
         delivery_fee: { $ref: "#/components/schemas/Money" }
@@ -3339,11 +3900,11 @@ components:
       properties:
         id: { type: string, format: uuid, description: "order_item_id — reference this from reviews & returns" }
         product_id: { type: string, format: uuid }
-        variant_id: { type: [string, "null"], format: uuid }
+        variant_id: { type: string, format: uuid }
         product_name_ar: { type: string, description: "Arabic product name captured when the order is created." }
         product_name_en: { type: string, description: "English product name captured when the order is created." }
         image_url: { type: [string, "null"], format: uri, description: "Primary product image URL captured when the order is created." }
-        quantity: { type: integer }
+        quantity: { type: number, multipleOf: 0.001 }
         unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order." }
         line_total: { $ref: "#/components/schemas/Money" }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
@@ -3421,6 +3982,7 @@ components:
                   method: { type: string, enum: [cod] }
                   status: { type: string, enum: [pending, paid, refunded, failed] }
                   amount: { $ref: "#/components/schemas/Money" }
+                  currency: { type: string, pattern: '^[A-Z]{3}$' }
                   paid_at: { type: [string, "null"], format: date-time }
             delivery:
               type: [object, "null"]
@@ -3428,6 +3990,7 @@ components:
                 id: { type: string, format: uuid }
                 status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
                 delivery_fee: { $ref: "#/components/schemas/Money" }
+                currency: { type: string, pattern: '^[A-Z]{3}$' }
                 dispatched_at: { type: [string, "null"], format: date-time }
                 delivered_at: { type: [string, "null"], format: date-time }
                 agent:
@@ -3505,7 +4068,7 @@ components:
     MonitorOrderDetail:
       type: object
       description: Intentionally excludes product image fields.
-      required: [id, order_number, status, customer, shipping_snapshot, items, subtotal, delivery_fee, discount, total, payment_method, placed_at]
+      required: [id, order_number, status, customer, shipping_snapshot, items, subtotal, delivery_fee, discount, total, currency, payment_method, placed_at]
       properties:
         id: { type: string, format: uuid }
         order_number: { type: string }
@@ -3531,20 +4094,22 @@ components:
           type: array
           items:
             type: object
-            required: [id, product_id, variant_id, product_name_ar, product_name_en, quantity, unit_price, line_total]
+            required: [id, product_id, variant_id, product_name_ar, product_name_en, quantity, unit_price, line_total, currency]
             properties:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
               variant_id: { type: [string, "null"], format: uuid }
               product_name_ar: { type: string }
               product_name_en: { type: string }
-              quantity: { type: integer }
+              quantity: { type: number, multipleOf: 0.001 }
               unit_price: { $ref: "#/components/schemas/Money" }
               line_total: { $ref: "#/components/schemas/Money" }
+              currency: { type: string, pattern: '^[A-Z]{3}$' }
         subtotal: { $ref: "#/components/schemas/Money" }
         delivery_fee: { $ref: "#/components/schemas/Money" }
         discount: { $ref: "#/components/schemas/Money" }
         total: { $ref: "#/components/schemas/Money" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         payment_method: { type: string, enum: [cod] }
         placed_at: { type: string, format: date-time }
 
@@ -3713,24 +4278,33 @@ components:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
               variant_id: { type: [string, "null"], format: uuid }
-              quantity: { type: integer }
+              quantity: { type: number, multipleOf: 0.001 }
               unit_cost: { type: number }
               lot_number: { type: [string, "null"] }
               expiry_date: { type: [string, "null"], format: date }
 
     InventoryBatch:
       type: object
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         product_id: { type: string, format: uuid }
-        variant_id: { type: [string, "null"], format: uuid }
+        variant_id: { type: string, format: uuid }
         supplier_id: { type: [string, "null"], format: uuid }
         po_item_id: { type: [string, "null"], format: uuid }
         lot_number: { type: [string, "null"] }
-        expiry_date: { type: [string, "null"], format: date }
+        expiry_date: { type: [string, "null"], format: date-time }
         purchase_cost: { type: number }
-        qty_received: { type: integer }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        qty_received: { type: number, multipleOf: 0.001 }
+        landed_cost_share: { type: number, minimum: 0 }
+        source_type: { type: string }
+        source_id: { type: [string, "null"], format: uuid }
         entry_date: { type: string, format: date-time }
+        batch_stock:
+          type: array
+          items: { $ref: "#/components/schemas/LotBalance" }
+        custody: { type: number, multipleOf: 0.001 }
 
     BatchPage:
       allOf:
@@ -3744,20 +4318,33 @@ components:
 
     StockMovementType:
       type: string
-      enum: [purchase, sale, transfer, return_in, reserve, release, adjustment]
+      enum: [receive, reserve, release, issue_to_custody, custody_to_sold, return_in, transfer, adjust, write_down]
 
     StockMovement:
       type: object
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         batch_id: { type: string, format: uuid }
         type: { $ref: "#/components/schemas/StockMovementType" }
         from_location: { type: [string, "null"], format: uuid }
         to_location: { type: [string, "null"], format: uuid }
-        quantity: { type: integer }
+        quantity: { type: number, multipleOf: 0.001 }
         reference: { type: [string, "null"] }
         user_id: { type: [string, "null"], format: uuid }
+        return_item_id: { type: [string, "null"], format: uuid }
+        unit_cost_iqd: { type: number, minimum: 0, description: Present only with cost.view. }
+        source_type: { type: string }
+        source_id: { type: [string, "null"], format: uuid }
+        custody_party_id: { type: [string, "null"], format: uuid }
         created_at: { type: string, format: date-time }
+        batch:
+          type: object
+          additionalProperties: false
+          required: [variant_id, lot_number]
+          properties:
+            variant_id: { type: string, format: uuid }
+            lot_number: { type: [string, "null"] }
 
     StockMovementPage:
       allOf:
@@ -3771,11 +4358,15 @@ components:
 
     Warehouse:
       type: object
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         code: { type: string }
         is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        locations: { type: array, items: { $ref: "#/components/schemas/WarehouseLocation" } }
 
     WarehousePage:
       allOf:
@@ -3789,6 +4380,7 @@ components:
 
     WarehouseLocation:
       type: object
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         warehouse_id: { type: string, format: uuid }
@@ -3796,6 +4388,353 @@ components:
         aisle: { type: [string, "null"] }
         shelf: { type: [string, "null"] }
         bin: { type: [string, "null"] }
+        code: { type: string }
+        description: { type: [string, "null"] }
+        is_sellable: { type: boolean }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    WarehouseInput:
+      type: object
+      additionalProperties: false
+      required: [code, name]
+      properties:
+        code: { type: string, minLength: 2, maxLength: 40 }
+        name: { type: string, minLength: 2, maxLength: 120 }
+
+    WarehousePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        code: { type: string, minLength: 2, maxLength: 40 }
+        name: { type: string, minLength: 2, maxLength: 120 }
+        is_active: { type: boolean }
+
+    WarehouseLocationInput:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 40 }
+        description: { type: string, maxLength: 500 }
+        is_sellable: { type: boolean, default: true }
+
+    WarehouseLocationPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        code: { type: string, minLength: 1, maxLength: 40 }
+        description: { type: string, maxLength: 500 }
+        is_sellable: { type: boolean }
+        is_active: { type: boolean }
+
+    LotBalance:
+      type: object
+      additionalProperties: false
+      required: [id, batch_id, location_id, quantity, reserved, available, location]
+      properties:
+        id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        quantity: { type: number, multipleOf: 0.001 }
+        reserved: { type: number, multipleOf: 0.001 }
+        available: { type: number, multipleOf: 0.001 }
+        location: { $ref: "#/components/schemas/WarehouseLocation" }
+
+    InventoryLot:
+      $ref: "#/components/schemas/InventoryBatch"
+
+    InventoryLotPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/InventoryLot" } }
+
+    InventoryBalance:
+      type: object
+      additionalProperties: false
+      required: [batch_id, location_id, warehouse_id, quantity, reserved, available, custody, variant_id, sku, product_id, lot_number, expiry_date, location_code, is_sellable]
+      properties:
+        batch_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        warehouse_id: { type: string, format: uuid }
+        quantity: { type: number, multipleOf: 0.001 }
+        reserved: { type: number, multipleOf: 0.001 }
+        available: { type: number, multipleOf: 0.001 }
+        custody: { type: number, multipleOf: 0.001 }
+        variant_id: { type: string, format: uuid }
+        sku: { type: string }
+        product_id: { type: string, format: uuid }
+        lot_number: { type: [string, "null"] }
+        expiry_date: { type: [string, "null"], format: date-time }
+        location_code: { type: string }
+        is_sellable: { type: boolean }
+
+    InventoryBalancePage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/InventoryBalance" } }
+
+    InventoryOperationFields:
+      type: object
+      additionalProperties: false
+      required: [operation_id, document_date]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+
+    InventoryOpeningInput:
+      allOf:
+        - $ref: "#/components/schemas/InventoryOperationFields"
+        - type: object
+          required: [lines]
+          properties:
+            lines:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [variant_id, location_id, quantity, unit_cost_iqd]
+                properties:
+                  variant_id: { type: string, format: uuid }
+                  location_id: { type: string, format: uuid }
+                  lot_number: { type: string, maxLength: 80 }
+                  expiry_date: { type: string, format: date }
+                  quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+                  unit_cost_iqd: { type: string, pattern: '^\d+(?:\.\d{1,12})?$' }
+                  landed_cost_share: { type: string, pattern: '^\d+(?:\.\d{1,12})?$' }
+
+    CompactJournalLink:
+      type: object
+      additionalProperties: false
+      required: [id, document_number]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+
+    InventoryOpeningLine:
+      type: object
+      additionalProperties: false
+      required: [id, opening_id, variant_id, location_id, lot_id, quantity, expiry_date]
+      properties:
+        id: { type: string, format: uuid }
+        opening_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        lot_id: { type: string, format: uuid }
+        quantity: { type: number, multipleOf: 0.001 }
+        unit_cost_iqd: { type: number, minimum: 0 }
+        landed_cost_share: { type: number, minimum: 0 }
+        expiry_date: { type: [string, "null"], format: date-time }
+
+    InventoryOpening:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, document_date, accounting_date, status, created_by, journal_entry_id, created_at, posted_at, lines, journal_entry]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        document_date: { type: string, format: date-time }
+        accounting_date: { type: string, format: date-time }
+        status: { type: string, enum: [posted] }
+        created_by: { type: string, format: uuid }
+        journal_entry_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        posted_at: { type: string, format: date-time }
+        lines: { type: array, items: { $ref: "#/components/schemas/InventoryOpeningLine" } }
+        journal_entry: { $ref: "#/components/schemas/CompactJournalLink" }
+
+    StockTransferInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, document_date, reason, lines]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        document_date: { type: string, format: date }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [batch_id, from_location_id, to_location_id, quantity]
+            properties:
+              batch_id: { type: string, format: uuid }
+              from_location_id: { type: string, format: uuid }
+              to_location_id: { type: string, format: uuid }
+              quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+
+    StockTransferLine:
+      type: object
+      additionalProperties: false
+      required: [id, transfer_id, variant_id, batch_id, from_location_id, to_location_id, quantity]
+      properties:
+        id: { type: string, format: uuid }
+        transfer_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        from_location_id: { type: string, format: uuid }
+        to_location_id: { type: string, format: uuid }
+        quantity: { type: number, multipleOf: 0.001 }
+
+    StockTransfer:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, document_date, status, reason, created_by, created_at, posted_at, lines]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        document_date: { type: string, format: date-time }
+        status: { type: string, enum: [posted] }
+        reason: { type: string }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        posted_at: { type: string, format: date-time }
+        lines: { type: array, items: { $ref: "#/components/schemas/StockTransferLine" } }
+
+    StockCountInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        warehouse_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    StockCountApproval:
+      allOf:
+        - $ref: "#/components/schemas/InventoryOperationFields"
+        - type: object
+          required: [lines]
+          properties:
+            lines:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [batch_id, location_id, counted_quantity]
+                properties:
+                  batch_id: { type: string, format: uuid }
+                  location_id: { type: string, format: uuid }
+                  counted_quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+
+    StockCountLine:
+      type: object
+      additionalProperties: false
+      required: [id, count_id, variant_id, batch_id, location_id, system_quantity, counted_quantity, difference]
+      properties:
+        id: { type: string, format: uuid }
+        count_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        system_quantity: { type: number, multipleOf: 0.001 }
+        counted_quantity: { type: number, multipleOf: 0.001 }
+        difference: { type: number, multipleOf: 0.001 }
+
+    StockCount:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, warehouse_id, location_id, variant_id, snapshot_at, status, reason, created_by, approved_by, journal_entry_id, created_at, approved_at, lines, journal_entry]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: [string, "null"] }
+        warehouse_id: { type: [string, "null"], format: uuid }
+        location_id: { type: [string, "null"], format: uuid }
+        variant_id: { type: [string, "null"], format: uuid }
+        snapshot_at: { type: string, format: date-time }
+        status: { type: string, enum: [draft, approved] }
+        reason: { type: string }
+        created_by: { type: string, format: uuid }
+        approved_by: { type: [string, "null"], format: uuid }
+        journal_entry_id: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        approved_at: { type: [string, "null"], format: date-time }
+        lines: { type: array, items: { $ref: "#/components/schemas/StockCountLine" } }
+        journal_entry:
+          oneOf:
+            - { $ref: "#/components/schemas/CompactJournalLink" }
+            - { type: "null" }
+
+    InventoryWriteDownInput:
+      allOf:
+        - $ref: "#/components/schemas/InventoryOperationFields"
+        - type: object
+          required: [reason, lines]
+          properties:
+            reason: { type: string, minLength: 3, maxLength: 500 }
+            lines:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [batch_id, location_id, quantity]
+                properties:
+                  batch_id: { type: string, format: uuid }
+                  location_id: { type: string, format: uuid }
+                  quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+
+    InventoryWriteDownLine:
+      type: object
+      additionalProperties: false
+      required: [id, write_down_id, variant_id, batch_id, location_id, quantity]
+      properties:
+        id: { type: string, format: uuid }
+        write_down_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        location_id: { type: string, format: uuid }
+        quantity: { type: number, multipleOf: 0.001 }
+        unit_cost_iqd: { type: number, minimum: 0 }
+
+    InventoryWriteDown:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, document_date, accounting_date, reason, status, created_by, journal_entry_id, created_at, posted_at, lines, journal_entry]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        document_date: { type: string, format: date-time }
+        accounting_date: { type: string, format: date-time }
+        reason: { type: string }
+        status: { type: string, enum: [posted] }
+        created_by: { type: string, format: uuid }
+        journal_entry_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        posted_at: { type: string, format: date-time }
+        lines: { type: array, items: { $ref: "#/components/schemas/InventoryWriteDownLine" } }
+        journal_entry: { $ref: "#/components/schemas/CompactJournalLink" }
+
+    InventoryDocumentPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                oneOf:
+                  - { $ref: "#/components/schemas/InventoryOpening" }
+                  - { $ref: "#/components/schemas/StockTransfer" }
+                  - { $ref: "#/components/schemas/StockCount" }
+                  - { $ref: "#/components/schemas/InventoryWriteDown" }
 
     WarehouseLocationPage:
       allOf:
@@ -3814,7 +4753,7 @@ components:
         order_item_id: { type: [string, "null"], format: uuid }
         batch_id: { type: string, format: uuid }
         location_id: { type: string, format: uuid }
-        quantity: { type: integer }
+        quantity: { type: number, multipleOf: 0.001 }
         picked: { type: boolean }
 
     PickList:
@@ -3834,8 +4773,8 @@ components:
       properties:
         id: { type: string, format: uuid }
         order_item_id: { type: string, format: uuid }
-        quantity: { type: integer }
-        approved_quantity: { type: integer }
+        quantity: { type: number, multipleOf: 0.001 }
+        approved_quantity: { type: number, multipleOf: 0.001 }
         customer_reason: { type: string }
         unit_price: { $ref: "#/components/schemas/Money", description: Immutable order-line unit price. }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
@@ -4075,16 +5014,21 @@ components:
 
     PermissionPreset:
       type: object
-      required: [id, name, is_system]
+      additionalProperties: false
+      required: [id, name, description, is_system, created_at, updated_at, permissions]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: [string, "null"] }
         is_system: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
         permissions:
           type: array
           items:
             type: object
+            additionalProperties: false
+            required: [permission]
             properties:
               permission: { $ref: "#/components/schemas/Permission" }
 
@@ -4114,7 +5058,7 @@ components:
 
     WorkPhone:
       type: object
-      required: [id, user_id, phone, name, app_role, is_active]
+      required: [id, user_id, phone, name, app_role, is_active, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
@@ -4122,6 +5066,8 @@ components:
         name: { type: string }
         app_role: { type: string, enum: [delivery_agent, order_monitor] }
         is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
     WorkPhoneList:
       allOf:
@@ -4268,6 +5214,8 @@ components:
         logo_url: { type: string }
         primary_color: { type: string }
         currency: { type: string, example: IQD }
+        default_low_stock_threshold: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+        sale_rounding_multiple: { type: string, pattern: '^\d+$', description: "Zero uses base-currency precision; otherwise linked prices round upward to this multiple." }
 
     ExactDecimal:
       oneOf:
@@ -4313,6 +5261,59 @@ components:
         direction: { type: string }
         not_from_today: { type: boolean }
 
+    LinkedPricePreviewInput:
+      type: object
+      additionalProperties: false
+      required: [currency_code, rate, basis, effective_at, reason]
+      properties:
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        rate: { type: number, exclusiveMinimum: 0, multipleOf: 0.0000000001 }
+        basis: { type: integer, enum: [1, 100] }
+        effective_at: { type: string, format: date-time }
+        reason: { type: string, maxLength: 500 }
+
+    LinkedPricePreviewItem:
+      type: object
+      additionalProperties: false
+      required: [variant_id, sku, old_price, new_price, percent_change]
+      properties:
+        variant_id: { type: string, format: uuid }
+        sku: { type: string }
+        old_price: { type: [number, "null"] }
+        new_price: { type: number }
+        percent_change: { type: [number, "null"], description: "Signed percentage; decreases are negative." }
+
+    LinkedPricePreview:
+      type: object
+      additionalProperties: false
+      required: [preview_token, expires_at, currency_code, old_rate, new_rate, linked_sku_count, rounding_multiple, items]
+      properties:
+        preview_token: { type: string, format: uuid }
+        expires_at: { type: string, format: date-time }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        old_rate: { type: [number, "null"] }
+        new_rate: { type: number }
+        linked_sku_count: { type: integer, minimum: 0 }
+        rounding_multiple: { type: number, minimum: 0 }
+        items: { type: array, items: { $ref: "#/components/schemas/LinkedPricePreviewItem" } }
+
+    LinkedPriceApplyInput:
+      type: object
+      additionalProperties: false
+      required: [preview_token]
+      properties:
+        preview_token: { type: string, format: uuid }
+
+    LinkedPriceApplyResult:
+      type: object
+      additionalProperties: false
+      required: [mode, exchange_rate_id, price_version_id, linked_sku_count]
+      properties:
+        mode: { type: string, enum: [rate_only, published] }
+        exchange_rate_id: { type: string, format: uuid }
+        price_version_id: { type: [string, "null"], format: uuid }
+        linked_sku_count: { type: integer, minimum: 0 }
+
     OperationOutcome:
       type: object
       required: [id, user_id, operation_id, endpoint, payload_hash, status, response_status, response, created_at, completed_at]
@@ -4341,6 +5342,7 @@ components:
 
     JournalEntry:
       type: object
+      additionalProperties: false
       required: [id, document_number, source_type, source_id, event, document_date, accounting_date, created_by, posted_at, lines]
       properties:
         id: { type: string, format: uuid }
@@ -4354,19 +5356,49 @@ components:
         created_by: { type: string, format: uuid }
         posted_at: { type: string, format: date-time }
         reverses_id: { type: [string, "null"], format: uuid }
+        reverses: { oneOf: [{ $ref: "#/components/schemas/JournalEntryLink" }, { type: "null" }] }
+        reversals: { type: array, items: { $ref: "#/components/schemas/JournalEntryLink" } }
         lines:
           type: array
           minItems: 2
           items:
             type: object
-            additionalProperties: true
-            required: [debit_base, credit_base, currency_code, original_amount, exchange_rate]
+            additionalProperties: false
+            required: [id, entry_id, account_id, debit_base, credit_base, currency_code, original_amount, exchange_rate, memo, account]
             properties:
+              id: { type: string, format: uuid }
+              entry_id: { type: string, format: uuid }
+              account_id: { type: string, format: uuid }
               debit_base: { $ref: "#/components/schemas/ExactDecimal" }
               credit_base: { $ref: "#/components/schemas/ExactDecimal" }
               currency_code: { type: string, pattern: '^[A-Z]{3}$' }
               original_amount: { $ref: "#/components/schemas/ExactDecimal" }
               exchange_rate: { $ref: "#/components/schemas/ExactDecimal" }
+              memo: { type: [string, "null"] }
+              account: { $ref: "#/components/schemas/LedgerAccount" }
+
+    JournalEntryLink:
+      type: object
+      additionalProperties: false
+      required: [id, document_number]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+
+    LedgerAccount:
+      type: object
+      additionalProperties: false
+      required: [id, code, name_ar, name_en, type, normal_side, is_system, enabled, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name_ar: { type: string }
+        name_en: { type: string }
+        type: { type: string, enum: [asset, liability, equity, income, contra_revenue, expense] }
+        normal_side: { type: string, enum: [debit, credit] }
+        is_system: { type: boolean }
+        enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
 
     JournalEntryPage:
       allOf:
@@ -4398,7 +5430,8 @@ components:
 
     CashAccount:
       type: object
-      required: [id, name, kind, currency_code, ledger_account_id, is_active, balance, base_balance, base_currency_code]
+      additionalProperties: false
+      required: [id, name, kind, currency_code, ledger_account_id, is_active, created_at, updated_at, currency, ledger_account, balance, base_balance, base_currency_code]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -4406,6 +5439,10 @@ components:
         currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         ledger_account_id: { type: string, format: uuid }
         is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        currency: { $ref: "#/components/schemas/Currency" }
+        ledger_account: { $ref: "#/components/schemas/LedgerAccount" }
         balance: { $ref: "#/components/schemas/ExactDecimal" }
         base_balance: { $ref: "#/components/schemas/ExactDecimal" }
         base_currency_code: { type: string, pattern: '^[A-Z]{3}$' }
@@ -4438,22 +5475,53 @@ components:
             amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
             reason: { type: string, minLength: 3, maxLength: 500 }
 
-    FinancialDocument:
+    FinancialDocumentBase:
       type: object
-      required: [id, document_number, currency_code, document_date, accounting_date, created_by, journal_entry_id, created_at]
+      required: [document_type, id, document_number, amount, currency_code, document_date, accounting_date, backdate_reason, created_by, journal_entry_id, created_at]
       properties:
+        document_type: { type: string, enum: [cash_opening_balance, cash_transfer] }
         id: { type: string, format: uuid }
         document_number: { type: string }
-        amount: { $ref: "#/components/schemas/ExactDecimal" }
+        amount: { type: number, minimum: 0 }
         currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         document_date: { type: string, format: date-time }
         accounting_date: { type: string, format: date-time }
+        backdate_reason: { type: [string, "null"] }
         created_by: { type: string, format: uuid }
         journal_entry_id: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
 
+    FinancialDocument:
+      oneOf:
+        - allOf:
+            - $ref: "#/components/schemas/FinancialDocumentBase"
+            - type: object
+              required: [cash_account]
+              properties:
+                document_type: { const: cash_opening_balance }
+                cash_account: { $ref: "#/components/schemas/CashAccountLink" }
+        - allOf:
+            - $ref: "#/components/schemas/FinancialDocumentBase"
+            - type: object
+              required: [reason, from_account, to_account]
+              properties:
+                document_type: { const: cash_transfer }
+                reason: { type: string }
+                from_account: { $ref: "#/components/schemas/CashAccountLink" }
+                to_account: { $ref: "#/components/schemas/CashAccountLink" }
+
+    CashAccountLink:
+      type: object
+      additionalProperties: false
+      required: [id, name, kind]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [cash, bank] }
+
     AccountingPeriod:
       type: object
+      additionalProperties: false
       required: [month, status]
       properties:
         month: { type: string, format: date-time }
@@ -4463,6 +5531,21 @@ components:
         reopened_at: { type: [string, "null"], format: date-time }
         reopened_by: { type: [string, "null"], format: uuid }
         reopen_reason: { type: [string, "null"] }
+        closes: { type: array, description: Sequenced close and re-close history, items: { $ref: "#/components/schemas/PeriodClose" } }
+
+    PeriodClose:
+      type: object
+      additionalProperties: false
+      required: [id, period_month, sequence, snapshot, differences, reason, closed_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        period_month: { type: string, format: date-time }
+        sequence: { type: integer, minimum: 1 }
+        snapshot: { type: array, items: { type: object, additionalProperties: true } }
+        differences: { type: [array, "null"], items: { type: object, additionalProperties: true } }
+        reason: { type: [string, "null"] }
+        closed_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
 
     PeriodChecklist:
       type: object
@@ -4474,18 +5557,68 @@ components:
 
     AdminFinancialSettings:
       type: object
+      additionalProperties: false
       required: [settings, business_hours, closed_days, protection_thresholds]
       properties:
         settings: { type: object, additionalProperties: { type: [string, "null"] } }
-        business_hours: { type: array, items: { type: object, additionalProperties: true } }
-        closed_days: { type: array, items: { type: object, additionalProperties: true } }
-        protection_thresholds: { type: object, additionalProperties: true }
+        business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHours" } }
+        closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDay" } }
+        protection_thresholds: { $ref: "#/components/schemas/ProtectionThresholds" }
 
     AdminFinancialSettingsPatch:
       type: object
       additionalProperties: false
       properties:
         settings: { type: object, additionalProperties: { type: [string, "null"] } }
-        business_hours: { type: array, items: { type: object, additionalProperties: true } }
-        closed_days: { type: array, items: { type: object, additionalProperties: true } }
-        protection_thresholds: { type: object, additionalProperties: { type: integer, minimum: 0, maximum: 100 } }
+        business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHoursInput" } }
+        closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDayInput" } }
+        protection_thresholds: { $ref: "#/components/schemas/ProtectionThresholds" }
+
+    BusinessHours:
+      type: object
+      additionalProperties: false
+      description: Persisted weekday convention is 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday.
+      required: [weekday, opens_at, closes_at, is_closed, updated_at]
+      properties:
+        weekday: { type: integer, minimum: 0, maximum: 6, description: "0=Sunday; 1=Monday; 2=Tuesday; 3=Wednesday; 4=Thursday; 5=Friday; 6=Saturday." }
+        opens_at: { type: [string, "null"], pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$' }
+        closes_at: { type: [string, "null"], pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$' }
+        is_closed: { type: boolean }
+        updated_at: { type: string, format: date-time }
+
+    BusinessHoursInput:
+      type: object
+      additionalProperties: false
+      description: Uses the persisted 0=Sunday through 6=Saturday convention. Closed rows require null times; open rows require HH:MM and opens_at before closes_at.
+      required: [weekday, opens_at, closes_at, is_closed]
+      properties:
+        weekday: { type: integer, minimum: 0, maximum: 6, description: "0=Sunday; 1=Monday; 2=Tuesday; 3=Wednesday; 4=Thursday; 5=Friday; 6=Saturday." }
+        opens_at: { type: [string, "null"], pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$' }
+        closes_at: { type: [string, "null"], pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$' }
+        is_closed: { type: boolean }
+
+    ClosedDay:
+      type: object
+      additionalProperties: false
+      required: [date, reason, created_at]
+      properties:
+        date: { type: string, format: date-time }
+        reason: { type: [string, "null"], maxLength: 255 }
+        created_at: { type: string, format: date-time }
+
+    ClosedDayInput:
+      type: object
+      additionalProperties: false
+      required: [date]
+      properties:
+        date: { type: string, format: date }
+        reason: { type: string, maxLength: 255 }
+
+    ProtectionThresholds:
+      type: object
+      additionalProperties: false
+      properties:
+        cost: { type: number, minimum: 0, maximum: 100, multipleOf: 0.01 }
+        price: { type: number, minimum: 0, maximum: 100, multipleOf: 0.01 }
+        quantity: { type: number, minimum: 0, maximum: 100, multipleOf: 0.01 }
+        exchange_rate: { type: number, minimum: 0, maximum: 100, multipleOf: 0.01 }
