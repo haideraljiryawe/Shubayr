@@ -11,7 +11,8 @@
     "wishlist": "Wishlist",
     "account": "Account",
     "offers": "Offers",
-    "styleGuide": "Style guide"
+    "styleGuide": "Style guide",
+    "brands": "Brands"
   },
   "header": {
     "searchPlaceholder": "Search products, brands and more",
@@ -88,8 +89,6 @@
     "inStock": "In stock",
     "lowStock": "Low stock",
     "outOfStockLabel": "Out of stock",
-    "onlyLeft": "Only {count} left",
-    "negotiable": "Negotiable",
     "pointsPrice": "or {points} points",
     "color": "Colour",
     "size": "Size",
@@ -104,7 +103,6 @@
     "sku": "SKU",
     "category": "Category",
     "availabilitySpec": "Availability",
-    "negotiableSpec": "Negotiable",
     "yes": "Yes",
     "no": "No",
     "reviews": "Reviews",
@@ -124,7 +122,9 @@
     "errorBody": "Something went wrong fetching this product.",
     "retry": "Try again",
     "browse": "Browse products",
-    "chooseOptions": "Choose options"
+    "chooseOptions": "Choose options",
+    "fromPrice": "From",
+    "brand": "Brand"
   },
   "home": {
     "categoriesTitle": "Main categories",
@@ -183,7 +183,36 @@
     "notFound": "Category not found",
     "notFoundBody": "Choose a category to keep exploring.",
     "showing": "Showing {from}–{to} of {total}",
-    "searchDescription": "Find your favorites and discover offers."
+    "searchDescription": "Find your favorites and discover offers.",
+    "brand": "Brand",
+    "brandsTitle": "Brands",
+    "brandsDescription": "Shop by the brands you trust.",
+    "brandsEmpty": "There are no brands available yet.",
+    "brandsLink": "Browse brands",
+    "brandProducts": "{brand} products",
+    "brandCount": "{count, plural, =0 {No products} one {# product} other {# products}}",
+    "selectedBrands": "Selected brands"
+  },
+  "quantity": {
+    "perUnit": "Price per {unit}",
+    "decimalHint": "You can enter a fractional quantity, up to 3 decimals ({unit}).",
+    "units": {
+      "piece": "piece",
+      "kg": "kg",
+      "g": "g",
+      "l": "l",
+      "ml": "ml",
+      "m": "m",
+      "cm": "cm"
+    },
+    "errors": {
+      "required": "Enter a quantity.",
+      "invalid": "Enter a number, using a point for fractions.",
+      "wholeOnly": "This item is sold by the piece — enter a whole number.",
+      "tooManyDecimals": "At most three decimals.",
+      "belowMin": "The quantity must be more than zero.",
+      "aboveMax": "That is more than is available right now."
+    }
   },
   "category": {
     "comingSoonTitle": "Category page coming soon",
@@ -198,7 +227,7 @@
     "remove": "Remove {name} from the cart",
     "removed": "Item removed from the cart",
     "quantityFor": "Quantity — {name}",
-    "maxQty": "Only {count} available",
+    "maxQty": "That is the most available",
     "couponTitle": "Have a discount coupon?",
     "couponLabel": "Coupon code",
     "couponPlaceholder": "Enter your coupon code",
@@ -225,7 +254,7 @@
     "couponRemoved": "Coupon removed",
     "couponRemoveFailed": "Could not remove the coupon, please try again",
     "unavailableLine": "Out of stock — remove it to place your order",
-    "unavailableQty": "Only {count} left — lower the quantity to place your order",
+    "unavailableQty": "More than is available — lower the quantity to place your order",
     "unavailableBanner": "{count, plural, one {One item in your basket is no longer available in the quantity you chose. Adjust or remove it to continue.} other {# items in your basket are no longer available in the quantities you chose. Adjust or remove them to continue.}}"
   },
   "checkout": {

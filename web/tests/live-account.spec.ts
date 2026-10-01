@@ -11,6 +11,11 @@ import {
   tokenFor,
 } from "./live-api";
 
+/** A count as the page prints it: the same digits, thousands grouped or not. */
+function grouped(value: number): RegExp {
+  return new RegExp(`^${String(value).split("").join("[,٬]?")}$`);
+}
+
 /**
  * The account extras, in a browser, against the real API: returns, loyalty,
  * writing reviews, and notification preferences.
@@ -196,7 +201,7 @@ test.describe("live account extras", () => {
 
     // The balance on screen is the server's figure, not a sum of the page.
     await expect(page.getByTestId("points-balance")).toHaveText(
-      String(before.points_balance),
+      grouped(before.points_balance),
     );
     await expect(page.getByTestId("points-ledger")).toBeVisible();
 
@@ -206,7 +211,7 @@ test.describe("live account extras", () => {
     await page.getByTestId("redeem-submit").click();
 
     await expect(page.getByTestId("points-balance")).toHaveText(
-      String(before.points_balance - 1),
+      grouped(before.points_balance - 1),
       { timeout: 15000 },
     );
 

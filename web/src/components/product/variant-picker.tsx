@@ -24,14 +24,14 @@ export function VariantPicker({
   groups,
   variants,
   selection,
-  availableQtyFor,
+  soldOutFor,
   onSelect,
 }: {
   groups: AttributeGroup[];
   variants: ProductVariant[];
   selection: Record<string, string>;
-  /** Stock for the variant a candidate value would produce. */
-  availableQtyFor: (selection: Record<string, string>) => number;
+  /** True when the variant a candidate value would produce is sold out. */
+  soldOutFor: (selection: Record<string, string>) => boolean;
   onSelect: (key: string, value: string) => void;
 }) {
   const t = useTranslations("product");
@@ -62,9 +62,9 @@ export function VariantPicker({
             <div className="flex flex-wrap items-center gap-2.5">
               {group.values.map((value) => {
                 const candidate = { ...selection, [group.key]: value.value };
-                const qty = availableQtyFor(candidate);
                 const soldOut =
-                  qty <= 0 && Boolean(findVariant(variants, candidate));
+                  Boolean(findVariant(variants, candidate)) &&
+                  soldOutFor(candidate);
                 const isSelected = selected === value.value;
                 const label = attributeLabel(
                   variants,

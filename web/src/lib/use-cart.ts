@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { cartItemCount, cartTotals, lineTotal, type CartTotals } from "./cart";
 import { DELIVERY_FEE } from "./config";
 import { cartStore, lineId, type CartLine, type CartState } from "./cart-store";
+import { lineUnits } from "./quantity";
 
 /**
  * Subscribe to the raw store. Reading through useSyncExternalStore — rather
@@ -107,6 +108,8 @@ export function useCart(): CartView {
       unit_price: item.unit_price ?? 0,
       regular_price: known?.regular_price ?? null,
       available_qty: item.available_qty ?? 0,
+      base_unit: known?.base_unit,
+      whole_units_only: known?.whole_units_only,
       quantity: item.quantity ?? 0,
       available: item.available ?? true,
       unresolved: known === undefined,
@@ -117,7 +120,7 @@ export function useCart(): CartView {
   return {
     lines,
     totals: {
-      itemCount: lines.reduce((sum, line) => sum + line.quantity, 0),
+      itemCount: lines.reduce((sum, line) => sum + lineUnits(line.quantity), 0),
       subtotal: server.subtotal ?? 0,
       deliveryFee: server.delivery_fee ?? 0,
       discount: server.discount ?? 0,
@@ -135,7 +138,7 @@ export function useCartCount(): number {
   const state = useCartState();
   return state.server
     ? (state.server.items ?? []).reduce(
-        (sum, item) => sum + (item.quantity ?? 0),
+        (sum, item) => sum + lineUnits(item.quantity ?? 0),
         0,
       )
     : cartItemCount(state.lines.filter((line) => line.quantity > 0));

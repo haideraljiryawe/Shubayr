@@ -1,11 +1,12 @@
 import { getTranslations } from "next-intl/server";
-import { api, type Category, type ProductPage } from "@/lib/api";
+import { X } from "lucide-react";
+import { api, type Brand, type Category, type ProductPage } from "@/lib/api";
 import { listCatalogProducts } from "@/lib/catalog";
 import { catalogHref, type CatalogQuery } from "@/lib/catalog-query";
 import { Link } from "@/i18n/navigation";
 import { localeDirection, type Locale } from "@/i18n/routing";
 import { ProductCard } from "@/components/ui/product-card";
-import { pricingForVariant, primaryImageUrl } from "@/lib/product";
+import { hasPriceRange, pricingForVariant, primaryImageUrl } from "@/lib/product";
 import { buttonClasses } from "@/components/ui/button";
 import { DesktopFilters, MobileFilters, SortControl } from "./filters";
 import { CatalogEmpty, CatalogError } from "./states";
@@ -29,8 +30,13 @@ export async function ProductListing({
 }) {
   const t = await getTranslations("catalog");
   let result: ProductPage;
+  let brands: Brand[];
   try {
-    result = await listCatalogProducts(query);
+    [result, brands] = await Promise.all([
+      listCatalogProducts(query),
+      // The brand filter degrades to absent, never to a broken page.
+      api.listBrands().catch(() => []),
+    ]);
   } catch {
     return <CatalogError />;
   }
@@ -49,7 +55,11 @@ export async function ProductListing({
   ]
     .filter((page) => page >= 1 && page <= pages)
     .sort((a, b) => a - b);
-  const filters = { basePath, query, categories, category };
+  const facets = result.facets?.brands ?? [];
+  const filters = { basePath, query, categories, category, brands, facets };
+  const selectedBrands = (query.brand_id ?? [])
+    .map((id) => brands.find((brand) => brand.id === id))
+    .filter((brand): brand is Brand => Boolean(brand));
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -85,6 +95,30 @@ export async function ProductListing({
                 {t("onSale")}
               </span>
             )}
+            {selectedBrands.length > 0 && (
+              <ul
+                aria-label={t("selectedBrands")}
+                className="flex w-full flex-wrap gap-2"
+                data-testid="selected-brands"
+              >
+                {selectedBrands.map((brand) => (
+                  <li key={brand.id}>
+                    <Link
+                      href={catalogHref(basePath, query, {
+                        page: 1,
+                        brand_id: (query.brand_id ?? []).filter(
+                          (id) => id !== brand.id,
+                        ),
+                      })}
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-primary bg-surface px-3 text-xs font-semibold text-primary-dark"
+                    >
+                      {locale === "ar" ? brand.name_ar : brand.name_en}
+                      <X className="size-3.5" aria-hidden />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           {result.data.length === 0 ? (
             <CatalogEmpty resetHref={basePath} />
@@ -103,6 +137,7 @@ export async function ProductListing({
                         ""
                       }
                       {...pricingForVariant(product)}
+                      priceFrom={hasPriceRange(product)}
                       requiresVariant={(product.variants ?? []).length > 0}
                       rating={product.rating_avg}
                       reviewCount={counts[index]}

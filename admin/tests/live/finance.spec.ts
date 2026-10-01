@@ -139,13 +139,22 @@ test("a rate entered per 100 saves as the per-1 value; zero and negative are ref
 
   await rate.fill("١٤٥٠٠٠");
   await expect(page.getByTestId("rate-preview-per1")).toHaveText("1 USD = 1,450 IQD");
+  // A rate change is previewed first (its effect on linked prices), then
+  // saved by an explicit choice — here the rate alone.
+  const priorLatest = (await api(request, "GET", "/admin/exchange-rates?currency_code=USD")).body[0]?.id;
   await page.getByTestId("rate-submit").click();
+  await expect(page.getByTestId("linked-preview")).toBeVisible();
+  expect(posts).toBe(1);
+  // A preview records nothing.
+  expect((await api(request, "GET", "/admin/exchange-rates?currency_code=USD")).body[0]?.id).toBe(priorLatest);
+  await page.getByTestId("rate-save-only").click();
+  await expect(page.getByTestId("linked-preview")).toHaveCount(0);
   await expect(page.getByTestId("rate-row").first()).toBeVisible();
   const latest = await api(request, "GET", "/admin/exchange-rates?currency_code=USD");
   expect(Number(latest.body[0].rate)).toBe(1450);
   expect(latest.body[0].reason).toBe("Market quote per 100 USD");
   await expect(page.getByTestId("rate-row").first()).toContainText("1 USD = 1,450 IQD");
-  expect(posts).toBe(1);
+  expect(posts).toBe(2);
 });
 
 test("a transfer double-submit produces ONE document", async ({ page, request }) => {

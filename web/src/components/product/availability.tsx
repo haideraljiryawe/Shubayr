@@ -1,23 +1,23 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { CheckCircle2, TriangleAlert, XCircle } from "lucide-react";
-import type { Locale } from "@/i18n/routing";
 import { cn } from "@/lib/cn";
-import { formatCount } from "@/lib/format";
-import { stockLevel } from "@/lib/product";
+import type { StockLevel } from "@/lib/product";
 
-/** «متوفر / كمية محدودة / نفد» plus the remaining count when it is low. */
+/**
+ * «متوفر في المخزون / مخزون منخفض / غير متوفر في المخزون» — the label the API
+ * computed for the selected SKU. Never a count: low stock never blocks a sale
+ * while stock remains, and how much is left is not the shopper's concern.
+ */
 export function AvailabilityBadge({
-  qty,
+  level,
   className,
 }: {
-  qty: number;
+  level: StockLevel;
   className?: string;
 }) {
   const t = useTranslations("product");
-  const locale = useLocale() as Locale;
-  const level = stockLevel(qty);
 
   const config = {
     in_stock: { Icon: CheckCircle2, label: t("inStock"), tone: "text-success-dark" },
@@ -28,14 +28,13 @@ export function AvailabilityBadge({
   const { Icon, label, tone } = config;
 
   return (
-    <p className={cn("flex items-center gap-1.5 text-sm font-medium", tone, className)}>
+    <p
+      data-testid="availability"
+      data-level={level}
+      className={cn("flex items-center gap-1.5 text-sm font-medium", tone, className)}
+    >
       <Icon className="size-4 shrink-0" aria-hidden />
       {label}
-      {level === "low_stock" ? (
-        <span className="text-text-muted">
-          — {t("onlyLeft", { count: formatCount(qty, locale) })}
-        </span>
-      ) : null}
     </p>
   );
 }

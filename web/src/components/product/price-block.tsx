@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Coins, Handshake } from "lucide-react";
+import { Coins } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Locale } from "@/i18n/routing";
 import { useTheme } from "@/components/providers/theme-provider";
@@ -9,9 +9,8 @@ import { cn } from "@/lib/cn";
 import { formatCount, formatDiscount, formatPrice } from "@/lib/format";
 
 /**
- * What the shopper pays, the struck-through regular price, the discount badge,
- * and the two optional signals the contract carries: `points_price` and
- * `is_negotiable`.
+ * What the shopper pays, the struck-through regular price, the discount badge
+ * and an optional points price.
  *
  * `regularPrice` and `discountPercent` are passed only when the backend reports
  * the product as on sale; both come straight from the contract's computed
@@ -26,14 +25,12 @@ export function PriceBlock({
   regularPrice,
   discountPercent,
   pointsPrice,
-  isNegotiable,
   className,
 }: {
   price: number;
   regularPrice?: number | null;
   discountPercent?: number | null;
   pointsPrice?: number | null;
-  isNegotiable?: boolean;
   className?: string;
 }) {
   const t = useTranslations("product");
@@ -66,22 +63,12 @@ export function PriceBlock({
         ) : null}
       </div>
 
-      {pointsPrice || isNegotiable ? (
+      {pointsPrice ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-muted">
-          {pointsPrice ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Coins className="size-4 text-accent" aria-hidden />
-              {t("pointsPrice", { points: formatCount(pointsPrice, locale) })}
-            </span>
-          ) : null}
-
-          {isNegotiable ? (
-            // Indicator only — negotiation UI is not part of this phase.
-            <span className="inline-flex items-center gap-1.5">
-              <Handshake className="size-4 text-primary-dark" aria-hidden />
-              {t("negotiable")}
-            </span>
-          ) : null}
+          <span className="inline-flex items-center gap-1.5">
+            <Coins className="size-4 text-accent" aria-hidden />
+            {t("pointsPrice", { points: formatCount(pointsPrice, locale) })}
+          </span>
         </div>
       ) : null}
     </div>

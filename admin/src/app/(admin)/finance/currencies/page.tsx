@@ -28,12 +28,14 @@ export default async function CurrenciesPage() {
   const permissions = me.ok ? (me.data.permissions ?? []) : [];
 
   // Who set each rate: the rate carries only a user id; the audit log has
-  // the name, for staff allowed to read it.
+  // the name, for staff allowed to read it. A rate is recorded directly
+  // (exchange_rate.create) or through the linked-price flow as "rate only"
+  // (exchange_rate.save_only); both are audited against the rate itself.
   const authors: Record<string, string> = {};
   if (permissions.includes("audit.view")) {
     const audit = await load(
       api.GET("/admin/audit-logs", {
-        params: { query: { entity_type: "exchange_rate", action: "exchange_rate.create", per_page: 100 } },
+        params: { query: { entity_type: "exchange_rate", per_page: 100 } },
       }),
     );
     if (audit.ok) {
@@ -52,6 +54,7 @@ export default async function CurrenciesPage() {
         authors={authors}
         canToggle={permissions.includes("settings.manage")}
         canRate={permissions.includes("fx_rates.update")}
+        canPublish={permissions.includes("prices.publish_linked")}
       />
     </>
   );

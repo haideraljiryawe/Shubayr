@@ -24,9 +24,14 @@ import { toWorkPhoneRow } from "@/lib/work-phones";
 describe("visibleNav", () => {
   it("shows only what the current permissions open", () => {
     expect(visibleNav([]).map((item) => item.key)).toEqual(["dashboard"]);
+    // Catalog v2: each catalog screen follows its own permission.
     expect(visibleNav(["catalog.products"]).map((item) => item.key)).toEqual([
       "dashboard",
+      "products",
     ]);
+    expect(
+      visibleNav(["catalog.categories", "catalog.brands"]).map((item) => item.key),
+    ).toEqual(["dashboard", "categories", "brands"]);
     expect(visibleNav(["users.manage"]).map((item) => item.key)).toEqual([
       "dashboard",
       "staff",
@@ -57,6 +62,9 @@ describe("visibleNav", () => {
         "users.manage",
         "roles.manage",
         "orders.view",
+        "catalog.products",
+        "catalog.categories",
+        "catalog.brands",
         "ledger.view",
         "cash_accounts.manage",
         "settings.manage",

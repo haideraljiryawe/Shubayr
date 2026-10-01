@@ -30,6 +30,7 @@ export default defineConfig({
         : [
           "**/catalog.spec.ts",
           "**/catalog-data.spec.ts",
+          "**/catalog-v2.spec.ts",
           "**/product.spec.ts",
           "**/cart.spec.ts",
           "**/checkout.spec.ts",

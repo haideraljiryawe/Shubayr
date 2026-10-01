@@ -9,6 +9,9 @@
 export type NavKey =
   | "dashboard"
   | "orders"
+  | "products"
+  | "categories"
+  | "brands"
   | "currencies"
   | "cashAccounts"
   | "periods"
@@ -29,6 +32,10 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", href: "/", requires: [] },
   { key: "orders", href: "/orders", requires: ["orders.view"] },
+  // Catalog v2 (API 8.0).
+  { key: "products", href: "/catalog/products", requires: ["catalog.products"] },
+  { key: "categories", href: "/catalog/categories", requires: ["catalog.categories"] },
+  { key: "brands", href: "/catalog/brands", requires: ["catalog.brands"] },
   // Financial core (API 7.0).
   { key: "currencies", href: "/finance/currencies", requires: ["ledger.view"] },
   { key: "cashAccounts", href: "/finance/cash-accounts", requires: ["cash_accounts.manage"] },

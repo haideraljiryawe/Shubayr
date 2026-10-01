@@ -42,6 +42,8 @@ export interface ProductCardProps {
   regularPrice?: number | null;
   /** Backend-computed percentage off; null unless the product is on sale. */
   discountPercent?: number | null;
+  /** True when the product's SKUs differ in price: `price` is the lowest. */
+  priceFrom?: boolean;
   rating?: number;
   reviewCount?: number;
   imageUrl?: string | null;
@@ -75,6 +77,7 @@ export function ProductCard({
   price,
   regularPrice,
   discountPercent,
+  priceFrom = false,
   rating,
   reviewCount,
   imageUrl,
@@ -173,7 +176,14 @@ export function ProductCard({
         </h3>
 
         {variant === "default" ? (
-          <Price amount={price} regularPrice={regularPrice ?? null} />
+          <span className="inline-flex flex-wrap items-baseline gap-1">
+            {priceFrom ? (
+              <span className="text-xs text-text-muted" data-testid="price-from">
+                {tp("fromPrice")}
+              </span>
+            ) : null}
+            <Price amount={price} regularPrice={regularPrice ?? null} />
+          </span>
         ) : null}
 
         {typeof rating === "number" ? (
@@ -181,11 +191,14 @@ export function ProductCard({
         ) : null}
 
         {variant === "catalog" ? (
-          <Price
-            amount={price}
-            regularPrice={regularPrice ?? null}
-            className="mt-auto pt-1"
-          />
+          <span className="mt-auto inline-flex flex-wrap items-baseline gap-1 pt-1">
+            {priceFrom ? (
+              <span className="text-xs text-text-muted" data-testid="price-from">
+                {tp("fromPrice")}
+              </span>
+            ) : null}
+            <Price amount={price} regularPrice={regularPrice ?? null} />
+          </span>
         ) : (
           requiresVariant ? (
           <Link
