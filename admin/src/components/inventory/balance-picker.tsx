@@ -56,9 +56,12 @@ export function BalancePicker({
   const request = [page, warehouseId, locationId, variantId].join("|");
   const [loaded, setLoaded] = useState<{ request: string; rows: Balance[]; total: number; error: ErrorKind | null } | null>(null);
   const pending = loaded?.request !== request;
-  const rows = loaded?.rows ?? [];
-  const total = loaded?.total ?? 0;
-  const error = loaded?.error ?? null;
+  // Only rows answering the current filters: a stale page from the previous
+  // filter must never be offered while the new one is loading.
+  const current = pending ? null : loaded;
+  const rows = current?.rows ?? [];
+  const total = current?.total ?? loaded?.total ?? 0;
+  const error = current?.error ?? null;
 
   useEffect(() => {
     let cancelled = false;

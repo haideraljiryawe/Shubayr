@@ -17,7 +17,7 @@ import type { components } from "@/types/api";
 type Entry = components["schemas"]["JournalEntry"];
 type EntryPage = components["schemas"]["JournalEntryPage"];
 
-/** The source types that post today (API 8.2), for the filter. */
+/** The source types that post today (API 9.0), for the filter. */
 const SOURCE_TYPES = [
   "cash_opening_balance",
   "cash_transfer",
@@ -25,6 +25,12 @@ const SOURCE_TYPES = [
   "inventory_opening",
   "stock_count",
   "inventory_write_down",
+  "purchase_invoice",
+  "supplier_payment",
+  "supplier_return",
+  "supplier_opening_balance",
+  "late_landed_cost",
+  "cost_correction",
 ] as const;
 
 function entriesHref(filters: Record<string, string>): string {

@@ -89,11 +89,13 @@ const SOURCE_DOCUMENTS: Record<string, DocumentType> = {
 
 export type SourceLink =
   | { kind: "document"; type: DocumentType; href: string }
+  | { kind: "purchase"; href: string }
   | { kind: "order"; href: string }
   | { kind: "none" };
 
 /**
- * Where a movement (or lot) came from. Documents link to their page; an
+ * Where a movement (or lot) came from. Documents link to their page (a
+ * purchase invoice to the purchasing screens); an
  * order movement (issue to custody, sale) links to the order; a reservation
  * carries the order NUMBER as its reference, so it links to the orders list
  * searched by it. Returns and anything newer have no admin page yet.
@@ -101,6 +103,9 @@ export type SourceLink =
 export function sourceLink(row: { source_type: string; source_id?: string | null; reference?: string | null }): SourceLink {
   const type = SOURCE_DOCUMENTS[row.source_type];
   if (type && row.source_id) return { kind: "document", type, href: documentHref(type, row.source_id) };
+  if (row.source_type === "purchase_invoice" && row.source_id) {
+    return { kind: "purchase", href: `/purchasing/invoices/${encodeURIComponent(row.source_id)}` };
+  }
   if (row.source_type === "order" && row.source_id) {
     return { kind: "order", href: `/orders/${encodeURIComponent(row.source_id)}` };
   }

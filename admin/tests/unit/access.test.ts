@@ -59,7 +59,10 @@ describe("visibleNav", () => {
     ]);
     expect(visibleNav(["suppliers.view"]).map((item) => item.key)).toEqual([
       "dashboard",
+      "suppliers",
       "purchasing",
+      "supplierPayments",
+      "payables",
     ]);
     expect(
       visibleNav([
