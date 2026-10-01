@@ -162,7 +162,8 @@
       "openings": "Opening stock documents: new lots with their cost and journal entry.",
       "transfers": "Move unreserved stock between locations, keeping each lot's identity.",
       "counts": "Physical counts: snapshot a scope, enter what was counted, approve the differences.",
-      "writeDowns": "Write damaged or expired stock down to inventory loss."
+      "writeDowns": "Write damaged or expired stock down to inventory loss.",
+      "purchasing": "Suppliers, purchase receipts, landed costs, returns and payable balances."
     },
     "comingTitle": "Coming next",
     "comingBody": "Orders, catalog, stock and accounting arrive with the next backend phases.",
