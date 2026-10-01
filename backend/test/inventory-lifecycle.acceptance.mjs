@@ -332,6 +332,124 @@ try {
     'sellable return restores stock at the original issue cost',
   );
 
+  const closedShopper = await customer('+9647700992003');
+  await request('/cart/items', {
+    token: closedShopper.token,
+    method: 'POST',
+    body: { product_id: cost.product_id, variant_id: cost.id, quantity: 1 },
+  });
+  const closedOrder = await request('/orders', {
+    token: closedShopper.token,
+    method: 'POST',
+    expected: 201,
+    headers: { 'Idempotency-Key': `closed-period-${Date.now()}` },
+    body: { address_id: closedShopper.address, payment_method: 'cod' },
+  });
+  for (const status of ['confirmed', 'preparing', 'ready_for_dispatch']) {
+    await request(`/admin/orders/${closedOrder.id}/status`, {
+      token: admin,
+      method: 'PATCH',
+      body: { status },
+    });
+  }
+  const closedDeliveryId = await scalar(
+    'SELECT delivery_id::text AS value FROM orders WHERE id=$1',
+    [closedOrder.id],
+  );
+  await request(`/deliveries/${closedDeliveryId}/assign`, {
+    token: admin,
+    method: 'PATCH',
+    body: { agent_id: agent.user.id },
+  });
+  const beforeClosedDispatch = (
+    await db.query(
+      `SELECT
+         o.status AS order_status,
+         d.status AS delivery_status,
+         (SELECT count(*)::int FROM stock_reservations r WHERE r.order_id=o.id AND r.status='reserved') AS reservations,
+         (SELECT count(*)::int FROM custody_holdings h WHERE h.order_id=o.id) AS custody_rows,
+         (SELECT count(*)::int FROM stock_movements m WHERE m.source_type='order' AND m.source_id=o.id AND m.type='issue_to_custody') AS issue_rows,
+         (SELECT count(*)::int FROM journal_entries j WHERE j.source_type='order' AND j.source_id=o.id) AS journal_rows
+       FROM orders o
+       JOIN deliveries d ON d.id=o.delivery_id
+       WHERE o.id=$1`,
+      [closedOrder.id],
+    )
+  ).rows[0];
+  const currentPeriod = await scalar(
+    "SELECT to_char(date_trunc('month', now() AT TIME ZONE 'Asia/Baghdad'), 'YYYY-MM') AS value",
+  );
+  await db.query(
+    `INSERT INTO accounting_periods (month, status, closed_at)
+     VALUES (date_trunc('month', now() AT TIME ZONE 'Asia/Baghdad')::date, 'closed', now())
+     ON CONFLICT (month) DO UPDATE SET status='closed', closed_at=now()`,
+  );
+  const closedError = await request(
+    `/admin/orders/${closedOrder.id}/status`,
+    {
+      token: admin,
+      method: 'PATCH',
+      expected: 409,
+      body: { status: 'dispatched' },
+    },
+  );
+  check(closedError.code, 'PERIOD_CLOSED', 'dispatch declares PERIOD_CLOSED');
+  check(
+    closedError.period,
+    currentPeriod,
+    'closed-period response identifies the Baghdad accounting period',
+  );
+  const afterClosedDispatch = (
+    await db.query(
+      `SELECT
+         o.status AS order_status,
+         d.status AS delivery_status,
+         (SELECT count(*)::int FROM stock_reservations r WHERE r.order_id=o.id AND r.status='reserved') AS reservations,
+         (SELECT count(*)::int FROM custody_holdings h WHERE h.order_id=o.id) AS custody_rows,
+         (SELECT count(*)::int FROM stock_movements m WHERE m.source_type='order' AND m.source_id=o.id AND m.type='issue_to_custody') AS issue_rows,
+         (SELECT count(*)::int FROM journal_entries j WHERE j.source_type='order' AND j.source_id=o.id) AS journal_rows
+       FROM orders o
+       JOIN deliveries d ON d.id=o.delivery_id
+       WHERE o.id=$1`,
+      [closedOrder.id],
+    )
+  ).rows[0];
+  check(
+    afterClosedDispatch,
+    beforeClosedDispatch,
+    'closed-period dispatch rolls back order, delivery, stock, custody and ledger writes',
+  );
+
+  const reversibleEntry = await scalar(
+    "SELECT id::text AS value FROM journal_entries WHERE reverses_id IS NULL ORDER BY posted_at LIMIT 1",
+  );
+  const reversalsBefore = Number(
+    await scalar(
+      'SELECT count(*)::int AS value FROM journal_entries WHERE reverses_id=$1',
+      [reversibleEntry],
+    ),
+  );
+  const reversalError = await request(
+    `/admin/ledger/entries/${reversibleEntry}/reversal`,
+    {
+      token: admin,
+      method: 'POST',
+      expected: 409,
+      body: { reason: 'Closed period acceptance check' },
+    },
+  );
+  check(reversalError.code, 'PERIOD_CLOSED', 'reversal declares PERIOD_CLOSED');
+  check(
+    Number(
+      await scalar(
+        'SELECT count(*)::int AS value FROM journal_entries WHERE reverses_id=$1',
+        [reversibleEntry],
+      ),
+    ),
+    reversalsBefore,
+    'closed-period reversal creates no journal entry',
+  );
+
   console.log(
     `Inventory lifecycle acceptance passed (${assertions} assertions).`,
   );

@@ -203,6 +203,15 @@ describe("operations — posting exactly once", () => {
 
   it("recognises the closed-period refusal", () => {
     expect(isClosedPeriod(new ApiError(409, "The accounting period is closed"))).toBe(true);
+    expect(
+      isClosedPeriod(
+        new ApiError(
+          409,
+          "Accounting period 2026-09 is closed",
+          "PERIOD_CLOSED",
+        ),
+      ),
+    ).toBe(true);
     expect(isClosedPeriod(new ApiError(409, "Cash account is inactive"))).toBe(false);
   });
 });

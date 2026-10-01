@@ -1379,7 +1379,7 @@ paths:
               schema: { $ref: "#/components/schemas/Return" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /returns/{id}/complete:
     post:
@@ -1501,7 +1501,7 @@ paths:
               schema: { $ref: "#/components/schemas/Delivery" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /deliveries/{id}/assign:
     patch:
@@ -1858,7 +1858,7 @@ paths:
               schema: { $ref: "#/components/schemas/AdminOrder" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/orders/{id}/cancel:
     post:
@@ -2739,7 +2739,7 @@ paths:
         "201": { description: Reversal entry, content: { application/json: { schema: { $ref: "#/components/schemas/JournalEntry" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/ledger/trial-balance:
     get:
@@ -2840,7 +2840,7 @@ paths:
         "201": { description: Posted opening balance, content: { application/json: { schema: { $ref: "#/components/schemas/FinancialDocument" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/cash-transfers:
     post:
@@ -2853,7 +2853,7 @@ paths:
         "201": { description: Posted transfer, content: { application/json: { schema: { $ref: "#/components/schemas/FinancialDocument" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
   /admin/financial-documents/{id}:
@@ -3061,7 +3061,7 @@ paths:
       responses:
         "201": { description: Posted opening, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryOpening" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/inventory/transfers:
     get:
@@ -3111,7 +3111,7 @@ paths:
         "201": { description: Approved count, content: { application/json: { schema: { $ref: "#/components/schemas/StockCount" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/inventory/write-downs:
     get:
@@ -3130,7 +3130,7 @@ paths:
       responses:
         "201": { description: Posted write-down, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryWriteDown" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/inventory/documents/{type}/{id}:
     get:
@@ -3210,6 +3210,14 @@ components:
     Unauthorized: { description: Missing/invalid token (`UNAUTHORIZED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     NotFound: { description: Not found (`NOT_FOUND`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Conflict: { description: State conflict (`CONFLICT`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    PostingConflict:
+      description: State conflict (`CONFLICT`) or a closed accounting period (`PERIOD_CLOSED`)
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - { $ref: "#/components/schemas/Error" }
+              - { $ref: "#/components/schemas/PeriodClosedError" }
     Validation: { description: "Invalid request data (`VALIDATION_FAILED`, HTTP 422)", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     RateLimited: { description: Too many requests (`RATE_LIMITED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Forbidden: { description: Missing permission (`FORBIDDEN`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
@@ -3226,6 +3234,17 @@ components:
           type: array
           description: Empty for non-validation errors.
           items: { $ref: "#/components/schemas/FieldError" }
+
+    PeriodClosedError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message, errors, period]
+      properties:
+        status: { type: integer, enum: [409] }
+        code: { type: string, enum: [PERIOD_CLOSED] }
+        message: { type: string }
+        errors: { type: array, maxItems: 0, items: { $ref: "#/components/schemas/FieldError" } }
+        period: { type: string, pattern: '^\d{4}-\d{2}$', example: "2026-11" }
 
     FieldError:
       type: object

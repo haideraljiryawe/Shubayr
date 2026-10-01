@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { businessDate } from './business-date';
+import { DateRulesService } from './date-rules.service';
 import { DocumentNumberService } from './document-number.service';
 import { LedgerQueryDto } from './dto/finance.dto';
 
@@ -36,6 +38,7 @@ export class LedgerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly numbers: DocumentNumberService,
+    private readonly dates: DateRulesService,
   ) {}
 
   async post(tx: Prisma.TransactionClient, input: PostingInput) {
@@ -50,6 +53,11 @@ export class LedgerService {
       include: { lines: { include: { account: true } } },
     });
     if (existing) return this.presentEntry(existing);
+    const period = input.accountingDate.toISOString().slice(0, 7);
+    await tx.$queryRaw<Array<{ locked: string }>>(
+      Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`period:${period}`}))::text AS locked`,
+    );
+    await this.dates.assertOpen(tx, input.accountingDate);
     if (input.lines.length < 2) {
       throw new UnprocessableEntityException(
         'A journal entry requires at least two lines',
@@ -160,12 +168,13 @@ export class LedgerService {
         include: { lines: { include: { account: true } } },
       });
       if (existing) return this.presentEntry(existing);
+      const reversalDate = businessDate();
       return this.post(tx, {
         sourceType: 'journal_reversal',
         sourceId: original.id,
         event: 'reversal',
-        documentDate: new Date(),
-        accountingDate: new Date(),
+        documentDate: reversalDate,
+        accountingDate: reversalDate,
         createdBy: actorId,
         description: reason,
         reversesId: original.id,

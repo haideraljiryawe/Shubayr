@@ -53,6 +53,7 @@ export function isClosedPeriod(error: unknown): boolean {
   return (
     error instanceof ApiError &&
     error.status === 409 &&
-    /accounting period is closed/i.test(error.message)
+    (error.code === "PERIOD_CLOSED" ||
+      /accounting period(?: \d{4}-\d{2})? is closed/i.test(error.message))
   );
 }

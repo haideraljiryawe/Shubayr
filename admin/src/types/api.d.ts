@@ -2781,7 +2781,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -2967,7 +2967,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -3769,7 +3769,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -5774,7 +5774,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -6061,7 +6061,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -6105,7 +6105,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -6801,7 +6801,7 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -6980,7 +6980,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -7047,7 +7047,7 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -7173,6 +7173,16 @@ export interface components {
             message: string;
             /** @description Empty for non-validation errors. */
             errors: components["schemas"]["FieldError"][];
+        };
+        PeriodClosedError: {
+            /** @enum {integer} */
+            status: 409;
+            /** @enum {string} */
+            code: "PERIOD_CLOSED";
+            message: string;
+            errors: components["schemas"]["FieldError"][];
+            /** @example 2026-11 */
+            period: string;
         };
         FieldError: {
             /** @example items.0.quantity */
@@ -9335,6 +9345,15 @@ export interface components {
             };
             content: {
                 "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description State conflict (`CONFLICT`) or a closed accounting period (`PERIOD_CLOSED`) */
+        PostingConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"] | components["schemas"]["PeriodClosedError"];
             };
         };
         /** @description Invalid request data (`VALIDATION_FAILED`, HTTP 422) */

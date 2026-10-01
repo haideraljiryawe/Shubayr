@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { businessDate } from '../finance/business-date';
 import { DateRulesService } from '../finance/date-rules.service';
 import { DocumentNumberService } from '../finance/document-number.service';
 import { LedgerService } from '../finance/ledger.service';
@@ -1142,6 +1143,7 @@ export class InventoryService {
     partyId: string,
     actorId: string,
   ) {
+    const postingDate = businessDate();
     const reservations = await tx.stockReservation.findMany({
       where: { order_id: orderId, status: 'reserved' },
       include: { batch: true },
@@ -1211,8 +1213,8 @@ export class InventoryService {
         sourceType: 'order',
         sourceId: orderId,
         event: 'issue_to_custody',
-        documentDate: new Date(),
-        accountingDate: new Date(),
+        documentDate: postingDate,
+        accountingDate: postingDate,
         createdBy: actorId,
         description: 'Inventory issued to delivery custody',
         lines: this.posting('1010', '1000', total),
@@ -1220,6 +1222,7 @@ export class InventoryService {
   }
 
   async settleCustodyToSold(tx: Tx, orderId: string, actorId: string) {
+    const postingDate = businessDate();
     const holdings = await tx.custodyHolding.findMany({
       where: { order_id: orderId, status: 'in_custody' },
       orderBy: { id: 'asc' },
@@ -1251,8 +1254,8 @@ export class InventoryService {
         sourceType: 'order',
         sourceId: orderId,
         event: 'custody_to_sold',
-        documentDate: new Date(),
-        accountingDate: new Date(),
+        documentDate: postingDate,
+        accountingDate: postingDate,
         createdBy: actorId,
         description: 'Delivered inventory cost of goods sold',
         lines: this.posting('5000', '1010', total),
@@ -1267,6 +1270,7 @@ export class InventoryService {
     quantity: number,
     actorId: string,
   ): Promise<string> {
+    const postingDate = businessDate();
     const origins = await tx.custodyHolding.findMany({
       where: { order_item_id: orderItemId, status: 'sold' },
       include: { batch: true },
@@ -1344,8 +1348,8 @@ export class InventoryService {
         sourceType: 'return',
         sourceId: returnId,
         event: `restock:${returnItemId}`,
-        documentDate: new Date(),
-        accountingDate: new Date(),
+        documentDate: postingDate,
+        accountingDate: postingDate,
         createdBy: actorId,
         description: 'Returned goods restored at original issue cost',
         lines: this.posting('1000', '5000', returnedValue),
