@@ -70,7 +70,7 @@ test("an out-of-stock variant blocks the CTA", async ({ page }) => {
   // The grey variant is seeded with qty 0.
   await (await swatches(page)).nth(2).click();
 
-  await expect(page.getByText("نفد من المخزون").first()).toBeVisible();
+  await expect(page.getByText("غير متوفر في المخزون").first()).toBeVisible();
   await expect(addToCartCta(page)).toBeDisabled();
 });
 
@@ -84,7 +84,7 @@ test("quantity is capped at the selected variant's stock", async ({ page }) => {
     if (await increase.isDisabled()) break;
     await increase.click();
   }
-  await expect(page.getByLabel("الكمية", { exact: true })).toHaveText("4");
+  await expect(page.getByLabel("الكمية", { exact: true })).toHaveValue("4");
 });
 
 test("add to cart confirms with a toast", async ({ page }) => {

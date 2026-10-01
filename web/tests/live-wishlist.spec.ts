@@ -175,9 +175,12 @@ test.describe("live wishlist", () => {
     const amounts = tile.locator("span:has(> .line-through) > span");
     await expect(amounts.first()).toContainText(String(SENTINEL));
     // The struck regular price is the server's `price`, also untouched.
-    await expect(tile.locator(".line-through")).toContainText(
-      String(Math.trunc(row.product.price)),
-    );
+    // Compared digit for digit: the price is rendered grouped ("20,150 د.ع").
+    await expect
+      .poll(async () =>
+        (await tile.locator(".line-through").innerText()).replace(/\D/g, ""),
+      )
+      .toBe(String(Math.trunc(row.product.price)));
   });
 
   test("adding twice never duplicates, from the API or the page", async ({

@@ -6,16 +6,18 @@ import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, Package, Trash2 } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
 import { Price } from "@/components/ui/price";
-import { QuantityStepper } from "@/components/ui/quantity-stepper";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { lineName } from "@/lib/cart";
+import { minQuantity, quantityRule } from "@/lib/quantity";
 import type { CartViewLine } from "@/lib/use-cart";
 
 /**
  * One row of the «سلة المشتريات» screen: thumbnail, name, variant, unit price
- * with its discount, a quantity stepper capped at the stock we were told about,
- * and the remove control.
+ * with its discount, a quantity field in the SKU's unit (whole pieces, or up
+ * to three decimals by weight or volume) capped at the stock we were told
+ * about, and the remove control. The cap is enforced, never printed.
  *
  * A line the server marks unavailable — hidden product, or stock that fell
  * below the chosen quantity — says so on the row itself and offers the two
@@ -36,8 +38,12 @@ export function CartRow({
   const [imageFailed, setImageFailed] = useState(false);
 
   const name = lineName(line, locale);
-  const max = Math.max(1, line.available_qty);
-  const atCap = line.quantity >= line.available_qty;
+  const rule = quantityRule({
+    base_unit: line.base_unit,
+    whole_units_only: line.whole_units_only,
+  });
+  const max = Math.max(minQuantity(rule), line.available_qty);
+  const atCap = line.quantity + 1 > line.available_qty;
   const unavailable = !line.available;
 
   return (
@@ -92,7 +98,7 @@ export function CartRow({
               >
                 <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden />
                 {line.available_qty > 0
-                  ? t("unavailableQty", { count: line.available_qty })
+                  ? t("unavailableQty")
                   : t("unavailableLine")}
               </p>
             ) : null}
@@ -116,20 +122,20 @@ export function CartRow({
             aria-label={t("quantityFor", { name })}
             className="flex flex-col gap-1"
           >
-            <QuantityStepper
+            <QuantityInput
               value={line.quantity}
-              min={1}
+              rule={rule}
               max={max}
               onValueChange={(next) => onQuantityChange(line.id, next)}
             />
-            {atCap ? (
+            {atCap && !unavailable ? (
               // Explains why «+» stopped responding rather than leaving the
-              // shopper to guess. `dir=ltr` keeps the digit beside its label.
+              // shopper to guess — without saying how much stock is left.
               <span
                 className="text-xs text-text-muted"
                 data-testid="cart-max-qty"
               >
-                {t("maxQty", { count: line.available_qty })}
+                {t("maxQty")}
               </span>
             ) : null}
           </div>

@@ -10,7 +10,7 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api, type Product } from "@/lib/api";
 import { cartStore } from "@/lib/cart-store";
-import { pricingForVariant, primaryImageUrl } from "@/lib/product";
+import { hasPriceRange, pricingForVariant, primaryImageUrl } from "@/lib/product";
 import { useWishlist } from "@/lib/use-wishlist";
 import { wishlistStore } from "@/lib/wishlist-store";
 import { AccountEmpty, AccountError, AccountSkeleton } from "./states";
@@ -172,6 +172,7 @@ export function WishlistGrid() {
                 nameEn={product.name_en ?? ""}
                 availableQty={product.available_qty}
                 {...pricingForVariant(product)}
+                priceFrom={hasPriceRange(product)}
                 requiresVariant={(product.variants ?? []).length > 0}
                 rating={product.rating_avg}
                 imageUrl={primaryImageUrl(product)}

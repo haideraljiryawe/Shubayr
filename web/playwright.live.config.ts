@@ -31,6 +31,7 @@ export default defineConfig({
   testDir: "./tests",
   testMatch: [
     "**/live-funnel.spec.ts",
+    "**/live-catalog-v2.spec.ts",
     "**/live-checkout.spec.ts",
     "**/live-account.spec.ts",
     "**/live-wishlist.spec.ts",

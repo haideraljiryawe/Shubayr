@@ -5,8 +5,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { SlidersHorizontal, X } from "lucide-react";
 import { Link, getPathname } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import type { Category } from "@/lib/api";
-import type { CatalogQuery } from "@/lib/catalog-query";
+import type { Brand, Category } from "@/lib/api";
+import type { BrandFacet } from "@/lib/catalog";
+import { queryEntries, type CatalogQuery } from "@/lib/catalog-query";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/components/providers/theme-provider";
@@ -16,17 +17,46 @@ interface FilterProps {
   query: CatalogQuery;
   categories: Category[];
   category?: Category;
+  /** Visible brands, in the admin's display order. */
+  brands?: Brand[];
+  /** Per-brand counts for the current filters, the brand filter excepted. */
+  facets?: BrandFacet[];
+}
+
+/**
+ * The brands worth offering: any with a product under the other filters, plus
+ * any already chosen (so a choice that now matches nothing can still be
+ * cleared). Hidden brands are not in `brands` and never appear.
+ */
+export function brandOptions(
+  brands: Brand[],
+  facets: BrandFacet[],
+  selected: readonly string[],
+): Array<{ brand: Brand; count: number }> {
+  const counts = new Map(facets.map((facet) => [facet.brand_id, facet.count]));
+  return brands
+    .map((brand) => ({ brand, count: counts.get(brand.id) ?? 0 }))
+    .filter(({ brand, count }) => count > 0 || selected.includes(brand.id));
 }
 
 const selectClass =
   "min-h-11 w-full min-w-0 rounded-md border border-border bg-surface px-3 text-sm text-text";
 
-function FiltersForm({ basePath, query, categories, category }: FilterProps) {
+function FiltersForm({
+  basePath,
+  query,
+  categories,
+  category,
+  brands = [],
+  facets = [],
+}: FilterProps) {
   const t = useTranslations("catalog");
   const locale = useLocale() as Locale;
   const { currency } = useTheme();
   const formId = useId();
   const options = category ? (category.children ?? []) : categories;
+  const selectedBrands = query.brand_id ?? [];
+  const brandChoices = brandOptions(brands, facets, selectedBrands);
   return (
     <form
       action={getPathname({ locale, href: basePath })}
@@ -92,6 +122,38 @@ function FiltersForm({ basePath, query, categories, category }: FilterProps) {
           ))}
         </select>
       </label>
+      {brandChoices.length > 0 && (
+        <fieldset className="space-y-2" data-testid="brand-filter">
+          <legend className="mb-3 text-sm font-bold">{t("brand")}</legend>
+          {brandChoices.map(({ brand, count }) => (
+            <label
+              key={brand.id}
+              className="flex min-h-9 cursor-pointer items-center gap-3 text-sm"
+            >
+              <input
+                name="brand_id"
+                value={brand.id}
+                type="checkbox"
+                defaultChecked={selectedBrands.includes(brand.id)}
+                data-testid={`brand-option-${brand.slug}`}
+                className="size-5 shrink-0 accent-primary-dark"
+              />
+              <span className="min-w-0 flex-1">
+                {locale === "ar" ? brand.name_ar : brand.name_en}
+              </span>
+              <bdi
+                dir="ltr"
+                className="text-xs text-text-muted"
+                data-testid={`brand-count-${brand.slug}`}
+              >
+                {new Intl.NumberFormat(locale === "ar" ? "ar-IQ" : "en-US", {
+                  numberingSystem: "latn",
+                }).format(count)}
+              </bdi>
+            </label>
+          ))}
+        </fieldset>
+      )}
       {options.length > 0 && (
         <label
           className="block space-y-3 text-sm font-bold"
@@ -257,13 +319,15 @@ export function SortControl({
       action={getPathname({ locale, href: basePath })}
       className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none"
     >
-      {Object.entries(query)
-        .filter(
-          ([key, value]) =>
-            key !== "sort" && key !== "page" && value !== undefined,
-        )
+      {queryEntries(query)
+        .filter(([key]) => key !== "sort" && key !== "page")
         .map(([key, value]) => (
-          <input key={key} type="hidden" name={key} value={String(value)} />
+          <input
+            key={`${key}=${value}`}
+            type="hidden"
+            name={key}
+            value={value}
+          />
         ))}
       <label htmlFor={id} className="sr-only">
         {t("sort")}
