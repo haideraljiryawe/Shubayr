@@ -44,6 +44,8 @@ const state: {
   usdSupplier?: { id: string; name: string };
   usdCash?: string;
   products: Record<string, { id: string; variant: string; sku: string; name: string }>;
+  /** The first invoice (SKUs A and B), for the return of unreserved stock. */
+  firstInvoiceId?: string;
 } = { products: {} };
 
 async function api(request: APIRequestContext, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, data?: unknown, token?: string) {
@@ -194,6 +196,7 @@ test("suppliers: create through the UI, then the invoice screen converts packs a
   await expect(page.getByTestId("invoice-total-iqd")).toHaveText("200,000 IQD");
 
   const id = await postInvoice(page);
+  state.firstInvoiceId = id;
   // Read-only, with the stored conversion and links to the lots it created.
   await expect(page.getByTestId("invoice-detail")).toBeVisible();
   const row = page.locator(`[data-testid="invoice-line-row"][data-sku="${a.sku}"]`);
@@ -383,8 +386,7 @@ test("a return is blocked on reserved quantity and allowed for the rest", async 
 
   // An unreserved lot can go back, valued at its cost, reducing what is owed.
   const a = state.products.A!;
-  const first = (await api(request, "GET", `/admin/purchase-invoices?supplier_id=${state.iqdSupplier!.id}&per_page=100`)).body.data.at(-1);
-  await page.goto(`/purchasing/returns/new?invoice_id=${first.id}`);
+  await page.goto(`/purchasing/returns/new?invoice_id=${state.firstInvoiceId}`);
   const aRow = page.locator(`[data-testid="return-row"][data-sku="${a.sku}"]`);
   await aRow.getByTestId("return-quantity").fill("2");
   await expect(page.getByTestId("return-value-iqd")).toHaveText("11,111 IQD");
