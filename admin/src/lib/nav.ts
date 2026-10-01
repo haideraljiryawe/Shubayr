@@ -19,6 +19,7 @@ export type NavKey =
   | "transfers"
   | "counts"
   | "writeDowns"
+  | "purchasing"
   | "currencies"
   | "cashAccounts"
   | "periods"
@@ -52,6 +53,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "transfers", href: "/inventory/transfers", requires: ["inventory.view"] },
   { key: "counts", href: "/inventory/counts", requires: ["inventory.view"] },
   { key: "writeDowns", href: "/inventory/write-downs", requires: ["inventory.view"] },
+  { key: "purchasing", href: "/purchasing", requires: ["suppliers.view"] },
   // Financial core (API 7.0).
   { key: "currencies", href: "/finance/currencies", requires: ["ledger.view"] },
   { key: "cashAccounts", href: "/finance/cash-accounts", requires: ["cash_accounts.manage"] },

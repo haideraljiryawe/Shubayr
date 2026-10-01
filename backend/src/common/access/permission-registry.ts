@@ -17,6 +17,21 @@ export const PERMISSION_REGISTRY = {
   'suppliers.manage': ['purchasing', 'Manage suppliers'],
   'purchases.create': ['purchasing', 'Create purchase invoices'],
   'purchases.correct': ['purchasing', 'Correct purchase invoices'],
+  'purchases.override_rate': ['purchasing', 'Override purchase exchange rates'],
+  'supplier_openings.record': [
+    'purchasing',
+    'Record supplier opening balances',
+  ],
+  'supplier_payments.record': [
+    'purchasing',
+    'Record and allocate supplier payments',
+  ],
+  'supplier_payments.reverse': ['purchasing', 'Reverse supplier payments'],
+  'supplier_credits.allocate': ['purchasing', 'Allocate supplier credits'],
+  'supplier_returns.create': [
+    'purchasing',
+    'Return purchased stock to suppliers',
+  ],
   'payments.record': ['payments', 'Record payments'],
   'payments.reverse': ['payments', 'Reverse payments'],
   'inventory.count': ['inventory', 'Count inventory'],

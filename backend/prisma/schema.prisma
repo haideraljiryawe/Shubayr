@@ -115,25 +115,30 @@ model LedgerAccount {
 }
 
 model JournalEntry {
-  id                String               @id(map: "journal_entries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  document_number   String               @unique(map: "journal_entries_document_number_key") @db.VarChar(40)
-  source_type       String               @db.VarChar(60)
-  source_id         String               @db.Uuid
-  event             String               @db.VarChar(60)
-  document_date     DateTime             @db.Date
-  accounting_date   DateTime             @db.Date
-  description       String?              @db.VarChar(500)
-  created_by        String               @db.Uuid
-  posted_at         DateTime             @default(now()) @db.Timestamptz(6)
-  reverses_id       String?              @unique(map: "journal_entries_reverses_id_key") @db.Uuid
-  reverses          JournalEntry?        @relation("JournalReversals", fields: [reverses_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "journal_entries_reverses_id_fkey")
-  reversals         JournalEntry[]       @relation("JournalReversals")
+  id                String                  @id(map: "journal_entries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number   String                  @unique(map: "journal_entries_document_number_key") @db.VarChar(40)
+  source_type       String                  @db.VarChar(60)
+  source_id         String                  @db.Uuid
+  event             String                  @db.VarChar(60)
+  document_date     DateTime                @db.Date
+  accounting_date   DateTime                @db.Date
+  description       String?                 @db.VarChar(500)
+  created_by        String                  @db.Uuid
+  posted_at         DateTime                @default(now()) @db.Timestamptz(6)
+  reverses_id       String?                 @unique(map: "journal_entries_reverses_id_key") @db.Uuid
+  reverses          JournalEntry?           @relation("JournalReversals", fields: [reverses_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "journal_entries_reverses_id_fkey")
+  reversals         JournalEntry[]          @relation("JournalReversals")
   lines             JournalLine[]
   cash_transfers    CashTransfer[]
   opening_balances  CashOpeningBalance[]
   inventory_opening InventoryOpening?
   stock_count       StockCount?
   write_down        InventoryWriteDown?
+  purchase_invoice  PurchaseInvoice?
+  supplier_opening  SupplierOpeningBalance?
+  supplier_payment  SupplierPayment?
+  supplier_return   SupplierReturn?
+  cost_correction   PurchaseCostCorrection?
 
   @@unique([source_type, source_id, event], map: "journal_entries_source_event_key")
   @@index([accounting_date, id], map: "idx_journal_entries_accounting_date")
@@ -173,6 +178,7 @@ model CashAccount {
   transfers_from    CashTransfer[]       @relation("CashTransferFrom")
   transfers_to      CashTransfer[]       @relation("CashTransferTo")
   opening_balances  CashOpeningBalance[]
+  supplier_payments SupplierPayment[]
 
   @@map("cash_accounts")
 }
@@ -331,6 +337,10 @@ model User {
   stock_movements             StockMovement[]                 @relation("StockMovementUser")
   custody_stock_movements     StockMovement[]                 @relation("StockMovementCustodyParty")
   inventory_openings          InventoryOpening[]              @relation("InventoryOpeningCreator")
+  supplier_opening_balances   SupplierOpeningBalance[]        @relation("SupplierOpeningBalanceCreator")
+  supplier_payments           SupplierPayment[]               @relation("SupplierPaymentCreator")
+  supplier_returns            SupplierReturn[]                @relation("SupplierReturnCreator")
+  purchase_cost_corrections   PurchaseCostCorrection[]        @relation("PurchaseCostCorrectionCreator")
   stock_transfers             StockTransfer[]                 @relation("StockTransferCreator")
   stock_counts                StockCount[]                    @relation("StockCountCreator")
   approved_stock_counts       StockCount[]                    @relation("StockCountApprover")
@@ -778,54 +788,350 @@ model ProductImage {
 }
 
 model Supplier {
-  id                String            @id(map: "suppliers_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name              String            @db.VarChar(160)
-  phone             String?           @db.VarChar(32)
-  email             String?           @db.VarChar(160)
-  address           String?           @db.Text
-  is_active         Boolean           @default(true)
-  created_at        DateTime          @default(now()) @db.Timestamptz(6)
-  purchase_invoices PurchaseInvoice[]
-  inventory_batches InventoryBatch[]
+  id                 String                   @id(map: "suppliers_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String                   @db.VarChar(160)
+  phone              String?                  @db.VarChar(32)
+  email              String?                  @db.VarChar(160)
+  address            String?                  @db.Text
+  notes              String?                  @db.Text
+  default_currency   String                   @default("IQD") @db.Char(3)
+  payment_terms_days Int                      @default(0)
+  is_active          Boolean                  @default(true)
+  created_at         DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime                 @default(now()) @db.Timestamptz(6)
+  purchase_invoices  PurchaseInvoice[]
+  inventory_batches  InventoryBatch[]
+  opening_balances   SupplierOpeningBalance[]
+  account_entries    SupplierAccountEntry[]
+  payments           SupplierPayment[]
+  credits            SupplierCredit[]
+  returns            SupplierReturn[]
+  cost_corrections   PurchaseCostCorrection[]
 
+  @@index([name], map: "idx_suppliers_name")
   @@map("suppliers")
 }
 
 model PurchaseInvoice {
-  id              String                @id(map: "purchase_invoices_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  supplier_id     String                @db.Uuid
-  invoice_number  String?               @db.VarChar(80)
-  total_cost      Decimal               @default(0) @db.Decimal(20, 6)
-  currency_code   String                @default("IQD") @db.Char(3)
-  document_date   DateTime              @default(dbgenerated("CURRENT_DATE")) @db.Date
-  accounting_date DateTime              @default(dbgenerated("CURRENT_DATE")) @db.Date
-  status          String                @default("draft") @db.VarChar(20)
-  received_at     DateTime?             @db.Timestamptz(6)
-  created_by      String?               @db.Uuid
-  created_at      DateTime              @default(now()) @db.Timestamptz(6)
-  supplier        Supplier              @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoices_supplier_id_fkey")
-  creator         User?                 @relation("PurchaseInvoiceCreatedBy", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoices_created_by_fkey")
-  items           PurchaseInvoiceItem[]
+  id                   String                      @id(map: "purchase_invoices_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number      String                      @unique(map: "purchase_invoices_document_number_key") @db.VarChar(40)
+  operation_id         String                      @unique(map: "purchase_invoices_operation_id_key") @db.VarChar(128)
+  supplier_id          String                      @db.Uuid
+  invoice_number       String?                     @db.VarChar(80)
+  currency_code        String                      @default("IQD") @db.Char(3)
+  exchange_rate        Decimal                     @default(1) @db.Decimal(24, 10)
+  subtotal_currency    Decimal                     @default(0) @db.Decimal(20, 6)
+  landed_cost_currency Decimal                     @default(0) @db.Decimal(20, 6)
+  total_cost           Decimal                     @default(0) @db.Decimal(20, 6)
+  total_iqd            Decimal                     @default(0) @db.Decimal(30, 12)
+  allocation_method    String                      @default("value") @db.VarChar(16)
+  default_location_id  String                      @db.Uuid
+  document_date        DateTime                    @db.Date
+  accounting_date      DateTime                    @db.Date
+  due_date             DateTime?                   @db.Date
+  notes                String?                     @db.Text
+  backdate_reason      String?                     @db.VarChar(500)
+  status               String                      @default("posted") @db.VarChar(20)
+  received_at          DateTime                    @default(now()) @db.Timestamptz(6)
+  created_by           String                      @db.Uuid
+  journal_entry_id     String                      @unique(map: "purchase_invoices_journal_entry_id_key") @db.Uuid
+  created_at           DateTime                    @default(now()) @db.Timestamptz(6)
+  supplier             Supplier                    @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoices_supplier_id_fkey")
+  creator              User                        @relation("PurchaseInvoiceCreatedBy", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoices_created_by_fkey")
+  default_location     WarehouseLocation           @relation(fields: [default_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoices_default_location_id_fkey")
+  journal_entry        JournalEntry                @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoices_journal_entry_id_fkey")
+  items                PurchaseInvoiceItem[]
+  landed_costs         PurchaseLandedCost[]
+  account_entries      SupplierAccountEntry[]
+  payment_allocations  SupplierPaymentAllocation[]
+  credit_allocations   SupplierCreditAllocation[]
+  return_documents     SupplierReturn[]
+  corrections          PurchaseCostCorrection[]
 
+  @@unique([supplier_id, invoice_number], map: "purchase_invoices_supplier_invoice_number_key")
+  @@index([document_date, id], map: "idx_purchase_invoices_date")
+  @@index([supplier_id, status, due_date], map: "idx_purchase_invoices_supplier_status_due")
   @@map("purchase_invoices")
 }
 
 model PurchaseInvoiceItem {
-  id                String           @id(map: "purchase_invoice_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  invoice_id        String           @db.Uuid
-  product_id        String           @db.Uuid
-  variant_id        String           @db.Uuid
-  quantity          Decimal          @db.Decimal(20, 3)
-  unit_cost         Decimal          @db.Decimal(20, 6)
-  currency_code     String           @default("IQD") @db.Char(3)
-  lot_number        String?          @db.VarChar(80)
-  expiry_date       DateTime?        @db.Date
-  invoice           PurchaseInvoice  @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "purchase_invoice_items_invoice_id_fkey")
-  product           Product          @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoice_items_product_id_fkey")
-  variant           ProductVariant   @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoice_items_variant_id_fkey")
-  inventory_batches InventoryBatch[]
+  id                      String                       @id(map: "purchase_invoice_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoice_id              String                       @db.Uuid
+  product_id              String                       @db.Uuid
+  variant_id              String                       @db.Uuid
+  location_id             String                       @db.Uuid
+  purchase_quantity       Decimal                      @db.Decimal(20, 3)
+  pack_size               Decimal                      @default(1) @db.Decimal(20, 3)
+  quantity                Decimal                      @db.Decimal(20, 3)
+  unit_cost               Decimal                      @db.Decimal(20, 6)
+  base_unit_cost_currency Decimal                      @db.Decimal(30, 12)
+  line_total_currency     Decimal                      @db.Decimal(30, 12)
+  landed_cost_share_iqd   Decimal                      @default(0) @db.Decimal(30, 12)
+  landed_unit_cost_iqd    Decimal                      @db.Decimal(30, 12)
+  currency_code           String                       @default("IQD") @db.Char(3)
+  lot_number              String?                      @db.VarChar(80)
+  expiry_date             DateTime?                    @db.Date
+  lot_id                  String?                      @unique(map: "purchase_invoice_items_lot_id_key") @db.Uuid
+  invoice                 PurchaseInvoice              @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "purchase_invoice_items_invoice_id_fkey")
+  product                 Product                      @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoice_items_product_id_fkey")
+  variant                 ProductVariant               @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoice_items_variant_id_fkey")
+  location                WarehouseLocation            @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoice_items_location_id_fkey")
+  lot                     InventoryBatch?              @relation("PurchaseItemLot", fields: [lot_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_invoice_items_lot_id_fkey")
+  inventory_batches       InventoryBatch[]             @relation("PurchaseItemBatches")
+  return_lines            SupplierReturnLine[]
+  correction_lines        PurchaseCostCorrectionLine[]
 
+  @@index([invoice_id], map: "idx_purchase_invoice_items_invoice")
   @@map("purchase_invoice_items")
+}
+
+model PurchaseLandedCost {
+  id              String          @id(map: "purchase_landed_costs_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoice_id      String          @db.Uuid
+  kind            String          @db.VarChar(40)
+  description     String?         @db.VarChar(300)
+  amount_currency Decimal         @db.Decimal(20, 6)
+  amount_iqd      Decimal         @db.Decimal(30, 12)
+  currency_code   String          @db.Char(3)
+  invoice         PurchaseInvoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "purchase_landed_costs_invoice_id_fkey")
+
+  @@index([invoice_id], map: "idx_purchase_landed_costs_invoice")
+  @@map("purchase_landed_costs")
+}
+
+model SupplierOpeningBalance {
+  id               String                 @id(map: "supplier_opening_balances_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number  String                 @unique(map: "supplier_opening_balances_document_number_key") @db.VarChar(40)
+  operation_id     String                 @unique(map: "supplier_opening_balances_operation_id_key") @db.VarChar(128)
+  supplier_id      String                 @db.Uuid
+  currency_code    String                 @db.Char(3)
+  amount_currency  Decimal                @db.Decimal(20, 6)
+  exchange_rate    Decimal                @db.Decimal(24, 10)
+  amount_iqd       Decimal                @db.Decimal(30, 12)
+  document_date    DateTime               @db.Date
+  accounting_date  DateTime               @db.Date
+  due_date         DateTime?              @db.Date
+  backdate_reason  String?                @db.VarChar(500)
+  created_by       String                 @db.Uuid
+  journal_entry_id String                 @unique(map: "supplier_opening_balances_journal_entry_id_key") @db.Uuid
+  created_at       DateTime               @default(now()) @db.Timestamptz(6)
+  supplier         Supplier               @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_opening_balances_supplier_id_fkey")
+  creator          User                   @relation("SupplierOpeningBalanceCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_opening_balances_created_by_fkey")
+  journal_entry    JournalEntry           @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_opening_balances_journal_entry_id_fkey")
+  account_entries  SupplierAccountEntry[]
+
+  @@index([supplier_id, document_date], map: "idx_supplier_openings_supplier_date")
+  @@map("supplier_opening_balances")
+}
+
+model SupplierAccountEntry {
+  id                  String                  @id(map: "supplier_account_entries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  supplier_id         String                  @db.Uuid
+  source_type         String                  @db.VarChar(40)
+  source_id           String                  @db.Uuid
+  document_number     String                  @db.VarChar(40)
+  document_date       DateTime                @db.Date
+  accounting_date     DateTime                @db.Date
+  due_date            DateTime?               @db.Date
+  currency_code       String                  @db.Char(3)
+  debit_currency      Decimal                 @default(0) @db.Decimal(20, 6)
+  credit_currency     Decimal                 @default(0) @db.Decimal(20, 6)
+  debit_iqd           Decimal                 @default(0) @db.Decimal(30, 12)
+  credit_iqd          Decimal                 @default(0) @db.Decimal(30, 12)
+  created_at          DateTime                @default(now()) @db.Timestamptz(6)
+  supplier            Supplier                @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_account_entries_supplier_id_fkey")
+  purchase_invoice    PurchaseInvoice?        @relation(fields: [purchase_invoice_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_account_entries_purchase_invoice_id_fkey")
+  purchase_invoice_id String?                 @db.Uuid
+  opening_balance     SupplierOpeningBalance? @relation(fields: [opening_balance_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_account_entries_opening_balance_id_fkey")
+  opening_balance_id  String?                 @db.Uuid
+  payment             SupplierPayment?        @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_account_entries_payment_id_fkey")
+  payment_id          String?                 @db.Uuid
+  credit              SupplierCredit?         @relation(fields: [credit_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_account_entries_credit_id_fkey")
+  credit_id           String?                 @db.Uuid
+  supplier_return     SupplierReturn?         @relation(fields: [return_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_account_entries_return_id_fkey")
+  return_id           String?                 @db.Uuid
+
+  @@unique([source_type, source_id], map: "supplier_account_entries_source_key")
+  @@index([supplier_id, currency_code, document_date, id], map: "idx_supplier_account_statement")
+  @@map("supplier_account_entries")
+}
+
+model SupplierPayment {
+  id                   String                      @id(map: "supplier_payments_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number      String                      @unique(map: "supplier_payments_document_number_key") @db.VarChar(40)
+  operation_id         String                      @unique(map: "supplier_payments_operation_id_key") @db.VarChar(128)
+  supplier_id          String                      @db.Uuid
+  cash_account_id      String                      @db.Uuid
+  currency_code        String                      @db.Char(3)
+  amount_currency      Decimal                     @db.Decimal(20, 6)
+  exchange_rate        Decimal                     @db.Decimal(24, 10)
+  amount_iqd           Decimal                     @db.Decimal(30, 12)
+  allocated_currency   Decimal                     @default(0) @db.Decimal(20, 6)
+  unallocated_currency Decimal                     @default(0) @db.Decimal(20, 6)
+  document_date        DateTime                    @db.Date
+  accounting_date      DateTime                    @db.Date
+  reference            String?                     @db.VarChar(160)
+  notes                String?                     @db.Text
+  created_by           String                      @db.Uuid
+  journal_entry_id     String                      @unique(map: "supplier_payments_journal_entry_id_key") @db.Uuid
+  created_at           DateTime                    @default(now()) @db.Timestamptz(6)
+  supplier             Supplier                    @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_payments_supplier_id_fkey")
+  cash_account         CashAccount                 @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_payments_cash_account_id_fkey")
+  creator              User                        @relation("SupplierPaymentCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_payments_created_by_fkey")
+  journal_entry        JournalEntry                @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_payments_journal_entry_id_fkey")
+  allocations          SupplierPaymentAllocation[]
+  account_entries      SupplierAccountEntry[]
+  credits              SupplierCredit[]
+
+  @@index([supplier_id, document_date, id], map: "idx_supplier_payments_supplier_date")
+  @@map("supplier_payments")
+}
+
+model SupplierPaymentAllocation {
+  id                      String          @id(map: "supplier_payment_allocations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id              String          @db.Uuid
+  invoice_id              String          @db.Uuid
+  amount_invoice_currency Decimal         @db.Decimal(20, 6)
+  invoice_carrying_iqd    Decimal         @db.Decimal(30, 12)
+  payment_iqd             Decimal         @db.Decimal(30, 12)
+  fx_difference_iqd       Decimal         @default(0) @db.Decimal(30, 12)
+  created_at              DateTime        @default(now()) @db.Timestamptz(6)
+  payment                 SupplierPayment @relation(fields: [payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "supplier_payment_allocations_payment_id_fkey")
+  invoice                 PurchaseInvoice @relation(fields: [invoice_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_payment_allocations_invoice_id_fkey")
+
+  @@unique([payment_id, invoice_id], map: "supplier_payment_allocations_payment_invoice_key")
+  @@index([invoice_id], map: "idx_supplier_payment_allocations_invoice")
+  @@map("supplier_payment_allocations")
+}
+
+model SupplierCredit {
+  id                 String                     @id(map: "supplier_credits_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  supplier_id        String                     @db.Uuid
+  source_type        String                     @db.VarChar(30)
+  source_id          String                     @db.Uuid
+  currency_code      String                     @db.Char(3)
+  amount_currency    Decimal                    @db.Decimal(20, 6)
+  remaining_currency Decimal                    @db.Decimal(20, 6)
+  amount_iqd         Decimal                    @db.Decimal(30, 12)
+  created_at         DateTime                   @default(now()) @db.Timestamptz(6)
+  supplier           Supplier                   @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_credits_supplier_id_fkey")
+  payment            SupplierPayment?           @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_credits_payment_id_fkey")
+  payment_id         String?                    @db.Uuid
+  supplier_return    SupplierReturn?            @relation(fields: [return_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_credits_return_id_fkey")
+  return_id          String?                    @db.Uuid
+  account_entries    SupplierAccountEntry[]
+  allocations        SupplierCreditAllocation[]
+
+  @@index([supplier_id, currency_code, remaining_currency], map: "idx_supplier_credits_open")
+  @@map("supplier_credits")
+}
+
+model SupplierCreditAllocation {
+  id                      String          @id(map: "supplier_credit_allocations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  credit_id               String          @db.Uuid
+  invoice_id              String          @db.Uuid
+  amount_invoice_currency Decimal         @db.Decimal(20, 6)
+  amount_credit_currency  Decimal         @db.Decimal(20, 6)
+  amount_iqd              Decimal         @db.Decimal(30, 12)
+  created_at              DateTime        @default(now()) @db.Timestamptz(6)
+  credit                  SupplierCredit  @relation(fields: [credit_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "supplier_credit_allocations_credit_id_fkey")
+  invoice                 PurchaseInvoice @relation(fields: [invoice_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_credit_allocations_invoice_id_fkey")
+
+  @@unique([credit_id, invoice_id], map: "supplier_credit_allocations_credit_invoice_key")
+  @@index([invoice_id], map: "idx_supplier_credit_allocations_invoice")
+  @@map("supplier_credit_allocations")
+}
+
+model SupplierReturn {
+  id               String                 @id(map: "supplier_returns_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number  String                 @unique(map: "supplier_returns_document_number_key") @db.VarChar(40)
+  operation_id     String                 @unique(map: "supplier_returns_operation_id_key") @db.VarChar(128)
+  supplier_id      String                 @db.Uuid
+  invoice_id       String?                @db.Uuid
+  currency_code    String                 @db.Char(3)
+  exchange_rate    Decimal                @db.Decimal(24, 10)
+  total_currency   Decimal                @db.Decimal(20, 6)
+  total_iqd        Decimal                @db.Decimal(30, 12)
+  document_date    DateTime               @db.Date
+  accounting_date  DateTime               @db.Date
+  reason           String                 @db.VarChar(500)
+  created_by       String                 @db.Uuid
+  journal_entry_id String                 @unique(map: "supplier_returns_journal_entry_id_key") @db.Uuid
+  created_at       DateTime               @default(now()) @db.Timestamptz(6)
+  supplier         Supplier               @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_returns_supplier_id_fkey")
+  invoice          PurchaseInvoice?       @relation(fields: [invoice_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_returns_invoice_id_fkey")
+  creator          User                   @relation("SupplierReturnCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_returns_created_by_fkey")
+  journal_entry    JournalEntry           @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_returns_journal_entry_id_fkey")
+  lines            SupplierReturnLine[]
+  credits          SupplierCredit[]
+  account_entries  SupplierAccountEntry[]
+
+  @@index([supplier_id, document_date], map: "idx_supplier_returns_supplier_date")
+  @@map("supplier_returns")
+}
+
+model SupplierReturnLine {
+  id               String              @id(map: "supplier_return_lines_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  return_id        String              @db.Uuid
+  purchase_item_id String              @db.Uuid
+  batch_id         String              @db.Uuid
+  location_id      String              @db.Uuid
+  quantity         Decimal             @db.Decimal(20, 3)
+  unit_cost_iqd    Decimal             @db.Decimal(30, 12)
+  amount_iqd       Decimal             @db.Decimal(30, 12)
+  return_document  SupplierReturn      @relation(fields: [return_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "supplier_return_lines_return_id_fkey")
+  purchase_item    PurchaseInvoiceItem @relation(fields: [purchase_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_return_lines_purchase_item_id_fkey")
+  batch            InventoryBatch      @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_return_lines_batch_id_fkey")
+  location         WarehouseLocation   @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_return_lines_location_id_fkey")
+
+  @@index([return_id], map: "idx_supplier_return_lines_return")
+  @@map("supplier_return_lines")
+}
+
+model PurchaseCostCorrection {
+  id                String                       @id(map: "purchase_cost_corrections_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number   String                       @unique(map: "purchase_cost_corrections_document_number_key") @db.VarChar(40)
+  operation_id      String                       @unique(map: "purchase_cost_corrections_operation_id_key") @db.VarChar(128)
+  invoice_id        String                       @db.Uuid
+  supplier_id       String                       @db.Uuid
+  kind              String                       @db.VarChar(30)
+  allocation_method String                       @default("value") @db.VarChar(16)
+  amount_iqd        Decimal                      @db.Decimal(30, 12)
+  inventory_iqd     Decimal                      @default(0) @db.Decimal(30, 12)
+  custody_iqd       Decimal                      @default(0) @db.Decimal(30, 12)
+  cogs_iqd          Decimal                      @default(0) @db.Decimal(30, 12)
+  document_date     DateTime                     @db.Date
+  accounting_date   DateTime                     @db.Date
+  reason            String                       @db.VarChar(500)
+  created_by        String                       @db.Uuid
+  journal_entry_id  String                       @unique(map: "purchase_cost_corrections_journal_entry_id_key") @db.Uuid
+  created_at        DateTime                     @default(now()) @db.Timestamptz(6)
+  invoice           PurchaseInvoice              @relation(fields: [invoice_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_cost_corrections_invoice_id_fkey")
+  supplier          Supplier                     @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_cost_corrections_supplier_id_fkey")
+  creator           User                         @relation("PurchaseCostCorrectionCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_cost_corrections_created_by_fkey")
+  journal_entry     JournalEntry                 @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_cost_corrections_journal_entry_id_fkey")
+  lines             PurchaseCostCorrectionLine[]
+
+  @@index([invoice_id, created_at], map: "idx_purchase_cost_corrections_invoice")
+  @@map("purchase_cost_corrections")
+}
+
+model PurchaseCostCorrectionLine {
+  id                  String                 @id(map: "purchase_cost_correction_lines_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  correction_id       String                 @db.Uuid
+  purchase_item_id    String                 @db.Uuid
+  unit_difference_iqd Decimal                @db.Decimal(30, 12)
+  warehouse_quantity  Decimal                @default(0) @db.Decimal(20, 3)
+  custody_quantity    Decimal                @default(0) @db.Decimal(20, 3)
+  sold_quantity       Decimal                @default(0) @db.Decimal(20, 3)
+  inventory_iqd       Decimal                @default(0) @db.Decimal(30, 12)
+  custody_iqd         Decimal                @default(0) @db.Decimal(30, 12)
+  cogs_iqd            Decimal                @default(0) @db.Decimal(30, 12)
+  correction          PurchaseCostCorrection @relation(fields: [correction_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "purchase_cost_correction_lines_correction_id_fkey")
+  purchase_item       PurchaseInvoiceItem    @relation(fields: [purchase_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_cost_correction_lines_purchase_item_id_fkey")
+
+  @@index([correction_id], map: "idx_purchase_cost_correction_lines_correction")
+  @@map("purchase_cost_correction_lines")
 }
 
 model Warehouse {
@@ -842,30 +1148,33 @@ model Warehouse {
 }
 
 model WarehouseLocation {
-  id                  String                   @id(map: "warehouse_locations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  warehouse_id        String                   @db.Uuid
-  zone                String?                  @db.VarChar(40)
-  aisle               String?                  @db.VarChar(40)
-  shelf               String?                  @db.VarChar(40)
-  bin                 String?                  @db.VarChar(40)
-  code                String                   @db.VarChar(40)
-  description         String?                  @db.Text
-  is_sellable         Boolean                  @default(true)
-  is_active           Boolean                  @default(true)
-  created_at          DateTime                 @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime                 @default(now()) @db.Timestamptz(6)
-  warehouse           Warehouse                @relation(fields: [warehouse_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "warehouse_locations_warehouse_id_fkey")
-  batch_stock         BatchStock[]
-  movements_from      StockMovement[]          @relation("StockMovementFromLocation")
-  movements_to        StockMovement[]          @relation("StockMovementToLocation")
-  stock_reservations  StockReservation[]
-  pick_list_items     PickListItem[]
-  opening_lines       InventoryOpeningLine[]
-  transfer_lines_from StockTransferLine[]      @relation("StockTransferFromLocation")
-  transfer_lines_to   StockTransferLine[]      @relation("StockTransferToLocation")
-  count_lines         StockCountLine[]
-  write_down_lines    InventoryWriteDownLine[]
-  scoped_counts       StockCount[]
+  id                    String                   @id(map: "warehouse_locations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  warehouse_id          String                   @db.Uuid
+  zone                  String?                  @db.VarChar(40)
+  aisle                 String?                  @db.VarChar(40)
+  shelf                 String?                  @db.VarChar(40)
+  bin                   String?                  @db.VarChar(40)
+  code                  String                   @db.VarChar(40)
+  description           String?                  @db.Text
+  is_sellable           Boolean                  @default(true)
+  is_active             Boolean                  @default(true)
+  created_at            DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                 @default(now()) @db.Timestamptz(6)
+  warehouse             Warehouse                @relation(fields: [warehouse_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "warehouse_locations_warehouse_id_fkey")
+  batch_stock           BatchStock[]
+  movements_from        StockMovement[]          @relation("StockMovementFromLocation")
+  movements_to          StockMovement[]          @relation("StockMovementToLocation")
+  stock_reservations    StockReservation[]
+  pick_list_items       PickListItem[]
+  opening_lines         InventoryOpeningLine[]
+  transfer_lines_from   StockTransferLine[]      @relation("StockTransferFromLocation")
+  transfer_lines_to     StockTransferLine[]      @relation("StockTransferToLocation")
+  count_lines           StockCountLine[]
+  write_down_lines      InventoryWriteDownLine[]
+  purchase_invoices     PurchaseInvoice[]
+  purchase_items        PurchaseInvoiceItem[]
+  supplier_return_lines SupplierReturnLine[]
+  scoped_counts         StockCount[]
 
   @@unique([warehouse_id, zone, aisle, shelf, bin], map: "warehouse_locations_warehouse_id_zone_aisle_shelf_bin_key")
   @@unique([warehouse_id, code], map: "warehouse_locations_warehouse_id_code_key")
@@ -890,7 +1199,8 @@ model InventoryBatch {
   product               Product                  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inventory_batches_product_id_fkey")
   variant               ProductVariant           @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inventory_batches_variant_id_fkey")
   supplier              Supplier?                @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inventory_batches_supplier_id_fkey")
-  purchase_invoice_item PurchaseInvoiceItem?     @relation(fields: [po_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inventory_batches_po_item_id_fkey")
+  purchase_invoice_item PurchaseInvoiceItem?     @relation("PurchaseItemBatches", fields: [po_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inventory_batches_po_item_id_fkey")
+  purchase_item_lot     PurchaseInvoiceItem?     @relation("PurchaseItemLot")
   batch_stock           BatchStock[]
   stock_movements       StockMovement[]
   stock_reservations    StockReservation[]
@@ -901,6 +1211,7 @@ model InventoryBatch {
   count_lines           StockCountLine[]
   write_down_lines      InventoryWriteDownLine[]
   custody_holdings      CustodyHolding[]
+  supplier_return_lines SupplierReturnLine[]
 
   @@index([product_id], map: "idx_batches_product")
   @@index([expiry_date], map: "idx_batches_expiry")

@@ -44,6 +44,7 @@ import { PeriodService } from './period.service';
     LinkedPricingService,
   ],
   exports: [
+    CurrencyService,
     DateRulesService,
     DocumentNumberService,
     LedgerService,

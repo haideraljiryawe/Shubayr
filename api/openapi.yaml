@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 8.2.0
+  version: 9.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1033,7 +1033,7 @@ paths:
         "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- PURCHASING (staff) ----------------
-  /suppliers:
+  /admin/suppliers:
     get:
       tags: [Purchasing]
       summary: List suppliers
@@ -1064,7 +1064,22 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Supplier" }
         "403": { $ref: "#/components/responses/Forbidden" }
-  /purchase-invoices:
+  /admin/purchase-invoices:
+    get:
+      tags: [Purchasing]
+      summary: List posted purchase invoices
+      x-permission: suppliers.view
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - { name: supplier_id, in: query, schema: { type: string, format: uuid } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: currency, in: query, schema: { type: string, enum: [IQD, USD] } }
+      responses:
+        "200": { description: Purchase invoice page, content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseInvoicePage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Purchasing]
       summary: Create a purchase invoice (draft)
@@ -1073,23 +1088,7 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [supplier_id, items]
-              properties:
-                supplier_id: { type: string, format: uuid }
-                invoice_number: { type: string }
-                items:
-                  type: array
-                  items:
-                    type: object
-                    required: [product_id, quantity, unit_cost]
-                    properties:
-                      product_id: { type: string, format: uuid }
-                      quantity: { type: number, multipleOf: 0.001, minimum: 0.001 }
-                      unit_cost: { type: number }
-                      lot_number: { type: string }
-                      expiry_date: { type: [string, "null"], format: date }
+            schema: { $ref: "#/components/schemas/PurchaseInvoiceInput" }
       responses:
         "201":
           description: Created purchase invoice
@@ -1097,35 +1096,157 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PurchaseInvoice" }
         "403": { $ref: "#/components/responses/Forbidden" }
-  /purchase-invoices/{id}/receive:
-    post:
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/suppliers/balances:
+    get:
       tags: [Purchasing]
-      summary: Receive goods — creates inventory batches and places them into locations
-      x-permission: purchases.correct
-      parameters: [ { $ref: "#/components/parameters/PathId" } ]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                placements:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      po_item_id: { type: string, format: uuid }
-                      location_id: { type: string, format: uuid }
-                      quantity: { type: number, multipleOf: 0.001 }
+      summary: Supplier balances by original currency and IQD value
+      x-permission: suppliers.view
       responses:
-        "200":
-          description: Received — batches + stock movements created
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/PurchaseInvoice" }
+        "200": { description: Supplier balances, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SupplierBalance" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/suppliers/aging:
+    get:
+      tags: [Purchasing]
+      summary: Accounts-payable aging by due date
+      x-permission: suppliers.view
+      parameters: [{ name: as_of, in: query, schema: { type: string, format: date } }]
+      responses:
+        "200": { description: Aging lines, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SupplierAgingLine" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/suppliers/{id}:
+    get:
+      tags: [Purchasing]
+      summary: Get a supplier
+      x-permission: suppliers.view
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Supplier, content: { application/json: { schema: { $ref: "#/components/schemas/Supplier" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Purchasing]
+      summary: Update or reactivate a supplier
+      x-permission: suppliers.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierPatch" } } } }
+      responses:
+        "200": { description: Updated supplier, content: { application/json: { schema: { $ref: "#/components/schemas/Supplier" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Purchasing]
+      summary: Deactivate a supplier while preserving its history
+      x-permission: suppliers.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Deactivated supplier, content: { application/json: { schema: { $ref: "#/components/schemas/Supplier" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/suppliers/{id}/opening-balance:
+    post:
+      tags: [Purchasing]
+      summary: Post a supplier opening balance against owner equity
+      x-permission: supplier_openings.record
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierOpeningInput" } } } }
+      responses:
+        "201": { description: Posted opening balance, content: { application/json: { schema: { $ref: "#/components/schemas/PurchasingDocument" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/suppliers/{id}/statement:
+    get:
+      tags: [Purchasing]
+      summary: Supplier statement with running currency and IQD balances
+      x-permission: suppliers.view
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: currency, in: query, schema: { type: string, enum: [IQD, USD] } }
+        - { name: as_of, in: query, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Statement lines, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SupplierStatementLine" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/purchase-invoices/{id}:
+    get:
+      tags: [Purchasing]
+      summary: Get a posted purchase invoice
+      x-permission: suppliers.view
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Purchase invoice, content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseInvoice" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/supplier-payments:
+    get:
+      tags: [Purchasing]
+      summary: List supplier payments and allocations
+      x-permission: suppliers.view
+      parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PerPage" }, { name: supplier_id, in: query, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: Supplier payments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/PurchasingDocument" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Purchasing]
+      summary: Pay and explicitly allocate supplier invoices
+      x-permission: supplier_payments.record
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierPaymentInput" } } } }
+      responses:
+        "201": { description: Posted payment, content: { application/json: { schema: { $ref: "#/components/schemas/PurchasingDocument" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/supplier-credits:
+    get:
+      tags: [Purchasing]
+      summary: List supplier credits
+      x-permission: suppliers.view
+      parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PerPage" }, { name: supplier_id, in: query, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: Supplier credits, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/PurchasingDocument" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/supplier-credits/{id}/allocations:
+    post:
+      tags: [Purchasing]
+      summary: Allocate an existing supplier credit to an invoice
+      x-permission: supplier_credits.allocate
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierCreditAllocationInput" } } } }
+      responses:
+        "201": { description: Credit allocation, content: { application/json: { schema: { $ref: "#/components/schemas/PurchasingDocument" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/supplier-returns:
+    post:
+      tags: [Purchasing]
+      summary: Return unreserved quantity from specific purchased lots
+      x-permission: supplier_returns.create
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierReturnInput" } } } }
+      responses:
+        "201": { description: Posted return, content: { application/json: { schema: { $ref: "#/components/schemas/PurchasingDocument" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/purchase-cost-corrections:
+    post:
+      tags: [Purchasing]
+      summary: Split a late cost or correction across stock, custody and COGS
+      x-permission: purchases.correct
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseCostCorrectionInput" } } } }
+      responses:
+        "201": { description: Posted cost correction, content: { application/json: { schema: { $ref: "#/components/schemas/PurchasingDocument" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- INVENTORY (staff) ----------------
   /inventory/batches:
@@ -3777,10 +3898,12 @@ components:
       type: object
       properties:
         id: { type: string, format: uuid }
+        product_id: { type: string, format: uuid }
         sku: { type: string }
         attributes: { type: [object, "null"], additionalProperties: true }
         price_delta: { type: integer }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         base_unit: { type: string }
         whole_units_only: { type: boolean }
         selling_price: { type: [number, "null"], multipleOf: 1, description: "Fixed override; null inherits the product price." }
@@ -3799,6 +3922,7 @@ components:
         available_qty: { type: number, multipleOf: 0.001 }
         availability: { type: string, enum: [out_of_stock, low_stock, in_stock] }
         in_stock: { type: boolean }
+        updated_at: { type: string, format: date-time }
 
     ProductAvailability:
       type: object
@@ -4250,24 +4374,47 @@ components:
 
     Supplier:
       type: object
+      additionalProperties: false
+      required: [id, name, default_currency, payment_terms_days, is_active, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         phone: { type: [string, "null"] }
         email: { type: [string, "null"] }
         address: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        default_currency: { type: string, enum: [IQD, USD] }
+        payment_terms_days: { type: integer, minimum: 0 }
         is_active: { type: boolean }
         created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
     SupplierInput:
       type: object
-      required: [name]
+      additionalProperties: false
+      required: [name, default_currency, payment_terms_days]
       properties:
         name: { type: string }
         phone: { type: [string, "null"] }
         email: { type: [string, "null"] }
         address: { type: [string, "null"] }
-        is_active: { type: boolean, default: true }
+        notes: { type: [string, "null"] }
+        default_currency: { type: string, enum: [IQD, USD] }
+        payment_terms_days: { type: integer, minimum: 0, maximum: 3650 }
+
+    SupplierPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        phone: { type: [string, "null"], maxLength: 32 }
+        email: { type: [string, "null"], maxLength: 160 }
+        address: { type: [string, "null"], maxLength: 1000 }
+        notes: { type: [string, "null"], maxLength: 2000 }
+        default_currency: { type: string, enum: [IQD, USD] }
+        payment_terms_days: { type: integer, minimum: 0, maximum: 3650 }
+        is_active: { type: boolean }
 
     SupplierPage:
       allOf:
@@ -4281,6 +4428,7 @@ components:
 
     PurchaseInvoice:
       type: object
+      additionalProperties: true
       properties:
         id: { type: string, format: uuid }
         supplier_id: { type: string, format: uuid }
@@ -4293,14 +4441,218 @@ components:
           type: array
           items:
             type: object
+            additionalProperties: false
             properties:
               id: { type: string, format: uuid }
+              invoice_id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
               variant_id: { type: [string, "null"], format: uuid }
+              location_id: { type: string, format: uuid }
+              purchase_quantity: { type: number, multipleOf: 0.001 }
+              pack_size: { type: number, multipleOf: 0.001 }
               quantity: { type: number, multipleOf: 0.001 }
               unit_cost: { type: number }
+              base_unit_cost_currency: { type: number }
+              line_total_currency: { type: number }
+              landed_cost_share_iqd: { type: number }
+              landed_unit_cost_iqd: { type: number }
+              currency_code: { type: string, enum: [IQD, USD] }
               lot_number: { type: [string, "null"] }
-              expiry_date: { type: [string, "null"], format: date }
+              expiry_date: { type: [string, "null"], format: date-time }
+              lot_id: { type: [string, "null"], format: uuid }
+              created_at: { type: string, format: date-time }
+              variant: { $ref: "#/components/schemas/ProductVariant" }
+              location: { $ref: "#/components/schemas/WarehouseLocation" }
+              lot: { $ref: "#/components/schemas/InventoryBatch" }
+
+    PurchaseInvoicePage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/PurchaseInvoice" } }
+
+    PostingDocumentInput:
+      type: object
+      additionalProperties: true
+      required: [operation_id, document_date]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+
+    SupplierOpeningInput:
+      allOf:
+        - $ref: "#/components/schemas/PostingDocumentInput"
+        - type: object
+          required: [currency_code, amount, exchange_rate]
+          properties:
+            currency_code: { type: string, enum: [IQD, USD] }
+            amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$' }
+            exchange_rate: { type: string, pattern: '^\\d+(\\.\\d{1,10})?$' }
+            due_date: { type: string, format: date }
+
+    PurchaseInvoiceInput:
+      allOf:
+        - $ref: "#/components/schemas/PostingDocumentInput"
+        - type: object
+          required: [supplier_id, currency_code, default_location_id, allocation_method, lines]
+          properties:
+            supplier_id: { type: string, format: uuid }
+            supplier_invoice_number: { type: string, maxLength: 80 }
+            currency_code: { type: string, enum: [IQD, USD] }
+            exchange_rate: { type: string }
+            default_location_id: { type: string, format: uuid }
+            allocation_method: { type: string, enum: [value, quantity, manual] }
+            due_date: { type: string, format: date }
+            notes: { type: string, maxLength: 2000 }
+            lines:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [variant_id, quantity, unit_cost]
+                properties:
+                  variant_id: { type: string, format: uuid }
+                  location_id: { type: string, format: uuid }
+                  quantity: { type: string }
+                  pack_size: { type: string }
+                  unit_cost: { type: string }
+                  lot_number: { type: string, maxLength: 80 }
+                  expiry_date: { type: string, format: date }
+                  manual_landed_cost_iqd: { type: string }
+            landed_costs:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [kind, currency_code, amount]
+                properties:
+                  kind: { type: string }
+                  description: { type: string }
+                  currency_code: { type: string, enum: [IQD, USD] }
+                  amount: { type: string }
+
+    SupplierPaymentInput:
+      allOf:
+        - $ref: "#/components/schemas/PostingDocumentInput"
+        - type: object
+          required: [supplier_id, cash_account_id, currency_code, amount, allocations]
+          properties:
+            supplier_id: { type: string, format: uuid }
+            cash_account_id: { type: string, format: uuid }
+            currency_code: { type: string, enum: [IQD, USD] }
+            amount: { type: string }
+            exchange_rate: { type: string }
+            reference: { type: string }
+            notes: { type: string }
+            allocations:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [invoice_id, amount]
+                properties:
+                  invoice_id: { type: string, format: uuid }
+                  amount: { type: string }
+
+    SupplierCreditAllocationInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, invoice_id, amount]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        invoice_id: { type: string, format: uuid }
+        amount: { type: string }
+
+    SupplierReturnInput:
+      allOf:
+        - $ref: "#/components/schemas/PostingDocumentInput"
+        - type: object
+          required: [supplier_id, reason, lines]
+          properties:
+            supplier_id: { type: string, format: uuid }
+            invoice_id: { type: string, format: uuid }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+            lines:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [purchase_item_id, batch_id, location_id, quantity]
+                properties:
+                  purchase_item_id: { type: string, format: uuid }
+                  batch_id: { type: string, format: uuid }
+                  location_id: { type: string, format: uuid }
+                  quantity: { type: string }
+
+    PurchaseCostCorrectionInput:
+      allOf:
+        - $ref: "#/components/schemas/PostingDocumentInput"
+        - type: object
+          required: [invoice_id, kind, allocation_method, reason, lines]
+          properties:
+            invoice_id: { type: string, format: uuid }
+            supplier_id: { type: string, format: uuid }
+            kind: { type: string, enum: [cost_correction, late_landed_cost] }
+            allocation_method: { type: string, enum: [value, quantity, manual] }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+            lines:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [purchase_item_id, unit_difference_iqd]
+                properties:
+                  purchase_item_id: { type: string, format: uuid }
+                  unit_difference_iqd: { type: string }
+
+    PurchasingDocument:
+      type: object
+      additionalProperties: true
+
+    SupplierBalance:
+      type: object
+      additionalProperties: false
+      required: [supplier, currency_code, balance_currency, balance_iqd]
+      properties:
+        supplier: { $ref: "#/components/schemas/Supplier" }
+        currency_code: { type: string, enum: [IQD, USD] }
+        balance_currency: { type: number }
+        balance_iqd: { type: number }
+
+    SupplierStatementLine:
+      type: object
+      additionalProperties: true
+      required: [id, supplier_id, source_type, document_number, document_date, currency_code, running_balance_currency, running_balance_iqd]
+      properties:
+        id: { type: string, format: uuid }
+        supplier_id: { type: string, format: uuid }
+        source_type: { type: string }
+        document_number: { type: string }
+        document_date: { type: string, format: date-time }
+        currency_code: { type: string, enum: [IQD, USD] }
+        running_balance_currency: { type: number }
+        running_balance_iqd: { type: number }
+
+    SupplierAgingLine:
+      type: object
+      additionalProperties: true
+      required: [supplier, invoice_id, document_number, currency_code, remaining, remaining_iqd, bucket]
+      properties:
+        supplier: { $ref: "#/components/schemas/Supplier" }
+        invoice_id: { type: string, format: uuid }
+        document_number: { type: string }
+        due_date: { type: [string, "null"], format: date-time }
+        currency_code: { type: string, enum: [IQD, USD] }
+        remaining: { type: number }
+        remaining_iqd: { type: number }
+        bucket: { type: string, enum: [current, 1_30, 31_60, 61_90, 90_plus, no_due_date] }
 
     InventoryBatch:
       type: object
