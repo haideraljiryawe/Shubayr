@@ -70,6 +70,12 @@ export class MeService {
         : session.permissions,
       surface: legacy ? 'app' : session.surface,
       client: legacy ? null : session.client,
+      must_change_password: legacy
+        ? user.must_change_password
+        : session.mustChangePassword,
+      permission_version: legacy
+        ? user.permission_version
+        : session.permissionVersion,
       created_at: user.created_at,
     };
   }
