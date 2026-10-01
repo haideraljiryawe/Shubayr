@@ -9,10 +9,10 @@ import {
   type FinancialDocument,
 } from "@/lib/finance/operations";
 
-export type PostingState =
+export type PostingState<T = FinancialDocument> =
   | { phase: "idle" }
   | { phase: "posting" }
-  | { phase: "posted"; document: FinancialDocument }
+  | { phase: "posted"; document: T }
   /** The answer was lost; asking the API what happened. */
   | { phase: "checking" }
   /** Confirmed not committed: retrying with the same id is safe. */
@@ -28,12 +28,19 @@ export type PostingState =
  * dropped here, before any request, and the shared operation id makes the
  * API return the same document even if two requests did get out. When the
  * answer is lost, it asks GET /admin/operations/{id} before anything else.
+ * `post` and `check` resolve to the state they settled on (null when a post
+ * was dropped as a double click), so a caller can chain a second document.
  */
-export function usePosting() {
-  const [state, setState] = useState<PostingState>({ phase: "idle" });
+export function usePosting<T = FinancialDocument>() {
+  const [state, setState] = useState<PostingState<T>>({ phase: "idle" });
   const inFlight = useRef(false);
 
-  const check = useCallback(async (operationId: string) => {
+  const settle = useCallback((next: PostingState<T>): PostingState<T> => {
+    setState(next);
+    return next;
+  }, []);
+
+  const check = useCallback(async (operationId: string): Promise<PostingState<T>> => {
     setState({ phase: "checking" });
     let outcome;
     try {
@@ -45,44 +52,38 @@ export function usePosting() {
     } catch (cause) {
       outcome = cause instanceof ApiError ? cause : new ApiError(0, "Network error");
     }
-    const resolution = resolveOutcome(outcome);
+    const resolution = resolveOutcome<T>(outcome);
     switch (resolution.kind) {
       case "posted":
-        setState({ phase: "posted", document: resolution.document });
-        return;
+        return settle({ phase: "posted", document: resolution.document });
       case "notPosted":
-        setState({ phase: "notPosted" });
-        return;
+        return settle({ phase: "notPosted" });
       case "processing":
-        setState({ phase: "processing" });
-        return;
+        return settle({ phase: "processing" });
       default:
-        setState({
+        return settle({
           phase: "error",
           error: outcome instanceof ApiError ? outcome : new ApiError(resolution.status ?? 0, "Posting failed"),
         });
     }
-  }, []);
+  }, [settle]);
 
   const post = useCallback(
-    async (operationId: string, send: () => Promise<FinancialDocument>) => {
-      if (inFlight.current) return;
+    async (operationId: string, send: () => Promise<T>): Promise<PostingState<T> | null> => {
+      if (inFlight.current) return null;
       inFlight.current = true;
       setState({ phase: "posting" });
       try {
         const document = await send();
-        setState({ phase: "posted", document });
+        return settle({ phase: "posted", document });
       } catch (cause) {
-        if (isUnknownOutcome(cause)) {
-          await check(operationId);
-        } else {
-          setState({ phase: "error", error: cause as ApiError });
-        }
+        if (isUnknownOutcome(cause)) return await check(operationId);
+        return settle({ phase: "error", error: cause as ApiError });
       } finally {
         inFlight.current = false;
       }
     },
-    [check],
+    [check, settle],
   );
 
   const reset = useCallback(() => setState({ phase: "idle" }), []);

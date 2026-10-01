@@ -9,6 +9,7 @@ import { load, serverApi } from "@/lib/api/server";
 import { lastPage } from "@/lib/list-queries";
 import { parseTableParams, type RawSearchParams, type TableParams } from "@/lib/table-params";
 import { ProductsTable } from "./products-table";
+import { ReindexButton } from "./reindex-button";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -66,10 +67,13 @@ export default async function ProductsPage({
         title={t("title")}
         description={t("description")}
         actions={
-          <Link href="/catalog/products/new" className={buttonClasses()} data-testid="product-new">
-            <Plus className="size-4" aria-hidden />
-            {t("new")}
-          </Link>
+          <>
+            <ReindexButton />
+            <Link href="/catalog/products/new" className={buttonClasses()} data-testid="product-new">
+              <Plus className="size-4" aria-hidden />
+              {t("new")}
+            </Link>
+          </>
         }
       />
       <ProductsTable

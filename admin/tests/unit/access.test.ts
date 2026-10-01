@@ -69,6 +69,7 @@ describe("visibleNav", () => {
         "cash_accounts.manage",
         "settings.manage",
         "audit.view",
+        "inventory.view",
       ]),
     ).toHaveLength(NAV_ITEMS.length);
   });

@@ -6,8 +6,11 @@ import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { loadAllBrands, loadCategoryTree, loadPricingContext } from "@/lib/api/catalog-server";
+import { loadPermissions } from "@/lib/api/inventory-server";
 import { load, serverApi } from "@/lib/api/server";
+import { stockTotals, type StockTotals } from "@/lib/inventory";
 import { ProductEditor } from "../product-editor";
+import { VariantStock } from "../variant-stock";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("products");
@@ -23,13 +26,16 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     if (product.error.status === 404 || product.error.status === 422) notFound();
     return <PageError error={product.error} />;
   }
-  const [tree, brands, pricing] = await Promise.all([
+  const [tree, brands, pricing, permissions] = await Promise.all([
     loadCategoryTree(api),
     loadAllBrands(api),
     loadPricingContext(api),
+    loadPermissions(api),
   ]);
   if (!tree.ok) return <PageError error={tree.error} />;
   const name = product.data.name_ar || product.data.name_en;
+  const variants = product.data.variants ?? [];
+  const totals = permissions.includes("inventory.view") ? await variantTotals(api, variants.map((variant) => variant.id ?? "")) : null;
 
   return (
     <>
@@ -41,6 +47,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         {t("backToList")}
       </Link>
       <PageHeader title={name} description={t("editDescription")} />
+      <VariantStock variants={variants} totals={totals} />
       <ProductEditor
         // A save refreshes the page; remounting adopts what the server now
         // holds — including SKU prices a rate publish changed on its own.
@@ -58,4 +65,15 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       />
     </>
   );
+}
+
+/** On hand and reserved per SKU from its lot balances (one page of 100 each). */
+async function variantTotals(api: Awaited<ReturnType<typeof serverApi>>, ids: string[]): Promise<Record<string, StockTotals>> {
+  const entries = await Promise.all(
+    ids.filter(Boolean).map(async (id) => {
+      const page = await load(api.GET("/admin/inventory/balances", { params: { query: { variant_id: id, per_page: 100 } } }));
+      return [id, stockTotals(page.ok ? page.data.data : [])] as const;
+    }),
+  );
+  return Object.fromEntries(entries);
 }
