@@ -18,7 +18,12 @@ import {
   type MovementType,
 } from "@/lib/inventory";
 
-const TYPE_TONES: Record<MovementType, BadgeTone> = {
+/**
+ * Movement types and their tones. `return_to_supplier` (API 9.0) is sent by
+ * the server but not yet listed in the contract's enum; any other type the
+ * contract does not know falls back to a neutral badge with its raw name.
+ */
+const TYPE_TONES: Record<MovementType | "return_to_supplier", BadgeTone> = {
   receive: "success",
   reserve: "info",
   release: "neutral",
@@ -28,6 +33,7 @@ const TYPE_TONES: Record<MovementType, BadgeTone> = {
   transfer: "info",
   adjust: "warning",
   write_down: "danger",
+  return_to_supplier: "warning",
 };
 
 /**
@@ -67,8 +73,8 @@ export function MovementsTable({
       key: "type",
       header: t("columns.type"),
       cell: (row) => (
-        <Badge tone={row.type ? TYPE_TONES[row.type] : "neutral"} data-testid="movement-type" data-type={row.type}>
-          {t(`movementType.${row.type ?? "adjust"}`)}
+        <Badge tone={TYPE_TONES[row.type as keyof typeof TYPE_TONES] ?? "neutral"} data-testid="movement-type" data-type={row.type}>
+          {row.type && t.has(`movementType.${row.type}`) ? t(`movementType.${row.type}`) : (row.type ?? "—")}
         </Badge>
       ),
     },

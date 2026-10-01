@@ -1,4 +1,5 @@
 import { inventoryEntrySourceHref } from "@/lib/inventory";
+import { purchasingSourceHref } from "@/lib/purchasing";
 
 /* ---------------------------------------------------------------------------
  * Direct links into the ledger (contract 8.1): one journal entry
@@ -19,10 +20,11 @@ export function documentHref(id: string): string {
 
 /**
  * The page of the document an entry was posted from, if it has one: a
- * financial document, or (API 8.2) an inventory opening, count or write-down.
+ * financial document, an inventory opening, count or write-down (API 8.2), or
+ * a purchase invoice (API 9.0).
  */
 export function sourceDocumentHref(entry: { source_type: string; source_id: string }): string | null {
   return (DOCUMENT_SOURCES as readonly string[]).includes(entry.source_type)
     ? documentHref(entry.source_id)
-    : inventoryEntrySourceHref(entry);
+    : (inventoryEntrySourceHref(entry) ?? purchasingSourceHref(entry.source_type, entry.source_id));
 }

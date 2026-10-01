@@ -19,7 +19,10 @@ export type NavKey =
   | "transfers"
   | "counts"
   | "writeDowns"
+  | "suppliers"
   | "purchasing"
+  | "supplierPayments"
+  | "payables"
   | "currencies"
   | "cashAccounts"
   | "periods"
@@ -53,7 +56,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "transfers", href: "/inventory/transfers", requires: ["inventory.view"] },
   { key: "counts", href: "/inventory/counts", requires: ["inventory.view"] },
   { key: "writeDowns", href: "/inventory/write-downs", requires: ["inventory.view"] },
-  { key: "purchasing", href: "/purchasing", requires: ["suppliers.view"] },
+  // Purchasing and suppliers (API 9.0): every read needs suppliers.view; each
+  // document carries its own permission.
+  { key: "suppliers", href: "/purchasing/suppliers", requires: ["suppliers.view"] },
+  { key: "purchasing", href: "/purchasing/invoices", requires: ["suppliers.view"] },
+  { key: "supplierPayments", href: "/purchasing/payments", requires: ["suppliers.view"] },
+  { key: "payables", href: "/purchasing/reports", requires: ["suppliers.view"] },
   // Financial core (API 7.0).
   { key: "currencies", href: "/finance/currencies", requires: ["ledger.view"] },
   { key: "cashAccounts", href: "/finance/cash-accounts", requires: ["cash_accounts.manage"] },

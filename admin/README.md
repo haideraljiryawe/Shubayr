@@ -8,8 +8,18 @@ currencies and exchange rates, cash and bank accounts, periods and monthly
 close, ledger views), the **catalog** (categories, brands, products and SKUs,
 search reindex) and **inventory** (warehouses and locations, stock by lot and
 location or by SKU, lots and the movement ledger, and the posted documents:
-opening stock, transfers, counts and write-downs). Further screens
-(purchasing…) follow the backend build phases.
+opening stock, transfers, counts and write-downs) and **purchasing and
+suppliers** (suppliers with opening balances, statements and credits; one
+purchase-invoice screen with pack conversion, landed-cost allocation and a
+per-user draft; cost corrections split across stock, custody and sold
+units; supplier payments with their FX gain or loss; returns to the
+supplier; balances and AP aging). Further screens follow the backend build
+phases.
+
+Purchasing previews — base units, landed-cost shares, FX, a return's value,
+a correction's split — are computed in `src/lib/purchasing.ts` with the
+server's own rules in exact fixed-point arithmetic; the posted document is
+what is shown afterwards.
 
 Inventory documents post exactly once: like the finance postings, each one's
 `operation_id` is fixed when the person reviews it (`usePosting`), so a double
