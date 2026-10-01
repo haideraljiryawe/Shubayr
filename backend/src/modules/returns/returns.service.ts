@@ -10,6 +10,7 @@ import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { businessDate } from '../finance/business-date';
 import {
   calculateLineTotal,
   minorUnitsToMoney,
@@ -72,6 +73,7 @@ export class ReturnsService {
   async request(userId: string, role: string, input: RequestReturnDto) {
     if (role !== 'customer')
       throw new ForbiddenException('Customer account required');
+    const documentDate = businessDate();
     const id = await this.prisma.$transaction(async (tx) => {
       const initial = await tx.order.findUnique({
         where: { id: input.order_id },
@@ -144,6 +146,8 @@ export class ReturnsService {
           user_id: userId,
           reason: input.reason ?? null,
           status: 'requested',
+          document_date: documentDate,
+          accounting_date: documentDate,
           expected_refund: minorUnitsToMoney(expectedMinor),
           items: { create: lines },
         },
