@@ -17,8 +17,15 @@ import type { components } from "@/types/api";
 type Entry = components["schemas"]["JournalEntry"];
 type EntryPage = components["schemas"]["JournalEntryPage"];
 
-/** The source types that post today (API 7.0), for the filter. */
-const SOURCE_TYPES = ["cash_opening_balance", "cash_transfer", "journal_reversal"] as const;
+/** The source types that post today (API 8.2), for the filter. */
+const SOURCE_TYPES = [
+  "cash_opening_balance",
+  "cash_transfer",
+  "journal_reversal",
+  "inventory_opening",
+  "stock_count",
+  "inventory_write_down",
+] as const;
 
 function entriesHref(filters: Record<string, string>): string {
   return `/finance/ledger/entries?${new URLSearchParams(filters)}`;

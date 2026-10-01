@@ -11,7 +11,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  ArrowLeftRight,
   BookOpenText,
+  Boxes,
+  ClipboardCheck,
+  History,
+  PackagePlus,
+  PackageX,
+  Warehouse,
   CalendarCheck,
   ClipboardList,
   Coins,
@@ -71,6 +78,13 @@ const ICONS: Record<NavKey, LucideIcon> = {
   products: Package,
   categories: FolderTree,
   brands: Tags,
+  stock: Boxes,
+  movements: History,
+  warehouses: Warehouse,
+  openings: PackagePlus,
+  transfers: ArrowLeftRight,
+  counts: ClipboardCheck,
+  writeDowns: PackageX,
   currencies: Coins,
   cashAccounts: Landmark,
   periods: CalendarCheck,

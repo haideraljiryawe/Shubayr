@@ -29,21 +29,21 @@ export function isUnknownOutcome(error: unknown): boolean {
   return error.status === 0 || error.status >= 502;
 }
 
-export type Resolution =
-  | { kind: "posted"; document: FinancialDocument }
+export type Resolution<T = FinancialDocument> =
+  | { kind: "posted"; document: T }
   | { kind: "notPosted" }
   | { kind: "processing" }
   | { kind: "failed"; status: number | null };
 
 /** Read an operation lookup (outcome, or the error the lookup raised). */
-export function resolveOutcome(outcome: OperationOutcome | ApiError): Resolution {
+export function resolveOutcome<T = FinancialDocument>(outcome: OperationOutcome | ApiError): Resolution<T> {
   if (outcome instanceof ApiError) {
     return outcome.status === 404 ? { kind: "notPosted" } : { kind: "failed", status: outcome.status };
   }
   if (outcome.status !== "completed") return { kind: "processing" };
   const status = outcome.response_status ?? 200;
   if (status >= 200 && status < 300 && outcome.response && typeof outcome.response === "object") {
-    return { kind: "posted", document: outcome.response as FinancialDocument };
+    return { kind: "posted", document: outcome.response as T };
   }
   return { kind: "failed", status };
 }

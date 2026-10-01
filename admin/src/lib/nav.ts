@@ -12,6 +12,13 @@ export type NavKey =
   | "products"
   | "categories"
   | "brands"
+  | "stock"
+  | "movements"
+  | "warehouses"
+  | "openings"
+  | "transfers"
+  | "counts"
+  | "writeDowns"
   | "currencies"
   | "cashAccounts"
   | "periods"
@@ -36,6 +43,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "products", href: "/catalog/products", requires: ["catalog.products"] },
   { key: "categories", href: "/catalog/categories", requires: ["catalog.categories"] },
   { key: "brands", href: "/catalog/brands", requires: ["catalog.brands"] },
+  // Inventory (API 8.2): every screen reads with inventory.view; each action
+  // carries its own permission (manage, transfer, count, adjust, write_down).
+  { key: "stock", href: "/inventory/stock", requires: ["inventory.view"] },
+  { key: "movements", href: "/inventory/movements", requires: ["inventory.view"] },
+  { key: "warehouses", href: "/inventory/warehouses", requires: ["inventory.view"] },
+  { key: "openings", href: "/inventory/openings", requires: ["inventory.view"] },
+  { key: "transfers", href: "/inventory/transfers", requires: ["inventory.view"] },
+  { key: "counts", href: "/inventory/counts", requires: ["inventory.view"] },
+  { key: "writeDowns", href: "/inventory/write-downs", requires: ["inventory.view"] },
   // Financial core (API 7.0).
   { key: "currencies", href: "/finance/currencies", requires: ["ledger.view"] },
   { key: "cashAccounts", href: "/finance/cash-accounts", requires: ["cash_accounts.manage"] },
