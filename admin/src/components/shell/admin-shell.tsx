@@ -11,18 +11,32 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  ArrowLeftRight,
   BookOpenText,
+  Boxes,
+  ClipboardCheck,
+  History,
+  PackagePlus,
+  PackageX,
+  Warehouse,
   CalendarCheck,
   ClipboardList,
   Coins,
+  FolderTree,
   KeyRound,
   Landmark,
   Settings,
   LayoutDashboard,
   LogOut,
   Menu,
+  Package,
   ScrollText,
+  Tags,
   Smartphone,
+  ChartColumn,
+  HandCoins,
+  ShoppingCart,
+  Truck,
   Users,
   X,
   type LucideIcon,
@@ -65,6 +79,20 @@ async function fetchSession(): Promise<SessionResult> {
 const ICONS: Record<NavKey, LucideIcon> = {
   dashboard: LayoutDashboard,
   orders: ClipboardList,
+  products: Package,
+  categories: FolderTree,
+  brands: Tags,
+  stock: Boxes,
+  movements: History,
+  warehouses: Warehouse,
+  openings: PackagePlus,
+  transfers: ArrowLeftRight,
+  counts: ClipboardCheck,
+  writeDowns: PackageX,
+  suppliers: Truck,
+  purchasing: ShoppingCart,
+  supplierPayments: HandCoins,
+  payables: ChartColumn,
   currencies: Coins,
   cashAccounts: Landmark,
   periods: CalendarCheck,
@@ -102,6 +130,7 @@ export function AdminShell({
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const version = useRef(initialUser.permission_version);
+  const mountedPath = useRef(false);
 
   const applySession = useCallback(
     (session: SessionResult) => {
@@ -130,6 +159,14 @@ export function AdminShell({
   );
 
   useEffect(() => {
+    // A full page load already received a fresh user from the server. Skipping
+    // this duplicate request also prevents a just-rendered action from being
+    // replaced midway through a click; client-side navigations still refresh
+    // permissions here, and focus changes are handled below.
+    if (!mountedPath.current) {
+      mountedPath.current = true;
+      return;
+    }
     let current = true;
     void fetchSession().then((session) => {
       // A slower response for a page already left must not win.

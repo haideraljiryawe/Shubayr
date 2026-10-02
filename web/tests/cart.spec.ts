@@ -56,17 +56,19 @@ test("quantity is capped at the variant's available stock", async ({ page }) => 
     if (await increase.isEnabled()) await increase.click();
   }
 
-  await expect(quantity).toHaveText("4");
+  await expect(quantity).toHaveValue("4");
   await expect(increase).toBeDisabled();
+  // The cap is explained without printing how much stock is left.
   await expect(page.getByTestId("cart-max-qty")).toHaveText(
-    "الحد الأقصى المتاح 4",
+    "وصلت إلى أقصى كمية متاحة",
   );
+  await expect(page.getByTestId("cart-max-qty")).not.toContainText("4");
 
   // The cap is stored, not just rendered.
   await page.reload();
   await expect(
     page.getByTestId("cart-items").getByLabel("الكمية", { exact: true }),
-  ).toHaveText("4");
+  ).toHaveValue("4");
 });
 
 test("totals add up, and a coupon discounts them", async ({ page }) => {

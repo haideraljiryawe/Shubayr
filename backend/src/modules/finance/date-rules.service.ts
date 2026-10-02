@@ -1,10 +1,12 @@
 import {
-  ConflictException,
   ForbiddenException,
   Injectable,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { businessDate } from './business-date';
+import { PeriodClosedException } from './period-closed.exception';
 
 export type DateRuleInput = {
   documentDate: string;
@@ -23,12 +25,11 @@ export class DateRulesService {
     accountingDate: Date;
     backdateReason?: string;
   }> {
-    const todayText = await this.today();
     const documentDate = this.parseDate(input.documentDate);
     const accountingDate = this.parseDate(
       input.accountingDate ?? input.documentDate,
     );
-    const today = this.parseDate(todayText);
+    const today = businessDate();
     if (!input.futureAllowed && documentDate > today) {
       throw new UnprocessableEntityException(
         'Future document dates are not allowed',
@@ -57,19 +58,7 @@ export class DateRulesService {
         );
       }
     }
-    const month = new Date(
-      Date.UTC(
-        accountingDate.getUTCFullYear(),
-        accountingDate.getUTCMonth(),
-        1,
-      ),
-    );
-    const period = await this.prisma.accountingPeriod.findUnique({
-      where: { month },
-    });
-    if (period?.status === 'closed') {
-      throw new ConflictException('The accounting period is closed');
-    }
+    await this.assertOpen(this.prisma, accountingDate);
     return {
       documentDate,
       accountingDate,
@@ -79,22 +68,27 @@ export class DateRulesService {
     };
   }
 
-  todayInTimezone(timezone: string, now = new Date()): string {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).formatToParts(now);
-    const value = Object.fromEntries(
-      parts.map((part) => [part.type, part.value]),
+  async assertOpen(
+    client: Pick<Prisma.TransactionClient, 'accountingPeriod'>,
+    accountingDate: Date,
+  ): Promise<void> {
+    const month = new Date(
+      Date.UTC(
+        accountingDate.getUTCFullYear(),
+        accountingDate.getUTCMonth(),
+        1,
+      ),
     );
-    return `${value.year}-${value.month}-${value.day}`;
+    const period = await client.accountingPeriod.findUnique({
+      where: { month },
+    });
+    if (period?.status === 'closed') {
+      throw new PeriodClosedException(accountingDate);
+    }
   }
 
-  async today(): Promise<string> {
-    const timezone = await this.setting('timezone', 'Asia/Baghdad');
-    return this.todayInTimezone(timezone);
+  today(): Promise<string> {
+    return Promise.resolve(businessDate().toISOString().slice(0, 10));
   }
 
   private parseDate(value: string): Date {

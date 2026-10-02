@@ -52,13 +52,22 @@ export default async function CategoriesPage({ params }: CategoriesPageProps) {
         <h1 className="text-2xl font-bold text-text lg:text-3xl">
           {nav("categories")}
         </h1>
-        <Link
-          href="/search"
-          aria-label={header("search")}
-          className="flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text transition-colors hover:bg-card"
-        >
-          <Search className="size-5" aria-hidden />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/brands"
+            data-testid="brands-link"
+            className="inline-flex min-h-11 items-center rounded-md border border-border bg-surface px-3 text-sm font-semibold text-primary-dark transition-colors hover:bg-card"
+          >
+            {catalog("brandsLink")}
+          </Link>
+          <Link
+            href="/search"
+            aria-label={header("search")}
+            className="flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text transition-colors hover:bg-card"
+          >
+            <Search className="size-5" aria-hidden />
+          </Link>
+        </div>
       </div>
 
       {departments === undefined ? (

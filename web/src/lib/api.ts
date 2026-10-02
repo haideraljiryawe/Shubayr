@@ -51,12 +51,14 @@ import {
   mockCouponFor,
   mockReviewsFor,
   mockBanners,
+  mockBrands,
   mockCategories,
   mockProducts,
   mockSettings,
   nextMockOrderNumber,
   type Banner,
 } from "./mock-data";
+import { twoLevelTree } from "./category-tree";
 
 /* ---------------------------------------------------------------------------
  * Types come straight from api/openapi.yaml via `npm run gen:api`. Never hand-
@@ -70,6 +72,8 @@ export type Product = Schemas["Product"];
 export type ProductImage = Schemas["ProductImage"];
 export type Category = Schemas["Category"];
 export type ProductPage = Schemas["ProductPage"];
+export type Brand = Schemas["Brand"];
+export type BrandPage = Schemas["BrandPage"];
 export type Cart = Schemas["Cart"];
 export type CartItem = NonNullable<Cart["items"]>[number];
 export type ProductVariant = Schemas["ProductVariant"];
@@ -478,9 +482,32 @@ export const api = {
     return request<StoreSettings>("/settings", init);
   },
 
+  /** Departments with their subcategories — exactly two levels, see twoLevelTree. */
   async getCategories(init?: RequestInit): Promise<Category[]> {
-    if (!isLive("catalog")) return mockCategories;
-    return request<Category[]>("/categories", init);
+    if (!isLive("catalog")) return twoLevelTree(mockCategories);
+    return twoLevelTree(await request<Category[]>("/categories", init));
+  },
+
+  /**
+   * Every visible brand, in the admin's display order. The contract pages
+   * GET /brands; a store has tens of brands, not thousands, so the pages are
+   * read through and joined for the filter and the brands page.
+   */
+  async listBrands(): Promise<Brand[]> {
+    if (!isLive("catalog")) {
+      return mockBrands
+        .filter((brand) => brand.is_visible)
+        .sort((a, b) => a.sort_order - b.sort_order);
+    }
+    const brands: Brand[] = [];
+    for (let page = 1; page <= 20; page += 1) {
+      const result = await request<BrandPage>("/brands", {
+        query: { page, per_page: 100 },
+      });
+      brands.push(...result.data);
+      if (page * result.per_page >= result.total) break;
+    }
+    return brands;
   },
 
   async listProducts(query: ProductQuery = {}): Promise<ProductPage> {
@@ -512,6 +539,20 @@ export const api = {
         matches = matches.filter((p) => p.on_sale === true);
       }
 
+      // Facets are counted before the brand filter, as the API counts them:
+      // every other filter applies, the brand filter itself does not.
+      const counts = new Map<string, number>();
+      for (const product of matches) {
+        if (!product.brand_id) continue;
+        counts.set(product.brand_id, (counts.get(product.brand_id) ?? 0) + 1);
+      }
+      const brandIds = query.brand_id ?? [];
+      if (brandIds.length) {
+        matches = matches.filter(
+          (p) => p.brand_id != null && brandIds.includes(p.brand_id),
+        );
+      }
+
       // The mock honours `sort` so the home page's sections are genuinely
       // different sets rather than the same slice repeated.
       matches = sortMockProducts(matches, query.sort);
@@ -521,6 +562,11 @@ export const api = {
         per_page: perPage,
         total: matches.length,
         data: matches.slice((page - 1) * perPage, page * perPage),
+        facets: {
+          brands: [...counts.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([brand_id, count]) => ({ brand_id, count })),
+        },
       };
     }
     return request<ProductPage>("/products", { query });

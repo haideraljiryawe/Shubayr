@@ -1635,3 +1635,6 @@ ON CONFLICT DO NOTHING;
 -- Phase 5 inventory schema is kept in the Prisma migration so bootstrap and
 -- migration paths execute the exact same DDL.
 \ir ../../backend/prisma/migrations/20260930040000_inventory_costing/migration.sql
+
+-- Phase 6 uses the production migration as the single DDL source.
+\ir ../../backend/prisma/migrations/20261001031500_phase6_purchasing_suppliers/migration.sql

@@ -45,7 +45,7 @@ export class MovementQueryDto extends LotQueryDto {
   @IsOptional()
   @IsString()
   @Matches(
-    /^(receive|reserve|release|issue_to_custody|custody_to_sold|return_in|transfer|adjust|write_down)$/,
+    /^(receive|reserve|release|issue_to_custody|custody_to_sold|return_in|return_to_supplier|transfer|adjust|write_down)$/,
   )
   type?: string;
 }

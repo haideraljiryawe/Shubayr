@@ -1,5 +1,6 @@
 import type { Locale } from "@/i18n/routing";
 import type { AppliedCoupon, CartLine } from "./cart-store";
+import { lineUnits } from "./quantity";
 
 /* ---------------------------------------------------------------------------
  * Cart money. Pure functions over the stored lines so the cart page, the
@@ -33,8 +34,9 @@ export function cartSubtotal(lines: CartLine[]): number {
   return money(lines.reduce((sum, line) => sum + lineTotal(line), 0));
 }
 
+/** Items, not units: 1.5 kg of one product is one item on the badge. */
 export function cartItemCount(lines: CartLine[]): number {
-  return lines.reduce((sum, line) => sum + line.quantity, 0);
+  return lines.reduce((sum, line) => sum + lineUnits(line.quantity), 0);
 }
 
 /**

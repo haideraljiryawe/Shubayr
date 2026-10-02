@@ -1,4 +1,5 @@
 import type {
+  Brand,
   Category,
   Coupon,
   Product,
@@ -24,6 +25,38 @@ export const mockSettings: StoreSettings = {
   currency: "USD",
 };
 
+/**
+ * Brands are their own entity (catalog v2), never extra category levels. One
+ * is hidden, as the admin can hide a brand that still has products.
+ */
+function brand(
+  id: string,
+  name_en: string,
+  name_ar: string,
+  sort_order: number,
+  is_visible = true,
+): Brand {
+  return {
+    id,
+    name_en,
+    name_ar,
+    slug: id.replace(/^brand-/, ""),
+    logo_url: null,
+    is_visible,
+    sort_order,
+    created_at: "2026-09-01T00:00:00.000Z",
+    updated_at: "2026-09-01T00:00:00.000Z",
+  };
+}
+
+export const mockBrands: Brand[] = [
+  brand("brand-sonic", "Sonic", "سونيك", 0),
+  brand("brand-nova", "Nova", "نوفا", 1),
+  brand("brand-atlas", "Atlas", "أطلس", 2),
+  brand("brand-luma", "Luma", "لوما", 3),
+  brand("brand-retired", "Retired", "متوقفة", 4, false),
+];
+
 /** `icon` holds a lucide-react icon name; the UI maps it to a component. */
 export const mockCategories: Category[] = [
   {
@@ -45,7 +78,22 @@ export const mockCategories: Category[] = [
         icon_key: "electronics",
         sort_order: 1,
         is_visible: true,
-        children: [],
+        // A legacy third level, as an older tree might still hold one. The
+        // storefront must never render or route to it (catalog v2 is two
+        // levels); in the Web Admin it is a candidate for "convert to brand".
+        children: [
+          {
+            id: "c1-phones-legacy",
+            parent_id: "c1-phones",
+            slug: "legacy-third-level",
+            name_ar: "مستوى ثالث قديم",
+            name_en: "Legacy third level",
+            icon_key: null,
+            sort_order: 1,
+            is_visible: true,
+            children: [],
+          },
+        ],
       },
       {
         id: "c1-audio",
@@ -248,6 +296,7 @@ function demo(
     rating_avg,
     status: "active",
     in_stock: true,
+    availability: "in_stock",
     available_qty: 24,
     // Contract v4 carries ProductImage objects, not bare URLs.
     images: photograph
@@ -540,6 +589,39 @@ export const demoProducts: DemoProduct[] = [
   ),
 ];
 
+/**
+ * A SKU sold by weight: quantities take up to three decimals of a kilogram,
+ * and its price is per kilogram.
+ */
+demoProducts.push(
+  demo("p36", "c2", "أرز بسمتي", "Basmati rice", 3, 4.6, 28),
+);
+
+/** Which brand each fixture belongs to, by what it is. */
+const BRAND_BY_PHOTOGRAPH: Partial<Record<keyof typeof photographs, string>> = {
+  headphones: "brand-sonic",
+  earbuds: "brand-sonic",
+  phone: "brand-nova",
+  watch: "brand-nova",
+  laptop: "brand-atlas",
+  camera: "brand-atlas",
+};
+
+for (const product of demoProducts) {
+  const url = product.images?.[0]?.url ?? "";
+  const kind = (
+    Object.keys(photographs) as Array<keyof typeof photographs>
+  ).find((key) => url.includes(photographs[key]));
+  // p13 belongs to the hidden brand: still sold, never offered as a filter.
+  const brandId =
+    product.id === "p13"
+      ? "brand-retired"
+      : (kind && BRAND_BY_PHOTOGRAPH[kind]) || "brand-luma";
+  const found = mockBrands.find((item) => item.id === brandId) ?? null;
+  product.brand_id = found?.id ?? null;
+  product.brand = found;
+}
+
 /** Contract-shaped view of the same fixtures, used by the API client. */
 export const mockProducts: Product[] = demoProducts;
 
@@ -612,41 +694,97 @@ export const mockBanners: Banner[] = [
 type VariantSeed = {
   id: string;
   sku: string;
-  price_delta: number;
+  /** Fixed-price override; null inherits the product's regular price. */
+  selling_price: number | null;
   qty: number;
   attributes: Record<string, string>;
+  base_unit?: string;
+  whole_units_only?: boolean;
+  /** Null inherits the store default below. */
+  low_stock_threshold?: number | null;
 };
+
+/** The store default low-stock threshold, in each SKU's base unit. */
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 
 const VARIANT_SEEDS: Record<string, VariantSeed[]> = {
   // The design sheet's product screen: three colour swatches, black selected.
+  // Green and grey carry their own price — a per-SKU override.
   p1: [
-    { id: "p1-black", sku: "WH-BLK", price_delta: 0, qty: 12, attributes: { color: "أسود", color_en: "Black", color_hex: "#1F2937" } },
-    { id: "p1-green", sku: "WH-GRN", price_delta: 0, qty: 4, attributes: { color: "أخضر", color_en: "Green", color_hex: "#558464" } },
-    { id: "p1-gray", sku: "WH-GRY", price_delta: 10, qty: 0, attributes: { color: "رمادي", color_en: "Gray", color_hex: "#9CA3AF" } },
+    { id: "p1-black", sku: "WH-BLK", selling_price: null, qty: 12, attributes: { color: "أسود", color_en: "Black", color_hex: "#1F2937" } },
+    { id: "p1-green", sku: "WH-GRN", selling_price: 159, qty: 4, attributes: { color: "أخضر", color_en: "Green", color_hex: "#558464" } },
+    { id: "p1-gray", sku: "WH-GRY", selling_price: 159, qty: 0, attributes: { color: "رمادي", color_en: "Gray", color_hex: "#9CA3AF" } },
   ],
   p11: [
-    { id: "p11-40", sku: "SH-40", price_delta: 0, qty: 6, attributes: { size: "40" } },
-    { id: "p11-42", sku: "SH-42", price_delta: 0, qty: 2, attributes: { size: "42" } },
-    { id: "p11-44", sku: "SH-44", price_delta: 5, qty: 0, attributes: { size: "44" } },
+    { id: "p11-40", sku: "SH-40", selling_price: null, qty: 6, attributes: { size: "40" } },
+    { id: "p11-42", sku: "SH-42", selling_price: null, qty: 2, attributes: { size: "42" } },
+    { id: "p11-44", sku: "SH-44", selling_price: 185, qty: 0, attributes: { size: "44" } },
+  ],
+  // By the kilogram: 7.5 kg left against a 10 kg threshold reads low stock.
+  p36: [
+    { id: "p36-kg", sku: "RICE-KG", selling_price: null, qty: 7.5, attributes: {}, base_unit: "kg", whole_units_only: false, low_stock_threshold: 10 },
   ],
 };
 
-/** Attach the seeded variants to their products. */
+function levelFor(qty: number, threshold: number) {
+  if (qty <= 0) return "out_of_stock" as const;
+  return qty <= threshold ? ("low_stock" as const) : ("in_stock" as const);
+}
+
+function thresholdOf(seed: VariantSeed): number {
+  return seed.low_stock_threshold ?? DEFAULT_LOW_STOCK_THRESHOLD;
+}
+
+/**
+ * Attach the seeded variants to their products, priced the way the backend
+ * prices a SKU: its own override (else the product price), then the product
+ * discount on top.
+ */
 for (const product of demoProducts) {
   const seeds = VARIANT_SEEDS[product.id ?? ""];
   if (!seeds) continue;
-  // `qty` belongs to availability, not to the variant itself — build the
-  // contract shape explicitly rather than destructuring it away.
-  product.variants = seeds.map((seed) => ({
-    id: seed.id,
-    sku: seed.sku,
-    price_delta: seed.price_delta,
-    attributes: seed.attributes,
-  }));
+  product.variants = seeds.map((seed) => {
+    const regular = seed.selling_price ?? product.price;
+    const off = product.on_sale ? (product.discount_value ?? 0) : 0;
+    const discounted = product.on_sale ? regular - off : null;
+    return {
+      id: seed.id,
+      sku: seed.sku,
+      attributes: seed.attributes,
+      price_delta: regular - product.price,
+      currency: "USD",
+      base_unit: seed.base_unit ?? "piece",
+      whole_units_only: seed.whole_units_only ?? true,
+      selling_price: seed.selling_price,
+      low_stock_threshold: seed.low_stock_threshold ?? null,
+      pricing_mode: "fixed" as const,
+      reference_currency_code: null,
+      reference_price: null,
+      published_price: null,
+      on_sale: product.on_sale,
+      discounted_price: discounted,
+      effective_price: discounted ?? regular,
+      discount_percent: product.on_sale
+        ? Math.round((off / regular) * 100)
+        : null,
+      available_qty: seed.qty,
+      availability: levelFor(seed.qty, thresholdOf(seed)),
+      in_stock: seed.qty > 0,
+    };
+  });
+  const total = seeds.reduce((sum, seed) => sum + seed.qty, 0);
+  product.available_qty = total;
+  product.in_stock = total > 0;
+  product.availability = seeds.some(
+    (seed) => levelFor(seed.qty, thresholdOf(seed)) === "in_stock",
+  )
+    ? "in_stock"
+    : total > 0
+      ? "low_stock"
+      : "out_of_stock";
 }
 
-// p1 is the design-sheet product: give it a small gallery and the extras the
-// detail page renders (points price, negotiable flag).
+// p1 is the design-sheet product: give it a small gallery.
 const headphones = demoProducts.find((p) => p.id === "p1");
 if (headphones) {
   headphones.images = [
@@ -668,19 +806,24 @@ export function mockAvailabilityFor(
     return {
       product_id: product.id,
       in_stock: product.in_stock ?? true,
+      availability: product.availability ?? "in_stock",
       available_qty: product.available_qty ?? 0,
       variants: [],
     };
   }
-  const total = seeds.reduce((sum, seed) => sum + seed.qty, 0);
   return {
     product_id: product.id,
-    in_stock: total > 0,
-    available_qty: total,
+    in_stock: product.in_stock,
+    availability: product.availability,
+    available_qty: product.available_qty,
     variants: seeds.map((seed) => ({
       variant_id: seed.id,
       sku: seed.sku,
+      base_unit: seed.base_unit ?? "piece",
+      whole_units_only: seed.whole_units_only ?? true,
+      low_stock_threshold: thresholdOf(seed),
       available_qty: seed.qty,
+      availability: levelFor(seed.qty, thresholdOf(seed)),
       in_stock: seed.qty > 0,
     })),
   };

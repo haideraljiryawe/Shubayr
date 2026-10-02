@@ -16,7 +16,12 @@ import {
 import { ProductCard } from "@/components/ui/product-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { api, ApiError, type Product } from "@/lib/api";
-import { pricingForVariant, primaryImageUrl } from "@/lib/product";
+import {
+  hasPriceRange,
+  pricingForVariant,
+  primaryImageUrl,
+  stockLevelFor,
+} from "@/lib/product";
 import type { Locale } from "@/i18n/routing";
 
 type Props = {
@@ -93,19 +98,32 @@ export default async function ProductPage({ params, searchParams }: Props) {
     .find((c) => c.id === product.category_id);
   const categoryName =
     (typedLocale === "ar" ? category?.name_ar : category?.name_en) ?? "";
+  // Products live in a subcategory; its department is the crumb above it.
+  const department = category?.parent_id
+    ? categories?.find((c) => c.id === category.parent_id)
+    : undefined;
+  const departmentName =
+    (typedLocale === "ar" ? department?.name_ar : department?.name_en) ?? "";
 
   // Only the count is needed up front (it sits beside the title); the review
   // bodies stream in below.
   const reviewCount = await api.getProductReviewCount(id).catch(() => 0);
 
+  const brandName =
+    (typedLocale === "ar" ? product.brand?.name_ar : product.brand?.name_en) ??
+    "";
+  const level = stockLevelFor(product, availability);
   const specs: SpecRow[] = [
     categoryName ? { label: t("category"), value: categoryName } : null,
+    brandName ? { label: t("brand"), value: brandName } : null,
     {
       label: t("availabilitySpec"),
       value:
-        (availability?.available_qty ?? product.available_qty ?? 0) > 0
+        level === "in_stock"
           ? t("inStock")
-          : t("outOfStockLabel"),
+          : level === "low_stock"
+            ? t("lowStock")
+            : t("outOfStockLabel"),
     },
     ...(product.variants ?? [])
       .filter((variant) => variant.sku)
@@ -119,6 +137,14 @@ export default async function ProductPage({ params, searchParams }: Props) {
       <div className="mx-auto max-w-7xl px-4 pb-32 pt-4 lg:px-8 lg:pb-16 lg:pt-6">
         <Breadcrumbs
           items={[
+            ...(department?.slug && departmentName
+              ? [
+                  {
+                    label: departmentName,
+                    href: `/category/${department.slug}`,
+                  },
+                ]
+              : []),
             ...(category?.slug && categoryName
               ? [{ label: categoryName, href: `/category/${category.slug}` }]
               : []),
@@ -209,6 +235,7 @@ async function RelatedSection({
               nameEn={item.name_en ?? ""}
               availableQty={item.available_qty}
               {...pricingForVariant(item)}
+              priceFrom={hasPriceRange(item)}
               requiresVariant={(item.variants ?? []).length > 0}
               rating={item.rating_avg}
               imageUrl={primaryImageUrl(item)}

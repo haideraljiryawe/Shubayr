@@ -12,6 +12,7 @@ import { ProductsService } from '../catalog/products.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { businessDate } from '../finance/business-date';
 import { calculateLineTotal } from '../catalog/pricing';
 import {
   activeCoupon,
@@ -132,6 +133,7 @@ export class OrdersService {
         await tx.$queryRaw`SELECT id FROM products WHERE id = ${productId}::uuid FOR UPDATE`;
       }
       const at = new Date();
+      const documentDate = businessDate(at);
       const lines = [];
       for (const item of cart.items) {
         const requestedQuantity = Number(item.quantity);
@@ -208,6 +210,8 @@ export class OrdersService {
           order_number: `ORD-${Date.now().toString(36).toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`,
           payment_method: 'cod',
           status: 'pending',
+          document_date: documentDate,
+          accounting_date: documentDate,
           ...totals,
           delivery_contact_phone: address.contact_phone,
           delivery_address_label: address.label,
@@ -219,7 +223,13 @@ export class OrdersService {
           delivery_lng: address.lng,
           items: { create: lines },
           payments: {
-            create: { method: 'cod', status: 'pending', amount: totals.total },
+            create: {
+              method: 'cod',
+              status: 'pending',
+              amount: totals.total,
+              document_date: documentDate,
+              accounting_date: documentDate,
+            },
           },
           status_events: { create: { status: 'pending', at } },
         },

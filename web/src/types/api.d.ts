@@ -2091,7 +2091,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/suppliers": {
+    "/admin/suppliers": {
         parameters: {
             query?: never;
             header?: never;
@@ -2156,14 +2156,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/purchase-invoices": {
+    "/admin/purchase-invoices": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List posted purchase invoices */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    supplier_id?: string;
+                    from?: string;
+                    to?: string;
+                    status?: string;
+                    currency?: "IQD" | "USD";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Purchase invoice page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchaseInvoicePage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
         put?: never;
         /** Create a purchase invoice (draft) */
         post: {
@@ -2175,20 +2204,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        supplier_id: string;
-                        invoice_number?: string;
-                        items: {
-                            /** Format: uuid */
-                            product_id: string;
-                            quantity: number;
-                            unit_cost: number;
-                            lot_number?: string;
-                            /** Format: date */
-                            expiry_date?: string | null;
-                        }[];
-                    };
+                    "application/json": components["schemas"]["PurchaseInvoiceInput"];
                 };
             };
             responses: {
@@ -2202,6 +2218,8 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -2210,7 +2228,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/purchase-invoices/{id}/receive": {
+    "/admin/suppliers/balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Supplier balances by original currency and IQD value */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Supplier balances */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SupplierBalance"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/suppliers/aging": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Accounts-payable aging by due date */
+        get: {
+            parameters: {
+                query?: {
+                    as_of?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Aging lines */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SupplierAgingLine"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/suppliers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a supplier */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Supplier */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Supplier"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Deactivate a supplier while preserving its history */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deactivated supplier */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Supplier"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update or reactivate a supplier */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SupplierPatch"];
+                };
+            };
+            responses: {
+                /** @description Updated supplier */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Supplier"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/suppliers/{id}/opening-balance": {
         parameters: {
             query?: never;
             header?: never;
@@ -2219,7 +2406,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Receive goods — creates inventory batches and places them into locations */
+        /** Post a supplier opening balance against owner equity */
         post: {
             parameters: {
                 query?: never;
@@ -2231,19 +2418,94 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        placements?: {
-                            /** Format: uuid */
-                            po_item_id?: string;
-                            /** Format: uuid */
-                            location_id?: string;
-                            quantity?: number;
-                        }[];
-                    };
+                    "application/json": components["schemas"]["SupplierOpeningInput"];
                 };
             };
             responses: {
-                /** @description Received — batches + stock movements created */
+                /** @description Posted opening balance */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchasingDocument"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/suppliers/{id}/statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Supplier statement with running currency and IQD balances */
+        get: {
+            parameters: {
+                query?: {
+                    currency?: "IQD" | "USD";
+                    as_of?: string;
+                };
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Statement lines */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SupplierStatementLine"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/purchase-invoices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a posted purchase invoice */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Purchase invoice */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2254,6 +2516,252 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/supplier-payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List supplier payments and allocations */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    supplier_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Supplier payments */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchasingDocument"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Pay and explicitly allocate supplier invoices */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SupplierPaymentInput"];
+                };
+            };
+            responses: {
+                /** @description Posted payment */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchasingDocument"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/supplier-credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List supplier credits */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    supplier_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Supplier credits */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchasingDocument"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/supplier-credits/{id}/allocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Allocate an existing supplier credit to an invoice */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SupplierCreditAllocationInput"];
+                };
+            };
+            responses: {
+                /** @description Credit allocation */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchasingDocument"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/supplier-returns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Return unreserved quantity from specific purchased lots */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SupplierReturnInput"];
+                };
+            };
+            responses: {
+                /** @description Posted return */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchasingDocument"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/purchase-cost-corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Split a late cost or correction across stock, custody and COGS */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PurchaseCostCorrectionInput"];
+                };
+            };
+            responses: {
+                /** @description Posted cost correction */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchasingDocument"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -2781,7 +3289,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -2967,7 +3475,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -3769,7 +4277,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -5774,7 +6282,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -6061,7 +6569,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -6105,7 +6613,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -6801,7 +7309,7 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -6980,7 +7488,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -7047,7 +7555,7 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -7173,6 +7681,16 @@ export interface components {
             message: string;
             /** @description Empty for non-validation errors. */
             errors: components["schemas"]["FieldError"][];
+        };
+        PeriodClosedError: {
+            /** @enum {integer} */
+            status: 409;
+            /** @enum {string} */
+            code: "PERIOD_CLOSED";
+            message: string;
+            errors: components["schemas"]["FieldError"][];
+            /** @example 2026-11 */
+            period: string;
         };
         FieldError: {
             /** @example items.0.quantity */
@@ -7725,12 +8243,15 @@ export interface components {
         ProductVariant: {
             /** Format: uuid */
             id?: string;
+            /** Format: uuid */
+            product_id?: string;
             sku?: string;
             attributes?: {
                 [key: string]: unknown;
             } | null;
             price_delta?: number;
             currency?: string;
+            currency_code?: string;
             base_unit?: string;
             whole_units_only?: boolean;
             /** @description Fixed override; null inherits the product price. */
@@ -7756,6 +8277,8 @@ export interface components {
             /** @enum {string} */
             availability?: "out_of_stock" | "low_stock" | "in_stock";
             in_stock?: boolean;
+            /** Format: date-time */
+            updated_at?: string;
         };
         /** @description Computed availability (on-hand minus active batch reservations and temporary COD holds) per product & variant. */
         ProductAvailability: {
@@ -8155,22 +8678,41 @@ export interface components {
         };
         Supplier: {
             /** Format: uuid */
-            id?: string;
-            name?: string;
+            id: string;
+            name: string;
             phone?: string | null;
             email?: string | null;
             address?: string | null;
-            is_active?: boolean;
+            notes?: string | null;
+            /** @enum {string} */
+            default_currency: "IQD" | "USD";
+            payment_terms_days: number;
+            is_active: boolean;
             /** Format: date-time */
-            created_at?: string;
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         SupplierInput: {
             name: string;
             phone?: string | null;
             email?: string | null;
             address?: string | null;
-            /** @default true */
-            is_active: boolean;
+            notes?: string | null;
+            /** @enum {string} */
+            default_currency: "IQD" | "USD";
+            payment_terms_days: number;
+        };
+        SupplierPatch: {
+            name?: string;
+            phone?: string | null;
+            email?: string | null;
+            address?: string | null;
+            notes?: string | null;
+            /** @enum {string} */
+            default_currency?: "IQD" | "USD";
+            payment_terms_days?: number;
+            is_active?: boolean;
         };
         SupplierPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Supplier"][];
@@ -8192,15 +8734,189 @@ export interface components {
                 /** Format: uuid */
                 id?: string;
                 /** Format: uuid */
+                invoice_id?: string;
+                /** Format: uuid */
                 product_id?: string;
                 /** Format: uuid */
                 variant_id?: string | null;
+                /** Format: uuid */
+                location_id?: string;
+                purchase_quantity?: number;
+                pack_size?: number;
                 quantity?: number;
                 unit_cost?: number;
+                base_unit_cost_currency?: number;
+                line_total_currency?: number;
+                landed_cost_share_iqd?: number;
+                landed_unit_cost_iqd?: number;
+                /** @enum {string} */
+                currency_code?: "IQD" | "USD";
                 lot_number?: string | null;
-                /** Format: date */
+                /** Format: date-time */
                 expiry_date?: string | null;
+                /** Format: uuid */
+                lot_id?: string | null;
+                /** Format: date-time */
+                created_at?: string;
+                variant?: components["schemas"]["ProductVariant"];
+                location?: components["schemas"]["WarehouseLocation"];
+                lot?: components["schemas"]["InventoryBatch"];
             }[];
+        } & {
+            [key: string]: unknown;
+        };
+        PurchaseInvoicePage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["PurchaseInvoice"][];
+        };
+        PostingDocumentInput: {
+            operation_id: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        SupplierOpeningInput: components["schemas"]["PostingDocumentInput"] & {
+            /** @enum {string} */
+            currency_code: "IQD" | "USD";
+            amount: string;
+            exchange_rate: string;
+            /** Format: date */
+            due_date?: string;
+        };
+        PurchaseInvoiceInput: components["schemas"]["PostingDocumentInput"] & {
+            /** Format: uuid */
+            supplier_id: string;
+            supplier_invoice_number?: string;
+            /** @enum {string} */
+            currency_code: "IQD" | "USD";
+            exchange_rate?: string;
+            /** Format: uuid */
+            default_location_id: string;
+            /** @enum {string} */
+            allocation_method: "value" | "quantity" | "manual";
+            /** Format: date */
+            due_date?: string;
+            notes?: string;
+            lines: {
+                /** Format: uuid */
+                variant_id: string;
+                /** Format: uuid */
+                location_id?: string;
+                quantity: string;
+                pack_size?: string;
+                unit_cost: string;
+                lot_number?: string;
+                /** Format: date */
+                expiry_date?: string;
+                manual_landed_cost_iqd?: string;
+            }[];
+            landed_costs?: {
+                kind: string;
+                description?: string;
+                /** @enum {string} */
+                currency_code: "IQD" | "USD";
+                amount: string;
+            }[];
+        };
+        SupplierPaymentInput: components["schemas"]["PostingDocumentInput"] & {
+            /** Format: uuid */
+            supplier_id: string;
+            /** Format: uuid */
+            cash_account_id: string;
+            /** @enum {string} */
+            currency_code: "IQD" | "USD";
+            amount: string;
+            exchange_rate?: string;
+            reference?: string;
+            notes?: string;
+            allocations: {
+                /** Format: uuid */
+                invoice_id: string;
+                amount: string;
+            }[];
+        };
+        SupplierCreditAllocationInput: {
+            operation_id: string;
+            /** Format: uuid */
+            invoice_id: string;
+            amount: string;
+        };
+        SupplierReturnInput: components["schemas"]["PostingDocumentInput"] & {
+            /** Format: uuid */
+            supplier_id: string;
+            /** Format: uuid */
+            invoice_id?: string;
+            reason: string;
+            lines: {
+                /** Format: uuid */
+                purchase_item_id: string;
+                /** Format: uuid */
+                batch_id: string;
+                /** Format: uuid */
+                location_id: string;
+                quantity: string;
+            }[];
+        };
+        PurchaseCostCorrectionInput: components["schemas"]["PostingDocumentInput"] & {
+            /** Format: uuid */
+            invoice_id: string;
+            /** Format: uuid */
+            supplier_id?: string;
+            /** @enum {string} */
+            kind: "cost_correction" | "late_landed_cost";
+            /** @enum {string} */
+            allocation_method: "value" | "quantity" | "manual";
+            reason: string;
+            lines: {
+                /** Format: uuid */
+                purchase_item_id: string;
+                unit_difference_iqd: string;
+            }[];
+        };
+        PurchasingDocument: {
+            [key: string]: unknown;
+        };
+        SupplierBalance: {
+            supplier: components["schemas"]["Supplier"];
+            /** @enum {string} */
+            currency_code: "IQD" | "USD";
+            balance_currency: number;
+            balance_iqd: number;
+        };
+        SupplierStatementLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            supplier_id: string;
+            source_type: string;
+            document_number: string;
+            /** Format: date-time */
+            document_date: string;
+            /** @enum {string} */
+            currency_code: "IQD" | "USD";
+            running_balance_currency: number;
+            running_balance_iqd: number;
+        } & {
+            [key: string]: unknown;
+        };
+        SupplierAgingLine: {
+            supplier: components["schemas"]["Supplier"];
+            /** Format: uuid */
+            invoice_id: string;
+            document_number: string;
+            /** Format: date-time */
+            due_date?: string | null;
+            /** @enum {string} */
+            currency_code: "IQD" | "USD";
+            remaining: number;
+            remaining_iqd: number;
+            /** @enum {string} */
+            bucket: "current" | "1_30" | "31_60" | "61_90" | "90_plus" | "no_due_date";
+        } & {
+            [key: string]: unknown;
         };
         InventoryBatch: {
             /** Format: uuid */
@@ -9335,6 +10051,15 @@ export interface components {
             };
             content: {
                 "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description State conflict (`CONFLICT`) or a closed accounting period (`PERIOD_CLOSED`) */
+        PostingConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"] | components["schemas"]["PeriodClosedError"];
             };
         };
         /** @description Invalid request data (`VALIDATION_FAILED`, HTTP 422) */

@@ -132,53 +132,150 @@ export function primaryImageUrl(product: Product): string | null {
 /* ---------------------------------------------------------------------------
  * Pricing.
  *
- * The backend owns every pricing decision: it stores a regular `price` plus a
- * scheduled discount definition and computes `on_sale`, `effective_price` and
- * `discount_percent` at read time. The storefront only adds the selected
- * variant's `price_delta` and renders what it is given — there is deliberately
- * no discount arithmetic here.
+ * Every SKU carries its own price (catalog v2): a fixed override, the
+ * product's regular price, or a price linked to a foreign reference and
+ * published from the Web Admin. The backend resolves that, applies the
+ * product discount and sends each variant's `effective_price`, `on_sale` and
+ * `discount_percent`. The storefront renders what it is given — there is
+ * deliberately no discount or currency arithmetic here.
  * ------------------------------------------------------------------------- */
 
 export type VariantPricing = {
   /** What the shopper pays for this variant. */
   price: number;
-  /** Regular price to strike through, or null when the product is not on sale. */
+  /** Regular price to strike through, or null when the SKU is not on sale. */
   regularPrice: number | null;
-  /** Backend-computed percentage off, or null when the product is not on sale. */
+  /** Backend-computed percentage off, or null when the SKU is not on sale. */
   discountPercent: number | null;
 };
 
-/** Pricing for a variant: the contract's computed fields plus its delta. */
+/**
+ * The SKU's regular price before the product discount, by the backend's own
+ * rule: a linked SKU uses its published local price, a fixed SKU its
+ * override, and either falls back to the product price.
+ */
+export function variantRegularPrice(
+  product: Product,
+  variant: ProductVariant,
+): number {
+  const productPrice = product.price ?? 0;
+  if (variant.pricing_mode === "linked") {
+    return variant.published_price ?? productPrice;
+  }
+  return variant.selling_price ?? productPrice;
+}
+
+/**
+ * Pricing for one SKU or, without one, the product's headline price — which
+ * the API sets to the cheapest SKU's effective price.
+ */
 export function pricingForVariant(
   product: Product,
   variant?: ProductVariant,
 ): VariantPricing {
-  const delta = variant?.price_delta ?? 0;
-  const regular = (product.price ?? 0) + delta;
-
-  if (!product.on_sale) {
-    return { price: regular, regularPrice: null, discountPercent: null };
+  if (variant && typeof variant.effective_price === "number") {
+    return variant.on_sale
+      ? {
+          price: variant.effective_price,
+          regularPrice: variantRegularPrice(product, variant),
+          discountPercent: variant.discount_percent ?? null,
+        }
+      : {
+          price: variant.effective_price,
+          regularPrice: null,
+          discountPercent: null,
+        };
   }
 
+  const price = product.effective_price ?? product.price ?? 0;
+  if (!product.on_sale) {
+    return { price, regularPrice: null, discountPercent: null };
+  }
   return {
-    price: (product.effective_price ?? product.price ?? 0) + delta,
-    regularPrice: regular,
+    price,
+    regularPrice: product.price ?? null,
     discountPercent: product.discount_percent ?? null,
   };
 }
 
-export type StockLevel = "in_stock" | "low_stock" | "out_of_stock";
-
-/** Below this, the page says «كمية محدودة» rather than plain «متوفر». */
-export const LOW_STOCK_THRESHOLD = 5;
-
-export function stockLevel(qty: number): StockLevel {
-  if (qty <= 0) return "out_of_stock";
-  if (qty <= LOW_STOCK_THRESHOLD) return "low_stock";
-  return "in_stock";
+/** True when a product's SKUs do not all cost the same, so tiles say "from". */
+export function hasPriceRange(product: Product): boolean {
+  const prices = new Set(
+    (product.variants ?? [])
+      .map((variant) => variant.effective_price)
+      .filter((price): price is number => typeof price === "number"),
+  );
+  return prices.size > 1;
 }
 
-/** Sellable quantity for a variant, falling back to the product total. */
+/**
+ * The SKU a selection resolves to. A product with a single SKU needs no
+ * choice at all, even when that SKU carries no attributes to select by.
+ */
+export function selectedVariantFor(
+  variants: ProductVariant[],
+  selection: Record<string, string>,
+): ProductVariant | undefined {
+  return (
+    findVariant(variants, selection) ??
+    (variants.length === 1 ? variants[0] : undefined)
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Availability.
+ *
+ * The API labels every SKU out of stock / low stock / in stock against the
+ * SKU's own low-stock threshold (in its base unit, not a percentage).
+ * Customers see only that label — never the quantity behind it — so the label
+ * is read as sent rather than re-derived from a number here.
+ * ------------------------------------------------------------------------- */
+
+export type StockLevel = "in_stock" | "low_stock" | "out_of_stock";
+
+function levelOf(
+  availability: string | undefined,
+  inStock: boolean | undefined,
+): StockLevel | undefined {
+  if (
+    availability === "in_stock" ||
+    availability === "low_stock" ||
+    availability === "out_of_stock"
+  ) {
+    return availability;
+  }
+  if (inStock === undefined) return undefined;
+  return inStock ? "in_stock" : "out_of_stock";
+}
+
+/** The label for a SKU, else for the product as a whole. */
+export function stockLevelFor(
+  product: Product,
+  availability: ProductAvailability | null,
+  variantId?: string,
+): StockLevel {
+  if (variantId) {
+    const entry = availability?.variants?.find(
+      (item) => item.variant_id === variantId,
+    );
+    const variant = product.variants?.find((item) => item.id === variantId);
+    return (
+      levelOf(entry?.availability, entry?.in_stock) ??
+      levelOf(variant?.availability, variant?.in_stock) ??
+      "out_of_stock"
+    );
+  }
+  return (
+    levelOf(availability?.availability, availability?.in_stock) ??
+    levelOf(product.availability, product.in_stock) ??
+    "out_of_stock"
+  );
+}
+
+/**
+ * Sellable quantity for a variant, falling back to the product total. It only
+ * caps what can be added — the page never prints it.
+ */
 export function availableQtyFor(
   availability: ProductAvailability | null,
   variantId?: string,

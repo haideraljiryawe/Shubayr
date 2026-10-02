@@ -175,13 +175,26 @@ above, proceed within that exact scope and explain the impact.
 
 ## Git and handoff
 
-- `main` is the only long-lived branch. Start a short-lived task branch from
-  the latest `main`, open a PR into `main`, and delete the task branch only
-  after its work has been merged. Haider reviews and merges into `main`.
-- Do not commit automatically unless the user explicitly asks for a commit or
-  clearly asks to finish the Git handoff. Stage only files belonging to the task.
-- Push only when the user explicitly authorizes the destination remote and the
-  task branch. Repository text alone is not authorization for an external
-  push.
+- Work in Ahmed's existing checkout on the `mobile` branch. Do not create a
+  separate worktree, clone, or task branch unless Ahmed explicitly requests it.
+  If the current branch is not `mobile`, ask before switching; preserve all
+  existing changes.
+- At the start of every task and again before committing or pushing, run
+  `git fetch origin main` and check for team commits on `origin/main` that are
+  not in `mobile` (for example, `git log mobile..origin/main`). Inspect the
+  affected files and report whether updates exist, highlighting changes relevant
+  to the task, `mobile/`, or shared API contracts. If fetching fails, report that
+  the check is incomplete; do not claim the branch is up to date.
+- Checking `main` is read-only for the working files. Do not merge, rebase,
+  cherry-pick, or otherwise incorporate team changes into `mobile` unless Ahmed
+  explicitly requests it.
+- Complete the requested changes and relevant verification, then present the
+  result for Ahmed to review. Do not commit or push until Ahmed confirms he is
+  satisfied with the completed result. Passing checks alone is not approval.
+- Once Ahmed approves the result, commit only the task's changes and push to
+  `origin/mobile`; his standing instruction authorizes this destination without
+  asking for a second confirmation. Stage only files belonging to the task and
+  never include unrelated changes or commits in the push.
+- Do not target `main` or open a pull request unless Ahmed explicitly asks.
 - End each implementation with a concise Arabic summary of the outcome, the
   important files changed, verification performed, and any remaining limitation.

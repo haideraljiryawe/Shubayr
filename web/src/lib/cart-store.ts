@@ -1,4 +1,5 @@
 import { api, type Cart, type Product } from "./api";
+import { roundQuantity } from "./quantity";
 
 /* ---------------------------------------------------------------------------
  * The cart, in two modes.
@@ -39,6 +40,13 @@ export interface CartLine {
   regular_price: number | null;
   /** Sellable stock when the line was added; caps the stepper. */
   available_qty: number;
+  /**
+   * The SKU's base unit ("piece", "kg"…) and whether it takes whole numbers
+   * only. Absent on lines stored before catalog v2, which were all pieces.
+   */
+  base_unit?: string;
+  whole_units_only?: boolean;
+  /** In the SKU's base unit: whole for pieces, up to three decimals else. */
   quantity: number;
 }
 
@@ -338,32 +346,49 @@ export const cartStore = {
     }
   },
 
-  /** Cache a product's display details for a server line this device lacks. */
+  /**
+   * Cache a product's display details for server lines this device lacks —
+   * one row for the product and one per SKU, so a variant line also knows its
+   * unit and whether it takes whole numbers only.
+   */
   rememberProduct(product: Product): void {
     const productId = product.id;
     if (!productId) return;
-    const id = lineId(productId, null);
-    if (state.lines.some((line) => line.id === id)) return;
-
-    setState({
-      ...state,
-      lines: [
-        ...state.lines,
-        {
-          id,
-          product_id: productId,
-          variant_id: null,
-          name_ar: product.name_ar ?? "",
-          name_en: product.name_en ?? "",
-          image_url: product.images?.[0]?.url ?? null,
-          variant_label: null,
-          unit_price: product.effective_price ?? product.price ?? 0,
-          regular_price: product.on_sale ? (product.price ?? null) : null,
-          available_qty: product.available_qty ?? 0,
-          quantity: 0,
-        },
-      ],
-    });
+    const known = new Set(state.lines.map((line) => line.id));
+    const base: Omit<CartLine, "id" | "variant_id"> = {
+      product_id: productId,
+      name_ar: product.name_ar ?? "",
+      name_en: product.name_en ?? "",
+      image_url: product.images?.[0]?.url ?? null,
+      variant_label: null,
+      unit_price: product.effective_price ?? product.price ?? 0,
+      regular_price: product.on_sale ? (product.price ?? null) : null,
+      available_qty: product.available_qty ?? 0,
+      quantity: 0,
+    };
+    const additions: CartLine[] = [];
+    if (!known.has(lineId(productId, null))) {
+      additions.push({ ...base, id: lineId(productId, null), variant_id: null });
+    }
+    for (const variant of product.variants ?? []) {
+      if (!variant.id || known.has(lineId(productId, variant.id))) continue;
+      const label = Object.entries(variant.attributes ?? {})
+        .filter(([key, value]) => typeof value === "string" && !key.includes("_"))
+        .map(([, value]) => value as string)
+        .join(" · ");
+      additions.push({
+        ...base,
+        id: lineId(productId, variant.id),
+        variant_id: variant.id,
+        variant_label: label || null,
+        unit_price: variant.effective_price ?? base.unit_price,
+        available_qty: variant.available_qty ?? 0,
+        base_unit: variant.base_unit,
+        whole_units_only: variant.whole_units_only,
+      });
+    }
+    if (additions.length === 0) return;
+    setState({ ...state, lines: [...state.lines, ...additions] });
   },
 
   /**
@@ -381,9 +406,19 @@ export const cartStore = {
         const cart = await api.addCartItem({
           product_id: input.product_id,
           variant_id: input.variant_id,
-          quantity: Math.max(1, quantity),
+          quantity: quantity > 0 ? roundQuantity(quantity) : 1,
         });
-        setState({ ...state, lines, server: cart });
+        // The server holds the quantity; the device keeps only presentation
+        // detail, at quantity 0 — the marker that stops the next sign-in
+        // replay from adding this line to the server cart a second time.
+        const id = lineId(input.product_id, input.variant_id);
+        setState({
+          ...state,
+          lines: lines.map((line) =>
+            line.id === id ? { ...line, quantity: 0 } : line,
+          ),
+          server: cart,
+        });
       });
       return;
     }
@@ -393,7 +428,9 @@ export const cartStore = {
     const cap = Math.max(0, input.available_qty);
     if (cap <= 0) return;
 
-    const next = Math.min(cap, (existing?.quantity ?? 0) + Math.max(1, quantity));
+    const next = roundQuantity(
+      Math.min(cap, (existing?.quantity ?? 0) + (quantity > 0 ? quantity : 1)),
+    );
     setState({
       ...state,
       lines: lines.map((line) =>

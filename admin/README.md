@@ -3,10 +3,29 @@
 The staff back office: username + password sign-in, permission-driven screens,
 Arabic-first with full RTL. It covers **access management** (staff accounts,
 permission presets, per-user grants, work phones), **order operations**, the
-staff **notification inbox** and the **financial core** (store settings,
+staff **notification inbox**, the **financial core** (store settings,
 currencies and exchange rates, cash and bank accounts, periods and monthly
-close, ledger views). Further screens (catalog, stock, purchasing…) follow the
-backend build phases.
+close, ledger views), the **catalog** (categories, brands, products and SKUs,
+search reindex) and **inventory** (warehouses and locations, stock by lot and
+location or by SKU, lots and the movement ledger, and the posted documents:
+opening stock, transfers, counts and write-downs) and **purchasing and
+suppliers** (suppliers with opening balances, statements and credits; one
+purchase-invoice screen with pack conversion, landed-cost allocation and a
+per-user draft; cost corrections split across stock, custody and sold
+units; supplier payments with their FX gain or loss; returns to the
+supplier; balances and AP aging). Further screens follow the backend build
+phases.
+
+Purchasing previews — base units, landed-cost shares, FX, a return's value,
+a correction's split — are computed in `src/lib/purchasing.ts` with the
+server's own rules in exact fixed-point arithmetic; the posted document is
+what is shown afterwards.
+
+Inventory documents post exactly once: like the finance postings, each one's
+`operation_id` is fixed when the person reviews it (`usePosting`), so a double
+click or a retry returns the same document. Stock is never edited directly —
+the product editor shows it read-only. Cost figures appear only with
+`cost.view` (the API omits them, and the columns go with them).
 
 ## Run
 

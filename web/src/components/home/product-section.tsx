@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { SectionHeader } from "@/components/ui/section-header";
 import { ProductCard } from "@/components/ui/product-card";
-import { pricingForVariant, primaryImageUrl } from "@/lib/product";
+import { hasPriceRange, pricingForVariant, primaryImageUrl } from "@/lib/product";
 import type { Product } from "@/lib/api";
 import type { DemoProduct } from "@/lib/mock-data";
 import type { Locale } from "@/i18n/routing";
@@ -75,6 +75,7 @@ export async function ProductSection({
                     nameEn={product.name_en ?? ""}
                     availableQty={product.available_qty}
                     {...pricingForVariant(product)}
+                    priceFrom={hasPriceRange(product)}
                     requiresVariant={(product.variants ?? []).length > 0}
                     rating={product.rating_avg}
                     reviewCount={reviewCount}

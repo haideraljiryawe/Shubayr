@@ -900,6 +900,9 @@ try {
       AND preset.name = 'stock_controller'
       AND permission.key = 'cost.view'
   `);
+  await db.query(
+    "UPDATE users SET permission_version=permission_version+1 WHERE username='stock'",
+  );
   const stockSession = await request('/admin/auth/login', {
     method: 'POST',
     expected: 201,
@@ -944,6 +947,9 @@ try {
     ),
     false,
     'document line costs require cost.view',
+  );
+  await db.query(
+    "UPDATE users SET permission_version=permission_version+1 WHERE username='stock'",
   );
 
   const markerBefore = await scalar(
