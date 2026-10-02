@@ -11,7 +11,9 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
  */
 
 import {
+  AGENT_LOCAL,
   API,
+  assignToAgent,
   awaitQuota,
   bearer,
   customerToken,
@@ -230,4 +232,35 @@ test("the shopper accepts the store's smaller quantity after a shortage", async 
   const mine = await (await request.get(`${API}/orders/${placed.id}`, { headers: bearer(await customerToken(request)) })).json();
   expect(mine.attention_details?.reduction_proposal?.status).toBe("accepted");
   expect(Number(mine.items[0].quantity)).toBe(1);
+});
+
+test("an agent marks a delivery failed with a reason, then retries it", async ({ page, request }) => {
+  const item = await stocked(request, "AGENT", 2);
+  const placed = await order(request, item, 1);
+  await move(request, placed.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+  const { delivery_id: deliveryId } = (await staff(request, "GET", `/admin/orders/${placed.id}`)).body;
+  await assignToAgent(request, deliveryId);
+
+  await signIn(page, `/deliveries/${deliveryId}`, AGENT_LOCAL);
+  const status = page.getByTestId("delivery-status").first();
+  await page.getByTestId("delivery-action-out_for_delivery").click();
+  await page.getByTestId("delivery-confirm-yes").click();
+  await expect(status).toHaveAttribute("data-status", "out_for_delivery");
+
+  await page.getByTestId("delivery-action-failed").click();
+  await page.getByTestId("delivery-failure-reason").fill("Customer not answering");
+  await page.getByTestId("delivery-confirm-yes").click();
+  await expect(status).toHaveAttribute("data-status", "failed");
+  const failure = page.getByTestId("delivery-failure");
+  await expect(failure).toHaveAttribute("data-state", "failed");
+  await expect(page.getByTestId("delivery-failure-text")).toHaveText("Customer not answering");
+
+  // Going out again is a retry; the API clears the reason but counts the retry.
+  await page.getByTestId("delivery-action-out_for_delivery").click();
+  await page.getByTestId("delivery-confirm-yes").click();
+  await expect(status).toHaveAttribute("data-status", "out_for_delivery");
+  await expect(failure).toHaveAttribute("data-state", "retrying");
+  await expect(page.getByTestId("delivery-retry-count")).toHaveText("أُعيدت المحاولة مرة");
+  const order_ = (await staff(request, "GET", `/admin/orders/${placed.id}`)).body;
+  expect(order_.delivery.retry_count).toBe(1);
 });

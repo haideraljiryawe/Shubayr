@@ -814,7 +814,9 @@
       "title": "Delivery failed",
       "at": "Failed {at}",
       "retries": "{count, plural, =0 {Not retried yet} one {Retried once} other {Retried # times}}",
-      "next": "Retry when ready: the goods are still in your custody."
+      "next": "Retry when ready: the goods are still in your custody.",
+      "retryTitle": "Delivery retry",
+      "lastAt": "Last failed {at}"
     }
   },
   "inbox": {

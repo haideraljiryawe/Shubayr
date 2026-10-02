@@ -175,16 +175,29 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
         </p>
       </Card>
 
-      {delivery.status === "failed" || delivery.failure_reason ? (
-        <Card padding="md" className="flex flex-col gap-1 text-sm" data-testid="delivery-failure">
-          <h3 className="font-bold text-text">{t("failure.title")}</h3>
+      {/* A failure, or a retry under way: the API clears the reason when the
+          agent goes out again, but keeps the retry count and the last failure time. */}
+      {delivery.status === "failed" || (delivery.retry_count ?? 0) > 0 ? (
+        <Card
+          padding="md"
+          className="flex flex-col gap-1 text-sm"
+          data-testid="delivery-failure"
+          data-state={delivery.status === "failed" ? "failed" : "retrying"}
+        >
+          <h3 className="font-bold text-text">
+            {delivery.status === "failed" ? t("failure.title") : t("failure.retryTitle")}
+          </h3>
           {delivery.failure_reason ? (
             <p className="text-text" data-testid="delivery-failure-text">
               {delivery.failure_reason}
             </p>
           ) : null}
           {delivery.failed_at ? (
-            <p className="text-text-muted">{t("failure.at", { at: dateTime(delivery.failed_at) })}</p>
+            <p className="text-text-muted">
+              {delivery.status === "failed"
+                ? t("failure.at", { at: dateTime(delivery.failed_at) })
+                : t("failure.lastAt", { at: dateTime(delivery.failed_at) })}
+            </p>
           ) : null}
           <p className="text-text-muted" data-testid="delivery-retry-count">
             {t("failure.retries", { count: delivery.retry_count ?? 0 })}
