@@ -874,7 +874,10 @@
       "markReady": "Mark ready",
       "dispatch": "Hand over to agent",
       "cancel": "Cancel order (reason required)",
-      "reject": "Reject order"
+      "reject": "Reject order",
+      "deliver": "Mark delivered",
+      "fail": "Mark failed (reason required)",
+      "retry": "Retry delivery"
     },
     "confirm": {
       "accept": "Accept this order?",
@@ -885,7 +888,11 @@
       "cancelBody": "The order is cancelled before dispatch and its stock reservation released. The reason is kept in the order timeline and audit log.",
       "yes": "Confirm",
       "reject": "Reject order",
-      "rejectBody": "Only pending orders can be rejected. It is recorded as its own “rejected” status, separate from a cancellation. The reservation is released, the customer and order monitors are notified, and the reason is kept in the order timeline and audit log."
+      "rejectBody": "Only pending orders can be rejected. It is recorded as its own “rejected” status, separate from a cancellation. The reservation is released, the customer and order monitors are notified, and the reason is kept in the order timeline and audit log.",
+      "deliver": "Mark this order delivered?",
+      "fail": "Mark the delivery failed",
+      "failBody": "The goods stay in the agent's custody. Retry the delivery later, or bring the goods back with a retrieval.",
+      "retry": "Send this order out again? It reuses the goods already in the agent's custody."
     },
     "dispatchBlocked": {
       "noDelivery": "Can't hand over: this order has no delivery.",

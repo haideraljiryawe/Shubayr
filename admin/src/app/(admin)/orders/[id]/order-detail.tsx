@@ -15,6 +15,7 @@ import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
 import {
+  DELIVERY_MOVES,
   REASON_ACTIONS,
   STATUS_MOVES,
   availableActions,
@@ -117,6 +118,8 @@ export function OrderDetailView({
               body: { reason, version: order.version! },
             }),
           )
+        : action in DELIVERY_MOVES
+        ? await moveDelivery(action as keyof typeof DELIVERY_MOVES, reason)
         : await unwrap(
             browserApi.PATCH("/admin/orders/{id}/status", {
               params: { path: { id } },
@@ -132,6 +135,26 @@ export function OrderDetailView({
     } catch (cause) {
       await handleRefusal(cause);
     }
+  }
+
+  /**
+   * Deliver, fail (with a reason) or retry through the staff delivery route
+   * (API 10.0). It answers the delivery, so the order is read again.
+   */
+  async function moveDelivery(action: keyof typeof DELIVERY_MOVES, reason: string): Promise<AdminOrder> {
+    const deliveryId = order.delivery?.id;
+    if (!deliveryId) throw new ApiError(409, "Order has no current delivery");
+    await unwrap(
+      browserApi.PATCH("/admin/deliveries/{id}/status", {
+        params: { path: { id: deliveryId } },
+        body: {
+          status: DELIVERY_MOVES[action],
+          order_version: order.version!,
+          ...(action === "fail" ? { reason } : {}),
+        },
+      }),
+    );
+    return unwrap(browserApi.GET("/admin/orders/{id}", { params: { path: { id } } }));
   }
 
   async function assign() {
@@ -394,7 +417,9 @@ export function OrderDetailView({
             ? t("confirm.cancelBody")
             : pending === "reject"
               ? t("confirm.rejectBody")
-              : undefined
+              : pending === "fail"
+                ? t("confirm.failBody")
+                : undefined
         }
         confirmLabel={pending ? t(`action.${pending}`) : t("confirm.yes")}
         tone={pending && REASON_ACTIONS.has(pending) ? "danger" : "primary"}
