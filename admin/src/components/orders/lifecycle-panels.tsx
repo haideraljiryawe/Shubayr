@@ -373,12 +373,15 @@ export function BelowCostPanel({
   canApprove,
   selfRefused,
   onApprove,
+  note,
 }: {
   breaches: BelowCostBreach[];
   currency: string;
   canApprove: boolean;
   selfRefused: boolean;
-  onApprove: (reason: string) => Promise<void>;
+  onApprove?: (reason: string) => Promise<void>;
+  /** Replaces the "needs an approver" line when approval isn't offered here. */
+  note?: string;
 }) {
   const t = useTranslations("orders.belowCost");
   const locale = useLocale();
@@ -426,21 +429,21 @@ export function BelowCostPanel({
       {selfRefused ? (
         <Alert data-testid="below-cost-self-refused">{t("selfRefused")}</Alert>
       ) : null}
-      {canApprove ? (
+      {canApprove && onApprove ? (
         <div>
           <Button variant="danger" onClick={() => setOpen(true)} data-testid="below-cost-approve">
             {t("approve")}
           </Button>
         </div>
       ) : (
-        <p className="text-xs text-text-muted" data-testid="below-cost-needs-approval">{t("needsApproval")}</p>
+        <p className="text-xs text-text-muted" data-testid="below-cost-needs-approval">{note ?? t("needsApproval")}</p>
       )}
       <ConfirmDialog
         open={open}
         title={t("dialog.title")}
         body={t("dialog.body")}
         confirmLabel={t("approve")}
-        onConfirm={onApprove}
+        onConfirm={onApprove ?? (async () => undefined)}
         onClose={() => setOpen(false)}
       />
     </Card>
