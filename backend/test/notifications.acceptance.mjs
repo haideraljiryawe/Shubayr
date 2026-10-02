@@ -207,7 +207,7 @@ try {
   const enabled = (prefs, type, channel) =>
     prefs.preferences.find((p) => p.type === type && p.channel === channel)
       ?.enabled;
-  check(defaults.preferences.length, 28, 'all type/channel pairs returned');
+  check(defaults.preferences.length, 32, 'all type/channel pairs returned');
   check(
     enabled(defaults, 'delivered', 'push'),
     true,
@@ -350,12 +350,12 @@ try {
     await request(`/deliveries/${deliveryId}`, {
       token: agent,
       method: 'PATCH',
-      body: { status: 'out_for_delivery' },
+      body: { status: 'out_for_delivery', order_version: 1 },
     });
     await request(`/deliveries/${deliveryId}`, {
       token: agent,
       method: 'PATCH',
-      body: { status: 'delivered' },
+      body: { status: 'delivered', order_version: 2 },
     });
   }
   const aPush = await waitFor(

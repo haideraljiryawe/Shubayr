@@ -15,14 +15,16 @@ import { DeliveryAgentsQueryDto } from './dto/delivery-agents-query.dto';
 import {
   AssignDeliveryDto,
   CreateDeliveryRatingDto,
+  UpdateStaffDeliveryStatusDto,
   UpdateDeliveryStatusDto,
 } from './dto/delivery.dto';
+import { assertOrderTransition, staleOrder } from '../orders/order-transition';
 
 const transitions: Record<string, readonly string[]> = {
   assigned: ['out_for_delivery'],
   out_for_delivery: ['delivered', 'failed'],
   delivered: ['returned'],
-  failed: [],
+  failed: ['out_for_delivery'],
   returned: [],
 };
 
@@ -190,6 +192,24 @@ export class DeliveriesService {
     id: string,
     input: UpdateDeliveryStatusDto,
   ) {
+    return this.transitionStatus(agentId, id, input, true);
+  }
+
+  async updateStatusAsStaff(
+    actorId: string,
+    id: string,
+    input: UpdateStaffDeliveryStatusDto,
+  ) {
+    return this.transitionStatus(actorId, id, input, false, true);
+  }
+
+  private async transitionStatus(
+    actorId: string,
+    id: string,
+    input: UpdateDeliveryStatusDto | UpdateStaffDeliveryStatusDto,
+    assignedAgentOnly: boolean,
+    retryOnlyForDispatch = false,
+  ) {
     const row = await this.prisma.$transaction(async (tx) => {
       const initial = await tx.delivery.findUnique({ where: { id } });
       if (!initial) throw new NotFoundException('Delivery not found');
@@ -201,7 +221,7 @@ export class DeliveriesService {
         include: { order: true },
       });
       if (!delivery) throw new NotFoundException('Delivery not found');
-      if (delivery.agent_id !== agentId) {
+      if (assignedAgentOnly && delivery.agent_id !== actorId) {
         throw new ForbiddenException('Delivery is assigned to another agent');
       }
       if (delivery.order.delivery_id !== id) {
@@ -212,12 +232,23 @@ export class DeliveriesService {
           'Delivery status transition is not allowed',
         );
       }
+      if (
+        retryOnlyForDispatch &&
+        input.status === 'out_for_delivery' &&
+        delivery.status !== 'failed'
+      ) {
+        throw new ConflictException('Staff dispatch retry requires a failure');
+      }
+
+      if (delivery.order.version !== input.order_version) {
+        throw staleOrder(delivery.order.status, delivery.order.version);
+      }
 
       const orderStatus = delivery.order.status;
       let orderSteps: string[];
       switch (input.status) {
         case 'out_for_delivery': {
-          if (orderStatus !== 'ready_for_dispatch') {
+          if (!['ready_for_dispatch', 'failed'].includes(orderStatus)) {
             throw new ConflictException('Order cannot be dispatched');
           }
           orderSteps = ['dispatched'];
@@ -243,10 +274,27 @@ export class DeliveriesService {
 
       const now = new Date();
       for (const [index, status] of orderSteps.entries()) {
-        await tx.order.update({
-          where: { id: delivery.order_id },
-          data: { status },
+        const priorStatus = index === 0 ? orderStatus : orderSteps[index - 1];
+        assertOrderTransition(
+          priorStatus,
+          status,
+          delivery.order.version + index,
+          input.order_version + index,
+        );
+        const changed = await tx.order.updateMany({
+          where: {
+            id: delivery.order_id,
+            status: priorStatus,
+            version: input.order_version + index,
+          },
+          data: { status, version: { increment: 1 } },
         });
+        if (!changed.count) {
+          const current = await tx.order.findUniqueOrThrow({
+            where: { id: delivery.order_id },
+          });
+          throw staleOrder(current.status, current.version);
+        }
         await tx.orderStatusEvent.create({
           data: {
             order_id: delivery.order_id,
@@ -256,7 +304,7 @@ export class DeliveriesService {
           },
         });
         await this.audit.record(tx, {
-          actorId: agentId,
+          actorId,
           action:
             status === 'dispatched' ? 'order.dispatch' : 'order.transition',
           entityType: 'order',
@@ -267,20 +315,23 @@ export class DeliveriesService {
           after: { status, delivery_id: id },
         });
       }
-      if (input.status === 'out_for_delivery') {
+      if (
+        input.status === 'out_for_delivery' &&
+        delivery.status === 'assigned'
+      ) {
         await this.inventory.issueOrderToCustody(
           tx,
           delivery.order_id,
           id,
-          agentId,
-          agentId,
+          delivery.agent_id!,
+          actorId,
         );
       }
       if (input.status === 'delivered') {
         await this.inventory.settleCustodyToSold(
           tx,
           delivery.order_id,
-          agentId,
+          delivery.agent_id!,
         );
         const payments = await tx.payment.findMany({
           where: {
@@ -295,7 +346,7 @@ export class DeliveriesService {
             data: { status: 'paid', paid_at: now },
           });
           await this.audit.record(tx, {
-            actorId: agentId,
+            actorId,
             action: 'payment.reconcile_cod',
             entityType: 'payment',
             entityId: payment.id,
@@ -303,7 +354,7 @@ export class DeliveriesService {
             after: { status: 'paid', paid_at: now.toISOString() },
           });
         }
-        await this.loyalty.earnDelivered(tx, delivery.order_id, agentId);
+        await this.loyalty.earnDelivered(tx, delivery.order_id, actorId);
       }
       await this.notifications?.record(
         tx,
@@ -335,10 +386,20 @@ export class DeliveriesService {
             ? { dispatched_at: now }
             : {}),
           ...(input.status === 'delivered' ? { delivered_at: now } : {}),
+          ...(input.status === 'failed'
+            ? { failure_reason: input.reason, failed_at: now }
+            : {}),
+          ...(input.status === 'out_for_delivery' &&
+          delivery.status === 'failed'
+            ? {
+                retry_count: { increment: 1 },
+                failure_reason: null,
+              }
+            : {}),
         },
       });
       await this.audit.record(tx, {
-        actorId: agentId,
+        actorId,
         action: 'delivery.transition',
         entityType: 'delivery',
         entityId: id,
@@ -410,6 +471,9 @@ export class DeliveriesService {
       currency: row.currency_code,
       dispatched_at: row.dispatched_at,
       delivered_at: row.delivered_at,
+      failure_reason: row.failure_reason,
+      failed_at: row.failed_at,
+      retry_count: row.retry_count,
     };
   }
 }

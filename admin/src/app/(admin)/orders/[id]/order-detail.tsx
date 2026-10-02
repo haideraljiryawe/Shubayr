@@ -107,14 +107,14 @@ export function OrderDetailView({
         ? await unwrap(
             browserApi.POST("/admin/orders/{id}/reject", {
               params: { path: { id } },
-              body: { reason },
+              body: { reason, version: order.version! },
             }),
           )
         : action === "cancel"
         ? await unwrap(
             browserApi.POST("/admin/orders/{id}/cancel", {
               params: { path: { id } },
-              body: { reason },
+              body: { reason, version: order.version! },
             }),
           )
         : await unwrap(
@@ -122,6 +122,7 @@ export function OrderDetailView({
               params: { path: { id } },
               body: {
                 status: STATUS_MOVES[action as keyof typeof STATUS_MOVES],
+                version: order.version!,
               },
             }),
           );

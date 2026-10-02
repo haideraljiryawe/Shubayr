@@ -1361,6 +1361,12 @@ export interface paths {
                          * @enum {string}
                          */
                         payment_method?: "cod";
+                        /** @description Explicit acceptance tokens returned by a prior PRICE_CHANGED conflict. */
+                        accepted_price_versions?: {
+                            /** Format: uuid */
+                            variant_id: string;
+                            price_version: string;
+                        }[];
                     };
                 };
             };
@@ -1491,7 +1497,13 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": {
+                        version: number;
+                    };
+                };
+            };
             responses: {
                 /** @description Cancelled order */
                 200: {
@@ -1545,7 +1557,11 @@ export interface paths {
                     "application/json": {
                         /** @enum {string} */
                         status: "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched";
+                        version: number;
                         note?: string | null;
+                        below_cost_override_reason?: string | null;
+                        /** Format: uuid */
+                        below_cost_originator_id?: string | null;
                     };
                 };
             };
@@ -1565,6 +1581,105 @@ export interface paths {
                 422: components["responses"]["Validation"];
             };
         };
+        trace?: never;
+    };
+    "/orders/{id}/cancellation-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request cancellation after the pending state */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        version: number;
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Order with pending cancellation request */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Order"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{id}/shortage-response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept or deny a proposed preparation quantity reduction */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        version: number;
+                        /** @enum {string} */
+                        decision: "accepted" | "denied";
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated order */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Order"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/me/reviews": {
@@ -3444,7 +3559,7 @@ export interface paths {
         head?: never;
         /**
          * Update delivery status (agent)
-         * @description Only the assigned agent may act. An assigned delivery may start only when its order is ready_for_dispatch. Legal transitions are assigned to out_for_delivery; out_for_delivery to delivered or failed; and delivered to returned. Failed and returned are terminal. Dispatch and delivery timestamps are recorded, and the order advances atomically through its corresponding status events. Successful delivery reconciles a pending COD payment to paid in the same transaction.
+         * @description Only the assigned agent may act. An assigned delivery may start only when its order is ready_for_dispatch. Legal transitions are assigned to out_for_delivery; out_for_delivery to delivered or failed; failed back to out_for_delivery for a custody-preserving retry; and delivered to returned. Returned is terminal. Dispatch and delivery timestamps are recorded, and the order advances atomically through its corresponding status events. Successful delivery reconciles a pending COD payment to paid in the same transaction.
          */
         patch: {
             parameters: {
@@ -3460,6 +3575,64 @@ export interface paths {
                     "application/json": {
                         /** @enum {string} */
                         status: "out_for_delivery" | "delivered" | "failed" | "returned";
+                        order_version: number;
+                        /** @description Required when status=failed. */
+                        reason?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated delivery */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Delivery"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/deliveries/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Complete, fail, or retry a delivery as authorized staff
+         * @description Uses the same concurrency-safe order/delivery transition as the assigned agent route. Staff may mark dispatched deliveries delivered or failed, and may retry only a failed delivery. A retry preserves the existing custody and never posts a second stock issue.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "out_for_delivery" | "delivered" | "failed";
+                        order_version: number;
+                        /** @description Required when status=failed. */
+                        reason?: string;
                     };
                 };
             };
@@ -4261,7 +4434,11 @@ export interface paths {
                     "application/json": {
                         /** @enum {string} */
                         status: "confirmed" | "preparing" | "ready_for_dispatch" | "dispatched";
+                        version: number;
                         note?: string | null;
+                        below_cost_override_reason?: string | null;
+                        /** Format: uuid */
+                        below_cost_originator_id?: string | null;
                     };
                 };
             };
@@ -4308,6 +4485,7 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
+                        version: number;
                         reason: string;
                     };
                 };
@@ -4359,6 +4537,7 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
+                        version: number;
                         reason: string;
                     };
                 };
@@ -4376,6 +4555,344 @@ export interface paths {
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
                 409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/orders/{id}/cancellation-request/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve or deny a customer cancellation request */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        version: number;
+                        /** @enum {string} */
+                        decision: "approved" | "denied";
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated order detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrder"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/orders/{id}/shortage-resolution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose a reduction or cancel a short line/order */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        version: number;
+                        /** @enum {string} */
+                        action: "reduce" | "cancel_line" | "cancel_order";
+                        /** Format: uuid */
+                        order_item_id?: string;
+                        new_quantity?: number;
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated order detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrder"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/orders/{id}/pick-list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the location-sorted pick list for an order */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Pick list */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PickList"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/pick-lists/print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Build a printable location-sorted batch of pick lists */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        order_ids: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Printable pick-list batch */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: date-time */
+                            generated_at: string;
+                            data: components["schemas"]["PickList"][];
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/orders/{id}/retrievals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open a retrieval for a failed order returning to the store */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        operation_id: string;
+                        /** @enum {string} */
+                        outcome: "retry";
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Retrieval opened */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Retrieval"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/retrievals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a retrieval document */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Retrieval */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Retrieval"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/retrievals/{id}/receive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive a full or partial retrieval at original issue cost */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        operation_id: string;
+                        lines: {
+                            /** Format: uuid */
+                            line_id: string;
+                            /** Format: uuid */
+                            location_id: string;
+                            quantity: string;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated retrieval */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Retrieval"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -7708,6 +8225,19 @@ export interface components {
              * @description SKU involved in an inventory conflict.
              */
             variant_id?: string;
+            /** Format: uuid */
+            product_id?: string;
+            sku?: string;
+            old_price?: number;
+            new_price?: number;
+            old_price_version?: string;
+            new_price_version?: string;
+            current_status?: components["schemas"]["OrderStatus"];
+            current_version?: number;
+            price?: number;
+            threshold_percent?: number;
+            cost?: number;
+            minimum_price?: number;
         };
         /** @description Decimal money amount displayed at the associated currency precision (IQD 0, USD 2). */
         Money: number;
@@ -8031,6 +8561,9 @@ export interface components {
          *     * Either timestamp may be sent alone: a null start means the discount is active immediately, a null end means it never expires.
          */
         ProductInput: {
+            below_cost_override_reason?: string | null;
+            /** Format: uuid */
+            below_cost_originator_id?: string | null;
             /** Format: uuid */
             category_id: string;
             /** Format: uuid */
@@ -8084,6 +8617,9 @@ export interface components {
         };
         /** @description All ProductInput fields are optional on PATCH. Omission preserves the stored value. Explicit null clears a nullable field; discount_type null clears discount_type, discount_value, discount_starts_at, and discount_ends_at together. */
         ProductPatch: {
+            below_cost_override_reason?: string | null;
+            /** Format: uuid */
+            below_cost_originator_id?: string | null;
             /** Format: uuid */
             category_id?: string;
             /** Format: uuid */
@@ -8325,8 +8861,13 @@ export interface components {
                 /** Format: uuid */
                 variant_id: string;
                 quantity: number;
-                /** @description Current per-SKU effective price after conversion and product discount. */
+                /** @description Price the customer last saw for this line. */
                 unit_price: components["schemas"]["Money"];
+                price_version: string;
+                current_unit_price: components["schemas"]["Money"];
+                current_price_version: string;
+                price_changed: boolean;
+                /** @description Line total at the price the customer saw. */
                 line_total: components["schemas"]["Money"];
                 currency: string;
                 /** @description False when the product is hidden/inactive or available_qty is below quantity. Checkout rejects unavailable lines. */
@@ -8385,6 +8926,7 @@ export interface components {
             quantity?: number;
             /** @description The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order. */
             unit_price?: components["schemas"]["Money"];
+            price_version?: string;
             line_total?: components["schemas"]["Money"];
             currency?: string;
             /** @description True when the caller already has a product review for this order item. */
@@ -8395,6 +8937,8 @@ export interface components {
             id?: string;
             order_number?: string;
             status?: components["schemas"]["OrderStatus"];
+            /** @description Required on every state-changing order request. */
+            version?: number;
             /** @enum {string} */
             payment_method?: "cod";
             /**
@@ -8436,6 +8980,43 @@ export interface components {
             delivery_lng?: number | null;
             /** Format: date-time */
             placed_at?: string;
+            /** Format: date-time */
+            acceptance_deadline?: string | null;
+            /** Format: date-time */
+            auto_cancel_deadline?: string | null;
+            late_for_acceptance?: boolean;
+            cancellation_request?: null | {
+                /** @enum {string} */
+                status?: "pending" | "approved" | "denied";
+                reason?: string | null;
+                /** Format: date-time */
+                requested_at?: string | null;
+                /** Format: date-time */
+                resolved_at?: string | null;
+                resolution_note?: string | null;
+            };
+            price_change_info?: {
+                [key: string]: unknown;
+            } | null;
+            inventory_attention_required?: boolean;
+            attention_details?: {
+                [key: string]: unknown;
+            } | null;
+            timeline?: {
+                status?: components["schemas"]["OrderStatus"];
+                note?: string | null;
+                /** Format: date-time */
+                at?: string;
+            }[];
+            retrievals?: {
+                /** Format: uuid */
+                id?: string;
+                document_number?: string;
+                /** @enum {string} */
+                status?: "open" | "partially_received" | "received" | "closed";
+                /** @enum {string} */
+                outcome?: "cancel" | "retry";
+            }[];
             items?: components["schemas"]["OrderItem"][];
         };
         OrderPage: components["schemas"]["Pagination"] & {
@@ -8483,6 +9064,10 @@ export interface components {
                 dispatched_at?: string | null;
                 /** Format: date-time */
                 delivered_at?: string | null;
+                failure_reason?: string | null;
+                /** Format: date-time */
+                failed_at?: string | null;
+                retry_count?: number;
                 agent?: {
                     /** Format: uuid */
                     id?: string;
@@ -9318,18 +9903,30 @@ export interface components {
             location_id?: string;
             quantity?: number;
             picked?: boolean;
+            product_name_ar?: string;
+            product_name_en?: string;
+            lot_number?: string | null;
+            /** Format: date */
+            expiry_date?: string | null;
+            warehouse_code?: string;
+            warehouse_name?: string;
+            location_code?: string;
         };
         PickList: {
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
             order_id?: string;
+            order_number?: string;
+            order_status?: components["schemas"]["OrderStatus"];
             /** Format: uuid */
             assigned_to?: string | null;
             /** @enum {string} */
             status?: "open" | "picking" | "picked" | "closed";
             /** Format: date-time */
             created_at?: string;
+            /** Format: date-time */
+            completed_at?: string | null;
             items?: components["schemas"]["PickListItem"][];
         };
         ReturnItem: {
@@ -9413,6 +10010,70 @@ export interface components {
             dispatched_at?: string | null;
             /** Format: date-time */
             delivered_at?: string | null;
+            failure_reason?: string | null;
+            /** Format: date-time */
+            failed_at?: string | null;
+            retry_count?: number;
+        };
+        RetrievalLine: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            custody_holding_id?: string;
+            /** Format: uuid */
+            order_item_id?: string;
+            /** Format: uuid */
+            variant_id?: string;
+            /** Format: uuid */
+            batch_id?: string;
+            expected_quantity?: number;
+            received_quantity?: number;
+            unit_cost_iqd?: number;
+            /** Format: uuid */
+            location_id?: string | null;
+            /** Format: date-time */
+            received_at?: string | null;
+            order_item?: {
+                [key: string]: unknown;
+            };
+            batch?: {
+                [key: string]: unknown;
+            };
+            location?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        Retrieval: {
+            /** Format: uuid */
+            id?: string;
+            document_number?: string;
+            operation_id?: string;
+            /** Format: uuid */
+            order_id?: string;
+            /** Format: uuid */
+            delivery_id?: string;
+            /** Format: uuid */
+            custody_party_id?: string;
+            /** @enum {string} */
+            status?: "open" | "partially_received" | "received" | "closed";
+            /** @enum {string} */
+            outcome?: "cancel" | "retry";
+            reason?: string;
+            /** Format: date */
+            document_date?: string;
+            /** Format: date */
+            accounting_date?: string;
+            /** Format: uuid */
+            created_by?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: uuid */
+            closed_by?: string | null;
+            /** Format: date-time */
+            closed_at?: string | null;
+            /** Format: uuid */
+            journal_entry_id?: string | null;
+            lines?: components["schemas"]["RetrievalLine"][];
         };
         DeliveryPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Delivery"][];
@@ -9443,7 +10104,7 @@ export interface components {
         };
         NotificationPreferenceEntry: {
             /** @enum {string} */
-            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "order_rejected" | "delivery_assigned";
+            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "order_rejected" | "delivery_assigned" | "order_acceptance_late" | "retrieval_update";
             /** @enum {string} */
             channel: "push" | "sms";
             enabled: boolean;
@@ -9735,6 +10396,9 @@ export interface components {
         LinkedPriceApplyInput: {
             /** Format: uuid */
             preview_token: string;
+            below_cost_override_reason?: string | null;
+            /** Format: uuid */
+            below_cost_originator_id?: string | null;
         };
         LinkedPriceApplyResult: {
             /** @enum {string} */

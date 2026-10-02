@@ -110,7 +110,11 @@ export class ExchangeRateController {
     @Req() request: AdminRequest,
     @Body() input: LinkedPriceApplyDto,
   ) {
-    return this.linkedPrices.publish(request.user.id, input);
+    return this.linkedPrices.publish(
+      request.user.id,
+      input,
+      request.user.permissions,
+    );
   }
 
   @Get(':code/applicable')

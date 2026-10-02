@@ -17,6 +17,7 @@ const fingerprint = createHash('sha256')
       address_id: input.address_id,
       coupon_code: null,
       payment_method: 'cod',
+      accepted_price_versions: [],
     }),
   )
   .digest('hex');
@@ -112,7 +113,8 @@ describe('OrdersService', () => {
         findUnique: jest.fn().mockResolvedValue({
           id: 'order-1',
           user_id: 'user-1',
-          status: 'confirmed',
+          status: 'pending',
+          version: 1,
         }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
@@ -138,10 +140,10 @@ describe('OrdersService', () => {
       undefined,
       inventory as never,
     );
-    await service.cancel('user-1', 'order-1');
+    await service.cancel('user-1', 'order-1', { version: 1 });
     expect(tx.order.updateMany).toHaveBeenCalledWith({
-      where: { id: 'order-1', status: { in: ['pending', 'confirmed'] } },
-      data: { status: 'cancelled' },
+      where: { id: 'order-1', status: { in: ['pending'] }, version: 1 },
+      data: { status: 'cancelled', version: { increment: 1 } },
     });
     expect(inventory.releaseOrder).toHaveBeenCalledWith(
       tx,
@@ -166,6 +168,7 @@ describe('OrdersService', () => {
           id: 'order-1',
           user_id: 'customer-1',
           status: 'pending',
+          version: 1,
         }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({
           id: 'order-1',
@@ -196,11 +199,12 @@ describe('OrdersService', () => {
 
     await service.rejectAdmin('staff-1', 'order-1', {
       reason: 'Cannot fulfil this order',
+      version: 1,
     });
 
     expect(tx.order.updateMany).toHaveBeenCalledWith({
-      where: { id: 'order-1', status: 'pending' },
-      data: { status: 'rejected' },
+      where: { id: 'order-1', status: 'pending', version: 1 },
+      data: { status: 'rejected', version: { increment: 1 } },
     });
     expect(inventory.releaseOrder).toHaveBeenCalledWith(
       tx,
@@ -241,7 +245,7 @@ describe('OrdersService', () => {
       order: {
         findUnique: jest
           .fn()
-          .mockResolvedValue({ id: 'order-1', status: 'pending' }),
+          .mockResolvedValue({ id: 'order-1', status: 'pending', version: 1 }),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       orderStatusEvent: { create: jest.fn() },
@@ -253,7 +257,10 @@ describe('OrdersService', () => {
     };
     const service = new OrdersService(prisma as never, {} as never, audit);
     await expect(
-      service.updateStatus('staff-1', 'order-1', { status: 'dispatched' }),
+      service.updateStatus('staff-1', 'order-1', {
+        status: 'dispatched',
+        version: 1,
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(tx.orderStatusEvent.create).not.toHaveBeenCalled();
   });
@@ -264,7 +271,7 @@ describe('OrdersService', () => {
       order: {
         findUnique: jest
           .fn()
-          .mockResolvedValue({ id: 'order-1', status: 'pending' }),
+          .mockResolvedValue({ id: 'order-1', status: 'pending', version: 1 }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       orderStatusEvent: { create: jest.fn() },
@@ -282,10 +289,13 @@ describe('OrdersService', () => {
     };
     const service = new OrdersService(prisma as never, {} as never, audit);
     jest.spyOn(service, 'getAdmin').mockResolvedValue({} as never);
-    await service.updateStatus('staff-1', 'order-1', { status: 'confirmed' });
+    await service.updateStatus('staff-1', 'order-1', {
+      status: 'confirmed',
+      version: 1,
+    });
     expect(tx.order.updateMany).toHaveBeenCalledWith({
-      where: { id: 'order-1', status: 'pending' },
-      data: { status: 'confirmed' },
+      where: { id: 'order-1', status: 'pending', version: 1 },
+      data: { status: 'confirmed', version: { increment: 1 } },
     });
     expect(tx.orderStatusEvent.create).toHaveBeenCalledWith({
       data: {

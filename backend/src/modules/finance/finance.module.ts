@@ -19,8 +19,10 @@ import { LedgerService } from './ledger.service';
 import { OperationService } from './operation.service';
 import { LinkedPricingService } from './linked-pricing.service';
 import { PeriodService } from './period.service';
+import { CatalogModule } from '../catalog/catalog.module';
 
 @Module({
+  imports: [CatalogModule],
   controllers: [
     CurrencyController,
     ExchangeRateController,

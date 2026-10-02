@@ -431,8 +431,8 @@ try {
     JOIN ledger_accounts account ON account.code=posting.code
   `, [`ACC-FIX-${suffix}`, today, adminId]);
   await db.query(`
-    INSERT INTO custody_holdings (order_id, order_item_id, delivery_id, custody_party_id, batch_id, quantity, unit_cost_iqd)
-    VALUES ($1,$2,$3,$4,$5,2,10000)
+    INSERT INTO custody_holdings (order_id, order_item_id, delivery_id, custody_party_id, batch_id, quantity, remaining_quantity, unit_cost_iqd)
+    VALUES ($1,$2,$3,$4,$5,2,2,10000)
   `, [relation.order_id, relation.order_item_id, relation.delivery_id, adminId, correctionItem.lot_id]);
   const correction = await request('/admin/purchase-cost-corrections', {
     token: admin,

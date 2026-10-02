@@ -17,6 +17,7 @@ import {
   activeCoupon,
   calculateCartTotals,
   skuUnitPrice,
+  skuPriceVersion,
   MAX_CART_ITEM_QUANTITY,
 } from './cart-pricing';
 
@@ -48,7 +49,7 @@ export class CartService {
       input.variant_id ?? null,
     );
     const variantId = sellable.variantId;
-    const { unitPrice, availableQty } = sellable;
+    const { unitPrice, availableQty, priceVersion } = sellable;
     this.requireQuantityUnit(input.quantity, sellable.wholeUnitsOnly);
     const { id: cartId } = await this.getOrCreate(userId);
     await this.prisma.$transaction(async (tx) => {
@@ -65,7 +66,11 @@ export class CartService {
       if (existing) {
         await tx.cartItem.update({
           where: { id: existing.id },
-          data: { quantity, unit_price: unitPrice },
+          data: {
+            quantity,
+            unit_price: unitPrice,
+            price_version: priceVersion,
+          },
         });
       } else {
         await tx.cartItem.create({
@@ -75,6 +80,7 @@ export class CartService {
             variant_id: variantId,
             quantity,
             unit_price: unitPrice,
+            price_version: priceVersion,
           },
         });
       }
@@ -92,12 +98,16 @@ export class CartService {
     });
     if (!item) throw new NotFoundException('Cart item not found');
     const sellable = await this.sellable(item.product_id, item.variant_id);
-    const { unitPrice, availableQty } = sellable;
+    const { unitPrice, availableQty, priceVersion } = sellable;
     this.requireQuantityUnit(input.quantity, sellable.wholeUnitsOnly);
     this.requireAvailable(input.quantity, availableQty);
     await this.prisma.cartItem.update({
       where: { id },
-      data: { quantity: input.quantity, unit_price: unitPrice },
+      data: {
+        quantity: input.quantity,
+        unit_price: unitPrice,
+        price_version: priceVersion,
+      },
     });
     await this.prisma.cart.update({
       where: { id: item.cart_id },
@@ -162,7 +172,12 @@ export class CartService {
     const at = new Date();
     const items = await Promise.all(
       cart.items.map(async (item) => {
-        const unit_price = skuUnitPrice(item.product, item.variant, at);
+        const currentUnitPrice = skuUnitPrice(item.product, item.variant, at);
+        const currentPriceVersion = skuPriceVersion(
+          item.product,
+          item.variant,
+          currentUnitPrice,
+        );
         let available_qty = 0;
         try {
           const availability = await this.products.availability(
@@ -181,8 +196,17 @@ export class CartService {
           product_id: item.product_id,
           variant_id: item.variant_id,
           quantity: Number(item.quantity),
-          unit_price,
-          line_total: calculateLineTotal(unit_price, Number(item.quantity)),
+          unit_price: Number(item.unit_price),
+          price_version: item.price_version,
+          current_unit_price: currentUnitPrice,
+          current_price_version: currentPriceVersion,
+          price_changed:
+            Number(item.unit_price) !== currentUnitPrice ||
+            item.price_version !== currentPriceVersion,
+          line_total: calculateLineTotal(
+            Number(item.unit_price),
+            Number(item.quantity),
+          ),
           currency: item.currency_code,
           available_qty,
           available: available_qty >= Number(item.quantity),
@@ -195,7 +219,14 @@ export class CartService {
       coupon_code: coupon?.code ?? null,
       currency: 'IQD',
       items,
-      ...calculateCartTotals(items, coupon, at),
+      ...calculateCartTotals(
+        items.map((item) => ({
+          ...item,
+          unit_price: item.current_unit_price,
+        })),
+        coupon,
+        at,
+      ),
     };
   }
 
@@ -222,6 +253,7 @@ export class CartService {
         ?.available_qty ?? 0;
     return {
       unitPrice: variant.effective_price,
+      priceVersion: skuPriceVersion(product, variant, variant.effective_price),
       availableQty,
       variantId: variant.id,
       wholeUnitsOnly: variant.whole_units_only,

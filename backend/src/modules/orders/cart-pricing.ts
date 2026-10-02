@@ -56,6 +56,28 @@ export function skuUnitPrice(
     .effective_price;
 }
 
+export function skuPriceVersion(
+  product: { price_approved_at?: Date | string | null },
+  variant: {
+    id: string;
+    price_version_id?: string | null;
+    price_approved_at?: Date | string | null;
+  },
+  unitPrice: number,
+): string {
+  const marker =
+    variant.price_version_id ??
+    (variant.price_approved_at
+      ? new Date(variant.price_approved_at).getTime()
+      : product.price_approved_at
+        ? new Date(product.price_approved_at).getTime()
+        : 0);
+  return `${(variant.id ?? 'legacy').slice(0, 8)}:${marker}:${unitPrice}`.slice(
+    0,
+    64,
+  );
+}
+
 export function activeCoupon(
   coupon: CartCoupon | null | undefined,
   at: Date = new Date(),

@@ -17,6 +17,7 @@ import {
 import { UpdateProductDto } from './dto/update-product.dto';
 import { computeProductPricing, mergeProductPricingPatch } from './pricing';
 import { CatalogSearchService } from './catalog-search.service';
+import { BelowCostService } from './below-cost.service';
 
 const productInclude = {
   category: true,
@@ -52,6 +53,7 @@ export class ProductsService {
     private readonly media: MediaService,
     private readonly audit: AuditService,
     private readonly search?: CatalogSearchService,
+    private readonly belowCost?: BelowCostService,
   ) {}
 
   listPublic(query: ProductQueryDto) {
@@ -95,7 +97,11 @@ export class ProductsService {
     return this.toResponse(product, new Date());
   }
 
-  async create(input: CreateProductDto, actorId?: string) {
+  async create(
+    input: CreateProductDto,
+    actorId?: string,
+    permissions: string[] = [],
+  ) {
     await this.ensureCategory(input.category_id);
     await this.ensureBrand(input.brand_id);
     await this.validateManagedUrls((input.images ?? []).map(({ url }) => url));
@@ -113,9 +119,43 @@ export class ProductsService {
       input.variants,
       input.price,
     );
+    const belowCostBreaches = actorId
+      ? await this.belowCost?.assertAllowed(
+          this.prisma,
+          actorId,
+          permissions,
+          preparedVariants.flatMap((variant) =>
+            variant.id
+              ? [
+                  {
+                    variant_id: variant.id,
+                    sku: variant.sku,
+                    price:
+                      variant.pricing_mode === 'linked'
+                        ? Number(variant.published_price ?? input.price)
+                        : Number(variant.selling_price ?? input.price),
+                  },
+                ]
+              : [],
+          ),
+          {
+            reason: input.below_cost_override_reason,
+            originatorId: input.below_cost_originator_id,
+          },
+        )
+      : [];
 
-    const { images, variants: _variants, published, ...data } = input;
+    const {
+      images,
+      variants: _variants,
+      published,
+      below_cost_override_reason: _belowCostReason,
+      below_cost_originator_id: _belowCostOriginator,
+      ...data
+    } = input;
     void _variants;
+    void _belowCostReason;
+    void _belowCostOriginator;
     const product = await this.prisma.$transaction(async (tx) => {
       const created = await tx.product.create({
         data: {
@@ -151,13 +191,28 @@ export class ProductsService {
           after: { status: created.status, published_at: created.published_at },
         });
       }
+      if (actorId && belowCostBreaches?.length) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'prices.below_cost.override',
+          entityType: 'product',
+          entityId: created.id,
+          after: { variants: belowCostBreaches },
+          reason: input.below_cost_override_reason ?? undefined,
+        });
+      }
       return created;
     });
     await this.search?.indexProduct(product.id);
     return this.toResponse(product, new Date());
   }
 
-  async update(id: string, input: UpdateProductDto, actorId?: string) {
+  async update(
+    id: string,
+    input: UpdateProductDto,
+    actorId?: string,
+    permissions: string[] = [],
+  ) {
     const current = await this.prisma.product.findUnique({
       where: { id },
       include: productInclude,
@@ -178,6 +233,35 @@ export class ProductsService {
     const preparedVariants = input.variants
       ? await this.prepareVariants(input.variants, productPrice)
       : undefined;
+    const belowCostBreaches =
+      actorId && preparedVariants
+        ? await this.belowCost?.assertAllowed(
+            this.prisma,
+            actorId,
+            permissions,
+            preparedVariants.flatMap((variant) => {
+              const existing = current.variants.find(
+                (entry) => entry.id === variant.id || entry.sku === variant.sku,
+              );
+              return existing
+                ? [
+                    {
+                      variant_id: existing.id,
+                      sku: variant.sku,
+                      price:
+                        variant.pricing_mode === 'linked'
+                          ? Number(variant.published_price ?? productPrice)
+                          : Number(variant.selling_price ?? productPrice),
+                    },
+                  ]
+                : [];
+            }),
+            {
+              reason: input.below_cost_override_reason,
+              originatorId: input.below_cost_originator_id,
+            },
+          )
+        : [];
     if (input.published === true || input.status === 'active') {
       const publishableVariants = preparedVariants ?? current.variants;
       const productPriceApproved =
@@ -225,6 +309,16 @@ export class ProductsService {
             status: input.status ?? current.status,
             published: input.published,
           },
+        });
+      }
+      if (actorId && belowCostBreaches?.length) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'prices.below_cost.override',
+          entityType: 'product',
+          entityId: id,
+          after: { variants: belowCostBreaches },
+          reason: input.below_cost_override_reason ?? undefined,
         });
       }
       if (preparedVariants) {

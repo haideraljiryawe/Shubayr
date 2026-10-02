@@ -1638,3 +1638,6 @@ ON CONFLICT DO NOTHING;
 
 -- Phase 6 uses the production migration as the single DDL source.
 \ir ../../backend/prisma/migrations/20261001031500_phase6_purchasing_suppliers/migration.sql
+
+-- Phase 7 uses the production migration as the single DDL source.
+\ir ../../backend/prisma/migrations/20261001050000_phase7_order_lifecycle_v2/migration.sql

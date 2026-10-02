@@ -12,6 +12,7 @@ import { CategoriesService } from './categories.service';
 import { ProductsService } from './products.service';
 import { BrandsService } from './brands.service';
 import { CatalogSearchService } from './catalog-search.service';
+import { BelowCostService } from './below-cost.service';
 
 @Module({
   imports: [MediaModule],
@@ -26,11 +27,12 @@ import { CatalogSearchService } from './catalog-search.service';
     ProductsService,
     BrandsService,
     CatalogSearchService,
+    BelowCostService,
     {
       provide: APP_INTERCEPTOR,
       useClass: BilingualNameFallbackInterceptor,
     },
   ],
-  exports: [ProductsService],
+  exports: [ProductsService, BelowCostService],
 })
 export class CatalogModule {}

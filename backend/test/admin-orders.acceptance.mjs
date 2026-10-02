@@ -267,23 +267,25 @@ try {
   await request(`/admin/orders/${confirmedSeed.id}/status`, {
     token: admin,
     method: 'PATCH',
-    body: { status: 'ready_for_dispatch' },
+    body: { status: 'ready_for_dispatch', version: confirmedSeed.version },
     expected: 409,
   });
   await request(`/admin/orders/${pending.id}/cancel`, {
     token: admin,
     method: 'POST',
-    body: { reason: '   ' },
+    body: { reason: '   ', version: pending.version },
     expected: 422,
   });
 
+  let currentOrder = pending;
   for (const status of ['confirmed', 'preparing', 'ready_for_dispatch']) {
     const updated = await request(`/admin/orders/${pending.id}/status`, {
       token: admin,
       method: 'PATCH',
-      body: { status },
+      body: { status, version: currentOrder.version },
     });
     check(updated.status, status, `legal staff transition to ${status}`);
+    currentOrder = updated;
   }
   const deliveryCount = Number(
     await scalar(
@@ -299,7 +301,11 @@ try {
   const dispatched = await request(`/admin/orders/${pending.id}/status`, {
     token: admin,
     method: 'PATCH',
-    body: { status: 'dispatched', note: 'Courier handoff' },
+    body: {
+      status: 'dispatched',
+      version: currentOrder.version,
+      note: 'Courier handoff',
+    },
   });
   check(dispatched.status, 'dispatched', 'staff dispatches ready order');
   check(
@@ -334,7 +340,7 @@ try {
   await request(`/deliveries/${pending.delivery.id}`, {
     token: agent,
     method: 'PATCH',
-    body: { status: 'delivered' },
+    body: { status: 'delivered', order_version: dispatched.version },
   });
   check(
     await scalar(
@@ -403,7 +409,7 @@ try {
   await request(`/admin/orders/${rejectable.id}/reject`, {
     token: operations,
     method: 'POST',
-    body: { reason: '   ' },
+    body: { reason: '   ', version: rejectable.version },
     expected: 422,
   });
   await request(`/admin/orders/${rejectable.id}/reject`, {
@@ -420,7 +426,7 @@ try {
   const rejected = await request(`/admin/orders/${rejectable.id}/reject`, {
     token: operations,
     method: 'POST',
-    body: { reason: 'Item cannot be fulfilled' },
+    body: { reason: 'Item cannot be fulfilled', version: rejectable.version },
   });
   check(rejected.status, 'rejected', 'operations rejects a pending order');
   check(
@@ -483,13 +489,16 @@ try {
   await request(`/admin/orders/${rejectable.id}/reject`, {
     token: operations,
     method: 'POST',
-    body: { reason: 'second rejection' },
+    body: { reason: 'second rejection', version: rejected.version },
     expected: 409,
   });
   await request(`/admin/orders/${rejectable.id}/cancel`, {
     token: admin,
     method: 'POST',
-    body: { reason: 'rejection is not cancellation' },
+    body: {
+      reason: 'rejection is not cancellation',
+      version: rejected.version,
+    },
     expected: 409,
   });
 
@@ -497,7 +506,10 @@ try {
   const cancelled = await request(`/admin/orders/${cancellable.id}/cancel`, {
     token: admin,
     method: 'POST',
-    body: { reason: 'Customer requested staff cancellation' },
+    body: {
+      reason: 'Customer requested staff cancellation',
+      version: cancellable.version,
+    },
   });
   check(cancelled.status, 'cancelled', 'staff cancels preparing order');
   const stockAfter = await request(`/products/${productId}/availability`);
@@ -539,7 +551,7 @@ try {
     await request(`/admin/orders/${terminal.id}/cancel`, {
       token: admin,
       method: 'POST',
-      body: { reason: 'Too late' },
+      body: { reason: 'Too late', version: terminal.version },
       expected: 409,
     });
   }
