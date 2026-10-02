@@ -913,7 +913,138 @@
     "done": "Order updated",
     "conflict": "This order changed before your action was saved — it is now “{status}”. The page has been refreshed to show what you can do now.",
     "conflictGeneric": "This order changed before your action was saved, so the page has been refreshed. Check its current state.",
-    "forbidden": "The server refused this action: you no longer have the permission it needs. The page has been refreshed to show what you can do now."
+    "forbidden": "The server refused this action: you no longer have the permission it needs. The page has been refreshed to show what you can do now.",
+    "badges": {
+      "late": "Late",
+      "attention": "Needs attention",
+      "cancelRequested": "Cancellation requested"
+    },
+    "lateAlert": "Not accepted in time: the acceptance deadline ({deadline}) has passed. The staff inbox has been alerted.",
+    "attentionRefused": "Resolve the short lines below before marking this order ready.",
+    "deliveryFailed": "Delivery failed: {reason}{count, plural, =0 {} one { · retried once} other { · retried # times}}",
+    "boardDescription": "Open orders by lifecycle stage. Each column is read from the server; flags show late, short and cancellation-requested orders.",
+    "board": {
+      "more": "{count} more in the list",
+      "empty": "None"
+    },
+    "views": {
+      "label": "Order views",
+      "list": "List",
+      "board": "Board"
+    },
+    "pickList": {
+      "open": "Pick list",
+      "title": "Pick list",
+      "batchTitle": "Batch pick list · {count} orders",
+      "batchTitleShort": "Batch pick list",
+      "generated": "Generated {at}",
+      "print": "Print",
+      "empty": "Nothing to pick.",
+      "chooseOrders": "Choose orders in preparation on the orders list, then print their pick lists together.",
+      "select": "Select",
+      "selectOrder": "Select order {number} for the batch pick list",
+      "selectHint": "Tick orders in preparation to print their pick lists together.",
+      "printSelected": "Print pick lists ({count})",
+      "columns": {
+        "location": "Location",
+        "product": "Product",
+        "lot": "Lot / expiry",
+        "quantity": "Quantity",
+        "order": "Order",
+        "picked": "✓"
+      }
+    },
+    "attention": {
+      "title": "Needs attention: stock is short",
+      "body": "Preparation found less stock than ordered. Propose a smaller quantity (the customer must accept it), or cancel the line or the whole order. The order can't be marked ready until this is resolved.",
+      "columns": {
+        "item": "Item",
+        "ordered": "Ordered",
+        "allocated": "Allocated",
+        "short": "Short"
+      },
+      "reduce": "Propose smaller quantity",
+      "cancelLine": "Cancel line",
+      "cancelOrder": "Cancel the whole order",
+      "needsPermission": "Resolving shortages needs the orders.shortage.resolve permission.",
+      "proposal": {
+        "pending": "Waiting for the customer to accept {item}: {from} → {to}.",
+        "accepted": "The customer accepted {item}: {from} → {to}.",
+        "denied": "The customer declined reducing {item} ({from} → {to}). Cancel the line or the order."
+      },
+      "dialog": {
+        "reduce": "Propose a smaller quantity",
+        "reduceBody": "The customer is asked to accept the new quantity before anything changes.",
+        "reduceConfirm": "Send to the customer",
+        "cancel_line": "Cancel this line",
+        "cancel_lineBody": "The line is removed from the order and its reservation released.",
+        "cancel_lineConfirm": "Cancel line",
+        "cancel_order": "Cancel the whole order",
+        "cancel_orderBody": "The order is cancelled and every reservation released.",
+        "cancel_orderConfirm": "Cancel order",
+        "newQuantity": "New quantity",
+        "newQuantityHint": "What can be supplied now: {allocated} of {ordered}.",
+        "quantityError": "Enter a quantity above zero and below {ordered}."
+      }
+    },
+    "cancellation": {
+      "title": "Cancellation request",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "denied": "Denied"
+      },
+      "reason": "Customer's reason",
+      "requestedAt": "Requested",
+      "resolution": "Decision note",
+      "approve": "Approve cancellation",
+      "deny": "Deny",
+      "afterDispatchPermission": "Approving after dispatch also needs orders.cancel_after_dispatch.",
+      "dialog": {
+        "approve": "Approve the cancellation",
+        "deny": "Deny the cancellation",
+        "approveBody": "The order is cancelled and its reservations released.",
+        "approveAfterDispatch": "The order is cancelled and a retrieval is opened to bring the goods back from the agent's custody.",
+        "denyBody": "The order continues; the customer sees your reason."
+      }
+    },
+    "retrievals": {
+      "title": "Retrievals",
+      "none": "No retrieval yet.",
+      "open": "Bring the goods back for a retry",
+      "outcome": {
+        "retry": "For retry",
+        "cancel": "Cancelled order"
+      },
+      "status": {
+        "open": "Open",
+        "partially_received": "Partly received",
+        "received": "Received",
+        "closed": "Closed"
+      },
+      "dialog": {
+        "title": "Open a retrieval",
+        "body": "The goods in the agent's custody come back to the store so the delivery can be retried. They are received on the retrieval's page, in full or in part."
+      }
+    },
+    "belowCost": {
+      "title": "Below the protected cost threshold",
+      "body": "Confirming would sell these SKUs below the protected threshold, so the server refused it.",
+      "columns": {
+        "sku": "SKU",
+        "price": "Price",
+        "threshold": "Threshold",
+        "cost": "Cost",
+        "minimum": "Minimum price"
+      },
+      "approve": "Approve below cost",
+      "needsApproval": "Someone with the sell_below_cost.approve permission must approve this exception.",
+      "selfRefused": "You can't approve a below-cost exception on your own order: separation of duties requires a different approver.",
+      "dialog": {
+        "title": "Approve selling below cost",
+        "body": "The order is confirmed at these prices. Your reason is recorded in the audit log."
+      }
+    }
   },
   "inbox": {
     "title": "Notifications",
@@ -1901,6 +2032,50 @@
       "title": "Stock",
       "body": "Read-only. Stock changes only through inventory documents — opening stock, transfers, counts and write-downs.",
       "view": "Stock view"
+    }
+  },
+  "retrievals": {
+    "title": "Retrieval",
+    "backToOrder": "Back to the order",
+    "description": "Goods coming back from an agent's custody, received in full or in part at their original issue cost.",
+    "status": "Status",
+    "outcome": "Purpose",
+    "opened": "Opened",
+    "journal": "Journal entry",
+    "viewEntry": "View entry",
+    "posted": "Posted",
+    "reason": "Reason",
+    "statuses": {
+      "open": "Open",
+      "partially_received": "Partly received",
+      "received": "Received",
+      "closed": "Closed"
+    },
+    "outcomes": {
+      "retry": "Return for a retry",
+      "cancel": "Cancelled after dispatch"
+    },
+    "lines": "Lines",
+    "linesBody": "Only what is in this agent's custody for the order is expected back.",
+    "columns": {
+      "product": "Product",
+      "lot": "Lot",
+      "expected": "Expected",
+      "received": "Received",
+      "unitCost": "Unit cost",
+      "receiveNow": "Receive now",
+      "putBack": "Put back at"
+    },
+    "left": "{value} left",
+    "lineDone": "Fully received",
+    "review": "Review",
+    "edit": "Edit",
+    "receive": "Receive",
+    "reviewBody": "{count, plural, one {# line} other {# lines}} to receive.",
+    "errors": {
+      "noLines": "Enter a quantity to receive.",
+      "overOutstanding": "More than what is still expected ({left}).",
+      "location": "Choose where to put it back."
     }
   }
 }

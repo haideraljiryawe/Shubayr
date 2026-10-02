@@ -222,14 +222,14 @@ export function AdminShell({
   );
 
   return (
-    <div className="min-h-dvh bg-background lg:grid lg:grid-cols-[16rem_1fr]">
-      <aside className="hidden border-e border-border bg-surface lg:flex lg:flex-col lg:gap-6 lg:p-4">
+    <div className="min-h-dvh bg-background lg:grid lg:grid-cols-[16rem_1fr] print:block print:bg-white">
+      <aside className="hidden border-e border-border bg-surface lg:flex lg:flex-col lg:gap-6 lg:p-4 print:hidden">
         <Brand />
         {nav}
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-surface/95 px-4 backdrop-blur lg:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-surface/95 px-4 backdrop-blur lg:px-8 print:hidden">
           <button
             type="button"
             className="inline-flex size-10 items-center justify-center rounded-md hover:bg-card lg:hidden"
@@ -276,7 +276,7 @@ export function AdminShell({
           </div>
         ) : null}
 
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 lg:px-8">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 lg:px-8 print:max-w-none print:p-0">
           {children}
         </main>
       </div>

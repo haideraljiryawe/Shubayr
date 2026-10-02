@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/ui";
+import { OrdersTabs } from "@/components/orders/orders-tabs";
+import { loadPermissions } from "@/lib/api/inventory-server";
 import { PageError } from "@/components/shell/page-error";
 import { load, serverApi } from "@/lib/api/server";
 import { orderListQuery } from "@/lib/orders";
@@ -38,15 +40,17 @@ export default async function OrdersPage({
   });
 
   const api = await serverApi();
-  const [orders, settings] = await Promise.all([
+  const [orders, settings, permissions] = await Promise.all([
     load(api.GET("/admin/orders", { params: { query } })),
     load(api.GET("/settings")),
+    loadPermissions(api),
   ]);
   if (!orders.ok) return <PageError error={orders.error} />;
 
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
+      <OrdersTabs active="list" />
       <OrdersTable
         rows={orders.data.data ?? []}
         state={{
@@ -58,6 +62,7 @@ export default async function OrdersPage({
         }}
         currency={settings.ok ? (settings.data.currency ?? "USD") : "USD"}
         invalidRange={invalidRange}
+        canPick={permissions.includes("inventory.pick")}
       />
     </>
   );
