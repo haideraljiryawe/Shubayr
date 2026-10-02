@@ -175,6 +175,26 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
         </p>
       </Card>
 
+      {delivery.status === "failed" || delivery.failure_reason ? (
+        <Card padding="md" className="flex flex-col gap-1 text-sm" data-testid="delivery-failure">
+          <h3 className="font-bold text-text">{t("failure.title")}</h3>
+          {delivery.failure_reason ? (
+            <p className="text-text" data-testid="delivery-failure-text">
+              {delivery.failure_reason}
+            </p>
+          ) : null}
+          {delivery.failed_at ? (
+            <p className="text-text-muted">{t("failure.at", { at: dateTime(delivery.failed_at) })}</p>
+          ) : null}
+          <p className="text-text-muted" data-testid="delivery-retry-count">
+            {t("failure.retries", { count: delivery.retry_count ?? 0 })}
+          </p>
+          {delivery.status === "failed" ? (
+            <p className="text-text-muted">{t("failure.next")}</p>
+          ) : null}
+        </Card>
+      ) : null}
+
       <Card padding="md" className="flex flex-col gap-3" data-testid="delivery-actions">
         <h3 className="font-bold text-text">{t("actions")}</h3>
         {actions.length === 0 ? (
@@ -242,7 +262,10 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
                 }}
                 data-testid={`delivery-action-${action}`}
               >
-                {t(`action.${action}`)}
+                {/* Out for delivery again after a failure is a retry on the same custody. */}
+                {delivery.status === "failed" && action === "out_for_delivery"
+                  ? t("action.retry")
+                  : t(`action.${action}`)}
               </Button>
             ))}
           </div>
