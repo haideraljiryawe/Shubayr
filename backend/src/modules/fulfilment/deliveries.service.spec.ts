@@ -16,6 +16,8 @@ type DeliveryRow = {
   agent_id: string;
   status: DeliveryStatus;
   dispatched_at: Date | null;
+  order?: { version: number };
+  order_version?: number;
 };
 
 describe('DeliveriesService', () => {
@@ -27,18 +29,21 @@ describe('DeliveriesService', () => {
       agent_id: currentAgent,
       status: DeliveryStatus.Assigned,
       dispatched_at: new Date(Date.UTC(2026, 0, 1, 0, index)),
+      order: { version: 1 },
     })),
     ...Array.from({ length: 8 }, (_, index) => ({
       id: `delivered-${index}`,
       agent_id: currentAgent,
       status: DeliveryStatus.Delivered,
       dispatched_at: new Date(Date.UTC(2026, 0, 2, 0, index)),
+      order: { version: 2 },
     })),
     ...Array.from({ length: 7 }, (_, index) => ({
       id: `other-agent-${index}`,
       agent_id: otherAgent,
       status: DeliveryStatus.Assigned,
       dispatched_at: new Date(Date.UTC(2026, 0, 3, 0, index)),
+      order: { version: 1 },
     })),
   ];
 
@@ -109,6 +114,9 @@ describe('DeliveriesService', () => {
           agent_id === currentAgent && status === DeliveryStatus.Assigned,
       ),
     ).toBe(true);
+    expect(deliveries.every(({ order_version }) => order_version === 1)).toBe(
+      true,
+    );
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { agent_id: currentAgent, status: DeliveryStatus.Assigned },

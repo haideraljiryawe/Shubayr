@@ -762,6 +762,8 @@
     },
     "confirmYes": "Yes, confirm",
     "confirmNo": "Cancel",
+    "failureReason": "Why could it not be delivered?",
+    "failureReasonPlaceholder": "Record the reason for staff follow-up",
     "saving": "Saving…",
     "done": "Delivery updated",
     "conflict": "This delivery or its order changed before your action was saved, so the page has been refreshed. Check the current status and try again if needed.",

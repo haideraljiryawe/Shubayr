@@ -46,6 +46,7 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
   // A successful move replaces the loaded delivery until the next reload.
   const [updated, setUpdated] = useState<Delivery | null>(null);
   const [confirming, setConfirming] = useState<DeliveryAction | null>(null);
+  const [failureReason, setFailureReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<"conflict" | "failed" | null>(null);
 
@@ -96,9 +97,15 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
     setSaving(true);
     setNotice(null);
     try {
-      const next = await api.updateDeliveryStatus(deliveryId, action);
+      const next = await api.updateDeliveryStatus(
+        deliveryId,
+        action,
+        delivery.order_version,
+        action === "failed" ? failureReason.trim() : undefined,
+      );
       setUpdated(next);
       setConfirming(null);
+      setFailureReason("");
       showToast(t("done"));
     } catch (cause) {
       setConfirming(null);
@@ -182,10 +189,25 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
             data-testid="delivery-confirm"
           >
             <p className="text-text">{t(`confirm.${confirming}`)}</p>
+            {confirming === "failed" ? (
+              <label className="flex flex-col gap-1 text-sm font-semibold text-text">
+                {t("failureReason")}
+                <textarea
+                  value={failureReason}
+                  onChange={(event) => setFailureReason(event.target.value)}
+                  required
+                  maxLength={500}
+                  rows={3}
+                  className="rounded-md border border-border bg-card px-3 py-2 font-normal"
+                  placeholder={t("failureReasonPlaceholder")}
+                  data-testid="delivery-failure-reason"
+                />
+              </label>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <Button
                 variant={confirming === "failed" ? "secondary" : "primary"}
-                disabled={saving}
+                disabled={saving || (confirming === "failed" && !failureReason.trim())}
                 onClick={() => void perform(confirming)}
                 data-testid="delivery-confirm-yes"
                 startIcon={
@@ -197,7 +219,10 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
               <Button
                 variant="ghost"
                 disabled={saving}
-                onClick={() => setConfirming(null)}
+                onClick={() => {
+                  setConfirming(null);
+                  setFailureReason("");
+                }}
                 data-testid="delivery-confirm-no"
               >
                 {t("confirmNo")}
@@ -212,6 +237,7 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
                 variant={action === "failed" || action === "returned" ? "secondary" : "primary"}
                 onClick={() => {
                   setNotice(null);
+                  setFailureReason("");
                   setConfirming(action);
                 }}
                 data-testid={`delivery-action-${action}`}

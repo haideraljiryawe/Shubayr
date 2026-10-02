@@ -5584,9 +5584,11 @@ components:
 
     Delivery:
       type: object
+      required: [order_version]
       properties:
         id: { type: string, format: uuid }
         order_id: { type: string, format: uuid }
+        order_version: { type: integer, minimum: 1 }
         agent_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
         delivery_fee: { type: number }

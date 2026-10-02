@@ -324,6 +324,7 @@ test.describe("delivery agent", () => {
   const DELIVERY = {
     id: "d0000000-0000-4000-8000-000000000001",
     order_id: "o0000000-0000-4000-8000-000000000001",
+    order_version: 1,
     agent_id: "u-agent",
     status: "assigned",
     delivery_fee: 5,
@@ -355,7 +356,12 @@ test.describe("delivery agent", () => {
     serveDeliveries(() => current);
     api.on("PATCH", /^\/deliveries\/[^/]+$/, (seen) => {
       const status = (seen.body as { status: string }).status;
-      current = { ...current, status, dispatched_at: current.dispatched_at ?? new Date().toISOString() };
+      current = {
+        ...current,
+        status,
+        order_version: current.order_version + 1,
+        dispatched_at: current.dispatched_at ?? new Date().toISOString(),
+      };
       return { body: current };
     });
     await signInAs(page, "delivery_agent");
@@ -369,13 +375,33 @@ test.describe("delivery agent", () => {
     await expect(page.getByTestId("delivery-confirm")).toBeVisible();
     await page.getByTestId("delivery-confirm-yes").click();
     await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "out_for_delivery");
-    expect(api.requests("PATCH", /^\/deliveries\//).at(-1)!.body).toEqual({ status: "out_for_delivery" });
+    expect(api.requests("PATCH", /^\/deliveries\//).at(-1)!.body).toEqual({
+      status: "out_for_delivery",
+      order_version: 1,
+    });
 
     await expect(actions).toHaveCount(2);
     await expect(page.getByTestId("delivery-action-delivered")).toBeVisible();
     await expect(page.getByTestId("delivery-action-failed")).toBeVisible();
     // Nothing the API does not offer yet: no collected-amount or custody input.
     await expect(page.getByTestId("delivery-detail").locator("input, textarea, select")).toHaveCount(0);
+
+    await page.getByTestId("delivery-action-failed").click();
+    const failureReason = page.getByTestId("delivery-failure-reason");
+    await expect(failureReason).toBeVisible();
+    await expect(page.getByTestId("delivery-confirm-yes")).toBeDisabled();
+    await failureReason.fill("Customer unavailable");
+    await page.getByTestId("delivery-confirm-yes").click();
+    await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "failed");
+    expect(api.requests("PATCH", /^\/deliveries\//).at(-1)!.body).toEqual({
+      status: "failed",
+      order_version: 2,
+      reason: "Customer unavailable",
+    });
+
+    await page.getByTestId("delivery-action-out_for_delivery").click();
+    await page.getByTestId("delivery-confirm-yes").click();
+    await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "out_for_delivery");
 
     await page.getByTestId("delivery-action-delivered").click();
     await page.getByTestId("delivery-confirm-yes").click();

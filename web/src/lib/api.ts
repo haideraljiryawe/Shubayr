@@ -1323,6 +1323,8 @@ export const api = {
   async updateDeliveryStatus(
     id: string,
     status: Exclude<DeliveryStatus, "assigned">,
+    orderVersion: number,
+    reason?: string,
   ): Promise<Delivery> {
     return withFreshToken(async () => {
       if (!isLive("deliveries")) {
@@ -1337,7 +1339,11 @@ export const api = {
       }
       return request<Delivery>(`/deliveries/${encodeURIComponent(id)}`, {
         method: "PATCH",
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+          status,
+          order_version: orderVersion,
+          ...(reason ? { reason } : {}),
+        }),
       });
     });
   },

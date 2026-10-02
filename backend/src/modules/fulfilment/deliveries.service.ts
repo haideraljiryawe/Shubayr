@@ -113,6 +113,7 @@ export class DeliveriesService {
       this.prisma.delivery.count({ where }),
       this.prisma.delivery.findMany({
         where,
+        include: { order: { select: { version: true } } },
         orderBy: [{ dispatched_at: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * perPage,
         take: perPage,
@@ -164,6 +165,7 @@ export class DeliveriesService {
       const updated = await tx.delivery.update({
         where: { id },
         data: { agent_id: input.agent_id },
+        include: { order: { select: { version: true } } },
       });
       await this.audit.record(tx, {
         actorId,
@@ -397,6 +399,7 @@ export class DeliveriesService {
               }
             : {}),
         },
+        include: { order: { select: { version: true } } },
       });
       await this.audit.record(tx, {
         actorId,
@@ -461,10 +464,11 @@ export class DeliveriesService {
     }
   }
 
-  private present(row: Delivery) {
+  private present(row: Delivery & { order: { version: number } }) {
     return {
       id: row.id,
       order_id: row.order_id,
+      order_version: row.order.version,
       agent_id: row.agent_id,
       status: row.status,
       delivery_fee: Number(row.delivery_fee),

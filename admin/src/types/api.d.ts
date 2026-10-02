@@ -10000,6 +10000,7 @@ export interface components {
             id?: string;
             /** Format: uuid */
             order_id?: string;
+            order_version: number;
             /** Format: uuid */
             agent_id?: string | null;
             /** @enum {string} */
