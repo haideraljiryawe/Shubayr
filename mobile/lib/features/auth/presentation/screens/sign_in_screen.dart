@@ -11,8 +11,7 @@ import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/brand_mark.dart';
-import '../../../settings/presentation/providers/settings_providers.dart';
+import '../../../../core/widgets/user_avatar.dart';
 import '../providers/auth_providers.dart';
 
 /// Step 1 of the OTP flow — `POST /auth/request-otp`.
@@ -79,7 +78,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final colors = context.colors;
-    final brand = ref.watch(brandProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -104,7 +102,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(child: BrandMark(brand: brand, size: 64)),
+                    const Center(
+                      child: SizedBox.square(
+                        dimension: AppSpacing.xxl * 2,
+                        child: FittedBox(child: UserAvatar()),
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.xl),
                     Text(
                       l10n.authSignInTitle,
