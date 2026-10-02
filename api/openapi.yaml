@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 10.0.0
+  version: 10.0.1
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1174,7 +1174,7 @@ paths:
               schema: { $ref: "#/components/schemas/PurchaseInvoice" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/PostingConflict" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
   /admin/suppliers/balances:
     get:
       tags: [Purchasing]
@@ -1270,6 +1270,12 @@ paths:
     post:
       tags: [Purchasing]
       summary: Pay and explicitly allocate supplier invoices
+      description: >
+        The payment and every allocation amount use the cash account currency.
+        Each allocation is converted to its invoice currency at the applicable
+        payment-date rate. An explicit non-base rate requires
+        `purchases.override_rate`; FX differences from the invoice's booked
+        rate post to supplier FX gain or loss.
       x-permission: supplier_payments.record
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierPaymentInput" } } } }
       responses:
@@ -1277,7 +1283,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
   /admin/supplier-credits:
     get:
       tags: [Purchasing]
@@ -2396,7 +2402,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Product" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/PricingRateValidation" }
   /admin/products/{id}:
     get:
       tags: [Admin]
@@ -2434,7 +2440,7 @@ paths:
               schema: { $ref: "#/components/schemas/Product" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/PricingRateValidation" }
     delete:
       tags: [Admin]
       summary: Delete (archive) a product
@@ -3014,7 +3020,7 @@ paths:
       responses:
         "200": { description: Applicable rate with stale-today warning, content: { application/json: { schema: { $ref: "#/components/schemas/ExchangeRate" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
 
   /admin/exchange-rates/linked-price-preview:
     post:
@@ -3273,7 +3279,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
   /admin/cash-transfers:
     post:
       tags: [Finance]
@@ -3286,7 +3292,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
 
   /admin/financial-documents/{id}:
     get:
@@ -3651,6 +3657,8 @@ components:
               - { $ref: "#/components/schemas/Error" }
               - { $ref: "#/components/schemas/PeriodClosedError" }
     Validation: { description: "Invalid request data (`VALIDATION_FAILED`, HTTP 422)", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    ExchangeRateValidation: { description: "Invalid request data (`VALIDATION_FAILED`) or no applicable currency rate (`EXCHANGE_RATE_NOT_FOUND`), HTTP 422", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    PricingRateValidation: { description: "Invalid request data (`VALIDATION_FAILED`) or no applicable linked-pricing rate (`PRICING_RATE_REQUIRED`), HTTP 422", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     RateLimited: { description: Too many requests (`RATE_LIMITED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Forbidden: { description: Missing permission (`FORBIDDEN`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
   schemas:
@@ -4914,8 +4922,8 @@ components:
             supplier_id: { type: string, format: uuid }
             cash_account_id: { type: string, format: uuid }
             currency_code: { type: string, enum: [IQD, USD] }
-            amount: { type: string }
-            exchange_rate: { type: string }
+            amount: { type: string, description: Total payment in the cash account currency. }
+            exchange_rate: { type: string, description: Explicit rate for the non-base currency; requires purchases.override_rate when it differs from the applicable rate or no applicable rate exists. }
             reference: { type: string }
             notes: { type: string }
             allocations:
@@ -4926,7 +4934,7 @@ components:
                 required: [invoice_id, amount]
                 properties:
                   invoice_id: { type: string, format: uuid }
-                  amount: { type: string }
+                  amount: { type: string, description: Amount allocated in the payment/cash account currency. }
 
     SupplierCreditAllocationInput:
       type: object

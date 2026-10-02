@@ -619,26 +619,13 @@ export class PurchasingService {
             'Payment currency must match the cash account',
           );
         const amount = this.positive(input.amount, 'amount');
-        const defaultRate = await this.currencies.requireRate(
-          input.currency_code,
-          dates.documentDate,
-        );
-        const settlementRate = input.exchange_rate
-          ? this.positive(input.exchange_rate, 'exchange_rate')
-          : defaultRate;
-        const cashRate = input.currency_code === 'IQD' ? D(1) : settlementRate;
-        const amountIqd = amount.times(cashRate);
-        let allocatedCashIqd = D(0);
-        let carryingIqd = D(0);
-        let allocatedSupplierCurrency = D(0);
-        const allocations = [] as Array<{
+        let allocatedPaymentCurrency = D(0);
+        const pendingAllocations = [] as Array<{
           invoice: Awaited<
             ReturnType<Tx['purchaseInvoice']['findUniqueOrThrow']>
           >;
-          amount: Prisma.Decimal;
-          carrying: Prisma.Decimal;
-          paid: Prisma.Decimal;
-          fx: Prisma.Decimal;
+          paymentAmount: Prisma.Decimal;
+          remaining: Prisma.Decimal;
         }>;
         for (const source of input.allocations) {
           const invoice = await tx.purchaseInvoice.findUnique({
@@ -651,7 +638,12 @@ export class PurchasingService {
             invoice.created_by,
             'A purchase creator cannot approve its supplier payment',
           );
-          const applied = this.positive(source.amount, 'allocation.amount');
+          const paymentAmount = this.positive(
+            source.amount,
+            'allocation.amount',
+          );
+          allocatedPaymentCurrency =
+            allocatedPaymentCurrency.plus(paymentAmount);
           const used = await tx.supplierPaymentAllocation.aggregate({
             where: { invoice_id: invoice.id },
             _sum: { amount_invoice_currency: true },
@@ -659,31 +651,70 @@ export class PurchasingService {
           const remaining = invoice.total_cost.minus(
             used._sum.amount_invoice_currency ?? 0,
           );
-          if (applied.gt(remaining))
+          pendingAllocations.push({
+            invoice: invoice,
+            paymentAmount,
+            remaining,
+          });
+        }
+        if (allocatedPaymentCurrency.gt(amount))
+          throw new ConflictException('Allocations exceed the payment amount');
+        const foreignCurrencies = new Set(
+          [
+            input.currency_code,
+            ...pendingAllocations.map(
+              ({ invoice }) =>
+                (invoice as { currency_code: string }).currency_code,
+            ),
+          ].filter((currency) => currency !== 'IQD'),
+        );
+        if (foreignCurrencies.size > 1)
+          throw new UnprocessableEntityException(
+            'A supplier payment can use only one foreign currency',
+          );
+        const settlementCurrency =
+          foreignCurrencies.values().next().value ?? 'IQD';
+        const settlementRate = await this.transactionRate(
+          settlementCurrency,
+          dates.documentDate,
+          input.exchange_rate,
+          permissions,
+        );
+        const cashRate = input.currency_code === 'IQD' ? D(1) : settlementRate;
+        const amountIqd = amount.times(cashRate);
+        let allocatedCashIqd = D(0);
+        let carryingIqd = D(0);
+        const allocations = pendingAllocations.map((allocation) => {
+          const invoiceRate =
+            (allocation.invoice as { currency_code: string }).currency_code ===
+            'IQD'
+              ? D(1)
+              : settlementRate;
+          const paid = allocation.paymentAmount.times(cashRate);
+          const applied = paid
+            .div(invoiceRate)
+            .toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP);
+          if (applied.gt(allocation.remaining))
             throw new ConflictException(
               'Allocation exceeds the invoice balance',
             );
-          const carrying = applied.times(invoice.exchange_rate);
-          const paid =
-            invoice.currency_code === 'IQD'
-              ? applied
-              : applied.times(settlementRate);
+          const carrying = applied.times(
+            (allocation.invoice as { exchange_rate: Prisma.Decimal })
+              .exchange_rate,
+          );
           allocatedCashIqd = allocatedCashIqd.plus(paid);
           carryingIqd = carryingIqd.plus(carrying);
-          if (invoice.currency_code === input.currency_code)
-            allocatedSupplierCurrency = allocatedSupplierCurrency.plus(applied);
-          allocations.push({
-            invoice: invoice,
+          return {
+            invoice: allocation.invoice,
+            paymentAmount: allocation.paymentAmount,
             amount: applied,
             carrying,
             paid,
             fx: paid.minus(carrying),
-          });
-        }
-        if (allocatedCashIqd.gt(amountIqd))
-          throw new ConflictException('Allocations exceed the payment amount');
-        const unallocatedIqd = amountIqd.minus(allocatedCashIqd);
-        const unallocatedCurrency = unallocatedIqd.div(cashRate);
+          };
+        });
+        const unallocatedCurrency = amount.minus(allocatedPaymentCurrency);
+        const unallocatedIqd = unallocatedCurrency.times(cashRate);
         const fx = allocatedCashIqd.minus(carryingIqd);
         const id = randomUUID();
         const lines: PostingLine[] = [
@@ -739,7 +770,7 @@ export class PurchasingService {
             amount_currency: amount,
             exchange_rate: cashRate,
             amount_iqd: amountIqd,
-            allocated_currency: allocatedSupplierCurrency,
+            allocated_currency: allocatedPaymentCurrency,
             unallocated_currency: unallocatedCurrency,
             document_date: dates.documentDate,
             accounting_date: dates.accountingDate,
@@ -754,6 +785,7 @@ export class PurchasingService {
             data: {
               payment_id: id,
               invoice_id: (allocation.invoice as { id: string }).id,
+              amount_payment_currency: allocation.paymentAmount,
               amount_invoice_currency: allocation.amount,
               invoice_carrying_iqd: allocation.carrying,
               payment_iqd: allocation.paid,
@@ -850,7 +882,7 @@ export class PurchasingService {
           amount: Prisma.Decimal;
         }>;
         let currency = supplier.default_currency;
-        let rate = D(1);
+        let rate: Prisma.Decimal | undefined;
         let returnTermsSet = false;
         for (const source of input.lines) {
           const item = await tx.purchaseInvoiceItem.findUnique({
@@ -879,6 +911,7 @@ export class PurchasingService {
           if (
             returnTermsSet &&
             (item.invoice.currency_code !== currency ||
+              rate === undefined ||
               !item.invoice.exchange_rate.equals(rate))
           )
             throw new ConflictException(
@@ -910,6 +943,10 @@ export class PurchasingService {
             amount,
           });
         }
+        if (!rate)
+          throw new UnprocessableEntityException(
+            'A supplier return requires at least one invoice rate',
+          );
         const totalCurrency = totalIqd.div(rate);
         const id = randomUUID();
         const entry = await this.ledger.post(tx, {
@@ -1521,11 +1558,14 @@ export class PurchasingService {
     supplied: string | undefined,
     permissions: string[],
   ) {
-    const defaultRate = await this.currencies.requireRate(currency, at);
-    if (!supplied) return defaultRate;
-    const rate = this.positive(supplied, 'exchange_rate');
-    if (currency === 'IQD' && !rate.equals(1))
+    const rate = supplied
+      ? this.positive(supplied, 'exchange_rate')
+      : undefined;
+    if (currency === 'IQD' && rate && !rate.equals(1))
       throw new UnprocessableEntityException('The IQD exchange rate must be 1');
+    if (rate && permissions.includes('purchases.override_rate')) return rate;
+    const defaultRate = await this.currencies.requireRate(currency, at);
+    if (!rate) return defaultRate;
     if (
       !rate.equals(defaultRate) &&
       !permissions.includes('purchases.override_rate')
