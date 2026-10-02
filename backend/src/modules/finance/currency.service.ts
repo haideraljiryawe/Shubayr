@@ -141,9 +141,12 @@ export class CurrencyService {
       orderBy: [{ effective_at: 'desc' }, { id: 'desc' }],
     });
     if (!rate) {
-      throw new UnprocessableEntityException(
-        `No exchange rate exists for ${currencyCode} at the requested date`,
-      );
+      throw new UnprocessableEntityException({
+        status: 422,
+        code: 'EXCHANGE_RATE_NOT_FOUND',
+        message: `No exchange rate exists for ${currencyCode} at the requested date`,
+        errors: [],
+      });
     }
     return this.presentRate(rate, base.code, await this.dates.today());
   }

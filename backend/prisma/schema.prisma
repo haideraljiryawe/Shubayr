@@ -996,6 +996,7 @@ model SupplierPaymentAllocation {
   id                      String          @id(map: "supplier_payment_allocations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   payment_id              String          @db.Uuid
   invoice_id              String          @db.Uuid
+  amount_payment_currency Decimal         @db.Decimal(20, 6)
   amount_invoice_currency Decimal         @db.Decimal(20, 6)
   invoice_carrying_iqd    Decimal         @db.Decimal(30, 12)
   payment_iqd             Decimal         @db.Decimal(30, 12)
