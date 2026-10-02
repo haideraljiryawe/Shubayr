@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsDecimal,
   IsInt,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -163,4 +164,30 @@ export class CreateWriteDownDto extends InventoryDocumentDto {
   @ValidateNested({ each: true })
   @Type(() => WriteDownLineDto)
   lines!: WriteDownLineDto[];
+}
+
+export class CreateRetrievalDto {
+  @IsString() @MinLength(8) @MaxLength(128) operation_id!: string;
+  @IsIn(['retry']) outcome!: 'retry';
+  @IsString() @MinLength(3) @MaxLength(500) reason!: string;
+}
+
+export class ReceiveRetrievalLineDto {
+  @IsUUID('4') line_id!: string;
+  @IsUUID('4') location_id!: string;
+  @IsDecimal({ decimal_digits: '0,3', force_decimal: false }) quantity!: string;
+}
+
+export class ReceiveRetrievalDto {
+  @IsString() @MinLength(8) @MaxLength(128) operation_id!: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReceiveRetrievalLineDto)
+  lines!: ReceiveRetrievalLineDto[];
+}
+
+export class PrintablePickListsDto {
+  @IsArray()
+  @IsUUID('4', { each: true })
+  order_ids!: string[];
 }

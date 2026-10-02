@@ -80,13 +80,15 @@ async function mintDeliveredOrder(
   });
   expect(placed.ok()).toBe(true);
   const order = await placed.json();
+  let orderVersion = order.version as number;
 
   for (const status of ["confirmed", "preparing", "ready_for_dispatch"]) {
     const moved = await request.patch(
       `${API}/admin/orders/${order.id}/status`,
-      { headers: bearer(admin), data: { status } },
+      { headers: bearer(admin), data: { status, version: orderVersion } },
     );
     expect(moved.ok()).toBe(true);
+    orderVersion = ((await moved.json()) as { version: number }).version;
   }
 
   const me = await (
@@ -99,9 +101,10 @@ async function mintDeliveredOrder(
   for (const status of ["out_for_delivery", "delivered"]) {
     const moved = await request.patch(`${API}/deliveries/${order.delivery_id}`, {
       headers: bearer(agent),
-      data: { status },
+      data: { status, order_version: orderVersion },
     });
     expect(moved.ok()).toBe(true);
+    orderVersion = ((await moved.json()) as { order_version: number }).order_version;
   }
 
   const fresh = await (

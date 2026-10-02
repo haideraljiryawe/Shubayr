@@ -29,6 +29,9 @@ import {
   PageDto,
   UpdateLocationDto,
   UpdateWarehouseDto,
+  CreateRetrievalDto,
+  ReceiveRetrievalDto,
+  PrintablePickListsDto,
 } from './dto/inventory.dto';
 import { InventoryService } from './inventory.service';
 
@@ -228,5 +231,67 @@ export class InventoryController {
       id,
       request.user.permissions.includes('cost.view'),
     );
+  }
+}
+
+@Controller('admin')
+export class RetrievalController {
+  constructor(private readonly inventory: InventoryService) {}
+
+  @Post('orders/:id/retrievals')
+  @AdminPolicy('retrieval.open')
+  open(
+    @Req() request: AdminRequest,
+    @Param('id', uuid) id: string,
+    @Body() input: CreateRetrievalDto,
+  ) {
+    return this.inventory.createRetrieval(
+      request.user.id,
+      id,
+      input,
+      request.user.permissions.includes('cost.view'),
+    );
+  }
+
+  @Get('retrievals/:id')
+  @AdminPolicy('retrieval.view')
+  detail(@Req() request: AdminRequest, @Param('id', uuid) id: string) {
+    return this.inventory.getRetrieval(
+      id,
+      request.user.permissions.includes('cost.view'),
+    );
+  }
+
+  @Post('retrievals/:id/receive')
+  @HttpCode(HttpStatus.OK)
+  @AdminPolicy('retrieval.receive')
+  receive(
+    @Req() request: AdminRequest,
+    @Param('id', uuid) id: string,
+    @Body() input: ReceiveRetrievalDto,
+  ) {
+    return this.inventory.receiveRetrieval(
+      request.user.id,
+      id,
+      input,
+      request.user.permissions.includes('cost.view'),
+    );
+  }
+}
+
+@Controller('admin')
+export class PickListsController {
+  constructor(private readonly inventory: InventoryService) {}
+
+  @Get('orders/:id/pick-list')
+  @AdminPolicy('inventory.pick')
+  orderPickList(@Param('id', uuid) id: string) {
+    return this.inventory.getOrderPickList(id);
+  }
+
+  @Post('pick-lists/print')
+  @AdminPolicy('inventory.pick')
+  printable(@Body() input: PrintablePickListsDto) {
+    return this.inventory.printablePickLists(input.order_ids);
   }
 }

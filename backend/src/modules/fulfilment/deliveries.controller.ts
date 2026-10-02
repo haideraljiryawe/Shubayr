@@ -13,6 +13,7 @@ import type { Request } from 'express';
 import {
   AdminPolicy,
   AppPolicy,
+  Policy,
 } from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { DeliveriesService } from './deliveries.service';
@@ -21,6 +22,7 @@ import { DeliveryAgentsQueryDto } from './dto/delivery-agents-query.dto';
 import {
   AssignDeliveryDto,
   CreateDeliveryRatingDto,
+  UpdateStaffDeliveryStatusDto,
   UpdateDeliveryStatusDto,
 } from './dto/delivery.dto';
 
@@ -73,6 +75,32 @@ export class DeliveriesController {
     @Body() input: CreateDeliveryRatingDto,
   ) {
     return this.deliveries.rate(request.user.id, request.user.role!, id, input);
+  }
+}
+
+@Controller('admin/deliveries')
+export class AdminDeliveriesController {
+  constructor(private readonly deliveries: DeliveriesService) {}
+
+  @Patch(':id/status')
+  @Policy({
+    access: 'authenticated',
+    surfaces: ['admin'],
+    permissionFromBody: {
+      field: 'status',
+      map: {
+        out_for_delivery: 'orders.retry',
+        delivered: 'orders.deliver',
+        failed: 'orders.fail',
+      },
+    },
+  })
+  updateStatus(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: UpdateStaffDeliveryStatusDto,
+  ) {
+    return this.deliveries.updateStatusAsStaff(request.user.id, id, input);
   }
 }
 

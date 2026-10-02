@@ -137,7 +137,11 @@ export class AdminProductsController {
     @Req() request: Request & { user: AuthenticatedRequestUser },
     @Body() input: CreateProductDto,
   ) {
-    return this.products.create(input, request.user.id);
+    return this.products.create(
+      input,
+      request.user.id,
+      request.user.permissions,
+    );
   }
 
   @Patch(':id')
@@ -147,7 +151,12 @@ export class AdminProductsController {
     @Body(new NonEmptyPatchPipe()) input: UpdateProductDto,
     @Req() request: Request & { user: AuthenticatedRequestUser },
   ) {
-    return this.products.update(id, input, request.user.id);
+    return this.products.update(
+      id,
+      input,
+      request.user.id,
+      request.user.permissions,
+    );
   }
 
   @Delete(':id')

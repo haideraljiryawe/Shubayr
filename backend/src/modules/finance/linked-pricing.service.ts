@@ -12,6 +12,7 @@ import {
   LinkedPriceApplyDto,
   LinkedPricePreviewDto,
 } from './dto/linked-price.dto';
+import { BelowCostService } from '../catalog/below-cost.service';
 
 type Db = PrismaService | Prisma.TransactionClient;
 
@@ -20,6 +21,7 @@ export class LinkedPricingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly belowCost: BelowCostService,
   ) {}
 
   async preview(actorId: string, input: LinkedPricePreviewDto) {
@@ -85,14 +87,20 @@ export class LinkedPricingService {
   }
 
   applyRateOnly(actorId: string, input: LinkedPriceApplyDto) {
-    return this.apply(actorId, input.preview_token, false);
+    return this.apply(actorId, input, false, []);
   }
 
-  publish(actorId: string, input: LinkedPriceApplyDto) {
-    return this.apply(actorId, input.preview_token, true);
+  publish(actorId: string, input: LinkedPriceApplyDto, permissions: string[]) {
+    return this.apply(actorId, input, true, permissions);
   }
 
-  private async apply(actorId: string, token: string, publish: boolean) {
+  private async apply(
+    actorId: string,
+    input: LinkedPriceApplyDto,
+    publish: boolean,
+    permissions: string[],
+  ) {
+    const token = input.preview_token;
     return this.prisma.$transaction(async (tx) => {
       const preview = await tx.linkedPricePreview.findUnique({
         where: { id: token },
@@ -128,6 +136,9 @@ export class LinkedPricingService {
         },
       });
       let priceVersion = null;
+      let belowCostBreaches: Awaited<
+        ReturnType<BelowCostService['assertAllowed']>
+      > = [];
       if (!publish) {
         await tx.productVariant.updateMany({
           where: {
@@ -143,6 +154,25 @@ export class LinkedPricingService {
         ]);
         if (!base)
           throw new ConflictException('No base currency is configured');
+        const nextPrices = state.variants.map((variant) => ({
+          variant_id: variant.id,
+          sku: variant.sku,
+          price: this.round(
+            variant.reference_price!.mul(rate.rate),
+            rounding,
+            base.display_precision,
+          ),
+        }));
+        belowCostBreaches = await this.belowCost.assertAllowed(
+          tx,
+          actorId,
+          permissions,
+          nextPrices,
+          {
+            reason: input.below_cost_override_reason,
+            originatorId: input.below_cost_originator_id,
+          },
+        );
         priceVersion = await tx.priceVersion.create({
           data: {
             exchange_rate_id: rate.id,
@@ -182,6 +212,16 @@ export class LinkedPricingService {
         },
         reason: preview.reason,
       });
+      if (belowCostBreaches.length && priceVersion) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'prices.below_cost.override',
+          entityType: 'price_version',
+          entityId: priceVersion.id,
+          after: { variants: belowCostBreaches },
+          reason: input.below_cost_override_reason ?? undefined,
+        });
+      }
       await tx.linkedPricePreview.delete({ where: { id: preview.id } });
       return {
         mode: publish ? 'published' : 'rate_only',

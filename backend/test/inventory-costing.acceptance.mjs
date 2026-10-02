@@ -472,6 +472,7 @@ try {
   await request(`/orders/${winner.payload.id}/cancel`, {
     token: winner.shopper.token,
     method: 'POST',
+    body: { version: winner.payload.version },
   });
   check(
     Number(
@@ -496,6 +497,7 @@ try {
   await request(`/orders/${winner.payload.id}/cancel`, {
     token: winner.shopper.token,
     method: 'POST',
+    body: { version: winner.payload.version },
     expected: 409,
   });
   check(
@@ -525,7 +527,7 @@ try {
   const rejected = await request(`/admin/orders/${rejectOrder.id}/reject`, {
     token: admin,
     method: 'POST',
-    body: { reason: 'Phase 5 release proof' },
+    body: { reason: 'Phase 5 release proof', version: rejectOrder.version },
   });
   check(
     rejected.status,
@@ -536,7 +538,7 @@ try {
     token: admin,
     method: 'POST',
     expected: 409,
-    body: { reason: 'Must not release twice' },
+    body: { reason: 'Must not release twice', version: rejected.version },
   });
   check(
     Number(

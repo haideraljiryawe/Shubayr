@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import type { Queue } from 'bullmq';
-import type { Prisma } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import {
@@ -172,6 +172,39 @@ export class NotificationsService
         orderId,
         suffix,
         'order_monitor',
+      );
+    }
+  }
+
+  async recordStaffWithPermission(
+    tx: Prisma.TransactionClient,
+    permission: string,
+    type: NotificationType,
+    entityType: string,
+    entityId: string,
+    suffix = '',
+  ) {
+    const staff = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT DISTINCT u.id
+      FROM users u
+      JOIN work_profiles wp ON wp.user_id = u.id AND wp.is_active
+      LEFT JOIN user_permission_grants ug ON ug.user_id = u.id
+      LEFT JOIN permissions gp ON gp.id = ug.permission_id
+      LEFT JOIN user_presets up ON up.user_id = u.id
+      LEFT JOIN preset_permissions pp ON pp.preset_id = up.preset_id
+      LEFT JOIN permissions ppn ON ppn.id = pp.permission_id
+      WHERE u.is_active AND (${permission} = gp.key OR ${permission} = ppn.key)
+      ORDER BY u.id
+    `);
+    for (const user of staff) {
+      await this.record(
+        tx,
+        user.id,
+        type,
+        entityType,
+        entityId,
+        suffix,
+        'staff',
       );
     }
   }

@@ -1,5 +1,34 @@
 # Changelog
 
+## 10.0.0 - 2026-10-02
+
+### Breaking
+
+- Every order transition now requires the current integer `version`; a stale
+  action returns 409 `STALE_ORDER_STATE` with the current status and version.
+- Checkout now requires explicit per-SKU price-version acceptance after any
+  increase or decrease, and customer cancellation after `pending` is a request
+  that staff approve or deny.
+
+### Added
+
+- The complete order state machine, business-hours acceptance deadlines and
+  idempotent late/auto-cancel processing in `Asia/Baghdad`.
+- Location-sorted order and batch pick lists, preparation-time FEFO
+  reallocation, visible shortage handling, and customer-approved reductions.
+- Failed-delivery reasons and retry without a second inventory issue.
+- Numbered partial retrieval documents that return custody at original issue
+  cost through balanced inventory/custody postings.
+- Below-cost protection for fixed and linked price publication and order
+  confirmation, including audited, separated-duty overrides.
+
+### Changed
+
+- Customer order reads now include the version, timeline, cancellation request,
+  price acceptance, late/attention flags, and linked retrieval summaries.
+- The API contract is version 10.0.0, with refreshed generated web and admin
+  API types.
+
 ## 8.2.0 - 2026-09-30
 
 ### Added

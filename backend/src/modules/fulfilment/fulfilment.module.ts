@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import {
+  AdminDeliveriesController,
   DeliveriesController,
   DeliveryAgentsController,
 } from './deliveries.controller';
@@ -9,7 +10,11 @@ import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
   imports: [LoyaltyModule, InventoryModule],
-  controllers: [DeliveriesController, DeliveryAgentsController],
+  controllers: [
+    DeliveriesController,
+    AdminDeliveriesController,
+    DeliveryAgentsController,
+  ],
   providers: [DeliveriesService],
 })
 export class FulfilmentModule {}

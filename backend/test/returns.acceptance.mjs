@@ -153,7 +153,7 @@ try {
       [orderId, firstId, batchA, location, originalIssueCost],
     );
     await db.query(
-      "INSERT INTO custody_holdings (order_id,order_item_id,delivery_id,custody_party_id,batch_id,quantity,unit_cost_iqd,status,settled_at) VALUES ($1,$2,$3,$4,$5,3,$6,'sold',now())",
+      "INSERT INTO custody_holdings (order_id,order_item_id,delivery_id,custody_party_id,batch_id,quantity,remaining_quantity,unit_cost_iqd,status,settled_at) VALUES ($1,$2,$3,$4,$5,3,0,$6,'sold',now())",
       [orderId, firstId, deliveryId, custodyPartyId, batchA, originalIssueCost],
     );
     await db.query('COMMIT');

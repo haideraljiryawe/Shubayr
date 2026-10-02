@@ -52,10 +52,10 @@ try {
   check(allBefore.points_balance, allBefore.ledger.reduce((sum, entry) => sum + entry.points, 0), 'balance is ledger sum');
 
   await request(`/deliveries/${undelivered.delivery_id}`, {
-    token: agent, method: 'PATCH', body: { status: 'delivered' },
+    token: agent, method: 'PATCH', body: { status: 'delivered', order_version: undelivered.version },
   });
   await request(`/deliveries/${undelivered.delivery_id}`, {
-    token: agent, method: 'PATCH', body: { status: 'delivered' }, expected: 409,
+    token: agent, method: 'PATCH', body: { status: 'delivered', order_version: undelivered.version }, expected: 409,
   });
   check(Number(await value("SELECT count(*)::int AS value FROM loyalty_ledger WHERE order_id=$1 AND type='earn'", [undelivered.id])), 1, 'delivered order credits exactly once');
   const expectedEarn = Number(await value('SELECT floor(greatest(subtotal-discount,0))::int AS value FROM orders WHERE id=$1', [undelivered.id]));

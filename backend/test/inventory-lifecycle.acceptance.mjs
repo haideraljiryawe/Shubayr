@@ -69,7 +69,11 @@ async function customer(phone) {
       contact_phone: phone,
     },
   });
-  return { token: session.access_token, address: address.id };
+  return {
+    token: session.access_token,
+    address: address.id,
+    userId: session.user.id,
+  };
 }
 
 async function placeAndDeliver({
@@ -91,11 +95,22 @@ async function placeAndDeliver({
     headers: { 'Idempotency-Key': key },
     body: { address_id: shopper.address, payment_method: 'cod' },
   });
+  let current = order;
   for (const status of ['confirmed', 'preparing', 'ready_for_dispatch']) {
-    await request(`/admin/orders/${order.id}/status`, {
+    current = await request(`/admin/orders/${order.id}/status`, {
       token: admin,
       method: 'PATCH',
-      body: { status },
+      body: {
+        status,
+        version: current.version,
+        ...(status === 'confirmed'
+          ? {
+              below_cost_override_reason:
+                'Phase 5 lifecycle fixture below-cost approval',
+              below_cost_originator_id: shopper.userId,
+            }
+          : {}),
+      },
     });
   }
   const deliveryId = await scalar(
@@ -107,12 +122,12 @@ async function placeAndDeliver({
     method: 'PATCH',
     body: { agent_id: agent.user.id },
   });
-  await request(`/admin/orders/${order.id}/status`, {
+  current = await request(`/admin/orders/${order.id}/status`, {
     token: admin,
     method: 'PATCH',
-    body: { status: 'dispatched' },
+    body: { status: 'dispatched', version: current.version },
   });
-  return { order, deliveryId };
+  return { order: current, deliveryId };
 }
 
 let admin;
@@ -207,7 +222,7 @@ try {
   await request(`/deliveries/${costFlow.deliveryId}`, {
     token: agent.access_token,
     method: 'PATCH',
-    body: { status: 'delivered' },
+    body: { status: 'delivered', order_version: costFlow.order.version },
   });
   check(
     Number(
@@ -251,7 +266,7 @@ try {
   await request(`/deliveries/${weightFlow.deliveryId}`, {
     token: agent.access_token,
     method: 'PATCH',
-    body: { status: 'delivered' },
+    body: { status: 'delivered', order_version: weightFlow.order.version },
   });
   check(
     Number(
@@ -345,11 +360,22 @@ try {
     headers: { 'Idempotency-Key': `closed-period-${Date.now()}` },
     body: { address_id: closedShopper.address, payment_method: 'cod' },
   });
+  let closedCurrent = closedOrder;
   for (const status of ['confirmed', 'preparing', 'ready_for_dispatch']) {
-    await request(`/admin/orders/${closedOrder.id}/status`, {
+    closedCurrent = await request(`/admin/orders/${closedOrder.id}/status`, {
       token: admin,
       method: 'PATCH',
-      body: { status },
+      body: {
+        status,
+        version: closedCurrent.version,
+        ...(status === 'confirmed'
+          ? {
+              below_cost_override_reason:
+                'Phase 5 closed-period fixture below-cost approval',
+              below_cost_originator_id: closedShopper.userId,
+            }
+          : {}),
+      },
     });
   }
   const closedDeliveryId = await scalar(
@@ -390,7 +416,7 @@ try {
       token: admin,
       method: 'PATCH',
       expected: 409,
-      body: { status: 'dispatched' },
+      body: { status: 'dispatched', version: closedCurrent.version },
     },
   );
   check(closedError.code, 'PERIOD_CLOSED', 'dispatch declares PERIOD_CLOSED');
