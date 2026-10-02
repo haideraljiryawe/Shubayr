@@ -377,12 +377,18 @@ export async function advanceOrder(
   statuses: string[],
 ): Promise<void> {
   const token = await adminApiToken(request);
+  const detail = await request.get(`${API}/admin/orders/${orderId}`, {
+    headers: bearer(token),
+  });
+  expect(detail.ok(), await detail.text()).toBe(true);
+  let version = ((await detail.json()) as { version: number }).version;
   for (const status of statuses) {
     const moved = await request.patch(`${API}/admin/orders/${orderId}/status`, {
       headers: bearer(token),
-      data: { status },
+      data: { status, version },
     });
     expect(moved.ok(), `${status}: ${await moved.text()}`).toBe(true);
+    version = ((await moved.json()) as { version: number }).version;
   }
 }
 

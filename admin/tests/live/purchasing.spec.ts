@@ -120,13 +120,17 @@ async function placeOrder(request: APIRequestContext, item: { id: string; varian
 
 /** Take an order to dispatched (its stock goes into the agent's custody). */
 async function dispatch(request: APIRequestContext, order: { id: string; delivery_id: string }) {
+  const detail = await api(request, "GET", `/admin/orders/${order.id}`);
+  expect(detail.status, JSON.stringify(detail.body)).toBe(200);
+  let version = detail.body.version as number;
   for (const status of ["confirmed", "preparing", "ready_for_dispatch"]) {
-    const moved = await api(request, "PATCH", `/admin/orders/${order.id}/status`, { status });
+    const moved = await api(request, "PATCH", `/admin/orders/${order.id}/status`, { status, version });
     expect(moved.status, JSON.stringify(moved.body)).toBe(200);
+    version = moved.body.version as number;
   }
   const assigned = await api(request, "PATCH", `/deliveries/${order.delivery_id}/assign`, { agent_id: state.agentId });
   expect(assigned.status, JSON.stringify(assigned.body)).toBe(200);
-  const dispatched = await api(request, "PATCH", `/admin/orders/${order.id}/status`, { status: "dispatched" });
+  const dispatched = await api(request, "PATCH", `/admin/orders/${order.id}/status`, { status: "dispatched", version });
   expect(dispatched.status, JSON.stringify(dispatched.body)).toBe(200);
 }
 
