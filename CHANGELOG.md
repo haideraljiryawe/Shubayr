@@ -6,6 +6,9 @@
 
 - Missing or unknown currency conversion rates now return the declared
   `EXCHANGE_RATE_NOT_FOUND` error instead of permitting an implicit rate.
+- Supplier payments now interpret allocation amounts in the cash account
+  currency, convert at the payment-date or permissioned override rate, and post
+  differences from invoice carrying value to supplier FX gain or loss.
 
 ### Changed
 

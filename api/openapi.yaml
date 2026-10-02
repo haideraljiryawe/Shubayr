@@ -1270,6 +1270,12 @@ paths:
     post:
       tags: [Purchasing]
       summary: Pay and explicitly allocate supplier invoices
+      description: >
+        The payment and every allocation amount use the cash account currency.
+        Each allocation is converted to its invoice currency at the applicable
+        payment-date rate. An explicit non-base rate requires
+        `purchases.override_rate`; FX differences from the invoice's booked
+        rate post to supplier FX gain or loss.
       x-permission: supplier_payments.record
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierPaymentInput" } } } }
       responses:
@@ -4916,8 +4922,8 @@ components:
             supplier_id: { type: string, format: uuid }
             cash_account_id: { type: string, format: uuid }
             currency_code: { type: string, enum: [IQD, USD] }
-            amount: { type: string }
-            exchange_rate: { type: string }
+            amount: { type: string, description: Total payment in the cash account currency. }
+            exchange_rate: { type: string, description: Explicit rate for the non-base currency; requires purchases.override_rate when it differs from the applicable rate or no applicable rate exists. }
             reference: { type: string }
             notes: { type: string }
             allocations:
@@ -4928,7 +4934,7 @@ components:
                 required: [invoice_id, amount]
                 properties:
                   invoice_id: { type: string, format: uuid }
-                  amount: { type: string }
+                  amount: { type: string, description: Amount allocated in the payment/cash account currency. }
 
     SupplierCreditAllocationInput:
       type: object

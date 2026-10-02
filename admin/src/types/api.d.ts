@@ -2675,7 +2675,10 @@ export interface paths {
             };
         };
         put?: never;
-        /** Pay and explicitly allocate supplier invoices */
+        /**
+         * Pay and explicitly allocate supplier invoices
+         * @description The payment and every allocation amount use the cash account currency. Each allocation is converted to its invoice currency at the applicable payment-date rate. An explicit non-base rate requires `purchases.override_rate`; FX differences from the invoice's booked rate post to supplier FX gain or loss.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -9413,13 +9416,16 @@ export interface components {
             cash_account_id: string;
             /** @enum {string} */
             currency_code: "IQD" | "USD";
+            /** @description Total payment in the cash account currency. */
             amount: string;
+            /** @description Explicit rate for the non-base currency; requires purchases.override_rate when it differs from the applicable rate or no applicable rate exists. */
             exchange_rate?: string;
             reference?: string;
             notes?: string;
             allocations: {
                 /** Format: uuid */
                 invoice_id: string;
+                /** @description Amount allocated in the payment/cash account currency. */
                 amount: string;
             }[];
         };
