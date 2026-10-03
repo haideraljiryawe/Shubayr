@@ -10,6 +10,30 @@ class AfterSalesRepositoryRemote implements AfterSalesRepository {
   final ApiClient _api;
 
   @override
+  Future<ReviewPage> fetchOwnReviews({int page = 1, int perPage = 100}) async {
+    final json = await _api.get<Map<String, dynamic>>(
+      '/me/reviews',
+      query: {'page': page, 'per_page': perPage},
+    );
+    if (json['page'] is! int ||
+        json['per_page'] is! int ||
+        json['total'] is! int ||
+        json['data'] is! List) {
+      throw const AppFailure(FailureKind.server);
+    }
+    return ReviewPage.fromJson(json);
+  }
+
+  @override
+  Future<ReturnPage> fetchReturns({int page = 1, int perPage = 100}) async =>
+      ReturnPage.fromJson(
+        await _api.get<Map<String, dynamic>>(
+          '/returns',
+          query: {'page': page, 'per_page': perPage},
+        ),
+      );
+
+  @override
   Future<Review> submitReview({
     required String productId,
     required String orderItemId,
@@ -41,7 +65,7 @@ class AfterSalesRepositoryRemote implements AfterSalesRepository {
           if (!isValidQuantity(item.quantity)) {
             throw const AppFailure(FailureKind.validation);
           }
-          return item.toJson();
+          return {'order_item_id': item.orderItemId, 'quantity': item.quantity};
         }).toList(),
       },
     ),

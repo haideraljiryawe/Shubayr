@@ -51,9 +51,14 @@ void main() {
     expect(cart.availableQty, 0.5);
     expect(cart.copyWith(quantity: 0.125).availableQty, 0.5);
   });
-  test('pending return receipts accumulate fractions without binary drift', () {
-    final receipts = AfterSalesReceipts(
-      returns: [
+  test('persisted pending returns consume fractions without binary drift', () {
+    final eligibility = ReturnEligibility(
+      const Order(
+        id: "o",
+        status: "delivered",
+        items: [OrderItem(id: "i", productId: "p", quantity: 1)],
+      ),
+      [
         for (final q in [0.1, 0.2])
           ReturnRequest(
             id: 'r$q',
@@ -62,8 +67,8 @@ void main() {
           ),
       ],
     );
-    expect(receipts.returnedQuantity('i'), 0.3);
-    expect(receipts.returnedQuantity('other'), 0);
+    expect(eligibility.remaining['i'], 0.7);
+    expect(eligibility.remaining['other'], isNull);
   });
   test('invalid cart and return quantities never reach transport', () async {
     final dio = Dio();
@@ -182,6 +187,7 @@ void main() {
                     ? {
                         'id': 'r',
                         'order_id': 'o',
+                        'status': 'requested',
                         'items': options.data['items'],
                       }
                     : {

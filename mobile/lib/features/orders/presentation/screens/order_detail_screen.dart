@@ -26,6 +26,7 @@ import '../../data/order.dart';
 import '../../data/order_tracking.dart';
 import '../order_status.dart';
 import '../providers/order_providers.dart';
+import '../providers/after_sales_providers.dart';
 import '../widgets/order_status_pill.dart';
 
 /// A single order: header, the status timeline, the items, the amount summary,
@@ -153,24 +154,41 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     ),
                     if (o.status == 'delivered' && o.items.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.lg),
-                      AppButton(
-                        label: l10n.reviewOrderTitle,
-                        icon: Icons.star_outline,
-                        variant: AppButtonVariant.secondary,
-                        onPressed: () => context.pushNamed(
-                          AppRoutes.orderReviewName,
-                          pathParameters: {'id': o.id},
-                        ),
+                      AsyncValueView<Set<String>>(
+                        value: ref.watch(reviewEligibilityProvider(o.id)),
+                        loading: const Skeleton.line(),
+                        onRetry: () =>
+                            ref.invalidate(reviewEligibilityProvider(o.id)),
+                        builder: (context, eligible) => eligible.isEmpty
+                            ? Text(l10n.reviewAllSubmitted)
+                            : AppButton(
+                                label: l10n.reviewOrderTitle,
+                                icon: Icons.star_outline,
+                                variant: AppButtonVariant.secondary,
+                                onPressed: () => context.pushNamed(
+                                  AppRoutes.orderReviewName,
+                                  pathParameters: {'id': o.id},
+                                ),
+                              ),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      AppButton(
-                        label: l10n.returnOrderTitle,
-                        icon: Icons.assignment_return_outlined,
-                        variant: AppButtonVariant.secondary,
-                        onPressed: () => context.pushNamed(
-                          AppRoutes.orderReturnName,
-                          pathParameters: {'id': o.id},
-                        ),
+                      AsyncValueView<ReturnEligibility>(
+                        value: ref.watch(returnEligibilityProvider(o.id)),
+                        loading: const Skeleton.line(),
+                        onRetry: () =>
+                            ref.invalidate(returnEligibilityProvider(o.id)),
+                        builder: (context, eligibility) =>
+                            !eligibility.remaining.values.any((n) => n > 0)
+                            ? Text(l10n.returnAllRequested)
+                            : AppButton(
+                                label: l10n.returnOrderTitle,
+                                icon: Icons.assignment_return_outlined,
+                                variant: AppButtonVariant.secondary,
+                                onPressed: () => context.pushNamed(
+                                  AppRoutes.orderReturnName,
+                                  pathParameters: {'id': o.id},
+                                ),
+                              ),
                       ),
                     ],
                     if (isOrderCancellable(

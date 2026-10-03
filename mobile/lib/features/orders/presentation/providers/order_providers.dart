@@ -26,7 +26,7 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
 /// Private Orders state belongs to one authenticated customer session. Profile
 /// edits do not change this key. A new scope also distinguishes signing out and
 /// back into the same account before dependent providers have rebuilt.
-final _ordersIdentityProvider = Provider<({String customerId, Object scope})?>((
+final ordersIdentityProvider = Provider<({String customerId, Object scope})?>((
   ref,
 ) {
   final customerId = ref.watch(
@@ -44,7 +44,7 @@ final _ordersIdentityProvider = Provider<({String customerId, Object scope})?>((
 /// null selects all orders. Kept separately so refreshing after checkout or
 /// cancellation preserves the selected filter within the same session only.
 final orderStatusFilterProvider = StateProvider<String?>((ref) {
-  ref.watch(_ordersIdentityProvider);
+  ref.watch(ordersIdentityProvider);
   return null;
 });
 
@@ -73,7 +73,7 @@ class OrdersController extends AsyncNotifier<OrderListState> {
 
   @override
   Future<OrderListState> build() async {
-    final identity = ref.watch(_ordersIdentityProvider);
+    final identity = ref.watch(ordersIdentityProvider);
     final repository = ref.watch(orderRepositoryProvider);
     final status = ref.watch(orderStatusFilterProvider);
     _generation++;
@@ -98,7 +98,7 @@ class OrdersController extends AsyncNotifier<OrderListState> {
   }
 
   Future<void> loadMore() async {
-    final identity = ref.read(_ordersIdentityProvider);
+    final identity = ref.read(ordersIdentityProvider);
     final current = state.value;
     if (identity == null ||
         state.isLoading ||
@@ -125,7 +125,7 @@ class OrdersController extends AsyncNotifier<OrderListState> {
         perPage: current.page.perPage,
       );
       if (!ref.mounted ||
-          ref.read(_ordersIdentityProvider) != identity ||
+          ref.read(ordersIdentityProvider) != identity ||
           generation != _generation) {
         return;
       }
@@ -139,7 +139,7 @@ class OrdersController extends AsyncNotifier<OrderListState> {
       );
     } catch (error) {
       if (!ref.mounted ||
-          ref.read(_ordersIdentityProvider) != identity ||
+          ref.read(ordersIdentityProvider) != identity ||
           generation != _generation) {
         return;
       }
@@ -163,7 +163,7 @@ final orderProvider = FutureProvider.autoDispose.family<Order, String>((
   ref,
   id,
 ) {
-  if (ref.watch(_ordersIdentityProvider) == null) {
+  if (ref.watch(ordersIdentityProvider) == null) {
     throw const AppFailure.unauthorized();
   }
   return ref.watch(orderRepositoryProvider).fetchOrder(id);
@@ -172,7 +172,7 @@ final orderProvider = FutureProvider.autoDispose.family<Order, String>((
 /// The status timeline for an order.
 final orderTrackingProvider = FutureProvider.autoDispose
     .family<OrderTracking, String>((ref, id) {
-      if (ref.watch(_ordersIdentityProvider) == null) {
+      if (ref.watch(ordersIdentityProvider) == null) {
         throw const AppFailure.unauthorized();
       }
       return ref.watch(orderRepositoryProvider).fetchTracking(id);

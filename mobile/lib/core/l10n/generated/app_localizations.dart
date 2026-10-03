@@ -1355,7 +1355,7 @@ abstract class AppLocalizations {
   /// No description provided for @reviewAllSubmitted.
   ///
   /// In en, this message translates to:
-  /// **'You have submitted reviews for all items in this session.'**
+  /// **'You have already reviewed all items in this order.'**
   String get reviewAllSubmitted;
 
   /// No description provided for @returnOrderTitle.
@@ -1421,7 +1421,7 @@ abstract class AppLocalizations {
   /// No description provided for @returnAllRequested.
   ///
   /// In en, this message translates to:
-  /// **'All item quantities have been requested for return in this session.'**
+  /// **'There are no remaining quantities available to request for return.'**
   String get returnAllRequested;
 
   /// No description provided for @routeNotFoundTitle.

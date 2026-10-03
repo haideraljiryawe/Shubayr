@@ -9,6 +9,76 @@ import 'package:shubayr/features/orders/data/order_repository_mock.dart';
 import 'package:shubayr/features/orders/data/return_request.dart';
 
 void main() {
+  test(
+    'remote history uses customer endpoints and preserves required correlation fields',
+    () async {
+      final dio = Dio();
+      addTearDown(dio.close);
+      final requests = <RequestOptions>[];
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requests.add(options);
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                data: {
+                  'page': 2,
+                  'per_page': 100,
+                  'total': 101,
+                  'data': [
+                    if (options.path == '/returns')
+                      {
+                        'id': 'return',
+                        'order_id': 'order',
+                        'status': 'completed',
+                        'items': [
+                          {
+                            'order_item_id': 'item',
+                            'quantity': .125,
+                            'approved_quantity': .125,
+                          },
+                        ],
+                      }
+                    else
+                      {
+                        'id': 'review',
+                        'product_id': 'product',
+                        'order_item_id': 'item',
+                        'rating': 4,
+                        'status': 'rejected',
+                        'created_at': '2026-10-03T00:00:00Z',
+                        'product': {
+                          'id': 'product',
+                          'name_ar': 'منتج',
+                          'name_en': 'Product',
+                        },
+                      },
+                  ],
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repo = AfterSalesRepositoryRemote(ApiClient(dio));
+      final reviews = await repo.fetchOwnReviews(page: 2);
+      final returns = await repo.fetchReturns(page: 2);
+      expect(requests.map((r) => r.path), ['/me/reviews', '/returns']);
+      expect(requests.every((r) => r.method == 'GET'), isTrue);
+      expect(requests.last.queryParameters, {'page': 2, 'per_page': 100});
+      expect(reviews.data.single.orderItemId, 'item');
+      expect(reviews.data.single.status, 'rejected');
+      expect(returns.data.single.orderId, 'order');
+      expect(returns.data.single.items.single.approvedQuantity, .125);
+      expect(
+        ReturnPage.fromJson(
+          returns.toJson(),
+        ).data.single.items.single.approvedQuantity,
+        .125,
+      );
+    },
+  );
   late OrderRepositoryMock orders;
   late AfterSalesRepositoryMock repository;
   setUp(() {
@@ -139,7 +209,7 @@ void main() {
     );
   });
   test(
-    'remote sends only contract fields and parses receipts without a server',
+    'remote preserves existing create payloads and parses responses',
     () async {
       final requests = <RequestOptions>[];
       final dio = Dio();

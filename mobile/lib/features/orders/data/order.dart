@@ -70,6 +70,7 @@ class OrderItem {
     this.quantity = 1,
     this.unitPrice = 0,
     this.lineTotal = 0,
+    this.reviewed,
     this.currency,
   }) : imageSnapshotProvided = imageSnapshotProvided ?? (imageUrl != null);
 
@@ -105,6 +106,10 @@ class OrderItem {
   final num unitPrice;
   @JsonKey(name: 'line_total')
   final num lineTotal;
+
+  /// Null means the optional v9 field was absent, not proof of no review.
+  @JsonKey(includeIfNull: false)
+  final bool? reviewed;
   @JsonKey(includeIfNull: false)
   final String? currency;
 
@@ -117,6 +122,7 @@ class OrderItem {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       lineTotal: item.lineTotal,
+      reviewed: item.reviewed,
       currency: item.currency,
       productNameAr: item.productNameAr,
       productNameEn: item.productNameEn,

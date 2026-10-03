@@ -20,6 +20,30 @@ class AfterSalesRepositoryMock implements AfterSalesRepository {
   final List<ReturnRequest> _returns = [];
 
   @override
+  Future<ReviewPage> fetchOwnReviews({int page = 1, int perPage = 100}) async {
+    await Future<void>.delayed(delay);
+    if (userId == null) throw const AppFailure.unauthorized();
+    return ReviewPage(
+      page: page,
+      perPage: perPage,
+      total: _reviews.length,
+      data: _reviews.reversed.skip((page - 1) * perPage).take(perPage).toList(),
+    );
+  }
+
+  @override
+  Future<ReturnPage> fetchReturns({int page = 1, int perPage = 100}) async {
+    await Future<void>.delayed(delay);
+    if (userId == null) throw const AppFailure.unauthorized();
+    return ReturnPage(
+      page: page,
+      perPage: perPage,
+      total: _returns.length,
+      data: _returns.reversed.skip((page - 1) * perPage).take(perPage).toList(),
+    );
+  }
+
+  @override
   Future<Review> submitReview({
     required String productId,
     required String orderItemId,

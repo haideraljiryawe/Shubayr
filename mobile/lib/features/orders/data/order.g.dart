@@ -52,6 +52,7 @@ OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => OrderItem(
   quantity: json['quantity'] as num? ?? 1,
   unitPrice: json['unit_price'] as num? ?? 0,
   lineTotal: json['line_total'] as num? ?? 0,
+  reviewed: json['reviewed'] as bool?,
   currency: json['currency'] as String?,
 );
 
@@ -65,6 +66,7 @@ Map<String, dynamic> _$OrderItemToJson(OrderItem instance) => <String, dynamic>{
   'quantity': instance.quantity,
   'unit_price': instance.unitPrice,
   'line_total': instance.lineTotal,
+  'reviewed': ?instance.reviewed,
   'currency': ?instance.currency,
 };
 

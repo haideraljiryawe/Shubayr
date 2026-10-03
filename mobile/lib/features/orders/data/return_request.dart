@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../../../core/error/failure.dart';
 
 part 'return_request.g.dart';
 
@@ -20,20 +21,52 @@ class ReturnRequest {
   final String? reason;
   final List<ReturnRequestItem> items;
 
-  factory ReturnRequest.fromJson(Map<String, dynamic> json) =>
-      _$ReturnRequestFromJson(json);
+  factory ReturnRequest.fromJson(Map<String, dynamic> json) {
+    // Missing history is unknown, never an empty request or a guessed status.
+    if (json['status'] is! String ||
+        json['items'] is! List ||
+        (json['items'] as List).isEmpty) {
+      throw const AppFailure(FailureKind.server);
+    }
+    return _$ReturnRequestFromJson(json);
+  }
   Map<String, dynamic> toJson() => _$ReturnRequestToJson(this);
 }
 
 @JsonSerializable()
 class ReturnRequestItem {
-  const ReturnRequestItem({required this.orderItemId, required this.quantity});
+  const ReturnRequestItem({
+    required this.orderItemId,
+    required this.quantity,
+    this.approvedQuantity,
+  });
 
   @JsonKey(name: 'order_item_id')
   final String orderItemId;
   final num quantity;
+  @JsonKey(name: 'approved_quantity', includeIfNull: false)
+  final num? approvedQuantity;
 
   factory ReturnRequestItem.fromJson(Map<String, dynamic> json) =>
       _$ReturnRequestItemFromJson(json);
   Map<String, dynamic> toJson() => _$ReturnRequestItemToJson(this);
+}
+
+/// Caller-owned return history; every page is required before proving absence.
+@JsonSerializable(explicitToJson: true)
+class ReturnPage {
+  const ReturnPage({
+    required this.page,
+    required this.perPage,
+    required this.total,
+    required this.data,
+  });
+  final int page;
+  @JsonKey(name: 'per_page')
+  final int perPage;
+  final int total;
+  final List<ReturnRequest> data;
+  factory ReturnPage.fromJson(Map<String, dynamic> json) =>
+      _$ReturnPageFromJson(json);
+  Map<String, dynamic> toJson() => _$ReturnPageToJson(this);
 }

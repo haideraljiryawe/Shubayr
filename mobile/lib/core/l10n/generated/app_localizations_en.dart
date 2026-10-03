@@ -675,7 +675,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewAllSubmitted =>
-      'You have submitted reviews for all items in this session.';
+      'You have already reviewed all items in this order.';
 
   @override
   String get returnOrderTitle => 'Request a return';
@@ -715,7 +715,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get returnAllRequested =>
-      'All item quantities have been requested for return in this session.';
+      'There are no remaining quantities available to request for return.';
 
   @override
   String get routeNotFoundTitle => 'Page not found';

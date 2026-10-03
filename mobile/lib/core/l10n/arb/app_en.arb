@@ -300,7 +300,7 @@
   "reviewComment": "Comment (optional)",
   "reviewSubmit": "Submit review",
   "reviewSubmitted": "Review submitted. Publication is subject to review.",
-  "reviewAllSubmitted": "You have submitted reviews for all items in this session.",
+  "reviewAllSubmitted": "You have already reviewed all items in this order.",
   "returnOrderTitle": "Request a return",
   "returnOrderHint": "Choose quantities to return. Leave items you want to keep at 0.",
   "returnAvailable": "Quantity available to request: {count}",
@@ -325,7 +325,7 @@
     }
   },
   "returnRequestOnly": "This is a request, not an approval or a refund. The store will review it.",
-  "returnAllRequested": "All item quantities have been requested for return in this session.",
+  "returnAllRequested": "There are no remaining quantities available to request for return.",
   "routeNotFoundTitle": "Page not found",
   "deliveryAssigned": "Assigned",
   "deliveryOutForDelivery": "Out for delivery",

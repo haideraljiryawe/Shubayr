@@ -665,8 +665,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get reviewSubmitted => 'تم إرسال التقييم. يخضع النشر للمراجعة.';
 
   @override
-  String get reviewAllSubmitted =>
-      'أرسلت تقييمات لجميع المنتجات خلال هذه الجلسة.';
+  String get reviewAllSubmitted => 'سبق أن قيّمت جميع منتجات هذا الطلب.';
 
   @override
   String get returnOrderTitle => 'طلب إرجاع';
@@ -705,7 +704,7 @@ class AppLocalizationsAr extends AppLocalizations {
       'هذا طلب إرجاع وليس موافقة أو استردادًا للمبلغ. سيراجعه المتجر.';
 
   @override
-  String get returnAllRequested => 'طلبت إرجاع جميع الكميات خلال هذه الجلسة.';
+  String get returnAllRequested => 'لا توجد كميات متبقية متاحة لطلب الإرجاع.';
 
   @override
   String get routeNotFoundTitle => 'الصفحة غير موجودة';
