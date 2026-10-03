@@ -10,12 +10,12 @@ this log and the roadmap record later changes to their dependencies.
 | Item | Value |
 |---|---|
 | Review date | 2026-10-03 |
-| Flutter baseline | C09 `15de4c2` on `mobile`; API 11 working changes pending review |
+| Flutter baseline | `0b858ad` on `mobile`; C01–C20/C22 implemented, C21 governance closure |
 | Upstream reviewed/merged | `704bef71f0cd3db959756161284310aa2f433d05` |
 | Contract | [api/openapi.yaml](../../api/openapi.yaml), exact upstream blob |
 | Contract version | **11.0.0** |
 | Comparison anchors | local v9 → `c006c7b` v10.0.2 → `704bef7` v11.0.0 |
-| Integration state | Merge applied without conflicts; no commit or push |
+| Integration state | API 11 alignment committed in `ea9d784`; C21 makes no commit/push |
 | Next comparison baseline | `704bef7` |
 
 ## SYNC-2026-09-10 — reviewed and imported documentation
@@ -187,7 +187,12 @@ Update the phase task, dependency register and ready-work index in the same edit
 Do not create a scheduled watcher, commit, push or send a message to the team
 unless Ahmed requests that action.
 
-## SYNC-2026-10-03 — API 11 alignment (review pending)
+## SYNC-2026-10-03 — API 11 alignment (historical implementation record)
+
+> The following records the migration before approval. It was subsequently
+> committed as `ea9d784`. The Checkout 320px/150% overflow noted at the end
+> was fixed by C18–C20 (`0b858ad`); it is not an outstanding code blocker.
+> Live deployment/contract acceptance remains distinct from isolated tests.
 
 Baseline: clean `mobile` at C09 `15de4c2`. Fetched `origin/main`; Ahmed selected
 `704bef71f0cd3db959756161284310aa2f433d05` explicitly. Directly read the complete

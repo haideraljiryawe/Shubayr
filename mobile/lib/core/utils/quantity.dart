@@ -1,4 +1,4 @@
-/// API v9 quantities have a 0.001 quantum. Models retain the original `num`;
+/// API 11 quantities have a 0.001 quantum. Models retain the original `num`;
 /// only local quantity arithmetic uses thousandths to avoid binary drift.
 num addQuantity(num a, num b) =>
     ((a * 1000).round() + (b * 1000).round()) / 1000;

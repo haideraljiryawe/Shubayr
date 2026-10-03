@@ -1,5 +1,10 @@
 # Mobile app scope — API 7.1
 
+> Historical API 7.1 scope/acceptance snapshot. Current Mobile targets API 11.0.0;
+> see [AGENTS](../AGENTS.md), [README](../README.md) and the
+> [contract synchronization log](contract-sync-log.md). Launch-profile counts,
+> pending migrations and acceptance steps below describe that earlier phase.
+
 The application now targets guests, customers, delivery agents and read-only
 order monitors. Web Admin staff operations belong to the separate Next.js app.
 This record supersedes the previous mobile admin/mock progress records.

@@ -45,7 +45,7 @@ class CartMutationResult {
 }
 
 /// Serializes reads and writes of the shared cart aggregate within a session.
-/// API v9 has no cart revision or conditional-write contract to order snapshots.
+/// API 11 price-version tokens are not a cart revision or snapshot write lock.
 class CartController extends AsyncNotifier<Cart> {
   Object? _owner;
   Future<void> _operations = Future.value();

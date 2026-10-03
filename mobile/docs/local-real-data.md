@@ -4,7 +4,7 @@ Flutter talks to the Backend API; it never connects directly to PostgreSQL.
 Normal application launches use database-backed remote repositories only.
 Isolated automated tests explicitly inject their fixtures.
 
-## This workstation
+## Workstation setup snapshot
 
 The local stack uses PostgreSQL, Redis, Meilisearch, MinIO and the API in Docker.
 The API is `http://localhost:8000/api/v1`. Database and image data live in named
@@ -43,9 +43,9 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full 
 
 ## Flutter and development sign-in
 
-The current configuration and phone roles are documented in
-[API 6.1 progress](app-access-v6-progress.md). There are exactly two standalone
-VS Code: select **iOS + Web Admin (Remote)** and press F5 to launch the phone
+Current API 11.0.0 configuration and phone roles are documented in
+[README](../README.md) and [AGENTS](../AGENTS.md). This workstation setup is not
+evidence of a currently running/migrated backend. In VS Code, select **iOS + Web Admin (Remote)** and press F5 to launch the phone
 simulator and Web Admin together against `http://localhost:8000/api/v1`.
 Open `http://localhost:3200` for Web Admin. Stopping either debug session stops
 both sessions in this compound. Start the existing backend before launching.

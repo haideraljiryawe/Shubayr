@@ -4,12 +4,15 @@ Flutter for **guests, customers, delivery agents and order monitors**. All
 administrative operations belong to the separate Next.js Web Admin. The retained
 Chrome launch is an isolated development preview of this phone app.
 
-See [API 7.1 migration progress](docs/app-access-v6-progress.md) for the current
-scope, implemented behavior, deferred backend phases and acceptance checklist.
-Historical admin/mock progress documents do not define the current backlog.
+Current contract: repository-root [`api/openapi.yaml`](../api/openapi.yaml),
+**11.0.0**. [AGENTS.md](AGENTS.md) defines development/architecture decisions;
+[ROADMAP.md](ROADMAP.md) separates completed hardening from external acceptance.
+The [contract synchronization log](docs/contract-sync-log.md) records the consumed
+v9 → v10 → v11 changes. Earlier API/admin/mock progress records are historical.
 
-Branding is **white-label**: the store name, logo, primary colour and currency
-come from `GET /settings` at runtime — nothing brand-specific is hard-coded.
+Bundled Flutter identity lives in `StoreIdentity`. `GET /settings` can override
+supported display values at runtime; native IDs/icons/signing remain build-time
+configuration. See the branding section below.
 
 ---
 
@@ -28,7 +31,7 @@ flutter pub get
 flutter run                        # phone app (server-assigned role)
 flutter run -d chrome --web-hostname=localhost --web-port=7357  # isolated preview
 flutter test
-flutter analyze
+flutter analyze --no-pub
 ```
 
 ### Configuration (`--dart-define`)
@@ -76,7 +79,9 @@ fails clearly when material is missing; invalid keys/passwords fail in the Andro
 signing tools. Existing iOS local signing remains described in
 [Local iOS device signing](docs/ios-local-signing.md).
 
-On an Android-equipped signing machine, verify the effective manifest with:
+Real Android release verification remains external until an Android SDK/JDK
+and private production signing material are configured. On that machine, verify
+the effective manifest with:
 
 ```bash
 cd android
@@ -117,7 +122,7 @@ Models use `json_serializable`. The generated `*.g.dart` files are **committed**
 (CI does not run `build_runner`). After changing a model:
 
 ```bash
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 ```
 
 Localisations are generated from the ARB files by `flutter pub get` /
@@ -127,17 +132,18 @@ Localisations are generated from the ARB files by `flutter pub get` /
 
 ## Architecture
 
-Shallow and feature-first — **model → repository → Riverpod → UI**. There is no
-DTO/entity split, no use-case layer and no mappers: with the API contract still
-in flux, a second model layer would only double the churn.
+Shallow and feature-first — **UI → Riverpod controller/provider → repository →
+ApiClient**. Models generally follow the consumed contract, with business types
+where useful. There is no mandatory DTO/entity/use-case hierarchy; fixture
+adapters stay outside live model decoding.
 
 ```
 lib/
-├── main.dart · bootstrap.dart        # startup: prefs → first frame → background refresh
+├── main.dart · bootstrap.dart        # config validation, recoverable prefs/assets, session restore
 ├── app/
 │   ├── app.dart                      # MaterialApp.router (theme + locale from providers)
 │   ├── router/                       # routes, GoRouter, role guard
-│   ├── shell/                        # customer navigation shell (bar ⇄ rail)
+│   ├── shell/                        # customer/work shells and application composition
 │   └── splash_screen.dart
 ├── core/
 │   ├── config/                       # remote API configuration, explicit test overrides
@@ -155,14 +161,20 @@ lib/
     └── notifications/                # saved inbox and read synchronization
 ```
 
-Each feature is `data/` (models + repository implementations), `domain/`
-(repository interface + domain types), `presentation/` (providers + screens).
+Features use `data/` (models/repositories), optional `domain/` contracts/types,
+and `presentation/` controllers/providers/screens. Account data is session-owned;
+Cart writes are serialized; checkout/cancellation commit independently of widget
+lifetime. Repositories use ApiClient/error boundaries, not navigation. Core has
+no feature dependencies. Server prices/totals, quantity precision and API version
+conflicts remain authoritative. See AGENTS.md for the concrete decision rules.
 
 ### Current work
 
-Follow [ROADMAP.md](ROADMAP.md) and the API 7.1 progress record. Older progress
-records are historical evidence, not implementation instructions. Tests use
-isolated fixtures; final integration uses the actual development API.
+The planned C01–C22 hardening work is implemented; C21 records its closure.
+Follow [ROADMAP.md](ROADMAP.md) for external acceptance boundaries, not the old
+migration backlog. Tests use isolated fixtures; signed release/device and live
+API integration need their actual configured environments. Interactive checks
+are used only when they add evidence beyond deterministic tests.
 
 ### Branding another application
 

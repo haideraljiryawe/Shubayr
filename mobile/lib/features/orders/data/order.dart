@@ -122,7 +122,7 @@ class OrderItem {
   @JsonKey(name: 'line_total')
   final num lineTotal;
 
-  /// Null means the optional v9 field was absent, not proof of no review.
+  /// Null means the optional contract field was absent, not proof of no review.
   @JsonKey(includeIfNull: false)
   final bool? reviewed;
   @JsonKey(includeIfNull: false)

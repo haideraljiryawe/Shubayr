@@ -14,9 +14,8 @@ import '../../data/settings_repository_remote.dart';
 import '../../data/store_settings.dart';
 import '../../domain/settings_repository.dart';
 
-/// Mock ⇄ remote switch. Overriding this single provider (globally via
-/// `DATA_SOURCE`, or locally in a `ProviderScope`) swaps the data source
-/// without touching a line of UI code.
+/// Normal launches use remote settings. Tests may explicitly override this
+/// repository provider or the test data-source provider in a ProviderScope.
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return switch (ref.watch(dataSourceProvider)) {
     DataSource.mock => const SettingsRepositoryMock(),
