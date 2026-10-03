@@ -18,6 +18,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { computeProductPricing, mergeProductPricingPatch } from './pricing';
 import { CatalogSearchService } from './catalog-search.service';
 import { BelowCostService } from './below-cost.service';
+import { businessDate } from '../finance/business-date';
 
 const productInclude = {
   category: true,
@@ -381,7 +382,7 @@ export class ProductsService {
       where: {
         batch: {
           product_id: id,
-          OR: [{ expiry_date: null }, { expiry_date: { gte: new Date() } }],
+          OR: [{ expiry_date: null }, { expiry_date: { gte: businessDate() } }],
         },
         location: {
           is_active: true,

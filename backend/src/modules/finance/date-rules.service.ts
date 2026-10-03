@@ -5,7 +5,12 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { businessDate } from './business-date';
+import {
+  businessDate,
+  businessDateDifference,
+  businessDateText,
+  parseBusinessDate,
+} from './business-date';
 import { PeriodClosedException } from './period-closed.exception';
 
 export type DateRuleInput = {
@@ -43,9 +48,7 @@ export class DateRulesService {
     const windowDays = Number(
       await this.setting('backdating_window_days', '90'),
     );
-    const ageDays = Math.floor(
-      (today.getTime() - documentDate.getTime()) / 86_400_000,
-    );
+    const ageDays = businessDateDifference(today, documentDate);
     if (ageDays > windowDays) {
       if (!input.permissions.includes('backdate.approve')) {
         throw new ForbiddenException(
@@ -72,12 +75,8 @@ export class DateRulesService {
     client: Pick<Prisma.TransactionClient, 'accountingPeriod'>,
     accountingDate: Date,
   ): Promise<void> {
-    const month = new Date(
-      Date.UTC(
-        accountingDate.getUTCFullYear(),
-        accountingDate.getUTCMonth(),
-        1,
-      ),
+    const month = parseBusinessDate(
+      `${businessDateText(accountingDate).slice(0, 7)}-01`,
     );
     const period = await client.accountingPeriod.findUnique({
       where: { month },
@@ -88,21 +87,18 @@ export class DateRulesService {
   }
 
   today(): Promise<string> {
-    return Promise.resolve(businessDate().toISOString().slice(0, 10));
+    return Promise.resolve(businessDateText());
   }
 
   private parseDate(value: string): Date {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       throw new UnprocessableEntityException('Invalid document date');
     }
-    const date = new Date(`${value}T00:00:00.000Z`);
-    if (
-      Number.isNaN(date.getTime()) ||
-      date.toISOString().slice(0, 10) !== value
-    ) {
+    try {
+      return parseBusinessDate(value);
+    } catch {
       throw new UnprocessableEntityException('Invalid document date');
     }
-    return date;
   }
 
   private async setting(key: string, fallback: string): Promise<string> {

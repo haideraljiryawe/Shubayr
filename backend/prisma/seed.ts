@@ -17,6 +17,7 @@ import {
 import { cartUnitPrice } from '../src/modules/orders/cart-pricing';
 import { PERMISSION_REGISTRY } from '../src/common/access/permission-registry';
 import { hashPassword } from '../src/modules/auth/password';
+import { businessDate } from '../src/modules/finance/business-date';
 
 const databaseUrl = required('DATABASE_URL');
 const publicApiUrl = (
@@ -716,8 +717,8 @@ async function main(): Promise<void> {
                 source_type: 'inventory_opening',
                 source_id: openingId,
                 event: 'post',
-                document_date: now,
-                accounting_date: now,
+                document_date: businessDate(now),
+                accounting_date: businessDate(now),
                 description: 'Development opening inventory',
                 created_by: adminId,
                 lines: {
@@ -747,8 +748,8 @@ async function main(): Promise<void> {
                 id: openingId,
                 document_number: `SEED-INV-${String(variantNumber).padStart(6, '0')}`,
                 operation_id: `seed-opening-${variantNumber}`,
-                document_date: now,
-                accounting_date: now,
+                document_date: businessDate(now),
+                accounting_date: businessDate(now),
                 created_by: adminId,
                 journal_entry_id: entryId,
               },
@@ -1196,6 +1197,8 @@ async function seedPartialReturnDemo(
       delivery_fee: 0,
       discount: 0,
       total: subtotal,
+      document_date: businessDate(now),
+      accounting_date: businessDate(now),
       delivery_contact_phone: '+9647700090006',
       delivery_address_label: 'Home',
       delivery_city: 'Baghdad',
@@ -1221,6 +1224,8 @@ async function seedPartialReturnDemo(
           method: 'cod',
           status: 'paid',
           amount: subtotal,
+          document_date: businessDate(now),
+          accounting_date: businessDate(now),
           paid_at: now,
         },
       },
@@ -1396,6 +1401,8 @@ async function seedPartialReturnDemo(
       reason: 'Seeded partial return',
       expected_refund: refund,
       refund_amount: refund,
+      document_date: businessDate(now),
+      accounting_date: businessDate(now),
       reviewed_by: adminId,
       reviewed_at: now,
       completed_at: now,
@@ -1699,6 +1706,8 @@ async function seedCustomerOrders(
           discount: 0,
           total: lineTotal,
           placed_at: placedAt,
+          document_date: businessDate(placedAt),
+          accounting_date: businessDate(placedAt),
           delivery_contact_phone: address.contact_phone,
           delivery_address_label: address.label,
           delivery_city: address.city,
@@ -1726,6 +1735,8 @@ async function seedCustomerOrders(
               method: 'cod',
               status: sample.status === 'delivered' ? 'paid' : 'pending',
               amount: lineTotal,
+              document_date: businessDate(placedAt),
+              accounting_date: businessDate(placedAt),
               paid_at:
                 sample.status === 'delivered'
                   ? new Date(placedAt.getTime() + 5 * 3_600_000)
@@ -2054,8 +2065,8 @@ async function seedInventoryJournal(
       source_type: input.sourceType ?? 'order',
       source_id: input.sourceId,
       event: input.event,
-      document_date: input.at,
-      accounting_date: input.at,
+      document_date: businessDate(input.at),
+      accounting_date: businessDate(input.at),
       description: `Development inventory ${input.event}`,
       created_by: input.actorId,
       posted_at: input.at,

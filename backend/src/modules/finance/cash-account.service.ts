@@ -218,7 +218,7 @@ export class CashAccountService {
         );
         const rate = await this.currencies.requireRate(
           account.currency_code,
-          dates.accountingDate,
+          dates.documentDate,
         );
         const baseAmount = amount.times(rate);
         const base = await this.currencies.baseCurrency();
@@ -316,7 +316,7 @@ export class CashAccountService {
         );
         const rate = await this.currencies.requireRate(
           from.currency_code,
-          dates.accountingDate,
+          dates.documentDate,
         );
         const baseAmount = amount.times(rate);
         const id = randomUUID();

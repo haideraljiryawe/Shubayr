@@ -7,7 +7,11 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { businessDate } from '../finance/business-date';
+import {
+  businessDate,
+  businessDateText,
+  parseBusinessDate,
+} from '../finance/business-date';
 import { DateRulesService } from '../finance/date-rules.service';
 import { DocumentNumberService } from '../finance/document-number.service';
 import { LedgerService } from '../finance/ledger.service';
@@ -416,7 +420,7 @@ export class InventoryService {
               variant_id: variant.id,
               lot_number: line.lot_number?.trim() ?? null,
               expiry_date: line.expiry_date
-                ? new Date(`${line.expiry_date}T00:00:00Z`)
+                ? parseBusinessDate(line.expiry_date)
                 : null,
               purchase_cost: line.unit_cost_iqd,
               landed_cost_share: line.landed_cost_share ?? '0',
@@ -439,7 +443,7 @@ export class InventoryService {
               unit_cost_iqd: line.unit_cost_iqd,
               landed_cost_share: line.landed_cost_share ?? '0',
               expiry_date: line.expiry_date
-                ? new Date(`${line.expiry_date}T00:00:00Z`)
+                ? parseBusinessDate(line.expiry_date)
                 : null,
             },
           });
@@ -485,7 +489,7 @@ export class InventoryService {
       responseStatus: 201,
       work: async (tx) => {
         const id = randomUUID();
-        const date = new Date(`${input.document_date}T00:00:00Z`);
+        const date = parseBusinessDate(input.document_date);
         const documentNumber = await this.numbers.issue(
           tx,
           'stock_transfer',
@@ -1056,6 +1060,7 @@ export class InventoryService {
       include: { items: true },
     });
     if (!order) throw new NotFoundException('Order not found');
+    const today = businessDate();
     const shortages: Array<{
       order_item_id: string;
       variant_id: string;
@@ -1080,7 +1085,7 @@ export class InventoryService {
         JOIN warehouses w ON w.id = l.warehouse_id
         WHERE b.variant_id = ${item.variant_id}::uuid
           AND s.quantity > s.reserved AND l.is_active AND l.is_sellable AND w.is_active
-          AND (b.expiry_date IS NULL OR b.expiry_date >= CURRENT_DATE)
+          AND (b.expiry_date IS NULL OR b.expiry_date >= ${today})
         ORDER BY b.expiry_date ASC NULLS LAST, b.entry_date ASC, b.id ASC, l.id ASC
         FOR UPDATE OF s
       `);
@@ -1883,8 +1888,8 @@ export class InventoryService {
     if (!row) throw new NotFoundException('Retrieval not found');
     return {
       ...row,
-      document_date: row.document_date.toISOString().slice(0, 10),
-      accounting_date: row.accounting_date.toISOString().slice(0, 10),
+      document_date: businessDateText(row.document_date),
+      accounting_date: businessDateText(row.accounting_date),
       lines: row.lines.map((source) => {
         const { retrieval_id, unit_cost_iqd, ...line } = source;
         void retrieval_id;

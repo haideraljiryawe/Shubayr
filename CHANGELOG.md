@@ -1,5 +1,21 @@
 # Changelog
 
+## 10.0.2 - 2026-10-03
+
+### Fixed
+
+- Current-day financial documents now use the latest exchange rate effective at
+  their posting instant; back-dated documents use the Baghdad business day's
+  closing rate, and future-effective rates remain excluded.
+- Business-date parsing, report ranges, aging buckets, expiry checks, document
+  numbering and database date defaults now consistently follow
+  `Asia/Baghdad`, including the 00:00-03:00 first-of-month boundary.
+
+### Changed
+
+- The API contract is version 10.0.2. This patch is not breaking; it clarifies
+  that exchange-rate effective values and lookups are exact timestamps.
+
 ## 10.0.1 - 2026-10-03
 
 ### Fixed

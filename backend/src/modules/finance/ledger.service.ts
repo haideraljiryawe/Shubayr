@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { businessDate } from './business-date';
+import { businessDate, parseBusinessDate } from './business-date';
 import { DateRulesService } from './date-rules.service';
 import { DocumentNumberService } from './document-number.service';
 import { LedgerQueryDto } from './dto/finance.dto';
@@ -204,7 +204,7 @@ export class LedgerService {
         ...(asOf
           ? {
               entry: {
-                accounting_date: { lte: new Date(`${asOf}T00:00:00Z`) },
+                accounting_date: { lte: parseBusinessDate(asOf) },
               },
             }
           : {}),
@@ -239,10 +239,8 @@ export class LedgerService {
       ...(query.from || query.to
         ? {
             accounting_date: {
-              ...(query.from
-                ? { gte: new Date(`${query.from}T00:00:00Z`) }
-                : {}),
-              ...(query.to ? { lte: new Date(`${query.to}T00:00:00Z`) } : {}),
+              ...(query.from ? { gte: parseBusinessDate(query.from) } : {}),
+              ...(query.to ? { lte: parseBusinessDate(query.to) } : {}),
             },
           }
         : {}),
@@ -289,7 +287,7 @@ export class LedgerService {
           where: asOf
             ? {
                 entry: {
-                  accounting_date: { lte: new Date(`${asOf}T00:00:00Z`) },
+                  accounting_date: { lte: parseBusinessDate(asOf) },
                 },
               }
             : undefined,

@@ -9,6 +9,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CurrencyUpdateDto, ExchangeRateCreateDto } from './dto/finance.dto';
 import { DateRulesService } from './date-rules.service';
+import { businessDateText, exchangeRateCutoff } from './business-date';
 
 @Injectable()
 export class CurrencyService {
@@ -151,8 +152,15 @@ export class CurrencyService {
     return this.presentRate(rate, base.code, await this.dates.today());
   }
 
-  async requireRate(currencyCode: string, at: Date): Promise<Prisma.Decimal> {
-    const applicable = await this.applicable(currencyCode, at);
+  async requireRate(
+    currencyCode: string,
+    documentDate: Date,
+    postedAt = new Date(),
+  ): Promise<Prisma.Decimal> {
+    const applicable = await this.applicable(
+      currencyCode,
+      exchangeRateCutoff(documentDate, postedAt),
+    );
     return new Prisma.Decimal(applicable.rate);
   }
 
@@ -181,7 +189,7 @@ export class CurrencyService {
     baseCurrencyCode: string,
     timezoneToday: string,
   ) {
-    const rateDay = rate.effective_at.toISOString().slice(0, 10);
+    const rateDay = businessDateText(rate.effective_at);
     return {
       ...rate,
       rate: rate.rate.toFixed(10).replace(/\.?0+$/, ''),

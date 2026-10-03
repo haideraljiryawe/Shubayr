@@ -34,3 +34,14 @@ export function storeLocalToIso(value: string): string | null {
   const instant = new Date(`${value}:00+03:00`);
   return Number.isNaN(instant.getTime()) ? null : instant.toISOString();
 }
+
+/**
+ * Match the API's rate cutoff for a document date: now for today's or a
+ * future document, and the close of the Baghdad day for a historical one.
+ */
+export function exchangeRateCutoff(day: string, postedAt: Date = new Date()): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  const dayEnd = new Date(`${day}T23:59:59.999+03:00`);
+  if (Number.isNaN(dayEnd.getTime()) || storeDay(dayEnd) !== day) return null;
+  return (day < storeDay(postedAt) ? dayEnd : postedAt).toISOString();
+}
