@@ -70,7 +70,11 @@ const adminOrderInclude = {
   user: { select: { id: true, name: true, phone: true, email: true } },
   delivery: {
     include: {
-      agent: { select: { id: true, name: true, phone: true, email: true } },
+      party: {
+        include: {
+          user: { select: { id: true, name: true, phone: true, email: true } },
+        },
+      },
     },
   },
   deliveries: {
@@ -1529,7 +1533,15 @@ export class OrdersService {
             failure_reason: row.delivery.failure_reason,
             failed_at: row.delivery.failed_at,
             retry_count: row.delivery.retry_count,
-            agent: row.delivery.agent,
+            agent: row.delivery.party?.user ?? null,
+            party: row.delivery.party
+              ? {
+                  id: row.delivery.party.id,
+                  kind: row.delivery.party.kind,
+                  name: row.delivery.party.name,
+                  phone: row.delivery.party.phone,
+                }
+              : null,
           }
         : null,
       status_events: row.status_events.map(({ status, note, at }) => ({

@@ -119,6 +119,7 @@ try {
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
   await run('test/admin-orders.acceptance.mjs', [], acceptanceEnv);
   await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
+  await run('test/delivery-parties.acceptance.mjs', [], acceptanceEnv);
   await run('test/returns.acceptance.mjs', [], acceptanceEnv);
   await run('test/loyalty.acceptance.mjs', [], acceptanceEnv);
   await run('test/reviews.acceptance.mjs', [], acceptanceEnv);

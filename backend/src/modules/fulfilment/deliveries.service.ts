@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import type { Delivery, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
@@ -39,7 +40,7 @@ export class DeliveriesService {
   ) {}
 
   listAssigned(agentId: string, query: AssignedDeliveriesQueryDto) {
-    return this.list({ agent_id: agentId }, query);
+    return this.list({ party: { is: { user_id: agentId } } }, query);
   }
 
   listAll(query: AssignedDeliveriesQueryDto) {
@@ -115,6 +116,15 @@ export class DeliveriesService {
         where,
         include: {
           order: { select: { version: true } },
+          party: {
+            select: {
+              id: true,
+              kind: true,
+              user_id: true,
+              name: true,
+              phone: true,
+            },
+          },
           attempts: {
             include: { party: { select: { id: true, name: true } } },
             orderBy: { attempt_number: 'asc' },
@@ -134,13 +144,26 @@ export class DeliveriesService {
   }
 
   async assign(actorId: string, id: string, input: AssignDeliveryDto) {
+    if (Boolean(input.agent_id) === Boolean(input.party_id)) {
+      throw new UnprocessableEntityException(
+        'Provide exactly one of agent_id or party_id',
+      );
+    }
+    const partyId = input.party_id ?? input.agent_id!;
     const row = await this.prisma.$transaction(async (tx) => {
-      const agent = await tx.user.findUnique({
-        where: { id: input.agent_id },
-        include: { role: true },
+      const party = await tx.deliveryParty.findUnique({
+        where: { id: partyId },
+        include: { user: { include: { role: true, work_profile: true } } },
       });
-      if (!agent || !agent.is_active || agent.role?.name !== 'delivery_agent') {
-        throw new NotFoundException('Delivery agent not found');
+      if (
+        !party ||
+        !party.is_active ||
+        (party.kind === 'internal_agent' &&
+          (!party.user?.is_active ||
+            party.user.role?.name !== 'delivery_agent' ||
+            !party.user.work_profile?.is_active))
+      ) {
+        throw new NotFoundException('Active delivery party not found');
       }
       const initial = await tx.delivery.findUnique({ where: { id } });
       if (!initial) throw new NotFoundException('Delivery not found');
@@ -170,9 +193,18 @@ export class DeliveriesService {
       }
       const updated = await tx.delivery.update({
         where: { id },
-        data: { agent_id: input.agent_id },
+        data: { agent_id: partyId },
         include: {
           order: { select: { version: true } },
+          party: {
+            select: {
+              id: true,
+              kind: true,
+              user_id: true,
+              name: true,
+              phone: true,
+            },
+          },
           attempts: {
             include: { party: { select: { id: true, name: true } } },
             orderBy: { attempt_number: 'asc' },
@@ -185,17 +217,19 @@ export class DeliveriesService {
         entityType: 'delivery',
         entityId: id,
         before: { agent_id: delivery.agent_id },
-        after: { agent_id: input.agent_id },
+        after: { party_id: partyId },
       });
-      await this.notifications?.record(
-        tx,
-        input.agent_id,
-        'delivery_assigned',
-        'delivery',
-        id,
-        input.agent_id,
-        'delivery_agent',
-      );
+      if (party.user_id) {
+        await this.notifications?.record(
+          tx,
+          party.user_id,
+          'delivery_assigned',
+          'delivery',
+          id,
+          party.user_id,
+          'delivery_agent',
+        );
+      }
       return updated;
     });
     return this.present(row);
@@ -232,10 +266,13 @@ export class DeliveriesService {
       await tx.$queryRaw`SELECT id FROM deliveries WHERE id = ${id}::uuid FOR UPDATE`;
       const delivery = await tx.delivery.findUnique({
         where: { id },
-        include: { order: true },
+        include: {
+          order: true,
+          party: { select: { user_id: true } },
+        },
       });
       if (!delivery) throw new NotFoundException('Delivery not found');
-      if (assignedAgentOnly && delivery.agent_id !== actorId) {
+      if (assignedAgentOnly && delivery.party?.user_id !== actorId) {
         throw new ForbiddenException('Delivery is assigned to another agent');
       }
       if (delivery.order.delivery_id !== id) {
@@ -472,6 +509,15 @@ export class DeliveriesService {
         },
         include: {
           order: { select: { version: true } },
+          party: {
+            select: {
+              id: true,
+              kind: true,
+              user_id: true,
+              name: true,
+              phone: true,
+            },
+          },
           attempts: {
             include: { party: { select: { id: true, name: true } } },
             orderBy: { attempt_number: 'asc' },
@@ -503,7 +549,7 @@ export class DeliveriesService {
       return await this.prisma.$transaction(async (tx) => {
         const delivery = await tx.delivery.findUnique({
           where: { id },
-          include: { order: true },
+          include: { order: true, party: { select: { user_id: true } } },
         });
         if (!delivery || delivery.order.user_id !== userId) {
           throw new NotFoundException('Delivery not found');
@@ -521,7 +567,7 @@ export class DeliveriesService {
         return tx.deliveryRating.create({
           data: {
             delivery_id: id,
-            agent_id: delivery.agent_id,
+            agent_id: delivery.party?.user_id ?? null,
             user_id: userId,
             stars: input.stars,
             comment: input.comment ?? null,
@@ -544,6 +590,13 @@ export class DeliveriesService {
   private present(
     row: Delivery & {
       order: { version: number };
+      party?: {
+        id: string;
+        kind: string;
+        user_id: string | null;
+        name: string;
+        phone: string;
+      } | null;
       attempts: Array<{
         id: string;
         delivery_id: string;
@@ -560,7 +613,10 @@ export class DeliveriesService {
       id: row.id,
       order_id: row.order_id,
       order_version: row.order.version,
-      agent_id: row.agent_id,
+      agent_id:
+        row.party === undefined ? row.agent_id : (row.party?.user_id ?? null),
+      party_id: row.agent_id,
+      party: row.party,
       status: row.status,
       delivery_fee: Number(row.delivery_fee),
       currency: row.currency_code,

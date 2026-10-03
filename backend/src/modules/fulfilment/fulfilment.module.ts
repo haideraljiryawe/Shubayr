@@ -7,6 +7,12 @@ import {
 import { DeliveriesService } from './deliveries.service';
 import { LoyaltyModule } from '../loyalty/loyalty.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import {
+  AgentCustodyController,
+  DeliveryPartiesController,
+  ExternalDriversController,
+} from './delivery-parties.controller';
+import { DeliveryPartiesService } from './delivery-parties.service';
 
 @Module({
   imports: [LoyaltyModule, InventoryModule],
@@ -14,7 +20,10 @@ import { InventoryModule } from '../inventory/inventory.module';
     DeliveriesController,
     AdminDeliveriesController,
     DeliveryAgentsController,
+    AgentCustodyController,
+    DeliveryPartiesController,
+    ExternalDriversController,
   ],
-  providers: [DeliveriesService],
+  providers: [DeliveriesService, DeliveryPartiesService],
 })
 export class FulfilmentModule {}

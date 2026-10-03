@@ -329,6 +329,7 @@ model User {
   updated_at                  DateTime                        @default(now()) @db.Timestamptz(6)
   role                        Role?                           @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
   work_profile                WorkProfile?
+  delivery_party              DeliveryParty?
   permission_presets          UserPreset[]                    @relation("UserAccessPresets")
   assigned_permission_presets UserPreset[]                    @relation("UserAccessPresetActors")
   permission_grants           UserPermissionGrant[]           @relation("UserAccessGrants")
@@ -336,7 +337,6 @@ model User {
   addresses                   Address[]
   purchase_invoices           PurchaseInvoice[]               @relation("PurchaseInvoiceCreatedBy")
   stock_movements             StockMovement[]                 @relation("StockMovementUser")
-  custody_stock_movements     StockMovement[]                 @relation("StockMovementCustodyParty")
   inventory_openings          InventoryOpening[]              @relation("InventoryOpeningCreator")
   supplier_opening_balances   SupplierOpeningBalance[]        @relation("SupplierOpeningBalanceCreator")
   supplier_payments           SupplierPayment[]               @relation("SupplierPaymentCreator")
@@ -346,14 +346,10 @@ model User {
   stock_counts                StockCount[]                    @relation("StockCountCreator")
   approved_stock_counts       StockCount[]                    @relation("StockCountApprover")
   inventory_write_downs       InventoryWriteDown[]            @relation("InventoryWriteDownCreator")
-  custody_holdings            CustodyHolding[]                @relation("CustodyParty")
   cart                        Cart?
   wishlist_items              WishlistItem[]
   orders                      Order[]
   assigned_pick_lists         PickList[]                      @relation("PickListAssignee")
-  assigned_deliveries         Delivery[]                      @relation("DeliveryAgent")
-  delivery_attempts           DeliveryAttempt[]               @relation("DeliveryAttemptParty")
-  retrievals_in_custody       Retrieval[]                     @relation("RetrievalCustodyParty")
   created_retrievals          Retrieval[]                     @relation("RetrievalCreator")
   closed_retrievals           Retrieval[]                     @relation("RetrievalCloser")
   returns                     Return[]
@@ -471,6 +467,30 @@ model WorkProfile {
   user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "work_profiles_user_id_fkey")
 
   @@map("work_profiles")
+}
+
+model DeliveryParty {
+  id                      String            @id(map: "delivery_parties_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind                    String            @db.VarChar(24)
+  user_id                 String?           @unique(map: "delivery_parties_user_id_key") @db.Uuid
+  name                    String            @db.VarChar(120)
+  phone                   String            @db.VarChar(32)
+  vehicle_number          String?           @db.VarChar(80)
+  description             String?           @db.Text
+  notes                   String?           @db.Text
+  is_active               Boolean           @default(true)
+  created_at              DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime          @default(now()) @db.Timestamptz(6)
+  user                    User?             @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_parties_user_id_fkey")
+  deliveries              Delivery[]        @relation("DeliveryPartyAssignments")
+  delivery_attempts       DeliveryAttempt[] @relation("DeliveryAttemptParty")
+  custody_stock_movements StockMovement[]   @relation("StockMovementCustodyParty")
+  custody_holdings        CustodyHolding[]  @relation("CustodyParty")
+  retrievals              Retrieval[]       @relation("RetrievalCustodyParty")
+
+  @@index([kind, is_active, name], map: "idx_delivery_parties_kind_active_name")
+  @@index([phone], map: "idx_delivery_parties_phone")
+  @@map("delivery_parties")
 }
 
 model MediaObject {
@@ -1290,7 +1310,7 @@ model StockMovement {
   destination      WarehouseLocation? @relation("StockMovementToLocation", fields: [to_location], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_to_location_fkey")
   user             User?              @relation("StockMovementUser", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_user_id_fkey")
   return_item      ReturnItem?        @relation(fields: [return_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_return_item_id_fkey")
-  custody_party    User?              @relation("StockMovementCustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_custody_party_id_fkey")
+  custody_party    DeliveryParty?     @relation("StockMovementCustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_movements_custody_party_id_fkey")
 
   @@index([batch_id], map: "idx_movements_batch")
   @@index([type], map: "idx_movements_type")
@@ -1529,7 +1549,7 @@ model CustodyHolding {
   order              Order           @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_order_id_fkey")
   order_item         OrderItem       @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_order_item_id_fkey")
   delivery           Delivery        @relation(fields: [delivery_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_delivery_id_fkey")
-  custody_party      User            @relation("CustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_custody_party_id_fkey")
+  custody_party      DeliveryParty   @relation("CustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_custody_party_id_fkey")
   batch              InventoryBatch  @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_batch_id_fkey")
   retrieval_lines    RetrievalLine[]
 
@@ -1739,7 +1759,7 @@ model Delivery {
   retry_count       Int               @default(0)
   order             Order             @relation("OrderDeliveryHistory", fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "deliveries_order_id_fkey")
   current_for_order Order?            @relation("OrderCurrentDelivery")
-  agent             User?             @relation("DeliveryAgent", fields: [agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "deliveries_agent_id_fkey")
+  party             DeliveryParty?    @relation("DeliveryPartyAssignments", fields: [agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "deliveries_agent_id_fkey")
   ratings           DeliveryRating[]
   custody_holdings  CustodyHolding[]
   retrievals        Retrieval[]
@@ -1749,16 +1769,16 @@ model Delivery {
 }
 
 model DeliveryAttempt {
-  id             String    @id(map: "delivery_attempts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  delivery_id    String    @db.Uuid
+  id             String        @id(map: "delivery_attempts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  delivery_id    String        @db.Uuid
   attempt_number Int
-  party_id       String    @db.Uuid
-  status         String    @default("out_for_delivery") @db.VarChar(30)
-  reason         String?   @db.VarChar(500)
-  started_at     DateTime  @db.Timestamptz(6)
-  completed_at   DateTime? @db.Timestamptz(6)
-  delivery       Delivery  @relation(fields: [delivery_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "delivery_attempts_delivery_id_fkey")
-  party          User      @relation("DeliveryAttemptParty", fields: [party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_attempts_party_id_fkey")
+  party_id       String        @db.Uuid
+  status         String        @default("out_for_delivery") @db.VarChar(30)
+  reason         String?       @db.VarChar(500)
+  started_at     DateTime      @db.Timestamptz(6)
+  completed_at   DateTime?     @db.Timestamptz(6)
+  delivery       Delivery      @relation(fields: [delivery_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "delivery_attempts_delivery_id_fkey")
+  party          DeliveryParty @relation("DeliveryAttemptParty", fields: [party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_attempts_party_id_fkey")
 
   @@unique([delivery_id, attempt_number], map: "delivery_attempts_delivery_number_key")
   @@index([party_id, started_at(sort: Desc)], map: "idx_delivery_attempts_party_time")
@@ -1784,7 +1804,7 @@ model Retrieval {
   journal_entry_id String?         @unique(map: "retrievals_journal_entry_id_key") @db.Uuid
   order            Order           @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_order_id_fkey")
   delivery         Delivery        @relation(fields: [delivery_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_delivery_id_fkey")
-  custody_party    User            @relation("RetrievalCustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_custody_party_id_fkey")
+  custody_party    DeliveryParty   @relation("RetrievalCustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_custody_party_id_fkey")
   creator          User            @relation("RetrievalCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_created_by_fkey")
   closer           User?           @relation("RetrievalCloser", fields: [closed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_closed_by_fkey")
   journal_entry    JournalEntry?   @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_journal_entry_id_fkey")

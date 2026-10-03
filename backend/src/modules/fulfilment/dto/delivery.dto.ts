@@ -59,8 +59,13 @@ export class UpdateStaffDeliveryStatusDto {
 }
 
 export class AssignDeliveryDto {
+  @IsOptional()
   @IsUUID()
-  agent_id!: string;
+  agent_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  party_id?: string;
 }
 
 export class CreateDeliveryRatingDto {

@@ -18,6 +18,7 @@ type DeliveryRow = {
   dispatched_at: Date | null;
   order?: { version: number };
   order_version?: number;
+  party?: { user_id: string };
 };
 
 describe('DeliveriesService', () => {
@@ -30,6 +31,7 @@ describe('DeliveriesService', () => {
       status: DeliveryStatus.Assigned,
       dispatched_at: new Date(Date.UTC(2026, 0, 1, 0, index)),
       order: { version: 1 },
+      party: { user_id: currentAgent },
     })),
     ...Array.from({ length: 8 }, (_, index) => ({
       id: `delivered-${index}`,
@@ -37,6 +39,7 @@ describe('DeliveriesService', () => {
       status: DeliveryStatus.Delivered,
       dispatched_at: new Date(Date.UTC(2026, 0, 2, 0, index)),
       order: { version: 2 },
+      party: { user_id: currentAgent },
     })),
     ...Array.from({ length: 7 }, (_, index) => ({
       id: `other-agent-${index}`,
@@ -44,30 +47,26 @@ describe('DeliveriesService', () => {
       status: DeliveryStatus.Assigned,
       dispatched_at: new Date(Date.UTC(2026, 0, 3, 0, index)),
       order: { version: 1 },
+      party: { user_id: otherAgent },
     })),
   ];
 
-  const matching = (where: { agent_id: string; status?: DeliveryStatus }) =>
+  type Scope = {
+    party: { is: { user_id: string } };
+    status?: DeliveryStatus;
+  };
+  const matching = (where: Scope) =>
     rows.filter(
       (row) =>
-        row.agent_id === where.agent_id &&
+        row.party?.user_id === where.party.is.user_id &&
         (!where.status || row.status === where.status),
     );
 
-  const count = jest.fn(
-    ({ where }: { where: { agent_id: string; status?: DeliveryStatus } }) =>
-      Promise.resolve(matching(where).length),
+  const count = jest.fn(({ where }: { where: Scope }) =>
+    Promise.resolve(matching(where).length),
   );
   const findMany = jest.fn(
-    ({
-      where,
-      skip,
-      take,
-    }: {
-      where: { agent_id: string; status?: DeliveryStatus };
-      skip: number;
-      take: number;
-    }) =>
+    ({ where, skip, take }: { where: Scope; skip: number; take: number }) =>
       Promise.resolve(
         matching(where)
           .sort((a, b) => {
@@ -119,7 +118,10 @@ describe('DeliveriesService', () => {
     );
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { agent_id: currentAgent, status: DeliveryStatus.Assigned },
+        where: {
+          party: { is: { user_id: currentAgent } },
+          status: DeliveryStatus.Assigned,
+        },
         orderBy: [{ dispatched_at: 'desc' }, { id: 'desc' }],
       }),
     );
@@ -137,7 +139,7 @@ describe('DeliveriesService', () => {
       true,
     );
     expect(findMany.mock.calls.at(-1)?.[0].where).toEqual({
-      agent_id: currentAgent,
+      party: { is: { user_id: currentAgent } },
     });
   });
 });
@@ -285,6 +287,7 @@ describe('DeliveriesService attempt history', () => {
     failure_reason: string | null;
     failed_at: Date | null;
     retry_count: number;
+    party: { user_id: string };
     order: {
       id: string;
       user_id: string;
@@ -330,6 +333,7 @@ describe('DeliveriesService attempt history', () => {
     failure_reason: null,
     failed_at: null,
     retry_count: 0,
+    party: { user_id: 'agent-1' },
     order: {
       id: 'order-1',
       user_id: 'customer-1',

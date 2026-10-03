@@ -401,6 +401,33 @@ async function main(): Promise<void> {
     },
   });
 
+  const deliveryAgents = await prisma.user.findMany({
+    where: {
+      role: { is: { name: 'delivery_agent' } },
+      work_profile: { is: { app_role: 'delivery_agent' } },
+    },
+    include: { work_profile: true },
+  });
+  for (const agent of deliveryAgents) {
+    await prisma.deliveryParty.upsert({
+      where: { user_id: agent.id },
+      update: {
+        name: agent.work_profile?.name ?? agent.name ?? 'Delivery agent',
+        phone: agent.phone!,
+        is_active: agent.is_active && (agent.work_profile?.is_active ?? true),
+        updated_at: new Date(),
+      },
+      create: {
+        id: agent.id,
+        kind: 'internal_agent',
+        user_id: agent.id,
+        name: agent.work_profile?.name ?? agent.name ?? 'Delivery agent',
+        phone: agent.phone!,
+        is_active: agent.is_active && (agent.work_profile?.is_active ?? true),
+      },
+    });
+  }
+
   const imageUrls: string[] = [];
   for (let index = 0; index < departments.length; index += 1) {
     imageUrls.push(

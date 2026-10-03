@@ -3545,6 +3545,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/deliveries/custody": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current agent's own goods and cash custody
+         * @description The party is resolved from the authenticated delivery-agent session; no party id is accepted. Cost fields are never returned to an agent. Cash is zero until phase 8b collection postings exist.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Own custody summary */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPartyCustody"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deliveries/{id}": {
         parameters: {
             query?: never;
@@ -3669,8 +3710,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Assign or reassign an active delivery to a delivery agent
-         * @description Staff may assign only an active delivery to an active user with the delivery role.
+         * Assign or reassign an active delivery to a delivery party
+         * @description Staff may assign an active internal agent or external driver. agent_id remains accepted for backward compatibility and identifies an internal party; new clients use party_id.
          */
         patch: {
             parameters: {
@@ -3685,8 +3726,10 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** Format: uuid */
-                        agent_id: string;
-                    };
+                        agent_id?: string;
+                        /** Format: uuid */
+                        party_id?: string;
+                    } & (unknown | unknown);
                 };
             };
             responses: {
@@ -4369,6 +4412,366 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/admin/delivery-parties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List internal agents and external drivers */
+        get: {
+            parameters: {
+                query?: {
+                    kind?: "internal_agent" | "external_driver";
+                    active?: boolean;
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated delivery parties */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPartyPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/delivery-parties/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a delivery party */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Delivery party */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryParty"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/delivery-parties/{id}/custody": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a party's current goods and cash custody
+         * @description Lot cost and IQD value are included only when the caller also has cost.view. Cash is zero until phase 8b.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Current custody with Baghdad business-day ages */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPartyCustody"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/delivery-parties/{id}/statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a party's goods-custody statement with running balances */
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                    order_id?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Party statement; value fields require cost.view */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPartyStatementPage"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/delivery-parties/{id}/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List orders with goods currently held by a party */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Orders currently represented by open custody holdings */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPartyHeldOrders"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/external-drivers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List external drivers without accounts */
+        get: {
+            parameters: {
+                query?: {
+                    active?: boolean;
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated external drivers */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPartyPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        /** Create an external driver without an account */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalDriverCreate"];
+                };
+            };
+            responses: {
+                /** @description Created external driver, including a non-blocking repeated-phone warning */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverMutation"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/external-drivers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an unused external driver or deactivate one with history
+         * @description Once any assignment, custody, attempt, movement, or retrieval exists, the record is retained and made inactive.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Whether the driver was deleted or retained as inactive */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverRemoval"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update or activate/deactivate an external driver */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalDriverUpdate"];
+                };
+            };
+            responses: {
+                /** @description Updated external driver */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverMutation"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
         trace?: never;
     };
     "/admin/orders/{id}": {
@@ -9214,6 +9617,14 @@ export interface components {
                     phone?: string;
                     email?: string | null;
                 } | null;
+                party?: {
+                    /** Format: uuid */
+                    id: string;
+                    /** @enum {string} */
+                    kind: "internal_agent" | "external_driver";
+                    name: string;
+                    phone: string;
+                } | null;
             } | null;
             status_events: {
                 status?: components["schemas"]["OrderStatus"];
@@ -10142,6 +10553,167 @@ export interface components {
         ReturnPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Return"][];
         };
+        DeliveryParty: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "internal_agent" | "external_driver";
+            /** Format: uuid */
+            user_id: string | null;
+            name: string;
+            phone: string;
+            vehicle_number: string | null;
+            description: string | null;
+            notes: string | null;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DeliveryPartyPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["DeliveryParty"][];
+        };
+        ExternalDriverCreate: {
+            name: string;
+            phone: string;
+            vehicle_number?: string;
+            description?: string;
+            notes?: string;
+        };
+        ExternalDriverUpdate: {
+            name?: string;
+            phone?: string;
+            vehicle_number?: string;
+            description?: string;
+            notes?: string;
+            is_active?: boolean;
+        };
+        ExternalDriverMutation: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "external_driver";
+            user_id: null;
+            name: string;
+            phone: string;
+            vehicle_number: string | null;
+            description: string | null;
+            notes: string | null;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            duplicate_phone_warning: boolean;
+        };
+        DeliveryPartySummary: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "internal_agent" | "external_driver";
+            /** Format: uuid */
+            user_id: string | null;
+            name: string;
+            phone: string;
+        };
+        ExternalDriverRemoval: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            disposition: "deleted" | "deactivated";
+        };
+        CustodyProduct: {
+            /** Format: uuid */
+            id: string;
+            name_en: string;
+            name_ar: string;
+        };
+        DeliveryPartyCustodyLine: {
+            /** Format: uuid */
+            holding_id: string;
+            order: {
+                /** Format: uuid */
+                id: string;
+                order_number: string;
+            };
+            /** Format: uuid */
+            delivery_id: string;
+            /** Format: uuid */
+            batch_id: string;
+            lot_number: string | null;
+            /** Format: uuid */
+            variant_id: string;
+            sku: string;
+            product: components["schemas"]["CustodyProduct"];
+            quantity: number;
+            /** Format: date-time */
+            issued_at: string;
+            age_days: number;
+            /** @description Present only with cost.view. */
+            unit_cost_iqd?: number;
+            /** @description Present only with cost.view. */
+            value_iqd?: number;
+        };
+        DeliveryPartyCustody: {
+            party: components["schemas"]["DeliveryParty"];
+            goods: {
+                quantity: number;
+                /** @description Present only with cost.view. */
+                value_iqd?: number;
+                oldest_age_days: number | null;
+                lines: components["schemas"]["DeliveryPartyCustodyLine"][];
+            };
+            cash: {
+                /** @constant */
+                currency: "IQD";
+                /** @constant */
+                amount: 0;
+                oldest_age_days: null;
+            };
+        };
+        DeliveryPartyStatementEntry: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            event: "issue_to_custody" | "custody_to_sold" | "return_in";
+            /** Format: date-time */
+            occurred_at: string;
+            /** Format: date */
+            business_date: string;
+            /** Format: uuid */
+            order_id: string | null;
+            order_number: string | null;
+            /** Format: uuid */
+            batch_id: string;
+            lot_number: string | null;
+            sku: string;
+            quantity: number;
+            running_quantity: number;
+            /** @description Present only with cost.view. */
+            value_iqd?: number;
+            /** @description Present only with cost.view. */
+            running_value_iqd?: number;
+        };
+        DeliveryPartyStatementPage: components["schemas"]["Pagination"] & {
+            party: components["schemas"]["DeliveryParty"];
+            data: components["schemas"]["DeliveryPartyStatementEntry"][];
+        };
+        DeliveryPartyHeldOrders: {
+            party: components["schemas"]["DeliveryParty"];
+            data: {
+                /** Format: uuid */
+                id: string;
+                order_number: string;
+                status: components["schemas"]["OrderStatus"];
+                /** Format: uuid */
+                delivery_id: string;
+                quantity: number;
+                /** Format: date-time */
+                held_since: string;
+                age_days: number;
+            }[];
+        };
         Delivery: {
             /** Format: uuid */
             id?: string;
@@ -10150,6 +10722,9 @@ export interface components {
             order_version: number;
             /** Format: uuid */
             agent_id?: string | null;
+            /** Format: uuid */
+            party_id?: string | null;
+            party?: components["schemas"]["DeliveryPartySummary"] | null;
             /** @enum {string} */
             status?: "assigned" | "out_for_delivery" | "delivered" | "failed" | "returned";
             delivery_fee?: number;
@@ -10940,6 +11515,15 @@ export interface components {
         };
     };
     responses: {
+        /** @description Invalid filter range (`BAD_REQUEST`) */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description Missing/invalid token (`UNAUTHORIZED`) */
         Unauthorized: {
             headers: {
