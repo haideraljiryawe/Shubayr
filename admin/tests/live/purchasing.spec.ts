@@ -355,6 +355,7 @@ test("a USD invoice of 200 @ 1,500 paid from IQD 304,000 at 1,520 is settled; th
   await rate.fill("1520");
   const row = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
   await expect(row).toHaveAttribute("data-cross", "true");
+  await expect(row.getByTestId("payment-row-rate")).toHaveText("1520");
   await row.getByTestId("payment-settle").click();
   await expect(row.getByTestId("payment-apply")).toHaveValue(/^304,?000$/);
   await page.getByTestId("payment-amount").fill("304000");
