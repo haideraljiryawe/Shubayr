@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/toast";
 import { api, ApiError, type Order, type OrderTracking } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 import { deliveryIdForOrder } from "@/lib/order-delivery";
+import { cancelMode, reductionProposal } from "@/lib/order-lifecycle";
 import { useResource } from "@/lib/use-resource";
 import { AccountError, AccountSkeleton } from "./states";
 import { DeliveryStatus } from "./delivery-status";
@@ -77,19 +78,22 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   // Returns, product reviews and the delivery rating are all things you can
   // only do once the order is in your hands.
   const delivered = found.status === "delivered";
-  // The server is the authority on cancellability and answers 409 otherwise;
-  // this only decides whether offering the button makes sense at all.
-  const cancellable =
-    found.status === "pending" || found.status === "confirmed";
+  // API 10.0: a pending order is cancelled directly; from confirmed until
+  // delivery the shopper asks, and the store approves or denies. The server
+  // decides either way (409 when the order moved on).
+  const mode = cancelMode(found);
 
   return (
     <div className="flex flex-col gap-4">
       <OrderHeader order={found} />
       <OrderItems order={found} />
       {delivered ? <ReturnCta orderId={found.id ?? orderId} /> : null}
-      {cancellable ? (
-        <CancelOrder orderId={found.id ?? orderId} onCancelled={reload} />
+      <ReductionPrompt order={found} onAnswered={reload} />
+      {mode === "cancel" ? (
+        <CancelOrder order={found} onCancelled={reload} />
       ) : null}
+      {mode === "request" ? <RequestCancellation order={found} onRequested={reload} /> : null}
+      <CancellationStatus order={found} />
       <DeliveryStatus order={found} />
       <TrackingTimeline tracking={tracking} />
       {delivered ? (
@@ -123,10 +127,10 @@ export function OrderDetail({ orderId }: { orderId: string }) {
  * loading and the click, which is said plainly rather than swallowed.
  */
 function CancelOrder({
-  orderId,
+  order,
   onCancelled,
 }: {
-  orderId: string;
+  order: Order;
   onCancelled: () => void;
 }) {
   const t = useTranslations("orders");
@@ -163,7 +167,7 @@ function CancelOrder({
           setBusy(true);
           setError(null);
           try {
-            await api.cancelOrder(orderId);
+            await api.cancelOrder(order.id!, order.version ?? 1);
             showToast(t("cancelled"));
             onCancelled();
           } catch (cause) {
@@ -172,6 +176,9 @@ function CancelOrder({
                 ? t("cancelTooLate")
                 : t("cancelFailed"),
             );
+            // The order moved on (the store accepted it meanwhile): re-read it,
+            // which offers a cancellation request instead.
+            if (cause instanceof ApiError && cause.status === 409) onCancelled();
           } finally {
             setBusy(false);
           }
@@ -180,6 +187,151 @@ function CancelOrder({
         {busy ? t("cancelling") : t("cancelOrder")}
       </Button>
     </div>
+  );
+}
+
+/**
+ * After pending, the shopper asks the store to cancel (API 10.0). The store
+ * approves or denies the request; its status shows below until then.
+ */
+function RequestCancellation({ order, onRequested }: { order: Order; onRequested: () => void }) {
+  const t = useTranslations("orders.cancelRequest");
+  const showToast = useToast();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) {
+    return (
+      <Button variant="secondary" block className="text-error-dark" onClick={() => setOpen(true)} data-testid="order-request-cancel" startIcon={<XCircle className="size-4" aria-hidden />}>
+        {t("open")}
+      </Button>
+    );
+  }
+  return (
+    <Card padding="md" className="flex flex-col gap-3" data-testid="order-request-cancel-form">
+      <h2 className="text-base font-bold text-text">{t("title")}</h2>
+      <p className="text-sm text-text-muted">{t("body")}</p>
+      <label className="flex flex-col gap-1 text-sm font-semibold text-text">
+        {t("reason")}
+        <textarea
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          maxLength={500}
+          rows={3}
+          className="rounded-md border border-border bg-card px-3 py-2 font-normal"
+          data-testid="order-request-cancel-reason"
+        />
+      </label>
+      {error ? (
+        <p role="alert" className="rounded-md border border-error/40 bg-error/8 px-3 py-2 text-sm font-medium text-error-dark" data-testid="order-request-cancel-error">
+          {error}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          disabled={busy || !reason.trim()}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              await api.requestCancellation(order.id!, order.version ?? 1, reason.trim());
+              showToast(t("sent"));
+              onRequested();
+            } catch (cause) {
+              setError(cause instanceof ApiError && cause.status === 409 ? t("conflict") : t("failed"));
+              if (cause instanceof ApiError && cause.status === 409) onRequested();
+            } finally {
+              setBusy(false);
+            }
+          }}
+          startIcon={busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+          data-testid="order-request-cancel-submit"
+        >
+          {t("submit")}
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={() => setOpen(false)}>
+          {t("back")}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+/** Where the shopper's cancellation request stands. */
+function CancellationStatus({ order }: { order: Order }) {
+  const t = useTranslations("orders.cancelRequest");
+  const request = order.cancellation_request;
+  if (!request) return null;
+  const tone =
+    request.status === "pending"
+      ? "border-warning/40 bg-warning/10"
+      : request.status === "approved"
+        ? "border-success/40 bg-success/10"
+        : "border-border bg-card";
+  return (
+    <div className={`rounded-md border px-4 py-3 text-sm ${tone}`} role="status" data-testid="order-cancel-request-status" data-status={request.status}>
+      <p className="font-semibold text-text">{t(`status.${request.status}`)}</p>
+      {request.reason ? <p className="mt-1 text-text-muted">{t("yourReason", { reason: request.reason })}</p> : null}
+      {request.resolution_note ? <p className="mt-1 text-text">{t("storeNote", { note: request.resolution_note })}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * Preparation came up short and the store proposes a smaller quantity: the
+ * shopper accepts it (the order goes on with less) or declines it (the store
+ * then cancels the line or the order).
+ */
+function ReductionPrompt({ order, onAnswered }: { order: Order; onAnswered: () => void }) {
+  const t = useTranslations("orders.reduction");
+  const locale = useLocale();
+  const showToast = useToast();
+  const [busy, setBusy] = useState<"accepted" | "denied" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const proposal = reductionProposal(order);
+  if (!proposal || proposal.status !== "pending") return null;
+  const item = (order.items ?? []).find((row) => row.id === proposal.orderItemId);
+  const name = (locale === "ar" ? item?.product_name_ar : item?.product_name_en) ?? "";
+
+  async function answer(decision: "accepted" | "denied") {
+    setBusy(decision);
+    setError(null);
+    try {
+      await api.respondToShortage(order.id!, order.version ?? 1, decision);
+      showToast(decision === "accepted" ? t("acceptedToast") : t("deniedToast"));
+      onAnswered();
+    } catch (cause) {
+      setError(cause instanceof ApiError && cause.status === 409 ? t("conflict") : t("failed"));
+      if (cause instanceof ApiError && cause.status === 409) onAnswered();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card padding="md" className="flex flex-col gap-3 border-warning/50" data-testid="order-reduction">
+      <h2 className="text-base font-bold text-text">{t("title")}</h2>
+      <p className="text-sm text-text">
+        {t("body", { item: name, from: String(proposal.oldQuantity), to: String(proposal.newQuantity) })}
+      </p>
+      {proposal.reason ? <p className="text-sm text-text-muted">{t("storeReason", { reason: proposal.reason })}</p> : null}
+      {error ? (
+        <p role="alert" className="text-sm font-medium text-error-dark">
+          {error}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={busy !== null} onClick={() => void answer("accepted")} data-testid="order-reduction-accept">
+          {busy === "accepted" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+          {t("accept")}
+        </Button>
+        <Button variant="secondary" disabled={busy !== null} onClick={() => void answer("denied")} data-testid="order-reduction-deny">
+          {t("deny")}
+        </Button>
+      </div>
+    </Card>
   );
 }
 

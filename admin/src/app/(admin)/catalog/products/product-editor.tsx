@@ -8,6 +8,8 @@ import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/component
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
+import { BelowCostPanel } from "@/components/orders/lifecycle-panels";
+import { belowCostBreaches, type BelowCostBreach } from "@/lib/orders";
 import { NumberInput } from "@/components/forms/number-input";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
@@ -59,6 +61,8 @@ export function ProductEditor({
   const router = useRouter();
   const toast = useToast();
   const api = useApiForm();
+  /** A price the server refused as below the protected cost (API 10.0). */
+  const [belowCost, setBelowCost] = useState<BelowCostBreach[] | null>(null);
   const groups = subcategories(tree);
   const nameOf = (item: { name_ar?: string; name_en?: string }) =>
     (locale === "ar" ? item.name_ar : item.name_en) || item.name_en || item.name_ar || "";
@@ -135,6 +139,7 @@ export function ProductEditor({
       published: status === "active",
       variants,
     };
+    setBelowCost(null);
     const saved = await api.run(async () => {
       try {
         // An edit leaves the stored discount and expiry tracking alone; a new
@@ -147,8 +152,10 @@ export function ProductEditor({
               }),
             );
       } catch (cause) {
+        const breaches = belowCostBreaches(cause);
+        if (breaches) setBelowCost(breaches);
         // Nested 422 paths ("variants.1.sku") go next to that SKU's field.
-        if (cause instanceof ApiError) {
+        if (cause instanceof ApiError && !breaches) {
           const server: Record<string, FieldMessages> = {};
           for (const error of cause.errors) {
             const path = variantErrorPath(error.field);
@@ -270,7 +277,17 @@ export function ProductEditor({
         ))}
       </Card>
 
-      <FormError kind={api.formError} detail={api.formErrorDetail} />
+      {belowCost ? (
+        <BelowCostPanel
+          breaches={belowCost}
+          currency={product?.currency ?? "IQD"}
+          canApprove={false}
+          selfRefused={false}
+          note={t("belowCostNote")}
+        />
+      ) : (
+        <FormError kind={api.formError} detail={api.formErrorDetail} />
+      )}
       <div className="flex justify-end">
         <Button type="submit" pending={api.pending} data-testid="product-save">
           {product ? t("save") : t("create")}

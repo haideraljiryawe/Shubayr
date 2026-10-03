@@ -38,6 +38,7 @@ export default defineConfig({
           "**/account-wishlist.spec.ts",
           "**/account-returns.spec.ts",
           "**/account-reviews.spec.ts",
+          "**/order-lifecycle.spec.ts",
           "**/work-account.spec.ts",
           // Skips itself unless a real backend is reachable.
           "**/live-catalog.spec.ts",

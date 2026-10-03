@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { ShoppingCart } from "lucide-react";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { ApiError, api, type Address, type Order, type OrderItem } from "@/lib/a
 import type { CartTotals } from "@/lib/cart";
 import { cartStore } from "@/lib/cart-store";
 import { useCart, type CartViewLine } from "@/lib/use-cart";
+import { acceptedPriceVersions, priceChanges, type PriceChange } from "@/lib/order-lifecycle";
 import { useResource } from "@/lib/use-resource";
 import {
   AddressForm,
@@ -22,6 +23,8 @@ import {
 import { AuthGate } from "./auth-gate";
 import { Confirmation } from "./confirmation";
 import { PaymentMethod } from "./payment-method";
+import { PriceChangeDialog } from "./price-change-dialog";
+import { useTheme } from "@/components/providers/theme-provider";
 import { ReviewStep, type ChosenAddress } from "./review-step";
 import { SavedAddresses } from "./saved-addresses";
 import { CheckoutSteps, type CheckoutStepKey } from "./steps";
@@ -82,6 +85,7 @@ export function CheckoutFlow() {
   const tc = useTranslations("cart");
   const showToast = useToast();
   const router = useRouter();
+  const { currency } = useTheme();
   const { lines, totals, hydrated, couponCode, isServerBacked } = useCart();
   const { isAuthenticated, user } = useAuth();
 
@@ -105,6 +109,14 @@ export function CheckoutFlow() {
   const [idempotencyKey, setIdempotencyKey] = useState(() =>
     globalThis.crypto.randomUUID(),
   );
+  /**
+   * API 10.0: prices that changed since the cart (409 PRICE_CHANGED), shown
+   * for acceptance. Nothing is ordered until the shopper accepts.
+   */
+  const [priceChange, setPriceChange] = useState<PriceChange[] | null>(null);
+  const [priceChangeError, setPriceChangeError] = useState<string | null>(null);
+  /** An address typed and saved during this attempt, reused by a resubmission. */
+  const createdAddressId = useRef<string | null>(null);
 
   // Saved addresses belong to a signed-in customer; a guest has none to read.
   const savedAddresses = useResource<Address[]>(
@@ -132,9 +144,10 @@ export function CheckoutFlow() {
 
   const pickingSaved = isAuthenticated && !typingNew && addressBook.length > 0;
 
-  async function placeOrder() {
+  async function placeOrder(accepted?: PriceChange[]) {
     setPlacing(true);
     setError(null);
+    setPriceChangeError(null);
 
     // Snapshot before the server consumes the cart — the confirmation renders
     // from this, and the totals shown are the ones the server just charged.
@@ -152,13 +165,14 @@ export function CheckoutFlow() {
     try {
       // A saved address already has an id; a typed one is created first, which
       // also saves it to the account for next time.
-      let addressId = pickingSaved ? (saved?.id ?? null) : null;
+      let addressId = pickingSaved ? (saved?.id ?? null) : createdAddressId.current;
       if (!addressId) {
         const created = await api.createAddress(toAddressCreate(deliveryValues));
         if (!created.id) {
           throw new ApiError(422, "Address was created without an id");
         }
         addressId = created.id;
+        createdAddressId.current = created.id;
       }
 
       const order = await api.placeOrder(
@@ -166,6 +180,8 @@ export function CheckoutFlow() {
           address_id: addressId,
           payment_method: "cod",
           coupon_code: couponCode,
+          // The idempotency key stays: the refused attempt placed nothing.
+          ...(accepted ? { accepted_price_versions: acceptedPriceVersions(accepted) } : {}),
         },
         {
           idempotencyKey,
@@ -179,7 +195,25 @@ export function CheckoutFlow() {
         },
       );
 
-      setPlaced({ order, lines: snapshot, totals: snapshotTotals, couponCode });
+      // After accepting new prices the order's own figures are the truth; the
+      // cart snapshot still carries the old ones.
+      const placedLines = accepted
+        ? snapshot.map((line) => {
+            const item = (order.items ?? []).find((row) => row.variant_id === line.variant_id);
+            return item ? { ...line, unit_price: item.unit_price ?? line.unit_price, line_total: item.line_total ?? line.line_total } : line;
+          })
+        : snapshot;
+      const placedTotals = accepted
+        ? {
+            ...snapshotTotals,
+            subtotal: order.subtotal ?? snapshotTotals.subtotal,
+            deliveryFee: order.delivery_fee ?? snapshotTotals.deliveryFee,
+            discount: order.discount ?? snapshotTotals.discount,
+            total: order.total ?? snapshotTotals.total,
+          }
+        : snapshotTotals;
+      setPriceChange(null);
+      setPlaced({ order, lines: placedLines, totals: placedTotals, couponCode });
       setStage("done");
       // The server consumed its own cart when it placed the order; this drops
       // the device copy and re-reads what is left.
@@ -187,7 +221,17 @@ export function CheckoutFlow() {
       // The next checkout is a new attempt and must not reuse this key.
       setIdempotencyKey(globalThis.crypto.randomUUID());
     } catch (cause) {
+      const changes = priceChanges(cause instanceof ApiError ? cause : null);
+      if (changes) {
+        setPriceChange(changes);
+        return;
+      }
+      if (accepted) {
+        // The acceptance itself was refused (another change, or stock ran out).
+        setPriceChangeError(t("priceChange.failed"));
+      }
       if (cause instanceof ApiError && cause.status === 409) {
+        setPriceChange(null);
         // The basket stopped being buyable between loading this page and
         // pressing the button — something sold out, or a coupon expired.
         // Re-reading the cart is what marks WHICH line is the problem, and the
@@ -314,6 +358,21 @@ export function CheckoutFlow() {
           onEditAddress={() => setStage("address")}
           onPlaceOrder={handlePlaceOrder}
         />
+        {priceChange ? (
+          <PriceChangeDialog
+            changes={priceChange}
+            lines={lines}
+            currency={currency}
+            busy={placing}
+            error={priceChangeError}
+            onAccept={() => void placeOrder(priceChange)}
+            onBack={async () => {
+              setPriceChange(null);
+              await cartStore.refresh();
+              router.push("/cart");
+            }}
+          />
+        ) : null}
       </Wrapper>
     );
   }

@@ -37,6 +37,7 @@ export default defineConfig({
     "**/live-wishlist.spec.ts",
     "**/live-work-account.spec.ts",
     "**/live-work-pages.spec.ts",
+    "**/live-lifecycle.spec.ts",
   ],
   timeout: 90000,
   use: {

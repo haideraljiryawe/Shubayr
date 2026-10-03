@@ -201,8 +201,10 @@ test.describe("live cart and COD checkout", () => {
     ).json();
     expect(tracking.events.length).toBeGreaterThan(0);
 
+    // API 10.0: every order change carries the order's version.
     const cancelled = await request.post(`${API}/orders/${placed.id}/cancel`, {
       headers: auth(token),
+      data: { version: placed.version },
     });
     expect(cancelled.ok()).toBe(true);
     expect((await cancelled.json()).status).toBe("cancelled");
@@ -210,6 +212,7 @@ test.describe("live cart and COD checkout", () => {
     // Cancelling again is refused rather than silently repeated.
     const again = await request.post(`${API}/orders/${placed.id}/cancel`, {
       headers: auth(token),
+      data: { version: placed.version },
     });
     expect(again.status()).toBe(409);
   });

@@ -316,7 +316,18 @@
     "emptyBody": "Add some products to your cart first.",
     "backToCart": "Back to cart",
     "trackSoonTitle": "Order tracking is on the way",
-    "trackSoonBody": "The order tracking page ships in the next phase."
+    "trackSoonBody": "The order tracking page ships in the next phase.",
+    "priceChange": {
+      "title": "Some prices changed",
+      "body": "These prices changed since you added the items. Nothing has been ordered yet.",
+      "up": "Price increased",
+      "down": "Price decreased",
+      "totalUp": "Your total goes up by {amount}.",
+      "totalDown": "Your total goes down by {amount}.",
+      "accept": "Accept new prices and order",
+      "back": "Back to cart",
+      "failed": "The order still could not be placed. Please check your cart."
+    }
   },
   "auth": {
     "signIn": "Sign in",
@@ -435,7 +446,37 @@
     "delivery_out_for_delivery": "On its way to you",
     "delivery_delivered": "Delivered",
     "delivery_failed": "Delivery failed — we will contact you to retry",
-    "delivery_returned": "Returned to the store"
+    "delivery_returned": "Returned to the store",
+    "cancelRequest": {
+      "open": "Request cancellation",
+      "title": "Request cancellation",
+      "body": "The store has already started on this order, so it can't be cancelled straight away. Tell the store why; they will approve or deny the request.",
+      "reason": "Reason",
+      "submit": "Send request",
+      "back": "Back",
+      "sent": "Cancellation request sent.",
+      "conflict": "The order changed meanwhile; the page has been refreshed.",
+      "failed": "The request could not be sent. Please try again.",
+      "status": {
+        "pending": "Cancellation requested: waiting for the store.",
+        "approved": "Cancellation approved: the order is cancelled.",
+        "denied": "Cancellation request declined."
+      },
+      "yourReason": "Your reason: {reason}",
+      "storeNote": "Store's note: {note}"
+    },
+    "reduction": {
+      "title": "Accept a smaller quantity?",
+      "body": "The store is short on {item}: they can send {to} instead of {from}. Your total is adjusted if you accept.",
+      "storeReason": "Store's note: {reason}",
+      "accept": "Accept",
+      "deny": "Decline",
+      "acceptedToast": "Thanks: the order goes on with the smaller quantity.",
+      "deniedToast": "Declined: the store will cancel this item or the order.",
+      "conflict": "The order changed meanwhile; the page has been refreshed.",
+      "failed": "Your answer could not be sent. Please try again."
+    },
+    "status_rejected": "Declined by the store"
   },
   "addresses": {
     "title": "My addresses",
@@ -752,7 +793,8 @@
       "out_for_delivery": "Start delivery",
       "delivered": "Confirm delivered",
       "failed": "Report failed delivery",
-      "returned": "Record return"
+      "returned": "Record return",
+      "retry": "Retry delivery"
     },
     "confirm": {
       "out_for_delivery": "Have you received the order and are starting the delivery now?",
@@ -767,7 +809,15 @@
     "saving": "Saving…",
     "done": "Delivery updated",
     "conflict": "This delivery or its order changed before your action was saved, so the page has been refreshed. Check the current status and try again if needed.",
-    "failedSave": "Couldn't save the action. Please try again."
+    "failedSave": "Couldn't save the action. Please try again.",
+    "failure": {
+      "title": "Delivery failed",
+      "at": "Failed {at}",
+      "retries": "{count, plural, =0 {Not retried yet} one {Retried once} other {Retried # times}}",
+      "next": "Retry when ready: the goods are still in your custody.",
+      "retryTitle": "Delivery retry",
+      "lastAt": "Last failed {at}"
+    }
   },
   "inbox": {
     "title": "Notifications",

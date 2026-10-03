@@ -4,20 +4,28 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowRight, History, MapPin, Truck, User } from "lucide-react";
+import { ArrowRight, ClipboardList, History, MapPin, Truck, User } from "lucide-react";
 import { Alert, Badge, Button, Card } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { FormError } from "@/components/forms/form-error";
 import { AgentPicker } from "@/components/orders/agent-picker";
+import { AttentionPanel, BelowCostPanel, CancellationRequestPanel, RetrievalsPanel } from "@/components/orders/lifecycle-panels";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
 import {
+  DELIVERY_MOVES,
   REASON_ACTIONS,
   STATUS_MOVES,
   availableActions,
+  belowCostBreaches,
+  hasPickList,
+  isSelfApprovalRefused,
+  needsAttentionRefusal,
+  staleState,
+  type BelowCostBreach,
   canAssignAgent,
   dispatchBlocker,
   formatMoney,
@@ -28,6 +36,7 @@ import {
 
 type Notice =
   | { kind: "conflict"; status: OrderStatus | null }
+  | { kind: "attention" }
   | { kind: "forbidden" };
 
 /**
@@ -73,6 +82,9 @@ export function OrderDetailView({
   const [agentId, setAgentId] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<ErrorKind | null>(null);
+  /** Confirmation refused below cost (API 10.0), until approved or left. */
+  const [belowCost, setBelowCost] = useState<BelowCostBreach[] | null>(null);
+  const [selfRefused, setSelfRefused] = useState(false);
 
   const id = order.id!;
   const actions = availableActions(order, permissions);
@@ -81,12 +93,20 @@ export function OrderDetailView({
 
   /** Sort a refusal: stale state or lost permission refresh; anything else throws. */
   async function handleRefusal(cause: unknown): Promise<void> {
+    if (needsAttentionRefusal(cause)) {
+      setNotice({ kind: "attention" });
+      router.refresh();
+      return;
+    }
     if (cause instanceof ApiError && cause.status === 409) {
+      // STALE_ORDER_STATE names where the order is now; the page re-reads it
+      // either way, so every button matches the new state.
+      const stale = staleState(cause);
       const fresh = await unwrap(
         browserApi.GET("/admin/orders/{id}", { params: { path: { id } } }),
       ).catch(() => null);
       if (fresh) setOrder(fresh);
-      setNotice({ kind: "conflict", status: fresh?.status ?? null });
+      setNotice({ kind: "conflict", status: fresh?.status ?? stale?.status ?? null });
       router.refresh();
       return;
     }
@@ -117,6 +137,8 @@ export function OrderDetailView({
               body: { reason, version: order.version! },
             }),
           )
+        : action in DELIVERY_MOVES
+        ? await moveDelivery(action as keyof typeof DELIVERY_MOVES, reason)
         : await unwrap(
             browserApi.PATCH("/admin/orders/{id}/status", {
               params: { path: { id } },
@@ -127,11 +149,78 @@ export function OrderDetailView({
             }),
           );
       setOrder(next);
+      setBelowCost(null);
       toast(t("done"));
       router.refresh();
     } catch (cause) {
+      const breaches = belowCostBreaches(cause);
+      if (action === "accept" && breaches) {
+        setSelfRefused(false);
+        setBelowCost(breaches);
+        return;
+      }
       await handleRefusal(cause);
     }
+  }
+
+  /**
+   * Approve a below-cost confirmation (sell_below_cost.approve). The order's
+   * originator is its customer; separation of duties refuses an approver who
+   * is that same person.
+   */
+  async function approveBelowCost(reason: string) {
+    try {
+      const next = await unwrap(
+        browserApi.PATCH("/admin/orders/{id}/status", {
+          params: { path: { id } },
+          body: {
+            status: "confirmed",
+            version: order.version!,
+            below_cost_override_reason: reason,
+            below_cost_originator_id: order.customer?.id ?? null,
+          },
+        }),
+      );
+      setOrder(next);
+      setBelowCost(null);
+      setSelfRefused(false);
+      toast(t("done"));
+      router.refresh();
+    } catch (cause) {
+      if (isSelfApprovalRefused(cause)) {
+        setSelfRefused(true);
+        return;
+      }
+      setBelowCost(null);
+      await handleRefusal(cause);
+    }
+  }
+
+  const onPanelDone = (next: AdminOrder) => {
+    setNotice(null);
+    setOrder(next);
+    toast(t("done"));
+    router.refresh();
+  };
+
+  /**
+   * Deliver, fail (with a reason) or retry through the staff delivery route
+   * (API 10.0). It answers the delivery, so the order is read again.
+   */
+  async function moveDelivery(action: keyof typeof DELIVERY_MOVES, reason: string): Promise<AdminOrder> {
+    const deliveryId = order.delivery?.id;
+    if (!deliveryId) throw new ApiError(409, "Order has no current delivery");
+    await unwrap(
+      browserApi.PATCH("/admin/deliveries/{id}/status", {
+        params: { path: { id: deliveryId } },
+        body: {
+          status: DELIVERY_MOVES[action],
+          order_version: order.version!,
+          ...(action === "fail" ? { reason } : {}),
+        },
+      }),
+    );
+    return unwrap(browserApi.GET("/admin/orders/{id}", { params: { path: { id } } }));
   }
 
   async function assign() {
@@ -187,8 +276,22 @@ export function OrderDetailView({
           </h1>
           <span className="text-sm text-text-muted">{dateTime(order.placed_at)}</span>
         </div>
-        <OrderStatusBadge status={order.status} />
+        <div className="flex flex-wrap items-center gap-2">
+          {order.late_for_acceptance && order.status === "pending" ? (
+            <Badge tone="danger" data-testid="order-late">{t("badges.late")}</Badge>
+          ) : null}
+          {order.inventory_attention_required ? (
+            <Badge tone="warning" data-testid="order-needs-attention">{t("badges.attention")}</Badge>
+          ) : null}
+          {order.cancellation_request?.status === "pending" ? (
+            <Badge tone="warning" data-testid="order-cancel-requested">{t("badges.cancelRequested")}</Badge>
+          ) : null}
+          <OrderStatusBadge status={order.status} />
+        </div>
       </div>
+      {order.late_for_acceptance && order.status === "pending" && order.acceptance_deadline ? (
+        <Alert data-testid="order-late-alert">{t("lateAlert", { deadline: dateTime(order.acceptance_deadline) })}</Alert>
+      ) : null}
 
       {notice?.kind === "conflict" ? (
         <Alert tone="info" data-testid="order-conflict">
@@ -200,6 +303,20 @@ export function OrderDetailView({
       {notice?.kind === "forbidden" ? (
         <Alert data-testid="order-forbidden">{t("forbidden")}</Alert>
       ) : null}
+      {notice?.kind === "attention" ? (
+        <Alert data-testid="order-attention-refused">{t("attentionRefused")}</Alert>
+      ) : null}
+      {belowCost ? (
+        <BelowCostPanel
+          breaches={belowCost}
+          currency={order.currency ?? currency}
+          canApprove={permissions.includes("sell_below_cost.approve")}
+          selfRefused={selfRefused}
+          onApprove={approveBelowCost}
+        />
+      ) : null}
+      <AttentionPanel order={order} permissions={permissions} onDone={onPanelDone} onRefused={handleRefusal} />
+      <CancellationRequestPanel order={order} permissions={permissions} onDone={onPanelDone} onRefused={handleRefusal} />
 
       <Card className="flex flex-col gap-3 p-5" data-testid="order-actions">
         <h2 className="font-bold">{t("detail.actions")}</h2>
@@ -214,7 +331,7 @@ export function OrderDetailView({
               return (
                 <Button
                   key={action}
-                  variant={REASON_ACTIONS.has(action) ? "danger" : "primary"}
+                  variant={REASON_ACTIONS.has(action) ? "danger" : action === "retry" ? "secondary" : "primary"}
                   disabled={blocked}
                   onClick={() => setPending(action)}
                   data-testid={`order-action-${action}`}
@@ -225,6 +342,17 @@ export function OrderDetailView({
             })}
           </div>
         )}
+        {hasPickList(order, permissions) ? (
+          <Link href={`/orders/${id}/pick-list`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-dark hover:underline" data-testid="order-pick-list">
+            <ClipboardList className="size-4" aria-hidden />
+            {t("pickList.open")}
+          </Link>
+        ) : null}
+        {order.delivery?.status === "failed" && order.delivery.failure_reason ? (
+          <p className="text-sm" data-testid="delivery-failure">
+            {t("deliveryFailed", { reason: order.delivery.failure_reason, count: order.delivery.retry_count ?? 0 })}
+          </p>
+        ) : null}
         {actions.includes("dispatch") && blocker ? (
           <p className="text-sm text-text-muted" data-testid="order-dispatch-blocked">
             {t(`dispatchBlocked.${blocker}`)}
@@ -308,6 +436,8 @@ export function OrderDetailView({
         </div>
 
         <div className="flex flex-col gap-5">
+          <RetrievalsPanel order={order} permissions={permissions} onRefused={handleRefusal} />
+
           <Card className="flex flex-col gap-1 p-5">
             <h2 className="mb-2 flex items-center gap-2 font-bold">
               <User className="size-4" aria-hidden />
@@ -394,7 +524,9 @@ export function OrderDetailView({
             ? t("confirm.cancelBody")
             : pending === "reject"
               ? t("confirm.rejectBody")
-              : undefined
+              : pending === "fail"
+                ? t("confirm.failBody")
+                : undefined
         }
         confirmLabel={pending ? t(`action.${pending}`) : t("confirm.yes")}
         tone={pending && REASON_ACTIONS.has(pending) ? "danger" : "primary"}
