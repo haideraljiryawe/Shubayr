@@ -49,8 +49,9 @@ class _Catalog extends CatalogRepositoryMock {
           categoryId: 'c',
           nameEn: 'Product $i',
           nameAr: 'مادة $i',
-          salePrice: 40000,
-          compareAtPrice: i.isEven ? 50000 : null,
+          effectivePrice: 40000,
+          price: i.isEven ? 50000 : 40000,
+          onSale: i.isEven,
           discountPercent: i.isEven ? 20 : null,
         ),
     ];

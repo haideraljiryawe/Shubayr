@@ -24,7 +24,7 @@ Product _product(String id, String name) => Product(
   categoryId: 'c1',
   nameEn: name,
   nameAr: name,
-  salePrice: 1000,
+  effectivePrice: 1000,
 );
 
 Widget _host(List<WishlistItem> items) => ProviderScope(

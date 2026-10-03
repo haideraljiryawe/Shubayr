@@ -13,7 +13,6 @@ import '../../data/after_sales_repository_remote.dart';
 import '../../data/return_request.dart';
 import '../../domain/after_sales_repository.dart';
 import 'order_providers.dart';
-import '../widgets/order_item_display.dart';
 
 final afterSalesRepositoryProvider = Provider<AfterSalesRepository>((ref) {
   final identity = ref.watch(ordersIdentityProvider);
@@ -188,7 +187,7 @@ class ReturnEligibility {
           case 'approved':
           case 'partially_approved':
           case 'completed':
-            // v9 exposes approved units but does not specify when the
+            // The contract exposes approved units but does not specify when the
             // unapproved remainder is released for another request. Only equal
             // requested/approved quantities have an unambiguous consumed amount.
             // Completion can also follow rejection: never treat it as full return.
@@ -201,7 +200,7 @@ class ReturnEligibility {
             quantity = approved;
           case 'rejected':
           default:
-            // Rejection's reservation-release policy is not defined in v9.
+            // Rejection's reservation-release policy is not defined by the contract.
             throw const AppFailure(FailureKind.server);
         }
         consumed[item.orderItemId] = addQuantity(

@@ -11,7 +11,7 @@ import '../../data/product_page.dart';
 import '../../data/review.dart';
 import '../../domain/catalog_repository.dart';
 
-/// Mock ⇄ remote switch, overridable globally (`DATA_SOURCE`) or per test.
+/// Normal launches use the remote repository; tests can explicitly override it.
 final catalogRepositoryProvider = Provider<CatalogRepository>((ref) {
   return switch (ref.watch(dataSourceProvider)) {
     DataSource.mock => CatalogRepositoryMock(),
@@ -25,11 +25,7 @@ final categoriesProvider = FutureProvider<List<Category>>((ref) async {
   List<Category> visible(List<Category> nodes) {
     final result = [
       for (final node in nodes)
-        if (node.isActive)
-          Category.fromMock({
-            ...node.toMock(),
-            'children': visible(node.children).map((c) => c.toMock()).toList(),
-          }),
+        if (node.isActive) node.copyWith(children: visible(node.children)),
     ];
     result.sort((a, b) {
       final order = a.sortOrder.compareTo(b.sortOrder);

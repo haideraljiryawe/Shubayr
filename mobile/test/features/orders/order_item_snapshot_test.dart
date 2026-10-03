@@ -1,3 +1,4 @@
+import 'package:shubayr/features/catalog/data/catalog_fixtures.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/network/api_client.dart';
@@ -15,7 +16,14 @@ const _current = Product(
   categoryId: 'c1',
   nameAr: 'الاسم الجديد',
   nameEn: 'New name',
-  images: ['https://example.com/new.jpg'],
+  media: [
+    ProductImage(
+      id: 'new',
+      url: 'https://example.com/new.jpg',
+      sortOrder: 0,
+      isPrimary: true,
+    ),
+  ],
   variants: [
     ProductVariant(id: 'v1', attributes: {'size': 'XL'}),
   ],
@@ -163,7 +171,7 @@ void main() {
       }
 
       (await catalog.fetchCategories()).forEach(flatten);
-      void replace(List<Product> products) => catalog.applyAdminCatalog(
+      void replace(List<Product> products) => catalog.replaceFixtures(
         products: products.map((p) => p.toJson()).toList(),
         categories: categories,
       );
@@ -173,8 +181,8 @@ void main() {
       final repo = OrderRepositoryMock(cart, delay: Duration.zero);
       final seed = (await repo.fetchOrders()).data.first;
 
-      final atPurchase = Product.fromMock({
-        ...original.firstWhere((p) => p.id == 'p1').toMock(),
+      final atPurchase = productFromFixture({
+        ...original.firstWhere((p) => p.id == 'p1').toFixture(),
         'name_ar': 'اسم وقت الشراء',
         'name_en': 'At purchase',
         'images': ['https://example.com/purchase.jpg'],
@@ -188,8 +196,8 @@ void main() {
       expect(placed.items.single.productNameEn, 'At purchase');
       expect(placed.items.single.imageUrl, 'https://example.com/purchase.jpg');
 
-      final renamed = Product.fromMock({
-        ...atPurchase.toMock(),
+      final renamed = productFromFixture({
+        ...atPurchase.toFixture(),
         'name_en': 'Renamed after purchase',
         'sale_price': 99000,
         'compare_at_price': null,

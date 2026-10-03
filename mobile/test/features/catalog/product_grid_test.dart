@@ -21,8 +21,9 @@ const _products = [
     categoryId: 'c',
     nameAr: 'ساعة ذكية',
     nameEn: 'Watch',
-    salePrice: 120000,
-    compareAtPrice: 150000,
+    effectivePrice: 120000,
+    price: 150000,
+    onSale: true,
     discountPercent: 20,
     ratingAvg: 4.2,
   ),
@@ -31,7 +32,7 @@ const _products = [
     categoryId: 'c',
     nameAr: 'سماعات لاسلكية سماعات لاسلكية بتقنية إلغاء الضوضاء',
     nameEn: 'Wireless headphones with noise cancellation',
-    salePrice: 45000,
+    effectivePrice: 45000,
     ratingAvg: 4.5,
   ),
   Product(
@@ -39,8 +40,9 @@ const _products = [
     categoryId: 'c',
     nameAr: 'منتج',
     nameEn: 'Product',
-    salePrice: 123456789,
-    compareAtPrice: 987654321,
+    effectivePrice: 123456789,
+    price: 987654321,
+    onSale: true,
     discountPercent: 88,
     inStock: false,
   ),
@@ -197,7 +199,7 @@ void main() {
           categoryId: 'c',
           nameAr: 'سماعات لاسلكية سماعات لاسلكية',
           nameEn: 'Headphones',
-          salePrice: 45000,
+          effectivePrice: 45000,
           ratingAvg: 4.5,
         ),
       ];
@@ -249,7 +251,7 @@ void main() {
                 nameEn: i < 2
                     ? 'Watch $i'
                     : 'Premium wireless headphones with noise cancellation and fast charging number $i',
-                salePrice: 5000,
+                effectivePrice: 5000,
                 ratingAvg: 4.2,
               ),
           ];

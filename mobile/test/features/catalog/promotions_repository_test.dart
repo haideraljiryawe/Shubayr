@@ -1,10 +1,10 @@
+import 'package:shubayr/features/catalog/data/catalog_fixtures.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/network/api_client.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_remote.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
-import 'package:shubayr/features/catalog/data/media/catalog_image.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
 
 const base = Product(
@@ -12,7 +12,7 @@ const base = Product(
   categoryId: 'c',
   nameEn: 'Product',
   nameAr: 'مادة',
-  salePrice: 80,
+  effectivePrice: 80,
 );
 
 void main() {
@@ -42,9 +42,38 @@ void main() {
     expect(product.discountEndsAt, endsAt);
     expect(product.toJson(), isNot(contains('sale_price')));
     expect(product.toJson(), isNot(contains('compare_at_price')));
+    final gallery = Product.fromJson({
+      ...product.toJson(),
+      'images': [
+        {
+          'id': 'server-second',
+          'url': 'https://example.com/second.jpg',
+          'sort_order': 2,
+          'is_primary': false,
+        },
+        {
+          'id': 'server-first',
+          'url': 'https://example.com/first.jpg',
+          'sort_order': 1,
+          'is_primary': true,
+        },
+      ],
+    });
+    expect(gallery.images, [
+      'https://example.com/first.jpg',
+      'https://example.com/second.jpg',
+    ]);
+    final roundTrip = Product.fromJson(gallery.toJson());
+    expect(roundTrip.media.map((image) => image.id), [
+      'server-second',
+      'server-first',
+    ]);
+    expect(roundTrip.effectivePrice, 80);
+    expect(roundTrip.discountPercent, 20);
+    expect(roundTrip.discountStartsAt, startsAt);
   });
 
-  test('updating mock gallery preserves scheduled discount fields', () {
+  test('updating media preserves scheduled discount fields', () {
     final startsAt = DateTime.utc(2026, 9, 1);
     final product = Product.fromJson({
       ...base.toJson(),
@@ -58,11 +87,17 @@ void main() {
       'effective_price': 80,
       'discount_percent': 20,
     });
-    const image = UrlCatalogImage('https://example.com/primary.jpg');
+    const image = ProductImage(
+      id: 'primary',
+      url: 'https://example.com/primary.jpg',
+      sortOrder: 0,
+      isPrimary: true,
+    );
 
-    final updated = product.copyWith(mockImages: [image]);
+    final updated = product.copyWith(media: [image]);
 
-    expect(updated.displayImages, [image]);
+    expect(updated.media, [image]);
+    expect(updated.primaryImage, image.url);
     expect(updated.price, 100);
     expect(updated.discountType, 'percentage');
     expect(updated.discountValue, 20);
@@ -90,19 +125,19 @@ void main() {
     test(
       'promotion eligibility in legacy Mock fixtures: original=$original',
       () {
-        final product = Product.fromMock({
-          ...base.toMock(),
+        final product = productFromFixture({
+          ...base.toFixture(),
           'sale_price': 80,
           'compare_at_price': original,
           'discount_percent': original == 100 ? 20 : null,
         });
         final read = Product.fromJson(
-          product.copyWith(images: ['image']).toJson(),
+          product.copyWith(media: fixtureProductImages(['image'])).toJson(),
         );
         expect(read.isOnSale, original == 100);
         expect(read.compareAtPrice, original == 100 ? original : null);
         expect(
-          Product.discountPercentFor(80, original),
+          fixtureDiscountPercent(80, original),
           original == 100 ? 20 : null,
         );
         expect(read.discountPercent, original == 100 ? 20 : null);
@@ -112,7 +147,7 @@ void main() {
   test(
     'mock rounding follows contract; remote percentage is not overwritten',
     () {
-      expect(Product.discountPercentFor(100, 150), 33);
+      expect(fixtureDiscountPercent(100, 150), 33);
       final read = Product.fromJson({
         ...base.toJson(),
         'compare_at_price': 100,
@@ -196,24 +231,24 @@ void main() {
     catalog = CatalogRepositoryMock(delay: Duration.zero);
     products = (await catalog.fetchProducts(
       perPage: 100,
-    )).data.map((p) => p.toMock()).toList();
+    )).data.map((p) => p.toFixture()).toList();
     categories = [];
     void flatten(Category c) {
-      categories.add(c.toMock());
+      categories.add(c.toJson());
       c.children.forEach(flatten);
     }
 
     (await catalog.fetchCategories()).forEach(flatten);
   });
   tearDown(
-    () => catalog.applyAdminCatalog(products: products, categories: categories),
+    () => catalog.replaceFixtures(products: products, categories: categories),
   );
 
   test(
     '45 offers span 20/20/5; combined filters and totals precede slicing',
     () async {
       final template = products.first;
-      catalog.applyAdminCatalog(
+      catalog.replaceFixtures(
         categories: categories,
         products: [
           for (var i = 1; i <= 45; i++) ...[

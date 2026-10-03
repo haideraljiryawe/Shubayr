@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/widgets/work_app_bar.dart';
+import '../../../../app/shell/work_app_bar.dart';
 
 import '../../../../core/l10n/l10n_context.dart';
 import 'account_view.dart';

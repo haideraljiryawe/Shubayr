@@ -9,6 +9,55 @@ import 'package:shubayr/features/catalog/presentation/providers/product_list_con
 
 void main() {
   test(
+    'visible category filtering preserves API metadata and nested ordering',
+    () async {
+      final category = Category.fromJson({
+        'id': 'root',
+        'name_en': 'Root',
+        'name_ar': 'قسم',
+        'slug': 'root-slug',
+        'image_url': 'https://example.com/root.jpg',
+        'icon_key': 'consumer_electronics',
+        'description_en': 'Description',
+        'description_ar': 'وصف',
+        'sort_order': 7,
+        'children': [
+          {
+            'id': 'hidden',
+            'name_en': 'Hidden',
+            'name_ar': '',
+            'is_visible': false,
+          },
+          {
+            'id': 'b',
+            'name_en': 'B',
+            'name_ar': '',
+            'sort_order': 2,
+            'slug': 'b-slug',
+          },
+          {'id': 'a', 'name_en': 'A', 'name_ar': '', 'sort_order': 1},
+        ],
+      });
+      final c = ProviderContainer(
+        overrides: [
+          catalogRepositoryProvider.overrideWithValue(
+            _CategorySnapshot(category),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      final visible = (await c.read(categoriesProvider.future)).single;
+      expect(visible.toJson(), {
+        ...category.toJson(),
+        'children': [
+          category.children[2].toJson(),
+          category.children[1].toJson(),
+        ],
+      });
+    },
+  );
+
+  test(
     'mock scopes search, price, sale, sorting and pagination to the subtree',
     () async {
       final repo = CatalogRepositoryMock(delay: Duration.zero);
@@ -116,7 +165,7 @@ void main() {
     'subtree includes direct parent products and recursively nested descendants',
     () async {
       // Isolated test records exercise shapes absent from the bundled mock feed.
-      // Use the existing admin mock seam; production fixtures remain untouched.
+      // Use the fixture replacement seam and restore the original catalog afterward.
       final repo = CatalogRepositoryMock(delay: Duration.zero);
       final originalProducts = await repo.fetchProducts(perPage: 1000);
       final originalCategories = await repo.fetchCategories();
@@ -132,12 +181,12 @@ void main() {
         flatten(category);
       }
       addTearDown(
-        () => repo.applyAdminCatalog(
+        () => repo.replaceFixtures(
           products: originalProducts.data.map((p) => p.toJson()).toList(),
           categories: flat,
         ),
       );
-      repo.applyAdminCatalog(
+      repo.replaceFixtures(
         categories: [
           for (final (id, parentId) in [
             ('parent', null),
@@ -179,4 +228,11 @@ void main() {
       );
     },
   );
+}
+
+class _CategorySnapshot extends CatalogRepositoryMock {
+  _CategorySnapshot(this.category);
+  final Category category;
+  @override
+  Future<List<Category>> fetchCategories() async => [category];
 }

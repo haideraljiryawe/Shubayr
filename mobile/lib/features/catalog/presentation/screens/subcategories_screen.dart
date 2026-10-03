@@ -120,7 +120,7 @@ class _SubcategoryGrid extends StatelessWidget {
                     children: [
                       Icon(
                         categoryIconFor(
-                          category.icon,
+                          null,
                           categoryId: category.id,
                           iconKey: category.iconKey,
                         ),

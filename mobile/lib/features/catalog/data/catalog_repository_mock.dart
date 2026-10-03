@@ -1,3 +1,4 @@
+import 'catalog_fixtures.dart';
 import '../domain/catalog_repository.dart';
 import 'category.dart';
 import 'product.dart';
@@ -5,18 +6,15 @@ import 'product_availability.dart';
 import 'product_page.dart';
 import 'review.dart';
 
-/// In-memory catalog for development before the backend is live.
+/// In-memory catalog for explicit test/development overrides.
 ///
 /// Shapes are taken from the `Category` / `Product` / `ProductPage` schemas in
-/// `api/openapi.yaml`; no field is invented. Filtering, sorting and pagination
-/// are implemented here so the UI behaves the same as it will against the API.
+/// `api/openapi.yaml`. Filtering, sorting and pagination
+/// mirror API behavior; fixture adaptation stays separate from live models.
 class CatalogRepositoryMock implements CatalogRepository {
   CatalogRepositoryMock({this.delay = const Duration(milliseconds: 350)});
 
   final Duration delay;
-
-  /// Management reads include hidden parents and descendants.
-  List<Category> get adminCategories => List.unmodifiable(_categories);
 
   static String _img(String seed) => 'https://picsum.photos/seed/$seed/500/500';
 
@@ -53,7 +51,6 @@ class CatalogRepositoryMock implements CatalogRepository {
       shortDescriptionEn: 'Devices and accessories',
       shortDescriptionAr: 'أجهزة وملحقات',
       nameAr: 'إلكترونيات',
-      icon: 'devices',
       iconKey: 'electronics_devices',
       sortOrder: 1,
       children: const [
@@ -62,7 +59,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cElectronics,
           nameEn: 'Phones',
           nameAr: 'هواتف',
-          icon: 'smartphone',
           iconKey: 'mobile_phone',
           sortOrder: 1,
         ),
@@ -71,7 +67,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cElectronics,
           nameEn: 'Audio',
           nameAr: 'صوتيات',
-          icon: 'headphones',
           iconKey: 'audio_headphones',
           sortOrder: 2,
         ),
@@ -80,7 +75,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cElectronics,
           nameEn: 'Wearables',
           nameAr: 'أجهزة الارتداء',
-          icon: 'watch',
           iconKey: 'accessories_watch',
           sortOrder: 3,
         ),
@@ -89,7 +83,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cElectronics,
           nameEn: 'Accessories',
           nameAr: 'ملحقات',
-          icon: 'cable',
           iconKey: 'electronics_cable',
           sortOrder: 4,
         ),
@@ -101,7 +94,6 @@ class CatalogRepositoryMock implements CatalogRepository {
       shortDescriptionEn: 'Food and everyday essentials',
       shortDescriptionAr: 'غذاء واحتياجات يومية',
       nameAr: 'بقالة',
-      icon: 'basket',
       iconKey: 'grocery_food',
       sortOrder: 2,
       children: const [
@@ -110,7 +102,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cGrocery,
           nameEn: 'Pantry',
           nameAr: 'مؤن',
-          icon: 'kitchen',
           iconKey: 'kitchen_appliances',
           sortOrder: 1,
         ),
@@ -119,7 +110,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cGrocery,
           nameEn: 'Beverages',
           nameAr: 'مشروبات',
-          icon: 'coffee',
           iconKey: 'drinks_coffee',
           sortOrder: 2,
         ),
@@ -128,7 +118,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cGrocery,
           nameEn: 'Staples',
           nameAr: 'أساسيات',
-          icon: 'rice',
           iconKey: 'food_rice',
           sortOrder: 3,
         ),
@@ -140,7 +129,6 @@ class CatalogRepositoryMock implements CatalogRepository {
       shortDescriptionEn: 'Clothing for the whole family',
       shortDescriptionAr: 'أزياء لكل العائلة',
       nameAr: 'ملابس',
-      icon: 'checkroom',
       iconKey: 'fashion_clothing',
       sortOrder: 3,
       children: const [
@@ -149,7 +137,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cClothing,
           nameEn: 'Men',
           nameAr: 'رجالي',
-          icon: 'man',
           iconKey: 'fashion_men',
           sortOrder: 1,
         ),
@@ -158,7 +145,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cClothing,
           nameEn: 'Women',
           nameAr: 'نسائي',
-          icon: 'woman',
           iconKey: 'fashion_women',
           sortOrder: 2,
         ),
@@ -167,7 +153,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cClothing,
           nameEn: 'Kids',
           nameAr: 'أطفال',
-          icon: 'child',
           iconKey: 'kids_baby',
           sortOrder: 3,
         ),
@@ -179,7 +164,6 @@ class CatalogRepositoryMock implements CatalogRepository {
       shortDescriptionEn: 'Kitchen and home essentials',
       shortDescriptionAr: 'مستلزمات المنزل والمطبخ',
       nameAr: 'المنزل والمطبخ',
-      icon: 'home',
       iconKey: 'home_furniture',
       sortOrder: 4,
       children: const [
@@ -188,7 +172,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cHome,
           nameEn: 'Cookware',
           nameAr: 'أواني طهي',
-          icon: 'cookware',
           iconKey: 'kitchen_cooking',
           sortOrder: 1,
         ),
@@ -197,7 +180,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cHome,
           nameEn: 'Tableware',
           nameAr: 'أدوات المائدة',
-          icon: 'tableware',
           iconKey: 'kitchen_tableware',
           sortOrder: 2,
         ),
@@ -206,7 +188,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: _cHome,
           nameEn: 'Lighting',
           nameAr: 'إضاءة',
-          icon: 'lighting',
           iconKey: 'home_lighting',
           sortOrder: 3,
         ),
@@ -218,7 +199,6 @@ class CatalogRepositoryMock implements CatalogRepository {
       shortDescriptionEn: 'Skin, hair and personal care',
       shortDescriptionAr: 'عناية بالبشرة والشعر',
       nameAr: 'الجمال والعناية',
-      icon: 'spa',
       iconKey: 'beauty_spa',
       sortOrder: 5,
       children: const [
@@ -227,7 +207,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: 'cat-beauty',
           nameEn: 'Skin Care',
           nameAr: 'العناية بالبشرة',
-          icon: 'face',
           iconKey: 'beauty_skin',
           sortOrder: 1,
         ),
@@ -236,7 +215,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: 'cat-beauty',
           nameEn: 'Hair Care',
           nameAr: 'العناية بالشعر',
-          icon: 'haircare',
           iconKey: 'beauty_hair',
           sortOrder: 2,
         ),
@@ -245,7 +223,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: 'cat-beauty',
           nameEn: 'Fragrances',
           nameAr: 'العطور',
-          icon: 'fragrance',
           iconKey: 'beauty_fragrance',
           sortOrder: 3,
         ),
@@ -257,7 +234,6 @@ class CatalogRepositoryMock implements CatalogRepository {
       shortDescriptionEn: 'Fitness and outdoor gear',
       shortDescriptionAr: 'لياقة ولوازم رحلات',
       nameAr: 'الرياضة والرحلات',
-      icon: 'fitness',
       iconKey: 'sport_fitness',
       sortOrder: 6,
       children: const [
@@ -266,7 +242,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: 'cat-sports',
           nameEn: 'Fitness',
           nameAr: 'اللياقة البدنية',
-          icon: 'fitness',
           iconKey: 'sport_fitness',
           sortOrder: 1,
         ),
@@ -275,7 +250,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: 'cat-sports',
           nameEn: 'Camping & Outdoors',
           nameAr: 'التخييم والرحلات',
-          icon: 'outdoors',
           iconKey: 'garden_trees',
           sortOrder: 2,
         ),
@@ -284,7 +258,6 @@ class CatalogRepositoryMock implements CatalogRepository {
           parentId: 'cat-sports',
           nameEn: 'Cycling',
           nameAr: 'ركوب الدراجات',
-          icon: 'cycling',
           iconKey: 'sport_cycling',
           sortOrder: 3,
         ),
@@ -318,23 +291,22 @@ class CatalogRepositoryMock implements CatalogRepository {
     return {id};
   }
 
-  static final _adminEditedProducts = <String>{};
+  static final _replacedProducts = <String>{};
 
-  /// The admin mock and customer mock share catalog data during this app run.
-  /// Writes contain the already validated admin snapshot; stock is preserved.
-  void applyAdminCatalog({
+  /// Replace catalog fixtures for tests that simulate server-side edits.
+  void replaceFixtures({
     required List<Map<String, dynamic>> products,
     required List<Map<String, dynamic>> categories,
   }) {
     for (final value in products) {
       final old = _products.where((p) => p.id == value['id']).firstOrNull;
-      if (old == null || old.toMock().toString() != value.toString()) {
-        _adminEditedProducts.add(value['id'] as String);
+      if (old == null || old.toFixture().toString() != value.toString()) {
+        _replacedProducts.add(value['id'] as String);
       }
     }
     _products
       ..clear()
-      ..addAll(products.map(Product.fromMock).map(_withDiscount));
+      ..addAll(products.map(productFromFixture).map(_withDiscount));
     final ordered = [...categories]
       ..sort((a, b) {
         final order = ((a['sort_order'] as num?) ?? 0).compareTo(
@@ -344,11 +316,11 @@ class CatalogRepositoryMock implements CatalogRepository {
             ? order
             : (a['id'] as String).compareTo(b['id'] as String);
       });
-    Category node(Map<String, dynamic> value) => Category.fromMock({
+    Category node(Map<String, dynamic> value) => Category.fromJson({
       ...value,
       'children': [
         for (final child in ordered)
-          if (child['parent_id'] == value['id']) node(child).toMock(),
+          if (child['parent_id'] == value['id']) node(child).toJson(),
       ],
     });
     _categories
@@ -366,11 +338,12 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Wireless Earbuds',
       nameAr: 'سماعات لاسلكية',
       description: 'Compact wireless earbuds with a charging case.',
-      salePrice: 45000,
-      compareAtPrice: 60000,
+      effectivePrice: 45000,
+      price: 60000,
+      onSale: true,
       ratingAvg: 4.5,
       availableQty: 30,
-      images: [_img('p1')],
+      media: fixtureProductImages([_img('p1')]),
     ),
     Product(
       id: 'p2',
@@ -378,13 +351,14 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Smart Watch',
       nameAr: 'ساعة ذكية',
       description: 'Fitness tracking, notifications and a week of battery.',
-      salePrice: 120000,
-      compareAtPrice: 150000,
+      effectivePrice: 120000,
+      price: 150000,
+      onSale: true,
       isNegotiable: true,
       floorPrice: 100000,
       ratingAvg: 4.2,
       availableQty: 12,
-      images: [_img('p2')],
+      media: fixtureProductImages([_img('p2')]),
     ),
     Product(
       id: 'p3',
@@ -392,13 +366,14 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Power Bank 20000mAh',
       nameAr: 'باور بانك ٢٠٠٠٠',
       description: 'Fast-charging power bank with two USB outputs.',
-      salePrice: 32000,
-      compareAtPrice: 40000,
+      effectivePrice: 32000,
+      price: 40000,
+      onSale: true,
       pointsPrice: 320,
       ratingAvg: 4.0,
       availableQty: 0,
       inStock: false,
-      images: [_img('p3')],
+      media: fixtureProductImages([_img('p3')]),
     ),
     Product(
       id: 'p4',
@@ -406,11 +381,12 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Olive Oil 1L',
       nameAr: 'زيت زيتون ١ لتر',
       description: 'Extra-virgin olive oil, cold pressed.',
-      salePrice: 15000,
-      compareAtPrice: 20000,
+      effectivePrice: 15000,
+      price: 20000,
+      onSale: true,
       ratingAvg: 4.8,
       availableQty: 80,
-      images: [_img('p4')],
+      media: fixtureProductImages([_img('p4')]),
     ),
     Product(
       id: 'p5',
@@ -418,11 +394,12 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Basmati Rice 5kg',
       nameAr: 'رز بسمتي ٥ كغم',
       description: 'Aged long-grain basmati rice.',
-      salePrice: 22000,
-      compareAtPrice: 25000,
+      effectivePrice: 22000,
+      price: 25000,
+      onSale: true,
       ratingAvg: 4.6,
       availableQty: 50,
-      images: [_img('p5')],
+      media: fixtureProductImages([_img('p5')]),
     ),
     Product(
       id: 'p6',
@@ -430,11 +407,12 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Ground Coffee 250g',
       nameAr: 'قهوة مطحونة ٢٥٠ غم',
       description: 'Medium-roast Arabica ground coffee.',
-      salePrice: 9000,
-      compareAtPrice: 10000,
+      effectivePrice: 9000,
+      price: 10000,
+      onSale: true,
       ratingAvg: 4.3,
       availableQty: 40,
-      images: [_img('p6')],
+      media: fixtureProductImages([_img('p6')]),
     ),
     Product(
       id: 'p7',
@@ -442,11 +420,12 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Cotton T-Shirt',
       nameAr: 'قميص قطني',
       description: 'Soft cotton t-shirt, several sizes.',
-      salePrice: 12000,
-      compareAtPrice: 15000,
+      effectivePrice: 12000,
+      price: 15000,
+      onSale: true,
       ratingAvg: 4.1,
       availableQty: 60,
-      images: [_img('p7')],
+      media: fixtureProductImages([_img('p7')]),
       variants: const [
         ProductVariant(
           effectivePrice: 12000,
@@ -475,13 +454,14 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Denim Jacket',
       nameAr: 'جاكيت جينز',
       description: 'Classic denim jacket.',
-      salePrice: 38000,
-      compareAtPrice: 45000,
+      effectivePrice: 38000,
+      price: 45000,
+      onSale: true,
       isNegotiable: true,
       floorPrice: 30000,
       ratingAvg: 4.4,
       availableQty: 15,
-      images: [_img('p8')],
+      media: fixtureProductImages([_img('p8')]),
     ),
     Product(
       id: 'p9',
@@ -489,11 +469,12 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Non-stick Pan',
       nameAr: 'مقلاة غير لاصقة',
       description: '28cm non-stick frying pan.',
-      salePrice: 18000,
-      compareAtPrice: 20000,
+      effectivePrice: 18000,
+      price: 20000,
+      onSale: true,
       ratingAvg: 4.5,
       availableQty: 25,
-      images: [_img('p9')],
+      media: fixtureProductImages([_img('p9')]),
     ),
     Product(
       id: 'p10',
@@ -501,10 +482,10 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Ceramic Mug Set',
       nameAr: 'طقم أكواب سيراميك',
       description: 'Set of four ceramic mugs.',
-      salePrice: 14000,
+      effectivePrice: 14000,
       ratingAvg: 4.7,
       availableQty: 35,
-      images: [_img('p10')],
+      media: fixtureProductImages([_img('p10')]),
     ),
     Product(
       id: 'p11',
@@ -512,11 +493,11 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'LED Desk Lamp',
       nameAr: 'مصباح مكتب LED',
       description: 'Dimmable LED desk lamp with USB port.',
-      salePrice: 26000,
+      effectivePrice: 26000,
       pointsPrice: 260,
       ratingAvg: 4.2,
       availableQty: 20,
-      images: [_img('p11')],
+      media: fixtureProductImages([_img('p11')]),
     ),
     Product(
       id: 'p12',
@@ -524,104 +505,111 @@ class CatalogRepositoryMock implements CatalogRepository {
       nameEn: 'Bluetooth Speaker',
       nameAr: 'مكبر صوت بلوتوث',
       description: 'Portable waterproof Bluetooth speaker.',
-      salePrice: 55000,
+      effectivePrice: 55000,
       ratingAvg: 4.6,
       availableQty: 18,
-      images: [_img('p12')],
+      media: fixtureProductImages([_img('p12')]),
     ),
     Product(
       id: 'p13',
       categoryId: 'cat-skincare',
       nameEn: 'Gentle Facial Cleanser',
       nameAr: 'غسول لطيف للوجه',
-      salePrice: 12000,
-      compareAtPrice: 16000,
+      effectivePrice: 12000,
+      price: 16000,
+      onSale: true,
       ratingAvg: 4.5,
       availableQty: 30,
-      images: [_img('p13')],
+      media: fixtureProductImages([_img('p13')]),
     ),
     Product(
       id: 'p14',
       categoryId: 'cat-skincare',
       nameEn: 'Daily Moisturizing Cream',
       nameAr: 'كريم ترطيب يومي',
-      salePrice: 18000,
+      effectivePrice: 18000,
       ratingAvg: 4.4,
       availableQty: 25,
-      images: [_img('p14')],
+      media: fixtureProductImages([_img('p14')]),
     ),
     Product(
       id: 'p15',
       categoryId: 'cat-haircare',
       nameEn: 'Nourishing Shampoo',
       nameAr: 'شامبو مغذٍ للشعر',
-      salePrice: 9000,
-      compareAtPrice: 12000,
+      effectivePrice: 9000,
+      price: 12000,
+      onSale: true,
       ratingAvg: 4.3,
       availableQty: 40,
-      images: [_img('p15')],
+      media: fixtureProductImages([_img('p15')]),
     ),
     Product(
       id: 'p16',
       categoryId: 'cat-fragrance',
       nameEn: 'Fresh Eau de Parfum',
       nameAr: 'عطر منعش',
-      salePrice: 35000,
+      effectivePrice: 35000,
       ratingAvg: 4.6,
       availableQty: 18,
-      images: [_img('p16')],
+      media: fixtureProductImages([_img('p16')]),
     ),
     Product(
       id: 'p17',
       categoryId: 'cat-fitness',
       nameEn: 'Yoga Exercise Mat',
       nameAr: 'حصيرة تمارين يوغا',
-      salePrice: 18000,
-      compareAtPrice: 24000,
+      effectivePrice: 18000,
+      price: 24000,
+      onSale: true,
       ratingAvg: 4.7,
       availableQty: 20,
-      images: [_img('p17')],
+      media: fixtureProductImages([_img('p17')]),
     ),
     Product(
       id: 'p18',
       categoryId: 'cat-fitness',
       nameEn: 'Sports Water Bottle',
       nameAr: 'قارورة مياه رياضية',
-      salePrice: 8000,
+      effectivePrice: 8000,
       ratingAvg: 4.2,
       availableQty: 45,
-      images: [_img('p18')],
+      media: fixtureProductImages([_img('p18')]),
     ),
     Product(
       id: 'p19',
       categoryId: 'cat-outdoors',
       nameEn: 'Rechargeable Camping Lantern',
       nameAr: 'فانوس تخييم قابل للشحن',
-      salePrice: 22000,
-      compareAtPrice: 28000,
+      effectivePrice: 22000,
+      price: 28000,
+      onSale: true,
       ratingAvg: 4.5,
       availableQty: 16,
-      images: [_img('p19')],
+      media: fixtureProductImages([_img('p19')]),
     ),
     Product(
       id: 'p20',
       categoryId: 'cat-cycling',
       nameEn: 'Adjustable Cycling Helmet',
       nameAr: 'خوذة دراجة قابلة للتعديل',
-      salePrice: 30000,
-      compareAtPrice: 40000,
+      effectivePrice: 30000,
+      price: 40000,
+      onSale: true,
       ratingAvg: 4.8,
       availableQty: 14,
-      images: [_img('p20')],
+      media: fixtureProductImages([_img('p20')]),
     ),
   ].map(_withDiscount).toList();
 
-  static Product _withDiscount(Product p) => Product.fromMock({
-    ...p.toMock(),
-    'discount_percent': Product.discountPercentFor(
-      p.salePrice,
-      p.compareAtPrice,
-    ),
+  static Product _withDiscount(Product p) => Product.fromJson({
+    ...p.toJson(),
+    'price': p.onSale ? p.price : p.effectivePrice,
+    'discount_type': p.discountType ?? (p.onSale ? 'amount' : null),
+    'discount_value':
+        p.discountValue ?? (p.onSale ? p.price - p.effectivePrice : null),
+    'discounted_price': p.onSale ? p.effectivePrice : null,
+    'discount_percent': fixtureDiscountPercent(p.salePrice, p.compareAtPrice),
   });
 
   @override
@@ -629,13 +617,13 @@ class CatalogRepositoryMock implements CatalogRepository {
     await Future<void>.delayed(delay);
     Category? visible(Category category) => !category.isActive
         ? null
-        : Category.fromMock({
-            ...category.toMock(),
-            'children': [
+        : category.copyWith(
+            children: [
               for (final child in category.children)
-                if (visible(child) case final Category shown) shown.toMock(),
+                if (visible(child) case final Category shown) shown,
             ],
-          });
+          );
+
     return [
       for (final category in _categories)
         if (visible(category) case final Category shown) shown,
@@ -703,9 +691,9 @@ class CatalogRepositoryMock implements CatalogRepository {
     await Future<void>.delayed(delay);
     final product = _products.firstWhere((p) => p.id == id);
     // List fixtures carry one image; the detail view shows a small gallery.
-    return _adminEditedProducts.contains(id)
+    return _replacedProducts.contains(id)
         ? product
-        : product.copyWith(images: _gallery(id));
+        : product.copyWith(media: fixtureProductImages(_gallery(id)));
   }
 
   @override

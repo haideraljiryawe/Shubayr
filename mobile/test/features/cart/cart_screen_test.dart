@@ -32,7 +32,7 @@ class _FakeCatalog implements CatalogRepository {
     categoryId: 'c',
     nameEn: 'Widget',
     nameAr: 'قطعة',
-    salePrice: 1000,
+    effectivePrice: 1000,
     variants: whole == null
         ? const []
         : [

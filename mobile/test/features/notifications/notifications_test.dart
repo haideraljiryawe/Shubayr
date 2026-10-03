@@ -1,3 +1,4 @@
+import 'package:shubayr/features/notifications/presentation/notification_destination.dart';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -91,6 +92,33 @@ void main() {
       '/delivery',
     );
   });
+  test(
+    'notification destinations encode IDs and reject unrelated roles/entities',
+    () {
+      final item = InboxNotification.fromJson({
+        ...notification('1', role: 'customer'),
+        'entity_id': 'order/with?query#fragment',
+      });
+      expect(
+        item.destination(UserRole.customer),
+        '/orders/order%2Fwith%3Fquery%23fragment',
+      );
+      expect(item.destination(UserRole.monitor), isNull);
+      expect(
+        InboxNotification.fromJson({
+          ...notification('2', role: 'customer'),
+          'entity_type': 'unknown',
+        }).destination(UserRole.customer),
+        isNull,
+      );
+      expect(
+        InboxNotification.fromJson(
+          notification('3', role: 'admin'),
+        ).destination(UserRole.unsupported),
+        isNull,
+      );
+    },
+  );
   test(
     'remote inbox, badge and reading one item follow the contract',
     () async {

@@ -21,7 +21,7 @@ void main() {
           'effective_price': 12.75,
         },
       ],
-    }).copyWith(images: []);
+    }).copyWith(media: []);
     expect(product.currency, 'USD');
     expect(product.variants.single.currency, 'USD');
     expect(product.variants.single.attributes, isEmpty);

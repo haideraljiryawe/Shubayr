@@ -46,7 +46,7 @@ class _FakeCatalog implements CatalogRepository {
     categoryId: 'c',
     nameEn: 'Tee',
     nameAr: 'قميص',
-    salePrice: 10000,
+    effectivePrice: 10000,
     availableQty: 13,
     variants: [
       ProductVariant(

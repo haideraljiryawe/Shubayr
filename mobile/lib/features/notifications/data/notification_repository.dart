@@ -1,7 +1,5 @@
-import '../../../app/router/app_routes.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/error/response_decode.dart';
-import '../../auth/domain/user_role.dart';
 
 class InboxNotification {
   const InboxNotification({
@@ -41,19 +39,6 @@ class InboxNotification {
             ? null
             : DateTime.parse(json['read_at'] as String),
       );
-
-  /// Build only known in-app destinations; never navigate to a server-provided URL.
-  String? destination(UserRole role) {
-    if (UserRole.fromApi(targetRole) != role) return null;
-    if (role == UserRole.monitor && entityType == 'order') {
-      return '${AppRoutes.monitor}/${Uri.encodeComponent(entityId)}';
-    }
-    if (role == UserRole.customer && entityType == 'order') {
-      return '${AppRoutes.orders}/${Uri.encodeComponent(entityId)}';
-    }
-    if (role == UserRole.delivery) return AppRoutes.delivery;
-    return null;
-  }
 }
 
 class InboxPage {

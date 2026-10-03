@@ -212,7 +212,7 @@ class _DepartmentsBar extends ConsumerWidget {
                       ),
                       child: Icon(
                         categoryShortcutIconFor(
-                          category.icon,
+                          null,
                           categoryId: category.id,
                           iconKey: category.iconKey,
                         ),

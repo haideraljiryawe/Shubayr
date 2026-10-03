@@ -14,7 +14,7 @@ class FreshCatalog extends CatalogRepositoryMock {
     categoryId: 'c',
     nameEn: 'Product',
     nameAr: 'منتج',
-    salePrice: ++products,
+    effectivePrice: ++products,
   );
   @override
   Future<ProductAvailability> fetchAvailability(String id) async =>

@@ -53,10 +53,10 @@ class CategoryCard extends StatelessWidget {
       color: colors.surfaceAlt,
       child: Center(
         child: Icon(
-          category.imageManaged || !legacyMockArtwork
+          !legacyMockArtwork
               ? Icons.image_outlined
               : categoryIconFor(
-                  category.icon,
+                  null,
                   categoryId: category.id,
                   iconKey: category.iconKey,
                 ),
@@ -133,7 +133,7 @@ class CategoryCard extends StatelessWidget {
                                 key: ValueKey('cat-image-${category.id}'),
                                 image:
                                     category.image ??
-                                    (category.imageManaged || !legacyMockArtwork
+                                    (!legacyMockArtwork
                                         ? null
                                         : UrlCatalogImage(
                                             categoryImageUrl(category.id),

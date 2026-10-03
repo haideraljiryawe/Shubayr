@@ -1,5 +1,10 @@
 # Category and product media — Mock implementation / contract gaps
 
+> Historical record of the former Mobile admin-media prototype. Mobile now
+> targets API 11 and has no photo-selection workflow. C22 removed the unused
+> `image_picker` dependency and iOS photo-library permission description; the
+> implementation and dependency references below describe that earlier phase.
+
 Scope: category metadata, category icons/photos and product photo management only.
 Contract inspected: repository-root `api/openapi.yaml` (unchanged), specifically
 `Category`, `CategoryInput`, `Product`, `ProductInput`, `GET /categories` and the

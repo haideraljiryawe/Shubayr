@@ -37,7 +37,7 @@ class _Catalog extends CatalogRepositoryMock {
           categoryId: 'c',
           nameEn: 'Product $i with a long name',
           nameAr: 'منتج $i',
-          salePrice: 50000,
+          effectivePrice: 50000,
           ratingAvg: 4.5,
         ),
     ];

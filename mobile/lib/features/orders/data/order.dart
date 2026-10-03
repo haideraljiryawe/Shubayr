@@ -103,6 +103,9 @@ class OrderItem {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool imageSnapshotProvided;
 
+  bool get needsCatalogLabel => snapshotName('en') == null || variantId != null;
+  bool get needsCatalogDetails => needsCatalogLabel || !imageSnapshotProvided;
+
   String? snapshotName(String language) {
     final names = language == 'ar'
         ? [productNameAr, productNameEn]

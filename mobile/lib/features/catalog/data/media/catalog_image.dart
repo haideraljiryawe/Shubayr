@@ -11,7 +11,7 @@ final class UrlCatalogImage extends CatalogImage {
   final String url;
 }
 
-/// Draft bytes are never serialized as JSON; Remote uploads them before saving.
+/// Session-local gallery bytes are never serialized as API JSON.
 final class LocalCatalogImage extends CatalogImage {
   LocalCatalogImage(Uint8List bytes, {required this.name, super.productImageId})
     : bytes = Uint8List.fromList(bytes).asUnmodifiableView();

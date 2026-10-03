@@ -38,7 +38,7 @@ ProductPage page(int number, List<String> ids, {int total = 9}) => ProductPage(
         categoryId: 'c',
         nameEn: 'Product',
         nameAr: 'منتج',
-        salePrice: number,
+        effectivePrice: number,
       ),
   ],
 );

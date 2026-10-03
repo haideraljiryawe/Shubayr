@@ -40,8 +40,9 @@ class _FakeCatalog implements CatalogRepository {
     categoryId: 'c1',
     nameEn: 'Test Product One',
     nameAr: 'منتج أول',
-    salePrice: 10000,
-    compareAtPrice: 12000,
+    effectivePrice: 10000,
+    price: 12000,
+    onSale: true,
     ratingAvg: 4.5,
     availableQty: 5,
   );
@@ -50,7 +51,7 @@ class _FakeCatalog implements CatalogRepository {
     categoryId: 'c2',
     nameEn: 'Test Product Two',
     nameAr: 'منتج ثانٍ',
-    salePrice: 20000,
+    effectivePrice: 20000,
     availableQty: 0,
     inStock: false,
   );

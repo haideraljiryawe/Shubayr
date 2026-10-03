@@ -33,7 +33,7 @@ List<WishlistItem> _items(int count) => [
         categoryId: 'c',
         nameAr: 'منتج $i',
         nameEn: 'Product $i',
-        salePrice: 1000,
+        effectivePrice: 1000,
       ),
     ),
 ];
@@ -127,7 +127,7 @@ void main() {
               categoryId: 'c',
               nameAr: 'منتج نافذ',
               nameEn: 'Sold-out product',
-              salePrice: 1000,
+              effectivePrice: 1000,
               inStock: false,
             ),
           ),

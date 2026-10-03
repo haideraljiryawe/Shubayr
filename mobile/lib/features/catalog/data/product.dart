@@ -48,7 +48,7 @@ class ProductVariant {
   final num? lowStockThreshold;
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) {
-    // v9's effective SKU price includes linked conversion and the product
+    // The API's effective SKU price includes linked conversion and the product
     // discount. A delta or fixed override cannot reconstruct that value.
     _checkedPrice(json['effective_price']);
     return _$ProductVariantFromJson(json);
@@ -78,8 +78,6 @@ class Product {
     this.discountedPrice,
     num? effectivePrice,
     this.discountPercent,
-    num? salePrice,
-    num? compareAtPrice,
     this.isNegotiable = false,
     this.floorPrice,
     this.pointsPrice,
@@ -88,14 +86,9 @@ class Product {
     this.status = 'active',
     this.inStock = true,
     this.availableQty = 0,
-    List<String> images = const [],
     this.media = const [],
-    this.mockImages,
     this.variants = const [],
-  }) : _fixtureImages = images,
-       effectivePrice = effectivePrice ?? salePrice ?? price,
-       _legacySalePrice = salePrice,
-       _legacyCompareAtPrice = compareAtPrice;
+  }) : effectivePrice = effectivePrice ?? price;
 
   final String id;
   @JsonKey(name: 'category_id')
@@ -125,34 +118,14 @@ class Product {
   @JsonKey(name: 'discount_percent')
   final int? discountPercent;
 
-  // Keep direct constructors used by the mock layer source-compatible while
-  // remote reads use the scheduled-discount contract above.
-  final num? _legacySalePrice;
-  final num? _legacyCompareAtPrice;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  num get salePrice => effectivePrice;
 
   @JsonKey(includeFromJson: false, includeToJson: false)
-  num get salePrice => _legacySalePrice ?? effectivePrice;
+  num? get compareAtPrice => onSale ? price : null;
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  num? get compareAtPrice => _legacyCompareAtPrice ?? (onSale ? price : null);
+  bool get isOnSale => onSale;
 
-  bool get isOnSale =>
-      onSale ||
-      (_legacyCompareAtPrice != null &&
-          _legacyCompareAtPrice.isFinite &&
-          salePrice.isFinite &&
-          _legacyCompareAtPrice > 0 &&
-          _legacyCompareAtPrice > salePrice);
-
-  /// Contract calculation for mock responses; remote percentages remain read-only.
-  static int? discountPercentFor(num sale, num? original) =>
-      original != null &&
-          original.isFinite &&
-          sale.isFinite &&
-          original > 0 &&
-          original > sale
-      ? ((original - sale) / original * 100).round()
-      : null;
   @JsonKey(name: 'is_negotiable')
   final bool isNegotiable;
   @JsonKey(name: 'floor_price')
@@ -168,69 +141,16 @@ class Product {
   final bool inStock;
   @JsonKey(name: 'available_qty')
   final num availableQty;
-  final List<String> _fixtureImages;
   @JsonKey(includeFromJson: false, includeToJson: false)
-  List<String> get images => media.isEmpty
-      ? _fixtureImages
-      : orderedMedia.map((image) => image.url).toList(growable: false);
+  List<String> get images =>
+      orderedMedia.map((image) => image.url).toList(growable: false);
   @JsonKey(name: 'images')
   final List<ProductImage> media;
   List<ProductImage> get orderedMedia =>
       [...media]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  final List<CatalogImage>? mockImages;
   List<CatalogImage> get displayImages =>
-      mockImages ?? images.map(UrlCatalogImage.new).toList(growable: false);
+      images.map(UrlCatalogImage.new).toList(growable: false);
 
-  /// Legacy prices and URL-only galleries exist only in the in-memory fixtures.
-  /// Remote decoding never passes through this conversion.
-  factory Product.fromMock(Map<String, dynamic> json) {
-    final hasSchedule =
-        json['discount_starts_at'] != null || json['discount_ends_at'] != null;
-    final sale = hasSchedule
-        ? null
-        : json['sale_price'] as num? ??
-              (json.containsKey('compare_at_price')
-                  ? json['effective_price'] as num? ?? json['price'] as num?
-                  : null);
-    final original = json['compare_at_price'] as num?;
-    final discounted = sale != null && original != null && original > sale;
-    return Product.fromJson({
-      ...json,
-      'images': <dynamic>[],
-      'variants': [
-        for (final variant in json['variants'] as List? ?? [])
-          {
-            ...variant as Map<String, dynamic>,
-            'effective_price':
-                variant['effective_price'] ??
-                (sale ?? json['effective_price'] ?? json['price'] ?? 0) +
-                    (variant['price_delta'] ?? 0),
-          },
-      ],
-      if (sale != null) ...{
-        'price': discounted ? original : sale,
-        'discount_type': discounted ? 'amount' : null,
-        'discount_value': discounted ? original - sale : null,
-        'on_sale': discounted,
-        'discounted_price': discounted ? sale : null,
-        'effective_price': sale,
-      },
-    }).copyWith(
-      images: [
-        for (final image in json['images'] as List? ?? [])
-          image is String ? image : (image as Map)['url'] as String,
-      ],
-      mockImages: (json['mock_images'] as List?)?.cast<CatalogImage>(),
-    );
-  }
-  Map<String, dynamic> toMock() => {
-    ...toJson(),
-    'sale_price': salePrice,
-    'compare_at_price': compareAtPrice,
-    'images': images,
-    'mock_images': mockImages,
-  };
   final List<ProductVariant> variants;
 
   /// The name for the active language, falling back to the other side.
@@ -242,52 +162,46 @@ class Product {
   /// First image, or null when the product has none (the UI shows a placeholder).
   CatalogImage? get primaryDisplayImage => displayImages.firstOrNull;
 
-  /// URL-only consumers cannot represent session-local bytes. Never return an
-  /// unrelated old URL when the current primary image is local.
+  /// The URL of the first image in server-defined display order.
   String? get primaryImage => switch (primaryDisplayImage) {
     UrlCatalogImage(:final url) => url,
     _ => null,
   };
 
-  Product copyWith({List<String>? images, List<CatalogImage>? mockImages}) =>
-      Product(
-        id: id,
-        categoryId: categoryId,
-        nameEn: nameEn,
-        nameAr: nameAr,
-        description: description,
-        price: price,
-        currency: currency,
-        discountType: discountType,
-        discountValue: discountValue,
-        discountStartsAt: discountStartsAt,
-        discountEndsAt: discountEndsAt,
-        onSale: onSale,
-        discountedPrice: discountedPrice,
-        effectivePrice: effectivePrice,
-        discountPercent: discountPercent,
-        salePrice: _legacySalePrice,
-        compareAtPrice: _legacyCompareAtPrice,
-        isNegotiable: isNegotiable,
-        floorPrice: floorPrice,
-        pointsPrice: pointsPrice,
-        tracksExpiry: tracksExpiry,
-        ratingAvg: ratingAvg,
-        status: status,
-        inStock: inStock,
-        availableQty: availableQty,
-        images: images ?? _fixtureImages,
-        media: images == null ? media : const [],
-        mockImages: mockImages ?? this.mockImages,
-        variants: variants,
-      );
+  Product copyWith({List<ProductImage>? media}) => Product(
+    id: id,
+    categoryId: categoryId,
+    nameEn: nameEn,
+    nameAr: nameAr,
+    description: description,
+    price: price,
+    currency: currency,
+    discountType: discountType,
+    discountValue: discountValue,
+    discountStartsAt: discountStartsAt,
+    discountEndsAt: discountEndsAt,
+    onSale: onSale,
+    discountedPrice: discountedPrice,
+    effectivePrice: effectivePrice,
+    discountPercent: discountPercent,
+    isNegotiable: isNegotiable,
+    floorPrice: floorPrice,
+    pointsPrice: pointsPrice,
+    tracksExpiry: tracksExpiry,
+    ratingAvg: ratingAvg,
+    status: status,
+    inStock: inStock,
+    availableQty: availableQty,
+    media: media ?? this.media,
+    variants: variants,
+  );
 
   factory Product.fromJson(Map<String, dynamic> json) {
     // The original promotion price must also be usable before showing it.
     if (json.containsKey('price') || json['on_sale'] == true) {
       _checkedPrice(json['price']);
     }
-    // Product read properties are optional in v9. For older partial responses,
+    // Product read properties are optional in API 11. For older partial responses,
     // use the server's discounted_price while on sale, otherwise its base price.
     // Never infer a scheduled promotion using the device clock or legacy fields.
     final price = json.containsKey('effective_price')
@@ -303,45 +217,10 @@ class Product {
     });
   }
 
-  Map<String, dynamic> toJson() {
-    final json = _$ProductToJson(this);
-    if (_fixtureImages.isNotEmpty && media.isEmpty) {
-      json['images'] = [
-        for (final (i, url) in _fixtureImages.indexed)
-          {
-            'id': 'mock-image-$i',
-            'url': url,
-            'sort_order': i,
-            'is_primary': i == 0,
-          },
-      ];
-    }
-    if (_legacySalePrice == null ||
-        discountType != null ||
-        discountStartsAt != null ||
-        discountEndsAt != null) {
-      return json;
-    }
-
-    final original = _legacyCompareAtPrice;
-    final discounted = isOnSale;
-    json
-      ..['price'] = discounted ? original : salePrice
-      ..['discount_type'] = discounted ? 'amount' : null
-      ..['discount_value'] = discounted ? original! - salePrice : null
-      ..['discount_starts_at'] = null
-      ..['discount_ends_at'] = null
-      ..['on_sale'] = discounted
-      ..['discounted_price'] = discounted ? salePrice : null
-      ..['effective_price'] = salePrice
-      ..['discount_percent'] = discounted
-          ? discountPercent ?? discountPercentFor(salePrice, original)
-          : null;
-    return json;
-  }
+  Map<String, dynamic> toJson() => _$ProductToJson(this);
 }
 
-/// Stable image identity is retained for atomic PATCH media operations.
+/// Server image identity and display order survive JSON round trips.
 @JsonSerializable()
 class ProductImage {
   const ProductImage({

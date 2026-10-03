@@ -48,7 +48,14 @@ class _EditableCatalog extends CatalogRepositoryMock {
     nameAr: 'منتج',
     price: product.price,
     effectivePrice: product.effectivePrice,
-    images: ['https://example.test/image-$revision.jpg'],
+    media: [
+      ProductImage(
+        id: 'image-$revision',
+        url: 'https://example.test/image-$revision.jpg',
+        sortOrder: 0,
+        isPrimary: true,
+      ),
+    ],
   );
 
   @override

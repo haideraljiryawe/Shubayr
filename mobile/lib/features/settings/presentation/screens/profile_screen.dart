@@ -1,4 +1,4 @@
-import '../../../../core/widgets/work_app_bar.dart';
+import '../../../../app/shell/work_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

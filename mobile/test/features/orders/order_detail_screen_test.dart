@@ -23,7 +23,7 @@ const _product = Product(
   categoryId: 'c1',
   nameEn: 'Widget',
   nameAr: 'ودجة',
-  salePrice: 15000,
+  effectivePrice: 15000,
 );
 
 Order _order(String status) => Order(

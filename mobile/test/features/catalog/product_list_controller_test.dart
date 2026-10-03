@@ -24,7 +24,7 @@ class _FakeCatalog implements CatalogRepository {
       categoryId: i.isEven ? 'a' : 'b',
       nameEn: i == 0 ? 'Special Widget' : 'Item $i',
       nameAr: 'منتج $i',
-      salePrice: (i + 1) * 1000,
+      effectivePrice: (i + 1) * 1000,
       ratingAvg: (i % 5) + 1,
       availableQty: 5,
     ),
