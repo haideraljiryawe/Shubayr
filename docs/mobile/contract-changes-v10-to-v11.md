@@ -1,4 +1,4 @@
-# Mobile app: API contract changes from 10.0.2 to 11.1.0
+# Mobile app: API contract changes from 10.0.2 to 11.2.0
 
 For: the Flutter app (customer, delivery agent, order monitor).
 Compared on 2026-10-03. Follows
@@ -9,11 +9,13 @@ Compared on 2026-10-03. Follows
 - **App code:** the `mobile` branch at `8d4c6d1`. Every call the remote
   repositories make for orders, checkout, deliveries and notifications was
   checked in `mobile/lib`.
-- **Contract:** `api/openapi.yaml` at 10.0.2 and at 11.1.0:
+- **Contract:** `api/openapi.yaml` at 10.0.2 and at 11.2.0:
   - 11.0.0 is #87: permissions, separation of duties, price approvals.
   - 11.1.0 is #88: queues, retrieval search, customer notifications,
     delivery attempts, typed payloads.
-- **Examples:** captured from a real 11.1 API with seeded data. Ids are
+  - 11.2.0 is #91: delivery parties (internal agents and external drivers)
+    and custody reads.
+- **Examples:** captured from a real 11.1/11.2 API with seeded data. Ids are
   shortened.
 
 Each item has a status:
@@ -51,6 +53,8 @@ New in 11.x for the app:
 | 2 | Delivery attempt history on the order and on the agent's delivery | To do | [B](#b-delivery-attempt-history-to-do) |
 | 3 | The inbox can filter by `type` | New | [C](#c-filter-the-inbox-by-type-new) |
 | 4 | A stale delivery update names the field `order_version` | Done (harmless) | [D](#d-small-corrections-ignore-or-done) |
+| 5 | The agent can read their own custody: goods held, how old | New | [E](#e-the-agents-own-custody-new) |
+| 6 | A delivery names its `party` (`party_id`, `party`) next to `agent_id` | New | [E](#e-the-agents-own-custody-new) |
 
 ---
 
@@ -179,7 +183,71 @@ answers 422 `VALIDATION_FAILED` (field `type`).
   - `GET /admin/retrievals`;
   - price-publish approvals;
   - the separation-of-duties setting;
-  - the new `fx_rates.view` and `cash_accounts.view` permissions.
+  - the new `fx_rates.view` and `cash_accounts.view` permissions;
+  - delivery parties, external drivers and party statements under
+    `/admin/delivery-parties` and `/admin/external-drivers` (11.2);
+  - assigning a delivery by `party_id` (11.2).
+
+## E. The agent's own custody (New)
+
+**Version:** 11.2.0. **Affects:** the delivery agent.
+
+Every delivery is now carried by a **delivery party**: an internal agent (a
+user with the app) or an external driver (no account, managed by staff). An
+internal agent's party id is the same as their user id, so the existing
+`Delivery.agent_id` keeps working.
+
+**`GET /deliveries/custody`** returns what the signed-in agent is holding
+right now. No party id is sent: the server takes it from the session. Cost
+values are never returned to an agent. Cash is always zero for now; collection
+postings come in a later version.
+
+```json
+{
+  "party": {
+    "id": "67d5d161…",
+    "kind": "internal_agent",
+    "user_id": "67d5d161…",
+    "name": "Development Delivery",
+    "phone": "+9647700000005",
+    "vehicle_number": null,
+    "description": null,
+    "notes": null,
+    "is_active": true,
+    "created_at": "2026-10-03T20:45:34.879Z",
+    "updated_at": "2026-10-03T20:45:34.879Z"
+  },
+  "goods": {
+    "quantity": 2,
+    "oldest_age_days": 5,
+    "lines": [
+      {
+        "holding_id": "80000000…",
+        "order": { "id": "10000000…", "order_number": "DEV-ORDER-5" },
+        "delivery_id": "10000000…",
+        "batch_id": "70000000…",
+        "lot_number": "SEED-5",
+        "variant_id": "50000000…",
+        "sku": "SEED-005-STD",
+        "product": { "id": "40000000…", "name_en": "Nonstick Frying Pan", "name_ar": "مقلاة غير لاصقة" },
+        "quantity": 1,
+        "issued_at": "2026-09-28T19:45:35.152Z",
+        "age_days": 5
+      }
+    ]
+  },
+  "cash": { "currency": "IQD", "amount": 0, "oldest_age_days": null }
+}
+```
+
+- A "What I'm holding" screen can list `goods.lines` by order, with
+  `age_days` to show goods held too long.
+- `404` means the signed-in user has no delivery party.
+
+`Delivery` (`GET /deliveries/assigned`) also carries `party_id` and a short
+`party` (`id`, `kind`, `user_id`, `name`, `phone`). The app reads only
+`agent_id` today, which still holds the same id for internal agents. Nothing
+breaks.
 
 ---
 
@@ -189,7 +257,8 @@ answers 422 `VALIDATION_FAILED` (field `type`).
 |---|---|---|
 | `GET /me/notifications` | Yes: three new customer types, optional `type` filter | A, C |
 | `GET /orders/{id}`, `GET /orders` | Yes: `delivery_attempts`; typed attention and price-change objects | B, D |
-| `GET /deliveries/assigned` | Yes: `Delivery.attempts` | B |
+| `GET /deliveries/assigned` | Yes: `Delivery.attempts` (11.1); `party_id`, `party` (11.2) | B, E |
+| `GET /deliveries/custody` | New in 11.2 | E |
 | `PATCH /deliveries/{id}` | Stale error names `order_version` | D |
 | `POST /orders`, `POST /orders/{id}/cancel` | No | |
 | `POST /orders/{id}/cancellation-request`, `POST /orders/{id}/shortage-response` | No (from 10.0, not yet called by the app) | 10.0 B, F |
