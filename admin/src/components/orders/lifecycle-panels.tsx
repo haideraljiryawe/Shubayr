@@ -293,6 +293,7 @@ export function CancellationRequestPanel({
  */
 export function RetrievalsPanel({ order, permissions, onRefused }: { order: AdminOrder; permissions: string[]; onRefused: Refused }) {
   const t = useTranslations("orders.retrievals");
+  const tList = useTranslations("retrievals.list");
   const router = useRouter();
   const [opening, setOpening] = useState<{ operationId: string } | null>(null);
   const rows = order.retrievals ?? [];
@@ -338,6 +339,11 @@ export function RetrievalsPanel({ order, permissions, onRefused }: { order: Admi
       ) : (
         <p className="text-sm text-text-muted">{t("none")}</p>
       )}
+      {rows.length && permissions.includes("retrieval.view") ? (
+        <Link href={`/retrievals?order_id=${order.id}`} className="text-sm font-semibold text-primary-dark hover:underline" data-testid="order-retrievals-all">
+          {tList("viewAllForOrder")}
+        </Link>
+      ) : null}
       {canOpen ? (
         <div>
           <Button variant="secondary" size="sm" onClick={() => setOpening({ operationId: newOperationId() })} data-testid="retrieval-open">

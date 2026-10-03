@@ -5,7 +5,8 @@ import { OrdersTabs } from "@/components/orders/orders-tabs";
 import { loadPermissions } from "@/lib/api/inventory-server";
 import { PageError } from "@/components/shell/page-error";
 import { load, serverApi } from "@/lib/api/server";
-import { orderListQuery } from "@/lib/orders";
+import { isOrderQueue, orderListQuery } from "@/lib/orders";
+import { loadQueueCounts } from "@/lib/api/orders-server";
 import { parseTableParams, type RawSearchParams } from "@/lib/table-params";
 import { OrdersTable } from "./orders-table";
 
@@ -24,7 +25,11 @@ export default async function OrdersPage({
   searchParams: Promise<RawSearchParams>;
 }) {
   const t = await getTranslations("orders");
-  const params = parseTableParams(await searchParams, {
+  const raw = await searchParams;
+  // A work queue (late, needs attention, cancellation requests) is filtered
+  // by the server, like status and dates.
+  const queue = isOrderQueue(raw.queue) ? raw.queue : null;
+  const params = parseTableParams(raw, {
     sortKeys: ["placed_at"],
     defaultSort: "placed_at",
     defaultDir: "desc",
@@ -32,6 +37,7 @@ export default async function OrdersPage({
   });
   const { query, invalidRange } = orderListQuery({
     status: params.filters.status,
+    queue: queue ?? undefined,
     q: params.q,
     from: params.filters.from,
     to: params.filters.to,
@@ -40,17 +46,18 @@ export default async function OrdersPage({
   });
 
   const api = await serverApi();
-  const [orders, settings, permissions] = await Promise.all([
+  const [orders, settings, permissions, counts] = await Promise.all([
     load(api.GET("/admin/orders", { params: { query } })),
     load(api.GET("/settings")),
     loadPermissions(api),
+    loadQueueCounts(api),
   ]);
   if (!orders.ok) return <PageError error={orders.error} />;
 
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
-      <OrdersTabs active="list" />
+      <OrdersTabs active="list" queue={queue} counts={counts} canViewRetrievals={permissions.includes("retrieval.view")} />
       <OrdersTable
         rows={orders.data.data ?? []}
         state={{

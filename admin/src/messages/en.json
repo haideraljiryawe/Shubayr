@@ -946,8 +946,14 @@
     },
     "views": {
       "label": "Order views",
-      "list": "List",
-      "board": "Board"
+      "list": "All orders",
+      "board": "Board",
+      "queues": {
+        "late": "Late",
+        "attention": "Needs attention",
+        "cancellation": "Cancellation requests"
+      },
+      "retrievals": "Retrievals"
     },
     "pickList": {
       "open": "Pick list",
@@ -2102,6 +2108,27 @@
       "overOutstanding": "More than what is still expected ({left}).",
       "location": "Choose where to put it back."
     },
-    "receiveMore": "Receive more"
+    "receiveMore": "Receive more",
+    "list": {
+      "title": "Retrievals",
+      "description": "Goods coming back from delivery parties, across all orders. Filter by party, order, date or status.",
+      "columns": {
+        "document": "Document",
+        "order": "Order",
+        "party": "Party",
+        "date": "Date",
+        "outcome": "Purpose",
+        "lines": "Lines",
+        "status": "Status"
+      },
+      "allStatuses": "All statuses",
+      "allParties": "All parties",
+      "from": "From",
+      "to": "To",
+      "empty": "No retrievals match these filters.",
+      "forOrder": "Showing the retrievals for order {number}.",
+      "allOrders": "Show all orders",
+      "viewAllForOrder": "All retrievals for this order"
+    }
   }
 }
