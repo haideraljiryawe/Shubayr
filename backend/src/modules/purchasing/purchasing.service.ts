@@ -16,6 +16,11 @@ import { DocumentNumberService } from '../finance/document-number.service';
 import { LedgerService, type PostingLine } from '../finance/ledger.service';
 import { OperationService } from '../finance/operation.service';
 import {
+  addBusinessDateDays,
+  businessDateDifference,
+  parseBusinessDate,
+} from '../finance/business-date';
+import {
   AllocateSupplierCreditDto,
   CreateCostCorrectionDto,
   CreatePurchaseInvoiceDto,
@@ -31,8 +36,7 @@ import {
 type Tx = Prisma.TransactionClient;
 type DecimalInput = string | number | Prisma.Decimal;
 const D = (value: DecimalInput) => new Prisma.Decimal(value);
-const date = (value?: string) =>
-  value ? new Date(`${value}T00:00:00.000Z`) : undefined;
+const date = (value?: string) => (value ? parseBusinessDate(value) : undefined);
 
 @Injectable()
 export class PurchasingService {
@@ -432,10 +436,7 @@ export class PurchasingService {
         accounting_date: dates.accountingDate,
         due_date:
           date(input.due_date) ??
-          new Date(
-            dates.documentDate.getTime() +
-              supplier.payment_terms_days * 86_400_000,
-          ),
+          addBusinessDateDays(dates.documentDate, supplier.payment_terms_days),
         notes: input.notes?.trim() || null,
         backdate_reason: dates.backdateReason,
         created_by: actorId,
@@ -1333,8 +1334,7 @@ export class PurchasingService {
   }
 
   async aging(asOf?: string) {
-    const today =
-      date(asOf) ?? new Date(`${await this.dates.today()}T00:00:00.000Z`);
+    const today = date(asOf) ?? parseBusinessDate(await this.dates.today());
     const invoices = await this.prisma.purchaseInvoice.findMany({
       include: {
         supplier: true,
@@ -1363,12 +1363,7 @@ export class PurchasingService {
         .minus(returned);
       if (!remaining.gt(0)) return [];
       const days = invoice.due_date
-        ? Math.max(
-            0,
-            Math.floor(
-              (today.getTime() - invoice.due_date.getTime()) / 86_400_000,
-            ),
-          )
+        ? Math.max(0, businessDateDifference(today, invoice.due_date))
         : null;
       const bucket =
         days === null

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
+import { businessDateYear } from './business-date';
 
 @Injectable()
 export class DocumentNumberService {
@@ -9,7 +10,7 @@ export class DocumentNumberService {
     prefix: string,
     date: Date,
   ): Promise<string> {
-    const year = date.getUTCFullYear();
+    const year = businessDateYear(date);
     const rows = await tx.$queryRaw<Array<{ last_value: number }>>(Prisma.sql`
       INSERT INTO document_sequences (document_type, year, prefix, last_value)
       VALUES (${documentType}, ${year}, ${prefix}, 1)

@@ -24,6 +24,36 @@ const fingerprint = createHash('sha256')
 
 describe('OrdersService', () => {
   const audit = { record: jest.fn() };
+
+  it('filters month-boundary reports by Baghdad calendar days', async () => {
+    const findMany = jest.fn((input: unknown) => {
+      void input;
+      return Promise.resolve([]);
+    });
+    const prisma = {
+      order: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany,
+      },
+      $transaction: jest.fn((queries: Promise<unknown>[]) =>
+        Promise.all(queries),
+      ),
+    };
+    const service = new OrdersService(prisma as never, {} as never, audit);
+
+    await service.listAdmin({
+      from: '2026-11-01',
+      to: '2026-11-01',
+    });
+
+    const query = findMany.mock.calls[0][0] as {
+      where: { placed_at: { gte: Date; lt: Date } };
+    };
+    expect(query.where.placed_at).toEqual({
+      gte: new Date('2026-10-31T21:00:00.000Z'),
+      lt: new Date('2026-11-01T21:00:00.000Z'),
+    });
+  });
   it('returns the original order for an idempotent retry without touching the cleared cart', async () => {
     const row = {
       id: 'order-1',

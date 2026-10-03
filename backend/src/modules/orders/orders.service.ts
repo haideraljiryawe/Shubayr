@@ -12,7 +12,12 @@ import { ProductsService } from '../catalog/products.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InventoryService } from '../inventory/inventory.service';
-import { businessDate } from '../finance/business-date';
+import {
+  businessDate,
+  businessDateText,
+  businessDayEnd,
+  businessDayStart,
+} from '../finance/business-date';
 import { calculateLineTotal } from '../catalog/pricing';
 import {
   activeCoupon,
@@ -372,9 +377,7 @@ export class OrdersService {
       settings.map((row) => [row.key, row.value]),
     );
     const timeZone = values.timezone || 'Asia/Baghdad';
-    const closed = new Set(
-      closedDays.map((row) => row.date.toISOString().slice(0, 10)),
-    );
+    const closed = new Set(closedDays.map((row) => businessDateText(row.date)));
     const acceptanceMinutes = Number(
       values.acceptance_alert_timeout_minutes || 15,
     );
@@ -446,15 +449,10 @@ export class OrdersService {
     const placedAt: Prisma.DateTimeFilter | undefined =
       query.from || query.to
         ? {
-            ...(query.from
-              ? { gte: new Date(`${query.from}T00:00:00.000Z`) }
-              : {}),
+            ...(query.from ? { gte: businessDayStart(query.from) } : {}),
             ...(query.to
               ? {
-                  lt: new Date(
-                    new Date(`${query.to}T00:00:00.000Z`).getTime() +
-                      86_400_000,
-                  ),
+                  lt: new Date(businessDayEnd(query.to).getTime() + 1),
                 }
               : {}),
           }

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 10.0.1
+  version: 10.0.2
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -2992,7 +2992,7 @@ paths:
     post:
       tags: [Finance]
       summary: Record an effective exchange rate
-      description: Input is `1 foreign = X base`; basis 100 is normalized to basis 1 before storage.
+      description: Input is `1 foreign = X base`; basis 100 is normalized to basis 1 before storage. `effective_at` is an exact timestamp and a future-effective rate is never applied early.
       x-surface: admin
       x-permission: fx_rates.update
       requestBody:
@@ -3005,7 +3005,7 @@ paths:
   /admin/exchange-rates/{code}/applicable:
     get:
       tags: [Finance]
-      summary: Resolve the latest rate effective at a date
+      summary: Resolve the latest rate effective at an instant
       x-surface: admin
       x-permission: ledger.view
       parameters:
@@ -6047,7 +6047,7 @@ components:
         currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         rate: { type: string, pattern: '^\d+(?:\.\d{1,10})?$' }
         basis: { type: integer, enum: [1, 100] }
-        effective_at: { type: string, format: date-time }
+        effective_at: { type: string, format: date-time, description: Exact instant from which the rate applies. }
         reason: { type: string, minLength: 3, maxLength: 500 }
 
     ExchangeRate:

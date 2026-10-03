@@ -1343,8 +1343,8 @@ model Order {
   discount                     Decimal             @default(0) @db.Decimal(20, 6)
   total                        Decimal             @default(0) @db.Decimal(20, 6)
   currency_code                String              @default("IQD") @db.Char(3)
-  document_date                DateTime            @default(dbgenerated("CURRENT_DATE")) @db.Date
-  accounting_date              DateTime            @default(dbgenerated("CURRENT_DATE")) @db.Date
+  document_date                DateTime            @db.Date
+  accounting_date              DateTime            @db.Date
   delivery_contact_phone       String              @db.VarChar(32)
   delivery_address_label       String?             @db.VarChar(80)
   delivery_city                String              @db.VarChar(80)
@@ -1441,8 +1441,8 @@ model Payment {
   status          String    @default("pending") @db.VarChar(20)
   amount          Decimal   @db.Decimal(20, 6)
   currency_code   String    @default("IQD") @db.Char(3)
-  document_date   DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
-  accounting_date DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  document_date   DateTime  @db.Date
+  accounting_date DateTime  @db.Date
   created_at      DateTime  @default(now()) @db.Timestamptz(6)
   paid_at         DateTime? @db.Timestamptz(6)
   order           Order     @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payments_order_id_fkey")
@@ -1782,8 +1782,8 @@ model Return {
   expected_refund Decimal            @default(0) @db.Decimal(20, 6)
   refund_amount   Decimal            @default(0) @db.Decimal(20, 6)
   currency_code   String             @default("IQD") @db.Char(3)
-  document_date   DateTime           @default(dbgenerated("CURRENT_DATE")) @db.Date
-  accounting_date DateTime           @default(dbgenerated("CURRENT_DATE")) @db.Date
+  document_date   DateTime           @db.Date
+  accounting_date DateTime           @db.Date
   reviewed_by     String?            @db.Uuid
   reviewed_at     DateTime?          @db.Timestamptz(6)
   completed_at    DateTime?          @db.Timestamptz(6)

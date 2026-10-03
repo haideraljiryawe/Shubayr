@@ -6291,7 +6291,7 @@ export interface paths {
         put?: never;
         /**
          * Record an effective exchange rate
-         * @description Input is `1 foreign = X base`; basis 100 is normalized to basis 1 before storage.
+         * @description Input is `1 foreign = X base`; basis 100 is normalized to basis 1 before storage. `effective_at` is an exact timestamp and a future-effective rate is never applied early.
          */
         post: {
             parameters: {
@@ -6332,7 +6332,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Resolve the latest rate effective at a date */
+        /** Resolve the latest rate effective at an instant */
         get: {
             parameters: {
                 query: {
@@ -10350,7 +10350,10 @@ export interface components {
             rate: string;
             /** @enum {integer} */
             basis: 1 | 100;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Exact instant from which the rate applies.
+             */
             effective_at: string;
             reason: string;
         };

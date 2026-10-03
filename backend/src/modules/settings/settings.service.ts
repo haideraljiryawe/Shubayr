@@ -4,6 +4,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AdminSettingsUpdateDto } from './dto/admin-settings.dto';
 import { validateSettingsUpdate } from './settings-validation';
+import { parseBusinessDate } from '../finance/business-date';
 
 const MANAGED_KEYS = new Set([
   'store_name',
@@ -145,7 +146,7 @@ export class SettingsService {
         if (input.closed_days.length) {
           await tx.closedDay.createMany({
             data: input.closed_days.map((row) => ({
-              date: new Date(`${row.date}T00:00:00.000Z`),
+              date: parseBusinessDate(row.date),
               reason: row.reason,
             })),
           });
