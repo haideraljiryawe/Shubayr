@@ -576,6 +576,30 @@ export class AccessManagementService {
           app_role: input.role,
         },
       });
+      if (input.role === 'delivery_agent') {
+        await tx.deliveryParty.upsert({
+          where: { user_id: user.id },
+          update: {
+            kind: 'internal_agent',
+            name: input.name,
+            phone: input.phone,
+            is_active: true,
+            updated_at: new Date(),
+          },
+          create: {
+            id: user.id,
+            kind: 'internal_agent',
+            user_id: user.id,
+            name: input.name,
+            phone: input.phone,
+          },
+        });
+      } else {
+        await tx.deliveryParty.updateMany({
+          where: { user_id: user.id },
+          data: { is_active: false, updated_at: new Date() },
+        });
+      }
       await tx.refreshToken.updateMany({
         where: { user_id: user.id, surface: 'app', revoked_at: null },
         data: { revoked_at: new Date() },
@@ -607,6 +631,10 @@ export class AccessManagementService {
       throw new NotFoundException('Work phone not found');
     await this.prisma.$transaction(async (tx) => {
       const profile = await tx.workProfile.update({
+        where: { user_id: user.id },
+        data: { is_active: false, updated_at: new Date() },
+      });
+      await tx.deliveryParty.updateMany({
         where: { user_id: user.id },
         data: { is_active: false, updated_at: new Date() },
       });

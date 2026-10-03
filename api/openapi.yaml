@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 11.1.0
+  version: 11.2.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1678,6 +1678,20 @@ paths:
                     total: 0
                     data: []
         "403": { $ref: "#/components/responses/Forbidden" }
+  /deliveries/custody:
+    get:
+      tags: [Deliveries]
+      summary: Current agent's own goods and cash custody
+      description: The party is resolved from the authenticated delivery-agent session; no party id is accepted. Cost fields are never returned to an agent. Cash is zero until phase 8b collection postings exist.
+      x-app-role: delivery_agent
+      responses:
+        "200":
+          description: Own custody summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyCustody" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /deliveries/{id}:
     patch:
       tags: [Deliveries]
@@ -1755,8 +1769,8 @@ paths:
   /deliveries/{id}/assign:
     patch:
       tags: [Deliveries]
-      summary: Assign or reassign an active delivery to a delivery agent
-      description: Staff may assign only an active delivery to an active user with the delivery role.
+      summary: Assign or reassign an active delivery to a delivery party
+      description: Staff may assign an active internal agent or external driver. agent_id remains accepted for backward compatibility and identifies an internal party; new clients use party_id.
       x-permission: orders.assign_agent
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1765,9 +1779,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [agent_id]
+              additionalProperties: false
+              oneOf:
+                - required: [agent_id]
+                - required: [party_id]
               properties:
                 agent_id: { type: string, format: uuid }
+                party_id: { type: string, format: uuid }
       responses:
         "200":
           description: Updated delivery assignment
@@ -2060,6 +2078,163 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/DeliveryAgentPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List internal agents and external drivers
+      x-any-permissions: [deliveries.manage, orders.assign_agent, drivers.manage]
+      parameters:
+        - { name: kind, in: query, schema: { type: string, enum: [internal_agent, external_driver] } }
+        - { name: active, in: query, schema: { type: boolean } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated delivery parties
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Get a delivery party
+      x-permission: deliveries.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Delivery party
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryParty" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}/custody:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Read a party's current goods and cash custody
+      description: Lot cost and IQD value are included only when the caller also has cost.view. Cash is zero until phase 8b.
+      x-permission: deliveries.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Current custody with Baghdad business-day ages
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyCustody" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}/statement:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Read a party's goods-custody statement with running balances
+      x-permission: deliveries.manage
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Party statement; value fields require cost.view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyStatementPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}/orders:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List orders with goods currently held by a party
+      x-permission: deliveries.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Orders currently represented by open custody holdings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyHeldOrders" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-drivers:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List external drivers without accounts
+      x-permission: drivers.manage
+      parameters:
+        - { name: active, in: query, schema: { type: boolean } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated external drivers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Admin, Deliveries]
+      summary: Create an external driver without an account
+      x-permission: drivers.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverCreate" }
+      responses:
+        "201":
+          description: Created external driver, including a non-blocking repeated-phone warning
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverMutation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-drivers/{id}:
+    patch:
+      tags: [Admin, Deliveries]
+      summary: Update or activate/deactivate an external driver
+      x-permission: drivers.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverUpdate" }
+      responses:
+        "200":
+          description: Updated external driver
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverMutation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Admin, Deliveries]
+      summary: Delete an unused external driver or deactivate one with history
+      description: Once any assignment, custody, attempt, movement, or retrieval exists, the record is retained and made inactive.
+      x-permission: drivers.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Whether the driver was deleted or retained as inactive
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverRemoval" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/orders/{id}:
     get:
@@ -3707,6 +3882,7 @@ components:
       required: true
       schema: { type: string, minLength: 3, maxLength: 500 }
   responses:
+    BadRequest: { description: Invalid filter range (`BAD_REQUEST`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Unauthorized: { description: Missing/invalid token (`UNAUTHORIZED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     NotFound: { description: Not found (`NOT_FOUND`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Conflict: { description: State conflict (`CONFLICT`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
@@ -4640,6 +4816,17 @@ components:
                     name: { type: [string, "null"] }
                     phone: { type: string }
                     email: { type: [string, "null"] }
+                party:
+                  oneOf:
+                    - type: object
+                      additionalProperties: false
+                      required: [id, kind, name, phone]
+                      properties:
+                        id: { type: string, format: uuid }
+                        kind: { type: string, enum: [internal_agent, external_driver] }
+                        name: { type: string }
+                        phone: { type: string }
+                    - { type: "null" }
             status_events:
               type: array
               items:
@@ -5718,6 +5905,204 @@ components:
               type: array
               items: { $ref: "#/components/schemas/Return" }
 
+    DeliveryParty:
+      type: object
+      additionalProperties: false
+      required: [id, kind, user_id, name, phone, vehicle_number, description, notes, is_active, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [internal_agent, external_driver] }
+        user_id: { type: [string, "null"], format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        vehicle_number: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    DeliveryPartyPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/DeliveryParty" }
+
+    ExternalDriverCreate:
+      type: object
+      additionalProperties: false
+      required: [name, phone]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        phone: { type: string, minLength: 3, maxLength: 32 }
+        vehicle_number: { type: string, maxLength: 80 }
+        description: { type: string, maxLength: 2000 }
+        notes: { type: string, maxLength: 2000 }
+
+    ExternalDriverUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        phone: { type: string, minLength: 3, maxLength: 32 }
+        vehicle_number: { type: string, maxLength: 80 }
+        description: { type: string, maxLength: 2000 }
+        notes: { type: string, maxLength: 2000 }
+        is_active: { type: boolean }
+
+    ExternalDriverMutation:
+      type: object
+      additionalProperties: false
+      required: [id, kind, user_id, name, phone, vehicle_number, description, notes, is_active, created_at, updated_at, duplicate_phone_warning]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [external_driver] }
+        user_id: { type: "null" }
+        name: { type: string }
+        phone: { type: string }
+        vehicle_number: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        duplicate_phone_warning: { type: boolean }
+
+    DeliveryPartySummary:
+      type: object
+      additionalProperties: false
+      required: [id, kind, user_id, name, phone]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [internal_agent, external_driver] }
+        user_id: { type: [string, "null"], format: uuid }
+        name: { type: string }
+        phone: { type: string }
+
+    ExternalDriverRemoval:
+      type: object
+      additionalProperties: false
+      required: [id, disposition]
+      properties:
+        id: { type: string, format: uuid }
+        disposition: { type: string, enum: [deleted, deactivated] }
+
+    CustodyProduct:
+      type: object
+      additionalProperties: false
+      required: [id, name_en, name_ar]
+      properties:
+        id: { type: string, format: uuid }
+        name_en: { type: string }
+        name_ar: { type: string }
+
+    DeliveryPartyCustodyLine:
+      type: object
+      additionalProperties: false
+      required: [holding_id, order, delivery_id, batch_id, lot_number, variant_id, sku, product, quantity, issued_at, age_days]
+      properties:
+        holding_id: { type: string, format: uuid }
+        order:
+          type: object
+          additionalProperties: false
+          required: [id, order_number]
+          properties:
+            id: { type: string, format: uuid }
+            order_number: { type: string }
+        delivery_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        lot_number: { type: [string, "null"] }
+        variant_id: { type: string, format: uuid }
+        sku: { type: string }
+        product: { $ref: "#/components/schemas/CustodyProduct" }
+        quantity: { type: number, multipleOf: 0.001 }
+        issued_at: { type: string, format: date-time }
+        age_days: { type: integer, minimum: 0 }
+        unit_cost_iqd: { type: number, description: Present only with cost.view. }
+        value_iqd: { type: number, description: Present only with cost.view. }
+
+    DeliveryPartyCustody:
+      type: object
+      additionalProperties: false
+      required: [party, goods, cash]
+      properties:
+        party: { $ref: "#/components/schemas/DeliveryParty" }
+        goods:
+          type: object
+          additionalProperties: false
+          required: [quantity, oldest_age_days, lines]
+          properties:
+            quantity: { type: number, multipleOf: 0.001 }
+            value_iqd: { type: number, description: Present only with cost.view. }
+            oldest_age_days: { type: [integer, "null"], minimum: 0 }
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/DeliveryPartyCustodyLine" }
+        cash:
+          type: object
+          additionalProperties: false
+          required: [currency, amount, oldest_age_days]
+          properties:
+            currency: { type: string, const: IQD }
+            amount: { type: number, const: 0 }
+            oldest_age_days: { type: "null" }
+
+    DeliveryPartyStatementEntry:
+      type: object
+      additionalProperties: false
+      required: [id, event, occurred_at, business_date, order_id, order_number, batch_id, lot_number, sku, quantity, running_quantity]
+      properties:
+        id: { type: string, format: uuid }
+        event: { type: string, enum: [issue_to_custody, custody_to_sold, return_in] }
+        occurred_at: { type: string, format: date-time }
+        business_date: { type: string, format: date }
+        order_id: { type: [string, "null"], format: uuid }
+        order_number: { type: [string, "null"] }
+        batch_id: { type: string, format: uuid }
+        lot_number: { type: [string, "null"] }
+        sku: { type: string }
+        quantity: { type: number, multipleOf: 0.001 }
+        running_quantity: { type: number, multipleOf: 0.001 }
+        value_iqd: { type: number, description: Present only with cost.view. }
+        running_value_iqd: { type: number, description: Present only with cost.view. }
+
+    DeliveryPartyStatementPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [party, data]
+          properties:
+            party: { $ref: "#/components/schemas/DeliveryParty" }
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/DeliveryPartyStatementEntry" }
+
+    DeliveryPartyHeldOrders:
+      type: object
+      additionalProperties: false
+      required: [party, data]
+      properties:
+        party: { $ref: "#/components/schemas/DeliveryParty" }
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, order_number, status, delivery_id, quantity, held_since, age_days]
+            properties:
+              id: { type: string, format: uuid }
+              order_number: { type: string }
+              status: { $ref: "#/components/schemas/OrderStatus" }
+              delivery_id: { type: string, format: uuid }
+              quantity: { type: number, multipleOf: 0.001 }
+              held_since: { type: string, format: date-time }
+              age_days: { type: integer, minimum: 0 }
+
     Delivery:
       type: object
       required: [order_version]
@@ -5726,6 +6111,11 @@ components:
         order_id: { type: string, format: uuid }
         order_version: { type: integer, minimum: 1 }
         agent_id: { type: [string, "null"], format: uuid }
+        party_id: { type: [string, "null"], format: uuid }
+        party:
+          oneOf:
+            - { $ref: "#/components/schemas/DeliveryPartySummary" }
+            - { type: "null" }
         status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
         delivery_fee: { type: number }
         currency: { type: string, pattern: '^[A-Z]{3}$' }

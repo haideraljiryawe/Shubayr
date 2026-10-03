@@ -627,9 +627,11 @@ try {
   });
   const correctionItem = correctionInvoice.items[0];
   const relation = (await db.query(`
-    SELECT item.id::text AS order_item_id, item.order_id::text, orders.delivery_id::text
+    SELECT item.id::text AS order_item_id, item.order_id::text,
+           orders.delivery_id::text, deliveries.agent_id::text AS custody_party_id
     FROM order_items item
     JOIN orders ON orders.id=item.order_id
+    JOIN deliveries ON deliveries.id=orders.delivery_id
     WHERE orders.delivery_id IS NOT NULL
     ORDER BY orders.id
     LIMIT 1
@@ -665,7 +667,7 @@ try {
   await db.query(`
     INSERT INTO custody_holdings (order_id, order_item_id, delivery_id, custody_party_id, batch_id, quantity, remaining_quantity, unit_cost_iqd)
     VALUES ($1,$2,$3,$4,$5,2,2,10000)
-  `, [relation.order_id, relation.order_item_id, relation.delivery_id, adminId, correctionItem.lot_id]);
+  `, [relation.order_id, relation.order_item_id, relation.delivery_id, relation.custody_party_id, correctionItem.lot_id]);
   const correction = await request('/admin/purchase-cost-corrections', {
     token: admin,
     method: 'POST',
