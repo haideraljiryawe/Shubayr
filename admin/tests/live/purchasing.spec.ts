@@ -169,15 +169,13 @@ test.beforeAll(async ({ request }) => {
   // The second staff member who approves payments, returns and corrections.
   const payer = await activateStaff(request, await createStaff(request, { presets: ["super_admin"], prefix: "payer" }));
   state.payer = { ...payer, id: payer.id };
-  // A USD rate the server applies to today's documents (it resolves the
-  // rate at 00:00 UTC of the document date), and a USD cash account.
-  const day = today();
-  const effective = Math.min(Date.now() - 60_000, Date.parse(`${day}T00:00:00Z`) - 1_000);
+  // A USD rate the server applies to documents posted after this setup, and
+  // a USD cash account. It must be later than rates created by earlier specs.
   const rate = await api(request, "POST", "/admin/exchange-rates", {
     currency_code: "USD",
     rate: "1500",
     basis: 1,
-    effective_at: new Date(effective).toISOString(),
+    effective_at: new Date().toISOString(),
     reason: `Live purchasing ${run}`,
   });
   expect(rate.status, JSON.stringify(rate.body)).toBe(201);
