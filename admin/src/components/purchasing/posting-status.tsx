@@ -86,7 +86,15 @@ export function PurchasingPostingStatus<T extends Posted>({
       if (isClosedPeriod(state.error)) return <Alert data-testid="posting-period-closed">{t("periodClosed")}</Alert>;
       if (isSeparationOfDuties(state.error)) return <Alert data-testid="posting-separation">{tp("separation")}</Alert>;
       if (isRateOverrideForbidden(state.error)) return <Alert data-testid="posting-rate-override">{tp("rateOverride")}</Alert>;
-      if (isMissingRate(state.error)) return <Alert data-testid="posting-missing-rate">{tp("missingRate")}</Alert>;
+      if (isMissingRate(state.error))
+        return (
+          <Alert data-testid="posting-missing-rate">
+            <p>{tp("missingRate")}</p>
+            <Link href="/finance/currencies" className="mt-1 inline-block font-semibold underline" data-testid="posting-missing-rate-link">
+              {tp("missingRateLink")}
+            </Link>
+          </Alert>
+        );
       return <FormError kind={errorKind(state.error)} detail={state.error.message} />;
     default:
       return null;

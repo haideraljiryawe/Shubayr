@@ -302,6 +302,23 @@ export async function uiLogin(
   }
 }
 
+/**
+ * Sign the same page in as someone else.
+ *
+ * Leave the app before dropping the cookies: a signed-in admin page re-reads
+ * its session after every client-side navigation (and on focus), and one that
+ * finds the cookies gone hard-navigates to /login?expired=1 — which aborts a
+ * `page.goto("/login")` already in flight. Whether that race is lost depended
+ * on timing (how warm the dev server was, i.e. which spec ran first), so the
+ * page must be off the app when the cookies go.
+ */
+export async function switchUser(page: Page, username: string, password: string): Promise<void> {
+  await page.goto("about:blank");
+  await page.context().clearCookies();
+  await uiLogin(page, username, password);
+  await expect(page.getByTestId("dashboard")).toBeVisible();
+}
+
 export async function uiLoginAsAdmin(page: Page): Promise<void> {
   await uiLogin(page, ADMIN_USERNAME, ADMIN_PASSWORD);
   await expect(page.getByTestId("dashboard")).toBeVisible();

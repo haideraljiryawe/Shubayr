@@ -9,7 +9,7 @@ import {
   CUSTOMER_PHONE,
   phoneToken,
   requireLiveApi,
-  uiLogin,
+  switchUser,
   uiLoginAsAdmin,
 } from "./helpers";
 
@@ -361,9 +361,7 @@ test("below cost: confirmation blocked, self-approval refused, a different appro
   await expect(page.getByTestId("below-cost-self-refused")).toBeVisible();
   await expectStatus(page, "pending");
 
-  await page.context().clearCookies();
-  await uiLogin(page, state.approver!.username, state.approver!.password);
-  await expect(page.getByTestId("dashboard")).toBeVisible();
+  await switchUser(page, state.approver!.username, state.approver!.password);
   await page.goto(`/orders/${placed.id}`);
   await act(page, "accept");
   await page.getByTestId("below-cost-approve").click();

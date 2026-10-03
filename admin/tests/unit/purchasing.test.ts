@@ -17,10 +17,13 @@ import {
   moneyText,
   packConversion,
   paymentPreview,
+  settlementCurrency,
+  settlingAmount,
   purchasingSourceHref,
   returnPreview,
   toFixed,
   unitDifferences,
+  type CurrencyCode,
 } from "@/lib/purchasing";
 
 const n = (value: string | number) => toFixed(value);
@@ -105,35 +108,97 @@ describe("document dates", () => {
   });
 });
 
-describe("supplier payments", () => {
+describe("supplier payments (API 10.0.1: amounts in the payment currency)", () => {
   // USD 100 × 2 bought at 1,500 = 300,000 IQD carried.
-  const invoice = { invoiceId: "inv", invoiceCurrency: "USD" as const, invoiceRate: n("1500") };
+  const usdInvoice = { invoiceId: "inv", invoiceCurrency: "USD" as const, bookedRate: n("1500"), remaining: n("200") };
 
-  it("shows an FX loss when paid at 1,520", () => {
-    const preview = paymentPreview({ currency: "USD", amount: n("100"), settlementRate: n("1520"), allocations: [{ ...invoice, applied: n("100") }] });
-    expect(text(preview.rows[0]!.carryingIqd)).toBe("150000");
-    expect(text(preview.rows[0]!.paidIqd)).toBe("152000");
+  it("same currency: an FX loss when paid at 1,520", () => {
+    const preview = paymentPreview({ currency: "USD", amount: n("100"), settlementRate: n("1520"), allocations: [{ ...usdInvoice, amount: n("100") }] });
+    const row = preview.rows[0]!;
+    expect(row.converted).toBe(false);
+    expect(text(row.applied)).toBe("100");
+    expect(text(row.carryingIqd)).toBe("150000");
+    expect(text(row.paidIqd)).toBe("152000");
     expect(text(preview.fxIqd)).toBe("2000");
     expect(preview.unallocatedIqd).toBe(0n);
   });
 
-  it("shows an FX gain at 1,480 and turns the overpayment into a credit", () => {
-    const preview = paymentPreview({ currency: "USD", amount: n("120"), settlementRate: n("1480"), allocations: [{ ...invoice, applied: n("100") }] });
+  it("same currency: an FX gain at 1,480, and the overpayment stays a credit", () => {
+    const preview = paymentPreview({ currency: "USD", amount: n("120"), settlementRate: n("1480"), allocations: [{ ...usdInvoice, amount: n("100") }] });
     expect(text(preview.fxIqd)).toBe("-2000");
     expect(text(preview.unallocatedIqd)).toBe("29600");
     expect(text(preview.creditCurrency)).toBe("20");
     expect(preview.overAllocated).toBe(false);
   });
 
-  it("has no FX on an IQD invoice paid in IQD, and flags over-allocation", () => {
+  it("USD invoice 200 @ 1,500 paid from IQD 304,000 at 1,520: settled, FX loss 4,000", () => {
+    const preview = paymentPreview({ currency: "IQD", amount: n("304000"), settlementRate: n("1520"), allocations: [{ ...usdInvoice, amount: n("304000") }] });
+    const row = preview.rows[0]!;
+    expect(row.converted).toBe(true);
+    expect(text(row.invoiceRate)).toBe("1520");
+    expect(text(row.applied)).toBe("200");
+    expect(row.overRemaining).toBe(false);
+    expect(text(row.carryingIqd)).toBe("300000");
+    expect(text(row.paidIqd)).toBe("304000");
+    expect(text(preview.fxIqd)).toBe("4000");
+    expect(text(preview.amountIqd)).toBe("304000");
+    expect(preview.creditCurrency).toBe(0n);
+  });
+
+  it("a partial cross-currency allocation: 76,000 IQD at 1,520 applies 50 USD", () => {
+    const preview = paymentPreview({ currency: "IQD", amount: n("76000"), settlementRate: n("1520"), allocations: [{ ...usdInvoice, amount: n("76000") }] });
+    expect(text(preview.rows[0]!.applied)).toBe("50");
+    expect(text(preview.fxIqd)).toBe("1000");
+  });
+
+  it("an IQD invoice paid from USD: 100 USD at 1,520 settles 152,000 IQD with no FX", () => {
     const preview = paymentPreview({
+      currency: "USD",
+      amount: n("100"),
+      settlementRate: n("1520"),
+      allocations: [{ invoiceId: "iqd", invoiceCurrency: "IQD", bookedRate: n("1"), remaining: n("152000"), amount: n("100") }],
+    });
+    const row = preview.rows[0]!;
+    expect(row.converted).toBe(true);
+    expect(text(row.invoiceRate)).toBe("1");
+    expect(text(row.applied)).toBe("152000");
+    expect(preview.fxIqd).toBe(0n);
+    expect(text(preview.amountIqd)).toBe("152000");
+  });
+
+  it("flags an allocation beyond the invoice balance and one beyond the payment", () => {
+    const over = paymentPreview({ currency: "IQD", amount: n("400000"), settlementRate: n("1520"), allocations: [{ ...usdInvoice, amount: n("305520") }] });
+    expect(text(over.rows[0]!.applied)).toBe("201");
+    expect(over.rows[0]!.overRemaining).toBe(true);
+    const iqd = paymentPreview({
       currency: "IQD",
       amount: n("1000"),
-      settlementRate: n("1"),
-      allocations: [{ invoiceId: "a", invoiceCurrency: "IQD", invoiceRate: n("1"), applied: n("1200") }],
+      settlementRate: 0n,
+      allocations: [{ invoiceId: "a", invoiceCurrency: "IQD", bookedRate: n("1"), remaining: n("5000"), amount: n("1200") }],
     });
-    expect(preview.fxIqd).toBe(0n);
-    expect(preview.overAllocated).toBe(true);
+    expect(iqd.fxIqd).toBe(0n);
+    expect(iqd.overAllocated).toBe(true);
+  });
+
+  it("converts to six decimals, as the server posts", () => {
+    const preview = paymentPreview({ currency: "IQD", amount: n("1000"), settlementRate: n("1520"), allocations: [{ ...usdInvoice, amount: n("1000") }] });
+    expect(text(preview.rows[0]!.applied)).toBe("0.657895");
+  });
+
+  it("finds the one settlement currency", () => {
+    expect(settlementCurrency("IQD", ["IQD"])).toBe("IQD");
+    expect(settlementCurrency("IQD", ["USD", "IQD"])).toBe("USD");
+    expect(settlementCurrency("USD", ["IQD"])).toBe("USD");
+    expect(settlementCurrency("USD", ["EUR" as CurrencyCode])).toBeNull();
+  });
+
+  it("settles a balance exactly when the rates allow, otherwise just under it", () => {
+    const base = { invoiceCurrency: "USD" as const, paymentCurrency: "IQD" as const, settlementRate: n("1520"), digits: 0 };
+    expect(text(settlingAmount({ ...base, remaining: n("200") }))).toBe("304000");
+    // IQD invoice of 150,000 from USD at 1,520 (2 decimals): 98.68 USD.
+    const usd = settlingAmount({ remaining: n("150000"), invoiceCurrency: "IQD", paymentCurrency: "USD", settlementRate: n("1520"), digits: 2 });
+    expect(text(usd)).toBe("98.68");
+    expect(settlingAmount({ ...base, remaining: 0n })).toBe(0n);
   });
 });
 
@@ -206,5 +271,7 @@ describe("reports and helpers", () => {
     expect(isSeparationOfDuties(new ApiError(403, "A purchase creator cannot approve its supplier payment"))).toBe(true);
     expect(isRateOverrideForbidden(new ApiError(403, "Editing the purchase exchange rate requires purchases.override_rate"))).toBe(true);
     expect(isMissingRate(new ApiError(422, "No exchange rate exists for USD at the requested date"))).toBe(true);
+    expect(isMissingRate(new ApiError(422, "Rate missing", "EXCHANGE_RATE_NOT_FOUND"))).toBe(true);
+    expect(isMissingRate(new ApiError(422, "Request validation failed", "VALIDATION_FAILED"))).toBe(false);
   });
 });
