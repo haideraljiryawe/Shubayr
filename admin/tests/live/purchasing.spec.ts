@@ -126,6 +126,19 @@ async function startPayment(page: Page, supplierId: string, cashId: string, invo
   await page.getByTestId("payment-cash").selectOption(cashId);
 }
 
+/**
+ * Type an override rate once the payment-date rate is on screen. The rate
+ * field remounts when that rate finishes loading; typing before then can land
+ * on the input being replaced and be lost (the default rate would apply).
+ */
+async function overrideRate(page: Page, value: string) {
+  const field = page.getByTestId("payment-rate");
+  await expect(field).toBeEnabled();
+  await expect(field).toHaveValue(/^\d/);
+  await field.fill(value);
+  await expect(field).toHaveValue(value);
+}
+
 /** Review, confirm, and hand back what the API posted. */
 async function confirmPayment(page: Page) {
   await page.getByTestId("payment-review-button").click();
@@ -329,7 +342,7 @@ test("USD 100 × 2 at 1,500, then payments at 1,520 and 1,480 show the FX before
     await page.goto(`/purchasing/payments/new?supplier_id=${state.usdSupplier!.id}&invoice_id=${invoiceId}`);
     await page.getByTestId("payment-cash").selectOption(state.usdCash!);
     await page.getByTestId("payment-amount").fill("100");
-    await page.getByTestId("payment-rate").fill(rate);
+    await overrideRate(page, rate);
     const row = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
     await row.getByTestId("payment-apply").fill("100");
     // Carried at 1,500 = 150,000; paid at 1,520 = 152,000 (loss) or 1,480 = 148,000 (gain).
@@ -356,9 +369,7 @@ test("a USD invoice of 200 @ 1,500 paid from IQD 304,000 at 1,520 is settled; th
   await startPayment(page, state.usdSupplier!.id, state.iqdCash!, invoice.id);
   // An IQD account pays a USD invoice: the USD rate on the payment date is
   // shown, and the payer (purchases.override_rate) may set it.
-  const rate = page.getByTestId("payment-rate");
-  await expect(rate).toBeEnabled();
-  await rate.fill("1520");
+  await overrideRate(page, "1520");
   const row = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
   await expect(row).toHaveAttribute("data-cross", "true");
   await expect(row.getByTestId("payment-row-rate")).toHaveText("1520");
@@ -389,7 +400,7 @@ test("a partial cross-currency allocation: 76,000 IQD at 1,520 applies 50 USD; t
   const invoice = await invoiceFor(page, request, state.usdSupplier!.id, "H", "2", "100");
   await switchUser(page, state.payer!.username, state.payer!.password);
   await startPayment(page, state.usdSupplier!.id, state.iqdCash!, invoice.id);
-  await page.getByTestId("payment-rate").fill("1520");
+  await overrideRate(page, "1520");
   await page.getByTestId("payment-amount").fill("76000");
   const row = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
   await row.getByTestId("payment-apply").fill("76000");
@@ -403,7 +414,7 @@ test("a partial cross-currency allocation: 76,000 IQD at 1,520 applies 50 USD; t
 
   // The remaining 150 USD: "settle" fills 228,000 IQD at 1,520.
   await startPayment(page, state.usdSupplier!.id, state.iqdCash!, invoice.id);
-  await page.getByTestId("payment-rate").fill("1520");
+  await overrideRate(page, "1520");
   const again = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
   await expect(again).toContainText("150.00 USD");
   await again.getByTestId("payment-settle").click();
