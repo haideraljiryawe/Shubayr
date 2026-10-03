@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/storage/session_credentials.dart';
 import '../../data/auth_repository_mock.dart';
@@ -42,6 +43,11 @@ class SessionController extends AsyncNotifier<Session> {
 
   bool _owns(int owner) => ref.mounted && _credentials.owns(owner);
   int _profileRevision = 0;
+  final _otpRequests = <(int, String), Future<void>>{};
+  final _verifications =
+      <(String, String), ({int owner, Future<Session?> task})>{};
+  int? _profileSubmitting;
+
   @override
   Future<Session> build() async {
     final revision = _owner = _credentials.beginTransition();
@@ -98,12 +104,38 @@ class SessionController extends AsyncNotifier<Session> {
   }
 
   /// `POST /auth/request-otp`. Errors propagate for the screen to display.
-  Future<void> requestOtp(String phone) =>
-      ref.read(authRepositoryProvider).requestOtp(phone);
+  Future<void> requestOtp(String phone) {
+    final key = (_credentials.revision, phone);
+    final pending = _otpRequests[key];
+    if (pending != null) return pending;
+    final task =
+        Future<void>.sync(
+          () => ref.read(authRepositoryProvider).requestOtp(phone),
+        ).whenComplete(() {
+          _otpRequests.remove(key);
+        });
+    _otpRequests[key] = task;
+    return task;
+  }
 
   /// A null result belongs to an obsolete attempt; callers must not navigate
   /// or show an error/success for it. Credentials and identity share ownership.
-  Future<Session?> verifyOtp({
+  Future<Session?> verifyOtp({required String phone, required String code}) {
+    final key = (phone, code);
+    final pending = _verifications[key];
+    if (pending != null && _owns(pending.owner)) return pending.task;
+    // A distinct attempt retains C04's latest-attempt ownership semantics.
+    late final Future<Session?> task;
+    task = _verifyOtp(phone: phone, code: code).whenComplete(() {
+      if (identical(_verifications[key]?.task, task)) {
+        _verifications.remove(key);
+      }
+    });
+    _verifications[key] = (owner: _owner, task: task);
+    return task;
+  }
+
+  Future<Session?> _verifyOtp({
     required String phone,
     required String code,
   }) async {
@@ -158,6 +190,8 @@ class SessionController extends AsyncNotifier<Session> {
       throw const AppFailure.unauthorized();
     }
     final sessionRevision = _credentials.revision;
+    if (_profileSubmitting == sessionRevision) return null;
+    _profileSubmitting = sessionRevision;
     final request = ++_profileRevision;
     bool isCurrent() =>
         _owns(sessionRevision) &&
@@ -173,6 +207,8 @@ class SessionController extends AsyncNotifier<Session> {
     } catch (_) {
       if (!isCurrent()) return null;
       rethrow;
+    } finally {
+      if (_profileSubmitting == sessionRevision) _profileSubmitting = null;
     }
   }
 
@@ -182,14 +218,22 @@ class SessionController extends AsyncNotifier<Session> {
     // Revoke local authorization immediately; disk cleanup may be waiting for
     // a platform write, but it cannot publish over or clear a newer login.
     state = const AsyncLoading();
-    final removed = await _credentials.clear(revision);
+    final StoredCredentials? removed;
+    try {
+      removed = await _credentials.clear(revision);
+    } catch (error, stack) {
+      final failure = actionFailure(error, stack);
+      if (_owns(revision)) state = AsyncError(failure, stack);
+      return;
+    }
     if (_owns(revision)) state = const AsyncData(Session.signedOut());
     final refreshToken = removed?.refreshToken;
     if (refreshToken != null) {
       try {
         await repository.logout(refreshToken);
-      } catch (_) {
+      } catch (error, stack) {
         // Local credentials are always removed, including when offline.
+        actionFailure(error, stack);
       }
     }
   }

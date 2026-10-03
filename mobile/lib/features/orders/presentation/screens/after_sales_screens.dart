@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
@@ -74,11 +75,9 @@ class _ReviewOrderScreenState extends ConsumerState<_ReviewOrderForm> {
         _itemId = null;
       });
       _comment.clear();
-    } catch (e) {
+    } catch (e, stack) {
       if (mounted) {
-        setState(
-          () => _error = e is AppFailure ? e : const AppFailure.unknown(),
-        );
+        setState(() => _error = actionFailure(e, stack));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -266,11 +265,9 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
           );
       if (!mounted || request == null) return;
       setState(() => _submitted = request);
-    } catch (e) {
+    } catch (e, stack) {
       if (mounted) {
-        setState(
-          () => _error = e is AppFailure ? e : const AppFailure.unknown(),
-        );
+        setState(() => _error = actionFailure(e, stack));
       }
     } finally {
       if (mounted) setState(() => _busy = false);

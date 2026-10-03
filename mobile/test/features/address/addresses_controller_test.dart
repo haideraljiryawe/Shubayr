@@ -39,6 +39,31 @@ void main() {
   });
   tearDown(() => container.dispose());
 
+  test(
+    'duplicate address creation coalesces and failed decoding preserves the list',
+    () async {
+      final before = await container.read(addressesControllerProvider.future);
+      final gate = Completer<Address>();
+      repo.onCreate = (_) => gate.future;
+      const input = AddressInput(city: 'Baghdad', contactPhone: '07700000000');
+      final first = controller().add(input);
+      final duplicate = controller().add(input);
+      final firstError = expectLater(first, throwsA(isA<AppFailure>()));
+      final duplicateError = expectLater(duplicate, throwsA(isA<AppFailure>()));
+      await Future<void>.delayed(Duration.zero);
+      expect(repo.created, hasLength(1));
+      gate.completeError(
+        const AppFailure(FailureKind.server, code: 'MALFORMED_RESPONSE'),
+      );
+      await Future.wait([firstError, duplicateError]);
+      expect(items(), same(before));
+      repo.onCreate = null;
+      await controller().add(input);
+      expect(items(), hasLength(before.length + 1));
+      expect(repo.created, hasLength(2));
+    },
+  );
+
   test('refresh retains data, reports failure and can recover', () async {
     final previous = await container.read(addressesControllerProvider.future);
     final pending = Completer<AddressPage>();

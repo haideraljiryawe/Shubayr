@@ -4,7 +4,8 @@ import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
+import '../../../../core/storage/session_credentials.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
@@ -77,6 +78,13 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
     if (_busy) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final navigator = Navigator.of(context);
+    final credentials = ref.read(sessionCredentialsProvider);
+    final owner = credentials.revision;
+    final userId = ref.read(sessionControllerProvider).value?.user?.id;
+    bool isCurrent() =>
+        mounted &&
+        credentials.owns(owner) &&
+        ref.read(sessionControllerProvider).value?.user?.id == userId;
 
     setState(() => _busy = true);
     final details = _details.text.trim();
@@ -100,10 +108,10 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
       } else {
         await controller.edit(widget.address!.id, input);
       }
-      if (mounted) navigator.pop();
-    } catch (error) {
-      if (!mounted) return;
-      final failure = error is AppFailure ? error : const AppFailure.unknown();
+      if (isCurrent()) navigator.pop();
+    } catch (error, stack) {
+      if (!mounted || !isCurrent()) return;
+      final failure = actionFailure(error, stack);
       showAppSnackBarMessage(
         context,
         message: failure.localizedMessage(context.l10n),

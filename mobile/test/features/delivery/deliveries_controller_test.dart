@@ -36,6 +36,28 @@ void main() {
   tearDown(() => container.dispose());
 
   test(
+    'duplicate delivery action never retries a failed write implicitly',
+    () async {
+      await container.read(deliveriesProvider.future);
+      final item = list().items.firstWhere(
+        (d) => d.status == 'out_for_delivery',
+      );
+      final gate = Completer<Delivery>();
+      repo.onUpdate = (_, _) => gate.future;
+      final first = controller().updateStatus(item.id, 'delivered');
+      final failure = expectLater(first, throwsA(isA<StateError>()));
+      expect(await controller().updateStatus(item.id, 'delivered'), isFalse);
+      await Future<void>.delayed(Duration.zero);
+      gate.completeError(StateError('unexpected'));
+      await failure;
+      expect(repo.updates, hasLength(1));
+      expect(list().updatingId, isNull);
+      repo.onUpdate = null;
+      expect(await controller().updateStatus(item.id, 'delivered'), isTrue);
+    },
+  );
+
+  test(
     'failure requires reason and retry sends the updated server version',
     () async {
       await container.read(deliveriesProvider.future);

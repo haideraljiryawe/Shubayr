@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'core/diagnostics/diagnostics.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +23,15 @@ import 'features/settings/presentation/providers/settings_providers.dart';
 /// settings refresh and page content never hold the startup screen open.
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (details) => Diagnostics.report(
+    details.exception,
+    details.stack ?? StackTrace.current,
+    boundary: 'flutter.unhandled',
+  );
+  PlatformDispatcher.instance.onError = (error, stack) {
+    Diagnostics.report(error, stack, boundary: 'platform.unhandled');
+    return true;
+  };
 
   // Keep the native launch screen until local presentation assets are ready.
   // This waits for real decoding/font loading, never a display-duration timer.

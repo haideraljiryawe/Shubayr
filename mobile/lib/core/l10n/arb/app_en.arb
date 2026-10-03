@@ -726,5 +726,6 @@
   "cartPricesChanged": "Some prices changed. You will be asked to review and accept them at checkout.",
   "deliveryFailureReason": "Reason for failed delivery",
   "deliveryRetryCount": "Retry count",
-  "orderStateConflict": "This order changed or can no longer be cancelled. Please review its latest status."
+  "orderStateConflict": "This order changed or can no longer be cancelled. Please review its latest status.",
+  "errorConflict": "This action conflicts with the current state. Refresh and review before trying again."
 }

@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../../../core/error/response_decode.dart';
 import '../domain/order_repository.dart';
 import 'coupon.dart';
 import 'order.dart';
@@ -10,10 +11,12 @@ class OrderRepositoryRemote implements OrderRepository {
   final ApiClient _api;
 
   @override
-  Future<Coupon> validateCoupon(String code) async => Coupon.fromJson(
-    await _api.post<Map<String, dynamic>>(
-      '/coupons/validate',
-      body: {'code': code},
+  Future<Coupon> validateCoupon(String code) => decodeResponse(
+    () async => Coupon.fromJson(
+      await _api.post<Map<String, dynamic>>(
+        '/coupons/validate',
+        body: {'code': code},
+      ),
     ),
   );
 
@@ -23,22 +26,24 @@ class OrderRepositoryRemote implements OrderRepository {
     String? couponCode,
     List<({String variantId, String priceVersion})> acceptedPriceVersions =
         const [],
-  }) async => Order.fromJson(
-    await _api.post<Map<String, dynamic>>(
-      '/orders',
-      body: {
-        'address_id': addressId,
-        'coupon_code': ?couponCode,
-        'payment_method': 'cod',
-        if (acceptedPriceVersions.isNotEmpty)
-          'accepted_price_versions': [
-            for (final accepted in acceptedPriceVersions)
-              {
-                'variant_id': accepted.variantId,
-                'price_version': accepted.priceVersion,
-              },
-          ],
-      },
+  }) => decodeResponse(
+    () async => Order.fromJson(
+      await _api.post<Map<String, dynamic>>(
+        '/orders',
+        body: {
+          'address_id': addressId,
+          'coupon_code': ?couponCode,
+          'payment_method': 'cod',
+          if (acceptedPriceVersions.isNotEmpty)
+            'accepted_price_versions': [
+              for (final accepted in acceptedPriceVersions)
+                {
+                  'variant_id': accepted.variantId,
+                  'price_version': accepted.priceVersion,
+                },
+            ],
+        },
+      ),
     ),
   );
 
@@ -47,29 +52,36 @@ class OrderRepositoryRemote implements OrderRepository {
     String? status,
     int page = 1,
     int perPage = 20,
-  }) async => OrderPage.fromJson(
-    await _api.get<Map<String, dynamic>>(
-      '/orders',
-      query: {'status': ?status, 'page': '$page', 'per_page': '$perPage'},
+  }) => decodeResponse(
+    () async => OrderPage.fromJson(
+      await _api.get<Map<String, dynamic>>(
+        '/orders',
+        query: {'status': ?status, 'page': '$page', 'per_page': '$perPage'},
+      ),
     ),
   );
 
   @override
-  Future<Order> fetchOrder(String id) async =>
-      Order.fromJson(await _api.get<Map<String, dynamic>>('/orders/$id'));
+  Future<Order> fetchOrder(String id) => decodeResponse(
+    () async =>
+        Order.fromJson(await _api.get<Map<String, dynamic>>('/orders/$id')),
+  );
 
   @override
-  Future<OrderTracking> fetchTracking(String id) async =>
-      OrderTracking.fromJson(
-        await _api.get<Map<String, dynamic>>('/orders/$id/track'),
-      );
+  Future<OrderTracking> fetchTracking(String id) => decodeResponse(
+    () async => OrderTracking.fromJson(
+      await _api.get<Map<String, dynamic>>('/orders/$id/track'),
+    ),
+  );
 
   @override
-  Future<Order> cancelOrder(String id, {required int version}) async =>
-      Order.fromJson(
-        await _api.post<Map<String, dynamic>>(
-          '/orders/$id/cancel',
-          body: {'version': version},
+  Future<Order> cancelOrder(String id, {required int version}) =>
+      decodeResponse(
+        () async => Order.fromJson(
+          await _api.post<Map<String, dynamic>>(
+            '/orders/$id/cancel',
+            body: {'version': version},
+          ),
         ),
       );
 }

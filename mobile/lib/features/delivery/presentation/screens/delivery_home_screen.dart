@@ -6,6 +6,7 @@ import 'package:intl/intl.dart' show DateFormat;
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
@@ -308,8 +309,8 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
             reason: status == 'failed' ? reason.trim() : null,
           );
       if (saved) onUpdated();
-    } catch (error) {
-      final failure = error is AppFailure ? error : const AppFailure.unknown();
+    } catch (error, stack) {
+      final failure = actionFailure(error, stack);
       onFailed(failure);
     } finally {
       if (mounted) setState(() => _dialogOpen = false);

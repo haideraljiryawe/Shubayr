@@ -1796,4 +1796,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get orderStateConflict =>
       'This order changed or can no longer be cancelled. Please review its latest status.';
+
+  @override
+  String get errorConflict =>
+      'This action conflicts with the current state. Refresh and review before trying again.';
 }

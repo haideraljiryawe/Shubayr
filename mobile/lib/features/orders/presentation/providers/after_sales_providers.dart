@@ -57,6 +57,7 @@ class ReviewEligibilityController extends AsyncNotifier<Set<String>> {
   final String orderId;
   int _generation = 0;
   Object? _owner;
+  final _submitting = <Object>{};
 
   bool _owns(Object? identity) =>
       ref.mounted &&
@@ -127,6 +128,8 @@ class ReviewEligibilityController extends AsyncNotifier<Set<String>> {
     final identity = ref.read(ordersIdentityProvider);
     final generation = _generation;
     if (!_owns(identity)) return null;
+    final key = (identity, item.id);
+    if (_submitting.contains(key)) return null;
     final eligible = state.asData?.value;
     if (state.isLoading ||
         state.hasError ||
@@ -134,6 +137,7 @@ class ReviewEligibilityController extends AsyncNotifier<Set<String>> {
         !eligible.contains(item.id)) {
       throw const AppFailure(FailureKind.validation);
     }
+    _submitting.add(key);
     try {
       final review = await ref
           .read(afterSalesRepositoryProvider)
@@ -154,6 +158,8 @@ class ReviewEligibilityController extends AsyncNotifier<Set<String>> {
     } catch (_) {
       if (!_owns(identity)) return null;
       rethrow;
+    } finally {
+      _submitting.remove(key);
     }
   }
 }
@@ -229,6 +235,7 @@ class ReturnEligibilityController extends AsyncNotifier<ReturnEligibility> {
   final String orderId;
   int _generation = 0;
   Object? _owner;
+  final _submitting = <Object>{};
   bool _owns(Object? identity) =>
       ref.mounted &&
       identity != null &&
@@ -291,6 +298,8 @@ class ReturnEligibilityController extends AsyncNotifier<ReturnEligibility> {
     final identity = ref.read(ordersIdentityProvider);
     final generation = _generation;
     if (!_owns(identity)) return null;
+    final key = identity!;
+    if (_submitting.contains(key)) return null;
     final current = state.asData?.value;
     if (state.isLoading ||
         state.hasError ||
@@ -305,6 +314,7 @@ class ReturnEligibilityController extends AsyncNotifier<ReturnEligibility> {
         )) {
       throw const AppFailure(FailureKind.validation);
     }
+    _submitting.add(key);
     try {
       final request = await ref
           .read(afterSalesRepositoryProvider)
@@ -326,6 +336,8 @@ class ReturnEligibilityController extends AsyncNotifier<ReturnEligibility> {
     } catch (_) {
       if (!_owns(identity)) return null;
       rethrow;
+    } finally {
+      _submitting.remove(key);
     }
   }
 }

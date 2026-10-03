@@ -1,3 +1,4 @@
+import 'package:shubayr/core/error/failure.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -25,6 +26,63 @@ class _Tokens extends InMemoryTokenStore {
 }
 
 void main() {
+  test(
+    'malformed refresh response retains credentials and leaves restore retryable',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      var rejectMe = true;
+      var otpRequests = 0;
+      server.listen((request) async {
+        Object body;
+        if (request.uri.path == '/auth/refresh') {
+          body = {'access_token': 'incomplete-access'};
+        } else if (request.uri.path == '/me' && rejectMe) {
+          request.response.statusCode = 401;
+          body = {'code': 'UNAUTHORIZED'};
+        } else {
+          if (request.uri.path.startsWith('/auth/')) otpRequests++;
+          body = {'id': 'A', 'role': 'customer', 'surface': 'app'};
+        }
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode(body));
+        await request.response.close();
+      });
+      final tokens = InMemoryTokenStore();
+      await tokens.save(accessToken: 'A-access', refreshToken: 'A-refresh');
+      final c = ProviderContainer(
+        retry: (_, _) => null,
+        overrides: [
+          tokenStoreProvider.overrideWithValue(tokens),
+          appConfigProvider.overrideWithValue(
+            AppConfig(
+              apiBaseUrl: 'http://127.0.0.1:${server.port}',
+              dataSource: DataSource.remote,
+            ),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      c.listen(sessionControllerProvider, (_, _) {});
+      await expectLater(
+        c.read(sessionControllerProvider.future),
+        throwsA(
+          isA<AppFailure>().having((e) => e.code, 'code', 'MALFORMED_RESPONSE'),
+        ),
+      );
+      expect(await tokens.readAccessToken(), 'A-access');
+      expect(await tokens.readRefreshToken(), 'A-refresh');
+      expect(c.read(sessionControllerProvider).value?.isSignedIn, isNot(true));
+      rejectMe = false;
+      c.invalidate(sessionControllerProvider);
+      expect(
+        (await c.read(sessionControllerProvider.future)).isSignedIn,
+        isTrue,
+      );
+      expect(otpRequests, 0);
+    },
+  );
+
   test(
     'a new session refresh does not join the previous session pending refresh',
     () async {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../core/error/failure.dart';
+import '../../../core/error/response_decode.dart';
 import '../../../core/layout/app_layout.dart';
 import '../../../core/l10n/l10n_context.dart';
 import '../../../core/theme/theme_context.dart';
@@ -38,12 +38,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
       final destination = item.destination(session!.role);
       if (destination != null) await context.push(destination);
-    } catch (error) {
-      if (mounted) {
+    } catch (error, stack) {
+      if (mounted && session == ref.read(sessionControllerProvider).value) {
         showAppSnackBarMessage(
           context,
-          message: (error is AppFailure ? error : const AppFailure.unknown())
-              .localizedMessage(context.l10n),
+          message: (actionFailure(error, stack)).localizedMessage(context.l10n),
         );
       }
     } finally {

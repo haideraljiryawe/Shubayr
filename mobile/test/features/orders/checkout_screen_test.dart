@@ -108,6 +108,7 @@ class _CouponCart extends CartRepositoryMock {
     'total': 5071,
   });
   bool failReprice = false;
+  Object? couponFailure;
   Completer<void>? repriceGate;
   final actions = <String>[];
   @override
@@ -116,6 +117,7 @@ class _CouponCart extends CartRepositoryMock {
   Future<Cart> applyCoupon(String code) async {
     actions.add('apply:$code');
     await repriceGate?.future;
+    if (couponFailure != null) throw couponFailure!;
     cart = Cart.fromJson(pricedCart());
     if (failReprice) throw const AppFailure.network();
     return cart;
@@ -199,6 +201,49 @@ Widget _host({
 );
 
 void main() {
+  for (final failure in <Object>[
+    const AppFailure.network(),
+    const AppFailure.timeout(),
+    const AppFailure(FailureKind.server, code: 'MALFORMED_RESPONSE'),
+    const AppFailure(FailureKind.notFound, code: 'COUPON_REJECTED'),
+    StateError('unexpected-secret'),
+  ]) {
+    testWidgets(
+      'coupon error is meaningful and busy clears: ${failure.runtimeType} $failure',
+      (tester) async {
+        final carts = _CouponCart()..couponFailure = failure;
+        await tester.pumpWidget(_host(carts: carts));
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(CheckoutScreen)),
+        );
+        await tester.enterText(find.byType(TextField), 'SAVE');
+        await tester.tap(find.text('Apply'));
+        await tester.pumpAndSettle();
+        final expected =
+            failure is AppFailure && failure.code == 'COUPON_REJECTED'
+            ? l.checkoutCouponInvalid
+            : (failure is AppFailure ? failure : const AppFailure.unknown())
+                  .localizedMessage(l);
+        expect(find.text(expected), findsWidgets);
+        if (failure is! AppFailure || failure.code != 'COUPON_REJECTED') {
+          expect(find.text(l.checkoutCouponInvalid), findsNothing);
+        }
+        expect(find.textContaining('unexpected-secret'), findsNothing);
+        expect(find.text('Place order'), findsNothing);
+        carts.couponFailure = null;
+        await tester.ensureVisible(find.text('Retry'));
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Apply'));
+        await tester.tap(find.text('Apply'));
+        await tester.pumpAndSettle();
+        expect(carts.actions, ['apply:SAVE', 'apply:SAVE']);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   for (final fail in [false, true]) {
     testWidgets(
       'first pending reprice frame hides stale totals (failure: $fail)',

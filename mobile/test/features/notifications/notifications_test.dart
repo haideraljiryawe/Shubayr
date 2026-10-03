@@ -51,6 +51,28 @@ class InboxRepository extends NotificationRepository {
 }
 
 void main() {
+  test('two markRead callers coalesce the same entity mutation', () async {
+    final repo = InboxRepository()..pendingRead = Completer<void>();
+    final c = ProviderContainer(
+      overrides: [
+        sessionControllerProvider.overrideWith(
+          () => TestSession(initial: monitorSession),
+        ),
+        notificationRepositoryProvider.overrideWithValue(repo),
+      ],
+    );
+    addTearDown(c.dispose);
+    await c.read(sessionControllerProvider.future);
+    final state = await c.read(inboxProvider.future);
+    final controller = c.read(inboxProvider.notifier);
+    final a = controller.markRead(state.items.first);
+    final b = controller.markRead(state.items.first);
+    repo.pendingRead!.complete();
+    expect(await a, isTrue);
+    expect(await b, isTrue);
+    expect(repo.reads, ['1']);
+  });
+
   test('deep links are rebuilt for the authenticated role only', () {
     final monitor = InboxNotification.fromJson(notification('1'));
     expect(monitor.destination(UserRole.monitor), '/monitor/orders/order-1');

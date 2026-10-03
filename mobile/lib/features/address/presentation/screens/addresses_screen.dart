@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
@@ -231,9 +231,9 @@ class _AddressMenu extends ConsumerWidget {
   ) async {
     try {
       await operation();
-    } catch (error) {
+    } catch (error, stack) {
       if (!context.mounted) return;
-      final failure = error is AppFailure ? error : const AppFailure.unknown();
+      final failure = actionFailure(error, stack);
       showAppSnackBarMessage(
         context,
         message: failure.localizedMessage(context.l10n),

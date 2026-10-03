@@ -3499,6 +3499,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This order changed or can no longer be cancelled. Please review its latest status.'**
   String get orderStateConflict;
+
+  /// No description provided for @errorConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This action conflicts with the current state. Refresh and review before trying again.'**
+  String get errorConflict;
 }
 
 class _AppLocalizationsDelegate

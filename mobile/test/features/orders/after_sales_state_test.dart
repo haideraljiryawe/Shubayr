@@ -125,6 +125,68 @@ void main() {
   void watchReturns() => c.listen(returnEligibilityProvider('o'), (_, _) {});
 
   test(
+    'duplicate review is suppressed, failure releases guard and retains eligibility',
+    () async {
+      watchReviews();
+      await c.read(reviewEligibilityProvider('o').future);
+      final gate = Completer<Review>();
+      var calls = 0;
+      repo.onSubmitReview = () {
+        calls++;
+        return gate.future;
+      };
+      final controller = c.read(reviewEligibilityProvider('o').notifier);
+      final first = controller.submit(
+        item: serverOrder.items.single,
+        rating: 5,
+      );
+      final failure = expectLater(first, throwsA(isA<StateError>()));
+      expect(
+        await controller.submit(item: serverOrder.items.single, rating: 5),
+        isNull,
+      );
+      expect(calls, 1);
+      gate.completeError(StateError('unexpected'));
+      await failure;
+      expect(c.read(reviewEligibilityProvider('o')).requireValue, {'i'});
+      repo.onSubmitReview = () async {
+        calls++;
+        return review();
+      };
+      expect(
+        await controller.submit(item: serverOrder.items.single, rating: 5),
+        isNotNull,
+      );
+      expect(calls, 2);
+    },
+  );
+
+  test(
+    'duplicate return cannot consume the same eligible quantity twice',
+    () async {
+      watchReturns();
+      await c.read(returnEligibilityProvider('o').future);
+      final gate = Completer<ReturnRequest>();
+      var calls = 0;
+      repo.onSubmitReturn = () {
+        calls++;
+        return gate.future;
+      };
+      final controller = c.read(returnEligibilityProvider('o').notifier);
+      const items = [ReturnRequestItem(orderItemId: 'i', quantity: .125)];
+      final first = controller.submit(items: items, reason: 'Damaged');
+      expect(await controller.submit(items: items, reason: 'Damaged'), isNull);
+      gate.complete(returned());
+      await first;
+      expect(calls, 1);
+      expect(
+        c.read(returnEligibilityProvider('o')).requireValue.remaining['i'],
+        .375,
+      );
+    },
+  );
+
+  test(
     'explicit reviewed flags avoid an account-wide review request',
     () async {
       for (final flag in [true, false]) {

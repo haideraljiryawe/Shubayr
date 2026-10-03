@@ -8,6 +8,7 @@ enum FailureKind {
   forbidden,
   notFound,
   validation,
+  conflict,
   rateLimited,
   server,
   unknown,
@@ -40,6 +41,9 @@ class AppFailure implements Exception {
   /// primary copy is always localised.
   final String? serverMessage;
 
+  bool hasFieldError(String field) =>
+      errors.any((error) => error.field == field);
+
   String localizedMessage(AppLocalizations l10n) => switch (kind) {
     FailureKind.network => l10n.errorNetwork,
     FailureKind.timeout => l10n.errorTimeout,
@@ -47,6 +51,7 @@ class AppFailure implements Exception {
     FailureKind.forbidden => l10n.adminNoAccess,
     FailureKind.notFound => l10n.errorNotFound,
     FailureKind.validation => l10n.errorValidation,
+    FailureKind.conflict => l10n.errorConflict,
     FailureKind.rateLimited => l10n.errorRateLimited,
     FailureKind.server => l10n.errorServer,
     FailureKind.unknown => l10n.errorUnknown,

@@ -6,7 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/sign_in_destination.dart';
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
+import '../../../../core/storage/session_credentials.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
@@ -42,14 +43,20 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
   }
 
   Future<void> _run(Future<void> Function() action) async {
+    if (_isSubmitting) return;
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
+    final credentials = ref.read(sessionCredentialsProvider);
+    var owner = credentials.revision;
     try {
-      await action();
-    } on AppFailure catch (failure) {
-      if (!mounted) return;
+      final pending = action();
+      owner = credentials.revision;
+      await pending;
+    } catch (error, stack) {
+      final failure = actionFailure(error, stack);
+      if (!mounted || !credentials.owns(owner)) return;
       setState(() => _errorMessage = failure.localizedMessage(context.l10n));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

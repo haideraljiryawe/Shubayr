@@ -1781,4 +1781,8 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get orderStateConflict =>
       'تغيّر الطلب أو لم يعد إلغاؤه متاحًا. راجع حالته الحالية.';
+
+  @override
+  String get errorConflict =>
+      'تتعارض هذه العملية مع الحالة الحالية. حدّث البيانات وراجعها قبل المحاولة مجددًا.';
 }

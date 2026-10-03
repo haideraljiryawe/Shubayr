@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../error/error_mapper.dart';
 import '../error/failure.dart';
+import '../error/response_decode.dart';
 import '../storage/session_credentials.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/logging_interceptor.dart';
@@ -29,6 +30,14 @@ class ApiClient {
 
   Future<T> delete<T>(String path) => _guard(() => dio.delete<T>(path));
 
+  Future<void> postVoid(String path, {Object? body}) async {
+    try {
+      await dio.post<void>(path, data: body);
+    } on DioException catch (error) {
+      throw mapDioException(error);
+    }
+  }
+
   /// DELETE that expects no body (e.g. a `204 No Content`), so an empty
   /// response is success rather than a [FailureKind.server] error.
   Future<void> deleteVoid(String path) async {
@@ -39,18 +48,19 @@ class ApiClient {
     }
   }
 
-  Future<T> _guard<T>(Future<Response<T>> Function() send) async {
-    try {
-      final response = await send();
-      final data = response.data;
-      if (data == null) {
-        throw const AppFailure(FailureKind.server);
-      }
-      return data;
-    } on DioException catch (e) {
-      throw mapDioException(e);
-    }
-  }
+  Future<T> _guard<T>(Future<Response<T>> Function() send) =>
+      decodeResponse(() async {
+        try {
+          final response = await send();
+          final data = response.data;
+          if (data == null) {
+            throw const AppFailure(FailureKind.server);
+          }
+          return data;
+        } on DioException catch (e) {
+          throw mapDioException(e);
+        }
+      });
 }
 
 /// Raised by the auth interceptor when the API rejects our token.
@@ -109,9 +119,17 @@ final dioProvider = Provider<Dio>((ref) {
           if (!credentials.owns(owner)) {
             return false;
           }
-          final nextAccess = response.data?['access_token'] as String?;
-          final nextRefresh = response.data?['refresh_token'] as String?;
-          if (nextAccess == null || nextRefresh == null) return false;
+          final nextAccess = response.data?['access_token'];
+          final nextRefresh = response.data?['refresh_token'];
+          if (nextAccess is! String ||
+              nextAccess.isEmpty ||
+              nextRefresh is! String ||
+              nextRefresh.isEmpty) {
+            throw const AppFailure(
+              FailureKind.server,
+              code: 'MALFORMED_RESPONSE',
+            );
+          }
           return await credentials.save(
             owner,
             accessToken: nextAccess,

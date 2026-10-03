@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../../../core/error/response_decode.dart';
 import '../../../core/error/failure.dart';
 import '../../orders/data/order.dart';
 
@@ -80,7 +81,7 @@ class MonitorRepository {
   Future<MonitorPage> fetch({
     MonitorQuery query = const MonitorQuery(),
     int page = 1,
-  }) async {
+  }) => decodeResponse(() async {
     final result = MonitorPage.fromJson(
       await api.get<Map<String, dynamic>>(
         '/monitor/orders',
@@ -93,11 +94,13 @@ class MonitorRepository {
       throw const AppFailure(FailureKind.server);
     }
     return result;
-  }
+  });
 
-  Future<MonitorOrder> detail(String id) async => MonitorOrder.fromJson(
-    await api.get<Map<String, dynamic>>(
-      '/monitor/orders/${Uri.encodeComponent(id)}',
+  Future<MonitorOrder> detail(String id) => decodeResponse(
+    () async => MonitorOrder.fromJson(
+      await api.get<Map<String, dynamic>>(
+        '/monitor/orders/${Uri.encodeComponent(id)}',
+      ),
     ),
   );
 }

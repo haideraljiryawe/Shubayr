@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
@@ -98,22 +99,32 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
     }
     final identity = ref.read(ordersIdentityProvider);
     final controller = ref.read(cartControllerProvider.notifier);
-    final result = await (remove
-        ? controller.removeCoupon()
-        : controller.applyCoupon(code!));
-    if (!mounted || ref.read(ordersIdentityProvider) != identity) return;
-    setState(() {
-      _applyingCoupon = false;
-      if (result.status == CartMutationStatus.succeeded ||
-          result.status == CartMutationStatus.superseded) {
-        _couponCtrl.clear();
-      } else if (result.status == CartMutationStatus.failed) {
-        final error = result.error;
-        _couponError = error is AppFailure
-            ? error.localizedMessage(context.l10n)
-            : context.l10n.stateErrorTitle;
+    try {
+      final result = await (remove
+          ? controller.removeCoupon()
+          : controller.applyCoupon(code!));
+      if (!mounted || ref.read(ordersIdentityProvider) != identity) return;
+      setState(() {
+        if (result.status == CartMutationStatus.succeeded ||
+            result.status == CartMutationStatus.superseded) {
+          _couponCtrl.clear();
+        } else if (result.status == CartMutationStatus.failed) {
+          final error = result.error;
+          _couponError =
+              !remove && error is AppFailure && error.code == 'COUPON_REJECTED'
+              ? context.l10n.checkoutCouponInvalid
+              : (error is AppFailure ? error : const AppFailure.unknown())
+                    .localizedMessage(context.l10n);
+        }
+      });
+    } catch (error, stack) {
+      final failure = actionFailure(error, stack);
+      if (mounted && ref.read(ordersIdentityProvider) == identity) {
+        setState(() => _couponError = failure.localizedMessage(context.l10n));
       }
-    });
+    } finally {
+      if (mounted) setState(() => _applyingCoupon = false);
+    }
   }
 
   Future<void> _placeOrder(

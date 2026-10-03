@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
+import '../../../../core/storage/session_credentials.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
@@ -52,6 +53,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
+    final credentials = ref.read(sessionCredentialsProvider);
+    final owner = credentials.revision;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final phone = Validators.normalizePhone(_phoneController.text);
 
@@ -61,13 +65,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     });
     try {
       await ref.read(sessionControllerProvider.notifier).requestOtp(phone);
-      if (!mounted) return;
+      if (!mounted || !credentials.owns(owner)) return;
       context.pushNamed(
         AppRoutes.verifyOtpName,
         queryParameters: {'phone': phone, 'returnTo': ?widget.returnTo},
       );
-    } on AppFailure catch (failure) {
-      if (!mounted) return;
+    } catch (error, stack) {
+      final failure = actionFailure(error, stack);
+      if (!mounted || !credentials.owns(owner)) return;
       setState(() => _errorMessage = failure.localizedMessage(context.l10n));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

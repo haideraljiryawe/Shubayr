@@ -35,6 +35,32 @@ void main() {
   });
   tearDown(() => container.dispose());
 
+  test(
+    'duplicate toggle coalesces but add/remove/add intentions remain ordered',
+    () async {
+      await container.read(wishlistControllerProvider.future);
+      final controller = container.read(wishlistControllerProvider.notifier);
+      final gate = Completer<WishlistItem>();
+      repository.onAdd = (_) => gate.future;
+      final first = controller.toggle('p1');
+      final duplicate = controller.toggle('p1');
+      await Future<void>.delayed(Duration.zero);
+      expect(repository.added, ['p1']);
+      gate.complete(const WishlistItem(id: 'new', productId: 'p1'));
+      await Future.wait([first, duplicate]);
+      expect(repository.removed, isEmpty);
+      repository.onAdd = null;
+      await Future.wait([
+        controller.add('p1'),
+        controller.remove('p1'),
+        controller.add('p1'),
+      ]);
+      expect(repository.added, ['p1', 'p1', 'p1']);
+      expect(repository.removed, ['p1']);
+      expect(container.read(isWishlistedProvider('p1')), isTrue);
+    },
+  );
+
   test('refresh retains data, reports failure and can recover', () async {
     final previous = await container.read(wishlistControllerProvider.future);
     final pending = Completer<WishlistPage>();

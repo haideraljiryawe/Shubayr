@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/error/failure.dart';
+import '../../../core/storage/session_credentials.dart';
 import '../../../core/network/api_client.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../data/notification_repository.dart';
@@ -70,6 +71,7 @@ class InboxState {
 class InboxController extends AsyncNotifier<InboxState> {
   int _generation = 0;
   bool _syncing = false;
+  final _reading = <Object, Future<bool>>{};
   @override
   Future<InboxState> build() async {
     final identity = ref.watch(notificationIdentityProvider);
@@ -160,10 +162,27 @@ class InboxController extends AsyncNotifier<InboxState> {
     }
   }
 
-  Future<bool> markRead(InboxNotification item) async {
+  Future<bool> markRead(InboxNotification item) {
+    final identity = ref.read(notificationIdentityProvider);
+    if (!identity.signedIn) return Future.value(false);
+    final key = (
+      identity,
+      ref.read(sessionCredentialsProvider).revision,
+      item.id,
+    );
+    return _reading[key] ??= _markRead(item).whenComplete(() {
+      _reading.remove(key);
+    });
+  }
+
+  Future<bool> _markRead(InboxNotification item) async {
+    final credentials = ref.read(sessionCredentialsProvider);
+    final owner = credentials.revision;
     final identity = ref.read(notificationIdentityProvider);
     await ref.read(notificationRepositoryProvider).read(item.id);
-    if (!ref.mounted || identity != ref.read(notificationIdentityProvider)) {
+    if (!ref.mounted ||
+        !credentials.owns(owner) ||
+        identity != ref.read(notificationIdentityProvider)) {
       return false;
     }
     ref.invalidate(unreadCountProvider);

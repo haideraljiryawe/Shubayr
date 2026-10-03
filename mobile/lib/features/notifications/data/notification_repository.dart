@@ -1,5 +1,6 @@
 import '../../../app/router/app_routes.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/error/response_decode.dart';
 import '../../auth/domain/user_role.dart';
 
 class InboxNotification {
@@ -76,20 +77,24 @@ class InboxPage {
 class NotificationRepository {
   const NotificationRepository(this.api);
   final ApiClient api;
-  Future<InboxPage> fetch({int page = 1}) async => InboxPage.fromJson(
-    await api.get<Map<String, dynamic>>(
-      '/me/notifications',
-      query: {'page': page, 'per_page': 20},
+  Future<InboxPage> fetch({int page = 1}) => decodeResponse(
+    () async => InboxPage.fromJson(
+      await api.get<Map<String, dynamic>>(
+        '/me/notifications',
+        query: {'page': page, 'per_page': 20},
+      ),
     ),
   );
-  Future<int> unreadCount() async =>
-      (await api.get<Map<String, dynamic>>(
-            '/me/notifications/unread-count',
-          ))['unread_count']
-          as int;
-  Future<void> read(String id) async {
+  Future<int> unreadCount() => decodeResponse(
+    () async =>
+        (await api.get<Map<String, dynamic>>(
+              '/me/notifications/unread-count',
+            ))['unread_count']
+            as int,
+  );
+  Future<void> read(String id) => decodeResponse(() async {
     await api.patch<Map<String, dynamic>>(
       '/me/notifications/${Uri.encodeComponent(id)}/read',
     );
-  }
+  });
 }

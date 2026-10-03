@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../cart/data/cart.dart';
 import '../../data/order.dart';
@@ -123,9 +124,12 @@ class CheckoutController extends Notifier<bool> {
         error: result.error,
         priceChanges: offered,
       );
-    } catch (error) {
+    } catch (error, stack) {
       return _owns(owner)
-          ? OrderActionResult(OrderActionStatus.failed, error: error)
+          ? OrderActionResult(
+              OrderActionStatus.failed,
+              error: actionFailure(error, stack),
+            )
           : const OrderActionResult(OrderActionStatus.superseded);
     } finally {
       if (_owns(owner)) state = false;
@@ -206,7 +210,7 @@ class OrderCancellationController extends Notifier<bool> {
         ..invalidate(orderTrackingProvider(orderId))
         ..invalidate(ordersProvider);
       return OrderActionResult(OrderActionStatus.succeeded, order: order);
-    } catch (error) {
+    } catch (error, stack) {
       if (_owns(owner) && error is AppFailure && error.statusCode == 409) {
         ref
           ..invalidate(orderProvider(orderId))
@@ -214,7 +218,10 @@ class OrderCancellationController extends Notifier<bool> {
           ..invalidate(ordersProvider);
       }
       return _owns(owner)
-          ? OrderActionResult(OrderActionStatus.failed, error: error)
+          ? OrderActionResult(
+              OrderActionStatus.failed,
+              error: actionFailure(error, stack),
+            )
           : const OrderActionResult(OrderActionStatus.superseded);
     } finally {
       if (_owns(owner)) state = false;

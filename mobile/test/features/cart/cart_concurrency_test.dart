@@ -99,6 +99,38 @@ void main() {
   });
 
   test(
+    'coupon A completes after B is requested; duplicate A is not resent and B owns final totals',
+    () async {
+      final a = controller.applyCoupon('A');
+      final duplicate = controller.applyCoupon('A');
+      final b = controller.applyCoupon('B');
+      await flush();
+      expect((await duplicate).status, CartMutationStatus.duplicate);
+      expect(repository.requests.map((r) => r.operation), ['coupon:A']);
+      // Serialization prevents B from reaching the server before A resolves.
+      repository.requests.first.result.complete(
+        Cart.fromJson({...pricedCart(), 'coupon_code': 'A'}),
+      );
+      await a;
+      await flush();
+      expect(repository.requests.map((r) => r.operation), [
+        'coupon:A',
+        'coupon:B',
+      ]);
+      expect(container.read(cartControllerProvider).isLoading, isTrue);
+      repository.requests.last.result.complete(
+        Cart.fromJson({...pricedCart(), 'coupon_code': 'B', 'total': 4100}),
+      );
+      await b;
+      expect(
+        container.read(cartControllerProvider).requireValue.couponCode,
+        'B',
+      );
+      expect(container.read(cartControllerProvider).requireValue.total, 4100);
+    },
+  );
+
+  test(
     'serialized line and coupon mutations preserve authoritative snapshots',
     () async {
       final first = controller.setQuantity('line', .125);

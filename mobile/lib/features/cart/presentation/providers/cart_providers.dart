@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../auth/domain/user_role.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -219,7 +220,10 @@ class CartController extends AsyncNotifier<Cart> {
           state = AsyncError(error, stack);
         }
         // Ordinary line mutations retain the last valid cart (C02).
-        return CartMutationResult(CartMutationStatus.failed, error: error);
+        return CartMutationResult(
+          CartMutationStatus.failed,
+          error: actionFailure(error, stack),
+        );
       } finally {
         if (duplicateKey != null) pending.remove(duplicateKey);
       }
