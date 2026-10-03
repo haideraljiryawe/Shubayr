@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../error/error_mapper.dart';
 import '../error/failure.dart';
-import '../storage/token_store.dart';
+import '../storage/session_credentials.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/logging_interceptor.dart';
 
@@ -71,7 +71,7 @@ final unauthorizedSignalProvider = NotifierProvider<UnauthorizedSignal, int>(
 
 final dioProvider = Provider<Dio>((ref) {
   final config = ref.watch(appConfigProvider);
-  final tokens = ref.watch(tokenStoreProvider);
+  final credentials = ref.watch(sessionCredentialsProvider);
 
   final dio = Dio(
     BaseOptions(
@@ -85,11 +85,14 @@ final dioProvider = Provider<Dio>((ref) {
 
   dio.interceptors.add(
     AuthInterceptor(
-      readToken: tokens.readAccessToken,
+      readToken: () async => (await credentials.read()).accessToken,
+      sessionRevision: () => credentials.revision,
       retry: dio.fetch<dynamic>,
       refresh: () async {
-        final access = await tokens.readAccessToken();
-        final refresh = await tokens.readRefreshToken();
+        final owner = credentials.revision;
+        final previous = await credentials.read();
+        if (!credentials.owns(owner)) return false;
+        final refresh = previous.refreshToken;
         if (refresh == null) return false;
         final client = Dio(
           BaseOptions(
@@ -103,15 +106,18 @@ final dioProvider = Provider<Dio>((ref) {
             '/auth/refresh',
             data: {'refresh_token': refresh},
           );
-          if (await tokens.readAccessToken() != access ||
-              await tokens.readRefreshToken() != refresh) {
+          if (!credentials.owns(owner)) {
             return false;
           }
           final nextAccess = response.data?['access_token'] as String?;
           final nextRefresh = response.data?['refresh_token'] as String?;
           if (nextAccess == null || nextRefresh == null) return false;
-          await tokens.save(accessToken: nextAccess, refreshToken: nextRefresh);
-          return true;
+          return await credentials.save(
+            owner,
+            accessToken: nextAccess,
+            refreshToken: nextRefresh,
+            expected: previous,
+          );
         } on DioException catch (e) {
           if (e.response?.statusCode == 401 || e.response?.statusCode == 422) {
             return false;

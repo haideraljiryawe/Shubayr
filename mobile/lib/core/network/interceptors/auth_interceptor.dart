@@ -8,12 +8,18 @@ class AuthInterceptor extends Interceptor {
     required this.onUnauthorized,
     this.refresh,
     this.retry,
+    this.sessionRevision,
   });
   final Future<String?> Function() readToken;
   final Future<void> Function() onUnauthorized;
   final Future<bool> Function()? refresh;
   final Future<Response<dynamic>> Function(RequestOptions)? retry;
+  final int Function()? sessionRevision;
   Future<bool>? _refreshing;
+  int? _refreshingRevision, _rotatedRevision;
+  bool _owns(RequestOptions request) =>
+      sessionRevision == null ||
+      request.extra['sessionRevision'] == sessionRevision!();
   String? _rotatedFrom, _rotatedTo;
   bool _publicAuth(String path) => path.startsWith('/auth/');
 
@@ -23,7 +29,17 @@ class AuthInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     if (!_publicAuth(options.path)) {
+      options.extra.putIfAbsent(
+        'sessionRevision',
+        () => sessionRevision?.call(),
+      );
       final token = await readToken();
+      if (!_owns(options)) {
+        handler.reject(
+          DioException(requestOptions: options, type: DioExceptionType.cancel),
+        );
+        return;
+      }
       if (token != null && token.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $token';
       } else {
@@ -39,19 +55,23 @@ class AuthInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     final request = err.requestOptions;
-    if (err.response?.statusCode != 401 || _publicAuth(request.path)) {
+    if (err.response?.statusCode != 401 ||
+        _publicAuth(request.path) ||
+        !_owns(request)) {
       handler.next(err);
       return;
     }
     final token = await readToken();
     // Ignore a response from a session that has since signed out.
-    if (token == null) {
+    if (token == null || !_owns(request)) {
       handler.next(err);
       return;
     }
     final failedToken = request.headers['Authorization'];
     final alreadyRotated =
-        failedToken == 'Bearer $_rotatedFrom' && token == _rotatedTo;
+        _rotatedRevision == sessionRevision?.call() &&
+        failedToken == 'Bearer $_rotatedFrom' &&
+        token == _rotatedTo;
     if (failedToken != 'Bearer $token' && !alreadyRotated) {
       handler.next(err);
       return;
@@ -62,18 +82,27 @@ class AuthInterceptor extends Interceptor {
       try {
         var rotated = alreadyRotated;
         if (!rotated) {
+          final revision = sessionRevision?.call();
+          if (_refreshingRevision != revision) _refreshing = null;
+          _refreshingRevision = revision;
           final pending = _refreshing ??= refresh!();
           try {
             rotated = await pending;
             if (rotated) {
+              final nextToken = await readToken();
+              if (!_owns(request)) {
+                handler.next(err);
+                return;
+              }
               _rotatedFrom = token;
-              _rotatedTo = await readToken();
+              _rotatedTo = nextToken;
+              _rotatedRevision = revision;
             }
           } finally {
             if (identical(_refreshing, pending)) _refreshing = null;
           }
         }
-        if (rotated && await readToken() != null) {
+        if (rotated && await readToken() != null && _owns(request)) {
           request.extra['authRetried'] = true;
           handler.resolve(await retry!(request));
           return;
@@ -84,7 +113,7 @@ class AuthInterceptor extends Interceptor {
         return;
       }
     }
-    if (await readToken() == token) await onUnauthorized();
+    if (await readToken() == token && _owns(request)) await onUnauthorized();
     handler.next(err);
   }
 }

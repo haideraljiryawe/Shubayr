@@ -13,6 +13,7 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../providers/auth_providers.dart';
+import '../../domain/session.dart';
 
 /// Step 2 of the OTP flow — `POST /auth/verify-otp`.
 ///
@@ -57,14 +58,15 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
 
   Future<void> _verify() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    await _run(
-      () => ref
+    Session? verified;
+    await _run(() async {
+      verified = await ref
           .read(sessionControllerProvider.notifier)
           .verifyOtp(
             phone: widget.phone,
             code: Validators.foldDigits(_codeController.text).trim(),
-          ),
-    );
+          );
+    });
 
     // On success, reset the stack with a clean declarative navigation. The
     // sign-in and verify screens are reached by imperative `push`; letting the
@@ -73,7 +75,9 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
     // to a root page clears those matches before restoring a detail page.
     if (!mounted) return;
     final session = ref.read(sessionControllerProvider).value;
-    if (session != null && session.isSignedIn) {
+    if (verified != null &&
+        identical(session, verified) &&
+        session!.isSignedIn) {
       final router = GoRouter.of(context);
       final destination = SignInDestination.resolve(
         widget.returnTo,
