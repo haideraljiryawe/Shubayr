@@ -141,20 +141,37 @@ export async function apiLogin(
   }
 }
 
-let adminToken: string | null = null;
+/**
+ * Access tokens live 15 minutes (JWT_ACCESS_TTL) and the whole live suite runs
+ * longer than that in one worker, so cached tokens are renewed well before
+ * they would expire mid-test.
+ */
+const TOKEN_REUSE_MS = 10 * 60 * 1000;
+
+interface CachedToken {
+  value: string;
+  at: number;
+}
+
+function fresh(cached: CachedToken | null | undefined): string | null {
+  return cached && Date.now() - cached.at < TOKEN_REUSE_MS ? cached.value : null;
+}
+
+let adminToken: CachedToken | null = null;
 
 export async function adminApiToken(
   request: APIRequestContext,
 ): Promise<string> {
-  if (adminToken) return adminToken;
+  const cached = fresh(adminToken);
+  if (cached) return cached;
   const { status, body } = await apiLogin(
     request,
     ADMIN_USERNAME,
     ADMIN_PASSWORD,
   );
   expect(status, "seeded admin login").toBe(201);
-  adminToken = body.access_token as string;
-  return adminToken;
+  adminToken = { value: body.access_token as string, at: Date.now() };
+  return adminToken.value;
 }
 
 export interface Preset {
@@ -299,14 +316,14 @@ export const ADMIN_PHONE = "+9647700000001";
 const EARBUDS = "40000000-0000-4000-8000-000000000001";
 const EARBUDS_VARIANT = "50000000-0000-4000-8000-000000000001";
 
-const appTokens = new Map<string, string>();
+const appTokens = new Map<string, CachedToken>();
 
 /** An app-surface token for a phone, through the dev OTP. */
 export async function phoneToken(
   request: APIRequestContext,
   phone: string,
 ): Promise<string> {
-  const cached = appTokens.get(phone);
+  const cached = fresh(appTokens.get(phone));
   if (cached) return cached;
   await awaitQuota(request);
   await request.post(`${API}/auth/request-otp`, { data: { phone } });
@@ -315,7 +332,7 @@ export async function phoneToken(
   });
   expect(verified.ok(), await verified.text()).toBe(true);
   const token = (await verified.json()).access_token as string;
-  appTokens.set(phone, token);
+  appTokens.set(phone, { value: token, at: Date.now() });
   return token;
 }
 
