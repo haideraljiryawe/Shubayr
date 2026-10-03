@@ -21,23 +21,31 @@ import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../../cart/data/cart.dart';
 import '../../data/order.dart';
 import '../providers/order_providers.dart';
+import '../providers/order_action_providers.dart';
 
 /// Cash-on-Delivery checkout: pick a delivery address, optionally apply a
 /// coupon, review the server cart summary and place the order. Checkout
 /// reprices on the server again; confirmation uses the returned order snapshot.
-class CheckoutScreen extends ConsumerStatefulWidget {
+class CheckoutScreen extends ConsumerWidget {
   const CheckoutScreen({super.key});
 
   @override
-  ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
+  Widget build(BuildContext context, WidgetRef ref) =>
+      _CheckoutForm(key: ValueKey(ref.watch(ordersIdentityProvider)));
 }
 
-class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
+class _CheckoutForm extends ConsumerStatefulWidget {
+  const _CheckoutForm({super.key});
+  @override
+  ConsumerState<_CheckoutForm> createState() => _CheckoutScreenState();
+}
+
+class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
   final _couponCtrl = TextEditingController();
   String? _addressId;
   String? _couponError;
   bool _applyingCoupon = false;
-  bool _placing = false;
+  bool get _placing => ref.read(checkoutControllerProvider);
   Order? _placed;
 
   @override
@@ -88,11 +96,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         _couponError = null;
       });
     }
+    final identity = ref.read(ordersIdentityProvider);
     final controller = ref.read(cartControllerProvider.notifier);
     final result = await (remove
         ? controller.removeCoupon()
         : controller.applyCoupon(code!));
-    if (!mounted) return;
+    if (!mounted || ref.read(ordersIdentityProvider) != identity) return;
     setState(() {
       _applyingCoupon = false;
       if (result.status == CartMutationStatus.succeeded ||
@@ -108,46 +117,57 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _placeOrder(String addressId) async {
-    final l10n = context.l10n;
-    setState(() => _placing = true);
-    try {
-      final order = await ref
-          .read(orderRepositoryProvider)
-          .placeOrder(
-            addressId: addressId,
-            couponCode: ref
-                .read(cartControllerProvider)
-                .requireValue
-                .couponCode,
-          );
-      // The order consumed the cart; refresh so the badge and cart clear, and
-      // refresh the orders list so the new order appears there.
-      ref.invalidate(cartControllerProvider);
-      ref.invalidate(ordersProvider);
-      if (!mounted) return;
-      setState(() {
-        _placed = order;
-        _placing = false;
-      });
-    } on AppFailure catch (e) {
-      if (!mounted) return;
-      setState(() => _placing = false);
-      showAppSnackBarMessage(context, message: e.localizedMessage(l10n));
+    final identity = ref.read(ordersIdentityProvider);
+    final result = await ref
+        .read(checkoutControllerProvider.notifier)
+        .place(addressId);
+    if (!mounted || ref.read(ordersIdentityProvider) != identity) return;
+    if (result.status == OrderActionStatus.succeeded) {
+      setState(() => _placed = result.order);
+    } else if (result.status == OrderActionStatus.failed &&
+        ModalRoute.of(context)?.isCurrent != false) {
+      final error = result.error;
+      showAppSnackBarMessage(
+        context,
+        message: error is AppFailure
+            ? error.localizedMessage(context.l10n)
+            : context.l10n.stateErrorTitle,
+      );
     }
   }
 
   Future<void> _pickAddress(List<Address> addresses, String currentId) async {
+    final identity = ref.read(ordersIdentityProvider);
     final picked = await showModalBottomSheet<String>(
       context: context,
-      builder: (_) =>
-          _AddressPickerSheet(addresses: addresses, selectedId: currentId),
+      builder: (sheetContext) => Consumer(
+        builder: (context, sheetRef, _) {
+          sheetRef.listen(ordersIdentityProvider, (_, next) {
+            if (next == identity || !sheetContext.mounted) return;
+            final route = ModalRoute.of(sheetContext);
+            if (route == null || !route.isActive) return;
+            // Remove this account's sheet, not a newer route pushed above it.
+            if (route.isCurrent) {
+              Navigator.pop(sheetContext);
+            } else {
+              Navigator.of(sheetContext).removeRoute(route);
+            }
+          });
+          return _AddressPickerSheet(
+            addresses: addresses,
+            selectedId: currentId,
+          );
+        },
+      ),
     );
+    if (!mounted || ref.read(ordersIdentityProvider) != identity) return;
     if (picked != null) setState(() => _addressId = picked);
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    ref.watch(checkoutControllerProvider);
     final placed = _placed;
     if (placed != null) {
       return _SuccessView(order: placed, money: _money);

@@ -30,11 +30,11 @@ import 'package:shubayr/features/settings/presentation/providers/settings_provid
 import '../address/support/address_fakes.dart';
 import '../../helpers/test_session.dart';
 
-class _FixedCart extends CartController {
+class _FixedCart extends CartRepositoryMock {
   _FixedCart(this._cart);
   final Cart _cart;
   @override
-  Future<Cart> build() async => _cart;
+  Future<Cart> fetchCart() async => _cart;
 }
 
 class _FixedAddresses extends AddressesController {
@@ -142,8 +142,8 @@ Widget _host({
     if (carts != null)
       cartRepositoryProvider.overrideWithValue(carts)
     else
-      cartControllerProvider.overrideWith(
-        () => _FixedCart(
+      cartRepositoryProvider.overrideWithValue(
+        _FixedCart(
           cart ??
               const Cart(
                 items: [

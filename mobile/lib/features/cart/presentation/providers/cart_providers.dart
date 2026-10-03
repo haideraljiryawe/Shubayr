@@ -111,6 +111,46 @@ class CartController extends AsyncNotifier<Cart> {
     requireFreshSnapshot: true,
   );
 
+  /// Order placement consumes the cart, so it shares the existing mutation
+  /// queue. Orders owns the POST; Cart owns ordering and its server re-read.
+  Future<CartMutationResult> checkout(Future<void> Function(Cart) placeOrder) {
+    if (!ref.mounted) {
+      return Future.value(
+        const CartMutationResult(CartMutationStatus.superseded),
+      );
+    }
+    final owner = ref.read(_cartSessionProvider);
+    final generation = _loadGeneration;
+    return _run((repository) async {
+      final previous = state;
+      final cart = previous.asData?.value;
+      if (previous.isLoading ||
+          previous.hasError ||
+          cart == null ||
+          !cart.canCheckout) {
+        throw const AppFailure(FailureKind.validation);
+      }
+      state = const AsyncLoading();
+      try {
+        await placeOrder(cart);
+      } catch (_) {
+        if (owner != null && _owns(owner) && generation == _loadGeneration) {
+          state = previous;
+        }
+        rethrow;
+      }
+      if (owner == null || !_owns(owner)) return const Cart();
+      try {
+        return await repository.fetchCart();
+      } catch (error, stack) {
+        if (_owns(owner) && generation == _loadGeneration) {
+          state = AsyncError(error, stack);
+        }
+        rethrow;
+      }
+    }, duplicateKey: 'checkout');
+  }
+
   bool _owns(Object owner) =>
       ref.mounted && ref.read(_cartSessionProvider) == owner;
 

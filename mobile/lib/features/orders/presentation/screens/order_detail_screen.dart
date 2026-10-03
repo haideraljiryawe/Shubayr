@@ -26,22 +26,34 @@ import '../../data/order.dart';
 import '../../data/order_tracking.dart';
 import '../order_status.dart';
 import '../providers/order_providers.dart';
+import '../providers/order_action_providers.dart';
 import '../providers/after_sales_providers.dart';
 import '../widgets/order_status_pill.dart';
 
 /// A single order: header, the status timeline, the items, the amount summary,
 /// and — while the order can still be cancelled — a cancel action.
-class OrderDetailScreen extends ConsumerStatefulWidget {
+class OrderDetailScreen extends ConsumerWidget {
   const OrderDetailScreen({super.key, required this.orderId});
 
   final String orderId;
 
   @override
-  ConsumerState<OrderDetailScreen> createState() => _OrderDetailScreenState();
+  Widget build(BuildContext context, WidgetRef ref) => _OrderDetailView(
+    key: ValueKey((orderId, ref.watch(ordersIdentityProvider))),
+    orderId: orderId,
+  );
 }
 
-class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
-  bool _cancelling = false;
+class _OrderDetailView extends ConsumerStatefulWidget {
+  const _OrderDetailView({super.key, required this.orderId});
+  final String orderId;
+  @override
+  ConsumerState<_OrderDetailView> createState() => _OrderDetailScreenState();
+}
+
+class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
+  bool _confirming = false;
+  bool get _cancelling => ref.read(orderCancellationProvider(widget.orderId));
 
   String _money(num amount, {String? currency}) {
     final brand = ref.read(brandProvider);
@@ -53,47 +65,62 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   }
 
   Future<void> _cancel() async {
+    if (_confirming || _cancelling) return;
+    final identity = ref.read(ordersIdentityProvider);
     final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.orderCancelTitle),
-        content: Text(l10n.orderCancelMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.orderKeepOrder),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: context.colors.danger),
-            child: Text(l10n.orderCancel),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    setState(() => _cancelling = true);
+    setState(() => _confirming = true);
     try {
-      await ref.read(orderRepositoryProvider).cancelOrder(widget.orderId);
-      ref
-        ..invalidate(orderProvider(widget.orderId))
-        ..invalidate(orderTrackingProvider(widget.orderId))
-        ..invalidate(ordersProvider);
-      if (!mounted) return;
-      setState(() => _cancelling = false);
-      showAppSnackBarMessage(context, message: l10n.orderCancelledDone);
-    } on AppFailure catch (e) {
-      if (!mounted) return;
-      setState(() => _cancelling = false);
-      showAppSnackBarMessage(context, message: e.localizedMessage(l10n));
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.orderCancelTitle),
+          content: Text(l10n.orderCancelMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.orderKeepOrder),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: TextButton.styleFrom(foregroundColor: ctx.colors.danger),
+              child: Text(l10n.orderCancel),
+            ),
+          ],
+        ),
+      );
+      if (!mounted ||
+          confirmed != true ||
+          ref.read(ordersIdentityProvider) != identity) {
+        return;
+      }
+      final result = await ref
+          .read(orderCancellationProvider(widget.orderId).notifier)
+          .cancel();
+      if (!mounted ||
+          ref.read(ordersIdentityProvider) != identity ||
+          ModalRoute.of(context)?.isCurrent == false) {
+        return;
+      }
+      if (result.status == OrderActionStatus.succeeded) {
+        showAppSnackBarMessage(context, message: l10n.orderCancelledDone);
+      } else if (result.status == OrderActionStatus.failed) {
+        final error = result.error;
+        showAppSnackBarMessage(
+          context,
+          message: error is AppFailure
+              ? error.localizedMessage(l10n)
+              : l10n.stateErrorTitle,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _confirming = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    ref.watch(orderCancellationProvider(widget.orderId));
     final order = ref.watch(orderProvider(widget.orderId));
 
     return Scaffold(
@@ -199,7 +226,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                       const SizedBox(height: AppSpacing.lg),
                       Center(
                         child: TextButton.icon(
-                          onPressed: _cancelling ? null : _cancel,
+                          onPressed: _confirming || _cancelling
+                              ? null
+                              : _cancel,
                           style: TextButton.styleFrom(
                             foregroundColor: context.colors.danger,
                           ),
