@@ -476,7 +476,17 @@
       "conflict": "تغيّر الطلب في هذه الأثناء؛ حُدّثت الصفحة.",
       "failed": "تعذّر إرسال ردك. حاول مرة أخرى."
     },
-    "status_rejected": "رفضه المتجر"
+    "status_rejected": "رفضه المتجر",
+    "attempts": {
+      "title": "محاولات التوصيل",
+      "attempt": "المحاولة {number}",
+      "status": {
+        "out_for_delivery": "في الطريق إليك",
+        "delivered": "تم التسليم",
+        "failed": "تعذّر التسليم"
+      },
+      "note": "ملاحظة المندوب: {note}"
+    }
   },
   "addresses": {
     "title": "عناويني",
@@ -690,7 +700,10 @@
     "notifyType_return_update": "تحديث طلب الإرجاع",
     "notifyType_loyalty_points_earned": "نقاط جديدة",
     "notifyType_review_moderated": "مراجعة تقييمك",
-    "notifyType_promo": "العروض والتخفيضات"
+    "notifyType_promo": "العروض والتخفيضات",
+    "notifyType_quantity_reduction_proposed": "كمية أقل بانتظار موافقتك",
+    "notifyType_cancellation_request_approved": "قبول طلب الإلغاء",
+    "notifyType_cancellation_request_denied": "رفض طلب الإلغاء"
   },
   "workAccount": {
     "title": "حساب عمل",
@@ -834,7 +847,10 @@
     "live": "تحديث مباشر",
     "reconnecting": "جارٍ إعادة الاتصال…",
     "new": "جديد",
-    "failed": "تعذّر تحديث الإشعار. حاول مرة أخرى."
+    "failed": "تعذّر تحديث الإشعار. حاول مرة أخرى.",
+    "needsAnswer": "بانتظار ردّك",
+    "cancellationApproved": "قُبل الإلغاء",
+    "cancellationDenied": "رُفض الإلغاء"
   },
   "seo": {
     "homeDescription": "تسوّق كل ما تحتاجه من {store}: منتجات أصلية، أسعار بالدينار العراقي وتوصيل سريع في كل العراق.",

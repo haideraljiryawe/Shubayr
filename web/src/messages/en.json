@@ -476,7 +476,17 @@
       "conflict": "The order changed meanwhile; the page has been refreshed.",
       "failed": "Your answer could not be sent. Please try again."
     },
-    "status_rejected": "Declined by the store"
+    "status_rejected": "Declined by the store",
+    "attempts": {
+      "title": "Delivery attempts",
+      "attempt": "Attempt {number}",
+      "status": {
+        "out_for_delivery": "On its way",
+        "delivered": "Delivered",
+        "failed": "We couldn't deliver"
+      },
+      "note": "Courier's note: {note}"
+    }
   },
   "addresses": {
     "title": "My addresses",
@@ -690,7 +700,10 @@
     "notifyType_return_update": "Return update",
     "notifyType_loyalty_points_earned": "Points earned",
     "notifyType_review_moderated": "Review moderated",
-    "notifyType_promo": "Offers and promotions"
+    "notifyType_promo": "Offers and promotions",
+    "notifyType_quantity_reduction_proposed": "A smaller quantity to approve",
+    "notifyType_cancellation_request_approved": "Cancellation request approved",
+    "notifyType_cancellation_request_denied": "Cancellation request declined"
   },
   "workAccount": {
     "title": "Work account",
@@ -834,7 +847,10 @@
     "live": "Live",
     "reconnecting": "Reconnecting…",
     "new": "New",
-    "failed": "Couldn't update the notification. Please try again."
+    "failed": "Couldn't update the notification. Please try again.",
+    "needsAnswer": "Needs your answer",
+    "cancellationApproved": "Cancellation approved",
+    "cancellationDenied": "Cancellation declined"
   },
   "seo": {
     "homeDescription": "Shop everything you need at {store}: genuine products, prices in Iraqi dinars and fast delivery across Iraq.",
