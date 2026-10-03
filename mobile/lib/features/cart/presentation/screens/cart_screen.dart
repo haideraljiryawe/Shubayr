@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
+import '../../../../core/error/failure.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
@@ -76,6 +78,21 @@ class _CartLine extends ConsumerWidget {
 
   final CartItem item;
 
+  Future<void> _showResult(
+    BuildContext context,
+    Future<CartMutationResult> operation,
+  ) async {
+    final result = await operation;
+    if (!context.mounted || result.status != CartMutationStatus.failed) return;
+    final error = result.error;
+    showAppSnackBarMessage(
+      context,
+      message: error is AppFailure
+          ? error.localizedMessage(context.l10n)
+          : context.l10n.stateErrorTitle,
+    );
+  }
+
   String? _variantLabel(Product? product) {
     final variantId = item.variantId;
     if (product == null || variantId == null) return null;
@@ -131,9 +148,12 @@ class _CartLine extends ConsumerWidget {
               ResponsiveValueRow(
                 label: QuantityStepper(
                   quantity: item.quantity,
-                  onChanged: (q) => ref
-                      .read(cartControllerProvider.notifier)
-                      .setQuantity(item.id, q),
+                  onChanged: (q) => _showResult(
+                    context,
+                    ref
+                        .read(cartControllerProvider.notifier)
+                        .setQuantity(item.id, q),
+                  ),
                 ),
                 value: Text(
                   lineTotal,
@@ -147,8 +167,10 @@ class _CartLine extends ConsumerWidget {
         ),
         IconButton(
           icon: Icon(Icons.close, size: 20, color: colors.textMuted),
-          onPressed: () =>
-              ref.read(cartControllerProvider.notifier).remove(item.id),
+          onPressed: () => _showResult(
+            context,
+            ref.read(cartControllerProvider.notifier).remove(item.id),
+          ),
           tooltip: l10n.cartRemove,
         ),
       ],

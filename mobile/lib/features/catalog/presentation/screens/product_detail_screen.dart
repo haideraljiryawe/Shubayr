@@ -422,7 +422,7 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     }
 
     setState(() => _busy = true);
-    await ref
+    final result = await ref
         .read(cartControllerProvider.notifier)
         .add(
           productId: widget.productId,
@@ -432,10 +432,11 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     if (!mounted) return;
     setState(() => _busy = false);
 
-    if (ref.read(cartControllerProvider).hasError) {
+    if (result.status == CartMutationStatus.failed) {
       showAppSnackBarMessage(context, message: l10n.stateErrorTitle);
       return;
     }
+    if (result.status != CartMutationStatus.succeeded) return;
     // The positive "added" state gets its own dark-green confirmation surface
     // (a design-system token), distinct from the neutral error/prompt snackbars.
     final colors = context.colors;

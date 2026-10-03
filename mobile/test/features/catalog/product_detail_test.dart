@@ -1,6 +1,16 @@
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shubayr/core/error/failure.dart';
+import 'package:shubayr/features/auth/data/user.dart';
+import 'package:shubayr/features/auth/domain/session.dart';
+import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
+import 'package:shubayr/features/cart/data/cart.dart';
+import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
+import 'package:shubayr/features/cart/presentation/providers/cart_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
@@ -14,6 +24,8 @@ import 'package:shubayr/features/catalog/domain/catalog_repository.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:shubayr/features/catalog/presentation/screens/product_detail_screen.dart';
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
+
+import '../../helpers/test_session.dart';
 
 /// A product with three variants (S=low stock, M=in stock, L=sold out) and no
 /// images, so the detail screen never touches the network.
@@ -95,6 +107,18 @@ class _FakeCatalog implements CatalogRepository {
   }) async => const ReviewPage();
 }
 
+class _PendingCart extends CartRepositoryMock {
+  final result = Completer<Cart>();
+  @override
+  Future<Cart> fetchCart() async => const Cart(id: 'valid');
+  @override
+  Future<Cart> addItem({
+    required String productId,
+    String? variantId,
+    int quantity = 1,
+  }) => result.future;
+}
+
 Widget _host({bool promotion = false}) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
@@ -121,6 +145,74 @@ void main() {
     tester.view.physicalSize = const Size(1200, 3000);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
+  }
+
+  for (final switchSession in [false, true]) {
+    testWidgets(
+      'add action reports its own failure, not global cart state (switch: $switchSession)',
+      (tester) async {
+        sizePhone(tester);
+        final repository = _PendingCart();
+        final container = ProviderContainer(
+          retry: (_, _) => null,
+          overrides: [
+            dataSourceProvider.overrideWithValue(DataSource.mock),
+            sessionControllerProvider.overrideWith(TestSession.new),
+            catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
+            cartRepositoryProvider.overrideWithValue(repository),
+            brandProvider.overrideWithValue(const Brand.bundled()),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container.read(sessionControllerProvider.future);
+        container.listen(cartControllerProvider, (_, _) {});
+        await container.read(cartControllerProvider.future);
+        final router = GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, _) => const ProductDetailScreen(productId: 'v1'),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp.router(
+              routerConfig: router,
+              locale: const Locale('en'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(ProductDetailScreen)),
+        );
+        await tester.tap(find.text(l10n.productAddToCart));
+        await tester.pump();
+        if (switchSession) {
+          (container.read(sessionControllerProvider.notifier) as TestSession)
+              .setSession(
+                const Session.signedIn(User(id: 'new', role: 'customer')),
+              );
+          await tester.pump();
+        }
+        repository.result.completeError(const AppFailure.network());
+        await tester.pumpAndSettle();
+        expect(container.read(cartControllerProvider).hasError, isFalse);
+        expect(container.read(cartControllerProvider).requireValue.id, 'valid');
+        expect(find.text(l10n.cartAdded), findsNothing);
+        expect(
+          find.text(l10n.stateErrorTitle),
+          switchSession ? findsNothing : findsOneWidget,
+        );
+        await tester.pump(const Duration(seconds: 4));
+        await tester.pumpAndSettle();
+      },
+    );
   }
 
   testWidgets(

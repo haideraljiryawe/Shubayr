@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/theme/brand.dart';
+import 'package:shubayr/core/error/failure.dart';
+import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
+import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
 import 'package:shubayr/features/catalog/data/product_availability.dart';
@@ -16,6 +19,8 @@ import 'package:shubayr/features/cart/data/cart.dart';
 import 'package:shubayr/features/cart/presentation/providers/cart_providers.dart';
 import 'package:shubayr/features/cart/presentation/screens/cart_screen.dart';
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
+
+import '../../helpers/test_session.dart';
 
 /// Names any product 'Widget'; other reads aren't used by the cart screen.
 class _FakeCatalog implements CatalogRepository {
@@ -63,7 +68,20 @@ class _FixedCart extends CartController {
   Future<Cart> build() async => _cart;
 }
 
-Widget _host(Cart cart) => ProviderScope(
+class _FailingCart extends CartRepositoryMock {
+  _FailingCart(this.cart);
+  final Cart cart;
+  @override
+  Future<Cart> fetchCart() async => cart;
+  @override
+  Future<Cart> updateItem(String itemId, int quantity) async =>
+      throw const AppFailure.network();
+  @override
+  Future<Cart> removeItem(String itemId) async =>
+      throw const AppFailure.network();
+}
+
+Widget _host(Cart cart, {bool failMutations = false}) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
     notificationSyncProvider.overrideWith((ref) {}),
@@ -71,7 +89,11 @@ Widget _host(Cart cart) => ProviderScope(
     dataSourceProvider.overrideWithValue(DataSource.mock),
     catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
     brandProvider.overrideWithValue(const Brand.bundled()),
-    cartControllerProvider.overrideWith(() => _FixedCart(cart)),
+    if (failMutations) ...[
+      sessionControllerProvider.overrideWith(TestSession.new),
+      cartRepositoryProvider.overrideWithValue(_FailingCart(cart)),
+    ] else
+      cartControllerProvider.overrideWith(() => _FixedCart(cart)),
   ],
   child: const MaterialApp(
     locale: Locale('en'),
@@ -96,6 +118,34 @@ void main() {
     // Line total and subtotal are both 2,000.
     expect(find.textContaining('2,000'), findsWidgets);
   });
+
+  for (final icon in [Icons.add, Icons.close]) {
+    testWidgets('failed cart action $icon retains lines and shows its error', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const Cart(
+            items: [
+              CartItem(id: 'c1', productId: 'x', quantity: 2, unitPrice: 1000),
+            ],
+            subtotal: 2000,
+          ),
+          failMutations: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(icon));
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(tester.element(find.byType(CartScreen)));
+      expect(find.text(l10n.errorNetwork), findsOneWidget);
+      expect(find.text('Widget'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+      expect(find.textContaining('2,000'), findsWidgets);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+  }
 
   testWidgets('shows the empty state', (tester) async {
     await tester.pumpWidget(_host(const Cart()));
