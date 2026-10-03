@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/error/failure.dart';
+import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/widgets/skeleton.dart';
 import 'package:shubayr/core/theme/brand.dart';
@@ -16,6 +17,7 @@ import 'package:shubayr/features/orders/presentation/screens/orders_screen.dart'
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 
 import 'support/order_history_repository.dart';
+import '../../helpers/test_session.dart';
 
 Widget _host(
   OrderHistoryRepository repository, {
@@ -28,6 +30,7 @@ Widget _host(
     notificationSyncProvider.overrideWith((ref) {}),
     unreadCountProvider.overrideWith((ref) async => 0),
     dataSourceProvider.overrideWithValue(DataSource.mock),
+    sessionControllerProvider.overrideWith(TestSession.new),
     orderRepositoryProvider.overrideWithValue(repository),
     brandProvider.overrideWithValue(const Brand.bundled()),
   ],

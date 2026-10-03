@@ -5,16 +5,18 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/error/failure.dart';
+import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/features/orders/data/order.dart';
 import 'package:shubayr/features/orders/presentation/providers/order_providers.dart';
 
 import 'support/order_history_repository.dart';
+import '../../helpers/test_session.dart';
 
 void main() {
   late OrderHistoryRepository repository;
   late ProviderContainer container;
 
-  setUp(() {
+  setUp(() async {
     repository = OrderHistoryRepository();
     container = ProviderContainer(
       retry: (retryCount, error) => null,
@@ -22,9 +24,11 @@ void main() {
         notificationSyncProvider.overrideWith((ref) {}),
         unreadCountProvider.overrideWith((ref) async => 0),
         dataSourceProvider.overrideWithValue(DataSource.mock),
+        sessionControllerProvider.overrideWith(TestSession.new),
         orderRepositoryProvider.overrideWithValue(repository),
       ],
     );
+    await container.read(sessionControllerProvider.future);
   });
   tearDown(() => container.dispose());
 

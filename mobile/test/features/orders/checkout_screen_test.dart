@@ -26,6 +26,7 @@ import 'package:shubayr/features/orders/presentation/screens/orders_screen.dart'
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 
 import '../address/support/address_fakes.dart';
+import '../../helpers/test_session.dart';
 
 class _FixedCart extends CartController {
   _FixedCart(this._cart);
@@ -114,12 +115,14 @@ Widget _host({
     if (addresses != null) ...[
       sessionControllerProvider.overrideWith(AddressTestSession.new),
       addressRepositoryProvider.overrideWithValue(addresses),
-    ] else
+    ] else ...[
+      sessionControllerProvider.overrideWith(TestSession.new),
       addressesControllerProvider.overrideWith(
         () => _FixedAddresses(const [
           Address(id: 'a1', label: 'Home', city: 'Baghdad', isDefault: true),
         ]),
       ),
+    ],
     orderRepositoryProvider.overrideWithValue(repository ?? _FakeOrders()),
     orderStatusFilterProvider.overrideWith((ref) => initialStatus),
     brandProvider.overrideWithValue(const Brand.bundled()),
@@ -250,6 +253,7 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(CheckoutScreen)),
       );
+      await container.read(sessionControllerProvider.future);
       await container.read(ordersProvider.future);
       expect(repository.queries.last.status, 'delivered');
 
