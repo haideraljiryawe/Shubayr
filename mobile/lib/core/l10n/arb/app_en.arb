@@ -727,5 +727,6 @@
   "deliveryFailureReason": "Reason for failed delivery",
   "deliveryRetryCount": "Retry count",
   "orderStateConflict": "This order changed or can no longer be cancelled. Please review its latest status.",
-  "errorConflict": "This action conflicts with the current state. Refresh and review before trying again."
+  "errorConflict": "This action conflicts with the current state. Refresh and review before trying again.",
+  "startupConfigurationError": "This build has an invalid production API configuration. Contact support for a corrected build."
 }

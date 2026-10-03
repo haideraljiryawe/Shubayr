@@ -56,6 +56,8 @@ class _SplashScreenState extends State<SplashScreen> {
                             children: [
                               Image(
                                 image: StartupAssets.logo,
+                                errorBuilder: (_, _, _) =>
+                                    const SizedBox.shrink(),
                                 width: AppSpacing.xxxl * 2,
                                 height: AppSpacing.xxxl * 2,
                                 fit: BoxFit.contain,

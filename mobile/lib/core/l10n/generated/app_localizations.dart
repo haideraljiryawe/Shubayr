@@ -3505,6 +3505,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This action conflicts with the current state. Refresh and review before trying again.'**
   String get errorConflict;
+
+  /// No description provided for @startupConfigurationError.
+  ///
+  /// In en, this message translates to:
+  /// **'This build has an invalid production API configuration. Contact support for a corrected build.'**
+  String get startupConfigurationError;
 }
 
 class _AppLocalizationsDelegate

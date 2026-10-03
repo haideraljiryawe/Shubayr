@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../core/theme/tokens/app_typography.dart';
+import '../core/diagnostics/diagnostics.dart';
 
 /// Local presentation resources only. No session or page-data work belongs here.
 abstract final class StartupAssets {
@@ -13,15 +14,33 @@ abstract final class StartupAssets {
     'assets/images/branding/shubayr-logo.png',
   );
 
-  static Future<void> prepare() async {
-    final wordmark = FontLoader(AppTypography.brandFontFamily)
-      ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'));
-    await Future.wait([_prepareLogo(), wordmark.load()]);
+  static Future<void> prepare({AssetBundle? bundle}) async {
+    final assets = bundle ?? rootBundle;
+    await Future.wait([
+      _optional(() => _prepareLogo(assets)),
+      _optional(() {
+        final wordmark = FontLoader(AppTypography.brandFontFamily)
+          ..addFont(assets.load('assets/fonts/Zain-Bold.ttf'));
+        return wordmark.load();
+      }),
+    ]);
   }
 
-  static Future<void> _prepareLogo() {
+  // Artwork/font failures are presentation failures, not authorization or
+  // configuration failures. Keep unrelated programmer errors visible.
+  static Future<void> _optional(Future<void> Function() load) async {
+    try {
+      await load().timeout(const Duration(seconds: 5));
+    } on Exception catch (error, stack) {
+      Diagnostics.report(error, stack, boundary: 'startup.asset');
+    } on FlutterError catch (error, stack) {
+      Diagnostics.report(error, stack, boundary: 'startup.asset');
+    }
+  }
+
+  static Future<void> _prepareLogo(AssetBundle bundle) {
     final ready = Completer<void>();
-    final stream = logo.resolve(ImageConfiguration(bundle: rootBundle));
+    final stream = logo.resolve(ImageConfiguration(bundle: bundle));
     late final ImageStreamListener listener;
     listener = ImageStreamListener(
       (image, synchronousCall) {

@@ -44,18 +44,21 @@ class AppFailure implements Exception {
   bool hasFieldError(String field) =>
       errors.any((error) => error.field == field);
 
-  String localizedMessage(AppLocalizations l10n) => switch (kind) {
-    FailureKind.network => l10n.errorNetwork,
-    FailureKind.timeout => l10n.errorTimeout,
-    FailureKind.unauthorized => l10n.errorUnauthorized,
-    FailureKind.forbidden => l10n.adminNoAccess,
-    FailureKind.notFound => l10n.errorNotFound,
-    FailureKind.validation => l10n.errorValidation,
-    FailureKind.conflict => l10n.errorConflict,
-    FailureKind.rateLimited => l10n.errorRateLimited,
-    FailureKind.server => l10n.errorServer,
-    FailureKind.unknown => l10n.errorUnknown,
-  };
+  String localizedMessage(AppLocalizations l10n) =>
+      code == 'INVALID_API_CONFIGURATION'
+      ? l10n.startupConfigurationError
+      : switch (kind) {
+          FailureKind.network => l10n.errorNetwork,
+          FailureKind.timeout => l10n.errorTimeout,
+          FailureKind.unauthorized => l10n.errorUnauthorized,
+          FailureKind.forbidden => l10n.adminNoAccess,
+          FailureKind.notFound => l10n.errorNotFound,
+          FailureKind.validation => l10n.errorValidation,
+          FailureKind.conflict => l10n.errorConflict,
+          FailureKind.rateLimited => l10n.errorRateLimited,
+          FailureKind.server => l10n.errorServer,
+          FailureKind.unknown => l10n.errorUnknown,
+        };
 
   @override
   String toString() =>

@@ -361,13 +361,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const NotificationsScreen(),
       ),
 
-      // Developer-only design gallery. The redirect above only lets this
-      // through in debug builds.
-      GoRoute(
-        path: AppRoutes.design,
-        name: AppRoutes.designName,
-        builder: (context, state) => const DesignGalleryScreen(),
-      ),
+      // Omit the route itself so direct links cannot expose it in production.
+      if (kDebugMode)
+        GoRoute(
+          path: AppRoutes.design,
+          name: AppRoutes.designName,
+          builder: (context, state) => const DesignGalleryScreen(),
+        ),
     ],
   );
 });

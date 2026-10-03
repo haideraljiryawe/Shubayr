@@ -1,3 +1,5 @@
+import '../../../../core/diagnostics/diagnostics.dart';
+import '../../../../core/error/response_decode.dart';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,7 +39,11 @@ class StoreSettingsController extends Notifier<StoreSettings?> {
     if (raw == null) return null;
     try {
       return StoreSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-    } on FormatException {
+    } on FormatException catch (error, stack) {
+      Diagnostics.report(error, stack, boundary: 'settings.cache');
+      return null;
+    } on TypeError catch (error, stack) {
+      Diagnostics.report(error, stack, boundary: 'settings.cache');
       return null;
     }
   }
@@ -52,8 +58,10 @@ class StoreSettingsController extends Notifier<StoreSettings?> {
       await ref
           .read(prefsStoreProvider)
           .writeStoreSettingsJson(jsonEncode(settings.toJson()));
-    } on Object {
-      // Keep whatever we already had (cache or bundled defaults).
+    } catch (error, stack) {
+      // Keep optional presentation data; remote decoding still fails in the
+      // repository and is never replaced with fixture data.
+      actionFailure(error, stack);
     }
   }
 }

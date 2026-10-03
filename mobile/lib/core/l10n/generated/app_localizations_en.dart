@@ -1800,4 +1800,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorConflict =>
       'This action conflicts with the current state. Refresh and review before trying again.';
+
+  @override
+  String get startupConfigurationError =>
+      'This build has an invalid production API configuration. Contact support for a corrected build.';
 }

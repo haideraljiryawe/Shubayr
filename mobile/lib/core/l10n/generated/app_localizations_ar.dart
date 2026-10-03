@@ -1785,4 +1785,8 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorConflict =>
       'تتعارض هذه العملية مع الحالة الحالية. حدّث البيانات وراجعها قبل المحاولة مجددًا.';
+
+  @override
+  String get startupConfigurationError =>
+      'إعداد اتصال هذه النسخة بالخادم غير صالح للإنتاج. تواصل مع الدعم للحصول على نسخة مصحّحة.';
 }
