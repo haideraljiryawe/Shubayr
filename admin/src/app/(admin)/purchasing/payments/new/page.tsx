@@ -27,14 +27,14 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: P
   const t = await getTranslations("purchasing.payment");
   const raw = await searchParams;
   const api = await serverApi();
+  const pick = (key: string) => (typeof raw[key] === "string" && UUID.test(raw[key] as string) ? (raw[key] as string) : "");
   const [permissions, { suppliers }, cashAccounts, windowDays] = await Promise.all([
     loadPermissions(api),
-    loadSupplierOptions(api),
+    loadSupplierOptions(api, pick("supplier_id") || undefined),
     loadCashAccounts(api),
     loadBackdatingWindow(api),
   ]);
   if (!permissions.includes("supplier_payments.record")) return <PageError error={new ApiError(403, "supplier_payments.record required")} />;
-  const pick = (key: string) => (typeof raw[key] === "string" && UUID.test(raw[key] as string) ? (raw[key] as string) : "");
 
   return (
     <>

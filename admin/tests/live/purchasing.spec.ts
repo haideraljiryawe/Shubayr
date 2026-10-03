@@ -32,6 +32,12 @@ test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
+  // Start every test from a known form. The new-invoice screen restores the
+  // signed-in user's saved draft, and a run that stopped mid-form leaves one
+  // behind for `admin` — which would replace the supplier and lines a test
+  // is filling in. (Each run's payer is a new staff member with no draft.)
+  const cleared = await api(request, "DELETE", "/admin/drafts/purchase_invoice");
+  expect([200, 204, 404]).toContain(cleared.status);
 });
 
 const run = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
@@ -118,6 +124,19 @@ async function invoiceFor(page: Page, request: APIRequestContext, supplierId: st
 async function startPayment(page: Page, supplierId: string, cashId: string, invoiceId: string) {
   await page.goto(`/purchasing/payments/new?supplier_id=${supplierId}&invoice_id=${invoiceId}`);
   await page.getByTestId("payment-cash").selectOption(cashId);
+}
+
+/**
+ * Type an override rate once the payment-date rate is on screen. The rate
+ * field remounts when that rate finishes loading; typing before then can land
+ * on the input being replaced and be lost (the default rate would apply).
+ */
+async function overrideRate(page: Page, value: string) {
+  const field = page.getByTestId("payment-rate");
+  await expect(field).toBeEnabled();
+  await expect(field).toHaveValue(/^\d/);
+  await field.fill(value);
+  await expect(field).toHaveValue(value);
 }
 
 /** Review, confirm, and hand back what the API posted. */
@@ -323,7 +342,7 @@ test("USD 100 × 2 at 1,500, then payments at 1,520 and 1,480 show the FX before
     await page.goto(`/purchasing/payments/new?supplier_id=${state.usdSupplier!.id}&invoice_id=${invoiceId}`);
     await page.getByTestId("payment-cash").selectOption(state.usdCash!);
     await page.getByTestId("payment-amount").fill("100");
-    await page.getByTestId("payment-rate").fill(rate);
+    await overrideRate(page, rate);
     const row = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
     await row.getByTestId("payment-apply").fill("100");
     // Carried at 1,500 = 150,000; paid at 1,520 = 152,000 (loss) or 1,480 = 148,000 (gain).
@@ -350,9 +369,7 @@ test("a USD invoice of 200 @ 1,500 paid from IQD 304,000 at 1,520 is settled; th
   await startPayment(page, state.usdSupplier!.id, state.iqdCash!, invoice.id);
   // An IQD account pays a USD invoice: the USD rate on the payment date is
   // shown, and the payer (purchases.override_rate) may set it.
-  const rate = page.getByTestId("payment-rate");
-  await expect(rate).toBeEnabled();
-  await rate.fill("1520");
+  await overrideRate(page, "1520");
   const row = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
   await expect(row).toHaveAttribute("data-cross", "true");
   await expect(row.getByTestId("payment-row-rate")).toHaveText("1520");
@@ -383,9 +400,7 @@ test("a partial cross-currency allocation: 76,000 IQD at 1,520 applies 50 USD; t
   const invoice = await invoiceFor(page, request, state.usdSupplier!.id, "H", "2", "100");
   await switchUser(page, state.payer!.username, state.payer!.password);
   await startPayment(page, state.usdSupplier!.id, state.iqdCash!, invoice.id);
-  const rate = page.getByTestId("payment-rate");
-  await expect(rate).toHaveValue("1500");
-  await rate.fill("1520");
+  await overrideRate(page, "1520");
   await page.getByTestId("payment-amount").fill("76000");
   const row = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
   await expect(row.getByTestId("payment-row-rate")).toHaveText("1520");
@@ -400,9 +415,7 @@ test("a partial cross-currency allocation: 76,000 IQD at 1,520 applies 50 USD; t
 
   // The remaining 150 USD: "settle" fills 228,000 IQD at 1,520.
   await startPayment(page, state.usdSupplier!.id, state.iqdCash!, invoice.id);
-  const finalRate = page.getByTestId("payment-rate");
-  await expect(finalRate).toHaveValue("1500");
-  await finalRate.fill("1520");
+  await overrideRate(page, "1520");
   const again = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
   await expect(again.getByTestId("payment-row-rate")).toHaveText("1520");
   await expect(again).toContainText("150.00 USD");
@@ -583,14 +596,15 @@ test("statement, balances and aging; without cost.view the costs are hidden", as
 
   const viewer = await activateStaff(request, await createStaff(request, { permissionKeys: ["suppliers.view", "purchases.create"], prefix: unique("buyer").split(".")[0] }));
   await switchUser(page, viewer.username, viewer.password);
-  const invoices = (await api(request, "GET", `/admin/purchase-invoices?supplier_id=${state.iqdSupplier!.id}&per_page=1`)).body.data;
-  await page.goto(`/purchasing/invoices/${invoices[0].id}`);
+  // The exact invoice this run created, not whatever a list shows first.
+  const invoiceId = state.firstInvoiceId!;
+  await page.goto(`/purchasing/invoices/${invoiceId}`);
   await expect(page.getByTestId("invoice-detail")).toBeVisible();
   await expect(page.getByTestId("cost-column")).toHaveCount(0);
   await expect(page.getByTestId("invoice-total")).toHaveCount(0);
   await expect(page.getByTestId("invoice-line-base-cost")).toHaveCount(0);
   const token = (await apiLogin(request, viewer.username, viewer.password)).body.access_token as string;
-  const read = await api(request, "GET", `/admin/purchase-invoices/${invoices[0].id}`, undefined, token);
+  const read = await api(request, "GET", `/admin/purchase-invoices/${invoiceId}`, undefined, token);
   expect(read.body).not.toHaveProperty("total_cost");
   expect(read.body.items[0]).not.toHaveProperty("unit_cost");
 });
