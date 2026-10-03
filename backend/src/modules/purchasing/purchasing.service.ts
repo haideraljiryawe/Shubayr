@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
-import { assertDifferentActor } from '../../common/access/separation-of-duties';
+import {
+  assertDifferentActor,
+  assertPurchaseCreatorSeparation,
+} from '../../common/access/separation-of-duties';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../database/prisma.service';
 import { CurrencyService } from '../finance/currency.service';
@@ -634,9 +637,11 @@ export class PurchasingService {
           });
           if (!invoice || invoice.supplier_id !== input.supplier_id)
             throw new NotFoundException('Supplier invoice not found');
-          assertDifferentActor(
+          await assertPurchaseCreatorSeparation(
+            tx,
             actorId,
             invoice.created_by,
+            'payment',
             'A purchase creator cannot approve its supplier payment',
           );
           const paymentAmount = this.positive(
@@ -900,9 +905,11 @@ export class PurchasingService {
             item.invoice.supplier_id !== supplier.id
           )
             throw new NotFoundException('Purchased lot not found');
-          assertDifferentActor(
+          await assertPurchaseCreatorSeparation(
+            tx,
             actorId,
             item.invoice.created_by,
+            'return',
             'A purchase creator cannot approve its supplier return',
           );
           if (input.invoice_id && item.invoice_id !== input.invoice_id)
@@ -1094,9 +1101,11 @@ export class PurchasingService {
           where: { id: input.invoice_id },
         });
         if (!invoice) throw new NotFoundException('Purchase invoice not found');
-        assertDifferentActor(
+        await assertPurchaseCreatorSeparation(
+          tx,
           actorId,
           invoice.created_by,
+          'cost_correction',
           'A purchase creator cannot approve its cost correction',
         );
         const supplierId = input.supplier_id ?? invoice.supplier_id;

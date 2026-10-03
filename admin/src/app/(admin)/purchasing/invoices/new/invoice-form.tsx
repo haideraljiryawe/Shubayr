@@ -216,8 +216,8 @@ export function InvoiceForm({
 
   /* ------------------------------------------------------------- rates */
 
-  const central = useCentralRate(state.currency, state.date.date, can("ledger.view"));
-  const usdCentral = useCentralRate("USD", state.date.date, can("ledger.view"));
+  const central = useCentralRate(state.currency, state.date.date, can("fx_rates.view"));
+  const usdCentral = useCentralRate("USD", state.date.date, can("fx_rates.view"));
   const canOverride = can("purchases.override_rate");
   const overridden = canOverride && state.currency !== "IQD" && state.rate.trim() !== "";
   const rate: string | null =

@@ -96,7 +96,7 @@ export function PaymentForm({
   const shownCurrency = settlementCurrency(currency, open.map((invoice) => invoice.currency_code)) ?? currency;
   const neededCurrency = settlementCurrency(currency, allocatedInvoices.map((invoice) => invoice.currency_code));
   const rateCurrency: CurrencyCode = neededCurrency && neededCurrency !== "IQD" ? neededCurrency : shownCurrency;
-  const central = useCentralRate(rateCurrency, date.date, permissions.includes("ledger.view"));
+  const central = useCentralRate(rateCurrency, date.date, permissions.includes("fx_rates.view"));
   const overridden = canOverride && rateCurrency !== "IQD" && rate.trim() !== "";
   /** The rate the server will apply, when it can be known here. */
   const settlementRate: string | null = rateCurrency === "IQD" ? "1" : overridden ? rate.trim() : central.status === "ready" ? central.rate : null;

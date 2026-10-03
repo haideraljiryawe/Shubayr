@@ -9,7 +9,7 @@ import type { CurrencyCode, PurchaseInvoice, Supplier } from "@/lib/purchasing";
  * GET /admin/suppliers pages but cannot search or filter by status (API
  * 9.0), so a supplier picker reads the first pages and offers the active
  * suppliers among them. Rates and cash accounts are read only with the
- * permissions their routes require (ledger.view, cash_accounts.manage).
+ * permissions their routes require (fx_rates.view, cash_accounts.view).
  * ------------------------------------------------------------------------- */
 
 type Api = Awaited<ReturnType<typeof serverApi>>;
@@ -39,7 +39,7 @@ export async function loadInvoice(api: Api, id: string) {
 
 /**
  * The central rate the server applies to a document dated `day`, or null (no
- * ledger.view, no recorded rate, or an invalid date).
+ * fx_rates.view, no recorded rate, or an invalid date).
  */
 export async function loadApplicableRate(api: Api, code: CurrencyCode, day: string): Promise<string | null> {
   if (code === "IQD") return "1";

@@ -10,6 +10,7 @@ import {
   FinancialDocumentsController,
   LedgerController,
   OperationsController,
+  PricePublishApprovalsController,
 } from './finance.controller';
 import { CurrencyService } from './currency.service';
 import { DateRulesService } from './date-rules.service';
@@ -33,6 +34,7 @@ import { CatalogModule } from '../catalog/catalog.module';
     CashTransfersController,
     FinancialDocumentsController,
     AccountingPeriodsController,
+    PricePublishApprovalsController,
   ],
   providers: [
     CurrencyService,

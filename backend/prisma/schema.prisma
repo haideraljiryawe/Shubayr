@@ -373,6 +373,8 @@ model User {
   notification_stream_events  NotificationStreamEvent[]
   refresh_tokens              RefreshToken[]
   uploaded_media              MediaObject[]                   @relation("MediaUploadedBy")
+  proposed_price_publishes    PricePublishApproval[]          @relation("PricePublishApprovalProposer")
+  decided_price_publishes     PricePublishApproval[]          @relation("PricePublishApprovalDecider")
 
   @@map("users")
 }
@@ -685,6 +687,7 @@ model Product {
   status                 String                @default("active") @db.VarChar(20)
   published_at           DateTime?             @db.Timestamptz(6)
   price_approved_at      DateTime?             @db.Timestamptz(6)
+  price_proposed_by      String?               @db.Uuid
   created_at             DateTime              @default(now()) @db.Timestamptz(6)
   updated_at             DateTime              @default(now()) @db.Timestamptz(6)
   search_sync_required   Boolean               @default(true)
@@ -726,6 +729,7 @@ model ProductVariant {
   reference_price         Decimal?                 @db.Decimal(20, 6)
   published_price         Decimal?                 @db.Decimal(20, 6)
   price_approved_at       DateTime?                @db.Timestamptz(6)
+  price_proposed_by       String?                  @db.Uuid
   price_version_id        String?                  @db.Uuid
   awaiting_rate_id        String?                  @db.Uuid
   updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
@@ -757,10 +761,12 @@ model PriceVersion {
   rate              Decimal          @db.Decimal(24, 10)
   rounding_multiple Decimal          @default(0) @db.Decimal(20, 6)
   published_by      String           @db.Uuid
+  proposed_by       String           @db.Uuid
   variant_count     Int
   published_at      DateTime         @default(now()) @db.Timestamptz(6)
   exchange_rate     ExchangeRate     @relation(fields: [exchange_rate_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_versions_exchange_rate_id_fkey")
   variants          ProductVariant[]
+  approval_request  PricePublishApproval?
 
   @@index([currency_code, published_at(sort: Desc)], map: "idx_price_versions_currency")
   @@map("price_versions")
@@ -776,9 +782,31 @@ model LinkedPricePreview {
   fingerprint   String   @db.Char(64)
   expires_at    DateTime @db.Timestamptz(6)
   created_at    DateTime @default(now()) @db.Timestamptz(6)
+  approval_request PricePublishApproval?
 
   @@index([actor_id, expires_at], map: "idx_linked_price_previews_actor")
   @@map("linked_price_previews")
+}
+
+model PricePublishApproval {
+  id               String              @id(map: "price_publish_approvals_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  preview_id       String?             @unique(map: "price_publish_approvals_preview_id_key") @db.Uuid
+  price_version_id String?             @unique(map: "price_publish_approvals_price_version_id_key") @db.Uuid
+  status           String              @default("pending") @db.VarChar(20)
+  proposed_by      String              @db.Uuid
+  decided_by       String?             @db.Uuid
+  proposal_reason  String              @db.VarChar(500)
+  decision_reason  String?             @db.VarChar(500)
+  breaches         Json                @db.JsonB
+  created_at       DateTime            @default(now()) @db.Timestamptz(6)
+  decided_at       DateTime?           @db.Timestamptz(6)
+  preview          LinkedPricePreview? @relation(fields: [preview_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "price_publish_approvals_preview_id_fkey")
+  price_version    PriceVersion?       @relation(fields: [price_version_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_publish_approvals_price_version_id_fkey")
+  proposer         User                @relation("PricePublishApprovalProposer", fields: [proposed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_publish_approvals_proposed_by_fkey")
+  decider          User?               @relation("PricePublishApprovalDecider", fields: [decided_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_publish_approvals_decided_by_fkey")
+
+  @@index([status, created_at(sort: Desc)], map: "idx_price_publish_approvals_status")
+  @@map("price_publish_approvals")
 }
 
 model ProductImage {

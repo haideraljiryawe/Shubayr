@@ -95,3 +95,48 @@ WHERE pp.name = 'stock_controller' AND p.key IN
   ('cost.view','suppliers.view','suppliers.manage','purchases.create',
    'purchases.correct','inventory.count','inventory.pick','inventory.adjust','inventory.transfer')
 ON CONFLICT DO NOTHING;
+
+-- C3 read dependencies and payment ownership. The application seed remains
+-- canonical; this idempotent block keeps bare infrastructure bootstraps equal.
+INSERT INTO permissions(key, "group", description) VALUES
+  ('fx_rates.view', 'finance', 'View currencies and exchange rates'),
+  ('cash_accounts.view', 'finance', 'View cash and bank accounts')
+ON CONFLICT (key) DO UPDATE
+SET "group" = EXCLUDED."group", description = EXCLUDED.description;
+
+INSERT INTO store_settings(key, value) VALUES
+  ('separation_of_duties_level', 'standard')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO permission_presets(name, description, is_system) VALUES
+  ('cashier', 'Cashier payments', TRUE),
+  ('accountant', 'Accounting and payments', TRUE)
+ON CONFLICT (name) DO UPDATE
+SET description = EXCLUDED.description, is_system = TRUE;
+
+DELETE FROM preset_permissions grant_row
+USING permission_presets preset, permissions permission
+WHERE grant_row.preset_id = preset.id
+  AND grant_row.permission_id = permission.id
+  AND preset.name = 'stock_controller'
+  AND permission.key = 'supplier_payments.record';
+
+INSERT INTO preset_permissions(preset_id, permission_id)
+SELECT preset.id, permission.id
+FROM permission_presets preset
+JOIN permissions permission ON (
+  preset.name = 'super_admin'
+  OR (preset.name = 'stock_controller' AND permission.key = 'fx_rates.view')
+  OR (preset.name = 'catalog_editor' AND permission.key IN ('cost.view', 'fx_rates.view'))
+  OR (preset.name = 'cashier' AND permission.key IN
+    ('suppliers.view','supplier_payments.record','supplier_payments.reverse',
+     'cash_accounts.view','fx_rates.view'))
+  OR (preset.name = 'accountant' AND permission.key IN
+    ('suppliers.view','supplier_payments.record','supplier_payments.reverse',
+     'cash_accounts.view','cash_accounts.manage','fx_rates.view','fx_rates.update',
+     'ledger.view','ledger.reverse','period.close','period.reopen',
+     'backdate.approve','reports.view'))
+)
+WHERE preset.name IN
+  ('super_admin','stock_controller','catalog_editor','cashier','accountant')
+ON CONFLICT DO NOTHING;

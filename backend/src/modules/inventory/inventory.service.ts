@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { assertDifferentActor } from '../../common/access/separation-of-duties';
 import {
   businessDate,
   businessDateText,
@@ -677,6 +678,11 @@ export class InventoryService {
         if (!count) throw new NotFoundException('Stock count not found');
         if (count.status !== 'draft')
           throw new ConflictException('Stock count is already approved');
+        assertDifferentActor(
+          actorId,
+          count.created_by,
+          'The stock-count creator cannot approve their own count',
+        );
         const changed = await tx.stockMovement.count({
           where: {
             created_at: { gt: count.snapshot_at },

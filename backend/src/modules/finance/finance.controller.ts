@@ -23,6 +23,7 @@ import { LinkedPricingService } from './linked-pricing.service';
 import {
   LinkedPriceApplyDto,
   LinkedPricePreviewDto,
+  PricePublishDecisionDto,
 } from './dto/linked-price.dto';
 import { DraftService } from './draft.service';
 import {
@@ -51,7 +52,7 @@ export class CurrencyController {
   constructor(private readonly currencies: CurrencyService) {}
 
   @Get()
-  @AdminPolicy('ledger.view')
+  @AdminPolicy('fx_rates.view')
   list() {
     return this.currencies.list();
   }
@@ -75,7 +76,7 @@ export class ExchangeRateController {
   ) {}
 
   @Get()
-  @AdminPolicy('ledger.view')
+  @AdminPolicy('fx_rates.view')
   list(@Query('currency_code') currencyCode?: string) {
     return this.currencies.listRates(currencyCode?.toUpperCase());
   }
@@ -110,17 +111,28 @@ export class ExchangeRateController {
     @Req() request: AdminRequest,
     @Body() input: LinkedPriceApplyDto,
   ) {
-    return this.linkedPrices.publish(
-      request.user.id,
-      input,
-      request.user.permissions,
-    );
+    return this.linkedPrices.publish(request.user.id, input);
   }
 
   @Get(':code/applicable')
-  @AdminPolicy('ledger.view')
+  @AdminPolicy('fx_rates.view')
   applicable(@Param('code') code: string, @Query() query: RateLookupQueryDto) {
     return this.currencies.applicable(code.toUpperCase(), new Date(query.at));
+  }
+}
+
+@Controller('admin/price-publish-approvals')
+export class PricePublishApprovalsController {
+  constructor(private readonly linkedPrices: LinkedPricingService) {}
+
+  @Post(':id/decision')
+  @AdminPolicy('sell_below_cost.approve')
+  decide(
+    @Req() request: AdminRequest,
+    @Param('id', uuid) id: string,
+    @Body() input: PricePublishDecisionDto,
+  ) {
+    return this.linkedPrices.decide(request.user.id, id, input);
   }
 }
 
@@ -219,26 +231,29 @@ export class LedgerController {
 }
 
 @Controller('admin/cash-accounts')
-@AdminPolicy('cash_accounts.manage')
 export class CashAccountsController {
   constructor(private readonly cash: CashAccountService) {}
 
   @Get()
+  @AdminPolicy('cash_accounts.view')
   list() {
     return this.cash.list();
   }
 
   @Post()
+  @AdminPolicy('cash_accounts.manage')
   create(@Req() request: AdminRequest, @Body() input: CreateCashAccountDto) {
     return this.cash.create(request.user.id, input);
   }
 
   @Get(':id')
+  @AdminPolicy('cash_accounts.view')
   get(@Param('id', uuid) id: string) {
     return this.cash.get(id);
   }
 
   @Patch(':id')
+  @AdminPolicy('cash_accounts.manage')
   update(
     @Req() request: AdminRequest,
     @Param('id', uuid) id: string,
@@ -249,11 +264,13 @@ export class CashAccountsController {
 
   @Delete(':id')
   @HttpCode(204)
+  @AdminPolicy('cash_accounts.manage')
   remove(@Req() request: AdminRequest, @Param('id', uuid) id: string) {
     return this.cash.remove(request.user.id, id);
   }
 
   @Post(':id/opening-balance')
+  @AdminPolicy('cash_accounts.manage')
   openingBalance(
     @Req() request: AdminRequest,
     @Param('id', uuid) id: string,
@@ -279,7 +296,7 @@ export class FinancialDocumentsController {
   constructor(private readonly cash: CashAccountService) {}
 
   @Get(':id')
-  @AdminAnyPermissionPolicy('ledger.view', 'cash_accounts.manage')
+  @AdminAnyPermissionPolicy('ledger.view', 'cash_accounts.view')
   get(@Param('id', uuid) id: string) {
     return this.cash.getDocument(id);
   }

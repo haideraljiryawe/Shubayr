@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Currencies and exchange rates (ledger.view to read). Enabling a currency
+ * Currencies and exchange rates (fx_rates.view to read). Enabling a currency
  * needs settings.manage and recording a rate fx_rates.update; the page offers
  * each control only to those who hold its permission, and the API decides.
  */

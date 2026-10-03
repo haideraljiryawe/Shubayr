@@ -9,6 +9,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { assertDifferentActor } from '../../common/access/separation-of-duties';
 
 const input = { address_id: 'address-1', payment_method: 'cod' as const };
 const fingerprint = createHash('sha256')
@@ -335,5 +336,75 @@ describe('OrdersService', () => {
         at: expect.any(Date) as Date,
       },
     });
+  });
+
+  it("ignores a client-supplied originator id and refuses the authenticated originator's self-approval", async () => {
+    const tx = {
+      $queryRaw: jest.fn(),
+      order: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          user_id: 'staff-1',
+          status: 'pending',
+          version: 1,
+        }),
+      },
+      orderItem: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            variant_id: 'variant-1',
+            unit_price: 1000,
+            variant: { sku: 'SKU-1' },
+          },
+        ]),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+    const belowCost = {
+      assertAllowed: jest.fn(
+        (
+          _db: unknown,
+          actorId: string,
+          _permissions: string[],
+          _variants: unknown[],
+          override: { originatorId?: string | null },
+        ) => {
+          assertDifferentActor(actorId, override.originatorId!);
+        },
+      ),
+    };
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      audit,
+      undefined,
+      undefined,
+      belowCost as never,
+    );
+
+    await expect(
+      service.updateStatus(
+        'staff-1',
+        'order-1',
+        {
+          status: 'confirmed',
+          version: 1,
+          below_cost_override_reason: 'Self approval attempt',
+          below_cost_originator_id: 'different-user',
+        } as never,
+        ['sell_below_cost.approve'],
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(belowCost.assertAllowed).toHaveBeenCalledWith(
+      tx,
+      'staff-1',
+      ['sell_below_cost.approve'],
+      expect.any(Array),
+      expect.objectContaining({ originatorId: 'staff-1' }),
+    );
   });
 });

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { assertDifferentActor } from '../../common/access/separation-of-duties';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
@@ -257,6 +258,11 @@ export class ReviewsService {
       const current = await tx.productReview.findUniqueOrThrow({
         where: { id },
       });
+      assertDifferentActor(
+        actorId,
+        current.user_id,
+        'The review author cannot moderate their own review',
+      );
       const status = input.decision === 'publish' ? 'published' : 'rejected';
       if (current.status === status)
         throw new ConflictException('Review already has this status');

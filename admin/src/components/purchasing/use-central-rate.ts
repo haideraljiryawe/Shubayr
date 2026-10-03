@@ -11,7 +11,7 @@ export type CentralRate =
   | { status: "ready"; rate: string }
   /** No rate recorded at that date: the server will refuse the document. */
   | { status: "missing" }
-  /** The rate can't be read without ledger.view; the server still applies it. */
+  /** The rate can't be read without fx_rates.view; the server still applies it. */
   | { status: "hidden" };
 
 /**

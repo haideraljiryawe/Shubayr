@@ -30,6 +30,7 @@ const SETTINGS: AdminSettings = {
     default_low_stock_threshold: "5",
     backdating_window_days: "90",
     markup_alert_percent: null,
+    separation_of_duties_level: "standard",
   },
   business_hours: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
     weekday,
@@ -157,9 +158,14 @@ describe("settings form", () => {
     expect(isEmptyPatch(buildPatch(before, after))).toBe(true);
     after.numbers.delivery_fee = "٦٠٠٠";
     after.autoCancel = true;
+    after.separationOfDutiesLevel = "strict";
     after.thresholds.cost = "25";
     expect(buildPatch(before, after)).toEqual({
-      settings: { delivery_fee: "6000", auto_cancel_enabled: "true" },
+      settings: {
+        delivery_fee: "6000",
+        auto_cancel_enabled: "true",
+        separation_of_duties_level: "strict",
+      },
       protection_thresholds: { cost: 25 },
     });
     after.closedDays = [{ date: "2026-10-03", reason: " Holiday " }];

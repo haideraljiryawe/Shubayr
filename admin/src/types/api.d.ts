@@ -1560,8 +1560,6 @@ export interface paths {
                         version: number;
                         note?: string | null;
                         below_cost_override_reason?: string | null;
-                        /** Format: uuid */
-                        below_cost_originator_id?: string | null;
                     };
                 };
             };
@@ -4440,8 +4438,6 @@ export interface paths {
                         version: number;
                         note?: string | null;
                         below_cost_override_reason?: string | null;
-                        /** Format: uuid */
-                        below_cost_originator_id?: string | null;
                     };
                 };
             };
@@ -6471,7 +6467,7 @@ export interface paths {
         put?: never;
         /**
          * Atomically save a rate and publish one linked-price version
-         * @description Refuses an expired or stale preview. Conversion and configured upward rounding occur before product discounts.
+         * @description Refuses an expired or stale preview. Conversion and configured upward rounding occur before product discounts. If a resulting price is below protected cost, no rate or price is saved; a pending approval request is created for a different user to approve or reject.
          */
         post: {
             parameters: {
@@ -6493,6 +6489,55 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["LinkedPriceApplyResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/price-publish-approvals/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve or reject a pending below-cost linked-price publish
+         * @description The authenticated proposer is stored server-side and can never decide their own request.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PricePublishDecisionInput"];
+                };
+            };
+            responses: {
+                /** @description Decided approval request */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PricePublishApproval"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -7152,7 +7197,7 @@ export interface paths {
         };
         /**
          * Read one posted financial document by id
-         * @description Cash transfers and opening balances require either ledger.view or their own cash_accounts.manage permission.
+         * @description Cash transfers and opening balances require either ledger.view or cash_accounts.view.
          */
         get: {
             parameters: {
@@ -8543,6 +8588,8 @@ export interface components {
             published_at?: string | null;
             /** Format: date-time */
             price_approved_at?: string | null;
+            /** Format: uuid */
+            price_proposed_by?: string | null;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -8565,8 +8612,6 @@ export interface components {
          */
         ProductInput: {
             below_cost_override_reason?: string | null;
-            /** Format: uuid */
-            below_cost_originator_id?: string | null;
             /** Format: uuid */
             category_id: string;
             /** Format: uuid */
@@ -8621,8 +8666,6 @@ export interface components {
         /** @description All ProductInput fields are optional on PATCH. Omission preserves the stored value. Explicit null clears a nullable field; discount_type null clears discount_type, discount_value, discount_starts_at, and discount_ends_at together. */
         ProductPatch: {
             below_cost_override_reason?: string | null;
-            /** Format: uuid */
-            below_cost_originator_id?: string | null;
             /** Format: uuid */
             category_id?: string;
             /** Format: uuid */
@@ -8803,6 +8846,8 @@ export interface components {
             published_price?: number | null;
             /** Format: date-time */
             price_approved_at?: string | null;
+            /** Format: uuid */
+            price_proposed_by?: string | null;
             /** Format: uuid */
             price_version_id?: string | null;
             /** Format: uuid */
@@ -10407,17 +10452,45 @@ export interface components {
             /** Format: uuid */
             preview_token: string;
             below_cost_override_reason?: string | null;
-            /** Format: uuid */
-            below_cost_originator_id?: string | null;
         };
         LinkedPriceApplyResult: {
             /** @enum {string} */
-            mode: "rate_only" | "published";
+            mode: "rate_only" | "published" | "pending_approval";
             /** Format: uuid */
-            exchange_rate_id: string;
+            exchange_rate_id: string | null;
             /** Format: uuid */
             price_version_id: string | null;
+            /** Format: uuid */
+            approval_request_id: string | null;
             linked_sku_count: number;
+        };
+        PricePublishDecisionInput: {
+            /** @enum {string} */
+            decision: "approve" | "reject";
+            reason: string;
+        };
+        PricePublishApproval: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            preview_id: string | null;
+            /** Format: uuid */
+            price_version_id: string | null;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected";
+            /** Format: uuid */
+            proposed_by: string;
+            /** Format: uuid */
+            decided_by: string | null;
+            proposal_reason: string;
+            decision_reason: string | null;
+            breaches: {
+                [key: string]: unknown;
+            }[];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            decided_at: string | null;
         };
         OperationOutcome: {
             /** Format: uuid */
@@ -10648,6 +10721,12 @@ export interface components {
         };
         AdminFinancialSettings: {
             settings: {
+                /**
+                 * @default standard
+                 * @enum {string|null}
+                 */
+                separation_of_duties_level: "standard" | "strict" | null;
+            } & {
                 [key: string]: string | null;
             };
             business_hours: components["schemas"]["BusinessHours"][];
@@ -10656,6 +10735,9 @@ export interface components {
         };
         AdminFinancialSettingsPatch: {
             settings?: {
+                /** @enum {string|null} */
+                separation_of_duties_level?: "standard" | "strict" | null;
+            } & {
                 [key: string]: string | null;
             };
             business_hours?: components["schemas"]["BusinessHoursInput"][];

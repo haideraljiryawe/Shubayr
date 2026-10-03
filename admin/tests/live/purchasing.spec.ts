@@ -452,11 +452,11 @@ test("a payment dated before any USD rate: the form says so before review, and t
   await expect(page.getByTestId("payment-problems")).toBeVisible();
   await expect(page.getByTestId("payment-review")).toHaveCount(0);
 
-  // Someone who can't read rates (no ledger.view) posts, and the API refuses.
+  // Someone who can't read rates (no fx_rates.view) posts, and the API refuses.
   const clerk = await activateStaff(
     request,
     await createStaff(request, {
-      permissionKeys: ["supplier_payments.record", "suppliers.view", "cash_accounts.manage", "cost.view", "backdate.approve"],
+      permissionKeys: ["supplier_payments.record", "suppliers.view", "cash_accounts.view", "cost.view", "backdate.approve"],
       prefix: "clerk",
     }),
   );

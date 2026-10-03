@@ -15,7 +15,10 @@ import {
   moneyToMinorUnits,
 } from '../src/modules/catalog/pricing';
 import { cartUnitPrice } from '../src/modules/orders/cart-pricing';
-import { PERMISSION_REGISTRY } from '../src/common/access/permission-registry';
+import {
+  PERMISSION_REGISTRY,
+  SEEDED_PRESET_GRANTS,
+} from '../src/common/access/permission-registry';
 import { hashPassword } from '../src/modules/auth/password';
 import { businessDate } from '../src/modules/finance/business-date';
 
@@ -47,62 +50,7 @@ const permissions = Object.entries(PERMISSION_REGISTRY).map(
   ([key, [group, description]]) => [key, group, description] as const,
 );
 
-const presetGrants: Record<string, string[]> = {
-  super_admin: permissions.map(([key]) => key),
-  operations: [
-    'orders.view',
-    'orders.accept',
-    'orders.reject',
-    'orders.prepare',
-    'orders.mark_ready',
-    'orders.handover',
-    'orders.cancel',
-    'orders.cancel_request.resolve',
-    'orders.deliver',
-    'orders.fail',
-    'orders.retry',
-    'orders.cancel_after_dispatch',
-    'orders.shortage.resolve',
-    'orders.assign_agent',
-    'deliveries.manage',
-    'returns.inspect',
-    'returns.approve',
-    'returns.refund',
-    'reviews.moderate',
-    'retrieval.view',
-    'retrieval.open',
-    'retrieval.receive',
-    'reports.view',
-    'loyalty.adjust',
-  ],
-  catalog_editor: [
-    'catalog.categories',
-    'catalog.brands',
-    'catalog.products',
-    'prices.change',
-    'prices.publish_linked',
-    'sell_below_cost.approve',
-  ],
-  stock_controller: [
-    'cost.view',
-    'suppliers.view',
-    'suppliers.manage',
-    'purchases.create',
-    'purchases.correct',
-    'purchases.override_rate',
-    'supplier_openings.record',
-    'supplier_payments.record',
-    'supplier_credits.allocate',
-    'supplier_returns.create',
-    'inventory.count',
-    'inventory.pick',
-    'inventory.adjust',
-    'inventory.transfer',
-    'inventory.view',
-    'inventory.manage',
-    'inventory.write_down',
-  ],
-};
+const presetGrants = SEEDED_PRESET_GRANTS;
 
 const staffAccounts = [
   ['admin', 'Development Admin', 'super_admin'],
@@ -300,6 +248,7 @@ async function main(): Promise<void> {
     ['primary_color', '#0B2A54'],
     ['logo_url', ''],
     ['sale_rounding_multiple', '0'],
+    ['separation_of_duties_level', 'standard'],
   ] as const) {
     await prisma.storeSetting.upsert({
       where: { key },
