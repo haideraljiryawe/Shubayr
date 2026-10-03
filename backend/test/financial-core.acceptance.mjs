@@ -216,7 +216,7 @@ await request(`/admin/staff/${operationsLogin.user.id}/access`, {
   method: 'PUT',
   body: {
     preset_ids: [operationsPreset.id],
-    permission_keys: ['cash_accounts.manage'],
+    permission_keys: ['cash_accounts.view', 'cash_accounts.manage'],
     reason: 'Financial acceptance date-rule test',
   },
 });
