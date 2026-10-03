@@ -186,7 +186,7 @@ describe('linked below-cost publish approvals', () => {
   });
 
   it('publishes when a second authenticated user approves', async () => {
-    const { service, tx } = setup();
+    const { service, tx, audit } = setup();
     await expect(
       service.decide('approver', 'approval-1', {
         decision: 'approve',
@@ -205,5 +205,12 @@ describe('linked below-cost publish approvals', () => {
     expect(decision.where.id).toBe('approval-1');
     expect(decision.data.status).toBe('approved');
     expect(decision.data.decided_by).toBe('approver');
+    expect(audit.record).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        actorId: 'approver',
+        action: 'prices.linked.approval_approved',
+      }),
+    );
   });
 });
