@@ -109,7 +109,7 @@ test("a reduction proposal reads from attention_details", () => {
     reductionProposal({
       attention_details: {
         short_lines: [],
-        reduction_proposal: { order_item_id: "oi-1", old_quantity: 3, new_quantity: 1, reason: "Only one left", status: "pending" },
+        reduction_proposal: { order_item_id: "oi-1", old_quantity: 3, new_quantity: 1, reason: "Only one left", status: "pending", requested_by: "11111111-1111-4111-8111-111111111111", requested_at: "2026-10-01T10:00:00Z" },
       },
     }),
   ).toEqual({ orderItemId: "oi-1", oldQuantity: 3, newQuantity: 1, reason: "Only one left", status: "pending" });

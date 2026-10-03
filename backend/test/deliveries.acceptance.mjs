@@ -241,10 +241,33 @@ const failed = await request(`/deliveries/${second.delivery_id}`, {
   },
 });
 check(failed.status, 'failed', 'failed is terminal alternate');
+check(failed.attempts.length, 1, 'first delivery attempt is retained');
+check(
+  {
+    number: failed.attempts[0].attempt_number,
+    status: failed.attempts[0].status,
+    reason: failed.attempts[0].reason,
+    party: failed.attempts[0].party.id,
+    completed: Boolean(failed.attempts[0].completed_at),
+  },
+  {
+    number: 1,
+    status: 'failed',
+    reason: 'Recipient unavailable',
+    party: agentA.user.id,
+    completed: true,
+  },
+  'failure history records reason, party and completion time',
+);
 const secondFailed = await request(`/orders/${second.id}`, {
   token: token(customer),
 });
 check(secondFailed.status, 'failed', 'failure advances order');
+check(
+  secondFailed.delivery_attempts[0].reason,
+  'Recipient unavailable',
+  'customer can read the failed-attempt reason',
+);
 await request(`/deliveries/${second.delivery_id}`, {
   token: token(agentA),
   method: 'PATCH',
@@ -276,6 +299,17 @@ const retried = await request(
   },
 );
 check(retried.status, 'out_for_delivery', 'authorized staff retries failure');
+check(retried.attempts.length, 2, 'retry appends a second attempt');
+check(
+  retried.attempts[0].reason,
+  'Recipient unavailable',
+  'retry does not erase the first failure reason',
+);
+check(
+  retried.attempts[1].status,
+  'out_for_delivery',
+  'retry starts a new open attempt',
+);
 check(
   await issueCount(),
   issuesBeforeRetry,
@@ -297,6 +331,30 @@ const failedAgain = await request(`/orders/${second.id}`, {
   token: token(customer),
 });
 check(failedAgain.status, 'failed', 'staff failure permission advances order');
+check(
+  failedAgain.delivery_attempts.map(({ reason }) => reason),
+  ['Recipient unavailable', 'Second attempt failed'],
+  'customer order history retains both delivery failures',
+);
+const staffAttemptHistory = await request(`/admin/orders/${second.id}`, {
+  token: token(admin),
+});
+check(
+  staffAttemptHistory.delivery_attempts.map(({ reason }) => reason),
+  ['Recipient unavailable', 'Second attempt failed'],
+  'staff can read every delivery attempt',
+);
+const agentAttemptHistory = await request(
+  '/deliveries/assigned?status=failed&per_page=100',
+  { token: token(agentA) },
+);
+check(
+  agentAttemptHistory.data
+    .find(({ id }) => id === second.delivery_id)
+    .attempts.map(({ reason }) => reason),
+  ['Recipient unavailable', 'Second attempt failed'],
+  'assigned agent can read every delivery attempt',
+);
 
 const retrieval = await request(`/admin/orders/${second.id}/retrievals`, {
   token: token(admin),
@@ -310,6 +368,26 @@ const retrieval = await request(`/admin/orders/${second.id}/retrievals`, {
 });
 check(retrieval.status, 'open', 'failed order opens retrieval document');
 check(retrieval.lines.length > 0, true, 'retrieval snapshots custody lines');
+const retrievals = await request(
+  `/admin/retrievals?party_id=${agentA.user.id}&order_id=${second.id}&status=open&from=${retrieval.document_date}&to=${retrieval.document_date}`,
+  { token: token(admin) },
+);
+check(retrievals.total, 1, 'retrieval list applies all filters');
+check(
+  {
+    id: retrievals.data[0].id,
+    party: retrievals.data[0].custody_party.id,
+    order: retrievals.data[0].order.id,
+    lines: retrievals.data[0].line_count,
+  },
+  {
+    id: retrieval.id,
+    party: agentA.user.id,
+    order: second.id,
+    lines: retrieval.lines.length,
+  },
+  'retrieval list exposes its order, party and line count',
+);
 const warehouses = await request('/admin/inventory/warehouses', {
   token: token(admin),
 });

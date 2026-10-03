@@ -348,6 +348,172 @@ describe('OrdersService', () => {
     expect(tx.orderStatusEvent.create).not.toHaveBeenCalled();
   });
 
+  it('notifies the customer when staff proposes a reduced quantity', async () => {
+    const tx = {
+      $queryRaw: jest.fn(),
+      order: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          user_id: 'customer-1',
+          status: 'preparing',
+          version: 2,
+          inventory_attention_required: true,
+          attention_details: {
+            short_lines: [
+              {
+                order_item_id: 'item-1',
+                variant_id: 'variant-1',
+                requested: '3',
+                allocated: '1',
+                short: '2',
+              },
+            ],
+          },
+        }),
+        update: jest.fn(),
+      },
+      orderItem: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'item-1',
+          quantity: 3,
+        }),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+    const notifications = { record: jest.fn() };
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      audit,
+      notifications as never,
+    );
+    jest.spyOn(service, 'getAdmin').mockResolvedValue({} as never);
+
+    await service.resolveShortage('staff-1', 'order-1', {
+      version: 2,
+      action: 'reduce',
+      order_item_id: 'item-1',
+      new_quantity: 1,
+      reason: 'Only one remains',
+    });
+
+    expect(notifications.record).toHaveBeenCalledWith(
+      tx,
+      'customer-1',
+      'quantity_reduction_proposed',
+      'order',
+      'order-1',
+      'item-1:2',
+    );
+  });
+
+  it('notifies the customer when a cancellation request is denied', async () => {
+    const tx = {
+      $queryRaw: jest.fn(),
+      order: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          user_id: 'customer-1',
+          status: 'confirmed',
+          version: 3,
+          cancellation_request_status: 'pending',
+        }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          user_id: 'customer-1',
+        }),
+        update: jest.fn(),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+    const notifications = { record: jest.fn() };
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      audit,
+      notifications as never,
+    );
+    jest.spyOn(service, 'getAdmin').mockResolvedValue({} as never);
+
+    await service.resolveCancellationRequest('staff-1', 'order-1', {
+      version: 3,
+      decision: 'denied',
+      reason: 'Already packed',
+    });
+
+    expect(notifications.record).toHaveBeenCalledWith(
+      tx,
+      'customer-1',
+      'cancellation_request_denied',
+      'order',
+      'order-1',
+      '3',
+    );
+  });
+
+  it('notifies the customer when a cancellation request is approved', async () => {
+    const tx = {
+      $queryRaw: jest.fn(),
+      order: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          user_id: 'customer-1',
+          status: 'dispatched',
+          version: 4,
+          cancellation_request_status: 'pending',
+        }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          user_id: 'customer-1',
+        }),
+        update: jest.fn(),
+      },
+      orderStatusEvent: { create: jest.fn() },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+    const notifications = {
+      record: jest.fn(),
+      recordOrderMonitors: jest.fn(),
+    };
+    const inventory = { openRetrieval: jest.fn() };
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      audit,
+      notifications as never,
+      inventory as never,
+    );
+    jest.spyOn(service, 'getAdmin').mockResolvedValue({} as never);
+
+    await service.resolveCancellationRequest(
+      'staff-1',
+      'order-1',
+      { version: 4, decision: 'approved', reason: 'Customer requested it' },
+      ['orders.cancel_after_dispatch'],
+    );
+
+    expect(notifications.record).toHaveBeenCalledWith(
+      tx,
+      'customer-1',
+      'cancellation_request_approved',
+      'order',
+      'order-1',
+      '4',
+    );
+  });
+
   it('allows a valid staff transition and records it against the prior status', async () => {
     const tx = {
       $queryRaw: jest.fn(),

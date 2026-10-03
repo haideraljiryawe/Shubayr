@@ -49,6 +49,14 @@ import {
 
 const orderInclude = {
   items: true,
+  deliveries: {
+    include: {
+      attempts: {
+        include: { party: { select: { id: true, name: true } } },
+        orderBy: { attempt_number: 'asc' as const },
+      },
+    },
+  },
   status_events: { orderBy: [{ at: 'asc' as const }, { id: 'asc' as const }] },
   retrievals: {
     select: { id: true, document_number: true, status: true, outcome: true },
@@ -63,6 +71,14 @@ const adminOrderInclude = {
   delivery: {
     include: {
       agent: { select: { id: true, name: true, phone: true, email: true } },
+    },
+  },
+  deliveries: {
+    include: {
+      attempts: {
+        include: { party: { select: { id: true, name: true } } },
+        orderBy: { attempt_number: 'asc' as const },
+      },
     },
   },
   status_events: { orderBy: [{ at: 'asc' as const }, { id: 'asc' as const }] },
@@ -473,9 +489,7 @@ export class OrdersService {
     };
     const where: Prisma.OrderWhereInput = {
       ...baseWhere,
-      ...(query.late === undefined
-        ? {}
-        : { late_for_acceptance: query.late }),
+      ...(query.late === undefined ? {} : { late_for_acceptance: query.late }),
       ...(query.needs_attention === undefined
         ? {}
         : { inventory_attention_required: query.needs_attention }),
@@ -485,24 +499,24 @@ export class OrdersService {
     };
     const [total, rows, late, needsAttention, pendingCancellation] =
       await this.prisma.$transaction([
-      this.prisma.order.count({ where }),
-      this.prisma.order.findMany({
-        where,
-        include: adminOrderInclude,
-        orderBy: [{ placed_at: 'desc' }, { id: 'desc' }],
-        skip: (page - 1) * perPage,
-        take: perPage,
-      }),
-      this.prisma.order.count({
-        where: { ...baseWhere, late_for_acceptance: true },
-      }),
-      this.prisma.order.count({
-        where: { ...baseWhere, inventory_attention_required: true },
-      }),
-      this.prisma.order.count({
-        where: { ...baseWhere, cancellation_request_status: 'pending' },
-      }),
-    ]);
+        this.prisma.order.count({ where }),
+        this.prisma.order.findMany({
+          where,
+          include: adminOrderInclude,
+          orderBy: [{ placed_at: 'desc' }, { id: 'desc' }],
+          skip: (page - 1) * perPage,
+          take: perPage,
+        }),
+        this.prisma.order.count({
+          where: { ...baseWhere, late_for_acceptance: true },
+        }),
+        this.prisma.order.count({
+          where: { ...baseWhere, inventory_attention_required: true },
+        }),
+        this.prisma.order.count({
+          where: { ...baseWhere, cancellation_request_status: 'pending' },
+        }),
+      ]);
     return {
       page,
       per_page: perPage,
@@ -888,6 +902,16 @@ export class OrdersService {
       } else {
         throw new ConflictException('This order can no longer be cancelled');
       }
+      await this.notifications?.record(
+        tx,
+        order.user_id,
+        input.decision === 'approved'
+          ? 'cancellation_request_approved'
+          : 'cancellation_request_denied',
+        'order',
+        id,
+        String(input.version),
+      );
       await this.audit.record(tx, {
         actorId,
         action: 'order.cancellation_request.resolve',
@@ -961,6 +985,14 @@ export class OrdersService {
             },
           },
         });
+        await this.notifications?.record(
+          tx,
+          order.user_id,
+          'quantity_reduction_proposed',
+          'order',
+          id,
+          `${item.id}:${input.version}`,
+        );
       } else {
         await this.applyLineQuantity(tx, order, item, 0, actorId);
         await tx.order.update({
@@ -1248,6 +1280,28 @@ export class OrdersService {
           where: { id: delivery.id },
           data: { status: 'out_for_delivery', dispatched_at: now },
         });
+        await tx.deliveryAttempt.upsert({
+          where: {
+            delivery_id_attempt_number: {
+              delivery_id: delivery.id,
+              attempt_number: 1,
+            },
+          },
+          create: {
+            delivery_id: delivery.id,
+            attempt_number: 1,
+            party_id: delivery.agent_id!,
+            status: 'out_for_delivery',
+            started_at: now,
+          },
+          update: {
+            party_id: delivery.agent_id!,
+            status: 'out_for_delivery',
+            reason: null,
+            started_at: now,
+            completed_at: null,
+          },
+        });
         await this.audit.record(tx, {
           actorId,
           action: 'delivery.dispatch',
@@ -1393,6 +1447,24 @@ export class OrdersService {
       price_change_info: row.price_change_info,
       inventory_attention_required: row.inventory_attention_required,
       attention_details: row.attention_details,
+      delivery_attempts: (row.deliveries ?? [])
+        .flatMap((delivery) =>
+          delivery.attempts.map((attempt) => ({
+            id: attempt.id,
+            delivery_id: attempt.delivery_id,
+            attempt_number: attempt.attempt_number,
+            status: attempt.status,
+            reason: attempt.reason,
+            started_at: attempt.started_at,
+            completed_at: attempt.completed_at,
+            party: attempt.party,
+          })),
+        )
+        .sort(
+          (left, right) =>
+            left.started_at.getTime() - right.started_at.getTime() ||
+            left.attempt_number - right.attempt_number,
+        ),
       timeline: (row.status_events ?? []).map(({ status, note, at }) => ({
         status,
         note,

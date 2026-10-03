@@ -352,6 +352,7 @@ model User {
   orders                      Order[]
   assigned_pick_lists         PickList[]                      @relation("PickListAssignee")
   assigned_deliveries         Delivery[]                      @relation("DeliveryAgent")
+  delivery_attempts           DeliveryAttempt[]               @relation("DeliveryAttemptParty")
   retrievals_in_custody       Retrieval[]                     @relation("RetrievalCustodyParty")
   created_retrievals          Retrieval[]                     @relation("RetrievalCreator")
   closed_retrievals           Retrieval[]                     @relation("RetrievalCloser")
@@ -754,17 +755,17 @@ model ProductVariant {
 }
 
 model PriceVersion {
-  id                String           @id(map: "price_versions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  version           Int              @unique(map: "price_versions_version_key") @default(autoincrement())
-  exchange_rate_id  String           @db.Uuid
-  currency_code     String           @db.Char(3)
-  rate              Decimal          @db.Decimal(24, 10)
-  rounding_multiple Decimal          @default(0) @db.Decimal(20, 6)
-  published_by      String           @db.Uuid
-  proposed_by       String           @db.Uuid
+  id                String                @id(map: "price_versions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version           Int                   @unique(map: "price_versions_version_key") @default(autoincrement())
+  exchange_rate_id  String                @db.Uuid
+  currency_code     String                @db.Char(3)
+  rate              Decimal               @db.Decimal(24, 10)
+  rounding_multiple Decimal               @default(0) @db.Decimal(20, 6)
+  published_by      String                @db.Uuid
+  proposed_by       String                @db.Uuid
   variant_count     Int
-  published_at      DateTime         @default(now()) @db.Timestamptz(6)
-  exchange_rate     ExchangeRate     @relation(fields: [exchange_rate_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_versions_exchange_rate_id_fkey")
+  published_at      DateTime              @default(now()) @db.Timestamptz(6)
+  exchange_rate     ExchangeRate          @relation(fields: [exchange_rate_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_versions_exchange_rate_id_fkey")
   variants          ProductVariant[]
   approval_request  PricePublishApproval?
 
@@ -773,15 +774,15 @@ model PriceVersion {
 }
 
 model LinkedPricePreview {
-  id            String   @id(map: "linked_price_previews_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  actor_id      String   @db.Uuid
-  currency_code String   @db.Char(3)
-  proposed_rate Decimal  @db.Decimal(24, 10)
-  effective_at  DateTime @db.Timestamptz(6)
-  reason        String   @db.VarChar(500)
-  fingerprint   String   @db.Char(64)
-  expires_at    DateTime @db.Timestamptz(6)
-  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  id               String                @id(map: "linked_price_previews_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_id         String                @db.Uuid
+  currency_code    String                @db.Char(3)
+  proposed_rate    Decimal               @db.Decimal(24, 10)
+  effective_at     DateTime              @db.Timestamptz(6)
+  reason           String                @db.VarChar(500)
+  fingerprint      String                @db.Char(64)
+  expires_at       DateTime              @db.Timestamptz(6)
+  created_at       DateTime              @default(now()) @db.Timestamptz(6)
   approval_request PricePublishApproval?
 
   @@index([actor_id, expires_at], map: "idx_linked_price_previews_actor")
@@ -1513,24 +1514,24 @@ model SkuCost {
 }
 
 model CustodyHolding {
-  id               String         @id(map: "custody_holdings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id         String         @db.Uuid
-  order_item_id    String         @db.Uuid
-  delivery_id      String         @db.Uuid
-  custody_party_id String         @db.Uuid
-  batch_id         String         @db.Uuid
-  quantity         Decimal        @db.Decimal(20, 3)
-  remaining_quantity Decimal      @db.Decimal(20, 3)
-  unit_cost_iqd    Decimal        @db.Decimal(30, 12)
-  status           String         @default("in_custody") @db.VarChar(20)
-  issued_at        DateTime       @default(now()) @db.Timestamptz(6)
-  settled_at       DateTime?      @db.Timestamptz(6)
-  order            Order          @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_order_id_fkey")
-  order_item       OrderItem      @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_order_item_id_fkey")
-  delivery         Delivery       @relation(fields: [delivery_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_delivery_id_fkey")
-  custody_party    User           @relation("CustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_custody_party_id_fkey")
-  batch            InventoryBatch @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_batch_id_fkey")
-  retrieval_lines  RetrievalLine[]
+  id                 String          @id(map: "custody_holdings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id           String          @db.Uuid
+  order_item_id      String          @db.Uuid
+  delivery_id        String          @db.Uuid
+  custody_party_id   String          @db.Uuid
+  batch_id           String          @db.Uuid
+  quantity           Decimal         @db.Decimal(20, 3)
+  remaining_quantity Decimal         @db.Decimal(20, 3)
+  unit_cost_iqd      Decimal         @db.Decimal(30, 12)
+  status             String          @default("in_custody") @db.VarChar(20)
+  issued_at          DateTime        @default(now()) @db.Timestamptz(6)
+  settled_at         DateTime?       @db.Timestamptz(6)
+  order              Order           @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_order_id_fkey")
+  order_item         OrderItem       @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_order_item_id_fkey")
+  delivery           Delivery        @relation(fields: [delivery_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_delivery_id_fkey")
+  custody_party      User            @relation("CustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_custody_party_id_fkey")
+  batch              InventoryBatch  @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_batch_id_fkey")
+  retrieval_lines    RetrievalLine[]
 
   @@unique([order_item_id, batch_id, custody_party_id], map: "custody_holdings_order_item_batch_party_key")
   @@index([custody_party_id, status], map: "idx_custody_holdings_party_status")
@@ -1694,15 +1695,15 @@ model InventoryWriteDownLine {
 }
 
 model PickList {
-  id          String         @id(map: "pick_lists_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id    String         @db.Uuid
-  assigned_to String?        @db.Uuid
-  status      String         @default("open") @db.VarChar(20)
-  created_at  DateTime       @default(now()) @db.Timestamptz(6)
-  completed_at DateTime?     @db.Timestamptz(6)
-  order       Order          @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "pick_lists_order_id_fkey")
-  assignee    User?          @relation("PickListAssignee", fields: [assigned_to], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "pick_lists_assigned_to_fkey")
-  items       PickListItem[]
+  id           String         @id(map: "pick_lists_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id     String         @db.Uuid
+  assigned_to  String?        @db.Uuid
+  status       String         @default("open") @db.VarChar(20)
+  created_at   DateTime       @default(now()) @db.Timestamptz(6)
+  completed_at DateTime?      @db.Timestamptz(6)
+  order        Order          @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "pick_lists_order_id_fkey")
+  assignee     User?          @relation("PickListAssignee", fields: [assigned_to], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "pick_lists_assigned_to_fkey")
+  items        PickListItem[]
 
   @@unique([order_id], map: "pick_lists_order_id_key")
   @@map("pick_lists")
@@ -1725,25 +1726,43 @@ model PickListItem {
 }
 
 model Delivery {
-  id                String           @id(map: "deliveries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id          String           @db.Uuid
-  agent_id          String?          @db.Uuid
-  status            String           @default("assigned") @db.VarChar(30)
-  delivery_fee      Decimal          @default(0) @db.Decimal(20, 6)
-  currency_code     String           @default("IQD") @db.Char(3)
-  dispatched_at     DateTime?        @db.Timestamptz(6)
-  delivered_at      DateTime?        @db.Timestamptz(6)
-  failure_reason    String?          @db.VarChar(500)
-  failed_at         DateTime?        @db.Timestamptz(6)
-  retry_count       Int              @default(0)
-  order             Order            @relation("OrderDeliveryHistory", fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "deliveries_order_id_fkey")
-  current_for_order Order?           @relation("OrderCurrentDelivery")
-  agent             User?            @relation("DeliveryAgent", fields: [agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "deliveries_agent_id_fkey")
+  id                String            @id(map: "deliveries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id          String            @db.Uuid
+  agent_id          String?           @db.Uuid
+  status            String            @default("assigned") @db.VarChar(30)
+  delivery_fee      Decimal           @default(0) @db.Decimal(20, 6)
+  currency_code     String            @default("IQD") @db.Char(3)
+  dispatched_at     DateTime?         @db.Timestamptz(6)
+  delivered_at      DateTime?         @db.Timestamptz(6)
+  failure_reason    String?           @db.VarChar(500)
+  failed_at         DateTime?         @db.Timestamptz(6)
+  retry_count       Int               @default(0)
+  order             Order             @relation("OrderDeliveryHistory", fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "deliveries_order_id_fkey")
+  current_for_order Order?            @relation("OrderCurrentDelivery")
+  agent             User?             @relation("DeliveryAgent", fields: [agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "deliveries_agent_id_fkey")
   ratings           DeliveryRating[]
   custody_holdings  CustodyHolding[]
   retrievals        Retrieval[]
+  attempts          DeliveryAttempt[]
 
   @@map("deliveries")
+}
+
+model DeliveryAttempt {
+  id             String    @id(map: "delivery_attempts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  delivery_id    String    @db.Uuid
+  attempt_number Int
+  party_id       String    @db.Uuid
+  status         String    @default("out_for_delivery") @db.VarChar(30)
+  reason         String?   @db.VarChar(500)
+  started_at     DateTime  @db.Timestamptz(6)
+  completed_at   DateTime? @db.Timestamptz(6)
+  delivery       Delivery  @relation(fields: [delivery_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "delivery_attempts_delivery_id_fkey")
+  party          User      @relation("DeliveryAttemptParty", fields: [party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_attempts_party_id_fkey")
+
+  @@unique([delivery_id, attempt_number], map: "delivery_attempts_delivery_number_key")
+  @@index([party_id, started_at(sort: Desc)], map: "idx_delivery_attempts_party_time")
+  @@map("delivery_attempts")
 }
 
 model Retrieval {
@@ -1777,23 +1796,23 @@ model Retrieval {
 }
 
 model RetrievalLine {
-  id                String            @id(map: "retrieval_lines_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  retrieval_id      String            @db.Uuid
-  custody_holding_id String           @db.Uuid
-  order_item_id     String            @db.Uuid
-  variant_id        String            @db.Uuid
-  batch_id          String            @db.Uuid
-  expected_quantity Decimal           @db.Decimal(20, 3)
-  received_quantity Decimal           @default(0) @db.Decimal(20, 3)
-  unit_cost_iqd     Decimal           @db.Decimal(30, 12)
-  location_id       String?           @db.Uuid
-  received_at       DateTime?         @db.Timestamptz(6)
-  retrieval         Retrieval         @relation(fields: [retrieval_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "retrieval_lines_retrieval_id_fkey")
-  custody_holding   CustodyHolding     @relation(fields: [custody_holding_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_custody_holding_id_fkey")
-  order_item        OrderItem          @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_order_item_id_fkey")
-  variant           ProductVariant     @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_variant_id_fkey")
-  batch             InventoryBatch     @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_batch_id_fkey")
-  location          WarehouseLocation? @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_location_id_fkey")
+  id                 String             @id(map: "retrieval_lines_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  retrieval_id       String             @db.Uuid
+  custody_holding_id String             @db.Uuid
+  order_item_id      String             @db.Uuid
+  variant_id         String             @db.Uuid
+  batch_id           String             @db.Uuid
+  expected_quantity  Decimal            @db.Decimal(20, 3)
+  received_quantity  Decimal            @default(0) @db.Decimal(20, 3)
+  unit_cost_iqd      Decimal            @db.Decimal(30, 12)
+  location_id        String?            @db.Uuid
+  received_at        DateTime?          @db.Timestamptz(6)
+  retrieval          Retrieval          @relation(fields: [retrieval_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "retrieval_lines_retrieval_id_fkey")
+  custody_holding    CustodyHolding     @relation(fields: [custody_holding_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_custody_holding_id_fkey")
+  order_item         OrderItem          @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_order_item_id_fkey")
+  variant            ProductVariant     @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_variant_id_fkey")
+  batch              InventoryBatch     @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_batch_id_fkey")
+  location           WarehouseLocation? @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_location_id_fkey")
 
   @@unique([retrieval_id, custody_holding_id], map: "retrieval_lines_retrieval_holding_key")
   @@index([retrieval_id], map: "idx_retrieval_lines_document")

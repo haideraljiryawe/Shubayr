@@ -168,8 +168,18 @@ export class CreateWriteDownDto extends InventoryDocumentDto {
 
 export class CreateRetrievalDto {
   @IsString() @MinLength(8) @MaxLength(128) operation_id!: string;
-  @IsIn(['retry']) outcome!: 'retry';
+  @IsIn(['cancel', 'retry']) outcome!: 'cancel' | 'retry';
   @IsString() @MinLength(3) @MaxLength(500) reason!: string;
+}
+
+export class RetrievalQueryDto extends PageDto {
+  @IsOptional() @IsUUID('4') party_id?: string;
+  @IsOptional() @IsUUID('4') order_id?: string;
+  @IsOptional() @Matches(DATE) from?: string;
+  @IsOptional() @Matches(DATE) to?: string;
+  @IsOptional()
+  @IsIn(['open', 'partially_received', 'received', 'closed'])
+  status?: 'open' | 'partially_received' | 'received' | 'closed';
 }
 
 export class ReceiveRetrievalLineDto {

@@ -204,7 +204,9 @@ CREATE TABLE notification_channel_preferences (
     CONSTRAINT notification_channel_preferences_type_check CHECK (type IN
       ('order_placed','order_confirmed','order_status_changed','out_for_delivery','delivered',
        'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo',
-       'new_order','order_cancelled','order_rejected','delivery_assigned')),
+       'new_order','order_cancelled','order_rejected','delivery_assigned','order_acceptance_late',
+       'retrieval_update','quantity_reduction_proposed','cancellation_request_approved',
+       'cancellation_request_denied')),
     CONSTRAINT notification_channel_preferences_channel_check CHECK (channel IN ('push','sms')),
     CONSTRAINT notification_channel_preferences_critical_check
       CHECK (NOT (type = 'order_confirmed' AND channel = 'sms' AND enabled = false))
@@ -231,7 +233,9 @@ CREATE TABLE notification_events (
     CONSTRAINT notification_events_type_check CHECK (type IN
       ('order_placed','order_confirmed','order_status_changed','out_for_delivery','delivered',
        'delivery_failed','return_update','loyalty_points_earned','review_moderated','promo',
-       'new_order','order_cancelled','order_rejected','delivery_assigned'))
+       'new_order','order_cancelled','order_rejected','delivery_assigned','order_acceptance_late',
+       'retrieval_update','quantity_reduction_proposed','cancellation_request_approved',
+       'cancellation_request_denied'))
 );
 
 CREATE TABLE notification_stream_events (
@@ -631,6 +635,21 @@ CREATE TABLE deliveries (
 ALTER TABLE orders
     ADD CONSTRAINT orders_delivery_id_fkey
     FOREIGN KEY (delivery_id) REFERENCES deliveries(id) ON DELETE SET NULL;
+
+CREATE TABLE delivery_attempts (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    delivery_id     UUID NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
+    attempt_number  INTEGER NOT NULL CHECK (attempt_number > 0),
+    party_id        UUID NOT NULL REFERENCES users(id),
+    status          VARCHAR(30) NOT NULL DEFAULT 'out_for_delivery'
+                    CHECK (status IN ('out_for_delivery','failed','delivered')),
+    reason          VARCHAR(500),
+    started_at      TIMESTAMPTZ NOT NULL,
+    completed_at    TIMESTAMPTZ,
+    UNIQUE (delivery_id, attempt_number)
+);
+CREATE INDEX idx_delivery_attempts_party_time
+    ON delivery_attempts(party_id, started_at DESC);
 
 -- ---------------------------------------------------------------------
 -- 13. RETURNS (partial returns allowed; condition drives restock)
