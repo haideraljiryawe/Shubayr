@@ -1,5 +1,6 @@
 import "server-only";
 import { load, type serverApi } from "./server";
+import { exchangeRateCutoff } from "@/lib/finance/dates";
 import type { CurrencyCode, PurchaseInvoice, Supplier } from "@/lib/purchasing";
 
 /* ---------------------------------------------------------------------------
@@ -38,14 +39,15 @@ export async function loadInvoice(api: Api, id: string) {
 
 /**
  * The central rate the server applies to a document dated `day`, or null (no
- * ledger.view, or none recorded). The server resolves it at 00:00 UTC of the
- * document date, so the same instant is asked here.
+ * ledger.view, no recorded rate, or an invalid date).
  */
 export async function loadApplicableRate(api: Api, code: CurrencyCode, day: string): Promise<string | null> {
   if (code === "IQD") return "1";
+  const at = exchangeRateCutoff(day);
+  if (!at) return null;
   const result = await load(
     api.GET("/admin/exchange-rates/{code}/applicable", {
-      params: { path: { code }, query: { at: `${day}T00:00:00.000Z` } },
+      params: { path: { code }, query: { at } },
     }),
   );
   if (!result.ok) return null;
