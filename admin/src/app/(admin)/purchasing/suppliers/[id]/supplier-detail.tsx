@@ -74,12 +74,12 @@ export function SupplierDetail({
             </Button>
           ) : null}
           {can("purchases.create") && supplier.is_active ? (
-            <Link href={`/purchasing/invoices/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md bg-primary-dark px-5 text-sm font-semibold text-on-primary">
+            <Link href={`/purchasing/invoices/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md bg-primary-dark px-5 text-sm font-semibold text-on-primary" data-testid="supplier-new-invoice">
               {t("newInvoice")}
             </Link>
           ) : null}
           {can("supplier_payments.record") ? (
-            <Link href={`/purchasing/payments/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md border border-primary px-5 text-sm font-semibold text-primary-dark">
+            <Link href={`/purchasing/payments/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md border border-primary px-5 text-sm font-semibold text-primary-dark" data-testid="supplier-pay">
               {t("pay")}
             </Link>
           ) : null}

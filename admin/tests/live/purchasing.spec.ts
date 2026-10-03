@@ -488,6 +488,111 @@ test("a rate typed before the day's rate arrives is kept, and is the one posted"
   await page.unroute("**/api/proxy/admin/exchange-rates/USD/applicable**");
 });
 
+test("the FX preview needs the exchange-rate read permission; without it the form says the server applies the rate", async ({ page, request }) => {
+  const invoice = await invoiceFor(page, request, state.usdSupplier!.id, "FXP", "1", "100");
+  const row = () => page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
+
+  // With fx_rates.view (the payer): the day's rate and a full FX preview.
+  await switchUser(page, state.payer!.username, state.payer!.password);
+  await startPayment(page, state.usdSupplier!.id, state.iqdCash!, invoice.id);
+  await expect(page.getByTestId("payment-rate")).toHaveValue(/^\d/);
+  await expect(page.getByTestId("payment-server-rate")).toHaveCount(0);
+  await row().getByTestId("payment-apply").fill("150000");
+  await expect(row().getByTestId("payment-row-converted")).toHaveText(/USD/);
+
+  // Without it (a payments clerk): no rate, no preview — the server's rate is announced.
+  const clerk = await activateStaff(
+    request,
+    await createStaff(request, { permissionKeys: ["supplier_payments.record", "suppliers.view", "cash_accounts.view", "cost.view"], prefix: "fxclerk" }),
+  );
+  await switchUser(page, clerk.username, clerk.password);
+  await startPayment(page, state.usdSupplier!.id, state.iqdCash!, invoice.id);
+  await expect(page.getByTestId("payment-server-rate")).toBeVisible();
+  await expect(page.getByTestId("payment-rate")).toHaveValue("");
+  await expect(page.getByTestId("payment-rate")).toBeDisabled();
+  await page.getByTestId("payment-amount").fill("150000");
+  await row().getByTestId("payment-apply").fill("150000");
+  await expect(row().getByTestId("payment-row-converted")).toHaveText("—");
+  await expect(row().getByTestId("payment-row-fx")).toHaveText("—");
+  // It still posts: the server applies the payment-date rate itself.
+  const posted = await confirmPayment(page);
+  expect(posted.status, JSON.stringify(posted.body)).toBe(201);
+  expect(Number(posted.body.exchange_rate)).toBeGreaterThan(0);
+});
+
+test("presets: a stock controller sees no supplier-payment actions; a cashier pays but doesn't buy, return or correct", async ({ page, request }) => {
+  const invoice = await invoiceFor(page, request, state.iqdSupplier!.id, "PRE", "1", "4000");
+  const supplierPage = `/purchasing/suppliers/${state.iqdSupplier!.id}`;
+
+  const stock = await activateStaff(request, await createStaff(request, { presets: ["stock_controller"], prefix: "stockctl" }));
+  await switchUser(page, stock.username, stock.password);
+  await page.goto(`/purchasing/invoices/${invoice.id}`);
+  await expect(page.getByTestId("invoice-detail")).toBeVisible();
+  await expect(page.getByTestId("invoice-pay")).toHaveCount(0);
+  await expect(page.getByTestId("invoice-return")).toBeVisible();
+  await expect(page.getByTestId("invoice-correct")).toBeVisible();
+  await page.goto(supplierPage);
+  await expect(page.getByTestId("supplier-new-invoice")).toBeVisible();
+  await expect(page.getByTestId("supplier-pay")).toHaveCount(0);
+  await page.goto("/purchasing/payments");
+  await expect(page.getByTestId("payment-new")).toHaveCount(0);
+  await page.goto("/purchasing/payments/new");
+  await expect(page.getByTestId("forbidden")).toBeVisible();
+  await expect(page.getByTestId("nav-cashAccounts")).toHaveCount(0);
+
+  const cashier = await activateStaff(request, await createStaff(request, { presets: ["cashier"], prefix: "cashier" }));
+  await switchUser(page, cashier.username, cashier.password);
+  await page.goto(`/purchasing/invoices/${invoice.id}`);
+  await expect(page.getByTestId("invoice-pay")).toBeVisible();
+  await expect(page.getByTestId("invoice-return")).toHaveCount(0);
+  await expect(page.getByTestId("invoice-correct")).toHaveCount(0);
+  await page.goto("/purchasing/invoices");
+  await expect(page.getByTestId("invoice-new")).toHaveCount(0);
+  await page.goto(supplierPage);
+  await expect(page.getByTestId("supplier-pay")).toBeVisible();
+  await expect(page.getByTestId("supplier-new-invoice")).toHaveCount(0);
+  await expect(page.getByTestId("supplier-edit")).toHaveCount(0);
+});
+
+test("separation of duties: switching the level is saved and audited, and strict stops a purchase's creator paying it", async ({ page, request }) => {
+  const invoice = await invoiceFor(page, request, state.iqdSupplier!.id, "SOD", "1", "5000");
+  // The admin created the invoice, and now pays it from the API.
+  const payOwn = () =>
+    api(request, "POST", "/admin/supplier-payments", {
+      operation_id: `pur-sod-${run}-${Math.random()}`,
+      document_date: today(),
+      supplier_id: state.iqdSupplier!.id,
+      cash_account_id: state.iqdCash!,
+      currency_code: "IQD",
+      amount: "1000",
+      allocations: [{ invoice_id: invoice.id, amount: "1000" }],
+    });
+  const level = async () => (await api(request, "GET", "/admin/settings")).body.settings.separation_of_duties_level ?? "standard";
+  const choose = async (value: "standard" | "strict") => {
+    await page.goto("/settings");
+    await page.getByTestId("setting-separation_of_duties_level").selectOption(value);
+    await page.getByTestId("settings-save").click();
+    await expect.poll(level).toBe(value);
+  };
+  const before = await level();
+  try {
+    // invoiceFor() left the admin signed in.
+    await choose("strict");
+    // Audited: the change history names the field.
+    await page.goto("/settings");
+    await expect(page.locator('[data-testid="settings-change"][data-field*="separation_of_duties_level"]').first()).toBeVisible();
+    const refused = await payOwn();
+    expect(refused.status, JSON.stringify(refused.body)).toBe(403);
+    expect(refused.body.code).toBe("SEPARATION_OF_DUTIES_VIOLATION");
+
+    await choose("standard");
+    const allowed = await payOwn();
+    expect(allowed.status, JSON.stringify(allowed.body)).toBe(201);
+  } finally {
+    await api(request, "PUT", "/admin/settings", { settings: { separation_of_duties_level: before } });
+  }
+});
+
 test("a payment dated before any USD rate: the form says so before review, and the API's EXCHANGE_RATE_NOT_FOUND is shown with a link", async ({ page, request }) => {
   const invoice = await invoiceFor(page, request, state.usdSupplier!.id, "J", "1", "100");
   const OLD = "2001-01-15";
