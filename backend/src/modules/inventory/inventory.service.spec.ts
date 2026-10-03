@@ -7,15 +7,18 @@ import { CreateRetrievalDto } from './dto/inventory.dto';
 import { InventoryService } from './inventory.service';
 
 describe('retrieval input contract', () => {
-  it.each(['cancel', 'retry'] as const)('accepts the %s outcome', async (outcome) => {
-    const input = plainToInstance(CreateRetrievalDto, {
-      operation_id: 'retrieval-operation-1',
-      outcome,
-      reason: 'Return goods from custody',
-    });
+  it.each(['cancel', 'retry'] as const)(
+    'accepts the %s outcome',
+    async (outcome) => {
+      const input = plainToInstance(CreateRetrievalDto, {
+        operation_id: 'retrieval-operation-1',
+        outcome,
+        reason: 'Return goods from custody',
+      });
 
-    await expect(validate(input)).resolves.toEqual([]);
-  });
+      await expect(validate(input)).resolves.toEqual([]);
+    },
+  );
 });
 
 describe('InventoryService retrieval listing', () => {
