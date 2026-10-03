@@ -6,7 +6,7 @@ import { loadPermissions } from "@/lib/api/inventory-server";
 import { PageError } from "@/components/shell/page-error";
 import { load, serverApi } from "@/lib/api/server";
 import { isOrderQueue, orderListQuery } from "@/lib/orders";
-import { loadQueueCounts } from "@/lib/api/orders-server";
+import { queueCounts } from "@/lib/api/orders-server";
 import { parseTableParams, type RawSearchParams } from "@/lib/table-params";
 import { OrdersTable } from "./orders-table";
 
@@ -46,18 +46,17 @@ export default async function OrdersPage({
   });
 
   const api = await serverApi();
-  const [orders, settings, permissions, counts] = await Promise.all([
+  const [orders, settings, permissions] = await Promise.all([
     load(api.GET("/admin/orders", { params: { query } })),
     load(api.GET("/settings")),
     loadPermissions(api),
-    loadQueueCounts(api),
   ]);
   if (!orders.ok) return <PageError error={orders.error} />;
 
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
-      <OrdersTabs active="list" queue={queue} counts={counts} canViewRetrievals={permissions.includes("retrieval.view")} />
+      <OrdersTabs active="list" queue={queue} counts={queueCounts(orders.data.badge_counts)} canViewRetrievals={permissions.includes("retrieval.view")} />
       <OrdersTable
         rows={orders.data.data ?? []}
         state={{
