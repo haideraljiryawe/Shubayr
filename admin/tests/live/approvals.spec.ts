@@ -44,6 +44,7 @@ test("a below-cost linked-price publish waits for another approver; the proposer
   const settings = await api(request, "GET", "/admin/settings");
   const originalRounding = (settings.body.settings.sale_rounding_multiple as string | null) ?? "0";
   expect((await api(request, "PUT", "/admin/settings", { settings: { sale_rounding_multiple: "0" } })).status).toBe(200);
+  let linked: { productId: string; variantId: string; sku: string } | null = null;
   try {
     // A USD rate to price from, then a SKU linked to 12 USD that cost 50,000 IQD.
     const setup = await api(request, "POST", "/admin/exchange-rates", {
@@ -69,6 +70,7 @@ test("a below-cost linked-price publish waits for another approver; the proposer
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     const productId = created.body.id as string;
     const variantId = created.body.variants[0].id as string;
+    linked = { productId, variantId, sku };
     const opening = await api(request, "POST", "/admin/inventory/openings", {
       operation_id: `appr-open-${run}`,
       document_date: today(),
@@ -123,6 +125,17 @@ test("a below-cost linked-price publish waits for another approver; the proposer
     await expect(result.getByTestId("price-approval-breaches")).toContainText(sku);
     await expect.poll(publishedPrice).toBe(12000);
   } finally {
+    // Every USD-linked SKU is repriced by every USD publish: left linked, this
+    // SKU (cost 50,000) would send any later publish (the catalog spec's) to
+    // approval. Give it a fixed price above its cost.
+    if (linked) {
+      const fixed = await request.fetch(`${API}/admin/products/${linked.productId}`, {
+        method: "PATCH",
+        headers: bearer(await adminApiToken(request)),
+        data: { variants: [{ id: linked.variantId, sku: linked.sku, base_unit: "piece", whole_units_only: true, pricing_mode: "fixed", selling_price: 60000 }] },
+      });
+      expect(fixed.status(), await fixed.text()).toBe(200);
+    }
     await api(request, "PUT", "/admin/settings", { settings: { sale_rounding_multiple: originalRounding } });
   }
 });
