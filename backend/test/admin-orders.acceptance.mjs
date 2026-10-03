@@ -119,6 +119,63 @@ try {
     Number(await scalar('SELECT count(*)::int AS value FROM orders')),
     'unfiltered total is exact',
   );
+  const expectedBadges = {
+    late: Number(
+      await scalar(
+        'SELECT count(*)::int AS value FROM orders WHERE late_for_acceptance',
+      ),
+    ),
+    needs_attention: Number(
+      await scalar(
+        'SELECT count(*)::int AS value FROM orders WHERE inventory_attention_required',
+      ),
+    ),
+    pending_cancellation: Number(
+      await scalar(
+        "SELECT count(*)::int AS value FROM orders WHERE cancellation_request_status='pending'",
+      ),
+    ),
+  };
+  check(all.badge_counts, expectedBadges, 'queue badge counts are exact');
+  const late = await request('/admin/orders?late=true&per_page=100', {
+    token: admin,
+  });
+  check(late.total, expectedBadges.late, 'late filter total is exact');
+  check(
+    late.data.every((order) => order.late_for_acceptance),
+    true,
+    'late filter applies server-side',
+  );
+  const attention = await request(
+    '/admin/orders?needs_attention=true&per_page=100',
+    { token: admin },
+  );
+  check(
+    attention.total,
+    expectedBadges.needs_attention,
+    'attention filter total is exact',
+  );
+  check(
+    attention.data.every((order) => order.inventory_attention_required),
+    true,
+    'attention filter applies server-side',
+  );
+  const cancellationQueue = await request(
+    '/admin/orders?cancellation_request=pending&per_page=100',
+    { token: admin },
+  );
+  check(
+    cancellationQueue.total,
+    expectedBadges.pending_cancellation,
+    'pending cancellation filter total is exact',
+  );
+  check(
+    cancellationQueue.data.every(
+      (order) => order.cancellation_request?.status === 'pending',
+    ),
+    true,
+    'pending cancellation filter applies server-side',
+  );
   for (const status of [
     'pending',
     'confirmed',

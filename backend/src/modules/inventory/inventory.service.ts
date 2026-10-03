@@ -35,6 +35,7 @@ import {
   UpdateLocationDto,
   UpdateWarehouseDto,
   CreateRetrievalDto,
+  RetrievalQueryDto,
   ReceiveRetrievalDto,
 } from './dto/inventory.dto';
 
@@ -1576,6 +1577,66 @@ export class InventoryService {
         return this.getRetrievalTx(tx, row.id, canViewCost);
       },
     });
+  }
+
+  async listRetrievals(query: RetrievalQueryDto) {
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    if (query.from && query.to && query.from > query.to) {
+      throw new UnprocessableEntityException('from must be on or before to');
+    }
+    const where: Prisma.RetrievalWhereInput = {
+      ...(query.party_id ? { custody_party_id: query.party_id } : {}),
+      ...(query.order_id ? { order_id: query.order_id } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.from || query.to
+        ? {
+            document_date: {
+              ...(query.from ? { gte: parseBusinessDate(query.from) } : {}),
+              ...(query.to ? { lte: parseBusinessDate(query.to) } : {}),
+            },
+          }
+        : {}),
+    };
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.retrieval.count({ where }),
+      this.prisma.retrieval.findMany({
+        where,
+        include: {
+          order: { select: { id: true, order_number: true } },
+          custody_party: { select: { id: true, name: true, phone: true } },
+          _count: { select: { lines: true } },
+        },
+        orderBy: [
+          { document_date: 'desc' },
+          { created_at: 'desc' },
+          { id: 'desc' },
+        ],
+        skip: (page - 1) * perPage,
+        take: perPage,
+      }),
+    ]);
+    return {
+      page,
+      per_page: perPage,
+      total,
+      data: rows.map((row) => ({
+        id: row.id,
+        document_number: row.document_number,
+        order_id: row.order_id,
+        delivery_id: row.delivery_id,
+        custody_party_id: row.custody_party_id,
+        status: row.status,
+        outcome: row.outcome,
+        reason: row.reason,
+        document_date: businessDateText(row.document_date),
+        created_at: row.created_at,
+        closed_at: row.closed_at,
+        order: row.order,
+        custody_party: row.custody_party,
+        line_count: row._count.lines,
+      })),
+    };
   }
 
   async openRetrieval(

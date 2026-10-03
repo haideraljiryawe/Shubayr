@@ -30,6 +30,7 @@ import {
   UpdateLocationDto,
   UpdateWarehouseDto,
   CreateRetrievalDto,
+  RetrievalQueryDto,
   ReceiveRetrievalDto,
   PrintablePickListsDto,
 } from './dto/inventory.dto';
@@ -237,6 +238,12 @@ export class InventoryController {
 @Controller('admin')
 export class RetrievalController {
   constructor(private readonly inventory: InventoryService) {}
+
+  @Get('retrievals')
+  @AdminPolicy('retrieval.view')
+  list(@Query() query: RetrievalQueryDto) {
+    return this.inventory.listRetrievals(query);
+  }
 
   @Post('orders/:id/retrievals')
   @AdminPolicy('retrieval.open')

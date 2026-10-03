@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 11.0.0
+  version: 11.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -670,12 +670,13 @@ paths:
     post:
       tags: [Orders]
       summary: Place a Cash-on-Delivery order
+      x-error-codes: [PRICE_CHANGED]
       description: >
         Atomically reprices and consumes the caller's server cart using server-time
         effective prices, creates status=pending, a pending COD payment and a
-        minimal delivery record. Sellable stock is reduced by a product/variant
-        hold; FEFO batch assignment and picking are reserved for the inventory
-        slice. A repeated Idempotency-Key with the same checkout request returns
+        minimal delivery record. Sellable stock is reserved against concrete
+        batches and locations using FEFO allocation in the same transaction. A
+        repeated Idempotency-Key with the same checkout request returns
         the original order, even after the cart is cleared; a different request
         with that key returns 409. Without a key, retries can create a new order.
         The selected owned address and contact_phone are copied into immutable
@@ -748,7 +749,8 @@ paths:
   /orders/{id}/cancel:
     post:
       tags: [Orders]
-      summary: Cancel a pending or confirmed order (releases its simple stock holds)
+      summary: Cancel a pending order and release its inventory reservations
+      x-error-codes: [STALE_ORDER_STATE]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -780,6 +782,7 @@ paths:
         preparing: orders.prepare
         ready_for_dispatch: orders.mark_ready
         dispatched: orders.handover
+      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, ORDER_NEEDS_ATTENTION]
       description: >
         Supports the same pre-dispatch transitions as
         PATCH /admin/orders/{id}/status. Use the dedicated admin endpoint for
@@ -812,6 +815,7 @@ paths:
     post:
       tags: [Orders]
       summary: Request cancellation after the pending state
+      x-error-codes: [STALE_ORDER_STATE]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -839,6 +843,7 @@ paths:
     post:
       tags: [Orders]
       summary: Accept or deny a proposed preparation quantity reduction
+      x-error-codes: [STALE_ORDER_STATE]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -1677,6 +1682,7 @@ paths:
     patch:
       tags: [Deliveries]
       summary: Update delivery status (agent)
+      x-error-codes: [STALE_ORDER_STATE]
       description: >
         Only the assigned agent may act. An assigned delivery may start only
         when its order is ready_for_dispatch. Legal transitions are assigned to
@@ -1713,6 +1719,7 @@ paths:
     patch:
       tags: [Deliveries]
       summary: Complete, fail, or retry a delivery as authorized staff
+      x-error-codes: [STALE_ORDER_STATE]
       description: >
         Uses the same concurrency-safe order/delivery transition as the assigned
         agent route. Staff may mark dispatched deliveries delivered or failed,
@@ -1852,6 +1859,10 @@ paths:
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
         - { name: unread, in: query, schema: { type: boolean, default: false } }
+        - name: type
+          in: query
+          description: Return only notifications of this exact type.
+          schema: { $ref: "#/components/schemas/NotificationPreferenceEntry/properties/type" }
       responses:
         "200":
           description: Own saved notifications, newest first
@@ -2019,6 +2030,9 @@ paths:
         - { name: to, in: query, schema: { type: string, format: date } }
         - { name: q, in: query, schema: { type: string, maxLength: 40 }, description: "case-insensitive order_number search" }
         - { name: customer_id, in: query, schema: { type: string, format: uuid } }
+        - { name: late, in: query, schema: { type: boolean }, description: Filter by the server-computed acceptance-late flag. }
+        - { name: needs_attention, in: query, schema: { type: boolean }, description: Filter by inventory attention requirement. }
+        - { name: cancellation_request, in: query, schema: { type: string, enum: [pending] }, description: Filter orders with a pending customer cancellation request. }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -2066,6 +2080,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Advance an order through its pre-dispatch lifecycle
+      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, ORDER_NEEDS_ATTENTION]
       x-surface: admin
       x-permission-by-status:
         confirmed: orders.accept
@@ -2076,8 +2091,9 @@ paths:
         Legal path: pending to confirmed to preparing to ready_for_dispatch to
         dispatched. Dispatch requires the existing current delivery to have an
         agent assigned through PATCH /deliveries/{id}/assign; it moves that same
-        delivery to out_for_delivery and converts checkout stock holds from held
-        to deducted. Delivery agent transitions own delivered, failed and returned.
+        delivery to out_for_delivery and transfers reserved stock into the agent's
+        custody. Delivery agents and authorized staff can record delivery outcomes;
+        staff own cancellation and shortage-resolution transitions.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -2108,6 +2124,7 @@ paths:
     post:
       tags: [Admin]
       summary: Cancel a pre-dispatch order and release its stock holds
+      x-error-codes: [STALE_ORDER_STATE]
       x-permission: orders.cancel
       description: >
         Allowed only from pending, confirmed, preparing, or ready_for_dispatch.
@@ -2139,6 +2156,7 @@ paths:
     post:
       tags: [Admin]
       summary: Reject a pending order and release its stock holds
+      x-error-codes: [STALE_ORDER_STATE]
       x-permission: orders.reject
       description: >
         Rejection is distinct from cancellation and is allowed only while the
@@ -2173,6 +2191,7 @@ paths:
     post:
       tags: [Admin]
       summary: Approve or deny a customer cancellation request
+      x-error-codes: [STALE_ORDER_STATE]
       x-permission: orders.cancel_request.resolve
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2202,6 +2221,7 @@ paths:
     post:
       tags: [Admin]
       summary: Propose a reduction or cancel a short line/order
+      x-error-codes: [STALE_ORDER_STATE]
       x-permission: orders.shortage.resolve
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2280,7 +2300,7 @@ paths:
   /admin/orders/{id}/retrievals:
     post:
       tags: [Fulfilment]
-      summary: Open a retrieval for a failed order returning to the store
+      summary: Open a retrieval for a failed or cancelled order returning to the store
       x-permission: retrieval.open
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2293,7 +2313,7 @@ paths:
               required: [operation_id, outcome, reason]
               properties:
                 operation_id: { type: string, minLength: 8, maxLength: 128 }
-                outcome: { type: string, enum: [retry] }
+                outcome: { type: string, enum: [cancel, retry] }
                 reason: { type: string, minLength: 3, maxLength: 500 }
       responses:
         "201":
@@ -2304,6 +2324,29 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/retrievals:
+    get:
+      tags: [Fulfilment]
+      summary: List retrievals across all orders
+      description: Filters are applied server-side before stable pagination.
+      x-permission: retrieval.view
+      parameters:
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: status, in: query, schema: { type: string, enum: [open, partially_received, received, closed] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated retrievals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RetrievalPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
 
   /admin/retrievals/{id}:
@@ -2386,6 +2429,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create a product
+      x-error-codes: [BELOW_COST_BLOCKED]
       description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
       x-permissions: [catalog.products, prices.change]
       requestBody:
@@ -2419,6 +2463,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a product
+      x-error-codes: [BELOW_COST_BLOCKED]
       description: >
         Omitted fields are preserved. Explicit null clears only nullable fields;
         `discount_type: null` clears the complete stored discount definition.
@@ -4410,6 +4455,54 @@ components:
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         reviewed: { type: boolean, readOnly: true, description: True when the caller already has a product review for this order item. }
 
+    OrderPriceChangeInfo:
+      type: object
+      additionalProperties: false
+      required: [accepted_at, lines]
+      properties:
+        accepted_at: { type: string, format: date-time }
+        lines:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [variant_id, unit_price, price_version]
+            properties:
+              variant_id: { type: string, format: uuid }
+              unit_price: { $ref: "#/components/schemas/Money" }
+              price_version: { type: string, minLength: 1, maxLength: 64 }
+
+    OrderAttentionDetails:
+      type: object
+      additionalProperties: false
+      required: [short_lines]
+      properties:
+        short_lines:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [order_item_id, variant_id, requested, allocated, short]
+            properties:
+              order_item_id: { type: string, format: uuid }
+              variant_id: { type: string, format: uuid }
+              requested: { type: string }
+              allocated: { type: string }
+              short: { type: string }
+        reduction_proposal:
+          type: object
+          additionalProperties: false
+          required: [order_item_id, old_quantity, new_quantity, reason, status, requested_by, requested_at]
+          properties:
+            order_item_id: { type: string, format: uuid }
+            old_quantity: { type: number, multipleOf: 0.001 }
+            new_quantity: { type: number, multipleOf: 0.001 }
+            reason: { type: string }
+            status: { type: string, enum: [pending, accepted, denied] }
+            requested_by: { type: string, format: uuid }
+            requested_at: { type: string, format: date-time }
+            resolved_at: { type: string, format: date-time }
+
     Order:
       type: object
       properties:
@@ -4447,9 +4540,19 @@ components:
                 requested_at: { type: [string, "null"], format: date-time }
                 resolved_at: { type: [string, "null"], format: date-time }
                 resolution_note: { type: [string, "null"] }
-        price_change_info: { type: [object, "null"], additionalProperties: true }
+        price_change_info:
+          oneOf:
+            - { type: "null" }
+            - { $ref: "#/components/schemas/OrderPriceChangeInfo" }
         inventory_attention_required: { type: boolean }
-        attention_details: { type: [object, "null"], additionalProperties: true }
+        attention_details:
+          oneOf:
+            - { type: "null" }
+            - { $ref: "#/components/schemas/OrderAttentionDetails" }
+        delivery_attempts:
+          type: array
+          description: Immutable chronological history across the order's original and replacement deliveries.
+          items: { $ref: "#/components/schemas/DeliveryAttempt" }
         timeline:
           type: array
           items:
@@ -4550,8 +4653,16 @@ components:
       allOf:
         - $ref: "#/components/schemas/Pagination"
         - type: object
-          required: [data]
+          required: [badge_counts, data]
           properties:
+            badge_counts:
+              type: object
+              additionalProperties: false
+              required: [late, needs_attention, pending_cancellation]
+              properties:
+                late: { type: integer, minimum: 0 }
+                needs_attention: { type: integer, minimum: 0 }
+                pending_cancellation: { type: integer, minimum: 0 }
             data:
               type: array
               items: { $ref: "#/components/schemas/AdminOrder" }
@@ -5623,9 +5734,34 @@ components:
         failure_reason: { type: [string, "null"], maxLength: 500 }
         failed_at: { type: [string, "null"], format: date-time }
         retry_count: { type: integer, minimum: 0 }
+        attempts:
+          type: array
+          items: { $ref: "#/components/schemas/DeliveryAttempt" }
+
+    DeliveryAttempt:
+      type: object
+      additionalProperties: false
+      required: [id, delivery_id, attempt_number, status, reason, started_at, completed_at, party]
+      properties:
+        id: { type: string, format: uuid }
+        delivery_id: { type: string, format: uuid }
+        attempt_number: { type: integer, minimum: 1 }
+        party_id: { type: string, format: uuid }
+        status: { type: string, enum: [out_for_delivery, delivered, failed] }
+        reason: { type: [string, "null"], maxLength: 500 }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+        party:
+          type: object
+          additionalProperties: false
+          required: [id, name]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: [string, "null"] }
 
     RetrievalLine:
       type: object
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         custody_holding_id: { type: string, format: uuid }
@@ -5637,9 +5773,28 @@ components:
         unit_cost_iqd: { type: number }
         location_id: { type: [string, "null"], format: uuid }
         received_at: { type: [string, "null"], format: date-time }
-        order_item: { type: object, additionalProperties: true }
-        batch: { type: object, additionalProperties: true }
-        location: { type: [object, "null"], additionalProperties: true }
+        order_item:
+          type: object
+          additionalProperties: false
+          required: [product_name_en, product_name_ar]
+          properties:
+            product_name_en: { type: string }
+            product_name_ar: { type: string }
+        batch:
+          type: object
+          additionalProperties: false
+          required: [lot_number]
+          properties:
+            lot_number: { type: string }
+        location:
+          oneOf:
+            - { type: "null" }
+            - type: object
+              additionalProperties: false
+              required: [code, warehouse_id]
+              properties:
+                code: { type: string }
+                warehouse_id: { type: string, format: uuid }
 
     Retrieval:
       type: object
@@ -5663,6 +5818,49 @@ components:
         lines:
           type: array
           items: { $ref: "#/components/schemas/RetrievalLine" }
+
+    RetrievalListItem:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, order_id, delivery_id, custody_party_id, status, outcome, reason, document_date, created_at, closed_at, order, custody_party, line_count]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        order_id: { type: string, format: uuid }
+        delivery_id: { type: string, format: uuid }
+        custody_party_id: { type: string, format: uuid }
+        status: { type: string, enum: [open, partially_received, received, closed] }
+        outcome: { type: string, enum: [cancel, retry] }
+        reason: { type: string }
+        document_date: { type: string, format: date }
+        created_at: { type: string, format: date-time }
+        closed_at: { type: [string, "null"], format: date-time }
+        order:
+          type: object
+          additionalProperties: false
+          required: [id, order_number]
+          properties:
+            id: { type: string, format: uuid }
+            order_number: { type: string }
+        custody_party:
+          type: object
+          additionalProperties: false
+          required: [id, name, phone]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: [string, "null"] }
+            phone: { type: string }
+        line_count: { type: integer, minimum: 0 }
+
+    RetrievalPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/RetrievalListItem" }
 
     DeliveryPage:
       allOf:
@@ -5711,7 +5909,7 @@ components:
       additionalProperties: false
       required: [type, channel, enabled]
       properties:
-        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, order_rejected, delivery_assigned, order_acceptance_late, retrieval_update] }
+        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, order_rejected, delivery_assigned, order_acceptance_late, retrieval_update, quantity_reduction_proposed, cancellation_request_approved, cancellation_request_denied] }
         channel: { type: string, enum: [push, sms] }
         enabled: { type: boolean }
 

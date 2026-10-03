@@ -208,7 +208,7 @@ try {
   const enabled = (prefs, type, channel) =>
     prefs.preferences.find((p) => p.type === type && p.channel === channel)
       ?.enabled;
-  check(defaults.preferences.length, 32, 'all type/channel pairs returned');
+  check(defaults.preferences.length, 38, 'all type/channel pairs returned');
   check(
     enabled(defaults, 'delivered', 'push'),
     true,
@@ -462,6 +462,20 @@ try {
     ),
     true,
     'own inbox includes confirmation event',
+  );
+  const deliveredOnly = await request(
+    '/me/notifications?type=delivered&per_page=100',
+    { token: b },
+  );
+  check(
+    deliveredOnly.data.every((item) => item.type === 'delivered'),
+    true,
+    'notification type filter applies server-side',
+  );
+  check(
+    deliveredOnly.total,
+    historyB.data.filter((item) => item.type === 'delivered').length,
+    'notification type filter returns the filtered total',
   );
   const unreadBefore = await request('/me/notifications/unread-count', {
     token: b,

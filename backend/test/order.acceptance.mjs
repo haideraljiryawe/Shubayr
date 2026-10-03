@@ -371,6 +371,17 @@ const cancelled = await request(
   },
 );
 check(cancelled.status, 'cancelled', 'staff may approve a cancellation request');
+const cancellationNotifications = await request(
+  '/me/notifications?type=cancellation_request_approved&per_page=100',
+  { token: customer.access_token },
+);
+check(
+  cancellationNotifications.data.some(
+    (notification) => notification.entity_id === placed.id,
+  ),
+  true,
+  'approved cancellation request reaches the customer inbox',
+);
 const finalTrack = await request(`/orders/${placed.id}/track`, {
   token: customer.access_token,
 });

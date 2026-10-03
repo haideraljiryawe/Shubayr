@@ -42,6 +42,7 @@ export function staleOrder(
   currentStatus: string,
   currentVersion: number,
   message = 'The order changed while you were working',
+  field = 'version',
 ) {
   return new ConflictException({
     status: 409,
@@ -49,7 +50,7 @@ export function staleOrder(
     message,
     errors: [
       {
-        field: 'version',
+        field,
         code: 'STALE_ORDER_STATE',
         message,
         current_status: currentStatus,

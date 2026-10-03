@@ -66,6 +66,10 @@ export class NotificationHistoryQueryDto {
   unread?: boolean;
 
   @IsOptional()
+  @IsIn(notificationTypes)
+  type?: NotificationType;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

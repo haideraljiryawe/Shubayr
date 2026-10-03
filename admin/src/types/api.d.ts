@@ -1338,7 +1338,7 @@ export interface paths {
         put?: never;
         /**
          * Place a Cash-on-Delivery order
-         * @description Atomically reprices and consumes the caller's server cart using server-time effective prices, creates status=pending, a pending COD payment and a minimal delivery record. Sellable stock is reduced by a product/variant hold; FEFO batch assignment and picking are reserved for the inventory slice. A repeated Idempotency-Key with the same checkout request returns the original order, even after the cart is cleared; a different request with that key returns 409. Without a key, retries can create a new order. The selected owned address and contact_phone are copied into immutable order snapshot fields in the same transaction. Later address edits do not alter snapshots; deletion clears address_id but retains snapshots.
+         * @description Atomically reprices and consumes the caller's server cart using server-time effective prices, creates status=pending, a pending COD payment and a minimal delivery record. Sellable stock is reserved against concrete batches and locations using FEFO allocation in the same transaction. A repeated Idempotency-Key with the same checkout request returns the original order, even after the cart is cleared; a different request with that key returns 409. Without a key, retries can create a new order. The selected owned address and contact_phone are copied into immutable order snapshot fields in the same transaction. Later address edits do not alter snapshots; deletion clears address_id but retains snapshots.
          */
         post: {
             parameters: {
@@ -1487,7 +1487,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancel a pending or confirmed order (releases its simple stock holds) */
+        /** Cancel a pending order and release its inventory reservations */
         post: {
             parameters: {
                 query?: never;
@@ -3870,6 +3870,8 @@ export interface paths {
                     page?: number;
                     per_page?: number;
                     unread?: boolean;
+                    /** @description Return only notifications of this exact type. */
+                    type?: components["schemas"]["NotificationPreferenceEntry"]["type"];
                 };
                 header?: never;
                 path?: never;
@@ -4287,6 +4289,12 @@ export interface paths {
                     /** @description case-insensitive order_number search */
                     q?: string;
                     customer_id?: string;
+                    /** @description Filter by the server-computed acceptance-late flag. */
+                    late?: boolean;
+                    /** @description Filter by inventory attention requirement. */
+                    needs_attention?: boolean;
+                    /** @description Filter orders with a pending customer cancellation request. */
+                    cancellation_request?: "pending";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -4419,7 +4427,7 @@ export interface paths {
         head?: never;
         /**
          * Advance an order through its pre-dispatch lifecycle
-         * @description Legal path: pending to confirmed to preparing to ready_for_dispatch to dispatched. Dispatch requires the existing current delivery to have an agent assigned through PATCH /deliveries/{id}/assign; it moves that same delivery to out_for_delivery and converts checkout stock holds from held to deducted. Delivery agent transitions own delivered, failed and returned.
+         * @description Legal path: pending to confirmed to preparing to ready_for_dispatch to dispatched. Dispatch requires the existing current delivery to have an agent assigned through PATCH /deliveries/{id}/assign; it moves that same delivery to out_for_delivery and transfers reserved stock into the agent's custody. Delivery agents and authorized staff can record delivery outcomes; staff own cancellation and shortage-resolution transitions.
          */
         patch: {
             parameters: {
@@ -4764,7 +4772,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Open a retrieval for a failed order returning to the store */
+        /** Open a retrieval for a failed or cancelled order returning to the store */
         post: {
             parameters: {
                 query?: never;
@@ -4779,7 +4787,7 @@ export interface paths {
                     "application/json": {
                         operation_id: string;
                         /** @enum {string} */
-                        outcome: "retry";
+                        outcome: "cancel" | "retry";
                         reason: string;
                     };
                 };
@@ -4800,6 +4808,55 @@ export interface paths {
                 422: components["responses"]["Validation"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/retrievals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List retrievals across all orders
+         * @description Filters are applied server-side before stable pagination.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    party_id?: string;
+                    order_id?: string;
+                    from?: string;
+                    to?: string;
+                    status?: "open" | "partially_received" | "received" | "closed";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated retrievals */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RetrievalPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8980,6 +9037,42 @@ export interface components {
             /** @description True when the caller already has a product review for this order item. */
             readonly reviewed?: boolean;
         };
+        OrderPriceChangeInfo: {
+            /** Format: date-time */
+            accepted_at: string;
+            lines: {
+                /** Format: uuid */
+                variant_id: string;
+                unit_price: components["schemas"]["Money"];
+                price_version: string;
+            }[];
+        };
+        OrderAttentionDetails: {
+            short_lines: {
+                /** Format: uuid */
+                order_item_id: string;
+                /** Format: uuid */
+                variant_id: string;
+                requested: string;
+                allocated: string;
+                short: string;
+            }[];
+            reduction_proposal?: {
+                /** Format: uuid */
+                order_item_id: string;
+                old_quantity: number;
+                new_quantity: number;
+                reason: string;
+                /** @enum {string} */
+                status: "pending" | "accepted" | "denied";
+                /** Format: uuid */
+                requested_by: string;
+                /** Format: date-time */
+                requested_at: string;
+                /** Format: date-time */
+                resolved_at?: string;
+            };
+        };
         Order: {
             /** Format: uuid */
             id?: string;
@@ -9043,13 +9136,11 @@ export interface components {
                 resolved_at?: string | null;
                 resolution_note?: string | null;
             };
-            price_change_info?: {
-                [key: string]: unknown;
-            } | null;
+            price_change_info?: null | components["schemas"]["OrderPriceChangeInfo"];
             inventory_attention_required?: boolean;
-            attention_details?: {
-                [key: string]: unknown;
-            } | null;
+            attention_details?: null | components["schemas"]["OrderAttentionDetails"];
+            /** @description Immutable chronological history across the order's original and replacement deliveries. */
+            delivery_attempts?: components["schemas"]["DeliveryAttempt"][];
             timeline?: {
                 status?: components["schemas"]["OrderStatus"];
                 note?: string | null;
@@ -9132,6 +9223,11 @@ export interface components {
             }[];
         };
         AdminOrderPage: components["schemas"]["Pagination"] & {
+            badge_counts: {
+                late: number;
+                needs_attention: number;
+                pending_cancellation: number;
+            };
             data: components["schemas"]["AdminOrder"][];
         };
         DeliveryAgent: {
@@ -10066,6 +10162,28 @@ export interface components {
             /** Format: date-time */
             failed_at?: string | null;
             retry_count?: number;
+            attempts?: components["schemas"]["DeliveryAttempt"][];
+        };
+        DeliveryAttempt: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            delivery_id: string;
+            attempt_number: number;
+            /** Format: uuid */
+            party_id?: string;
+            /** @enum {string} */
+            status: "out_for_delivery" | "delivered" | "failed";
+            reason: string | null;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+            party: {
+                /** Format: uuid */
+                id: string;
+                name: string | null;
+            };
         };
         RetrievalLine: {
             /** Format: uuid */
@@ -10086,14 +10204,17 @@ export interface components {
             /** Format: date-time */
             received_at?: string | null;
             order_item?: {
-                [key: string]: unknown;
+                product_name_en: string;
+                product_name_ar: string;
             };
             batch?: {
-                [key: string]: unknown;
+                lot_number: string;
             };
-            location?: {
-                [key: string]: unknown;
-            } | null;
+            location?: null | {
+                code: string;
+                /** Format: uuid */
+                warehouse_id: string;
+            };
         };
         Retrieval: {
             /** Format: uuid */
@@ -10127,6 +10248,43 @@ export interface components {
             journal_entry_id?: string | null;
             lines?: components["schemas"]["RetrievalLine"][];
         };
+        RetrievalListItem: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            /** Format: uuid */
+            order_id: string;
+            /** Format: uuid */
+            delivery_id: string;
+            /** Format: uuid */
+            custody_party_id: string;
+            /** @enum {string} */
+            status: "open" | "partially_received" | "received" | "closed";
+            /** @enum {string} */
+            outcome: "cancel" | "retry";
+            reason: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            closed_at: string | null;
+            order: {
+                /** Format: uuid */
+                id: string;
+                order_number: string;
+            };
+            custody_party: {
+                /** Format: uuid */
+                id: string;
+                name: string | null;
+                phone: string;
+            };
+            line_count: number;
+        };
+        RetrievalPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["RetrievalListItem"][];
+        };
         DeliveryPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Delivery"][];
         };
@@ -10156,7 +10314,7 @@ export interface components {
         };
         NotificationPreferenceEntry: {
             /** @enum {string} */
-            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "order_rejected" | "delivery_assigned" | "order_acceptance_late" | "retrieval_update";
+            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "order_rejected" | "delivery_assigned" | "order_acceptance_late" | "retrieval_update" | "quantity_reduction_proposed" | "cancellation_request_approved" | "cancellation_request_denied";
             /** @enum {string} */
             channel: "push" | "sms";
             enabled: boolean;
