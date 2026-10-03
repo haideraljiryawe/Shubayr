@@ -161,8 +161,35 @@ export interface OrderListQuery {
   q?: string;
   from?: string;
   to?: string;
+  late?: boolean;
+  needs_attention?: boolean;
+  cancellation_request?: "pending";
   page: number;
   per_page: number;
+}
+
+/**
+ * The work queues the API filters for (contract 11.0): orders late for
+ * acceptance, orders needing inventory attention, and orders with a pending
+ * customer cancellation request.
+ */
+export const ORDER_QUEUES = ["late", "attention", "cancellation"] as const;
+export type OrderQueue = (typeof ORDER_QUEUES)[number];
+
+export function isOrderQueue(value: unknown): value is OrderQueue {
+  return typeof value === "string" && (ORDER_QUEUES as readonly string[]).includes(value);
+}
+
+/** A queue as GET /admin/orders parameters. */
+export function queueQuery(queue: OrderQueue): Pick<OrderListQuery, "late" | "needs_attention" | "cancellation_request"> {
+  switch (queue) {
+    case "late":
+      return { late: true };
+    case "attention":
+      return { needs_attention: true };
+    case "cancellation":
+      return { cancellation_request: "pending" };
+  }
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -174,6 +201,7 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
  */
 export function orderListQuery(input: {
   status?: string;
+  queue?: string;
   q?: string;
   from?: string;
   to?: string;
@@ -192,7 +220,15 @@ export function orderListQuery(input: {
   }
   const q = input.q?.trim().slice(0, 40) || undefined;
   return {
-    query: { status, q, from, to, page: input.page, per_page: input.perPage },
+    query: {
+      status,
+      q,
+      from,
+      to,
+      ...(isOrderQueue(input.queue) ? queueQuery(input.queue) : {}),
+      page: input.page,
+      per_page: input.perPage,
+    },
     invalidRange,
   };
 }

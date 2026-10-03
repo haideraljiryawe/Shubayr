@@ -338,14 +338,19 @@ jobs:
     if: ${{ needs.detect.outputs.web == 'true' && needs.detect.outputs.admin == 'true' }}
     steps:
       - uses: actions/checkout@v4
+      # Google Fonts is unreachable during these builds (both apps self-host
+      # Cairo): a build that tried to download a font would fail here.
       - name: Build the web store image
         run: |
           docker build --tag shubayr-web:ci \
+            --add-host fonts.googleapis.com:127.0.0.1 --add-host fonts.gstatic.com:127.0.0.1 \
             --build-arg NEXT_PUBLIC_API_URL=https://api.example.test/api/v1 \
             --build-arg NEXT_PUBLIC_SITE_URL=https://shop.example.test \
             web
       - name: Build the Web Admin image
-        run: docker build --file admin/Dockerfile --target production --tag shubayr-admin:ci .
+        run: |
+          docker build --file admin/Dockerfile --target production --tag shubayr-admin:ci \
+            --add-host fonts.googleapis.com:127.0.0.1 --add-host fonts.gstatic.com:127.0.0.1 .
       - name: The web image refuses a build without its public URLs
         run: |
           if docker build --target build web > /tmp/refused.log 2>&1; then

@@ -2,6 +2,7 @@
 *
 !admin/
 !web/src/app/tokens.css
+!web/src/fonts/
 !api/openapi.yaml
 admin/node_modules
 admin/.next

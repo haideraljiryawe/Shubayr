@@ -16,7 +16,9 @@ import {
   type PickList,
   canAssignAgent,
   dispatchBlocker,
+  isOrderQueue,
   orderListQuery,
+  queueQuery,
   type AdminOrder,
 } from "@/lib/orders";
 
@@ -156,6 +158,19 @@ describe("orderListQuery", () => {
     expect(result.query.q).toHaveLength(40);
     expect(result.invalidRange).toBe(true);
     expect(orderListQuery({ ...base, from: "01/09/2026" }).query.from).toBeUndefined();
+  });
+
+  it("turns a work queue into the API's own filter (contract 11.0)", () => {
+    expect(orderListQuery({ ...base, queue: "late" }).query).toMatchObject({ late: true });
+    expect(orderListQuery({ ...base, queue: "attention" }).query).toMatchObject({ needs_attention: true });
+    expect(orderListQuery({ ...base, queue: "cancellation" }).query).toMatchObject({ cancellation_request: "pending" });
+    const unknown = orderListQuery({ ...base, queue: "everything" }).query;
+    expect(unknown).not.toHaveProperty("late");
+    expect(unknown).not.toHaveProperty("needs_attention");
+    expect(unknown).not.toHaveProperty("cancellation_request");
+    expect(isOrderQueue("late")).toBe(true);
+    expect(isOrderQueue(["late"])).toBe(false);
+    expect(queueQuery("cancellation")).toEqual({ cancellation_request: "pending" });
   });
 });
 

@@ -779,6 +779,10 @@ const NOTIFICATION_TYPES: NotificationPreferenceEntry["type"][] = [
   "return_update",
   "loyalty_points_earned",
   "review_moderated",
+  // API 11.1: customer answers and decisions on their own orders.
+  "quantity_reduction_proposed",
+  "cancellation_request_approved",
+  "cancellation_request_denied",
   "promo",
 ];
 

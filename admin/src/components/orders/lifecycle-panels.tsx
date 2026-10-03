@@ -293,6 +293,7 @@ export function CancellationRequestPanel({
  */
 export function RetrievalsPanel({ order, permissions, onRefused }: { order: AdminOrder; permissions: string[]; onRefused: Refused }) {
   const t = useTranslations("orders.retrievals");
+  const tList = useTranslations("retrievals.list");
   const router = useRouter();
   const [opening, setOpening] = useState<{ operationId: string } | null>(null);
   const rows = order.retrievals ?? [];
@@ -338,6 +339,11 @@ export function RetrievalsPanel({ order, permissions, onRefused }: { order: Admi
       ) : (
         <p className="text-sm text-text-muted">{t("none")}</p>
       )}
+      {rows.length && permissions.includes("retrieval.view") ? (
+        <Link href={`/retrievals?order_id=${order.id}`} className="text-sm font-semibold text-primary-dark hover:underline" data-testid="order-retrievals-all">
+          {tList("viewAllForOrder")}
+        </Link>
+      ) : null}
       {canOpen ? (
         <div>
           <Button variant="secondary" size="sm" onClick={() => setOpening({ operationId: newOperationId() })} data-testid="retrieval-open">
@@ -446,6 +452,45 @@ export function BelowCostPanel({
         onConfirm={onApprove ?? (async () => undefined)}
         onClose={() => setOpen(false)}
       />
+    </Card>
+  );
+}
+
+/**
+ * Every delivery attempt for the order, oldest first (contract 11.0): who
+ * carried it, when, how it ended and why it failed. The history is
+ * immutable, so a retry adds a row instead of hiding the earlier failure.
+ */
+export function DeliveryAttemptsPanel({ order }: { order: AdminOrder }) {
+  const t = useTranslations("orders.attempts");
+  const dateTime = useStoreDateTime();
+  const attempts = [...(order.delivery_attempts ?? [])].sort((a, b) => a.started_at.localeCompare(b.started_at) || a.attempt_number - b.attempt_number);
+  if (!attempts.length) return null;
+  return (
+    <Card className="flex flex-col gap-3 p-5" data-testid="delivery-attempts">
+      <h2 className="font-bold">{t("title")}</h2>
+      <ol className="flex flex-col gap-2 text-sm">
+        {attempts.map((attempt, index) => (
+          <li key={attempt.id} className="flex flex-col gap-0.5 rounded-md bg-card p-3" data-testid="delivery-attempt" data-status={attempt.status}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-semibold">{t("number", { number: index + 1 })}</span>
+              <Badge tone={attempt.status === "delivered" ? "success" : attempt.status === "failed" ? "danger" : "info"}>{t(`status.${attempt.status}`)}</Badge>
+            </div>
+            <span className="text-text-muted" data-testid="delivery-attempt-party">
+              {t("party", { name: attempt.party?.name || t("unnamedParty") })}
+            </span>
+            <span className="text-xs text-text-muted">
+              {t("started", { at: dateTime(attempt.started_at) })}
+              {attempt.completed_at ? ` · ${t("ended", { at: dateTime(attempt.completed_at) })}` : ""}
+            </span>
+            {attempt.reason ? (
+              <span className="text-text" data-testid="delivery-attempt-reason">
+                {t("reason", { reason: attempt.reason })}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ol>
     </Card>
   );
 }

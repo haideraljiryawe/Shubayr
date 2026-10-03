@@ -101,6 +101,9 @@ const NOTIFICATION_TYPES: NotificationType[] = [
   "return_update",
   "loyalty_points_earned",
   "review_moderated",
+  "quantity_reduction_proposed",
+  "cancellation_request_approved",
+  "cancellation_request_denied",
   "promo",
 ];
 

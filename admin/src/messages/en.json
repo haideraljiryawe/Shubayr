@@ -305,7 +305,7 @@
       "openingBody": "What was already owed to this supplier when you started using the system. Posts Dr Owner equity / Cr Supplier payable.",
       "rate": "Exchange rate to IQD",
       "rateCentral": "Central rate on the document date: {rate}.",
-      "rateHidden": "The central rate needs ledger.view to read; enter the rate.",
+      "rateHidden": "Reading the central rate needs the exchange-rate view permission (fx_rates.view); enter the rate.",
       "rateMissing": "No central rate on this date; enter the rate.",
       "dueDate": "Due date",
       "dueDateHint": "Optional.",
@@ -333,7 +333,7 @@
       "rate": "Rate ({currency} → IQD)",
       "rateCentral": "Central rate on the document date: {rate}. Changing it needs purchases.override_rate.",
       "rateCentralEditable": "Central rate on the document date: {rate}. You may override it.",
-      "rateHidden": "The central rate on the document date is applied when posting (reading it needs ledger.view).",
+      "rateHidden": "The central rate on the document date is applied when posting (reading it needs fx_rates.view).",
       "rateMissing": "No central rate is recorded for this date — the invoice can't be posted until one is.",
       "defaultLocation": "Receiving location",
       "dueDate": "Due date",
@@ -535,7 +535,7 @@
       "amountIn": "Amount ({currency})",
       "rate": "Payment-date rate ({currency} → IQD)",
       "rateCentral": "The rate on the payment date: {rate}. Changing it needs purchases.override_rate.",
-      "rateHidden": "The rate can't be read without ledger.view; the server applies the payment-date rate when posting.",
+      "rateHidden": "The rate can't be read without the exchange-rate view permission (fx_rates.view); the server applies the payment-date rate when posting.",
       "rateMissing": "No rate is recorded for this date, so the payment can't be posted until one is.",
       "reference": "Reference",
       "allocations": "Allocate to invoices",
@@ -581,14 +581,15 @@
         "missingRate": "Record the {currency} rate for this date first."
       },
       "rateCentralEditable": "The rate on the payment date: {rate}. You may enter another rate (purchases.override_rate).",
-      "rateHiddenEditable": "The rate can't be read without ledger.view. Leave it empty for the payment-date rate, or enter one (purchases.override_rate).",
+      "rateHiddenEditable": "The rate can't be read without fx_rates.view. Leave it empty for the payment-date rate, or enter one (purchases.override_rate).",
       "rateMissingEditable": "No rate is recorded for this date. Enter one (purchases.override_rate) or record it first.",
       "settle": "Settle",
       "settleHint": "Fill in what settles this invoice at the rate shown.",
       "rateUnknown": "payment-date",
       "missingRateBody": "No {currency} exchange rate is recorded for {date}. The payment can't be posted until a rate on or before that date exists.",
       "missingRateLink": "Open Currencies & rates",
-      "reviewBodyServerRate": "Pay {amount}. The server applies the payment-date rate and posts the FX difference."
+      "reviewBodyServerRate": "Pay {amount}. The server applies the payment-date rate and posts the FX difference.",
+      "serverRate": "The server will apply the payment-date {currency} rate when posting, so the converted amounts and the FX difference can't be previewed here."
     },
     "payments": {
       "title": "Supplier payments",
@@ -946,8 +947,14 @@
     },
     "views": {
       "label": "Order views",
-      "list": "List",
-      "board": "Board"
+      "list": "All orders",
+      "board": "Board",
+      "queues": {
+        "late": "Late",
+        "attention": "Needs attention",
+        "cancellation": "Cancellation requests"
+      },
+      "retrievals": "Retrievals"
     },
     "pickList": {
       "open": "Pick list",
@@ -1061,6 +1068,20 @@
         "title": "Approve selling below cost",
         "body": "The order is confirmed at these prices. Your reason is recorded in the audit log."
       }
+    },
+    "attempts": {
+      "title": "Delivery attempts",
+      "number": "Attempt {number}",
+      "party": "Carried by {name}",
+      "unnamedParty": "an unnamed party",
+      "started": "Out {at}",
+      "ended": "ended {at}",
+      "reason": "Why it failed: {reason}",
+      "status": {
+        "out_for_delivery": "Out for delivery",
+        "delivered": "Delivered",
+        "failed": "Failed"
+      }
     }
   },
   "inbox": {
@@ -1159,7 +1180,11 @@
     "separationOfDuties": {
       "hint": "Standard lets a purchase creator record its payment or return. Strict requires another user for those actions. Nobody may approve their own request in either mode.",
       "standard": "Standard",
-      "strict": "Strict"
+      "strict": "Strict",
+      "explain": {
+        "standard": "Standard: the person who records a purchase may also record its payment or return. Nobody may approve their own request.",
+        "strict": "Strict: a purchase's payment, return and corrections must be done by someone other than the person who recorded it. Nobody may approve their own request."
+      }
     },
     "history": {
       "title": "Change history",
@@ -1735,7 +1760,12 @@
     "refresh": "Refresh preview",
     "publishedToast": "Saved {rate} and published {count, plural, =0 {no prices} one {# price} other {# prices}}",
     "rateOnlyToast": "Saved {rate} only; {count, plural, =0 {no linked prices} one {# price awaits it} other {# prices await it}}",
-    "approvalPendingToast": "The below-cost publish is pending approval; no rate or price was saved yet."
+    "approvalPendingToast": "The below-cost publish is pending approval; no rate or price was saved yet.",
+    "waiting": {
+      "title": "Waiting for another approver: {rate}",
+      "body": "Some new prices fall below the protected threshold, so nothing was saved yet. Another person with the below-cost approval permission must approve it — you can't approve your own change.",
+      "share": "Send this link to an approver:"
+    }
   },
   "inventory": {
     "skuPicker": {
@@ -2102,6 +2132,50 @@
       "overOutstanding": "More than what is still expected ({left}).",
       "location": "Choose where to put it back."
     },
-    "receiveMore": "Receive more"
+    "receiveMore": "Receive more",
+    "list": {
+      "title": "Retrievals",
+      "description": "Goods coming back from delivery parties, across all orders. Filter by party, order, date or status.",
+      "columns": {
+        "document": "Document",
+        "order": "Order",
+        "party": "Party",
+        "date": "Date",
+        "outcome": "Purpose",
+        "lines": "Lines",
+        "status": "Status"
+      },
+      "allStatuses": "All statuses",
+      "allParties": "All parties",
+      "from": "From",
+      "to": "To",
+      "empty": "No retrievals match these filters.",
+      "forOrder": "Showing the retrievals for order {number}.",
+      "allOrders": "Show all orders",
+      "viewAllForOrder": "All retrievals for this order"
+    }
+  },
+  "priceApprovals": {
+    "title": "Below-cost price approval",
+    "description": "Approve or reject a linked-price publish that puts some prices below the protected threshold.",
+    "body": "Approving publishes the new rate and prices; rejecting discards them. Either way, give a reason — it is kept in the audit log.",
+    "reason": "Reason",
+    "reasonRequired": "Give a reason of at least 3 characters.",
+    "approve": "Approve and publish",
+    "reject": "Reject",
+    "ownRequest": "You proposed this change, so you can't decide it. Another approver must approve or reject it.",
+    "approvedBody": "Approved: the rate and the linked prices are published.",
+    "rejectedBody": "Rejected: nothing was published.",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "columns": {
+      "sku": "SKU",
+      "price": "New price",
+      "threshold": "Threshold",
+      "cost": "Cost"
+    }
   }
 }

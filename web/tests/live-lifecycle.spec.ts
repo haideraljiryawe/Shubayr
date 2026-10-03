@@ -38,6 +38,36 @@ interface Stocked {
   sku: string;
 }
 
+let approverToken: string | null = null;
+
+/**
+ * A second staff member (super_admin) for steps the creator of a document
+ * may not approve themselves — such as a stock count (separation of duties,
+ * API 11.0). Created once per run through the API, password changed.
+ */
+async function secondStaffToken(request: APIRequestContext): Promise<string> {
+  if (approverToken) return approverToken;
+  const admin = bearer(await staffToken(request));
+  const presets = await (await request.get(`${API}/admin/presets`, { headers: admin })).json();
+  const superAdmin = ((presets.data ?? presets) as Array<{ id: string; name: string }>).find((preset) => preset.name === "super_admin")!;
+  const username = `wlc-approver-${run}`.toLowerCase();
+  const temporary = `Temp-Pass!${run}a1`;
+  const created = await request.post(`${API}/admin/staff`, {
+    headers: admin,
+    data: { username, name: `Web live approver ${run}`, password: temporary, preset_ids: [superAdmin.id], permission_keys: [], reason: "Web live second approver" },
+  });
+  expect(created.status(), await created.text()).toBe(201);
+  const first = await (await request.post(`${API}/admin/auth/login`, { data: { username, password: temporary } })).json();
+  const known = `Known-Pass!${run}b2`;
+  const changed = await request.post(`${API}/admin/auth/change-password`, {
+    headers: bearer(first.access_token),
+    data: { current_password: temporary, new_password: known },
+  });
+  expect(changed.ok(), await changed.text()).toBe(true);
+  approverToken = (await (await request.post(`${API}/admin/auth/login`, { data: { username, password: known } })).json()).access_token as string;
+  return approverToken!;
+}
+
 async function staff(request: APIRequestContext, method: "GET" | "POST" | "PATCH", path: string, data?: unknown) {
   const headers = bearer(await staffToken(request));
   const response = await request.fetch(`${API}${path}`, { method, headers, data });
@@ -199,16 +229,20 @@ test("the shopper accepts the store's smaller quantity after a shortage", async 
   const placed = await order(request, item, 3);
   // Count the lot down to one: the order now needs attention.
   const count = (await staff(request, "POST", "/admin/inventory/counts", { variant_id: item.variant, reason: "Web live shortage" })).body;
-  const approved = await staff(request, "POST", `/admin/inventory/counts/${count.id}/approve`, {
-    operation_id: `wlc-count-${run}`,
-    document_date: today(),
-    lines: count.lines.map((line: { batch_id: string; location_id: string }) => ({
-      batch_id: line.batch_id,
-      location_id: line.location_id,
-      counted_quantity: "1",
-    })),
+  // The count's creator may not approve it (API 11.0): a second staff member does.
+  const approved = await request.post(`${API}/admin/inventory/counts/${count.id}/approve`, {
+    headers: bearer(await secondStaffToken(request)),
+    data: {
+      operation_id: `wlc-count-${run}`,
+      document_date: today(),
+      lines: count.lines.map((line: { batch_id: string; location_id: string }) => ({
+        batch_id: line.batch_id,
+        location_id: line.location_id,
+        counted_quantity: "1",
+      })),
+    },
   });
-  expect(approved.status, approved.text).toBe(201);
+  expect(approved.status(), await approved.text()).toBe(201);
   await move(request, placed.id, ["confirmed", "preparing"]);
 
   const detail = (await staff(request, "GET", `/admin/orders/${placed.id}`)).body;
@@ -222,7 +256,13 @@ test("the shopper accepts the store's smaller quantity after a shortage", async 
   });
   expect(proposed.status, proposed.text).toBe(200);
 
-  await signIn(page, `/account/orders/${placed.id}`);
+  // The customer is notified (API 11.0): the inbox marks it as needing an
+  // answer and opens the order, where the answer is given.
+  await signIn(page, "/notifications");
+  const notice = page.locator('[data-testid="inbox-item"]', { has: page.getByTestId("inbox-needs-answer") }).first();
+  await expect(notice).toBeVisible();
+  await notice.getByTestId("inbox-open").click();
+  await page.waitForURL(new RegExp(`/account/orders/${placed.id}$`));
   const prompt = page.getByTestId("order-reduction");
   await expect(prompt).toBeVisible();
   await expect(prompt).toContainText("Only one left");
@@ -234,7 +274,7 @@ test("the shopper accepts the store's smaller quantity after a shortage", async 
   expect(Number(mine.items[0].quantity)).toBe(1);
 });
 
-test("an agent marks a delivery failed with a reason, then retries it", async ({ page, request }) => {
+test("an agent marks a delivery failed with a reason, then retries it", async ({ browser, page, request }) => {
   const item = await stocked(request, "AGENT", 2);
   const placed = await order(request, item, 1);
   await move(request, placed.id, ["confirmed", "preparing", "ready_for_dispatch"]);
@@ -263,4 +303,19 @@ test("an agent marks a delivery failed with a reason, then retries it", async ({
   await expect(page.getByTestId("delivery-retry-count")).toHaveText("أُعيدت المحاولة مرة");
   const order_ = (await staff(request, "GET", `/admin/orders/${placed.id}`)).body;
   expect(order_.delivery.retry_count).toBe(1);
+
+  // The customer's order page keeps the whole history in their words: the
+  // failed attempt with the courier's note, then the retry on its way.
+  // The customer, in a browser of their own (the store keeps its session there).
+  const customer = await browser.newPage();
+  await signIn(customer, `/account/orders/${placed.id}`);
+  const attempts = customer.getByTestId("order-delivery-attempt");
+  await expect(attempts).toHaveCount(2);
+  await expect(attempts.nth(0)).toHaveAttribute("data-status", "failed");
+  await expect(attempts.nth(0).getByTestId("order-delivery-attempt-note")).toContainText("Customer not answering");
+  await expect(attempts.nth(1)).toHaveAttribute("data-status", "out_for_delivery");
+  // Who carried it stays internal.
+  const agentName = (await staff(request, "GET", `/admin/orders/${placed.id}`)).body.delivery_attempts?.[0]?.party?.name as string | undefined;
+  if (agentName) await expect(customer.getByTestId("order-delivery-attempts")).not.toContainText(agentName);
+  await customer.close();
 });

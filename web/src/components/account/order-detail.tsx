@@ -27,7 +27,7 @@ import { AccountError, AccountSkeleton } from "./states";
 import { DeliveryStatus } from "./delivery-status";
 import { OrderItemLine } from "./order-item-line";
 import { OrderReviews } from "./order-reviews";
-import { OrderStatusChip, useOrderDate } from "./order-status";
+import { OrderStatusChip, useOrderDate, useOrderDateTime } from "./order-status";
 import { TrackingTimeline } from "./tracking-timeline";
 
 /** One order: what was bought, where it goes, how it is paid, and where it is. */
@@ -96,6 +96,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       <CancellationStatus order={found} />
       <DeliveryStatus order={found} />
       <TrackingTimeline tracking={tracking} />
+      <DeliveryAttempts order={found} />
       {delivered ? (
         <OrderReviews
           order={found}
@@ -533,6 +534,40 @@ function TotalsCard({ order }: { order: Order }) {
           </div>
         ))}
       </dl>
+    </Card>
+  );
+}
+
+/**
+ * Every delivery attempt, oldest first (API 11.0): when the courier set out
+ * and how it ended, with the courier's note when an attempt failed. Who
+ * carried it stays internal. A retry adds a row; earlier failures stay.
+ */
+function DeliveryAttempts({ order }: { order: Order }) {
+  const t = useTranslations("orders.attempts");
+  const formatDateTime = useOrderDateTime();
+  const attempts = [...(order.delivery_attempts ?? [])].sort((a, b) => a.started_at.localeCompare(b.started_at));
+  if (!attempts.length) return null;
+  return (
+    <Card padding="md" data-testid="order-delivery-attempts">
+      <h2 className="mb-3 text-base font-bold text-text">{t("title")}</h2>
+      <ol className="flex flex-col gap-2 text-sm">
+        {attempts.map((attempt, index) => (
+          <li key={attempt.id} className="flex flex-col gap-0.5 rounded-md bg-card px-3 py-2" data-testid="order-delivery-attempt" data-status={attempt.status}>
+            <span className="font-semibold text-text">
+              {t("attempt", { number: index + 1 })} · {t(`status.${attempt.status}`)}
+            </span>
+            <span dir="ltr" className="text-xs text-text-muted [unicode-bidi:isolate] text-start">
+              {formatDateTime(attempt.completed_at ?? attempt.started_at)}
+            </span>
+            {attempt.status === "failed" && attempt.reason ? (
+              <span className="text-text-muted" data-testid="order-delivery-attempt-note">
+                {t("note", { note: attempt.reason })}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ol>
     </Card>
   );
 }

@@ -107,6 +107,40 @@ async function move(request: APIRequestContext, id: string, statuses: string[]) 
   }
 }
 
+type Queue = "late" | "attention" | "cancellation";
+const QUEUE_QUERY: Record<Queue, string> = { late: "late=true", attention: "needs_attention=true", cancellation: "cancellation_request=pending" };
+
+/** The queue's tab shows the API's own count (re-read until both agree). */
+async function expectQueueCount(page: Page, request: APIRequestContext, queue: Queue) {
+  await expect
+    .poll(async () => {
+      await page.goto(`/orders?queue=${queue}`);
+      const shown = Number(await page.getByTestId(`orders-queue-count-${queue}`).innerText());
+      const { body } = await api(request, "GET", `/admin/orders?${QUEUE_QUERY[queue]}&per_page=1`);
+      return shown === body.total && shown > 0;
+    }, { timeout: 30_000 })
+    .toBe(true);
+}
+
+/** The order is (or isn't) in a server-filtered queue view. */
+async function expectInQueue(page: Page, queue: Queue, orderNumber: string, present: boolean) {
+  await page.goto(`/orders?queue=${queue}&q=${orderNumber}`);
+  await expect(page.getByTestId(`orders-tab-${queue}`)).toHaveAttribute("aria-current", "page");
+  await expect(page.locator(`[data-order-number="${orderNumber}"]`)).toHaveCount(present ? 1 : 0);
+}
+
+/** A delivery status change by the seeded agent (API 10.0: with the order's version). */
+async function agentMove(request: APIRequestContext, deliveryId: string, status: string, reason?: string) {
+  const token = await phoneToken(request, "+9647700000005");
+  const assigned = await (await request.get(`${API}/deliveries/assigned?per_page=100`, { headers: bearer(token) })).json();
+  const delivery = (assigned.data as Array<{ id: string; order_version: number }>).find((row) => row.id === deliveryId)!;
+  const moved = await request.patch(`${API}/deliveries/${deliveryId}`, {
+    headers: bearer(token),
+    data: { status, order_version: delivery.order_version, ...(reason ? { reason } : {}) },
+  });
+  expect(moved.ok(), await moved.text()).toBe(true);
+}
+
 async function dispatchOrder(request: APIRequestContext, placed: { id: string; delivery_id: string }) {
   await move(request, placed.id, ["confirmed", "preparing", "ready_for_dispatch"]);
   const assigned = await api(request, "PATCH", `/deliveries/${placed.delivery_id}/assign`, { agent_id: state.agentId });
@@ -208,6 +242,9 @@ test("an order not accepted in time gets the late badge (list and detail)", asyn
     await page.goto(`/orders/${placed.id}`);
     await expect(page.getByTestId("order-late")).toBeVisible();
     await expect(page.getByTestId("order-late-alert")).toBeVisible();
+    // The server-filtered Late queue holds it, with the API's count.
+    await expectInQueue(page, "late", placed.order_number, true);
+    await expectQueueCount(page, request, "late");
   } finally {
     const restore = {
       settings: { acceptance_alert_timeout_minutes: original.settings.acceptance_alert_timeout_minutes },
@@ -318,6 +355,107 @@ test("cancellation requests: one approved, one denied, each with a reason", asyn
   await expect(page.getByTestId("cancellation-request")).toHaveAttribute("data-status", "denied");
   await expectStatus(page, "confirmed");
   await expect(page.getByTestId("cancellation-resolution")).toHaveText("Already packed for today's route");
+});
+
+/* ------------------------------------------------- server-filtered queues */
+
+test("work queues are filtered by the server: needs attention and cancellation requests, with the API's counts", async ({ page, request }) => {
+  // Short: counted below what the order needs, while it is being prepared.
+  const shortItem = await stocked(request, "QATT", 3);
+  const short = await order(request, shortItem, 3);
+  await countDown(request, shortItem, "1");
+  await move(request, short.id, ["confirmed", "preparing"]);
+  // Cancellation requested by the customer after acceptance.
+  const askItem = await stocked(request, "QCXL", 2);
+  const asked = await order(request, askItem, 1);
+  await move(request, asked.id, ["confirmed"]);
+  const headers = bearer(await phoneToken(request, CUSTOMER_PHONE));
+  const mine = await (await request.get(`${API}/orders/${asked.id}`, { headers })).json();
+  const requested = await request.post(`${API}/orders/${asked.id}/cancellation-request`, { headers, data: { version: mine.version, reason: "Changed my mind" } });
+  expect(requested.ok(), await requested.text()).toBe(true);
+
+  await uiLoginAsAdmin(page);
+  await expectInQueue(page, "attention", short.order_number, true);
+  await expectInQueue(page, "attention", asked.order_number, false);
+  await expectInQueue(page, "cancellation", asked.order_number, true);
+  await expectInQueue(page, "cancellation", short.order_number, false);
+  await expectQueueCount(page, request, "attention");
+  await expectQueueCount(page, request, "cancellation");
+  // "All orders" is not a queue: both are there.
+  await page.goto(`/orders?q=${short.order_number}`);
+  await expect(page.locator(`[data-order-number="${short.order_number}"]`)).toHaveCount(1);
+});
+
+/* --------------------------------------------------- delivery attempts */
+
+test("the attempt history after fail → retry → fail keeps both failures with their reasons", async ({ page, request }) => {
+  const item = await stocked(request, "ATT", 2);
+  const placed = await order(request, item, 1);
+  // Dispatch hands the goods over: the delivery is out (attempt 1).
+  await dispatchOrder(request, placed);
+  await agentMove(request, placed.delivery_id, "failed", "Customer not answering");
+  await agentMove(request, placed.delivery_id, "out_for_delivery");
+  await agentMove(request, placed.delivery_id, "failed", "Shop closed at the address");
+
+  await uiLoginAsAdmin(page);
+  await page.goto(`/orders/${placed.id}`);
+  const attempts = page.getByTestId("delivery-attempt");
+  await expect(attempts).toHaveCount(2);
+  await expect(attempts.nth(0)).toHaveAttribute("data-status", "failed");
+  await expect(attempts.nth(1)).toHaveAttribute("data-status", "failed");
+  await expect(attempts.nth(0).getByTestId("delivery-attempt-reason")).toContainText("Customer not answering");
+  await expect(attempts.nth(1).getByTestId("delivery-attempt-reason")).toContainText("Shop closed at the address");
+  await expect(attempts.nth(0).getByTestId("delivery-attempt-party")).not.toBeEmpty();
+});
+
+/* ------------------------------------------------------- retrievals list */
+
+test("the all-retrievals list filters by order, status, party and date on the server", async ({ page, request }) => {
+  const item = await stocked(request, "RLIST", 2);
+  const placed = await order(request, item, 1);
+  await dispatchOrder(request, placed);
+  await agentMove(request, placed.delivery_id, "failed", "Wrong address");
+  const opened = await api(request, "POST", `/admin/orders/${placed.id}/retrievals`, { operation_id: `lc-rl-${run}`, outcome: "retry", reason: "Bring it back" });
+  expect(opened.status, JSON.stringify(opened.body)).toBe(201);
+  const number = opened.body.document_number as string;
+  const row = () => page.locator('[data-testid="table-row"]', { has: page.locator(`[data-testid="retrieval-list-link"]`, { hasText: number }) });
+
+  await uiLoginAsAdmin(page);
+  // From the order: its own retrievals.
+  await page.goto(`/orders/${placed.id}`);
+  await page.getByTestId("order-retrievals-all").click();
+  await expect(page).toHaveURL(new RegExp(`/retrievals\\?order_id=${placed.id}`));
+  await expect(page.getByTestId("retrievals-order-filter")).toContainText(placed.order_number);
+  await expect(row()).toHaveCount(1);
+  await expect(page.locator('[data-testid="table-row"]')).toHaveCount(1);
+  await expect(row().getByTestId("retrieval-list-status")).toHaveAttribute("data-status", "open");
+
+  // Status: open includes it, received doesn't.
+  await page.goto(`/retrievals?order_id=${placed.id}&status=open`);
+  await expect(row()).toHaveCount(1);
+  await page.goto(`/retrievals?order_id=${placed.id}&status=received`);
+  await expect(row()).toHaveCount(0);
+
+  // Date: today includes it; a range that ended yesterday doesn't.
+  const day = today();
+  await page.goto(`/retrievals?order_id=${placed.id}&from=${day}&to=${day}`);
+  await expect(row()).toHaveCount(1);
+  await page.goto(`/retrievals?order_id=${placed.id}&from=2001-01-01&to=2001-01-31`);
+  await expect(row()).toHaveCount(0);
+
+  // Party: from the row, the list narrows to that delivery party.
+  await page.goto(`/retrievals?order_id=${placed.id}`);
+  await row().getByTestId("retrieval-list-party").click();
+  await expect(page).toHaveURL(new RegExp(`party_id=${state.agentId}`));
+  await expect(row()).toHaveCount(1);
+  // The party dropdown lists delivery parties (contract 11.2) and shows the one chosen.
+  await expect(page.getByTestId("filter-party_id")).toHaveValue(state.agentId!);
+  const { body } = await api(request, "GET", `/admin/retrievals?party_id=${state.agentId}&per_page=100`);
+  expect((body.data as Array<{ custody_party_id: string }>).every((entry) => entry.custody_party_id === state.agentId)).toBe(true);
+  // The orders area links here too.
+  await page.goto("/orders");
+  await page.getByTestId("orders-tab-retrievals").click();
+  await expect(page).toHaveURL(/\/retrievals$/);
 });
 
 /* ---------------------------------------------------------------- retrieval */

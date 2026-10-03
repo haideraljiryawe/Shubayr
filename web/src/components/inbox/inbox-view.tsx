@@ -237,6 +237,16 @@ export function InboxView() {
                       <span className="text-sm text-text-muted">
                         {locale === "ar" ? item.body_ar : item.body_en}
                       </span>
+                      {item.type === "quantity_reduction_proposed" ? (
+                        // The order page asks for the answer (accept or decline).
+                        <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-semibold text-text" data-testid="inbox-needs-answer">
+                          {t("needsAnswer")}
+                        </span>
+                      ) : item.type === "cancellation_request_approved" || item.type === "cancellation_request_denied" ? (
+                        <span className="rounded-full bg-card px-2 py-0.5 text-xs font-semibold text-text" data-testid="inbox-cancellation-decision" data-decision={item.type === "cancellation_request_approved" ? "approved" : "denied"}>
+                          {item.type === "cancellation_request_approved" ? t("cancellationApproved") : t("cancellationDenied")}
+                        </span>
+                      ) : null}
                       <span className="text-xs text-text-muted">{dateTime(item.created_at)}</span>
                     </button>
                     {isUnread ? (

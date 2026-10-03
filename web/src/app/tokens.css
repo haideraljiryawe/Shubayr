@@ -104,8 +104,9 @@
   --shadow-md: var(--t-shadow-md);
   --shadow-lg: var(--t-shadow-lg);
 
-  /* Cairo is loaded by next/font/google in the locale layout. */
-  --font-sans: var(--font-cairo), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  /* Cairo is self-hosted (web/src/fonts/cairo): one face per subset, in
+     Google's order, then the metric-adjusted fallback on the last. */
+  --font-sans: var(--font-cairo-arabic), var(--font-cairo-latin-ext), var(--font-cairo-latin), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
 }
 
 @layer base {
