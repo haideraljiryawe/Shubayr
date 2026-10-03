@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { PackageOpen } from "lucide-react";
+import { alternatesFor } from "@/lib/site";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { CatalogError } from "@/components/catalog/states";
 import { Card } from "@/components/ui/card";
@@ -23,7 +24,11 @@ export async function generateMetadata({
 }: BrandsPageProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "catalog" });
-  return { title: t("brandsTitle"), description: t("brandsDescription") };
+  return {
+    title: t("brandsTitle"),
+    description: t("brandsDescription"),
+    alternates: alternatesFor(locale, "/brands"),
+  };
 }
 
 /**

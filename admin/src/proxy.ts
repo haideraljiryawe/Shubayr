@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { COOKIE_SECURE } from "@/lib/config";
+import { API_URL, ADMIN_ORIGIN, COOKIE_SECURE } from "@/lib/config";
+import { contentSecurityPolicy, newNonce, originOf } from "@/lib/security-headers";
 import { refreshSession } from "@/lib/session/refresh";
 import {
   ACCESS_COOKIE,
@@ -20,7 +21,14 @@ import {
  *
  * This is a convenience gate, not the security boundary: the API checks the
  * token and the permission on every call.
+ *
+ * Every page response also carries the Content-Security-Policy, built around
+ * a per-request nonce that goes on the request too, so Next.js stamps it on
+ * the scripts it renders.
  * ------------------------------------------------------------------------- */
+
+const MEDIA_ORIGIN = originOf(API_URL);
+const HTTPS = (ADMIN_ORIGIN ?? "").startsWith("https://");
 
 const PUBLIC_PATHS = new Set(["/login"]);
 
@@ -37,17 +45,30 @@ function toLogin(request: NextRequest): NextResponse {
 }
 
 export async function proxy(request: NextRequest) {
+  const csp = contentSecurityPolicy({
+    nonce: newNonce(),
+    dev: process.env.NODE_ENV !== "production",
+    mediaOrigin: MEDIA_ORIGIN,
+    https: HTTPS,
+  });
+  request.headers.set("Content-Security-Policy", csp);
+  const response = await gate(request);
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
+
+async function gate(request: NextRequest): Promise<NextResponse> {
   const isPublic = PUBLIC_PATHS.has(request.nextUrl.pathname);
   const access = request.cookies.get(ACCESS_COOKIE)?.value;
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
 
   if (!needsRefresh(access)) {
     if (isPublic) return NextResponse.redirect(new URL("/", request.url));
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: request.headers } });
   }
 
   const pair = refresh ? await refreshSession(refresh) : null;
-  if (!pair) return isPublic ? NextResponse.next() : toLogin(request);
+  if (!pair) return isPublic ? NextResponse.next({ request: { headers: request.headers } }) : toLogin(request);
 
   if (isPublic) {
     const response = NextResponse.redirect(new URL("/", request.url));

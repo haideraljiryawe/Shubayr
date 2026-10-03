@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { CategoryRail } from "@/components/home/category-rail";
@@ -12,6 +13,30 @@ import { SectionEmpty, SectionError } from "@/components/home/states";
 import { SectionHeader } from "@/components/ui/section-header";
 import { api } from "@/lib/api";
 import type { Locale } from "@/i18n/routing";
+import { alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
+
+/** The store's front door: canonical at the bare path, English as its alternate. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const settings = await api.getSettings().catch(() => null);
+  const siteName = await storeNameFor(locale, settings?.store_name);
+  const description = (await getTranslations({ locale, namespace: "seo" }))("homeDescription", { store: siteName });
+  return {
+    alternates: alternatesFor(locale, "/"),
+    openGraph: openGraphFor({
+      locale,
+      siteName,
+      title: siteName,
+      description,
+      path: "/",
+      images: settings?.logo_url ? [{ url: settings.logo_url, alt: siteName }] : undefined,
+    }),
+  };
+}
 
 /**
  * Home page. Every catalog read happens in a server component so the markup is

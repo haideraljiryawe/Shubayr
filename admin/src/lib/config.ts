@@ -4,8 +4,11 @@
  * never calls the API directly.
  * ------------------------------------------------------------------------- */
 
+// Localhost is a development default only: in production instrumentation.ts
+// refuses to start without API_URL (docs/deploy/web-and-admin.md).
 export const API_URL = (
-  process.env.API_URL ?? "http://localhost:8000/api/v1"
+  process.env.API_URL ??
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:8000/api/v1")
 ).replace(/\/$/, "");
 
 /** The public origin of this admin, for the CSRF Origin check. */

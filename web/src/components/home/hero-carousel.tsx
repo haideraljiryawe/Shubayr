@@ -100,6 +100,8 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
             aria-roledescription="slide"
             aria-label={`${index + 1} / ${banners.length}`}
             aria-hidden={index !== active}
+            // Off-screen slides keep their links out of the tab order too.
+            inert={index !== active}
             className="w-full shrink-0 snap-start"
           >
             <HeroBanner

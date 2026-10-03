@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Breadcrumbs } from "@/components/product/breadcrumbs";
@@ -23,6 +24,8 @@ import {
   stockLevelFor,
 } from "@/lib/product";
 import type { Locale } from "@/i18n/routing";
+import { jsonLdText, productJsonLd } from "@/lib/seo";
+import { SITE_URL, alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
 
 type Props = {
   params: Promise<{ locale: string; id: string }>;
@@ -49,19 +52,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const name =
     ((locale as Locale) === "ar" ? product.name_ar : product.name_en) ?? "";
-  const description = product.description ?? name;
+  const t = await getTranslations({ locale, namespace: "seo" });
+  const description =
+    product.description?.trim() || t("productDescription", { name });
   const image = primaryImageUrl(product);
+  const path = `/product/${product.id ?? id}`;
 
   return {
     title: name,
     description,
-    openGraph: {
+    // One URL per product: ?variant= is a view of the same page.
+    alternates: alternatesFor(locale, path),
+    openGraph: openGraphFor({
+      locale,
+      siteName: await storeNameFor(locale, (await api.getSettings().catch(() => null))?.store_name),
       title: name,
       description,
-      type: "website",
-      locale,
+      path,
       images: image ? [{ url: image, alt: name }] : undefined,
-    },
+    }),
     twitter: {
       card: image ? "summary_large_image" : "summary",
       title: name,
@@ -108,6 +117,10 @@ export default async function ProductPage({ params, searchParams }: Props) {
   // Only the count is needed up front (it sits beside the title); the review
   // bodies stream in below.
   const reviewCount = await api.getProductReviewCount(id).catch(() => 0);
+  const [settings, nonce] = await Promise.all([
+    api.getSettings().catch(() => null),
+    headers().then((list) => list.get("x-nonce") ?? undefined),
+  ]);
 
   const brandName =
     (typedLocale === "ar" ? product.brand?.name_ar : product.brand?.name_en) ??
@@ -131,8 +144,23 @@ export default async function ProductPage({ params, searchParams }: Props) {
       .map((variant) => ({ label: t("sku"), value: variant.sku as string })),
   ].filter((row): row is SpecRow => row !== null);
 
+  const structuredData = productJsonLd({
+    product,
+    locale: typedLocale,
+    siteUrl: SITE_URL,
+    level,
+    storeName: settings?.store_name || "Shubayr",
+    reviewCount,
+  });
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        data-testid="product-jsonld"
+        dangerouslySetInnerHTML={{ __html: jsonLdText(structuredData) }}
+      />
       {/* pb-32 clears the sticky mobile CTA bar. */}
       <div className="mx-auto max-w-7xl px-4 pb-32 pt-4 lg:px-8 lg:pb-16 lg:pt-6">
         <Breadcrumbs

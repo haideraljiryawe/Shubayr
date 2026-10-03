@@ -124,9 +124,23 @@ export async function forward(
   if (authenticated && needsRefresh(access)) await tryRefresh();
 
   const forwardedFor = request.headers.get("x-forwarded-for");
-  let response = await send(init, access, forwardedFor);
-  if (response.status === 401 && authenticated && (await tryRefresh())) {
+  let response: Response;
+  try {
     response = await send(init, access, forwardedFor);
+    if (response.status === 401 && authenticated && (await tryRefresh())) {
+      response = await send(init, access, forwardedFor);
+    }
+  } catch {
+    // The API is down or unreachable (refused, DNS, timeout): a declared 503
+    // the screens can say plainly, instead of a crashed route handler.
+    return {
+      status: 503,
+      body: JSON.stringify({ status: 503, code: "API_UNAVAILABLE", message: "The API can't be reached", errors: [] }),
+      contentType: "application/json",
+      refreshed: null,
+      signedOut: false,
+      retryAfter: null,
+    };
   }
 
   // Signed out means: the API refused us and no refresh could fix it.

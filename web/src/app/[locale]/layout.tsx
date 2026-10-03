@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Cairo } from "next/font/google";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
@@ -12,6 +13,8 @@ import { AuthProvider } from "@/lib/auth";
 import { NotificationCenterSync } from "@/lib/use-notifications";
 import { localeDirection, routing, type Locale } from "@/i18n/routing";
 import { api } from "@/lib/api";
+import { SITE_URL, openGraphFor } from "@/lib/site";
+import { OfflineNotice } from "@/components/layout/offline-notice";
 import "../globals.css";
 
 const cairo = Cairo({
@@ -33,12 +36,25 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "brand" });
+  const seo = await getTranslations({ locale, namespace: "seo" });
   const settings = await api.getSettings().catch(() => null);
   const storeName = settings?.store_name || t("name");
+  const description = seo("homeDescription", { store: storeName });
 
   return {
+    metadataBase: SITE_URL ? new URL(SITE_URL) : undefined,
     title: { default: storeName, template: `%s · ${storeName}` },
-    description: t("tagline"),
+    description,
+    applicationName: storeName,
+    openGraph: openGraphFor({
+      locale,
+      siteName: storeName,
+      title: storeName,
+      description,
+      images: settings?.logo_url ? [{ url: settings.logo_url, alt: storeName }] : undefined,
+    }),
+    twitter: { card: "summary", title: storeName, description },
+    formatDetection: { telephone: false },
   };
 }
 
@@ -54,6 +70,9 @@ export default async function LocaleLayout({
 
   setRequestLocale(locale);
   const messages = await getMessages();
+  // Reading the request makes every page render per request, which the CSP
+  // nonce (set by the middleware) requires.
+  await headers();
 
   // White-label identity (rule #1). Fetched on the server so the brand is in
   // the first byte of HTML — no flash of the default green.
@@ -79,6 +98,7 @@ export default async function LocaleLayout({
               <WishlistSync />
               <CartSync />
               <NotificationCenterSync />
+              <OfflineNotice />
               <AppShell>{children}</AppShell>
             </ThemeProvider>
           </AuthProvider>

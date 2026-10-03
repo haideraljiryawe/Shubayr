@@ -159,8 +159,11 @@ export interface OrderDraft {
   total: number;
 }
 
+// Baked in at build time; next.config.ts refuses a production build without
+// it, so localhost is a development default only.
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ??
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:8000/api/v1");
 
 /**
  * The backend lands one slice at a time, so live-vs-mock is decided per domain
