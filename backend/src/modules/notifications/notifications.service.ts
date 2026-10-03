@@ -411,12 +411,17 @@ export class NotificationsService
   async history(userId: string, query: NotificationHistoryQueryDto) {
     const page = query.page ?? 1;
     const per_page = query.per_page ?? 20;
+    const where: Prisma.NotificationEventWhereInput = {
+      user_id: userId,
+      ...(query.unread ? { read_at: null } : {}),
+      ...(query.type ? { type: query.type } : {}),
+    };
     const [total, data] = await this.prisma.$transaction([
       this.prisma.notificationEvent.count({
-        where: { user_id: userId, ...(query.unread ? { read_at: null } : {}) },
+        where,
       }),
       this.prisma.notificationEvent.findMany({
-        where: { user_id: userId, ...(query.unread ? { read_at: null } : {}) },
+        where,
         orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * per_page,
         take: per_page,

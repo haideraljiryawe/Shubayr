@@ -1587,10 +1587,11 @@ export const api = {
         requireMockAuth();
         const order = getMockOrder(id);
         if (!order) throw new ApiError(404, `Order ${id} not found`);
-        const details = (order.attention_details ?? {}) as { reduction_proposal?: Record<string, unknown> };
-        if (!details.reduction_proposal) throw new ApiError(409, "No quantity reduction is awaiting acceptance");
+        const details = order.attention_details;
+        const proposal = details?.reduction_proposal;
+        if (!proposal) throw new ApiError(409, "No quantity reduction is awaiting acceptance");
         return updateMockOrder(id, (stored) => {
-          stored.attention_details = { ...details, reduction_proposal: { ...details.reduction_proposal, status: decision } };
+          stored.attention_details = { ...details, reduction_proposal: { ...proposal, status: decision } };
           stored.version = version + 1;
         })!;
       }

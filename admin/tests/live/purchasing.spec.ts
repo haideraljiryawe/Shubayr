@@ -403,6 +403,7 @@ test("a partial cross-currency allocation: 76,000 IQD at 1,520 applies 50 USD; t
   await overrideRate(page, "1520");
   await page.getByTestId("payment-amount").fill("76000");
   const row = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
+  await expect(row.getByTestId("payment-row-rate")).toHaveText("1520");
   await row.getByTestId("payment-apply").fill("76000");
   await expect(row.getByTestId("payment-row-converted")).toHaveText("50.00 USD");
   await expect(row.getByTestId("payment-row-fx")).toHaveText(/1,000 IQD/);
@@ -416,6 +417,7 @@ test("a partial cross-currency allocation: 76,000 IQD at 1,520 applies 50 USD; t
   await startPayment(page, state.usdSupplier!.id, state.iqdCash!, invoice.id);
   await overrideRate(page, "1520");
   const again = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
+  await expect(again.getByTestId("payment-row-rate")).toHaveText("1520");
   await expect(again).toContainText("150.00 USD");
   await again.getByTestId("payment-settle").click();
   await expect(again.getByTestId("payment-apply")).toHaveValue(/^228,?000$/);

@@ -113,7 +113,13 @@ export class DeliveriesService {
       this.prisma.delivery.count({ where }),
       this.prisma.delivery.findMany({
         where,
-        include: { order: { select: { version: true } } },
+        include: {
+          order: { select: { version: true } },
+          attempts: {
+            include: { party: { select: { id: true, name: true } } },
+            orderBy: { attempt_number: 'asc' },
+          },
+        },
         orderBy: [{ dispatched_at: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * perPage,
         take: perPage,
@@ -165,7 +171,13 @@ export class DeliveriesService {
       const updated = await tx.delivery.update({
         where: { id },
         data: { agent_id: input.agent_id },
-        include: { order: { select: { version: true } } },
+        include: {
+          order: { select: { version: true } },
+          attempts: {
+            include: { party: { select: { id: true, name: true } } },
+            orderBy: { attempt_number: 'asc' },
+          },
+        },
       });
       await this.audit.record(tx, {
         actorId,
@@ -243,7 +255,12 @@ export class DeliveriesService {
       }
 
       if (delivery.order.version !== input.order_version) {
-        throw staleOrder(delivery.order.status, delivery.order.version);
+        throw staleOrder(
+          delivery.order.status,
+          delivery.order.version,
+          undefined,
+          'order_version',
+        );
       }
 
       const orderStatus = delivery.order.status;
@@ -295,7 +312,12 @@ export class DeliveriesService {
           const current = await tx.order.findUniqueOrThrow({
             where: { id: delivery.order_id },
           });
-          throw staleOrder(current.status, current.version);
+          throw staleOrder(
+            current.status,
+            current.version,
+            undefined,
+            'order_version',
+          );
         }
         await tx.orderStatusEvent.create({
           data: {
@@ -380,6 +402,55 @@ export class DeliveriesService {
           id,
         );
       }
+      const attemptNumber =
+        delivery.retry_count + (delivery.status === 'failed' ? 2 : 1);
+      if (input.status === 'out_for_delivery') {
+        await tx.deliveryAttempt.upsert({
+          where: {
+            delivery_id_attempt_number: {
+              delivery_id: id,
+              attempt_number: attemptNumber,
+            },
+          },
+          create: {
+            delivery_id: id,
+            attempt_number: attemptNumber,
+            party_id: delivery.agent_id!,
+            status: 'out_for_delivery',
+            started_at: now,
+          },
+          update: {
+            party_id: delivery.agent_id!,
+            status: 'out_for_delivery',
+            reason: null,
+            started_at: now,
+            completed_at: null,
+          },
+        });
+      } else if (input.status === 'failed' || input.status === 'delivered') {
+        await tx.deliveryAttempt.upsert({
+          where: {
+            delivery_id_attempt_number: {
+              delivery_id: id,
+              attempt_number: delivery.retry_count + 1,
+            },
+          },
+          create: {
+            delivery_id: id,
+            attempt_number: delivery.retry_count + 1,
+            party_id: delivery.agent_id!,
+            status: input.status,
+            reason: input.status === 'failed' ? input.reason : null,
+            started_at: delivery.dispatched_at ?? now,
+            completed_at: now,
+          },
+          update: {
+            status: input.status,
+            reason: input.status === 'failed' ? input.reason : null,
+            completed_at: now,
+          },
+        });
+      }
       const updated = await tx.delivery.update({
         where: { id },
         data: {
@@ -399,7 +470,13 @@ export class DeliveriesService {
               }
             : {}),
         },
-        include: { order: { select: { version: true } } },
+        include: {
+          order: { select: { version: true } },
+          attempts: {
+            include: { party: { select: { id: true, name: true } } },
+            orderBy: { attempt_number: 'asc' },
+          },
+        },
       });
       await this.audit.record(tx, {
         actorId,
@@ -464,7 +541,21 @@ export class DeliveriesService {
     }
   }
 
-  private present(row: Delivery & { order: { version: number } }) {
+  private present(
+    row: Delivery & {
+      order: { version: number };
+      attempts: Array<{
+        id: string;
+        delivery_id: string;
+        attempt_number: number;
+        status: string;
+        reason: string | null;
+        started_at: Date;
+        completed_at: Date | null;
+        party: { id: string; name: string | null };
+      }>;
+    },
+  ) {
     return {
       id: row.id,
       order_id: row.order_id,
@@ -478,6 +569,7 @@ export class DeliveriesService {
       failure_reason: row.failure_reason,
       failed_at: row.failed_at,
       retry_count: row.retry_count,
+      attempts: row.attempts,
     };
   }
 }

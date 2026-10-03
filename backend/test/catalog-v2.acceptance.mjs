@@ -441,7 +441,10 @@ try {
       },
     ],
   });
-  const effectiveAt = new Date(Date.now() + 1_000).toISOString();
+  // Keep this pack's scheduled rates future-effective for the whole acceptance
+  // run so they cannot become current and leak into later purchasing packs.
+  const futureRateBase = Date.now() + 86_400_000;
+  const effectiveAt = new Date(futureRateBase + 1_000).toISOString();
   const firstPreview = await request(
     '/admin/exchange-rates/linked-price-preview',
     {
@@ -495,7 +498,7 @@ try {
         currency_code: 'USD',
         rate: 1550,
         basis: 1,
-        effective_at: new Date(Date.now() + 2_000).toISOString(),
+        effective_at: new Date(futureRateBase + 2_000).toISOString(),
         reason: 'catalog v2 rounded preview',
       },
     },
@@ -525,7 +528,7 @@ try {
         currency_code: 'USD',
         rate: 1600,
         basis: 1,
-        effective_at: new Date(Date.now() + 3_000).toISOString(),
+        effective_at: new Date(futureRateBase + 3_000).toISOString(),
         reason: 'save rate without publishing',
       },
     },
@@ -561,7 +564,7 @@ try {
         currency_code: 'USD',
         rate: 1650,
         basis: 1,
-        effective_at: new Date(Date.now() + 4_000).toISOString(),
+        effective_at: new Date(futureRateBase + 4_000).toISOString(),
         reason: 'preview made stale',
       },
     },
@@ -574,7 +577,7 @@ try {
       currency_code: 'USD',
       rate: '1700',
       basis: 1,
-      effective_at: new Date(Date.now() + 5_000).toISOString(),
+      effective_at: new Date(futureRateBase + 5_000).toISOString(),
       reason: 'invalidate catalog preview',
     },
   });
@@ -598,7 +601,7 @@ try {
       currency_code: 'USD',
       rate: 1400,
       basis: 1,
-      effective_at: new Date(Date.now() + 6_000).toISOString(),
+      effective_at: new Date(futureRateBase + 6_000).toISOString(),
       reason: 'decrease preview',
     },
   });
