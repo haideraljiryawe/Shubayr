@@ -75,6 +75,13 @@ async function waitForApi(url) {
   throw new Error('Acceptance API did not become ready within 30 seconds');
 }
 
+async function stopApi() {
+  if (api && api.exitCode === null) {
+    api.kill();
+    await new Promise((resolve) => api.once('exit', resolve));
+  }
+}
+
 try {
   if (!existsSync(apiEntry))
     throw new Error('Build the backend first: npm run build');
@@ -119,6 +126,7 @@ try {
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
   await run('test/admin-orders.acceptance.mjs', [], acceptanceEnv);
   await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
+  await run('test/delivery-parties.acceptance.mjs', [], acceptanceEnv);
   await run('test/returns.acceptance.mjs', [], acceptanceEnv);
   await run('test/loyalty.acceptance.mjs', [], acceptanceEnv);
   await run('test/reviews.acceptance.mjs', [], acceptanceEnv);
@@ -127,12 +135,15 @@ try {
   await run('test/qa-fixes.acceptance.mjs', [], acceptanceEnv);
   // Keep inventory lifecycle last: delivered/returned rows are intentionally
   // immutable and cannot be removed without defeating the database guards.
+  // Restart against the same disposable database first: the combined packs
+  // intentionally exceed the production admin-login throttle, whose store is
+  // in memory. This also proves that all prior state survives an API restart.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
   await run('test/inventory-lifecycle.acceptance.mjs', [], acceptanceEnv);
 } finally {
-  if (api && api.exitCode === null) {
-    api.kill();
-    await new Promise((resolve) => api.once('exit', resolve));
-  }
+  await stopApi();
   if (created) {
     await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);
     console.log(`Dropped disposable acceptance database: ${name}`);
