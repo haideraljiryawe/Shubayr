@@ -76,6 +76,23 @@ test.describe("security headers", () => {
     await expect(page.getByTestId("cart-badge")).toHaveText("1");
   });
 
+  test("Cairo is self-hosted: the fonts load from this origin, never from Google", async ({ page }) => {
+    const external: string[] = [];
+    page.on("request", (sent) => {
+      if (/fonts\.(googleapis|gstatic)\.com/.test(sent.url())) external.push(sent.url());
+    });
+    const { violations } = await visit(page, "/");
+    const loaded = await page.evaluate(async () => {
+      await document.fonts.ready;
+      return [...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family.replace(/["']/g, ""));
+    });
+    // The Arabic page uses the Arabic and Latin subsets (numbers, prices).
+    expect(loaded).toContain("cairoArabic");
+    expect(loaded).toContain("cairoLatin");
+    expect(external).toEqual([]);
+    expect(violations).toEqual([]);
+  });
+
   test("no source maps are served", async ({ request }) => {
     const html = await (await request.get("/")).text();
     const chunk = /\/_next\/static\/chunks\/[^"']+\.js/.exec(html)![0];
