@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=20.9.0"
   },
-  "description": "Shubayr \u2014 public Arabic-first storefront (Next.js App Router).",
+  "description": "Shubayr — public Arabic-first storefront (Next.js App Router).",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
     "gen:api": "openapi-typescript ../api/openapi.yaml -o src/types/api.d.ts",
-    "test:live": "playwright test --config playwright.live.config.ts"
+    "test:live": "playwright test --config playwright.live.config.ts",
+    "test:prod": "playwright test --config playwright.prod.config.ts"
   },
   "dependencies": {
     "clsx": "2.1.1",
