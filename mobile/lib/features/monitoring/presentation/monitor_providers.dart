@@ -105,6 +105,8 @@ class MonitorController extends AsyncNotifier<MonitorState> {
   }
 }
 
+/// One monitor-owned workspace across tab navigation, not a cache per query.
+/// Filter changes/manual refresh reload it; identity changes reset its generation.
 final monitorOrdersProvider =
     AsyncNotifierProvider<MonitorController, MonitorState>(
       MonitorController.new,

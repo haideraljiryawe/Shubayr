@@ -389,8 +389,9 @@ void main() {
     final repo = RecordingAddresses();
     final orders = _FakeOrders();
     final last = Completer<AddressPage>();
-    repo.onFetch = (r) async =>
-        r.page == 2 ? last.future : addressPage(r, defaultIndex: 9);
+    repo.onFetch = (r) async => r.page == 2
+        ? last.future
+        : addressPage(r, total: 105, defaultIndex: 104);
     await tester.pumpWidget(_host(addresses: repo, repository: orders));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
@@ -401,12 +402,14 @@ void main() {
       isNull,
     );
     expect(find.text('Address 0'), findsNothing);
-    last.complete(addressPage((page: 2, perPage: 8), defaultIndex: 9));
+    last.complete(
+      addressPage((page: 2, perPage: 100), total: 105, defaultIndex: 104),
+    );
     await tester.pumpAndSettle();
-    expect(find.text('Address 9'), findsOneWidget);
+    expect(find.text('Address 104'), findsOneWidget);
     await tester.tap(find.text('Place order'));
     await tester.pumpAndSettle();
-    expect(orders.placedAddressId, 'addr-9');
+    expect(orders.placedAddressId, 'addr-104');
   });
 
   testWidgets(
@@ -415,7 +418,7 @@ void main() {
       final repo = RecordingAddresses()
         ..onFetch = (r) async {
           if (r.page == 2) throw const AppFailure.network();
-          return addressPage(r, defaultIndex: 0);
+          return addressPage(r, total: 105, defaultIndex: 0);
         };
       final orders = _FakeOrders();
       await tester.pumpWidget(_host(addresses: repo, repository: orders));
@@ -427,22 +430,23 @@ void main() {
             .onPressed,
         isNull,
       );
-      repo.onFetch = (r) async => addressPage(r, defaultIndex: 0);
+      repo.onFetch = (r) async => addressPage(r, total: 105, defaultIndex: 0);
       await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Change'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text('Address 9'),
-        250,
+        find.text('Address 104'),
+        1200,
         scrollable: find.byType(Scrollable).last,
+        maxScrolls: 100,
       );
-      await tester.tap(find.text('Address 9'));
+      await tester.tap(find.text('Address 104'));
       await tester.pumpAndSettle();
-      expect(find.text('Address 9'), findsOneWidget);
+      expect(find.text('Address 104'), findsOneWidget);
       await tester.tap(find.text('Place order'));
       await tester.pumpAndSettle();
-      expect(orders.placedAddressId, 'addr-9');
+      expect(orders.placedAddressId, 'addr-104');
       expect(repo.requests.map((r) => r.page), [1, 2, 1, 2]);
       expect(tester.takeException(), isNull);
     },

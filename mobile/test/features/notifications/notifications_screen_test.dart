@@ -103,6 +103,13 @@ void main() {
         await tester.pumpAndSettle();
         expect(repo.reads, ['1']);
         expect(router.state.uri.path, '/monitor/orders/order-1');
+        final hiddenFetches = repo.fetches;
+        await tester.pump(const Duration(seconds: 60));
+        expect(repo.fetches, hiddenFetches);
+        router.pop();
+        await tester.pumpAndSettle();
+        expect(repo.fetches, greaterThan(hiddenFetches));
+        await tester.pumpWidget(const SizedBox.shrink());
       },
     );
   }
@@ -119,9 +126,9 @@ void main() {
         ],
       );
       await container.read(sessionControllerProvider.future);
-      await container.read(inboxProvider.future);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-      final sub = container.listen(notificationSyncProvider, (_, _) {});
+      final sub = container.listen(inboxSyncProvider, (_, _) {});
+      await tester.pump();
       await tester.pump(const Duration(seconds: 30));
       expect(repo.fetches, 2);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);

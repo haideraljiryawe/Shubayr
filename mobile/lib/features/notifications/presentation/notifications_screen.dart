@@ -54,6 +54,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Widget build(BuildContext context) {
     final l = context.l10n;
     final language = Localizations.localeOf(context).languageCode;
+    if (ModalRoute.isCurrentOf(context) ?? true) {
+      ref.watch(inboxSyncProvider);
+    }
     final value = ref.watch(inboxProvider);
     final controller = ref.read(inboxProvider.notifier);
     return Scaffold(

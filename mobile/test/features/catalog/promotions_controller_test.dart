@@ -142,7 +142,7 @@ void main() {
     controller.retry();
     expect(repo.requests.last.onSale, isTrue);
     expect(repo.requests.last.page, 1);
-    repo.requests.last.result.complete(const ProductPage(total: 0));
+    repo.requests.last.result.complete(const ProductPage(perPage: 8, total: 0));
     await flush();
     expect(container.read(provider).isEmpty, isTrue);
   });

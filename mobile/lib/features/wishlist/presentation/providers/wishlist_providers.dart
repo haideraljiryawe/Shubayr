@@ -27,7 +27,8 @@ final wishlistRepositoryProvider = Provider<WishlistRepository>((ref) {
 /// Reads the complete wishlist so heart buttons also know about products on
 /// later pages. No partial result is published as a complete membership set.
 class WishlistController extends AsyncNotifier<List<WishlistItem>> {
-  static const _perPage = 8;
+  // API 11 PerPage maximum; the complete collection is required by consumers.
+  static const _perPage = 100;
   int _generation = 0;
   int? _refreshGeneration;
 

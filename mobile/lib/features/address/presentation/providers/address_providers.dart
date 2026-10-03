@@ -28,7 +28,8 @@ final addressRepositoryProvider = Provider<AddressRepository>((ref) {
 /// Loads every page before checkout resolves its default address. Mutations
 /// keep the complete list and the single-default invariant in sync.
 class AddressesController extends AsyncNotifier<List<Address>> {
-  static const _perPage = 8;
+  // API 11 PerPage maximum; the complete collection is required by consumers.
+  static const _perPage = 100;
   int _generation = 0;
   final _pending = <Object, ({Object intent, Future<void> task})>{};
   int? _refreshGeneration;

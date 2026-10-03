@@ -19,7 +19,8 @@ final catalogRepositoryProvider = Provider<CatalogRepository>((ref) {
   };
 });
 
-/// The department / category tree.
+/// Application-owned display metadata, shared across navigation. Home refresh
+/// explicitly invalidates this tree; price and stock live in disposable providers.
 final categoriesProvider = FutureProvider<List<Category>>((ref) async {
   List<Category> visible(List<Category> nodes) {
     final result = [
@@ -42,14 +43,15 @@ final categoriesProvider = FutureProvider<List<Category>>((ref) async {
 
 /// The home feed for a chosen department (null = all), newest first. Used by
 /// the home screen's selectable department chips.
-final categoryFeedProvider = FutureProvider.family<ProductPage, String?>(
-  (ref, categoryId) => ref
-      .watch(catalogRepositoryProvider)
-      .fetchProducts(categoryId: categoryId, sort: 'newest', perPage: 20),
-);
+final categoryFeedProvider = FutureProvider.autoDispose
+    .family<ProductPage, String?>(
+      (ref, categoryId) => ref
+          .watch(catalogRepositoryProvider)
+          .fetchProducts(categoryId: categoryId, sort: 'newest', perPage: 20),
+    );
 
 /// Bounded Home preview; the existing onSale query owns discount semantics.
-final homeOffersProvider = FutureProvider<ProductPage>(
+final homeOffersProvider = FutureProvider.autoDispose<ProductPage>(
   (ref) => ref
       .watch(catalogRepositoryProvider)
       .fetchProducts(onSale: true, sort: 'newest', perPage: 8),
@@ -57,7 +59,9 @@ final homeOffersProvider = FutureProvider<ProductPage>(
 
 /// Only parent categories with offers. Each existence query includes the
 /// subtree and needs one record, avoiding downloading all products to the UI.
-final offerCategoriesProvider = FutureProvider<List<Category>>((ref) async {
+final offerCategoriesProvider = FutureProvider.autoDispose<List<Category>>((
+  ref,
+) async {
   final repository = ref.watch(catalogRepositoryProvider);
   final parents = await ref.watch(categoriesProvider.future);
   final available = await Future.wait([
@@ -70,19 +74,22 @@ final offerCategoriesProvider = FutureProvider<List<Category>>((ref) async {
   ];
 });
 
-/// A single product by id, for the detail screen.
-final productProvider = FutureProvider.family<Product, String>(
+/// Shared by active detail/cart consumers only. After the final consumer leaves,
+/// release each ID so revisiting reads current prices instead of a permanent cache.
+final productProvider = FutureProvider.autoDispose.family<Product, String>(
   (ref, id) => ref.watch(catalogRepositoryProvider).fetchProduct(id),
 );
 
 /// Live per-variant availability for a product, for the detail screen. Kept
 /// separate from [productProvider] so stock can refresh without refetching the
 /// whole product.
-final availabilityProvider = FutureProvider.family<ProductAvailability, String>(
-  (ref, id) => ref.watch(catalogRepositoryProvider).fetchAvailability(id),
-);
+final availabilityProvider = FutureProvider.autoDispose
+    .family<ProductAvailability, String>(
+      (ref, id) => ref.watch(catalogRepositoryProvider).fetchAvailability(id),
+    );
 
 /// First page of published reviews for a product, for the detail screen.
-final productReviewsProvider = FutureProvider.family<ReviewPage, String>(
-  (ref, id) => ref.watch(catalogRepositoryProvider).fetchReviews(id),
-);
+final productReviewsProvider = FutureProvider.autoDispose
+    .family<ReviewPage, String>(
+      (ref, id) => ref.watch(catalogRepositoryProvider).fetchReviews(id),
+    );

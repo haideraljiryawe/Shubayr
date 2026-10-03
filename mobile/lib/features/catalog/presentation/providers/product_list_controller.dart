@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/failure.dart';
 import '../../data/product.dart';
 import 'catalog_providers.dart';
 
@@ -176,8 +177,20 @@ class ProductListController extends Notifier<ProductListState> {
           );
       // Ignore responses for a query the user has since changed.
       if (requestId != _requestId) return;
+      if (result.page != page ||
+          result.perPage != _perPage ||
+          result.total < 0 ||
+          (result.data.isEmpty && (page - 1) * _perPage < result.total)) {
+        throw const AppFailure(FailureKind.server);
+      }
+      // Keep first-seen ordering; an overlapping page carries the newer snapshot.
+      final items = <String, Product>{
+        if (!reset)
+          for (final item in state.items) item.id: item,
+        for (final item in result.data) item.id: item,
+      };
       state = state.copyWith(
-        items: reset ? result.data : [...state.items, ...result.data],
+        items: List.unmodifiable(items.values),
         loadingInitial: false,
         loadingMore: false,
         page: page,

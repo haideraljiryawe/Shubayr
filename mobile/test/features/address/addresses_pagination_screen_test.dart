@@ -77,7 +77,7 @@ void main() {
     await tester.pump();
     await refresh;
     expect(find.text('Retry'), findsNothing);
-    newPage.complete(const AddressPage(page: 1, perPage: 8, total: 0));
+    newPage.complete(const AddressPage(page: 1, perPage: 100, total: 0));
     await tester.pumpAndSettle();
     expect(container.read(addressesControllerProvider).hasError, isFalse);
     expect(find.text('Address 0'), findsNothing);
@@ -138,7 +138,7 @@ void main() {
     final repo = RecordingAddresses()
       ..onFetch = (r) async {
         if (r.page == 2) throw const AppFailure.network();
-        return addressPage(r);
+        return addressPage(r, total: 105);
       };
     await tester.pumpWidget(_host(repo));
     await tester.pumpAndSettle();
@@ -148,7 +148,7 @@ void main() {
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('عنوان 9'), 300);
-    expect(repo.requests.map((r) => r.page), [1, 2, 1, 2]);
+    expect(repo.requests.map((r) => r.page), [1, 2, 1]);
     expect(tester.takeException(), isNull);
   });
 
@@ -161,12 +161,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('No saved addresses'), findsOneWidget);
       final pending = Completer<AddressPage>();
-      repo.onFetch = (r) async => r.page == 1 ? addressPage(r) : pending.future;
+      repo.onFetch = (r) async =>
+          r.page == 1 ? addressPage(r, total: 105) : pending.future;
       await tester.drag(find.byType(Scrollable), const Offset(0, 500));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       expect(find.byType(RefreshProgressIndicator), findsOneWidget);
-      pending.complete(addressPage((page: 2, perPage: 8)));
+      pending.complete(addressPage((page: 2, perPage: 100), total: 105));
       await tester.pumpAndSettle();
       expect(find.byType(RefreshProgressIndicator), findsNothing);
       expect(find.text('No saved addresses'), findsNothing);

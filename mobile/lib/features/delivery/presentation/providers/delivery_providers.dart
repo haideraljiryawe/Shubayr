@@ -281,6 +281,8 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
   }
 }
 
+/// One agent-owned workspace across tab navigation. Refresh/status changes and
+/// confirmed mutations reload it; identity changes discard prior generations.
 final deliveriesProvider =
     AsyncNotifierProvider<DeliveriesController, DeliveryListState>(
       DeliveriesController.new,

@@ -81,7 +81,7 @@ void main() {
     expect(failed.isLoading, isFalse);
     expect(failed.error, isA<AppFailure>());
     expect(failed.value, same(previous));
-    repo.onFetch = (_) async => addressPage((page: 1, perPage: 8), total: 1);
+    repo.onFetch = (_) async => addressPage((page: 1, perPage: 100), total: 1);
     await notifier.refresh();
     expect(container.read(addressesControllerProvider).hasError, isFalse);
     expect(notifier.isRefreshing, isFalse);
@@ -110,7 +110,7 @@ void main() {
     await queuedRefresh;
     expect(repo.requests, hasLength(requests));
     expect(container.read(addressesControllerProvider).hasError, isFalse);
-    newPage.complete(addressPage((page: 1, perPage: 8), total: 1));
+    newPage.complete(addressPage((page: 1, perPage: 100), total: 1));
     await next;
     expect(container.read(addressesControllerProvider).hasError, isFalse);
     expect(notifier.isRefreshing, isFalse);
@@ -123,7 +123,7 @@ void main() {
       final loaded = await container.read(addressesControllerProvider.future);
       expect(loaded, hasLength(105));
       expect(loaded.singleWhere((a) => a.isDefault).id, 'addr-104');
-      expect(repo.requests.map((r) => r.page), List.generate(14, (i) => i + 1));
+      expect(repo.requests.map((r) => r.page), List.generate(2, (i) => i + 1));
     },
   );
 
@@ -132,7 +132,7 @@ void main() {
     () async {
       repo.onFetch = (r) async {
         if (r.page == 2) throw const AppFailure.network();
-        return addressPage(r);
+        return addressPage(r, total: 105);
       };
       await expectLater(
         container.read(addressesControllerProvider.future),
@@ -142,7 +142,7 @@ void main() {
       repo.onFetch = null;
       await controller().refresh();
       expect(items(), hasLength(10));
-      expect(repo.requests.map((r) => r.page), [1, 2, 1, 2]);
+      expect(repo.requests.map((r) => r.page), [1, 2, 1]);
     },
   );
 
@@ -203,48 +203,49 @@ void main() {
       await container.read(addressesControllerProvider.future);
       final lastPage = Completer<AddressPage>();
       repo.onFetch = (r) async =>
-          r.page == 2 ? lastPage.future : addressPage(r);
+          r.page == 2 ? lastPage.future : addressPage(r, total: 105);
       var finished = false;
       final refresh = controller().refresh().then((_) => finished = true);
       final remove = controller().remove('addr-9');
       await Future<void>.delayed(Duration.zero);
       expect(finished, isFalse);
       expect(repo.deleted, isEmpty);
-      lastPage.complete(addressPage((page: 2, perPage: 8)));
+      lastPage.complete(addressPage((page: 2, perPage: 100), total: 105));
       await refresh;
       await remove;
-      expect(items(), hasLength(9));
+      expect(items(), hasLength(104));
       expect(items().any((a) => a.id == 'addr-9'), isFalse);
     },
   );
 
   test('mutations wait for the initial final page', () async {
     final lastPage = Completer<AddressPage>();
-    repo.onFetch = (r) async => r.page == 2 ? lastPage.future : addressPage(r);
+    repo.onFetch = (r) async =>
+        r.page == 2 ? lastPage.future : addressPage(r, total: 105);
     container.read(addressesControllerProvider);
     final removal = controller().remove('addr-9');
     await Future<void>.delayed(Duration.zero);
     expect(repo.deleted, isEmpty);
-    lastPage.complete(addressPage((page: 2, perPage: 8)));
+    lastPage.complete(addressPage((page: 2, perPage: 100), total: 105));
     await removal;
-    expect(items(), hasLength(9));
+    expect(items(), hasLength(104));
   });
 
   test('overlapping pages deduplicate address IDs', () async {
     repo.onFetch = (r) async => r.page == 1
-        ? addressPage(r)
+        ? addressPage(r, total: 102)
         : const AddressPage(
             page: 2,
-            perPage: 8,
-            total: 10,
+            perPage: 100,
+            total: 102,
             data: [
-              Address(id: 'addr-7', city: 'Updated'),
-              Address(id: 'addr-8', city: 'Baghdad'),
+              Address(id: 'addr-99', city: 'Updated'),
+              Address(id: 'addr-100', city: 'Baghdad'),
             ],
           );
     final loaded = await container.read(addressesControllerProvider.future);
-    expect(loaded, hasLength(9));
-    expect(loaded.singleWhere((a) => a.id == 'addr-7').city, 'Updated');
+    expect(loaded, hasLength(101));
+    expect(loaded.singleWhere((a) => a.id == 'addr-99').city, 'Updated');
   });
 
   test(
@@ -268,7 +269,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     session.setSession(const Session.signedOut());
     await container.read(addressesControllerProvider.future);
-    pending.complete(addressPage((page: 1, perPage: 8)));
+    pending.complete(addressPage((page: 1, perPage: 100)));
     await remove;
     expect(items(), isEmpty);
     expect(repo.requests, hasLength(1));
