@@ -10,6 +10,7 @@ import {
   updateMockReview,
   deleteMockAddress,
   getMockOrder,
+  updateMockOrder,
   getMockUser,
   isMockAccessTokenValid,
   isMockRefreshTokenValid,
@@ -158,8 +159,11 @@ export interface OrderDraft {
   total: number;
 }
 
+// Baked in at build time; next.config.ts refuses a production build without
+// it, so localhost is a development default only.
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ??
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:8000/api/v1");
 
 /**
  * The backend lands one slice at a time, so live-vs-mock is decided per domain
@@ -1323,6 +1327,8 @@ export const api = {
   async updateDeliveryStatus(
     id: string,
     status: Exclude<DeliveryStatus, "assigned">,
+    orderVersion: number,
+    reason?: string,
   ): Promise<Delivery> {
     return withFreshToken(async () => {
       if (!isLive("deliveries")) {
@@ -1337,7 +1343,11 @@ export const api = {
       }
       return request<Delivery>(`/deliveries/${encodeURIComponent(id)}`, {
         method: "PATCH",
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+          status,
+          order_version: orderVersion,
+          ...(reason ? { reason } : {}),
+        }),
       });
     });
   },
@@ -1516,26 +1526,77 @@ export const api = {
   /* ----------------------------------------------------------- orders */
 
   /**
-   * Cancel an order the customer still may cancel.
-   *
-   * The server decides: pending and confirmed are cancellable, anything later
-   * answers 409, which the caller surfaces rather than guessing from status.
+   * Cancel a PENDING order (API 10.0). Every order change carries the
+   * order's `version`; if the order moved on meanwhile the server answers
+   * 409 (STALE_ORDER_STATE, or a later status) and the page re-reads it.
+   * After pending, see `requestCancellation`.
    */
-  async cancelOrder(id: string): Promise<Order> {
+  async cancelOrder(id: string, version: number): Promise<Order> {
     return withFreshToken(async () => {
       if (!isLive("orders")) {
         await mockLatency();
         requireMockAuth();
         const order = getMockOrder(id);
         if (!order) throw new ApiError(404, `Order ${id} not found`);
-        if (order.status !== "pending" && order.status !== "confirmed") {
-          throw new ApiError(409, "Status does not allow cancellation");
+        if (order.status !== "pending" || (order.version ?? 1) !== version) {
+          throw new ApiError(409, "A pending order can be cancelled directly", "STALE_ORDER_STATE");
         }
-        order.status = "cancelled";
-        return order;
+        return updateMockOrder(id, (stored) => {
+          stored.status = "cancelled";
+          stored.version = version + 1;
+        })!;
       }
       return request<Order>(`/orders/${encodeURIComponent(id)}/cancel`, {
         method: "POST",
+        body: JSON.stringify({ version }),
+      });
+    });
+  },
+
+  /**
+   * Ask the store to cancel an order that is past pending (confirmed until
+   * delivery). The store approves or denies it; the order shows the status.
+   */
+  async requestCancellation(id: string, version: number, reason: string): Promise<Order> {
+    return withFreshToken(async () => {
+      if (!isLive("orders")) {
+        await mockLatency();
+        requireMockAuth();
+        const order = getMockOrder(id);
+        if (!order) throw new ApiError(404, `Order ${id} not found`);
+        if (order.cancellation_request?.status === "pending") {
+          throw new ApiError(409, "A cancellation request is already pending");
+        }
+        return updateMockOrder(id, (stored) => {
+          stored.cancellation_request = { status: "pending", reason, requested_at: new Date().toISOString(), resolved_at: null, resolution_note: null };
+          stored.version = version + 1;
+        })!;
+      }
+      return request<Order>(`/orders/${encodeURIComponent(id)}/cancellation-request`, {
+        method: "POST",
+        body: JSON.stringify({ version, reason }),
+      });
+    });
+  },
+
+  /** Accept or decline the smaller quantity the store proposed after a shortage. */
+  async respondToShortage(id: string, version: number, decision: "accepted" | "denied"): Promise<Order> {
+    return withFreshToken(async () => {
+      if (!isLive("orders")) {
+        await mockLatency();
+        requireMockAuth();
+        const order = getMockOrder(id);
+        if (!order) throw new ApiError(404, `Order ${id} not found`);
+        const details = (order.attention_details ?? {}) as { reduction_proposal?: Record<string, unknown> };
+        if (!details.reduction_proposal) throw new ApiError(409, "No quantity reduction is awaiting acceptance");
+        return updateMockOrder(id, (stored) => {
+          stored.attention_details = { ...details, reduction_proposal: { ...details.reduction_proposal, status: decision } };
+          stored.version = version + 1;
+        })!;
+      }
+      return request<Order>(`/orders/${encodeURIComponent(id)}/shortage-response`, {
+        method: "POST",
+        body: JSON.stringify({ version, decision }),
       });
     });
   },

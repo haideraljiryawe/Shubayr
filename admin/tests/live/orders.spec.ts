@@ -107,7 +107,9 @@ test("every transition path, with the timeline", async ({ page, request }) => {
   await page.getByTestId("order-action-dispatch").click();
   await confirm(page);
   await expect(status(page)).toHaveAttribute("data-status", "dispatched");
-  await expect(page.getByTestId("order-no-actions")).toBeVisible();
+  // API 10.0: the delivery's outcome is recorded from here too (deliver or fail).
+  await expect(page.getByTestId("order-action-deliver")).toBeVisible();
+  await expect(page.getByTestId("order-action-fail")).toBeVisible();
 
   const timeline = page.getByTestId("timeline-event");
   for (const step of ["pending", "confirmed", "preparing", "ready_for_dispatch", "dispatched"]) {

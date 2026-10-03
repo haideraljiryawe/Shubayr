@@ -76,6 +76,19 @@ try {
   const stock = stockLogin.access_token;
   const stockMe = await request('/me', { token: stock });
   check(stockMe.permissions.includes('cost.view'), true, 'stock controller preset grants cost.view');
+  check(stockMe.permissions.includes('supplier_payments.record'), false, 'stock controller preset does not grant supplier payments');
+  check(
+    amount(await scalar(`
+      SELECT count(*)::int AS value
+      FROM permission_presets preset
+      JOIN preset_permissions grant_row ON grant_row.preset_id=preset.id
+      JOIN permissions permission ON permission.id=grant_row.permission_id
+      WHERE preset.name IN ('cashier', 'accountant')
+        AND permission.key='supplier_payments.record'
+    `)),
+    2,
+    'cashier and accountant presets grant supplier payments',
+  );
   const adminId = await scalar("SELECT id::text AS value FROM users WHERE username='admin'");
 
   const locationId = await scalar(`
@@ -348,6 +361,225 @@ try {
     expected: 201,
     body: { name: `Phase 6 USD Cash ${suffix}`, kind: 'cash', currency_code: 'USD' },
   });
+  const iqdCash = await request('/admin/cash-accounts', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    body: { name: `Phase 6 IQD Cash ${suffix}`, kind: 'cash', currency_code: 'IQD' },
+  });
+  await request('/admin/exchange-rates', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    body: {
+      currency_code: 'USD',
+      rate: '1520',
+      basis: 1,
+      effective_at: new Date().toISOString(),
+      reason: 'Cross-currency supplier-payment acceptance rate',
+    },
+  });
+
+  const crossUsdInvoice = await request('/admin/purchase-invoices', {
+    token: stock,
+    method: 'POST',
+    expected: 201,
+    body: invoiceBody({
+      supplierId: usdSupplier.id,
+      locationId,
+      variantId: usdVariant,
+      currency_code: 'USD',
+      exchange_rate: '1500',
+      lines: [{ variant_id: usdVariant, quantity: '100', pack_size: '1', unit_cost: '2', lot_number: 'USD-CROSS-IQD' }],
+    }),
+  });
+  const crossUsdPayment = await request('/admin/supplier-payments', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    body: {
+      operation_id: randomUUID(), document_date: today, supplier_id: usdSupplier.id,
+      cash_account_id: iqdCash.id, currency_code: 'IQD', amount: '304000',
+      allocations: [{ invoice_id: crossUsdInvoice.id, amount: '304000' }],
+    },
+  });
+  check(
+    amount(crossUsdPayment.allocations[0].amount_payment_currency),
+    304000,
+    'cross-currency allocation records its IQD cash amount',
+  );
+  check(
+    amount(crossUsdPayment.allocations[0].amount_invoice_currency),
+    200,
+    '304,000 IQD at 1,520 settles 200 USD',
+  );
+  check(
+    amount(await scalar("SELECT COALESCE(sum(line.debit_base-line.credit_base),0) AS value FROM journal_lines line JOIN ledger_accounts account ON account.id=line.account_id JOIN journal_entries entry ON entry.id=line.entry_id WHERE entry.source_id=$1 AND account.code='5030'", [crossUsdPayment.id])),
+    4000,
+    'USD invoice booked at 1,500 and paid at 1,520 posts a 4,000 FX loss',
+  );
+  const crossUsdJournal = (await db.query(`
+    SELECT sum(debit_base)::numeric AS debit, sum(credit_base)::numeric AS credit
+    FROM journal_lines line
+    JOIN journal_entries entry ON entry.id=line.entry_id
+    WHERE entry.source_id=$1
+  `, [crossUsdPayment.id])).rows[0];
+  check(amount(crossUsdJournal.debit), amount(crossUsdJournal.credit), 'cross-currency supplier-payment journal balances');
+  const settledCrossUsd = await request(`/admin/purchase-invoices/${crossUsdInvoice.id}`, { token: stock });
+  check(settledCrossUsd.settlement_status, 'paid', 'IQD cash settles the USD invoice');
+  check(amount(settledCrossUsd.remaining_currency), 0, 'settled cross-currency USD invoice has no remainder');
+
+  const inverseInvoice = await request('/admin/purchase-invoices', {
+    token: stock,
+    method: 'POST',
+    expected: 201,
+    body: invoiceBody({
+      supplierId: usdSupplier.id,
+      locationId,
+      variantId: usdVariant,
+      lines: [{ variant_id: usdVariant, quantity: '1', pack_size: '1', unit_cost: '152000', lot_number: 'IQD-CROSS-USD' }],
+    }),
+  });
+  const inversePayment = await request('/admin/supplier-payments', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    body: {
+      operation_id: randomUUID(), document_date: today, supplier_id: usdSupplier.id,
+      cash_account_id: usdCash.id, currency_code: 'USD', amount: '100',
+      allocations: [{ invoice_id: inverseInvoice.id, amount: '100' }],
+    },
+  });
+  check(
+    amount(inversePayment.allocations[0].amount_invoice_currency),
+    152000,
+    '100 USD at 1,520 settles a 152,000 IQD invoice',
+  );
+  check(
+    amount(inversePayment.allocations[0].fx_difference_iqd),
+    0,
+    'paying an IQD invoice from USD cash has no invoice-carrying FX difference',
+  );
+  const settledInverse = await request(`/admin/purchase-invoices/${inverseInvoice.id}`, { token: stock });
+  check(settledInverse.settlement_status, 'paid', 'USD cash settles the IQD invoice');
+
+  const partialCrossInvoice = await request('/admin/purchase-invoices', {
+    token: stock,
+    method: 'POST',
+    expected: 201,
+    body: invoiceBody({
+      supplierId: usdSupplier.id,
+      locationId,
+      variantId: usdVariant,
+      currency_code: 'USD',
+      exchange_rate: '1500',
+      lines: [{ variant_id: usdVariant, quantity: '100', pack_size: '1', unit_cost: '2', lot_number: 'USD-PARTIAL-IQD' }],
+    }),
+  });
+  await request('/admin/supplier-payments', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    body: {
+      operation_id: randomUUID(), document_date: today, supplier_id: usdSupplier.id,
+      cash_account_id: iqdCash.id, currency_code: 'IQD', amount: '76000',
+      allocations: [{ invoice_id: partialCrossInvoice.id, amount: '76000' }],
+    },
+  });
+  const partialCross = await request(`/admin/purchase-invoices/${partialCrossInvoice.id}`, { token: stock });
+  check(partialCross.settlement_status, 'partial', 'partial IQD payment leaves the USD invoice open');
+  check(amount(partialCross.remaining_currency), 150, '76,000 IQD applies 50 USD at 1,520');
+
+  const missingRateInvoice = await request('/admin/purchase-invoices', {
+    token: stock,
+    method: 'POST',
+    expected: 201,
+    body: invoiceBody({
+      supplierId: usdSupplier.id,
+      locationId,
+      variantId: usdVariant,
+      currency_code: 'USD',
+      exchange_rate: '1500',
+      lines: [{ variant_id: usdVariant, quantity: '50', pack_size: '1', unit_cost: '2', lot_number: 'USD-MISSING-RATE' }],
+    }),
+  });
+  await db.query(`
+    INSERT INTO user_permission_grants (user_id, permission_id, granted_by, reason)
+    SELECT target.id, permission.id, actor.id, 'Rate-override permission acceptance'
+    FROM users target CROSS JOIN users actor CROSS JOIN permissions permission
+    WHERE target.username='operations' AND actor.username='admin'
+      AND permission.key='supplier_payments.record'
+    ON CONFLICT DO NOTHING
+  `);
+  await db.query("UPDATE users SET permission_version=permission_version+1 WHERE username='operations'");
+  try {
+    const paymentOnly = (await request('/admin/auth/login', {
+      method: 'POST',
+      expected: 201,
+      body: { username: 'operations', password: 'Shubayr-Dev-Staff!2026' },
+    })).access_token;
+    await request('/admin/supplier-payments', {
+      token: paymentOnly,
+      method: 'POST',
+      expected: 403,
+      body: {
+        operation_id: randomUUID(), document_date: today, supplier_id: usdSupplier.id,
+        cash_account_id: iqdCash.id, currency_code: 'IQD', amount: '151000', exchange_rate: '1510',
+        allocations: [{ invoice_id: missingRateInvoice.id, amount: '151000' }],
+      },
+    });
+  } finally {
+    await db.query(`
+      DELETE FROM user_permission_grants grant_row
+      USING users, permissions
+      WHERE grant_row.user_id=users.id AND grant_row.permission_id=permissions.id
+        AND users.username='operations' AND permissions.key='supplier_payments.record'
+    `);
+    await db.query("UPDATE users SET permission_version=permission_version+1 WHERE username='operations'");
+  }
+  const missingRateOperation = randomUUID();
+  await db.query("UPDATE exchange_rates SET effective_at=effective_at + interval '100 years' WHERE currency_code='USD'");
+  try {
+    const missingRate = await request('/admin/supplier-payments', {
+      token: admin,
+      method: 'POST',
+      expected: 422,
+      body: {
+        operation_id: missingRateOperation, document_date: today, supplier_id: usdSupplier.id,
+        cash_account_id: iqdCash.id, currency_code: 'IQD', amount: '152000',
+        allocations: [{ invoice_id: missingRateInvoice.id, amount: '152000' }],
+      },
+    });
+    check(missingRate.code, 'EXCHANGE_RATE_NOT_FOUND', 'missing payment-date rate returns its declared code');
+    check(
+      amount(await scalar('SELECT count(*)::int AS value FROM supplier_payments WHERE operation_id=$1', [missingRateOperation])),
+      0,
+      'missing-rate payment writes no supplier payment',
+    );
+    check(
+      amount(await scalar('SELECT count(*)::int AS value FROM operation_records WHERE operation_id=$1', [missingRateOperation])),
+      0,
+      'missing-rate payment rolls back its operation record',
+    );
+    const overridePayment = await request('/admin/supplier-payments', {
+      token: admin,
+      method: 'POST',
+      expected: 201,
+      body: {
+        operation_id: randomUUID(), document_date: today, supplier_id: usdSupplier.id,
+        cash_account_id: iqdCash.id, currency_code: 'IQD', amount: '152000', exchange_rate: '1520',
+        allocations: [{ invoice_id: missingRateInvoice.id, amount: '152000' }],
+      },
+    });
+    check(
+      amount(overridePayment.allocations[0].amount_invoice_currency),
+      100,
+      'permissioned explicit rate works when no applicable stored rate exists',
+    );
+  } finally {
+    await db.query("UPDATE exchange_rates SET effective_at=effective_at - interval '100 years' WHERE currency_code='USD'");
+  }
+
   const paymentA = await request('/admin/supplier-payments', {
     token: admin,
     method: 'POST',
@@ -431,8 +663,8 @@ try {
     JOIN ledger_accounts account ON account.code=posting.code
   `, [`ACC-FIX-${suffix}`, today, adminId]);
   await db.query(`
-    INSERT INTO custody_holdings (order_id, order_item_id, delivery_id, custody_party_id, batch_id, quantity, unit_cost_iqd)
-    VALUES ($1,$2,$3,$4,$5,2,10000)
+    INSERT INTO custody_holdings (order_id, order_item_id, delivery_id, custody_party_id, batch_id, quantity, remaining_quantity, unit_cost_iqd)
+    VALUES ($1,$2,$3,$4,$5,2,2,10000)
   `, [relation.order_id, relation.order_item_id, relation.delivery_id, adminId, correctionItem.lot_id]);
   const correction = await request('/admin/purchase-cost-corrections', {
     token: admin,
@@ -497,12 +729,6 @@ try {
     'supplier return reduces payable by the lot-cost amount',
   );
 
-  const iqdCash = await request('/admin/cash-accounts', {
-    token: admin,
-    method: 'POST',
-    expected: 201,
-    body: { name: `Phase 6 IQD Cash ${suffix}`, kind: 'cash', currency_code: 'IQD' },
-  });
   const creditPayment = await request('/admin/supplier-payments', {
     token: admin,
     method: 'POST',
@@ -579,7 +805,7 @@ try {
     );
   }
   const payments = await request(`/admin/supplier-payments?supplier_id=${usdSupplier.id}`, { token: stock });
-  check(payments.length, 2, 'supplier payment list exposes both partial payments');
+  check(payments.length, 6, 'supplier payment list exposes same- and cross-currency payments');
   await request(`/admin/supplier-credits?supplier_id=${supplier.id}`, { token: stock });
 
   const inventoryLedger = amount(await scalar(`

@@ -17,6 +17,7 @@ class DeliveryRepositoryMock implements DeliveryRepository {
         orderId:
             '20000000-0000-4000-8000-${(index + 1).toString().padLeft(12, '0')}',
         agentId: agentId,
+        orderVersion: 1,
         status: status,
         deliveryFee: 5000,
         dispatchedAt: status == 'assigned'
@@ -53,7 +54,12 @@ class DeliveryRepositoryMock implements DeliveryRepository {
   }
 
   @override
-  Future<Delivery> updateStatus(String id, String status) async {
+  Future<Delivery> updateStatus(
+    String id,
+    String status, {
+    required int orderVersion,
+    String? reason,
+  }) async {
     await Future<void>.delayed(delay);
     if (!Delivery.updateStatuses.contains(status)) {
       throw const AppFailure(FailureKind.validation);
@@ -61,6 +67,15 @@ class DeliveryRepositoryMock implements DeliveryRepository {
     final index = _items.indexWhere((item) => item.id == id);
     if (index < 0) throw const AppFailure(FailureKind.notFound);
     final item = _items[index];
+    if (item.orderVersion != orderVersion) {
+      throw const AppFailure(FailureKind.validation, statusCode: 409);
+    }
+    if (status == 'failed' &&
+        (reason == null ||
+            reason.trim().isEmpty ||
+            reason.trim().length > 500)) {
+      throw const AppFailure(FailureKind.validation);
+    }
     if (item.status == status) return item;
     if (!item.nextStatuses.contains(status)) {
       throw const AppFailure(FailureKind.validation, statusCode: 409);
@@ -69,6 +84,12 @@ class DeliveryRepositoryMock implements DeliveryRepository {
     return _items[index] = Delivery(
       id: item.id,
       orderId: item.orderId,
+      orderVersion: orderVersion + 1,
+      failureReason: status == 'failed' ? reason : null,
+      failedAt: status == 'failed' ? now : item.failedAt,
+      retryCount:
+          item.retryCount +
+          (item.status == 'failed' && status == 'out_for_delivery' ? 1 : 0),
       agentId: item.agentId,
       deliveryFee: item.deliveryFee,
       currency: item.currency,

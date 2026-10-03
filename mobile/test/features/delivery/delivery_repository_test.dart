@@ -36,33 +36,52 @@ void main() {
       final dispatched = await repo.updateStatus(
         original.id,
         'out_for_delivery',
+        orderVersion: original.orderVersion!,
       );
       expect(dispatched.dispatchedAt, isNotNull);
-      final delivered = await repo.updateStatus(original.id, 'delivered');
+      final delivered = await repo.updateStatus(
+        original.id,
+        'delivered',
+        orderVersion: dispatched.orderVersion!,
+      );
       expect(delivered.deliveredAt, isNotNull);
       expect(delivered.dispatchedAt, dispatched.dispatchedAt);
       expect((await repo.fetchAssigned()).data.first.status, 'delivered');
       expect(delivered.orderId, original.orderId);
       expect(delivered.deliveryFee, original.deliveryFee);
-      final returned = await repo.updateStatus(original.id, 'returned');
+      final returned = await repo.updateStatus(
+        original.id,
+        'returned',
+        orderVersion: delivered.orderVersion!,
+      );
       expect(returned.status, 'returned');
       expect(returned.deliveredAt, delivered.deliveredAt);
       await expectLater(
-        repo.updateStatus(original.id, 'delivered'),
+        repo.updateStatus(
+          original.id,
+          'delivered',
+          orderVersion: dispatched.orderVersion!,
+        ),
         throwsA(isA<AppFailure>()),
       );
       await expectLater(
-        repo.updateStatus('missing', 'failed'),
+        repo.updateStatus(
+          'missing',
+          'failed',
+          orderVersion: 1,
+          reason: 'No answer',
+        ),
         throwsA(isA<AppFailure>()),
       );
     },
   );
 
   test(
-    'remote honors paging, delivery ID and status-only PATCH payload',
+    'remote honors paging, delivery ID and versioned PATCH payload',
     () async {
       final requests = <RequestOptions>[];
       final delivery = Delivery(
+        orderVersion: 1,
         id: 'delivery-id',
         orderId: 'order-id',
         agentId: 'agent-id',
@@ -99,7 +118,7 @@ void main() {
       expect(page.page, 3);
       expect(page.total, 41);
       expect(page.data.single.deliveredAt, delivery.deliveredAt);
-      await repo.updateStatus('delivery-id', 'returned');
+      await repo.updateStatus('delivery-id', 'returned', orderVersion: 8);
       expect(requests.first.path, '/deliveries/assigned');
       expect(requests.first.queryParameters, {
         'status': 'delivered',
@@ -109,7 +128,7 @@ void main() {
       expect(requests[1].queryParameters, {'page': 3, 'per_page': 20});
       expect(requests.last.path, '/deliveries/delivery-id');
       expect(requests.last.method, 'PATCH');
-      expect(requests.last.data, {'status': 'returned'});
+      expect(requests.last.data, {'status': 'returned', 'order_version': 8});
     },
   );
 }

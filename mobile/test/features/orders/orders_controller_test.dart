@@ -120,11 +120,15 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(refreshed, isFalse);
       refreshResponse.complete(
-        const OrderPage(total: 1, data: [Order(id: 'fresh')]),
+        const OrderPage(total: 1, data: [Order(version: 1, id: 'fresh')]),
       );
       await refresh;
       appendResponse.complete(
-        const OrderPage(page: 2, total: 21, data: [Order(id: 'stale')]),
+        const OrderPage(
+          page: 2,
+          total: 21,
+          data: [Order(version: 1, id: 'stale')],
+        ),
       );
       await append;
       expect(
@@ -142,12 +146,14 @@ void main() {
           ? old.future
           : const OrderPage(
               total: 1,
-              data: [Order(id: 'filtered', status: 'processing')],
+              data: [Order(version: 1, id: 'filtered', status: 'processing')],
             );
       container.read(ordersProvider);
       container.read(orderStatusFilterProvider.notifier).state = 'processing';
       await container.read(ordersProvider.future);
-      old.complete(const OrderPage(total: 1, data: [Order(id: 'old')]));
+      old.complete(
+        const OrderPage(total: 1, data: [Order(version: 1, id: 'old')]),
+      );
       await Future<void>.delayed(Duration.zero);
       expect(
         container.read(ordersProvider).requireValue.items.single.id,
@@ -182,7 +188,7 @@ void main() {
       container.read(orderStatusFilterProvider.notifier).state = 'pending';
       final initial = await container.read(ordersProvider.future);
       final id = initial.items.first.id;
-      await repository.cancelOrder(id);
+      await repository.cancelOrder(id, version: 1);
       container.invalidate(ordersProvider);
       var list = await container.read(ordersProvider.future);
       expect(list.items.any((o) => o.id == id), isFalse);
@@ -218,7 +224,7 @@ void main() {
         total: 60,
         data: [
           initial.items.last,
-          const Order(id: 'new'),
+          const Order(version: 1, id: 'new'),
         ],
       );
       final controller = container.read(ordersProvider.notifier);

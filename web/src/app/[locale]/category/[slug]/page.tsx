@@ -9,6 +9,7 @@ import { ProductListing } from "@/components/catalog/listing";
 import { CatalogError, CatalogSkeleton } from "@/components/catalog/states";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
+import { alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -21,12 +22,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .getCategories()
     .then((all) => findCategoryBySlug(all, slug))
     .catch(() => undefined);
+  const seo = await getTranslations({ locale, namespace: "seo" });
+  const name = (category ? (locale === "ar" ? category.name_ar : category.name_en) : null) ?? slug;
+  const description =
+    (category ? (locale === "ar" ? category.description_ar : category.description_en) : null)?.trim() ||
+    seo("categoryDescription", { name });
   return {
-    title: category
-      ? locale === "ar"
-        ? category.name_ar
-        : category.name_en
-      : slug,
+    title: name,
+    description,
+    alternates: alternatesFor(locale, `/category/${slug}`),
+    openGraph: openGraphFor({
+      locale,
+      siteName: await storeNameFor(locale, (await api.getSettings().catch(() => null))?.store_name),
+      title: name,
+      description,
+      path: `/category/${slug}`,
+      images: category?.image_url ? [{ url: category.image_url, alt: name }] : undefined,
+    }),
   };
 }
 

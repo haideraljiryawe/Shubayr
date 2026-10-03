@@ -116,16 +116,85 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
     });
   }
 
-  Future<void> _placeOrder(String addressId) async {
+  Future<void> _placeOrder(
+    String addressId, {
+    List<ApiFieldError>? acceptedPriceChanges,
+  }) async {
     final identity = ref.read(ordersIdentityProvider);
     final result = await ref
         .read(checkoutControllerProvider.notifier)
-        .place(addressId);
+        .place(addressId, acceptedPriceChanges: acceptedPriceChanges);
     if (!mounted || ref.read(ordersIdentityProvider) != identity) return;
     if (result.status == OrderActionStatus.succeeded) {
       setState(() => _placed = result.order);
     } else if (result.status == OrderActionStatus.failed &&
         ModalRoute.of(context)?.isCurrent != false) {
+      if (result.priceChanges.isNotEmpty) {
+        final prices = [
+          for (final change in result.priceChanges)
+            (
+              label: change.sku ?? change.variantId!,
+              amounts:
+                  '${_money(change.oldPrice!)} → ${_money(change.newPrice!)}',
+            ),
+        ];
+        final accepted = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => Consumer(
+            builder: (context, dialogRef, _) {
+              dialogRef.listen(ordersIdentityProvider, (_, next) {
+                if (next == identity || !dialogContext.mounted) return;
+                final route = ModalRoute.of(dialogContext);
+                if (route == null || !route.isActive) return;
+                if (route.isCurrent) {
+                  Navigator.pop(dialogContext);
+                } else {
+                  Navigator.of(dialogContext).removeRoute(route);
+                }
+              });
+              return AlertDialog(
+                title: Text(context.l10n.checkoutPricesChanged),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(context.l10n.checkoutPricesChangedMessage),
+                      for (final price in prices) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text(price.label),
+                        Text(price.amounts),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: Text(context.l10n.actionCancel),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: Text(context.l10n.checkoutAcceptPrices),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+        if (!mounted ||
+            ref.read(ordersIdentityProvider) != identity ||
+            ModalRoute.of(context)?.isCurrent == false) {
+          return;
+        }
+        if (accepted == true) {
+          await _placeOrder(
+            addressId,
+            acceptedPriceChanges: result.priceChanges,
+          );
+        }
+        return;
+      }
       final error = result.error;
       showAppSnackBarMessage(
         context,

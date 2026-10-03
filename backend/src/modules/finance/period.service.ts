@@ -6,6 +6,7 @@ import {
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { parseBusinessDate } from './business-date';
 
 type TrialRow = {
   code: string;
@@ -168,9 +169,13 @@ export class PeriodService {
       throw new UnprocessableEntityException('Month must use YYYY-MM');
     }
     const [year, month] = monthText.split('-').map(Number);
+    const nextYear = month === 12 ? year + 1 : year;
+    const nextMonth = month === 12 ? 1 : month + 1;
     return {
-      start: new Date(Date.UTC(year, month - 1, 1)),
-      end: new Date(Date.UTC(year, month, 1)),
+      start: parseBusinessDate(`${monthText}-01`),
+      end: parseBusinessDate(
+        `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`,
+      ),
     };
   }
 

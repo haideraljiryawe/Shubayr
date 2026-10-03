@@ -21,6 +21,9 @@ import {
   OrderQueryDto,
   PlaceOrderDto,
   UpdateOrderStatusDto,
+  CustomerCancelDto,
+  CancellationRequestDto,
+  ShortageResponseDto,
 } from './dto/order.dto';
 import { OrdersService } from './orders.service';
 
@@ -70,8 +73,31 @@ export class OrdersController {
   cancel(
     @Req() request: UserRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: CustomerCancelDto,
   ) {
-    return this.orders.cancel(request.user.id, id);
+    return this.orders.cancel(request.user.id, id, input);
+  }
+
+  @Post(':id/cancellation-request')
+  @AppPolicy('customer')
+  @HttpCode(200)
+  requestCancellation(
+    @Req() request: UserRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: CancellationRequestDto,
+  ) {
+    return this.orders.requestCancellation(request.user.id, id, input);
+  }
+
+  @Post(':id/shortage-response')
+  @AppPolicy('customer')
+  @HttpCode(200)
+  shortageResponse(
+    @Req() request: UserRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: ShortageResponseDto,
+  ) {
+    return this.orders.respondToShortage(request.user.id, id, input);
   }
 
   @Policy({
@@ -93,6 +119,11 @@ export class OrdersController {
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
     @Body() input: UpdateOrderStatusDto,
   ) {
-    return this.orders.updateStatus(request.user.id, id, input);
+    return this.orders.updateStatus(
+      request.user.id,
+      id,
+      input,
+      request.user.permissions,
+    );
   }
 }

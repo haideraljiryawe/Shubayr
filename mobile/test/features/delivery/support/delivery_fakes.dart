@@ -22,6 +22,8 @@ typedef DeliveryRequest = ({String? status, int page, int perPage});
 class RecordingDeliveries extends DeliveryRepositoryMock {
   RecordingDeliveries() : super(agentId: 'agent', delay: Duration.zero);
   final requests = <DeliveryRequest>[];
+  final versions = <int>[];
+  final reasons = <String?>[];
   final updates = <({String id, String status})>[];
   Future<DeliveryPage> Function(DeliveryRequest)? onFetch;
   Future<Delivery> Function(String, String)? onUpdate;
@@ -38,9 +40,22 @@ class RecordingDeliveries extends DeliveryRepositoryMock {
   }
 
   @override
-  Future<Delivery> updateStatus(String id, String status) {
+  Future<Delivery> updateStatus(
+    String id,
+    String status, {
+    required int orderVersion,
+    String? reason,
+  }) {
+    versions.add(orderVersion);
+    reasons.add(reason);
     updates.add((id: id, status: status));
-    return onUpdate?.call(id, status) ?? super.updateStatus(id, status);
+    return onUpdate?.call(id, status) ??
+        super.updateStatus(
+          id,
+          status,
+          orderVersion: orderVersion,
+          reason: reason,
+        );
   }
 }
 
@@ -56,6 +71,7 @@ DeliveryPage deliveryPage(DeliveryRequest request, {int total = 45}) =>
           i++
         )
           Delivery(
+            orderVersion: 1,
             id: 'd$i',
             orderId: 'order-$i',
             status: request.status ?? 'assigned',

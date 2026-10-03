@@ -21,6 +21,8 @@ class OrderRepositoryRemote implements OrderRepository {
   Future<Order> placeOrder({
     required String addressId,
     String? couponCode,
+    List<({String variantId, String priceVersion})> acceptedPriceVersions =
+        const [],
   }) async => Order.fromJson(
     await _api.post<Map<String, dynamic>>(
       '/orders',
@@ -28,6 +30,14 @@ class OrderRepositoryRemote implements OrderRepository {
         'address_id': addressId,
         'coupon_code': ?couponCode,
         'payment_method': 'cod',
+        if (acceptedPriceVersions.isNotEmpty)
+          'accepted_price_versions': [
+            for (final accepted in acceptedPriceVersions)
+              {
+                'variant_id': accepted.variantId,
+                'price_version': accepted.priceVersion,
+              },
+          ],
       },
     ),
   );
@@ -55,7 +65,11 @@ class OrderRepositoryRemote implements OrderRepository {
       );
 
   @override
-  Future<Order> cancelOrder(String id) async => Order.fromJson(
-    await _api.post<Map<String, dynamic>>('/orders/$id/cancel'),
-  );
+  Future<Order> cancelOrder(String id, {required int version}) async =>
+      Order.fromJson(
+        await _api.post<Map<String, dynamic>>(
+          '/orders/$id/cancel',
+          body: {'version': version},
+        ),
+      );
 }

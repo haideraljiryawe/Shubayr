@@ -1,0 +1,12 @@
+# Send only what the build uses.
+node_modules
+.next
+test-results
+playwright-report
+tests
+docs
+scripts
+.env*
+!.env.example
+Dockerfile
+.dockerignore

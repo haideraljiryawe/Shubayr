@@ -46,7 +46,7 @@ class _Orders extends OrderHistoryRepository {
 }
 
 Order _order(String? owner, String id) =>
-    Order(id: id, orderNumber: '$owner-private-order');
+    Order(version: 1, id: id, orderNumber: '$owner-private-order');
 
 OrderTracking _tracking(String? owner, String id) => OrderTracking(
   orderId: id,
@@ -179,7 +179,9 @@ void main() {
         if (fails) {
           old.completeError(const AppFailure.network());
         } else {
-          old.complete(const OrderPage(data: [Order(id: 'A-late')]));
+          old.complete(
+            const OrderPage(data: [Order(version: 1, id: 'A-late')]),
+          );
         }
         await container.pump();
         expect(
@@ -205,7 +207,9 @@ void main() {
           if (fails) {
             old.completeError(const AppFailure.network());
           } else {
-            old.complete(const OrderPage(page: 2, data: [Order(id: 'A-late')]));
+            old.complete(
+              const OrderPage(page: 2, data: [Order(version: 1, id: 'A-late')]),
+            );
           }
           await append;
           final current = container.read(ordersProvider).requireValue;
@@ -327,7 +331,9 @@ void main() {
       repository.onFetch = fetch;
       session.setSession(_b);
       // No pump/read of Orders between the identity change and the old response.
-      old.complete(const OrderPage(page: 2, data: [Order(id: 'A-late')]));
+      old.complete(
+        const OrderPage(page: 2, data: [Order(version: 1, id: 'A-late')]),
+      );
       await append;
       final current = await container.read(ordersProvider.future);
       expect(current.items.map((o) => o.id), ['B-page-1']);
@@ -360,7 +366,9 @@ void main() {
       session.setSession(_b);
       await container.pump();
       expect(repository.detailOwners.last, 'B');
-      oldPage.complete(const OrderPage(data: [Order(id: 'A-late')]));
+      oldPage.complete(
+        const OrderPage(data: [Order(version: 1, id: 'A-late')]),
+      );
       oldDetail.complete(_order('A-late', 'same-id'));
       oldTracking.complete(_tracking('A-late', 'same-id'));
       await container.pump();
@@ -379,7 +387,9 @@ void main() {
           'loading',
         );
       }
-      newPage.complete(const OrderPage(data: [Order(id: 'B-fresh')]));
+      newPage.complete(
+        const OrderPage(data: [Order(version: 1, id: 'B-fresh')]),
+      );
       newDetail.complete(_order('B', 'same-id'));
       newTracking.complete(_tracking('B', 'same-id'));
       await container.pump();

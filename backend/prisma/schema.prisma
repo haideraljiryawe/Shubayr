@@ -139,6 +139,7 @@ model JournalEntry {
   supplier_payment  SupplierPayment?
   supplier_return   SupplierReturn?
   cost_correction   PurchaseCostCorrection?
+  retrieval         Retrieval?
 
   @@unique([source_type, source_id, event], map: "journal_entries_source_event_key")
   @@index([accounting_date, id], map: "idx_journal_entries_accounting_date")
@@ -351,6 +352,9 @@ model User {
   orders                      Order[]
   assigned_pick_lists         PickList[]                      @relation("PickListAssignee")
   assigned_deliveries         Delivery[]                      @relation("DeliveryAgent")
+  retrievals_in_custody       Retrieval[]                     @relation("RetrievalCustodyParty")
+  created_retrievals          Retrieval[]                     @relation("RetrievalCreator")
+  closed_retrievals           Retrieval[]                     @relation("RetrievalCloser")
   returns                     Return[]
   reviewed_returns            Return[]                        @relation("ReturnReviewer")
   refund_ledger_entries       RefundLedgerEntry[]             @relation("RefundCreator")
@@ -369,6 +373,8 @@ model User {
   notification_stream_events  NotificationStreamEvent[]
   refresh_tokens              RefreshToken[]
   uploaded_media              MediaObject[]                   @relation("MediaUploadedBy")
+  proposed_price_publishes    PricePublishApproval[]          @relation("PricePublishApprovalProposer")
+  decided_price_publishes     PricePublishApproval[]          @relation("PricePublishApprovalDecider")
 
   @@map("users")
 }
@@ -681,6 +687,7 @@ model Product {
   status                 String                @default("active") @db.VarChar(20)
   published_at           DateTime?             @db.Timestamptz(6)
   price_approved_at      DateTime?             @db.Timestamptz(6)
+  price_proposed_by      String?               @db.Uuid
   created_at             DateTime              @default(now()) @db.Timestamptz(6)
   updated_at             DateTime              @default(now()) @db.Timestamptz(6)
   search_sync_required   Boolean               @default(true)
@@ -722,6 +729,7 @@ model ProductVariant {
   reference_price         Decimal?                 @db.Decimal(20, 6)
   published_price         Decimal?                 @db.Decimal(20, 6)
   price_approved_at       DateTime?                @db.Timestamptz(6)
+  price_proposed_by       String?                  @db.Uuid
   price_version_id        String?                  @db.Uuid
   awaiting_rate_id        String?                  @db.Uuid
   updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
@@ -739,6 +747,7 @@ model ProductVariant {
   count_lines             StockCountLine[]
   write_down_lines        InventoryWriteDownLine[]
   scoped_counts           StockCount[]
+  retrieval_lines         RetrievalLine[]
 
   @@index([pricing_mode, reference_currency_code], map: "idx_product_variants_linked")
   @@map("product_variants")
@@ -752,10 +761,12 @@ model PriceVersion {
   rate              Decimal          @db.Decimal(24, 10)
   rounding_multiple Decimal          @default(0) @db.Decimal(20, 6)
   published_by      String           @db.Uuid
+  proposed_by       String           @db.Uuid
   variant_count     Int
   published_at      DateTime         @default(now()) @db.Timestamptz(6)
   exchange_rate     ExchangeRate     @relation(fields: [exchange_rate_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_versions_exchange_rate_id_fkey")
   variants          ProductVariant[]
+  approval_request  PricePublishApproval?
 
   @@index([currency_code, published_at(sort: Desc)], map: "idx_price_versions_currency")
   @@map("price_versions")
@@ -771,9 +782,31 @@ model LinkedPricePreview {
   fingerprint   String   @db.Char(64)
   expires_at    DateTime @db.Timestamptz(6)
   created_at    DateTime @default(now()) @db.Timestamptz(6)
+  approval_request PricePublishApproval?
 
   @@index([actor_id, expires_at], map: "idx_linked_price_previews_actor")
   @@map("linked_price_previews")
+}
+
+model PricePublishApproval {
+  id               String              @id(map: "price_publish_approvals_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  preview_id       String?             @unique(map: "price_publish_approvals_preview_id_key") @db.Uuid
+  price_version_id String?             @unique(map: "price_publish_approvals_price_version_id_key") @db.Uuid
+  status           String              @default("pending") @db.VarChar(20)
+  proposed_by      String              @db.Uuid
+  decided_by       String?             @db.Uuid
+  proposal_reason  String              @db.VarChar(500)
+  decision_reason  String?             @db.VarChar(500)
+  breaches         Json                @db.JsonB
+  created_at       DateTime            @default(now()) @db.Timestamptz(6)
+  decided_at       DateTime?           @db.Timestamptz(6)
+  preview          LinkedPricePreview? @relation(fields: [preview_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "price_publish_approvals_preview_id_fkey")
+  price_version    PriceVersion?       @relation(fields: [price_version_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_publish_approvals_price_version_id_fkey")
+  proposer         User                @relation("PricePublishApprovalProposer", fields: [proposed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_publish_approvals_proposed_by_fkey")
+  decider          User?               @relation("PricePublishApprovalDecider", fields: [decided_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_publish_approvals_decided_by_fkey")
+
+  @@index([status, created_at(sort: Desc)], map: "idx_price_publish_approvals_status")
+  @@map("price_publish_approvals")
 }
 
 model ProductImage {
@@ -991,6 +1024,7 @@ model SupplierPaymentAllocation {
   id                      String          @id(map: "supplier_payment_allocations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   payment_id              String          @db.Uuid
   invoice_id              String          @db.Uuid
+  amount_payment_currency Decimal         @db.Decimal(20, 6)
   amount_invoice_currency Decimal         @db.Decimal(20, 6)
   invoice_carrying_iqd    Decimal         @db.Decimal(30, 12)
   payment_iqd             Decimal         @db.Decimal(30, 12)
@@ -1174,6 +1208,7 @@ model WarehouseLocation {
   purchase_invoices     PurchaseInvoice[]
   purchase_items        PurchaseInvoiceItem[]
   supplier_return_lines SupplierReturnLine[]
+  retrieval_lines       RetrievalLine[]
   scoped_counts         StockCount[]
 
   @@unique([warehouse_id, zone, aisle, shelf, bin], map: "warehouse_locations_warehouse_id_zone_aisle_shelf_bin_key")
@@ -1212,6 +1247,7 @@ model InventoryBatch {
   write_down_lines      InventoryWriteDownLine[]
   custody_holdings      CustodyHolding[]
   supplier_return_lines SupplierReturnLine[]
+  retrieval_lines       RetrievalLine[]
 
   @@index([product_id], map: "idx_batches_product")
   @@index([expiry_date], map: "idx_batches_expiry")
@@ -1283,6 +1319,7 @@ model CartItem {
   quantity      Decimal        @db.Decimal(20, 3)
   unit_price    Decimal        @db.Decimal(20, 6)
   currency_code String         @default("IQD") @db.Char(3)
+  price_version String         @default("") @db.VarChar(64)
   cart          Cart           @relation(fields: [cart_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cart_items_cart_id_fkey")
   product       Product        @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cart_items_product_id_fkey")
   variant       ProductVariant @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cart_items_variant_id_fkey")
@@ -1327,14 +1364,15 @@ model Order {
   idempotency_key              String?             @db.VarChar(128)
   idempotency_fingerprint      String?             @db.VarChar(64)
   status                       String              @default("pending") @db.VarChar(30)
+  version                      Int                 @default(1)
   payment_method               String              @default("cod") @db.VarChar(20)
   subtotal                     Decimal             @default(0) @db.Decimal(20, 6)
   delivery_fee                 Decimal             @default(0) @db.Decimal(20, 6)
   discount                     Decimal             @default(0) @db.Decimal(20, 6)
   total                        Decimal             @default(0) @db.Decimal(20, 6)
   currency_code                String              @default("IQD") @db.Char(3)
-  document_date                DateTime            @default(dbgenerated("CURRENT_DATE")) @db.Date
-  accounting_date              DateTime            @default(dbgenerated("CURRENT_DATE")) @db.Date
+  document_date                DateTime            @db.Date
+  accounting_date              DateTime            @db.Date
   delivery_contact_phone       String              @db.VarChar(32)
   delivery_address_label       String?             @db.VarChar(80)
   delivery_city                String              @db.VarChar(80)
@@ -1344,6 +1382,18 @@ model Order {
   delivery_lat                 Float?              @db.DoublePrecision
   delivery_lng                 Float?              @db.DoublePrecision
   placed_at                    DateTime            @default(now()) @db.Timestamptz(6)
+  acceptance_deadline          DateTime?           @db.Timestamptz(6)
+  auto_cancel_deadline         DateTime?           @db.Timestamptz(6)
+  late_for_acceptance          Boolean             @default(false)
+  acceptance_alerted_at        DateTime?           @db.Timestamptz(6)
+  cancellation_request_status  String?             @db.VarChar(20)
+  cancellation_request_reason  String?             @db.VarChar(500)
+  cancellation_requested_at    DateTime?           @db.Timestamptz(6)
+  cancellation_resolved_at     DateTime?           @db.Timestamptz(6)
+  cancellation_resolved_by     String?             @db.Uuid
+  cancellation_resolution_note String?             @db.VarChar(500)
+  price_change_info            Json?               @db.JsonB
+  attention_details            Json?               @db.JsonB
   inventory_attention_required Boolean             @default(false)
   user                         User                @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_user_id_fkey")
   address                      Address?            @relation(fields: [address_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_address_id_fkey")
@@ -1359,10 +1409,13 @@ model Order {
   loyalty_ledger               LoyaltyLedger[]
   status_events                OrderStatusEvent[]
   custody_holdings             CustodyHolding[]
+  retrievals                   Retrieval[]
 
   @@unique([user_id, idempotency_key], map: "orders_user_id_idempotency_key_key")
   @@index([user_id], map: "idx_orders_user")
   @@index([status], map: "idx_orders_status")
+  @@index([status, acceptance_deadline], map: "idx_orders_acceptance_deadline")
+  @@index([status, auto_cancel_deadline], map: "idx_orders_auto_cancel_deadline")
   @@index([placed_at(sort: Desc), id(sort: Desc)], map: "idx_orders_admin_stable")
   @@index([status, placed_at(sort: Desc), id(sort: Desc)], map: "idx_orders_admin_status_stable")
   @@index([user_id, placed_at(sort: Desc), id(sort: Desc)], map: "idx_orders_admin_customer_stable")
@@ -1381,6 +1434,7 @@ model OrderItem {
   unit_price         Decimal            @db.Decimal(20, 6)
   line_total         Decimal            @db.Decimal(20, 6)
   currency_code      String             @default("IQD") @db.Char(3)
+  price_version      String             @default("") @db.VarChar(64)
   reviewed           Boolean            @default(false)
   order              Order              @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "order_items_order_id_fkey")
   product            Product            @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "order_items_product_id_fkey")
@@ -1390,6 +1444,7 @@ model OrderItem {
   return_items       ReturnItem[]
   product_reviews    ProductReview[]
   custody_holdings   CustodyHolding[]
+  retrieval_lines    RetrievalLine[]
 
   @@index([order_id], map: "idx_order_items_order")
   @@map("order_items")
@@ -1414,8 +1469,8 @@ model Payment {
   status          String    @default("pending") @db.VarChar(20)
   amount          Decimal   @db.Decimal(20, 6)
   currency_code   String    @default("IQD") @db.Char(3)
-  document_date   DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
-  accounting_date DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  document_date   DateTime  @db.Date
+  accounting_date DateTime  @db.Date
   created_at      DateTime  @default(now()) @db.Timestamptz(6)
   paid_at         DateTime? @db.Timestamptz(6)
   order           Order     @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payments_order_id_fkey")
@@ -1465,6 +1520,7 @@ model CustodyHolding {
   custody_party_id String         @db.Uuid
   batch_id         String         @db.Uuid
   quantity         Decimal        @db.Decimal(20, 3)
+  remaining_quantity Decimal      @db.Decimal(20, 3)
   unit_cost_iqd    Decimal        @db.Decimal(30, 12)
   status           String         @default("in_custody") @db.VarChar(20)
   issued_at        DateTime       @default(now()) @db.Timestamptz(6)
@@ -1474,6 +1530,7 @@ model CustodyHolding {
   delivery         Delivery       @relation(fields: [delivery_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_delivery_id_fkey")
   custody_party    User           @relation("CustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_custody_party_id_fkey")
   batch            InventoryBatch @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_batch_id_fkey")
+  retrieval_lines  RetrievalLine[]
 
   @@unique([order_item_id, batch_id, custody_party_id], map: "custody_holdings_order_item_batch_party_key")
   @@index([custody_party_id, status], map: "idx_custody_holdings_party_status")
@@ -1642,10 +1699,12 @@ model PickList {
   assigned_to String?        @db.Uuid
   status      String         @default("open") @db.VarChar(20)
   created_at  DateTime       @default(now()) @db.Timestamptz(6)
+  completed_at DateTime?     @db.Timestamptz(6)
   order       Order          @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "pick_lists_order_id_fkey")
   assignee    User?          @relation("PickListAssignee", fields: [assigned_to], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "pick_lists_assigned_to_fkey")
   items       PickListItem[]
 
+  @@unique([order_id], map: "pick_lists_order_id_key")
   @@map("pick_lists")
 }
 
@@ -1674,13 +1733,71 @@ model Delivery {
   currency_code     String           @default("IQD") @db.Char(3)
   dispatched_at     DateTime?        @db.Timestamptz(6)
   delivered_at      DateTime?        @db.Timestamptz(6)
+  failure_reason    String?          @db.VarChar(500)
+  failed_at         DateTime?        @db.Timestamptz(6)
+  retry_count       Int              @default(0)
   order             Order            @relation("OrderDeliveryHistory", fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "deliveries_order_id_fkey")
   current_for_order Order?           @relation("OrderCurrentDelivery")
   agent             User?            @relation("DeliveryAgent", fields: [agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "deliveries_agent_id_fkey")
   ratings           DeliveryRating[]
   custody_holdings  CustodyHolding[]
+  retrievals        Retrieval[]
 
   @@map("deliveries")
+}
+
+model Retrieval {
+  id               String          @id(map: "retrievals_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number  String          @unique(map: "retrievals_document_number_key") @db.VarChar(40)
+  operation_id     String          @unique(map: "retrievals_operation_id_key") @db.VarChar(128)
+  order_id         String          @db.Uuid
+  delivery_id      String          @db.Uuid
+  custody_party_id String          @db.Uuid
+  status           String          @default("open") @db.VarChar(24)
+  outcome          String          @db.VarChar(16)
+  reason           String          @db.VarChar(500)
+  document_date    DateTime        @db.Date
+  accounting_date  DateTime        @db.Date
+  created_by       String          @db.Uuid
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  closed_by        String?         @db.Uuid
+  closed_at        DateTime?       @db.Timestamptz(6)
+  journal_entry_id String?         @unique(map: "retrievals_journal_entry_id_key") @db.Uuid
+  order            Order           @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_order_id_fkey")
+  delivery         Delivery        @relation(fields: [delivery_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_delivery_id_fkey")
+  custody_party    User            @relation("RetrievalCustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_custody_party_id_fkey")
+  creator          User            @relation("RetrievalCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_created_by_fkey")
+  closer           User?           @relation("RetrievalCloser", fields: [closed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_closed_by_fkey")
+  journal_entry    JournalEntry?   @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrievals_journal_entry_id_fkey")
+  lines            RetrievalLine[]
+
+  @@index([order_id, status], map: "idx_retrievals_order_status")
+  @@index([custody_party_id, status], map: "idx_retrievals_party_status")
+  @@map("retrievals")
+}
+
+model RetrievalLine {
+  id                String            @id(map: "retrieval_lines_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  retrieval_id      String            @db.Uuid
+  custody_holding_id String           @db.Uuid
+  order_item_id     String            @db.Uuid
+  variant_id        String            @db.Uuid
+  batch_id          String            @db.Uuid
+  expected_quantity Decimal           @db.Decimal(20, 3)
+  received_quantity Decimal           @default(0) @db.Decimal(20, 3)
+  unit_cost_iqd     Decimal           @db.Decimal(30, 12)
+  location_id       String?           @db.Uuid
+  received_at       DateTime?         @db.Timestamptz(6)
+  retrieval         Retrieval         @relation(fields: [retrieval_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "retrieval_lines_retrieval_id_fkey")
+  custody_holding   CustodyHolding     @relation(fields: [custody_holding_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_custody_holding_id_fkey")
+  order_item        OrderItem          @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_order_item_id_fkey")
+  variant           ProductVariant     @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_variant_id_fkey")
+  batch             InventoryBatch     @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_batch_id_fkey")
+  location          WarehouseLocation? @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "retrieval_lines_location_id_fkey")
+
+  @@unique([retrieval_id, custody_holding_id], map: "retrieval_lines_retrieval_holding_key")
+  @@index([retrieval_id], map: "idx_retrieval_lines_document")
+  @@map("retrieval_lines")
 }
 
 model Return {
@@ -1693,8 +1810,8 @@ model Return {
   expected_refund Decimal            @default(0) @db.Decimal(20, 6)
   refund_amount   Decimal            @default(0) @db.Decimal(20, 6)
   currency_code   String             @default("IQD") @db.Char(3)
-  document_date   DateTime           @default(dbgenerated("CURRENT_DATE")) @db.Date
-  accounting_date DateTime           @default(dbgenerated("CURRENT_DATE")) @db.Date
+  document_date   DateTime           @db.Date
+  accounting_date DateTime           @db.Date
   reviewed_by     String?            @db.Uuid
   reviewed_at     DateTime?          @db.Timestamptz(6)
   completed_at    DateTime?          @db.Timestamptz(6)

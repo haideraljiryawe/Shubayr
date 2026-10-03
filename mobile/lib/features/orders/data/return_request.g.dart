@@ -35,6 +35,7 @@ ReturnRequestItem _$ReturnRequestItemFromJson(Map<String, dynamic> json) =>
       orderItemId: json['order_item_id'] as String,
       quantity: json['quantity'] as num,
       approvedQuantity: json['approved_quantity'] as num?,
+      reason: json['customer_reason'] as String?,
     );
 
 Map<String, dynamic> _$ReturnRequestItemToJson(ReturnRequestItem instance) =>
@@ -42,6 +43,7 @@ Map<String, dynamic> _$ReturnRequestItemToJson(ReturnRequestItem instance) =>
       'order_item_id': instance.orderItemId,
       'quantity': instance.quantity,
       'approved_quantity': ?instance.approvedQuantity,
+      'customer_reason': ?instance.reason,
     };
 
 ReturnPage _$ReturnPageFromJson(Map<String, dynamic> json) => ReturnPage(

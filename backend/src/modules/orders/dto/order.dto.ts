@@ -7,10 +7,13 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  ValidateNested,
   Max,
   MaxLength,
   Matches,
   Min,
+  IsNumber,
+  ValidateIf,
 } from 'class-validator';
 
 export const ORDER_STATUSES = [
@@ -48,6 +51,21 @@ export class PlaceOrderDto {
   @IsIn(['cod'])
   @IsOptional()
   payment_method?: 'cod';
+
+  @IsOptional()
+  @Type(() => AcceptedPriceVersionDto)
+  @ValidateNested({ each: true })
+  accepted_price_versions?: AcceptedPriceVersionDto[];
+}
+
+export class AcceptedPriceVersionDto {
+  @IsUUID()
+  variant_id!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  price_version!: string;
 }
 
 export class OrderQueryDto {
@@ -73,6 +91,10 @@ export class UpdateOrderStatusDto {
   @IsIn(STAFF_ORDER_STATUSES)
   status!: StaffOrderStatus;
 
+  @IsInt()
+  @Min(1)
+  version!: number;
+
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
@@ -80,6 +102,14 @@ export class UpdateOrderStatusDto {
   @IsString()
   @MaxLength(500)
   note?: string | null;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MaxLength(500)
+  below_cost_override_reason?: string | null;
 }
 
 export class AdminOrderQueryDto extends OrderQueryDto {
@@ -144,6 +174,10 @@ export class MonitorOrderQueryDto {
 }
 
 export class CancelOrderDto {
+  @IsInt()
+  @Min(1)
+  version!: number;
+
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
@@ -154,3 +188,59 @@ export class CancelOrderDto {
 }
 
 export class RejectOrderDto extends CancelOrderDto {}
+
+export class CustomerCancelDto {
+  @IsInt()
+  @Min(1)
+  version!: number;
+}
+
+export class CancellationRequestDto extends CustomerCancelDto {
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class ResolveCancellationRequestDto extends CustomerCancelDto {
+  @IsIn(['approved', 'denied'])
+  decision!: 'approved' | 'denied';
+
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class ResolveShortageDto extends CustomerCancelDto {
+  @IsIn(['reduce', 'cancel_line', 'cancel_order'])
+  action!: 'reduce' | 'cancel_line' | 'cancel_order';
+
+  @ValidateIf((input: ResolveShortageDto) => input.action !== 'cancel_order')
+  @IsUUID()
+  order_item_id?: string;
+
+  @ValidateIf((input: ResolveShortageDto) => input.action === 'reduce')
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  new_quantity?: number;
+
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class ShortageResponseDto extends CustomerCancelDto {
+  @IsIn(['accepted', 'denied'])
+  decision!: 'accepted' | 'denied';
+}

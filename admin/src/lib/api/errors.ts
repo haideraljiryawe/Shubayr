@@ -69,6 +69,8 @@ export type ErrorKind =
   | "notFound"
   | "conflict"
   | "customerPhone"
+  /** The API can't be reached (the BFF's 503 API_UNAVAILABLE, or a 502/504). */
+  | "unavailable"
   | "unknown";
 
 /** One word for what went wrong, which the UI turns into a translated message. */
@@ -78,6 +80,7 @@ export function errorKind(error: unknown): ErrorKind {
   if (error.code === ERROR_CODES.passwordChangeRequired)
     return "passwordChange";
   if (error.code === ERROR_CODES.customerPhone) return "customerPhone";
+  if (error.code === "API_UNAVAILABLE") return "unavailable";
   switch (error.status) {
     case 422:
       return "validation";
@@ -91,6 +94,10 @@ export function errorKind(error: unknown): ErrorKind {
       return "conflict";
     case 429:
       return "rateLimited";
+    case 502:
+    case 503:
+    case 504:
+      return "unavailable";
     default:
       return "unknown";
   }

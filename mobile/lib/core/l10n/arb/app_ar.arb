@@ -215,7 +215,7 @@
   "returnAvailable": "الكمية المتاحة لطلب الإرجاع: {count}",
   "returnIncrease": "زيادة كمية الإرجاع",
   "returnDecrease": "تقليل كمية الإرجاع",
-  "returnReason": "سبب الإرجاع (اختياري)",
+  "returnReason": "سبب إرجاع جميع العناصر المحددة (مطلوب)",
   "returnSubmit": "إرسال طلب الإرجاع",
   "returnSubmitted": "تم إرسال طلب الإرجاع.",
   "returnReference": "رقم طلب الإرجاع: {id}",
@@ -614,5 +614,12 @@
   "notificationsEmpty": "لا توجد إشعارات حتى الآن",
   "actionLoadMore": "تحميل المزيد",
   "quantityInvalid": "أدخل كمية ضمن الحدود، بثلاث منازل عشرية كحد أقصى.",
-  "quantityWholeInvalid": "أدخل كمية صحيحة ضمن الحدود."
+  "quantityWholeInvalid": "أدخل كمية صحيحة ضمن الحدود.",
+  "checkoutPricesChanged": "تغيّرت الأسعار",
+  "checkoutPricesChangedMessage": "راجع أسعار الوحدات الجديدة قبل تأكيد الطلب. سيحسب الخادم الإجمالي النهائي.",
+  "checkoutAcceptPrices": "قبول الأسعار وتأكيد الطلب",
+  "cartPricesChanged": "تغيّرت بعض الأسعار. ستُطلب منك مراجعتها وقبولها عند تأكيد الطلب.",
+  "deliveryFailureReason": "سبب تعذّر التوصيل",
+  "deliveryRetryCount": "عدد محاولات الإعادة",
+  "orderStateConflict": "تغيّر الطلب أو لم يعد إلغاؤه متاحًا. راجع حالته الحالية."
 }

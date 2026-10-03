@@ -59,7 +59,21 @@ class AppFailure implements Exception {
 
 /// Structured validation details from the versioned API error envelope.
 class ApiFieldError {
-  const ApiFieldError({this.field, this.code, required this.message});
+  const ApiFieldError({
+    this.field,
+    this.code,
+    required this.message,
+    this.variantId,
+    this.sku,
+    this.oldPrice,
+    this.newPrice,
+    this.newPriceVersion,
+    this.currentStatus,
+    this.currentVersion,
+  });
+  final String? variantId, sku, newPriceVersion, currentStatus;
+  final num? oldPrice, newPrice;
+  final int? currentVersion;
   final String? field;
   final String? code;
   final String message;

@@ -106,6 +106,7 @@ Widget _host(
     ).overrideWith((ref) async => const OrderTracking(orderId: 'o1')),
     orderProvider('o1').overrideWith(
       (ref) async => Order(
+        version: 1,
         id: 'o1',
         orderNumber: 'SH-42',
         status: status,
@@ -371,6 +372,8 @@ void main() {
     await tester.tap(find.byTooltip('Increase return quantity').first);
     await tester.pump();
     await tester.ensureVisible(find.text('Submit return request'));
+    await tester.enterText(find.byType(TextField), 'Damaged');
+    await tester.ensureVisible(find.text('Submit return request'));
     await tester.tap(find.text('Submit return request'));
     await tester.pumpAndSettle();
     expect(find.text('Request reference: return-1'), findsOneWidget);
@@ -417,6 +420,8 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Submit return request'));
+    await tester.enterText(find.byType(TextField), 'Damaged');
+    await tester.ensureVisible(find.text('Submit return request'));
     await tester.tap(find.text('Submit return request'));
     await tester.pumpAndSettle();
     expect(repository.lines.single.quantity, 0.125);
@@ -462,6 +467,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Purchase name — XL'), findsOneWidget);
+      await tester.ensureVisible(find.text('Submit return request'));
+      await tester.enterText(find.byType(TextField), 'Damaged');
       await tester.ensureVisible(find.text('Submit return request'));
       await tester.tap(find.text('Submit return request'));
       await tester.pumpAndSettle();
@@ -531,6 +538,8 @@ void main() {
         expect(find.text(saved ? 'Purchase name' : 'p1'), findsOneWidget);
         await tester.tap(find.byTooltip('Increase return quantity'));
         await tester.pump();
+        await tester.ensureVisible(find.text('Submit return request'));
+        await tester.enterText(find.byType(TextField), 'Damaged');
         await tester.ensureVisible(find.text('Submit return request'));
         await tester.tap(find.text('Submit return request'));
         await tester.pumpAndSettle();
@@ -666,6 +675,8 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('Decrease return quantity').first);
     await tester.pump();
+    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.enterText(find.byType(TextField), 'Damaged');
     await tester.ensureVisible(find.text('Submit return request'));
     await tester.tap(find.text('Submit return request'));
     await tester.pumpAndSettle();

@@ -9,5 +9,10 @@ abstract interface class DeliveryRepository {
   });
 
   /// PATCH /deliveries/{id} — only a delivery status, no payment operation.
-  Future<Delivery> updateStatus(String id, String status);
+  Future<Delivery> updateStatus(
+    String id,
+    String status, {
+    required int orderVersion,
+    String? reason,
+  });
 }

@@ -13,6 +13,10 @@ Map<String, dynamic> pricedLine() => {
   'line_total': 1234,
   'currency': 'IQD',
   'available': true,
+  'price_version': 'fixture-v1',
+  'current_price_version': 'fixture-v1',
+  'price_changed': false,
+  'current_unit_price': 10000,
   'available_qty': 0.5,
 };
 Map<String, dynamic> pricedCart() => {

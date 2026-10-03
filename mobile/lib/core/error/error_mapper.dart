@@ -59,6 +59,25 @@ List<ApiFieldError> _fieldsFromBody(Object? data) {
           field: error['field'] as String?,
           code: error['code'] as String?,
           message: error['message'] as String,
+          variantId: error['variant_id'] is String
+              ? error['variant_id'] as String
+              : null,
+          sku: error['sku'] is String ? error['sku'] as String : null,
+          oldPrice: error['old_price'] is num
+              ? error['old_price'] as num
+              : null,
+          newPrice: error['new_price'] is num
+              ? error['new_price'] as num
+              : null,
+          newPriceVersion: error['new_price_version'] is String
+              ? error['new_price_version'] as String
+              : null,
+          currentStatus: error['current_status'] is String
+              ? error['current_status'] as String
+              : null,
+          currentVersion: error['current_version'] is int
+              ? error['current_version'] as int
+              : null,
         ),
   ];
 }

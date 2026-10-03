@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import pg from 'pg';
 import Redis from 'ioredis';
+import { businessDate } from '../dist/src/modules/finance/business-date.js';
 
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
 if (
@@ -207,7 +208,7 @@ try {
   const enabled = (prefs, type, channel) =>
     prefs.preferences.find((p) => p.type === type && p.channel === channel)
       ?.enabled;
-  check(defaults.preferences.length, 28, 'all type/channel pairs returned');
+  check(defaults.preferences.length, 32, 'all type/channel pairs returned');
   check(
     enabled(defaults, 'delivered', 'push'),
     true,
@@ -295,9 +296,14 @@ try {
     await db.query('BEGIN');
     try {
       await db.query(
-        `INSERT INTO orders (id,user_id,order_number,status,payment_method,subtotal,delivery_fee,discount,total,delivery_contact_phone,delivery_city)
-        VALUES ($1,$2,$3,'ready_for_dispatch','cod',10,0,0,10,'+9647700000000','Baghdad')`,
-        [orderId, userId, `VERIFY-NOTIFY-${orderId.slice(0, 8)}`],
+        `INSERT INTO orders (id,user_id,order_number,status,payment_method,subtotal,delivery_fee,discount,total,delivery_contact_phone,delivery_city,document_date,accounting_date)
+        VALUES ($1,$2,$3,'ready_for_dispatch','cod',10,0,0,10,'+9647700000000','Baghdad',$4,$4)`,
+        [
+          orderId,
+          userId,
+          `VERIFY-NOTIFY-${orderId.slice(0, 8)}`,
+          businessDate(),
+        ],
       );
       await db.query(
         `INSERT INTO order_items
@@ -350,12 +356,12 @@ try {
     await request(`/deliveries/${deliveryId}`, {
       token: agent,
       method: 'PATCH',
-      body: { status: 'out_for_delivery' },
+      body: { status: 'out_for_delivery', order_version: 1 },
     });
     await request(`/deliveries/${deliveryId}`, {
       token: agent,
       method: 'PATCH',
-      body: { status: 'delivered' },
+      body: { status: 'delivered', order_version: 2 },
     });
   }
   const aPush = await waitFor(

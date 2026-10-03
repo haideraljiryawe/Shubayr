@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { Plus, Trash2 } from "lucide-react";
-import { Alert, Button, Card, Input } from "@/components/ui";
+import { Alert, Button, Card, Input, Select } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
@@ -257,6 +257,24 @@ export function SettingsForm({
 
       <Section title={t("sections.controls")}>
         <div className="grid gap-4 md:grid-cols-3">
+          <Field
+            label={t("fields.separation_of_duties_level")}
+            hint={t("separationOfDuties.hint")}
+            name="separation_of_duties_level"
+          >
+            <Select
+              value={form.separationOfDutiesLevel}
+              data-testid="setting-separation_of_duties_level"
+              onChange={(event) =>
+                update((draft) =>
+                  void (draft.separationOfDutiesLevel = event.target.value as "standard" | "strict"),
+                )
+              }
+            >
+              <option value="standard">{t("separationOfDuties.standard")}</option>
+              <option value="strict">{t("separationOfDuties.strict")}</option>
+            </Select>
+          </Field>
           {numberField("default_low_stock_threshold")}
           {numberField("backdating_window_days")}
           {numberField("markup_alert_percent")}

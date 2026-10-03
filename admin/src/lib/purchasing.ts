@@ -277,45 +277,111 @@ export function documentDateProblem(
 
 /* ------------------------------------------------------------- payments */
 
+/**
+ * The one foreign currency a supplier payment involves, from its cash account
+ * and the invoices it settles (API 10.0.1): "IQD" when everything is in IQD,
+ * null when two different foreign currencies are mixed (the server refuses
+ * that). The settlement rate is this currency's payment-date rate.
+ */
+export function settlementCurrency(payment: CurrencyCode, invoices: ReadonlyArray<CurrencyCode>): CurrencyCode | null {
+  const foreign = new Set([payment, ...invoices].filter((code) => code !== "IQD"));
+  if (foreign.size > 1) return null;
+  return foreign.values().next().value ?? "IQD";
+}
+
 export interface AllocationPreview {
   invoiceId: string;
+  /** What was typed: the allocation in the payment (cash account) currency. */
+  amount: bigint;
+  /** IQD per unit of the invoice currency used to convert (1 for an IQD invoice). */
+  invoiceRate: bigint;
+  /** The allocation converted to the invoice currency (6 decimals, as posted). */
   applied: bigint;
+  /** True when the payment and the invoice are in different currencies. */
+  converted: boolean;
   carryingIqd: bigint;
   paidIqd: bigint;
   /** Positive = FX loss (paid more IQD than carried); negative = FX gain. */
   fxIqd: bigint;
+  /** The converted amount exceeds what the invoice still owes. */
+  overRemaining: boolean;
 }
 
 /**
- * A supplier payment as the server will post it. Each allocation carries
- * the invoice at its own rate and is paid at the settlement rate; the
- * difference is the FX gain or loss. What is not allocated becomes a
- * supplier credit in the payment currency.
+ * A supplier payment as the server posts it (API 10.0.1). Every amount is in
+ * the cash account's currency. Each allocation is paid in IQD at the cash
+ * rate, converted to the invoice currency at the payment-date rate, and
+ * carried at the invoice's own booked rate; paid minus carried is the FX
+ * gain or loss. What is not allocated stays a supplier credit in the payment
+ * currency.
  */
 export function paymentPreview(input: {
   currency: CurrencyCode;
   amount: bigint;
+  /** The settlement currency's payment-date rate (ignored when all is IQD). */
   settlementRate: bigint;
-  allocations: ReadonlyArray<{ invoiceId: string; invoiceCurrency: CurrencyCode; invoiceRate: bigint; applied: bigint }>;
+  allocations: ReadonlyArray<{
+    invoiceId: string;
+    invoiceCurrency: CurrencyCode;
+    /** The invoice's booked rate. */
+    bookedRate: bigint;
+    remaining: bigint;
+    amount: bigint;
+  }>;
 }) {
   const cashRate = input.currency === "IQD" ? SCALE : input.settlementRate;
   const amountIqd = fx.mul(input.amount, cashRate);
   const rows: AllocationPreview[] = input.allocations.map((row) => {
-    const carryingIqd = fx.mul(row.applied, row.invoiceRate);
-    const paidIqd = row.invoiceCurrency === "IQD" ? row.applied : fx.mul(row.applied, input.settlementRate);
-    return { invoiceId: row.invoiceId, applied: row.applied, carryingIqd, paidIqd, fxIqd: paidIqd - carryingIqd };
+    const invoiceRate = row.invoiceCurrency === "IQD" ? SCALE : input.settlementRate;
+    const paidIqd = fx.mul(row.amount, cashRate);
+    const applied = invoiceRate === 0n ? 0n : fx.round(fx.div(paidIqd, invoiceRate), 6);
+    const carryingIqd = fx.mul(applied, row.bookedRate);
+    return {
+      invoiceId: row.invoiceId,
+      amount: row.amount,
+      invoiceRate,
+      applied,
+      converted: row.invoiceCurrency !== input.currency,
+      carryingIqd,
+      paidIqd,
+      fxIqd: paidIqd - carryingIqd,
+      overRemaining: applied > row.remaining,
+    };
   });
-  const allocatedIqd = rows.reduce((sum, row) => sum + row.paidIqd, 0n);
-  const unallocatedIqd = amountIqd - allocatedIqd;
+  const allocated = rows.reduce((sum, row) => sum + row.amount, 0n);
+  const unallocated = input.amount - allocated;
   return {
     amountIqd,
     rows,
     fxIqd: rows.reduce((sum, row) => sum + row.fxIqd, 0n),
-    allocatedIqd,
-    unallocatedIqd,
-    creditCurrency: cashRate === 0n ? 0n : fx.div(unallocatedIqd > 0n ? unallocatedIqd : 0n, cashRate),
-    overAllocated: allocatedIqd > amountIqd,
+    allocated,
+    allocatedIqd: rows.reduce((sum, row) => sum + row.paidIqd, 0n),
+    unallocatedIqd: fx.mul(unallocated, cashRate),
+    creditCurrency: unallocated > 0n ? unallocated : 0n,
+    overAllocated: allocated > input.amount,
   };
+}
+
+/**
+ * The largest payment-currency amount (at `digits` decimals) that settles
+ * what an invoice still owes without exceeding it — exactly the remainder
+ * when the rates allow, otherwise the nearest amount below it.
+ */
+export function settlingAmount(input: {
+  remaining: bigint;
+  invoiceCurrency: CurrencyCode;
+  paymentCurrency: CurrencyCode;
+  settlementRate: bigint;
+  digits: number;
+}): bigint {
+  const invoiceRate = input.invoiceCurrency === "IQD" ? SCALE : input.settlementRate;
+  const cashRate = input.paymentCurrency === "IQD" ? SCALE : input.settlementRate;
+  if (invoiceRate === 0n || cashRate === 0n || input.remaining <= 0n) return 0n;
+  let amount = fx.round(fx.div(fx.mul(input.remaining, invoiceRate), cashRate), input.digits);
+  const step = 10n ** BigInt(SCALE_DIGITS - input.digits);
+  const applied = (value: bigint) => fx.round(fx.div(fx.mul(value, cashRate), invoiceRate), 6);
+  while (amount > 0n && applied(amount) > input.remaining) amount -= step;
+  return amount;
 }
 
 /* -------------------------------------------------------------- returns */
@@ -422,8 +488,9 @@ export function isRateOverrideForbidden(error: unknown): boolean {
   return error instanceof ApiError && error.status === 403 && /override_rate/.test(error.message);
 }
 
+/** 422 EXCHANGE_RATE_NOT_FOUND (declared since API 10.0.1), or the older message. */
 export function isMissingRate(error: unknown): boolean {
-  return error instanceof ApiError && /No exchange rate exists/i.test(error.message);
+  return error instanceof ApiError && (error.code === "EXCHANGE_RATE_NOT_FOUND" || /No exchange rate exists/i.test(error.message));
 }
 
 /** Where a purchasing source type has a page of its own in the admin. */

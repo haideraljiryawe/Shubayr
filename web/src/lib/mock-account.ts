@@ -355,6 +355,22 @@ export function getMockOrder(id: string): Order | undefined {
   return found ? withReviewedFlags(found) : undefined;
 }
 
+/**
+ * Change a stored order the way the API would (cancel, cancellation request,
+ * shortage answer). `getMockOrder` hands out copies, so changes go here.
+ */
+export function updateMockOrder(
+  id: string,
+  change: (order: Order) => void,
+): Order | undefined {
+  const found = orders.find(
+    (order) => order.id === id || order.order_number === id,
+  );
+  if (!found) return undefined;
+  change(found);
+  return withReviewedFlags(found);
+}
+
 /** Remember an order placed during this session so its detail page works. */
 export function rememberMockOrder(order: Order): void {
   orders = [order, ...orders];

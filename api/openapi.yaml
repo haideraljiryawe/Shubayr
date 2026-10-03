@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 9.0.0
+  version: 11.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -697,6 +697,16 @@ paths:
                 address_id: { type: string, format: uuid }
                 coupon_code: { type: [string, "null"] }
                 payment_method: { type: string, enum: [cod], default: cod }
+                accepted_price_versions:
+                  type: array
+                  description: Explicit acceptance tokens returned by a prior PRICE_CHANGED conflict.
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [variant_id, price_version]
+                    properties:
+                      variant_id: { type: string, format: uuid }
+                      price_version: { type: string, minLength: 1, maxLength: 64 }
       responses:
         "201":
           description: Created
@@ -740,6 +750,16 @@ paths:
       tags: [Orders]
       summary: Cancel a pending or confirmed order (releases its simple stock holds)
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version]
+              properties:
+                version: { type: integer, minimum: 1 }
       responses:
         "200":
           description: Cancelled order
@@ -771,16 +791,72 @@ paths:
           application/json:
             schema:
               type: object
-              required: [status]
+              required: [status, version]
               properties:
                 status: { type: string, enum: [confirmed, preparing, ready_for_dispatch, dispatched] }
+                version: { type: integer, minimum: 1 }
                 note: { type: [string, "null"], maxLength: 500 }
+                below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
       responses:
         "200":
           description: Updated order
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /orders/{id}/cancellation-request:
+    post:
+      tags: [Orders]
+      summary: Request cancellation after the pending state
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, reason]
+              properties:
+                version: { type: integer, minimum: 1 }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Order with pending cancellation request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /orders/{id}/shortage-response:
+    post:
+      tags: [Orders]
+      summary: Accept or deny a proposed preparation quantity reduction
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, decision]
+              properties:
+                version: { type: integer, minimum: 1 }
+                decision: { type: string, enum: [accepted, denied] }
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -1097,7 +1173,7 @@ paths:
               schema: { $ref: "#/components/schemas/PurchaseInvoice" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/PostingConflict" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
   /admin/suppliers/balances:
     get:
       tags: [Purchasing]
@@ -1193,6 +1269,12 @@ paths:
     post:
       tags: [Purchasing]
       summary: Pay and explicitly allocate supplier invoices
+      description: >
+        The payment and every allocation amount use the cash account currency.
+        Each allocation is converted to its invoice currency at the applicable
+        payment-date rate. An explicit non-base rate requires
+        `purchases.override_rate`; FX differences from the invoice's booked
+        rate post to supplier FX gain or loss.
       x-permission: supplier_payments.record
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierPaymentInput" } } } }
       responses:
@@ -1200,7 +1282,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
   /admin/supplier-credits:
     get:
       tags: [Purchasing]
@@ -1598,8 +1680,9 @@ paths:
       description: >
         Only the assigned agent may act. An assigned delivery may start only
         when its order is ready_for_dispatch. Legal transitions are assigned to
-        out_for_delivery; out_for_delivery to delivered or failed; and delivered
-        to returned. Failed and returned are terminal. Dispatch and delivery
+        out_for_delivery; out_for_delivery to delivered or failed; failed back
+        to out_for_delivery for a custody-preserving retry; and delivered to
+        returned. Returned is terminal. Dispatch and delivery
         timestamps are recorded, and the order advances atomically through its
         corresponding status events. Successful delivery reconciles a pending
         COD payment to paid in the same transaction.
@@ -1611,9 +1694,47 @@ paths:
           application/json:
             schema:
               type: object
-              required: [status]
+              required: [status, order_version]
               properties:
                 status: { type: string, enum: [out_for_delivery, delivered, failed, returned] }
+                order_version: { type: integer, minimum: 1 }
+                reason: { type: string, minLength: 1, maxLength: 500, description: Required when status=failed. }
+      responses:
+        "200":
+          description: Updated delivery
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Delivery" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/deliveries/{id}/status:
+    patch:
+      tags: [Deliveries]
+      summary: Complete, fail, or retry a delivery as authorized staff
+      description: >
+        Uses the same concurrency-safe order/delivery transition as the assigned
+        agent route. Staff may mark dispatched deliveries delivered or failed,
+        and may retry only a failed delivery. A retry preserves the existing
+        custody and never posts a second stock issue.
+      x-permission-by-status:
+        delivered: orders.deliver
+        failed: orders.fail
+        out_for_delivery: orders.retry
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status, order_version]
+              properties:
+                status: { type: string, enum: [out_for_delivery, delivered, failed] }
+                order_version: { type: integer, minimum: 1 }
+                reason: { type: string, minLength: 1, maxLength: 500, description: Required when status=failed. }
       responses:
         "200":
           description: Updated delivery
@@ -1965,12 +2086,14 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [status]
+              required: [status, version]
               properties:
                 status:
                   type: string
                   enum: [confirmed, preparing, ready_for_dispatch, dispatched]
+                version: { type: integer, minimum: 1 }
                 note: { type: [string, "null"], maxLength: 500 }
+                below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
       responses:
         "200":
           description: Updated order detail
@@ -1998,8 +2121,9 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [reason]
+              required: [version, reason]
               properties:
+                version: { type: integer, minimum: 1 }
                 reason: { type: string, minLength: 1, maxLength: 500 }
       responses:
         "200":
@@ -2029,8 +2153,9 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [reason]
+              required: [version, reason]
               properties:
+                version: { type: integer, minimum: 1 }
                 reason: { type: string, minLength: 1, maxLength: 500 }
       responses:
         "200":
@@ -2044,6 +2169,196 @@ paths:
         "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADMIN: PRODUCTS CRUD ----------------
+  /admin/orders/{id}/cancellation-request/resolve:
+    post:
+      tags: [Admin]
+      summary: Approve or deny a customer cancellation request
+      x-permission: orders.cancel_request.resolve
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, decision, reason]
+              properties:
+                version: { type: integer, minimum: 1 }
+                decision: { type: string, enum: [approved, denied] }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Updated order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/orders/{id}/shortage-resolution:
+    post:
+      tags: [Admin]
+      summary: Propose a reduction or cancel a short line/order
+      x-permission: orders.shortage.resolve
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, action, reason]
+              properties:
+                version: { type: integer, minimum: 1 }
+                action: { type: string, enum: [reduce, cancel_line, cancel_order] }
+                order_item_id: { type: string, format: uuid }
+                new_quantity: { type: number, minimum: 0.001, multipleOf: 0.001 }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Updated order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/orders/{id}/pick-list:
+    get:
+      tags: [Fulfilment]
+      summary: Get the location-sorted pick list for an order
+      x-permission: inventory.pick
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Pick list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PickList" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/pick-lists/print:
+    post:
+      tags: [Fulfilment]
+      summary: Build a printable location-sorted batch of pick lists
+      x-permission: inventory.pick
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [order_ids]
+              properties:
+                order_ids:
+                  type: array
+                  minItems: 1
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Printable pick-list batch
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [generated_at, data]
+                properties:
+                  generated_at: { type: string, format: date-time }
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/PickList" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /admin/orders/{id}/retrievals:
+    post:
+      tags: [Fulfilment]
+      summary: Open a retrieval for a failed order returning to the store
+      x-permission: retrieval.open
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [operation_id, outcome, reason]
+              properties:
+                operation_id: { type: string, minLength: 8, maxLength: 128 }
+                outcome: { type: string, enum: [retry] }
+                reason: { type: string, minLength: 3, maxLength: 500 }
+      responses:
+        "201":
+          description: Retrieval opened
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Retrieval" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/retrievals/{id}:
+    get:
+      tags: [Fulfilment]
+      summary: Get a retrieval document
+      x-permission: retrieval.view
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Retrieval
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Retrieval" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/retrievals/{id}/receive:
+    post:
+      tags: [Fulfilment]
+      summary: Receive a full or partial retrieval at original issue cost
+      x-permission: retrieval.receive
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [operation_id, lines]
+              properties:
+                operation_id: { type: string, minLength: 8, maxLength: 128 }
+                lines:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [line_id, location_id, quantity]
+                    properties:
+                      line_id: { type: string, format: uuid }
+                      location_id: { type: string, format: uuid }
+                      quantity: { type: string, pattern: '^\\d+(?:\\.\\d{1,3})?$' }
+      responses:
+        "200":
+          description: Updated retrieval
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Retrieval" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
   /admin/products:
     get:
       tags: [Admin]
@@ -2085,7 +2400,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Product" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/PricingRateValidation" }
   /admin/products/{id}:
     get:
       tags: [Admin]
@@ -2123,7 +2438,7 @@ paths:
               schema: { $ref: "#/components/schemas/Product" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/PricingRateValidation" }
     delete:
       tags: [Admin]
       summary: Delete (archive) a product
@@ -2625,7 +2940,7 @@ paths:
       tags: [Finance]
       summary: List configured currencies
       x-surface: admin
-      x-permission: ledger.view
+      x-permission: fx_rates.view
       responses:
         "200":
           description: Currencies
@@ -2664,7 +2979,7 @@ paths:
       tags: [Finance]
       summary: List exchange-rate history newest first
       x-surface: admin
-      x-permission: ledger.view
+      x-permission: fx_rates.view
       parameters:
         - name: currency_code
           in: query
@@ -2675,7 +2990,7 @@ paths:
     post:
       tags: [Finance]
       summary: Record an effective exchange rate
-      description: Input is `1 foreign = X base`; basis 100 is normalized to basis 1 before storage.
+      description: Input is `1 foreign = X base`; basis 100 is normalized to basis 1 before storage. `effective_at` is an exact timestamp and a future-effective rate is never applied early.
       x-surface: admin
       x-permission: fx_rates.update
       requestBody:
@@ -2688,9 +3003,9 @@ paths:
   /admin/exchange-rates/{code}/applicable:
     get:
       tags: [Finance]
-      summary: Resolve the latest rate effective at a date
+      summary: Resolve the latest rate effective at an instant
       x-surface: admin
-      x-permission: ledger.view
+      x-permission: fx_rates.view
       parameters:
         - name: code
           in: path
@@ -2703,7 +3018,7 @@ paths:
       responses:
         "200": { description: Applicable rate with stale-today warning, content: { application/json: { schema: { $ref: "#/components/schemas/ExchangeRate" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
 
   /admin/exchange-rates/linked-price-preview:
     post:
@@ -2742,7 +3057,7 @@ paths:
     post:
       tags: [Finance]
       summary: Atomically save a rate and publish one linked-price version
-      description: Refuses an expired or stale preview. Conversion and configured upward rounding occur before product discounts.
+      description: Refuses an expired or stale preview. Conversion and configured upward rounding occur before product discounts. If a resulting price is below protected cost, no rate or price is saved; a pending approval request is created for a different user to approve or reject.
       x-surface: admin
       x-permissions: [fx_rates.update, prices.publish_linked]
       requestBody:
@@ -2750,6 +3065,25 @@ paths:
         content: { application/json: { schema: { $ref: "#/components/schemas/LinkedPriceApplyInput" } } }
       responses:
         "201": { description: Rate and linked prices published, content: { application/json: { schema: { $ref: "#/components/schemas/LinkedPriceApplyResult" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/price-publish-approvals/{id}/decision:
+    post:
+      tags: [Finance]
+      summary: Approve or reject a pending below-cost linked-price publish
+      description: The authenticated proposer is stored server-side and can never decide their own request.
+      x-surface: admin
+      x-permission: sell_below_cost.approve
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PricePublishDecisionInput" } } }
+      responses:
+        "201": { description: Decided approval request, content: { application/json: { schema: { $ref: "#/components/schemas/PricePublishApproval" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -2892,7 +3226,7 @@ paths:
       tags: [Finance]
       summary: List cash and bank accounts with ledger-derived balances
       x-surface: admin
-      x-permission: cash_accounts.manage
+      x-permission: cash_accounts.view
       responses:
         "200": { description: Accounts, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/CashAccount" } } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -2911,7 +3245,7 @@ paths:
       tags: [Finance]
       summary: Read a cash or bank account with its ledger-derived balance
       x-surface: admin
-      x-permission: cash_accounts.manage
+      x-permission: cash_accounts.view
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       responses:
         "200": { description: Cash account, content: { application/json: { schema: { $ref: "#/components/schemas/CashAccount" } } } }
@@ -2962,7 +3296,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
   /admin/cash-transfers:
     post:
       tags: [Finance]
@@ -2975,15 +3309,15 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
-        "422": { $ref: "#/components/responses/Validation" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
 
   /admin/financial-documents/{id}:
     get:
       tags: [Finance]
       summary: Read one posted financial document by id
-      description: Cash transfers and opening balances require either ledger.view or their own cash_accounts.manage permission.
+      description: Cash transfers and opening balances require either ledger.view or cash_accounts.view.
       x-surface: admin
-      x-permissions-any: [ledger.view, cash_accounts.manage]
+      x-permissions-any: [ledger.view, cash_accounts.view]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       responses:
         "200": { description: Posted financial document, content: { application/json: { schema: { $ref: "#/components/schemas/FinancialDocument" } } } }
@@ -3340,6 +3674,8 @@ components:
               - { $ref: "#/components/schemas/Error" }
               - { $ref: "#/components/schemas/PeriodClosedError" }
     Validation: { description: "Invalid request data (`VALIDATION_FAILED`, HTTP 422)", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    ExchangeRateValidation: { description: "Invalid request data (`VALIDATION_FAILED`) or no applicable currency rate (`EXCHANGE_RATE_NOT_FOUND`), HTTP 422", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    PricingRateValidation: { description: "Invalid request data (`VALIDATION_FAILED`) or no applicable linked-pricing rate (`PRICING_RATE_REQUIRED`), HTTP 422", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     RateLimited: { description: Too many requests (`RATE_LIMITED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Forbidden: { description: Missing permission (`FORBIDDEN`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
   schemas:
@@ -3378,6 +3714,18 @@ components:
         requested: { type: string, description: Exact requested quantity for an inventory conflict. }
         available: { type: string, description: Exact currently allocatable quantity for an inventory conflict. }
         variant_id: { type: string, format: uuid, description: SKU involved in an inventory conflict. }
+        product_id: { type: string, format: uuid }
+        sku: { type: string }
+        old_price: { type: number }
+        new_price: { type: number }
+        old_price_version: { type: string }
+        new_price_version: { type: string }
+        current_status: { $ref: "#/components/schemas/OrderStatus" }
+        current_version: { type: integer, minimum: 1 }
+        price: { type: number }
+        threshold_percent: { type: number }
+        cost: { type: number }
+        minimum_price: { type: number }
 
     Money:
       type: number
@@ -3680,6 +4028,7 @@ components:
         available_qty: { type: number, multipleOf: 0.001, description: "computed: on-hand minus active batch reservations and temporary COD holds" }
         published_at: { type: [string, "null"], format: date-time }
         price_approved_at: { type: [string, "null"], format: date-time }
+        price_proposed_by: { type: [string, "null"], format: uuid }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         images:
@@ -3718,6 +4067,7 @@ components:
         active immediately, a null end means it never expires.
       required: [category_id, name_en, name_ar, price, variants]
       properties:
+        below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
         category_id: { type: string, format: uuid }
         brand_id: { type: [string, "null"], format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
@@ -3751,6 +4101,7 @@ components:
       minProperties: 1
       description: All ProductInput fields are optional on PATCH. Omission preserves the stored value. Explicit null clears a nullable field; discount_type null clears discount_type, discount_value, discount_starts_at, and discount_ends_at together.
       properties:
+        below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
         category_id: { type: string, format: uuid }
         brand_id: { type: [string, "null"], format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
@@ -3913,6 +4264,7 @@ components:
         reference_price: { type: [number, "null"], multipleOf: 0.000001 }
         published_price: { type: [number, "null"], multipleOf: 1 }
         price_approved_at: { type: [string, "null"], format: date-time }
+        price_proposed_by: { type: [string, "null"], format: uuid }
         price_version_id: { type: [string, "null"], format: uuid }
         awaiting_rate_id: { type: [string, "null"], format: uuid }
         on_sale: { type: boolean }
@@ -3979,14 +4331,18 @@ components:
           type: array
           items:
             type: object
-            required: [id, product_id, variant_id, quantity, unit_price, line_total, currency, available, available_qty]
+            required: [id, product_id, variant_id, quantity, unit_price, price_version, current_unit_price, current_price_version, price_changed, line_total, currency, available, available_qty]
             properties:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
               variant_id: { type: string, format: uuid }
               quantity: { type: number, multipleOf: 0.001, minimum: 0.001, maximum: 99 }
-              unit_price: { $ref: "#/components/schemas/Money", description: "Current per-SKU effective price after conversion and product discount." }
-              line_total: { $ref: "#/components/schemas/Money" }
+              unit_price: { $ref: "#/components/schemas/Money", description: "Price the customer last saw for this line." }
+              price_version: { type: string, maxLength: 64 }
+              current_unit_price: { $ref: "#/components/schemas/Money" }
+              current_price_version: { type: string, maxLength: 64 }
+              price_changed: { type: boolean }
+              line_total: { $ref: "#/components/schemas/Money", description: "Line total at the price the customer saw." }
               currency: { type: string, pattern: '^[A-Z]{3}$' }
               available: { type: boolean, description: "False when the product is hidden/inactive or available_qty is below quantity. Checkout rejects unavailable lines." }
               available_qty: { type: number, multipleOf: 0.001, minimum: 0 }
@@ -4049,6 +4405,7 @@ components:
         image_url: { type: [string, "null"], format: uri, description: "Primary product image URL captured when the order is created." }
         quantity: { type: number, multipleOf: 0.001 }
         unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order." }
+        price_version: { type: string, maxLength: 64 }
         line_total: { $ref: "#/components/schemas/Money" }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         reviewed: { type: boolean, readOnly: true, description: True when the caller already has a product review for this order item. }
@@ -4059,6 +4416,7 @@ components:
         id: { type: string, format: uuid }
         order_number: { type: string }
         status: { $ref: "#/components/schemas/OrderStatus" }
+        version: { type: integer, minimum: 1, description: Required on every state-changing order request. }
         payment_method: { type: string, enum: [cod] }
         address_id: { type: [string, "null"], format: uuid, description: "Original address reference; null if that address was later deleted. Delivery snapshots remain unchanged." }
         delivery_id: { type: [string, "null"], format: uuid, description: Current delivery reachable by this order's owner. }
@@ -4076,6 +4434,39 @@ components:
         delivery_lat: { type: [number, "null"], format: double, description: Immutable checkout snapshot. }
         delivery_lng: { type: [number, "null"], format: double, description: Immutable checkout snapshot. }
         placed_at: { type: string, format: date-time }
+        acceptance_deadline: { type: [string, "null"], format: date-time }
+        auto_cancel_deadline: { type: [string, "null"], format: date-time }
+        late_for_acceptance: { type: boolean }
+        cancellation_request:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                status: { type: string, enum: [pending, approved, denied] }
+                reason: { type: [string, "null"] }
+                requested_at: { type: [string, "null"], format: date-time }
+                resolved_at: { type: [string, "null"], format: date-time }
+                resolution_note: { type: [string, "null"] }
+        price_change_info: { type: [object, "null"], additionalProperties: true }
+        inventory_attention_required: { type: boolean }
+        attention_details: { type: [object, "null"], additionalProperties: true }
+        timeline:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { $ref: "#/components/schemas/OrderStatus" }
+              note: { type: [string, "null"] }
+              at: { type: string, format: date-time }
+        retrievals:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              document_number: { type: string }
+              status: { type: string, enum: [open, partially_received, received, closed] }
+              outcome: { type: string, enum: [cancel, retry] }
         items:
           type: array
           items: { $ref: "#/components/schemas/OrderItem" }
@@ -4136,6 +4527,9 @@ components:
                 currency: { type: string, pattern: '^[A-Z]{3}$' }
                 dispatched_at: { type: [string, "null"], format: date-time }
                 delivered_at: { type: [string, "null"], format: date-time }
+                failure_reason: { type: [string, "null"], maxLength: 500 }
+                failed_at: { type: [string, "null"], format: date-time }
+                retry_count: { type: integer, minimum: 0 }
                 agent:
                   type: [object, "null"]
                   properties:
@@ -4545,8 +4939,8 @@ components:
             supplier_id: { type: string, format: uuid }
             cash_account_id: { type: string, format: uuid }
             currency_code: { type: string, enum: [IQD, USD] }
-            amount: { type: string }
-            exchange_rate: { type: string }
+            amount: { type: string, description: Total payment in the cash account currency. }
+            exchange_rate: { type: string, description: Explicit rate for the non-base currency; requires purchases.override_rate when it differs from the applicable rate or no applicable rate exists. }
             reference: { type: string }
             notes: { type: string }
             allocations:
@@ -4557,7 +4951,7 @@ components:
                 required: [invoice_id, amount]
                 properties:
                   invoice_id: { type: string, format: uuid }
-                  amount: { type: string }
+                  amount: { type: string, description: Amount allocated in the payment/cash account currency. }
 
     SupplierCreditAllocationInput:
       type: object
@@ -5126,15 +5520,25 @@ components:
         location_id: { type: string, format: uuid }
         quantity: { type: number, multipleOf: 0.001 }
         picked: { type: boolean }
+        product_name_ar: { type: string }
+        product_name_en: { type: string }
+        lot_number: { type: [string, "null"] }
+        expiry_date: { type: [string, "null"], format: date }
+        warehouse_code: { type: string }
+        warehouse_name: { type: string }
+        location_code: { type: string }
 
     PickList:
       type: object
       properties:
         id: { type: string, format: uuid }
         order_id: { type: string, format: uuid }
+        order_number: { type: string }
+        order_status: { $ref: "#/components/schemas/OrderStatus" }
         assigned_to: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [open, picking, picked, closed] }
         created_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
         items:
           type: array
           items: { $ref: "#/components/schemas/PickListItem" }
@@ -5205,15 +5609,60 @@ components:
 
     Delivery:
       type: object
+      required: [order_version]
       properties:
         id: { type: string, format: uuid }
         order_id: { type: string, format: uuid }
+        order_version: { type: integer, minimum: 1 }
         agent_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
         delivery_fee: { type: number }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         dispatched_at: { type: [string, "null"], format: date-time }
         delivered_at: { type: [string, "null"], format: date-time }
+        failure_reason: { type: [string, "null"], maxLength: 500 }
+        failed_at: { type: [string, "null"], format: date-time }
+        retry_count: { type: integer, minimum: 0 }
+
+    RetrievalLine:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        custody_holding_id: { type: string, format: uuid }
+        order_item_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        expected_quantity: { type: number, multipleOf: 0.001 }
+        received_quantity: { type: number, multipleOf: 0.001 }
+        unit_cost_iqd: { type: number }
+        location_id: { type: [string, "null"], format: uuid }
+        received_at: { type: [string, "null"], format: date-time }
+        order_item: { type: object, additionalProperties: true }
+        batch: { type: object, additionalProperties: true }
+        location: { type: [object, "null"], additionalProperties: true }
+
+    Retrieval:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        order_id: { type: string, format: uuid }
+        delivery_id: { type: string, format: uuid }
+        custody_party_id: { type: string, format: uuid }
+        status: { type: string, enum: [open, partially_received, received, closed] }
+        outcome: { type: string, enum: [cancel, retry] }
+        reason: { type: string }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        closed_by: { type: [string, "null"], format: uuid }
+        closed_at: { type: [string, "null"], format: date-time }
+        journal_entry_id: { type: [string, "null"], format: uuid }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/RetrievalLine" }
 
     DeliveryPage:
       allOf:
@@ -5262,7 +5711,7 @@ components:
       additionalProperties: false
       required: [type, channel, enabled]
       properties:
-        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, order_rejected, delivery_assigned] }
+        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, order_rejected, delivery_assigned, order_acceptance_late, retrieval_update] }
         channel: { type: string, enum: [push, sms] }
         enabled: { type: boolean }
 
@@ -5615,7 +6064,7 @@ components:
         currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         rate: { type: string, pattern: '^\d+(?:\.\d{1,10})?$' }
         basis: { type: integer, enum: [1, 100] }
-        effective_at: { type: string, format: date-time }
+        effective_at: { type: string, format: date-time, description: Exact instant from which the rate applies. }
         reason: { type: string, minLength: 3, maxLength: 500 }
 
     ExchangeRate:
@@ -5674,16 +6123,43 @@ components:
       required: [preview_token]
       properties:
         preview_token: { type: string, format: uuid }
+        below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
 
     LinkedPriceApplyResult:
       type: object
       additionalProperties: false
-      required: [mode, exchange_rate_id, price_version_id, linked_sku_count]
+      required: [mode, exchange_rate_id, price_version_id, approval_request_id, linked_sku_count]
       properties:
-        mode: { type: string, enum: [rate_only, published] }
-        exchange_rate_id: { type: string, format: uuid }
+        mode: { type: string, enum: [rate_only, published, pending_approval] }
+        exchange_rate_id: { type: [string, "null"], format: uuid }
         price_version_id: { type: [string, "null"], format: uuid }
+        approval_request_id: { type: [string, "null"], format: uuid }
         linked_sku_count: { type: integer, minimum: 0 }
+
+    PricePublishDecisionInput:
+      type: object
+      additionalProperties: false
+      required: [decision, reason]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    PricePublishApproval:
+      type: object
+      additionalProperties: false
+      required: [id, preview_id, price_version_id, status, proposed_by, decided_by, proposal_reason, decision_reason, breaches, created_at, decided_at]
+      properties:
+        id: { type: string, format: uuid }
+        preview_id: { type: [string, "null"], format: uuid }
+        price_version_id: { type: [string, "null"], format: uuid }
+        status: { type: string, enum: [pending, approved, rejected] }
+        proposed_by: { type: string, format: uuid }
+        decided_by: { type: [string, "null"], format: uuid }
+        proposal_reason: { type: string }
+        decision_reason: { type: [string, "null"] }
+        breaches: { type: array, items: { type: object, additionalProperties: true } }
+        created_at: { type: string, format: date-time }
+        decided_at: { type: [string, "null"], format: date-time }
 
     OperationOutcome:
       type: object
@@ -5931,7 +6407,11 @@ components:
       additionalProperties: false
       required: [settings, business_hours, closed_days, protection_thresholds]
       properties:
-        settings: { type: object, additionalProperties: { type: [string, "null"] } }
+        settings:
+          type: object
+          properties:
+            separation_of_duties_level: { type: [string, "null"], enum: [standard, strict, null], default: standard }
+          additionalProperties: { type: [string, "null"] }
         business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHours" } }
         closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDay" } }
         protection_thresholds: { $ref: "#/components/schemas/ProtectionThresholds" }
@@ -5940,7 +6420,11 @@ components:
       type: object
       additionalProperties: false
       properties:
-        settings: { type: object, additionalProperties: { type: [string, "null"] } }
+        settings:
+          type: object
+          properties:
+            separation_of_duties_level: { type: [string, "null"], enum: [standard, strict, null] }
+          additionalProperties: { type: [string, "null"] }
         business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHoursInput" } }
         closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDayInput" } }
         protection_thresholds: { $ref: "#/components/schemas/ProtectionThresholds" }

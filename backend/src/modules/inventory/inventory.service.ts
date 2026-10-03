@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   ConflictException,
   Injectable,
@@ -7,11 +7,19 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { businessDate } from '../finance/business-date';
+import { assertDifferentActor } from '../../common/access/separation-of-duties';
+import {
+  businessDate,
+  businessDateText,
+  parseBusinessDate,
+} from '../finance/business-date';
 import { DateRulesService } from '../finance/date-rules.service';
 import { DocumentNumberService } from '../finance/document-number.service';
 import { LedgerService } from '../finance/ledger.service';
 import { OperationService } from '../finance/operation.service';
+import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { assertOrderTransition } from '../orders/order-transition';
 import {
   ApproveCountDto,
   BalanceQueryDto,
@@ -26,6 +34,8 @@ import {
   PageDto,
   UpdateLocationDto,
   UpdateWarehouseDto,
+  CreateRetrievalDto,
+  ReceiveRetrievalDto,
 } from './dto/inventory.dto';
 
 type Tx = Prisma.TransactionClient;
@@ -42,6 +52,29 @@ type LockedBalance = {
   entry_date: Date;
 };
 
+const pickListInclude = {
+  order: { select: { order_number: true, status: true } },
+  items: {
+    include: {
+      order_item: {
+        select: { product_name_ar: true, product_name_en: true },
+      },
+      batch: { select: { lot_number: true, expiry_date: true } },
+      location: {
+        include: { warehouse: { select: { code: true, name: true } } },
+      },
+    },
+    orderBy: [
+      { location: { warehouse: { code: 'asc' as const } } },
+      { location: { code: 'asc' as const } },
+      { id: 'asc' as const },
+    ],
+  },
+} satisfies Prisma.PickListInclude;
+type PickListRow = Prisma.PickListGetPayload<{
+  include: typeof pickListInclude;
+}>;
+
 @Injectable()
 export class InventoryService {
   constructor(
@@ -50,6 +83,8 @@ export class InventoryService {
     private readonly dates: DateRulesService,
     private readonly numbers: DocumentNumberService,
     private readonly ledger: LedgerService,
+    private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   listWarehouses() {
@@ -386,7 +421,7 @@ export class InventoryService {
               variant_id: variant.id,
               lot_number: line.lot_number?.trim() ?? null,
               expiry_date: line.expiry_date
-                ? new Date(`${line.expiry_date}T00:00:00Z`)
+                ? parseBusinessDate(line.expiry_date)
                 : null,
               purchase_cost: line.unit_cost_iqd,
               landed_cost_share: line.landed_cost_share ?? '0',
@@ -409,7 +444,7 @@ export class InventoryService {
               unit_cost_iqd: line.unit_cost_iqd,
               landed_cost_share: line.landed_cost_share ?? '0',
               expiry_date: line.expiry_date
-                ? new Date(`${line.expiry_date}T00:00:00Z`)
+                ? parseBusinessDate(line.expiry_date)
                 : null,
             },
           });
@@ -455,7 +490,7 @@ export class InventoryService {
       responseStatus: 201,
       work: async (tx) => {
         const id = randomUUID();
-        const date = new Date(`${input.document_date}T00:00:00Z`);
+        const date = parseBusinessDate(input.document_date);
         const documentNumber = await this.numbers.issue(
           tx,
           'stock_transfer',
@@ -643,6 +678,11 @@ export class InventoryService {
         if (!count) throw new NotFoundException('Stock count not found');
         if (count.status !== 'draft')
           throw new ConflictException('Stock count is already approved');
+        assertDifferentActor(
+          actorId,
+          count.created_by,
+          'The stock-count creator cannot approve their own count',
+        );
         const changed = await tx.stockMovement.count({
           where: {
             created_at: { gt: count.snapshot_at },
@@ -1015,14 +1055,33 @@ export class InventoryService {
     };
   }
 
-  async allocateOrder(tx: Tx, orderId: string, actorId?: string) {
+  async allocateOrder(
+    tx: Tx,
+    orderId: string,
+    actorId?: string,
+    allowShort = false,
+  ) {
     const order = await tx.order.findUnique({
       where: { id: orderId },
       include: { items: true },
     });
     if (!order) throw new NotFoundException('Order not found');
+    const today = businessDate();
+    const shortages: Array<{
+      order_item_id: string;
+      variant_id: string;
+      requested: string;
+      allocated: string;
+      short: string;
+    }> = [];
     for (const item of order.items) {
-      let remaining = D(item.quantity);
+      const existing = await tx.stockReservation.aggregate({
+        where: { order_item_id: item.id, status: 'reserved' },
+        _sum: { quantity: true },
+      });
+      const alreadyAllocated = D(existing._sum.quantity ?? 0);
+      let remaining = D(item.quantity).minus(alreadyAllocated);
+      if (!remaining.gt(0)) continue;
       const rows = await tx.$queryRaw<LockedBalance[]>(Prisma.sql`
         SELECT s.batch_id, s.location_id, s.quantity, s.reserved,
                b.variant_id, b.expiry_date, b.entry_date
@@ -1032,7 +1091,7 @@ export class InventoryService {
         JOIN warehouses w ON w.id = l.warehouse_id
         WHERE b.variant_id = ${item.variant_id}::uuid
           AND s.quantity > s.reserved AND l.is_active AND l.is_sellable AND w.is_active
-          AND (b.expiry_date IS NULL OR b.expiry_date >= CURRENT_DATE)
+          AND (b.expiry_date IS NULL OR b.expiry_date >= ${today})
         ORDER BY b.expiry_date ASC NULLS LAST, b.entry_date ASC, b.id ASC, l.id ASC
         FOR UPDATE OF s
       `);
@@ -1041,20 +1100,28 @@ export class InventoryService {
         D(0),
       );
       if (available.lt(remaining)) {
-        throw new ConflictException({
-          status: 409,
-          code: 'INSUFFICIENT_STOCK',
-          message: 'Requested quantity exceeds available stock',
-          errors: [
-            {
-              field: 'quantity',
-              code: 'INSUFFICIENT_STOCK',
-              message: 'Requested quantity exceeds available stock',
-              requested: remaining.toString(),
-              available: available.toString(),
-              variant_id: item.variant_id,
-            },
-          ],
+        if (!allowShort)
+          throw new ConflictException({
+            status: 409,
+            code: 'INSUFFICIENT_STOCK',
+            message: 'Requested quantity exceeds available stock',
+            errors: [
+              {
+                field: 'quantity',
+                code: 'INSUFFICIENT_STOCK',
+                message: 'Requested quantity exceeds available stock',
+                requested: remaining.toString(),
+                available: available.toString(),
+                variant_id: item.variant_id,
+              },
+            ],
+          });
+        shortages.push({
+          order_item_id: item.id,
+          variant_id: item.variant_id,
+          requested: D(item.quantity).toString(),
+          allocated: alreadyAllocated.plus(available).toString(),
+          short: remaining.minus(available).toString(),
         });
       }
       for (const row of rows) {
@@ -1096,6 +1163,220 @@ export class InventoryService {
         });
         remaining = remaining.minus(quantity);
       }
+    }
+    return shortages;
+  }
+
+  async prepareOrder(tx: Tx, orderId: string, actorId: string) {
+    const reservations = await tx.stockReservation.findMany({
+      where: { order_id: orderId, status: 'reserved' },
+      include: {
+        batch: true,
+        location: { include: { warehouse: true } },
+      },
+      orderBy: { id: 'asc' },
+    });
+    const today = businessDate();
+    for (const row of reservations) {
+      const expired = row.batch.expiry_date
+        ? row.batch.expiry_date < today
+        : false;
+      if (
+        expired ||
+        !row.location.is_active ||
+        !row.location.is_sellable ||
+        !row.location.warehouse.is_active
+      ) {
+        await this.releaseReservation(tx, row, actorId, 'preparation_recheck');
+      }
+    }
+    const shortages = await this.allocateOrder(tx, orderId, actorId, true);
+    const active = await tx.stockReservation.findMany({
+      where: { order_id: orderId, status: 'reserved' },
+      include: {
+        batch: true,
+        location: { include: { warehouse: true } },
+      },
+      orderBy: [
+        { location: { warehouse: { code: 'asc' } } },
+        { location: { code: 'asc' } },
+        { batch: { expiry_date: 'asc' } },
+        { id: 'asc' },
+      ],
+    });
+    const pickList = await tx.pickList.upsert({
+      where: { order_id: orderId },
+      create: { order_id: orderId, assigned_to: actorId, status: 'open' },
+      update: {
+        assigned_to: actorId,
+        status: 'open',
+        completed_at: null,
+        items: { deleteMany: {} },
+      },
+    });
+    if (active.length) {
+      await tx.pickListItem.createMany({
+        data: active.map((row) => ({
+          pick_list_id: pickList.id,
+          order_item_id: row.order_item_id,
+          batch_id: row.batch_id,
+          location_id: row.location_id,
+          quantity: row.quantity,
+        })),
+      });
+    }
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        inventory_attention_required: shortages.length > 0,
+        attention_details: shortages.length
+          ? { short_lines: shortages }
+          : Prisma.DbNull,
+      },
+    });
+    return { pick_list_id: pickList.id, shortages };
+  }
+
+  async getOrderPickList(orderId: string) {
+    const row = await this.prisma.pickList.findUnique({
+      where: { order_id: orderId },
+      include: pickListInclude,
+    });
+    if (!row) throw new NotFoundException('Pick list not found');
+    return this.presentPickList(row);
+  }
+
+  async printablePickLists(orderIds: string[]) {
+    const ids = [...new Set(orderIds)];
+    if (!ids.length)
+      throw new UnprocessableEntityException('order_ids is required');
+    const rows = await this.prisma.pickList.findMany({
+      where: { order_id: { in: ids } },
+      include: pickListInclude,
+      orderBy: { order: { order_number: 'asc' } },
+    });
+    return {
+      generated_at: new Date(),
+      data: rows.map((row) => this.presentPickList(row)),
+    };
+  }
+
+  private presentPickList(row: PickListRow) {
+    return {
+      id: row.id,
+      order_id: row.order_id,
+      order_number: row.order.order_number,
+      order_status: row.order.status,
+      assigned_to: row.assigned_to,
+      status: row.status,
+      created_at: row.created_at,
+      completed_at: row.completed_at,
+      items: row.items.map((item) => ({
+        id: item.id,
+        order_item_id: item.order_item_id,
+        product_name_ar: item.order_item?.product_name_ar ?? '',
+        product_name_en: item.order_item?.product_name_en ?? '',
+        batch_id: item.batch_id,
+        lot_number: item.batch.lot_number,
+        expiry_date: item.batch.expiry_date,
+        location_id: item.location_id,
+        warehouse_code: item.location.warehouse.code,
+        warehouse_name: item.location.warehouse.name,
+        location_code: item.location.code,
+        quantity: Number(item.quantity),
+        picked: item.picked,
+      })),
+    };
+  }
+
+  private async releaseReservation(
+    tx: Tx,
+    row: {
+      id: string;
+      batch_id: string;
+      location_id: string;
+      quantity: Prisma.Decimal;
+    },
+    actorId: string,
+    reason: string,
+  ) {
+    await this.lockBalance(tx, row.batch_id, row.location_id);
+    const changed = await tx.stockReservation.updateMany({
+      where: { id: row.id, status: 'reserved' },
+      data: { status: 'released', released_at: new Date() },
+    });
+    if (!changed.count) return;
+    await tx.batchStock.update({
+      where: {
+        batch_id_location_id: {
+          batch_id: row.batch_id,
+          location_id: row.location_id,
+        },
+      },
+      data: { reserved: { decrement: row.quantity } },
+    });
+    await tx.stockMovement.create({
+      data: {
+        batch_id: row.batch_id,
+        type: 'release',
+        from_location: row.location_id,
+        to_location: row.location_id,
+        quantity: row.quantity,
+        reference: reason,
+        source_type: 'stock_reservation',
+        source_id: row.id,
+        user_id: actorId,
+      },
+    });
+  }
+
+  async reduceOrderItemReservations(
+    tx: Tx,
+    orderItemId: string,
+    targetQuantity: Prisma.Decimal,
+    actorId: string,
+  ) {
+    const rows = await tx.stockReservation.findMany({
+      where: { order_item_id: orderItemId, status: 'reserved' },
+      orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+    });
+    const total = rows.reduce((sum, row) => sum.plus(row.quantity), D(0));
+    let excess = total.minus(targetQuantity);
+    for (const row of rows) {
+      if (!excess.gt(0)) break;
+      const amount = Prisma.Decimal.min(excess, row.quantity);
+      if (amount.eq(row.quantity)) {
+        await this.releaseReservation(tx, row, actorId, 'order_line_reduction');
+      } else {
+        await this.lockBalance(tx, row.batch_id, row.location_id);
+        await tx.stockReservation.update({
+          where: { id: row.id },
+          data: { quantity: { decrement: amount } },
+        });
+        await tx.batchStock.update({
+          where: {
+            batch_id_location_id: {
+              batch_id: row.batch_id,
+              location_id: row.location_id,
+            },
+          },
+          data: { reserved: { decrement: amount } },
+        });
+        await tx.stockMovement.create({
+          data: {
+            batch_id: row.batch_id,
+            type: 'release',
+            from_location: row.location_id,
+            to_location: row.location_id,
+            quantity: amount,
+            reference: 'order_line_reduction',
+            source_type: 'stock_reservation',
+            source_id: row.id,
+            user_id: actorId,
+          },
+        });
+      }
+      excess = excess.minus(amount);
     }
   }
 
@@ -1183,6 +1464,7 @@ export class InventoryService {
           custody_party_id: partyId,
           batch_id: row.batch_id,
           quantity: row.quantity,
+          remaining_quantity: row.quantity,
           unit_cost_iqd: cost,
         },
       });
@@ -1224,7 +1506,11 @@ export class InventoryService {
   async settleCustodyToSold(tx: Tx, orderId: string, actorId: string) {
     const postingDate = businessDate();
     const holdings = await tx.custodyHolding.findMany({
-      where: { order_id: orderId, status: 'in_custody' },
+      where: {
+        order_id: orderId,
+        status: 'in_custody',
+        remaining_quantity: { gt: 0 },
+      },
       orderBy: { id: 'asc' },
     });
     if (!holdings.length) return;
@@ -1232,7 +1518,11 @@ export class InventoryService {
     for (const row of holdings) {
       await tx.custodyHolding.update({
         where: { id: row.id },
-        data: { status: 'sold', settled_at: new Date() },
+        data: {
+          status: 'sold',
+          remaining_quantity: 0,
+          settled_at: new Date(),
+        },
       });
       await tx.stockMovement.create({
         data: {
@@ -1260,6 +1550,363 @@ export class InventoryService {
         description: 'Delivered inventory cost of goods sold',
         lines: this.posting('5000', '1010', total),
       });
+  }
+
+  createRetrieval(
+    actorId: string,
+    orderId: string,
+    input: CreateRetrievalDto,
+    canViewCost = false,
+  ) {
+    return this.operations.execute({
+      userId: actorId,
+      operationId: input.operation_id,
+      endpoint: `POST /admin/orders/${orderId}/retrievals`,
+      payload: input,
+      responseStatus: 201,
+      work: async (tx) => {
+        const row = await this.openRetrieval(
+          tx,
+          orderId,
+          actorId,
+          input.outcome,
+          input.reason,
+          input.operation_id,
+        );
+        return this.getRetrievalTx(tx, row.id, canViewCost);
+      },
+    });
+  }
+
+  async openRetrieval(
+    tx: Tx,
+    orderId: string,
+    actorId: string,
+    outcome: 'cancel' | 'retry',
+    reason: string,
+    operationId: string,
+  ) {
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId}::uuid FOR UPDATE`;
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { delivery: true },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    if (outcome === 'retry' && order.status !== 'failed')
+      throw new ConflictException(
+        'Only a failed order can be retrieved for retry',
+      );
+    if (outcome === 'cancel' && order.status !== 'cancelled')
+      throw new ConflictException(
+        'Cancellation retrieval requires a cancelled order',
+      );
+    if (!order.delivery || !order.delivery.agent_id)
+      throw new ConflictException('Order has no delivery custody party');
+    const existing = await tx.retrieval.findFirst({
+      where: { order_id: orderId, status: { not: 'closed' } },
+    });
+    if (existing)
+      throw new ConflictException('An open retrieval already exists');
+    const holdings = await tx.custodyHolding.findMany({
+      where: {
+        order_id: orderId,
+        status: 'in_custody',
+        remaining_quantity: { gt: 0 },
+      },
+      include: { batch: true },
+      orderBy: { id: 'asc' },
+    });
+    if (!holdings.length)
+      throw new ConflictException('Order has no goods remaining in custody');
+    const date = businessDate();
+    const number = await this.numbers.issue(tx, 'retrieval', 'RET', date);
+    const retrieval = await tx.retrieval.create({
+      data: {
+        document_number: number,
+        operation_id: operationId,
+        order_id: orderId,
+        delivery_id: order.delivery.id,
+        custody_party_id: order.delivery.agent_id,
+        outcome,
+        reason: reason.trim(),
+        document_date: date,
+        accounting_date: date,
+        created_by: actorId,
+        lines: {
+          create: holdings.map((holding) => ({
+            custody_holding_id: holding.id,
+            order_item_id: holding.order_item_id,
+            variant_id: holding.batch.variant_id,
+            batch_id: holding.batch_id,
+            expected_quantity: holding.remaining_quantity,
+            unit_cost_iqd: holding.unit_cost_iqd,
+          })),
+        },
+      },
+    });
+    await this.audit.record(tx, {
+      actorId,
+      action: 'retrieval.open',
+      entityType: 'retrieval',
+      entityId: retrieval.id,
+      after: { order_id: orderId, outcome, reason },
+    });
+    await this.notifications.recordStaffWithPermission(
+      tx,
+      'retrieval.view',
+      'retrieval_update',
+      'retrieval',
+      retrieval.id,
+      'opened',
+    );
+    return retrieval;
+  }
+
+  getRetrieval(id: string, canViewCost = false) {
+    return this.getRetrievalTx(this.prisma, id, canViewCost);
+  }
+
+  receiveRetrieval(
+    actorId: string,
+    id: string,
+    input: ReceiveRetrievalDto,
+    canViewCost = false,
+  ) {
+    if (!input.lines.length)
+      throw new UnprocessableEntityException('At least one line is required');
+    if (
+      new Set(input.lines.map((line) => line.line_id)).size !==
+      input.lines.length
+    )
+      throw new UnprocessableEntityException('Retrieval lines must not repeat');
+    return this.operations.execute({
+      userId: actorId,
+      operationId: input.operation_id,
+      endpoint: `POST /admin/retrievals/${id}/receive`,
+      payload: input,
+      work: async (tx) => {
+        await tx.$queryRaw`SELECT id FROM retrievals WHERE id = ${id}::uuid FOR UPDATE`;
+        const retrieval = await tx.retrieval.findUnique({
+          where: { id },
+          include: { order: true, lines: true },
+        });
+        if (!retrieval) throw new NotFoundException('Retrieval not found');
+        if (retrieval.status === 'closed')
+          throw new ConflictException('Retrieval is already closed');
+        let total = D(0);
+        for (const supplied of input.lines) {
+          const line = retrieval.lines.find(
+            (entry) => entry.id === supplied.line_id,
+          );
+          if (!line) throw new NotFoundException('Retrieval line not found');
+          const quantity = this.positive(supplied.quantity, 'quantity');
+          const outstanding = line.expected_quantity.minus(
+            line.received_quantity,
+          );
+          if (quantity.gt(outstanding))
+            throw new ConflictException(
+              'Received quantity exceeds retrieval balance',
+            );
+          const location = await tx.warehouseLocation.findUnique({
+            where: { id: supplied.location_id },
+            include: { warehouse: true },
+          });
+          if (!location?.is_active || !location.warehouse.is_active)
+            throw new ConflictException(
+              'Chosen retrieval location is inactive',
+            );
+          await tx.$queryRaw`SELECT id FROM custody_holdings WHERE id = ${line.custody_holding_id}::uuid FOR UPDATE`;
+          const holding = await tx.custodyHolding.findUniqueOrThrow({
+            where: { id: line.custody_holding_id },
+          });
+          if (quantity.gt(holding.remaining_quantity))
+            throw new ConflictException('Retrieval exceeds goods in custody');
+          await this.lockBalance(tx, line.batch_id, supplied.location_id);
+          await tx.batchStock.upsert({
+            where: {
+              batch_id_location_id: {
+                batch_id: line.batch_id,
+                location_id: supplied.location_id,
+              },
+            },
+            create: {
+              batch_id: line.batch_id,
+              location_id: supplied.location_id,
+              quantity,
+              reserved: retrieval.outcome === 'retry' ? quantity : 0,
+            },
+            update: {
+              quantity: { increment: quantity },
+              ...(retrieval.outcome === 'retry'
+                ? { reserved: { increment: quantity } }
+                : {}),
+            },
+          });
+          if (retrieval.outcome === 'retry') {
+            await tx.stockReservation.create({
+              data: {
+                order_id: retrieval.order_id,
+                order_item_id: line.order_item_id,
+                batch_id: line.batch_id,
+                location_id: supplied.location_id,
+                quantity,
+              },
+            });
+          }
+          const nextRemaining = holding.remaining_quantity.minus(quantity);
+          await tx.custodyHolding.update({
+            where: { id: holding.id },
+            data: {
+              remaining_quantity: nextRemaining,
+              ...(nextRemaining.isZero()
+                ? { status: 'returned', settled_at: new Date() }
+                : {}),
+            },
+          });
+          await tx.retrievalLine.update({
+            where: { id: line.id },
+            data: {
+              received_quantity: { increment: quantity },
+              location_id: supplied.location_id,
+              received_at: new Date(),
+            },
+          });
+          await tx.stockMovement.create({
+            data: {
+              batch_id: line.batch_id,
+              type: 'return_in',
+              to_location: supplied.location_id,
+              quantity,
+              unit_cost_iqd: line.unit_cost_iqd,
+              reference: retrieval.document_number,
+              source_type: 'retrieval',
+              source_id: retrieval.id,
+              custody_party_id: retrieval.custody_party_id,
+              user_id: actorId,
+            },
+          });
+          await this.addValue(
+            tx,
+            line.variant_id,
+            quantity,
+            line.unit_cost_iqd,
+          );
+          total = total.plus(quantity.times(line.unit_cost_iqd));
+        }
+        const postingDate = businessDate();
+        const entry = await this.ledger.post(tx, {
+          sourceType: 'retrieval',
+          sourceId: id,
+          event: `receive:${createHash('sha256').update(input.operation_id).digest('hex').slice(0, 32)}`,
+          documentDate: postingDate,
+          accountingDate: postingDate,
+          createdBy: actorId,
+          description:
+            'Goods returned from delivery custody at original issue cost',
+          lines: this.posting('1000', '1010', total),
+        });
+        const remaining = await tx.retrievalLine.aggregate({
+          where: { retrieval_id: id },
+          _sum: { expected_quantity: true, received_quantity: true },
+        });
+        const complete = D(remaining._sum.expected_quantity ?? 0).eq(
+          D(remaining._sum.received_quantity ?? 0),
+        );
+        await tx.retrieval.update({
+          where: { id },
+          data: {
+            status: complete ? 'closed' : 'partially_received',
+            journal_entry_id: retrieval.journal_entry_id ?? entry.id,
+            ...(complete ? { closed_by: actorId, closed_at: new Date() } : {}),
+          },
+        });
+        if (complete && retrieval.outcome === 'retry') {
+          assertOrderTransition(
+            retrieval.order.status,
+            'ready_for_dispatch',
+            retrieval.order.version,
+            retrieval.order.version,
+          );
+          const delivery = await tx.delivery.create({
+            data: {
+              order_id: retrieval.order_id,
+              status: 'assigned',
+              delivery_fee: retrieval.order.delivery_fee,
+            },
+          });
+          await tx.order.update({
+            where: { id: retrieval.order_id },
+            data: {
+              status: 'ready_for_dispatch',
+              version: { increment: 1 },
+              delivery_id: delivery.id,
+            },
+          });
+          await tx.orderStatusEvent.create({
+            data: {
+              order_id: retrieval.order_id,
+              status: 'ready_for_dispatch',
+              note: `Retrieval ${retrieval.document_number} closed for retry`,
+            },
+          });
+        }
+        await this.audit.record(tx, {
+          actorId,
+          action: complete ? 'retrieval.close' : 'retrieval.receive',
+          entityType: 'retrieval',
+          entityId: id,
+          before: { status: retrieval.status },
+          after: { status: complete ? 'closed' : 'partially_received' },
+        });
+        await this.notifications.recordStaffWithPermission(
+          tx,
+          'retrieval.view',
+          'retrieval_update',
+          'retrieval',
+          id,
+          complete ? 'closed' : 'partially received',
+        );
+        return this.getRetrievalTx(tx, id, canViewCost);
+      },
+    });
+  }
+
+  private async getRetrievalTx(
+    tx: Tx | PrismaService,
+    id: string,
+    canViewCost: boolean,
+  ) {
+    const row = await tx.retrieval.findUnique({
+      where: { id },
+      include: {
+        lines: {
+          include: {
+            order_item: {
+              select: { product_name_en: true, product_name_ar: true },
+            },
+            batch: { select: { lot_number: true } },
+            location: { select: { code: true, warehouse_id: true } },
+          },
+          orderBy: { id: 'asc' },
+        },
+      },
+    });
+    if (!row) throw new NotFoundException('Retrieval not found');
+    return {
+      ...row,
+      document_date: businessDateText(row.document_date),
+      accounting_date: businessDateText(row.accounting_date),
+      lines: row.lines.map((source) => {
+        const { retrieval_id, unit_cost_iqd, ...line } = source;
+        void retrieval_id;
+        return {
+          ...line,
+          expected_quantity: Number(line.expected_quantity),
+          received_quantity: Number(line.received_quantity),
+          ...(canViewCost ? { unit_cost_iqd: Number(unit_cost_iqd) } : {}),
+        };
+      }),
+    };
   }
 
   async returnToStock(

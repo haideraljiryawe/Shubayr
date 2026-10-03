@@ -114,7 +114,7 @@ export function SupplierDetail({
           today={today}
           windowDays={windowDays}
           canBackdate={can("backdate.approve")}
-          canReadRate={can("ledger.view")}
+          canReadRate={can("fx_rates.view")}
           onPosted={() => router.refresh()}
         />
       ) : null}

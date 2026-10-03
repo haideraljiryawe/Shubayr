@@ -36,6 +36,46 @@ void main() {
   tearDown(() => container.dispose());
 
   test(
+    'failure requires reason and retry sends the updated server version',
+    () async {
+      await container.read(deliveriesProvider.future);
+      final item = list().items.firstWhere(
+        (item) => item.status == 'out_for_delivery',
+      );
+      for (final reason in [null, '  ', 'x' * 501]) {
+        await expectLater(
+          controller().updateStatus(item.id, 'failed', reason: reason),
+          throwsA(isA<AppFailure>()),
+        );
+      }
+      expect(repo.updates, isEmpty);
+      expect(
+        await controller().updateStatus(
+          item.id,
+          'failed',
+          reason: ' No answer ',
+        ),
+        isTrue,
+      );
+      expect(repo.versions.single, item.orderVersion);
+      expect(repo.reasons.single, 'No answer');
+      final failed = list().items.firstWhere((d) => d.id == item.id);
+      expect(failed.failureReason, 'No answer');
+      expect(failed.failedAt, isNotNull);
+      expect(
+        await controller().updateStatus(item.id, 'out_for_delivery'),
+        isTrue,
+      );
+      expect(repo.versions.last, failed.orderVersion);
+      expect(repo.reasons.last, isNull);
+      final retried = list().items.firstWhere((d) => d.id == item.id);
+      expect(retried.retryCount, 1);
+      expect(retried.failureReason, isNull);
+      expect(retried.failedAt, failed.failedAt);
+    },
+  );
+
+  test(
     'filter is applied to every page and resets for a different agent',
     () async {
       repo.onFetch = (r) async => deliveryPage(r);
@@ -143,7 +183,7 @@ void main() {
   );
 
   test(
-    'delivered can become returned; failed and returned never write',
+    'delivered can become returned; failed can retry; returned is terminal',
     () async {
       await container.read(deliveriesProvider.future);
       final delivered = list().items.firstWhere(
@@ -151,13 +191,17 @@ void main() {
       );
       expect(await controller().updateStatus(delivered.id, 'returned'), isTrue);
       final failed = list().items.firstWhere((item) => item.status == 'failed');
-      for (final id in [delivered.id, failed.id]) {
+      expect(
+        await controller().updateStatus(failed.id, 'out_for_delivery'),
+        isTrue,
+      );
+      for (final id in [delivered.id]) {
         await expectLater(
           controller().updateStatus(id, 'out_for_delivery'),
           throwsA(isA<AppFailure>()),
         );
       }
-      expect(repo.updates, hasLength(1));
+      expect(repo.updates, hasLength(2));
     },
   );
 

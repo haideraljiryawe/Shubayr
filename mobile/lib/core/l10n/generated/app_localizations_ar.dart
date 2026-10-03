@@ -686,7 +686,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get returnDecrease => 'تقليل كمية الإرجاع';
 
   @override
-  String get returnReason => 'سبب الإرجاع (اختياري)';
+  String get returnReason => 'سبب إرجاع جميع العناصر المحددة (مطلوب)';
 
   @override
   String get returnSubmit => 'إرسال طلب الإرجاع';
@@ -1757,4 +1757,28 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get quantityWholeInvalid => 'أدخل كمية صحيحة ضمن الحدود.';
+
+  @override
+  String get checkoutPricesChanged => 'تغيّرت الأسعار';
+
+  @override
+  String get checkoutPricesChangedMessage =>
+      'راجع أسعار الوحدات الجديدة قبل تأكيد الطلب. سيحسب الخادم الإجمالي النهائي.';
+
+  @override
+  String get checkoutAcceptPrices => 'قبول الأسعار وتأكيد الطلب';
+
+  @override
+  String get cartPricesChanged =>
+      'تغيّرت بعض الأسعار. ستُطلب منك مراجعتها وقبولها عند تأكيد الطلب.';
+
+  @override
+  String get deliveryFailureReason => 'سبب تعذّر التوصيل';
+
+  @override
+  String get deliveryRetryCount => 'عدد محاولات الإعادة';
+
+  @override
+  String get orderStateConflict =>
+      'تغيّر الطلب أو لم يعد إلغاؤه متاحًا. راجع حالته الحالية.';
 }

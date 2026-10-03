@@ -8,6 +8,7 @@ import {
 } from "@/lib/finance/operations";
 import { documentHref, entryHref, sourceDocumentHref } from "@/lib/finance/links";
 import { periodRows, recentMonths, type AccountingPeriod } from "@/lib/finance/periods";
+import { exchangeRateCutoff } from "@/lib/finance/dates";
 import {
   buildPatch,
   isEmptyPatch,
@@ -29,6 +30,7 @@ const SETTINGS: AdminSettings = {
     default_low_stock_threshold: "5",
     backdating_window_days: "90",
     markup_alert_percent: null,
+    separation_of_duties_level: "standard",
   },
   business_hours: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
     weekday,
@@ -41,6 +43,23 @@ const SETTINGS: AdminSettings = {
   // Contract 8.1: plain JSON numbers.
   protection_thresholds: { cost: 50, price: 50, quantity: 50, exchange_rate: 12.5 },
 };
+
+describe("exchange-rate cutoff", () => {
+  const postedAt = new Date("2026-10-03T11:05:00.000Z");
+
+  it("uses the posting instant for the current Baghdad date", () => {
+    expect(exchangeRateCutoff("2026-10-03", postedAt)).toBe(postedAt.toISOString());
+  });
+
+  it("uses a back-dated Baghdad day's close", () => {
+    expect(exchangeRateCutoff("2026-10-02", postedAt)).toBe("2026-10-02T20:59:59.999Z");
+  });
+
+  it("caps future documents at the posting instant and rejects invalid dates", () => {
+    expect(exchangeRateCutoff("2026-10-04", postedAt)).toBe(postedAt.toISOString());
+    expect(exchangeRateCutoff("2026-02-30", postedAt)).toBeNull();
+  });
+});
 
 describe("settings form", () => {
   it("reads the API shape, thresholds included", () => {
@@ -139,9 +158,14 @@ describe("settings form", () => {
     expect(isEmptyPatch(buildPatch(before, after))).toBe(true);
     after.numbers.delivery_fee = "٦٠٠٠";
     after.autoCancel = true;
+    after.separationOfDutiesLevel = "strict";
     after.thresholds.cost = "25";
     expect(buildPatch(before, after)).toEqual({
-      settings: { delivery_fee: "6000", auto_cancel_enabled: "true" },
+      settings: {
+        delivery_fee: "6000",
+        auto_cancel_enabled: "true",
+        separation_of_duties_level: "strict",
+      },
       protection_thresholds: { cost: 25 },
     });
     after.closedDays = [{ date: "2026-10-03", reason: " Holiday " }];

@@ -182,6 +182,13 @@ jobs:
         with: { node-version: '20' }
       - name: Install & build
         working-directory: web
+        env:
+          # A production build refuses to run without these (no localhost
+          # fallback). The catalog is mocked so the production checks below
+          # are hermetic; the image job builds against a real API URL.
+          NEXT_PUBLIC_API_URL: https://api.example.test/api/v1
+          NEXT_PUBLIC_SITE_URL: http://localhost:3102
+          NEXT_PUBLIC_USE_MOCKS: "true"
         run: |
           npm ci
           npm run lint --if-present
@@ -192,6 +199,18 @@ jobs:
         run: |
           npm run gen:api
           git diff --exit-code -- src/types/api.d.ts
+      - name: Install Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Production checks (headers, CSP, SEO, structured data, 404)
+        working-directory: web
+        run: npm run test:prod
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: web-prod-playwright
+          path: web/test-results
+          if-no-files-found: ignore
 
   admin:
     name: Web Admin (Next.js)
@@ -311,6 +330,65 @@ jobs:
           name: admin-playwright
           path: admin/test-results
           if-no-files-found: ignore
+
+  images:
+    name: Production images
+    runs-on: ubuntu-latest
+    needs: detect
+    if: ${{ needs.detect.outputs.web == 'true' && needs.detect.outputs.admin == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the web store image
+        run: |
+          docker build --tag shubayr-web:ci \
+            --build-arg NEXT_PUBLIC_API_URL=https://api.example.test/api/v1 \
+            --build-arg NEXT_PUBLIC_SITE_URL=https://shop.example.test \
+            web
+      - name: Build the Web Admin image
+        run: docker build --file admin/Dockerfile --target production --tag shubayr-admin:ci .
+      - name: The web image refuses a build without its public URLs
+        run: |
+          if docker build --target build web > /tmp/refused.log 2>&1; then
+            echo "A web build without NEXT_PUBLIC_API_URL/NEXT_PUBLIC_SITE_URL succeeded"; exit 1
+          fi
+          grep -q "A production build needs" /tmp/refused.log
+      - name: Run both images; they become healthy as a non-root user
+        run: |
+          docker run --detach --name web -p 3000:3000 shubayr-web:ci
+          docker run --detach --name admin -p 3200:3200 \
+            -e API_URL=https://api.example.test/api/v1 \
+            -e ADMIN_ORIGIN=https://admin.example.test shubayr-admin:ci
+          for name in web admin; do
+            for attempt in $(seq 1 40); do
+              status="$(docker inspect --format '{{.State.Health.Status}}' "$name")"
+              [ "$status" = "healthy" ] && break
+              sleep 3
+            done
+            echo "$name: $status"
+            [ "$status" = "healthy" ] || { docker logs "$name"; exit 1; }
+            [ "$(docker exec "$name" id -u)" != "0" ] || { echo "$name runs as root"; exit 1; }
+          done
+      - name: The images serve the hardened headers
+        run: |
+          curl --silent --show-error --fail --dump-header /tmp/web.h --output /dev/null http://localhost:3000/robots.txt
+          curl --silent --show-error --dump-header /tmp/web-page.h --output /dev/null http://localhost:3000/
+          curl --silent --show-error --fail --dump-header /tmp/admin.h --output /dev/null http://localhost:3200/login
+          cat /tmp/web-page.h /tmp/admin.h
+          grep -qi "^strict-transport-security: max-age" /tmp/web-page.h
+          grep -qi "^content-security-policy: .*'nonce-" /tmp/web-page.h
+          grep -qi "^x-content-type-options: nosniff" /tmp/web-page.h
+          grep -qi "^content-security-policy: .*frame-ancestors 'none'" /tmp/admin.h
+          grep -qi "^x-robots-tag: noindex, nofollow" /tmp/admin.h
+          grep -qi "^strict-transport-security: max-age" /tmp/admin.h
+          curl --silent --fail http://localhost:3000/robots.txt | grep -q "Sitemap: https://shop.example.test/sitemap.xml"
+      - name: The admin image refuses to start without its settings
+        run: |
+          docker run --name admin-unset shubayr-admin:ci > /tmp/unset.log 2>&1 || true
+          [ "$(docker inspect --format '{{.State.ExitCode}}' admin-unset)" = "1" ]
+          grep -q "API_URL is not set" /tmp/unset.log
+      - name: Container logs
+        if: failure()
+        run: docker logs web; docker logs admin
 
   mobile:
     name: Mobile (Flutter)

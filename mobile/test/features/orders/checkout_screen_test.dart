@@ -57,9 +57,16 @@ class _FakeOrders implements OrderRepository {
   Future<Order> placeOrder({
     required String addressId,
     String? couponCode,
+    List<({String variantId, String priceVersion})> acceptedPriceVersions =
+        const [],
   }) async {
     placedAddressId = addressId;
-    return placed = const Order(id: 'o1', orderNumber: 'SH-1', total: 55000);
+    return placed = const Order(
+      version: 1,
+      id: 'o1',
+      orderNumber: 'SH-1',
+      total: 55000,
+    );
   }
 
   @override
@@ -82,15 +89,15 @@ class _FakeOrders implements OrderRepository {
   }
 
   @override
-  Future<Order> fetchOrder(String id) async => Order(id: id);
+  Future<Order> fetchOrder(String id) async => Order(version: 1, id: id);
 
   @override
   Future<OrderTracking> fetchTracking(String id) async =>
       OrderTracking(orderId: id);
 
   @override
-  Future<Order> cancelOrder(String id) async =>
-      Order(id: id, status: 'cancelled');
+  Future<Order> cancelOrder(String id, {required int version}) async =>
+      Order(version: 1, id: id, status: 'cancelled');
 }
 
 class _CouponCart extends CartRepositoryMock {
@@ -308,6 +315,10 @@ void main() {
               'line_total': 1234,
               'currency': 'IQD',
               'available': true,
+              'price_version': 'fixture-v1',
+              'current_price_version': 'fixture-v1',
+              'price_changed': false,
+              'current_unit_price': 10000,
               'available_qty': 1,
             },
           ],

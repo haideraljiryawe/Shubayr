@@ -66,6 +66,11 @@ class CartScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                if (c.items.any((item) => item.priceChanged))
+                  Padding(
+                    padding: AppLayout.pageInsets(context),
+                    child: Text(l10n.cartPricesChanged),
+                  ),
                 _CartFooter(
                   total: c.total,
                   currency: c.currency,

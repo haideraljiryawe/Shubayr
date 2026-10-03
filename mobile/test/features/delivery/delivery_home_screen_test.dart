@@ -71,6 +71,26 @@ Finder _listScroll() => find
     .first;
 
 void main() {
+  testWidgets('failed delivery asks for a reason before enabling save', (
+    tester,
+  ) async {
+    final repo = RecordingDeliveries();
+    await tester.pumpWidget(_host(repo));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Out for delivery'));
+    await tester.pumpAndSettle();
+    await _chooseStatus(tester, 'Delivery failed');
+    final save = find.widgetWithText(TextButton, 'Save');
+    expect(tester.widget<TextButton>(save).onPressed, isNull);
+    await tester.enterText(find.byType(TextField), 'No answer');
+    await tester.pump();
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(repo.reasons.single, 'No answer');
+    expect(repo.versions.single, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'filter remains available on empty/error results and retry keeps selection',
     (tester) async {
@@ -127,7 +147,14 @@ void main() {
         throw const AppFailure(FailureKind.validation, statusCode: 409);
     repo.onFetch = (_) async => const DeliveryPage(
       total: 1,
-      data: [Delivery(id: 'd0', orderId: 'order-0', status: 'failed')],
+      data: [
+        Delivery(
+          orderVersion: 1,
+          id: 'd0',
+          orderId: 'order-0',
+          status: 'failed',
+        ),
+      ],
     );
     await _chooseStatus(tester, 'Out for delivery');
     await tester.tap(find.widgetWithText(TextButton, 'Save'));
@@ -137,7 +164,7 @@ void main() {
     );
     expect(find.text(l10n.deliveryStatusConflict), findsOneWidget);
     expect(find.text(l10n.deliveryStatusUpdated), findsNothing);
-    expect(find.widgetWithText(AppButton, 'Update status'), findsNothing);
+    expect(find.widgetWithText(AppButton, 'Update status'), findsOneWidget);
     expect(repo.requests, hasLength(2));
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -146,7 +173,7 @@ void main() {
     'assigned': ['Out for delivery'],
     'out_for_delivery': ['Delivered', 'Delivery failed'],
     'delivered': ['Returned'],
-    'failed': [],
+    'failed': ['Out for delivery'],
     'returned': [],
     'unknown': [],
   }.entries) {
@@ -156,7 +183,14 @@ void main() {
       final repo = RecordingDeliveries()
         ..onFetch = (_) async => DeliveryPage(
           total: 1,
-          data: [Delivery(id: 'd0', orderId: 'order-0', status: entry.key)],
+          data: [
+            Delivery(
+              orderVersion: 1,
+              id: 'd0',
+              orderId: 'order-0',
+              status: entry.key,
+            ),
+          ],
         );
       await tester.pumpWidget(_host(repo));
       await tester.pumpAndSettle();
@@ -204,7 +238,14 @@ void main() {
         pending.complete(
           const DeliveryPage(
             total: 1,
-            data: [Delivery(id: 'd0', orderId: 'order-0', status: 'assigned')],
+            data: [
+              Delivery(
+                orderVersion: 1,
+                id: 'd0',
+                orderId: 'order-0',
+                status: 'assigned',
+              ),
+            ],
           ),
         );
         await tester.pumpAndSettle();

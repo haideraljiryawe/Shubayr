@@ -62,10 +62,18 @@ class AfterSalesRepositoryRemote implements AfterSalesRepository {
         'order_id': orderId,
         'reason': ?reason,
         'items': items.map((item) {
-          if (!isValidQuantity(item.quantity)) {
+          final itemReason = (item.reason ?? reason)?.trim();
+          if (!isValidQuantity(item.quantity) ||
+              itemReason == null ||
+              itemReason.isEmpty ||
+              itemReason.length > 1000) {
             throw const AppFailure(FailureKind.validation);
           }
-          return {'order_item_id': item.orderItemId, 'quantity': item.quantity};
+          return {
+            'order_item_id': item.orderItemId,
+            'quantity': item.quantity,
+            'reason': itemReason,
+          };
         }).toList(),
       },
     ),

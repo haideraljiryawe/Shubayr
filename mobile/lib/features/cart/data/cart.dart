@@ -67,6 +67,10 @@ class CartItem {
     this.unitPrice = 0,
     this.lineTotal = 0,
     this.availableQty,
+    this.priceVersion,
+    this.currentUnitPrice,
+    this.currentPriceVersion,
+    this.priceChanged = false,
     this.available,
     this.currency,
   });
@@ -90,6 +94,14 @@ class CartItem {
   /// Server snapshot, independent of local quantity edits or catalog prices.
   @JsonKey(name: 'line_total')
   final num lineTotal;
+  @JsonKey(name: 'price_version')
+  final String? priceVersion;
+  @JsonKey(name: 'current_unit_price')
+  final num? currentUnitPrice;
+  @JsonKey(name: 'current_price_version')
+  final String? currentPriceVersion;
+  @JsonKey(name: 'price_changed')
+  final bool priceChanged;
 
   CartItem copyWith({num? quantity, num? lineTotal}) => CartItem(
     id: id,
@@ -101,14 +113,26 @@ class CartItem {
     currency: currency,
     availableQty: availableQty,
     available: available,
+    priceVersion: priceVersion,
+    currentUnitPrice: currentUnitPrice,
+    currentPriceVersion: currentPriceVersion,
+    priceChanged: priceChanged,
   );
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
-    for (final key in ['unit_price', 'line_total', 'available_qty']) {
+    for (final key in [
+      'unit_price',
+      'line_total',
+      'available_qty',
+      'current_unit_price',
+    ]) {
       _requireAmount(json[key]);
     }
     _requireCurrency(json['currency']);
-    if (json['available'] is! bool) {
+    if (json['available'] is! bool ||
+        json['price_changed'] is! bool ||
+        json['price_version'] is! String ||
+        json['current_price_version'] is! String) {
       throw const AppFailure(FailureKind.server);
     }
     return _$CartItemFromJson(json);

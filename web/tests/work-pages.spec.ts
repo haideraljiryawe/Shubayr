@@ -324,6 +324,7 @@ test.describe("delivery agent", () => {
   const DELIVERY = {
     id: "d0000000-0000-4000-8000-000000000001",
     order_id: "o0000000-0000-4000-8000-000000000001",
+    order_version: 1,
     agent_id: "u-agent",
     status: "assigned",
     delivery_fee: 5,
@@ -351,11 +352,22 @@ test.describe("delivery agent", () => {
   });
 
   test("offers only the API's transitions and walks them", async ({ page }) => {
-    let current = { ...DELIVERY };
+    let current: typeof DELIVERY & { retry_count?: number; failure_reason?: string | null; failed_at?: string } = { ...DELIVERY };
     serveDeliveries(() => current);
     api.on("PATCH", /^\/deliveries\/[^/]+$/, (seen) => {
-      const status = (seen.body as { status: string }).status;
-      current = { ...current, status, dispatched_at: current.dispatched_at ?? new Date().toISOString() };
+      const { status, reason } = seen.body as { status: string; reason?: string };
+      // API 10.0: a failure keeps its reason; going out again is a retry.
+      const retrying = current.status === "failed" && status === "out_for_delivery";
+      current = {
+        ...current,
+        status,
+        order_version: current.order_version + 1,
+        dispatched_at: current.dispatched_at ?? new Date().toISOString(),
+        // As the API does: the reason lives while failed; a retry clears it.
+        failure_reason: status === "failed" ? (reason ?? null) : null,
+        ...(status === "failed" ? { failed_at: new Date().toISOString() } : {}),
+        retry_count: (current.retry_count ?? 0) + (retrying ? 1 : 0),
+      };
       return { body: current };
     });
     await signInAs(page, "delivery_agent");
@@ -369,13 +381,40 @@ test.describe("delivery agent", () => {
     await expect(page.getByTestId("delivery-confirm")).toBeVisible();
     await page.getByTestId("delivery-confirm-yes").click();
     await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "out_for_delivery");
-    expect(api.requests("PATCH", /^\/deliveries\//).at(-1)!.body).toEqual({ status: "out_for_delivery" });
+    expect(api.requests("PATCH", /^\/deliveries\//).at(-1)!.body).toEqual({
+      status: "out_for_delivery",
+      order_version: 1,
+    });
 
     await expect(actions).toHaveCount(2);
     await expect(page.getByTestId("delivery-action-delivered")).toBeVisible();
     await expect(page.getByTestId("delivery-action-failed")).toBeVisible();
     // Nothing the API does not offer yet: no collected-amount or custody input.
     await expect(page.getByTestId("delivery-detail").locator("input, textarea, select")).toHaveCount(0);
+
+    await page.getByTestId("delivery-action-failed").click();
+    const failureReason = page.getByTestId("delivery-failure-reason");
+    await expect(failureReason).toBeVisible();
+    await expect(page.getByTestId("delivery-confirm-yes")).toBeDisabled();
+    await failureReason.fill("Customer unavailable");
+    await page.getByTestId("delivery-confirm-yes").click();
+    await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "failed");
+    expect(api.requests("PATCH", /^\/deliveries\//).at(-1)!.body).toEqual({
+      status: "failed",
+      order_version: 2,
+      reason: "Customer unavailable",
+    });
+    // The failure stays on the page with its reason, and going out again is a retry.
+    await expect(page.getByTestId("delivery-failure-text")).toHaveText("Customer unavailable");
+    await expect(page.getByTestId("delivery-retry-count")).toHaveText("لم تُعد المحاولة بعد");
+    await expect(page.getByTestId("delivery-action-out_for_delivery")).toHaveText("إعادة محاولة التوصيل");
+
+    await page.getByTestId("delivery-action-out_for_delivery").click();
+    await page.getByTestId("delivery-confirm-yes").click();
+    await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "out_for_delivery");
+    await expect(page.getByTestId("delivery-failure")).toHaveAttribute("data-state", "retrying");
+    await expect(page.getByTestId("delivery-failure-text")).toHaveCount(0);
+    await expect(page.getByTestId("delivery-retry-count")).toHaveText("أُعيدت المحاولة مرة");
 
     await page.getByTestId("delivery-action-delivered").click();
     await page.getByTestId("delivery-confirm-yes").click();

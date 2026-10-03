@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
+import { businessDate } from '../dist/src/modules/finance/business-date.js';
 
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
 if (
@@ -116,9 +117,16 @@ try {
     await db.query(
       `INSERT INTO orders
        (id,user_id,order_number,status,payment_method,subtotal,delivery_fee,discount,total,
-        delivery_contact_phone,delivery_address_label,delivery_city,delivery_area,delivery_street,delivery_details,placed_at)
-       VALUES ($1,$2,$3,$4,'cod',10,2,1,11,'+9647701111111','Home','Baghdad','Karrada','42','snapshot',$5)`,
-      [id, customerId, number, status, placedAt],
+        delivery_contact_phone,delivery_address_label,delivery_city,delivery_area,delivery_street,delivery_details,placed_at,document_date,accounting_date)
+       VALUES ($1,$2,$3,$4,'cod',10,2,1,11,'+9647701111111','Home','Baghdad','Karrada','42','snapshot',$5,$6,$6)`,
+      [
+        id,
+        customerId,
+        number,
+        status,
+        placedAt,
+        businessDate(new Date(placedAt)),
+      ],
     );
   }
   await db.query(

@@ -55,6 +55,7 @@ export interface ClosedDay {
 export interface SettingsForm {
   text: Record<TextKey, string>;
   numbers: Record<NumberKey, string>;
+  separationOfDutiesLevel: "standard" | "strict";
   autoCancel: boolean;
   hours: HoursRow[];
   closedDays: ClosedDay[];
@@ -92,6 +93,8 @@ export function toForm(settings: AdminSettings): SettingsForm {
   return {
     text,
     numbers,
+    separationOfDutiesLevel:
+      values.separation_of_duties_level === "strict" ? "strict" : "standard",
     autoCancel: values.auto_cancel_enabled === "true",
     hours,
     closedDays,
@@ -230,6 +233,9 @@ export function buildPatch(before: SettingsForm, after: SettingsForm): AdminSett
   }
   if (after.autoCancel !== before.autoCancel) {
     settings.auto_cancel_enabled = after.autoCancel ? "true" : "false";
+  }
+  if (after.separationOfDutiesLevel !== before.separationOfDutiesLevel) {
+    settings.separation_of_duties_level = after.separationOfDutiesLevel;
   }
   if (Object.keys(settings).length) patch.settings = settings;
 

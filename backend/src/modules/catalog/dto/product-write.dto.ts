@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   Min,
   Validate,
   ValidateIf,
@@ -122,6 +123,11 @@ const toDateOrNull = ({ value }: { value: unknown }): unknown => {
  * set them.
  */
 export class ProductWriteDto extends BilingualNameDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  below_cost_override_reason?: string | null;
+
   @IsUUID()
   category_id!: string;
 

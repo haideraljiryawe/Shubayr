@@ -148,9 +148,15 @@ await request(`/admin/products/${productId}`, {
 const repricedCart = await request('/cart', { token: customer.access_token });
 check(
   repricedCart.items[0].unit_price,
-  15075,
-  'cart must reprice after catalog change',
+  10075,
+  'cart retains the price the customer originally saw',
 );
+check(
+  repricedCart.items[0].current_unit_price,
+  15075,
+  'cart reports the current catalog price separately',
+);
+check(repricedCart.items[0].price_changed, true, 'cart flags price drift');
 check(repricedCart.subtotal, 30150, 'repriced quantity two subtotal');
 await request('/coupons/validate', {
   method: 'POST',
@@ -195,7 +201,16 @@ const orderCountBefore = (
 ).total;
 const stockBefore = await request(`/products/${productId}/availability`);
 const key = `order-acceptance-${Date.now()}`;
-const body = { address_id: address.id, payment_method: 'cod' };
+const body = {
+  address_id: address.id,
+  payment_method: 'cod',
+  accepted_price_versions: [
+    {
+      variant_id: variant.id,
+      price_version: repricedCart.items[0].current_price_version,
+    },
+  ],
+};
 const placed = await request('/orders', {
   method: 'POST',
   token: customer.access_token,
@@ -332,14 +347,30 @@ await request(`/orders/${placed.id}/track`, {
 const confirmed = await request(`/orders/${placed.id}/status`, {
   method: 'PATCH',
   token: admin.access_token,
-  body: { status: 'confirmed' },
+  body: { status: 'confirmed', version: placed.version },
 });
 check(confirmed.status, 'confirmed', 'admin may advance the order');
-const cancelled = await request(`/orders/${placed.id}/cancel`, {
+const cancellationRequested = await request(
+  `/orders/${placed.id}/cancellation-request`,
+  {
+    method: 'POST',
+    token: customer.access_token,
+    body: { version: confirmed.version, reason: 'Customer changed their mind' },
+  },
+);
+const cancelled = await request(
+  `/admin/orders/${placed.id}/cancellation-request/resolve`,
+  {
   method: 'POST',
-  token: customer.access_token,
-});
-check(cancelled.status, 'cancelled', 'customer may cancel a confirmed order');
+    token: admin.access_token,
+    body: {
+      version: cancellationRequested.version,
+      decision: 'approved',
+      reason: 'Approved customer request',
+    },
+  },
+);
+check(cancelled.status, 'cancelled', 'staff may approve a cancellation request');
 const finalTrack = await request(`/orders/${placed.id}/track`, {
   token: customer.access_token,
 });

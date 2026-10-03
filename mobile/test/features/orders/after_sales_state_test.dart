@@ -40,6 +40,7 @@ ReturnRequest returned({
   ],
 );
 Order order({bool? reviewed = false}) => Order(
+  version: 1,
   id: 'o',
   status: 'delivered',
   items: [OrderItem(id: 'i', productId: 'p', quantity: .5, reviewed: reviewed)],

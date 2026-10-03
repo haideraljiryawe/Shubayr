@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
+import { exchangeRateCutoff } from "@/lib/finance/dates";
 import type { CurrencyCode } from "@/lib/purchasing";
 
 export type CentralRate =
@@ -10,14 +11,13 @@ export type CentralRate =
   | { status: "ready"; rate: string }
   /** No rate recorded at that date: the server will refuse the document. */
   | { status: "missing" }
-  /** The rate can't be read without ledger.view; the server still applies it. */
+  /** The rate can't be read without fx_rates.view; the server still applies it. */
   | { status: "hidden" };
 
 /**
  * The central rate the server will apply to a document in `currency` dated
- * `day`. The server resolves it at 00:00 UTC of the document date, so a rate
- * recorded later that day applies from the next day — the same instant is
- * asked here, so what is shown is what will post.
+ * `day`: current documents use the load instant, historical documents use the
+ * Baghdad day's closing rate, and future-effective rates are never used early.
  */
 export function useCentralRate(currency: CurrencyCode, day: string, canRead: boolean): CentralRate {
   const key = `${currency}|${day}|${canRead}`;
@@ -25,10 +25,12 @@ export function useCentralRate(currency: CurrencyCode, day: string, canRead: boo
 
   useEffect(() => {
     if (currency === "IQD" || !canRead || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+    const at = exchangeRateCutoff(day);
+    if (!at) return;
     let cancelled = false;
     unwrap(
       browserApi.GET("/admin/exchange-rates/{code}/applicable", {
-        params: { path: { code: currency }, query: { at: `${day}T00:00:00.000Z` } },
+        params: { path: { code: currency }, query: { at } },
       }),
     ).then(
       (result) => {

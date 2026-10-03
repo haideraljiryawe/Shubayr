@@ -696,7 +696,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get returnDecrease => 'Decrease return quantity';
 
   @override
-  String get returnReason => 'Reason for return (optional)';
+  String get returnReason => 'Reason for all selected items (required)';
 
   @override
   String get returnSubmit => 'Submit return request';
@@ -1772,4 +1772,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get quantityWholeInvalid =>
       'Enter a whole quantity within the limits.';
+
+  @override
+  String get checkoutPricesChanged => 'Prices changed';
+
+  @override
+  String get checkoutPricesChangedMessage =>
+      'Review the new unit prices before placing your order. The server will calculate the final total.';
+
+  @override
+  String get checkoutAcceptPrices => 'Accept prices and place order';
+
+  @override
+  String get cartPricesChanged =>
+      'Some prices changed. You will be asked to review and accept them at checkout.';
+
+  @override
+  String get deliveryFailureReason => 'Reason for failed delivery';
+
+  @override
+  String get deliveryRetryCount => 'Retry count';
+
+  @override
+  String get orderStateConflict =>
+      'This order changed or can no longer be cancelled. Please review its latest status.';
 }

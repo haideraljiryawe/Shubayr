@@ -19,11 +19,19 @@ class DeliveryRepositoryRemote implements DeliveryRepository {
   );
 
   @override
-  Future<Delivery> updateStatus(String id, String status) async =>
-      Delivery.fromJson(
-        await _api.patch<Map<String, dynamic>>(
-          '/deliveries/$id',
-          body: {'status': status},
-        ),
-      );
+  Future<Delivery> updateStatus(
+    String id,
+    String status, {
+    required int orderVersion,
+    String? reason,
+  }) async => Delivery.fromJson(
+    await _api.patch<Map<String, dynamic>>(
+      '/deliveries/$id',
+      body: {
+        'status': status,
+        'order_version': orderVersion,
+        'reason': ?reason,
+      },
+    ),
+  );
 }

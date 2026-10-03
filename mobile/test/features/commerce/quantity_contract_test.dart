@@ -46,6 +46,10 @@ void main() {
       'line_total': 1250,
       'currency': 'IQD',
       'available': true,
+      'price_version': 'fixture-v1',
+      'current_price_version': 'fixture-v1',
+      'price_changed': false,
+      'current_unit_price': 10000,
       'available_qty': 0.5,
     });
     expect(cart.availableQty, 0.5);
@@ -63,6 +67,7 @@ void main() {
           ReturnRequest(
             id: 'r$q',
             orderId: 'o',
+            reason: 'Damaged',
             items: [ReturnRequestItem(orderItemId: 'i', quantity: q)],
           ),
       ],
@@ -109,6 +114,10 @@ void main() {
         'line_total': 1250,
         'currency': 'IQD',
         'available': true,
+        'price_version': 'fixture-v1',
+        'current_price_version': 'fixture-v1',
+        'price_changed': false,
+        'current_unit_price': 10000,
         'available_qty': 10,
         'quantity': quantity,
       });
@@ -206,6 +215,10 @@ void main() {
                             'line_total': 1250,
                             'currency': 'IQD',
                             'available': true,
+                            'price_version': 'fixture-v1',
+                            'current_price_version': 'fixture-v1',
+                            'price_changed': false,
+                            'current_unit_price': 10000,
                             'available_qty': 10,
                             'quantity': options.data['quantity'],
                           },
@@ -224,6 +237,10 @@ void main() {
         'line_total': 1250,
         'currency': 'IQD',
         'available': true,
+        'price_version': 'fixture-v1',
+        'current_price_version': 'fixture-v1',
+        'price_changed': false,
+        'current_unit_price': 10000,
         'available_qty': 10,
         'quantity': 0.125,
       });
@@ -240,6 +257,7 @@ void main() {
       final returned = await AfterSalesRepositoryRemote(ApiClient(dio))
           .requestReturn(
             orderId: 'o',
+            reason: 'Damaged',
             items: [
               ReturnRequestItem.fromJson({
                 'order_item_id': 'i',

@@ -57,6 +57,7 @@ void main() {
     total: 2,
     data: [
       Order(
+        version: 1,
         id: 'o1',
         orderNumber: 'SH-1042',
         status: 'delivered',
@@ -64,6 +65,7 @@ void main() {
         placedAt: DateTime(2026, 9, 1),
       ),
       Order(
+        version: 1,
         id: 'o2',
         orderNumber: 'SH-1061',
         status: 'processing',
@@ -141,8 +143,10 @@ void main() {
     (tester) async {
       final repository = OrderHistoryRepository(
         orders: [
-          for (var i = 0; i < 21; i++) Order(id: 'o$i', orderNumber: 'SH-$i'),
+          for (var i = 0; i < 21; i++)
+            Order(version: 1, id: 'o$i', orderNumber: 'SH-$i'),
           const Order(
+            version: 1,
             id: 'later',
             orderNumber: 'SH-LATER',
             status: 'processing',
@@ -256,7 +260,12 @@ void main() {
       const OrderPage(
         total: 1,
         data: [
-          Order(id: 'fresh', orderNumber: 'SH-FRESH', status: 'processing'),
+          Order(
+            version: 1,
+            id: 'fresh',
+            orderNumber: 'SH-FRESH',
+            status: 'processing',
+          ),
         ],
       ),
     );
@@ -282,7 +291,7 @@ void main() {
           total: 52,
           data: [
             for (var i = 0; i < 20; i++)
-              Order(id: 'tall-$i', orderNumber: 'TALL-$i'),
+              Order(version: 1, id: 'tall-$i', orderNumber: 'TALL-$i'),
           ],
         ),
       );

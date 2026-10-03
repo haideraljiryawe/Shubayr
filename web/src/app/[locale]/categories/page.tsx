@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PackageOpen, Search } from "lucide-react";
+import { alternatesFor } from "@/lib/site";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { CategoryGrid } from "@/components/catalog/category-grid";
 import { CatalogError } from "@/components/catalog/states";
@@ -24,6 +25,7 @@ export async function generateMetadata({
   return {
     title: nav("categories"),
     description: catalog("categoriesDescription"),
+    alternates: alternatesFor(locale, "/categories"),
   };
 }
 

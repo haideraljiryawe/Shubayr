@@ -9,6 +9,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { assertDifferentActor } from '../../common/access/separation-of-duties';
 
 const input = { address_id: 'address-1', payment_method: 'cod' as const };
 const fingerprint = createHash('sha256')
@@ -17,12 +18,43 @@ const fingerprint = createHash('sha256')
       address_id: input.address_id,
       coupon_code: null,
       payment_method: 'cod',
+      accepted_price_versions: [],
     }),
   )
   .digest('hex');
 
 describe('OrdersService', () => {
   const audit = { record: jest.fn() };
+
+  it('filters month-boundary reports by Baghdad calendar days', async () => {
+    const findMany = jest.fn((input: unknown) => {
+      void input;
+      return Promise.resolve([]);
+    });
+    const prisma = {
+      order: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany,
+      },
+      $transaction: jest.fn((queries: Promise<unknown>[]) =>
+        Promise.all(queries),
+      ),
+    };
+    const service = new OrdersService(prisma as never, {} as never, audit);
+
+    await service.listAdmin({
+      from: '2026-11-01',
+      to: '2026-11-01',
+    });
+
+    const query = findMany.mock.calls[0][0] as {
+      where: { placed_at: { gte: Date; lt: Date } };
+    };
+    expect(query.where.placed_at).toEqual({
+      gte: new Date('2026-10-31T21:00:00.000Z'),
+      lt: new Date('2026-11-01T21:00:00.000Z'),
+    });
+  });
   it('returns the original order for an idempotent retry without touching the cleared cart', async () => {
     const row = {
       id: 'order-1',
@@ -112,7 +144,8 @@ describe('OrdersService', () => {
         findUnique: jest.fn().mockResolvedValue({
           id: 'order-1',
           user_id: 'user-1',
-          status: 'confirmed',
+          status: 'pending',
+          version: 1,
         }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
@@ -138,10 +171,10 @@ describe('OrdersService', () => {
       undefined,
       inventory as never,
     );
-    await service.cancel('user-1', 'order-1');
+    await service.cancel('user-1', 'order-1', { version: 1 });
     expect(tx.order.updateMany).toHaveBeenCalledWith({
-      where: { id: 'order-1', status: { in: ['pending', 'confirmed'] } },
-      data: { status: 'cancelled' },
+      where: { id: 'order-1', status: { in: ['pending'] }, version: 1 },
+      data: { status: 'cancelled', version: { increment: 1 } },
     });
     expect(inventory.releaseOrder).toHaveBeenCalledWith(
       tx,
@@ -166,6 +199,7 @@ describe('OrdersService', () => {
           id: 'order-1',
           user_id: 'customer-1',
           status: 'pending',
+          version: 1,
         }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({
           id: 'order-1',
@@ -196,11 +230,12 @@ describe('OrdersService', () => {
 
     await service.rejectAdmin('staff-1', 'order-1', {
       reason: 'Cannot fulfil this order',
+      version: 1,
     });
 
     expect(tx.order.updateMany).toHaveBeenCalledWith({
-      where: { id: 'order-1', status: 'pending' },
-      data: { status: 'rejected' },
+      where: { id: 'order-1', status: 'pending', version: 1 },
+      data: { status: 'rejected', version: { increment: 1 } },
     });
     expect(inventory.releaseOrder).toHaveBeenCalledWith(
       tx,
@@ -241,7 +276,7 @@ describe('OrdersService', () => {
       order: {
         findUnique: jest
           .fn()
-          .mockResolvedValue({ id: 'order-1', status: 'pending' }),
+          .mockResolvedValue({ id: 'order-1', status: 'pending', version: 1 }),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       orderStatusEvent: { create: jest.fn() },
@@ -253,7 +288,10 @@ describe('OrdersService', () => {
     };
     const service = new OrdersService(prisma as never, {} as never, audit);
     await expect(
-      service.updateStatus('staff-1', 'order-1', { status: 'dispatched' }),
+      service.updateStatus('staff-1', 'order-1', {
+        status: 'dispatched',
+        version: 1,
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(tx.orderStatusEvent.create).not.toHaveBeenCalled();
   });
@@ -264,7 +302,7 @@ describe('OrdersService', () => {
       order: {
         findUnique: jest
           .fn()
-          .mockResolvedValue({ id: 'order-1', status: 'pending' }),
+          .mockResolvedValue({ id: 'order-1', status: 'pending', version: 1 }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       orderStatusEvent: { create: jest.fn() },
@@ -282,10 +320,13 @@ describe('OrdersService', () => {
     };
     const service = new OrdersService(prisma as never, {} as never, audit);
     jest.spyOn(service, 'getAdmin').mockResolvedValue({} as never);
-    await service.updateStatus('staff-1', 'order-1', { status: 'confirmed' });
+    await service.updateStatus('staff-1', 'order-1', {
+      status: 'confirmed',
+      version: 1,
+    });
     expect(tx.order.updateMany).toHaveBeenCalledWith({
-      where: { id: 'order-1', status: 'pending' },
-      data: { status: 'confirmed' },
+      where: { id: 'order-1', status: 'pending', version: 1 },
+      data: { status: 'confirmed', version: { increment: 1 } },
     });
     expect(tx.orderStatusEvent.create).toHaveBeenCalledWith({
       data: {
@@ -295,5 +336,75 @@ describe('OrdersService', () => {
         at: expect.any(Date) as Date,
       },
     });
+  });
+
+  it("ignores a client-supplied originator id and refuses the authenticated originator's self-approval", async () => {
+    const tx = {
+      $queryRaw: jest.fn(),
+      order: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          user_id: 'staff-1',
+          status: 'pending',
+          version: 1,
+        }),
+      },
+      orderItem: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            variant_id: 'variant-1',
+            unit_price: 1000,
+            variant: { sku: 'SKU-1' },
+          },
+        ]),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+    const belowCost = {
+      assertAllowed: jest.fn(
+        (
+          _db: unknown,
+          actorId: string,
+          _permissions: string[],
+          _variants: unknown[],
+          override: { originatorId?: string | null },
+        ) => {
+          assertDifferentActor(actorId, override.originatorId!);
+        },
+      ),
+    };
+    const service = new OrdersService(
+      prisma as never,
+      {} as never,
+      audit,
+      undefined,
+      undefined,
+      belowCost as never,
+    );
+
+    await expect(
+      service.updateStatus(
+        'staff-1',
+        'order-1',
+        {
+          status: 'confirmed',
+          version: 1,
+          below_cost_override_reason: 'Self approval attempt',
+          below_cost_originator_id: 'different-user',
+        } as never,
+        ['sell_below_cost.approve'],
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(belowCost.assertAllowed).toHaveBeenCalledWith(
+      tx,
+      'staff-1',
+      ['sell_below_cost.approve'],
+      expect.any(Array),
+      expect.objectContaining({ originatorId: 'staff-1' }),
+    );
   });
 });

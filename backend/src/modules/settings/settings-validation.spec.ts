@@ -13,6 +13,7 @@ const before = {
     backdating_window_days: '90',
     markup_alert_percent: null,
     sale_rounding_multiple: '0',
+    separation_of_duties_level: 'standard',
   },
 };
 
@@ -37,6 +38,10 @@ describe('server-side settings validation', () => {
       'protection_thresholds.price',
     ],
     [{ closed_days: [{ date: '2026-02-30' }] }, 'closed_days.0.date'],
+    [
+      { settings: { separation_of_duties_level: 'relaxed' } },
+      'settings.separation_of_duties_level',
+    ],
   ])('rejects invalid field input %#', (input, field) => {
     expect(
       validateSettingsUpdate(input as AdminSettingsUpdateDto, before, 0),

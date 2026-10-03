@@ -64,7 +64,7 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
     );
   }
 
-  Future<void> _cancel() async {
+  Future<void> _cancel(int version) async {
     if (_confirming || _cancelling) return;
     final identity = ref.read(ordersIdentityProvider);
     final l10n = context.l10n;
@@ -95,7 +95,7 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
       }
       final result = await ref
           .read(orderCancellationProvider(widget.orderId).notifier)
-          .cancel();
+          .cancel(version: version);
       if (!mounted ||
           ref.read(ordersIdentityProvider) != identity ||
           ModalRoute.of(context)?.isCurrent == false) {
@@ -108,7 +108,9 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
         showAppSnackBarMessage(
           context,
           message: error is AppFailure
-              ? error.localizedMessage(l10n)
+              ? (error.statusCode == 409
+                    ? l10n.orderStateConflict
+                    : error.localizedMessage(l10n))
               : l10n.stateErrorTitle,
         );
       }
@@ -226,9 +228,13 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
                       const SizedBox(height: AppSpacing.lg),
                       Center(
                         child: TextButton.icon(
-                          onPressed: _confirming || _cancelling
+                          onPressed:
+                              _confirming ||
+                                  _cancelling ||
+                                  o.version == null ||
+                                  o.version! < 1
                               ? null
-                              : _cancel,
+                              : () => _cancel(o.version!),
                           style: TextButton.styleFrom(
                             foregroundColor: context.colors.danger,
                           ),

@@ -141,20 +141,37 @@ export async function apiLogin(
   }
 }
 
-let adminToken: string | null = null;
+/**
+ * Access tokens live 15 minutes (JWT_ACCESS_TTL) and the whole live suite runs
+ * longer than that in one worker, so cached tokens are renewed well before
+ * they would expire mid-test.
+ */
+const TOKEN_REUSE_MS = 10 * 60 * 1000;
+
+interface CachedToken {
+  value: string;
+  at: number;
+}
+
+function fresh(cached: CachedToken | null | undefined): string | null {
+  return cached && Date.now() - cached.at < TOKEN_REUSE_MS ? cached.value : null;
+}
+
+let adminToken: CachedToken | null = null;
 
 export async function adminApiToken(
   request: APIRequestContext,
 ): Promise<string> {
-  if (adminToken) return adminToken;
+  const cached = fresh(adminToken);
+  if (cached) return cached;
   const { status, body } = await apiLogin(
     request,
     ADMIN_USERNAME,
     ADMIN_PASSWORD,
   );
   expect(status, "seeded admin login").toBe(201);
-  adminToken = body.access_token as string;
-  return adminToken;
+  adminToken = { value: body.access_token as string, at: Date.now() };
+  return adminToken.value;
 }
 
 export interface Preset {
@@ -285,6 +302,23 @@ export async function uiLogin(
   }
 }
 
+/**
+ * Sign the same page in as someone else.
+ *
+ * Leave the app before dropping the cookies: a signed-in admin page re-reads
+ * its session after every client-side navigation (and on focus), and one that
+ * finds the cookies gone hard-navigates to /login?expired=1 — which aborts a
+ * `page.goto("/login")` already in flight. Whether that race is lost depended
+ * on timing (how warm the dev server was, i.e. which spec ran first), so the
+ * page must be off the app when the cookies go.
+ */
+export async function switchUser(page: Page, username: string, password: string): Promise<void> {
+  await page.goto("about:blank");
+  await page.context().clearCookies();
+  await uiLogin(page, username, password);
+  await expect(page.getByTestId("dashboard")).toBeVisible();
+}
+
 export async function uiLoginAsAdmin(page: Page): Promise<void> {
   await uiLogin(page, ADMIN_USERNAME, ADMIN_PASSWORD);
   await expect(page.getByTestId("dashboard")).toBeVisible();
@@ -299,14 +333,14 @@ export const ADMIN_PHONE = "+9647700000001";
 const EARBUDS = "40000000-0000-4000-8000-000000000001";
 const EARBUDS_VARIANT = "50000000-0000-4000-8000-000000000001";
 
-const appTokens = new Map<string, string>();
+const appTokens = new Map<string, CachedToken>();
 
 /** An app-surface token for a phone, through the dev OTP. */
 export async function phoneToken(
   request: APIRequestContext,
   phone: string,
 ): Promise<string> {
-  const cached = appTokens.get(phone);
+  const cached = fresh(appTokens.get(phone));
   if (cached) return cached;
   await awaitQuota(request);
   await request.post(`${API}/auth/request-otp`, { data: { phone } });
@@ -315,7 +349,7 @@ export async function phoneToken(
   });
   expect(verified.ok(), await verified.text()).toBe(true);
   const token = (await verified.json()).access_token as string;
-  appTokens.set(phone, token);
+  appTokens.set(phone, { value: token, at: Date.now() });
   return token;
 }
 
@@ -377,12 +411,18 @@ export async function advanceOrder(
   statuses: string[],
 ): Promise<void> {
   const token = await adminApiToken(request);
+  const detail = await request.get(`${API}/admin/orders/${orderId}`, {
+    headers: bearer(token),
+  });
+  expect(detail.ok(), await detail.text()).toBe(true);
+  let version = ((await detail.json()) as { version: number }).version;
   for (const status of statuses) {
     const moved = await request.patch(`${API}/admin/orders/${orderId}/status`, {
       headers: bearer(token),
-      data: { status },
+      data: { status, version },
     });
     expect(moved.ok(), `${status}: ${await moved.text()}`).toBe(true);
+    version = ((await moved.json()) as { version: number }).version;
   }
 }
 

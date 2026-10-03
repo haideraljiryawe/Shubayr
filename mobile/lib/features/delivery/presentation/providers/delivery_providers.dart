@@ -172,7 +172,7 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
 
   /// Reads and writes share a queue: refresh/append cannot overwrite a saved
   /// status. A new account/filter gets its own queue and ignores old results.
-  Future<bool> updateStatus(String id, String status) async {
+  Future<bool> updateStatus(String id, String status, {String? reason}) async {
     final generationAtStart = _generation;
     var saved = false;
     await _enqueue((generation) async {
@@ -183,7 +183,13 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
       final item = current.items.where((item) => item.id == id).firstOrNull;
       if (item == null) throw const AppFailure(FailureKind.notFound);
       if (item.status == status) return;
-      if (!item.nextStatuses.contains(status)) {
+      if (item.orderVersion == null ||
+          item.orderVersion! < 1 ||
+          (status == 'failed' &&
+              (reason == null ||
+                  reason.trim().isEmpty ||
+                  reason.trim().length > 500)) ||
+          !item.nextStatuses.contains(status)) {
         throw const AppFailure(FailureKind.validation);
       }
       state = AsyncData(
@@ -197,7 +203,12 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
       try {
         final updated = await ref
             .read(deliveryRepositoryProvider)
-            .updateStatus(id, status);
+            .updateStatus(
+              id,
+              status,
+              orderVersion: item.orderVersion!,
+              reason: status == 'failed' ? reason?.trim() : null,
+            );
         if (generation != _generation) return;
         if (updated.id != id) throw const AppFailure(FailureKind.server);
         state = AsyncData(

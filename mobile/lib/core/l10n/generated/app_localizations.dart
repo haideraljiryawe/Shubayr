@@ -1391,7 +1391,7 @@ abstract class AppLocalizations {
   /// No description provided for @returnReason.
   ///
   /// In en, this message translates to:
-  /// **'Reason for return (optional)'**
+  /// **'Reason for all selected items (required)'**
   String get returnReason;
 
   /// No description provided for @returnSubmit.
@@ -3457,6 +3457,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter a whole quantity within the limits.'**
   String get quantityWholeInvalid;
+
+  /// No description provided for @checkoutPricesChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices changed'**
+  String get checkoutPricesChanged;
+
+  /// No description provided for @checkoutPricesChangedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the new unit prices before placing your order. The server will calculate the final total.'**
+  String get checkoutPricesChangedMessage;
+
+  /// No description provided for @checkoutAcceptPrices.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept prices and place order'**
+  String get checkoutAcceptPrices;
+
+  /// No description provided for @cartPricesChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Some prices changed. You will be asked to review and accept them at checkout.'**
+  String get cartPricesChanged;
+
+  /// No description provided for @deliveryFailureReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for failed delivery'**
+  String get deliveryFailureReason;
+
+  /// No description provided for @deliveryRetryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry count'**
+  String get deliveryRetryCount;
+
+  /// No description provided for @orderStateConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This order changed or can no longer be cancelled. Please review its latest status.'**
+  String get orderStateConflict;
 }
 
 class _AppLocalizationsDelegate

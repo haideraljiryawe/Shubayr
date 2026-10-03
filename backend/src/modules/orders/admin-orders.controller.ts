@@ -21,6 +21,8 @@ import {
   CancelOrderDto,
   RejectOrderDto,
   UpdateOrderStatusDto,
+  ResolveCancellationRequestDto,
+  ResolveShortageDto,
 } from './dto/order.dto';
 import { OrdersService } from './orders.service';
 
@@ -63,7 +65,12 @@ export class AdminOrdersController {
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
     @Body() input: UpdateOrderStatusDto,
   ) {
-    return this.orders.updateStatus(request.user.id, id, input);
+    return this.orders.updateStatus(
+      request.user.id,
+      id,
+      input,
+      request.user.permissions,
+    );
   }
 
   @Post(':id/cancel')
@@ -86,5 +93,32 @@ export class AdminOrdersController {
     @Body() input: RejectOrderDto,
   ) {
     return this.orders.rejectAdmin(request.user.id, id, input);
+  }
+
+  @Post(':id/cancellation-request/resolve')
+  @AdminPolicy('orders.cancel_request.resolve')
+  @HttpCode(200)
+  resolveCancellationRequest(
+    @Req() request: StaffRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: ResolveCancellationRequestDto,
+  ) {
+    return this.orders.resolveCancellationRequest(
+      request.user.id,
+      id,
+      input,
+      request.user.permissions,
+    );
+  }
+
+  @Post(':id/shortage-resolution')
+  @AdminPolicy('orders.shortage.resolve')
+  @HttpCode(200)
+  resolveShortage(
+    @Req() request: StaffRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: ResolveShortageDto,
+  ) {
+    return this.orders.resolveShortage(request.user.id, id, input);
   }
 }

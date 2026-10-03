@@ -238,23 +238,47 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
     final onUpdated = widget.onUpdated;
     final onFailed = widget.onFailed;
     String? selection;
+    var reason = "";
     try {
       final status = await showDialog<String>(
         context: context,
         builder: (context) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
             title: Text(l10n.deliveryUpdateStatus),
-            content: DropdownButtonFormField<String>(
-              isExpanded: true,
-              decoration: InputDecoration(labelText: l10n.deliverySelectStatus),
-              items: [
-                for (final status in nextStatuses)
-                  DropdownMenuItem(
-                    value: status,
-                    child: Text(deliveryStatusLabel(l10n, status)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: l10n.deliverySelectStatus,
+                    ),
+                    items: [
+                      for (final status in nextStatuses)
+                        DropdownMenuItem(
+                          value: status,
+                          child: Text(deliveryStatusLabel(l10n, status)),
+                        ),
+                    ],
+                    onChanged: (value) =>
+                        setDialogState(() => selection = value),
                   ),
-              ],
-              onChanged: (value) => setDialogState(() => selection = value),
+                  if (selection == 'failed') ...[
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      maxLength: 500,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: l10n.deliveryFailureReason,
+                      ),
+                      onChanged: (value) =>
+                          setDialogState(() => reason = value),
+                    ),
+                  ],
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -262,7 +286,11 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
                 child: Text(l10n.actionCancel),
               ),
               TextButton(
-                onPressed: selection == null
+                onPressed:
+                    selection == null ||
+                        (selection == 'failed' &&
+                            (reason.trim().isEmpty ||
+                                reason.trim().length > 500))
                     ? null
                     : () => Navigator.pop(context, selection),
                 child: Text(l10n.actionSave),
@@ -274,7 +302,11 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
       if (status == null || !mounted) return;
       final saved = await ref
           .read(deliveriesProvider.notifier)
-          .updateStatus(id, status);
+          .updateStatus(
+            id,
+            status,
+            reason: status == 'failed' ? reason.trim() : null,
+          );
       if (saved) onUpdated();
     } catch (error) {
       final failure = error is AppFailure ? error : const AppFailure.unknown();
@@ -340,6 +372,14 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
               style: context.text.bodySmall,
             ),
           ],
+          if (delivery.failureReason != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(delivery.failureReason!),
+          ],
+          if (delivery.retryCount > 0) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text('${l10n.deliveryRetryCount}: ${delivery.retryCount}'),
+          ],
           if (delivery.deliveredAt != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -347,7 +387,9 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
               style: context.text.bodySmall,
             ),
           ],
-          if (delivery.nextStatuses.isNotEmpty) ...[
+          if (delivery.nextStatuses.isNotEmpty &&
+              delivery.orderVersion != null &&
+              delivery.orderVersion! >= 1) ...[
             const SizedBox(height: AppSpacing.md),
             AppButton(
               label: l10n.deliveryUpdateStatus,

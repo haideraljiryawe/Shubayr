@@ -17,6 +17,8 @@ import {
 import { UpdateProductDto } from './dto/update-product.dto';
 import { computeProductPricing, mergeProductPricingPatch } from './pricing';
 import { CatalogSearchService } from './catalog-search.service';
+import { BelowCostService } from './below-cost.service';
+import { businessDate } from '../finance/business-date';
 
 const productInclude = {
   category: true,
@@ -41,6 +43,7 @@ type PreparedVariant = {
   reference_price: number | null;
   published_price: number | null;
   price_approved_at: Date;
+  price_proposed_by?: string | null;
   awaiting_rate_id: null;
   updated_at: Date;
 };
@@ -52,6 +55,7 @@ export class ProductsService {
     private readonly media: MediaService,
     private readonly audit: AuditService,
     private readonly search?: CatalogSearchService,
+    private readonly belowCost?: BelowCostService,
   ) {}
 
   listPublic(query: ProductQueryDto) {
@@ -95,7 +99,11 @@ export class ProductsService {
     return this.toResponse(product, new Date());
   }
 
-  async create(input: CreateProductDto, actorId?: string) {
+  async create(
+    input: CreateProductDto,
+    actorId?: string,
+    permissions: string[] = [],
+  ) {
     await this.ensureCategory(input.category_id);
     await this.ensureBrand(input.brand_id);
     await this.validateManagedUrls((input.images ?? []).map(({ url }) => url));
@@ -109,13 +117,44 @@ export class ProductsService {
         errors: [],
       });
     }
-    const preparedVariants = await this.prepareVariants(
-      input.variants,
-      input.price,
-    );
+    const preparedVariants = (
+      await this.prepareVariants(input.variants, input.price)
+    ).map((variant) => ({ ...variant, price_proposed_by: actorId ?? null }));
+    const belowCostBreaches = actorId
+      ? await this.belowCost?.assertAllowed(
+          this.prisma,
+          actorId,
+          permissions,
+          preparedVariants.flatMap((variant) =>
+            variant.id
+              ? [
+                  {
+                    variant_id: variant.id,
+                    sku: variant.sku,
+                    price:
+                      variant.pricing_mode === 'linked'
+                        ? Number(variant.published_price ?? input.price)
+                        : Number(variant.selling_price ?? input.price),
+                  },
+                ]
+              : [],
+          ),
+          {
+            reason: input.below_cost_override_reason,
+            originatorId: actorId,
+          },
+        )
+      : [];
 
-    const { images, variants: _variants, published, ...data } = input;
+    const {
+      images,
+      variants: _variants,
+      published,
+      below_cost_override_reason: _belowCostReason,
+      ...data
+    } = input;
     void _variants;
+    void _belowCostReason;
     const product = await this.prisma.$transaction(async (tx) => {
       const created = await tx.product.create({
         data: {
@@ -124,6 +163,7 @@ export class ProductsService {
           published_at:
             published || data.status === 'active' ? new Date() : null,
           price_approved_at: new Date(),
+          price_proposed_by: actorId ?? null,
           name_en: data.name_en.trim(),
           name_ar: data.name_ar.trim(),
           images: images?.length
@@ -151,13 +191,37 @@ export class ProductsService {
           after: { status: created.status, published_at: created.published_at },
         });
       }
+      if (actorId) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'prices.fixed.proposed',
+          entityType: 'product',
+          entityId: created.id,
+          after: { price: input.price, variant_count: preparedVariants.length },
+        });
+      }
+      if (actorId && belowCostBreaches?.length) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'prices.below_cost.override',
+          entityType: 'product',
+          entityId: created.id,
+          after: { variants: belowCostBreaches },
+          reason: input.below_cost_override_reason ?? undefined,
+        });
+      }
       return created;
     });
     await this.search?.indexProduct(product.id);
     return this.toResponse(product, new Date());
   }
 
-  async update(id: string, input: UpdateProductDto, actorId?: string) {
+  async update(
+    id: string,
+    input: UpdateProductDto,
+    actorId?: string,
+    permissions: string[] = [],
+  ) {
     const current = await this.prisma.product.findUnique({
       where: { id },
       include: productInclude,
@@ -176,8 +240,42 @@ export class ProductsService {
     const data = this.productPatchData(input);
     const productPrice = input.price ?? Number(current.price);
     const preparedVariants = input.variants
-      ? await this.prepareVariants(input.variants, productPrice)
+      ? (await this.prepareVariants(input.variants, productPrice)).map(
+          (variant) => ({ ...variant, price_proposed_by: actorId ?? null }),
+        )
       : undefined;
+    const proposesPrice =
+      input.price !== undefined || preparedVariants !== undefined;
+    if (proposesPrice && actorId) data.price_proposed_by = actorId;
+    const belowCostBreaches =
+      actorId && preparedVariants
+        ? await this.belowCost?.assertAllowed(
+            this.prisma,
+            actorId,
+            permissions,
+            preparedVariants.flatMap((variant) => {
+              const existing = current.variants.find(
+                (entry) => entry.id === variant.id || entry.sku === variant.sku,
+              );
+              return existing
+                ? [
+                    {
+                      variant_id: existing.id,
+                      sku: variant.sku,
+                      price:
+                        variant.pricing_mode === 'linked'
+                          ? Number(variant.published_price ?? productPrice)
+                          : Number(variant.selling_price ?? productPrice),
+                    },
+                  ]
+                : [];
+            }),
+            {
+              reason: input.below_cost_override_reason,
+              originatorId: actorId,
+            },
+          )
+        : [];
     if (input.published === true || input.status === 'active') {
       const publishableVariants = preparedVariants ?? current.variants;
       const productPriceApproved =
@@ -225,6 +323,29 @@ export class ProductsService {
             status: input.status ?? current.status,
             published: input.published,
           },
+        });
+      }
+      if (actorId && proposesPrice) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'prices.fixed.proposed',
+          entityType: 'product',
+          entityId: id,
+          before: { price: current.price.toString() },
+          after: {
+            price: productPrice,
+            variant_count: preparedVariants?.length ?? current.variants.length,
+          },
+        });
+      }
+      if (actorId && belowCostBreaches?.length) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'prices.below_cost.override',
+          entityType: 'product',
+          entityId: id,
+          after: { variants: belowCostBreaches },
+          reason: input.below_cost_override_reason ?? undefined,
         });
       }
       if (preparedVariants) {
@@ -287,7 +408,7 @@ export class ProductsService {
       where: {
         batch: {
           product_id: id,
-          OR: [{ expiry_date: null }, { expiry_date: { gte: new Date() } }],
+          OR: [{ expiry_date: null }, { expiry_date: { gte: businessDate() } }],
         },
         location: {
           is_active: true,

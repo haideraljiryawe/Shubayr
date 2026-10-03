@@ -63,8 +63,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "supplierPayments", href: "/purchasing/payments", requires: ["suppliers.view"] },
   { key: "payables", href: "/purchasing/reports", requires: ["suppliers.view"] },
   // Financial core (API 7.0).
-  { key: "currencies", href: "/finance/currencies", requires: ["ledger.view"] },
-  { key: "cashAccounts", href: "/finance/cash-accounts", requires: ["cash_accounts.manage"] },
+  { key: "currencies", href: "/finance/currencies", requires: ["fx_rates.view"] },
+  { key: "cashAccounts", href: "/finance/cash-accounts", requires: ["cash_accounts.view"] },
   { key: "periods", href: "/finance/periods", requires: ["ledger.view"] },
   { key: "ledger", href: "/finance/ledger", requires: ["ledger.view"] },
   { key: "settings", href: "/settings", requires: ["settings.manage"] },

@@ -8,6 +8,8 @@ import {
   Length,
   MaxLength,
   Min,
+  IsOptional,
+  MinLength,
 } from 'class-validator';
 
 export class LinkedPricePreviewDto {
@@ -35,4 +37,19 @@ export class LinkedPricePreviewDto {
 export class LinkedPriceApplyDto {
   @IsUUID()
   preview_token!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  below_cost_override_reason?: string | null;
+}
+
+export class PricePublishDecisionDto {
+  @IsIn(['approve', 'reject'])
+  decision!: 'approve' | 'reject';
+
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  reason!: string;
 }

@@ -133,7 +133,7 @@ void main() {
     final orders = (await repo.fetchOrders()).data;
     final open = orders.firstWhere((o) => o.status == 'processing');
 
-    final cancelled = await repo.cancelOrder(open.id);
+    final cancelled = await repo.cancelOrder(open.id, version: 1);
     expect(cancelled.status, 'cancelled');
     expect((await repo.fetchOrder(open.id)).status, 'cancelled');
     expect((await repo.fetchTracking(open.id)).events.map((e) => e.status), [

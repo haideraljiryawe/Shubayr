@@ -63,14 +63,19 @@ class Orders extends OrderRepositoryMock {
   Future<Order> Function()? onPlace;
   Future<Order> Function()? onCancel;
   @override
-  Future<Order> placeOrder({required String addressId, String? couponCode}) {
+  Future<Order> placeOrder({
+    required String addressId,
+    String? couponCode,
+    List<({String variantId, String priceVersion})> acceptedPriceVersions =
+        const [],
+  }) {
     placements++;
     coupon = couponCode;
     return onPlace?.call() ?? placeGate.future;
   }
 
   @override
-  Future<Order> cancelOrder(String id) {
+  Future<Order> cancelOrder(String id, {required int version}) {
     cancellations++;
     return onCancel?.call() ?? cancelGate.future;
   }
@@ -78,7 +83,7 @@ class Orders extends OrderRepositoryMock {
   @override
   Future<Order> fetchOrder(String id) async {
     details++;
-    return Order(id: id, status: status);
+    return Order(version: 1, id: id, status: status);
   }
 
   @override
@@ -192,7 +197,7 @@ void main() {
             carts.current = const Cart();
             orders.status = 'cancelled';
             (checkout ? orders.placeGate : orders.cancelGate).complete(
-              const Order(id: 'o', status: 'cancelled'),
+              const Order(version: 1, id: 'o', status: 'cancelled'),
             );
           }
           await tester.pumpAndSettle();
@@ -228,7 +233,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1));
         final reads = orders.reads, cartReads = carts.reads;
         (checkout ? orders.placeGate : orders.cancelGate).complete(
-          const Order(id: 'A-order', orderNumber: 'PRIVATE-A'),
+          const Order(version: 1, id: 'A-order', orderNumber: 'PRIVATE-A'),
         );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
@@ -283,7 +288,7 @@ void main() {
     callback();
     await tester.pump();
     expect(orders.placements, 1);
-    orders.placeGate.complete(const Order(id: 'o'));
+    orders.placeGate.complete(const Order(version: 1, id: 'o'));
     await tester.pumpAndSettle();
   });
   testWidgets(
@@ -368,7 +373,11 @@ void main() {
       expect(orders.placements, 1);
       carts.current = const Cart();
       orders.placeGate.complete(
-        const Order(id: 'old-screen-order', orderNumber: 'OLD-SCREEN'),
+        const Order(
+          version: 1,
+          id: 'old-screen-order',
+          orderNumber: 'OLD-SCREEN',
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.text('OLD-SCREEN'), findsNothing);
@@ -388,7 +397,9 @@ void main() {
       );
       await tester.pump();
       orders.status = 'cancelled';
-      orders.cancelGate.complete(const Order(id: 'o', status: 'cancelled'));
+      orders.cancelGate.complete(
+        const Order(version: 1, id: 'o', status: 'cancelled'),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Cover'), findsOneWidget);
       expect(find.byType(SnackBar), findsNothing);
@@ -423,7 +434,9 @@ void main() {
     await startCancel(tester);
     final details = orders.details, tracks = orders.tracks;
     orders.status = 'cancelled';
-    orders.cancelGate.complete(const Order(id: 'o', status: 'cancelled'));
+    orders.cancelGate.complete(
+      const Order(version: 1, id: 'o', status: 'cancelled'),
+    );
     await tester.pumpAndSettle();
     expect(orders.details, details + 1);
     expect(orders.tracks, tracks + 1);

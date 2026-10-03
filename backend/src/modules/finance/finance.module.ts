@@ -10,6 +10,7 @@ import {
   FinancialDocumentsController,
   LedgerController,
   OperationsController,
+  PricePublishApprovalsController,
 } from './finance.controller';
 import { CurrencyService } from './currency.service';
 import { DateRulesService } from './date-rules.service';
@@ -19,8 +20,10 @@ import { LedgerService } from './ledger.service';
 import { OperationService } from './operation.service';
 import { LinkedPricingService } from './linked-pricing.service';
 import { PeriodService } from './period.service';
+import { CatalogModule } from '../catalog/catalog.module';
 
 @Module({
+  imports: [CatalogModule],
   controllers: [
     CurrencyController,
     ExchangeRateController,
@@ -31,6 +34,7 @@ import { PeriodService } from './period.service';
     CashTransfersController,
     FinancialDocumentsController,
     AccountingPeriodsController,
+    PricePublishApprovalsController,
   ],
   providers: [
     CurrencyService,

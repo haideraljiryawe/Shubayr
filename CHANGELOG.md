@@ -1,5 +1,65 @@
 # Changelog
 
+## 10.0.2 - 2026-10-03
+
+### Fixed
+
+- Current-day financial documents now use the latest exchange rate effective at
+  their posting instant; back-dated documents use the Baghdad business day's
+  closing rate, and future-effective rates remain excluded.
+- Business-date parsing, report ranges, aging buckets, expiry checks, document
+  numbering and database date defaults now consistently follow
+  `Asia/Baghdad`, including the 00:00-03:00 first-of-month boundary.
+
+### Changed
+
+- The API contract is version 10.0.2. This patch is not breaking; it clarifies
+  that exchange-rate effective values and lookups are exact timestamps.
+
+## 10.0.1 - 2026-10-03
+
+### Fixed
+
+- Missing or unknown currency conversion rates now return the declared
+  `EXCHANGE_RATE_NOT_FOUND` error instead of permitting an implicit rate.
+- Supplier payments now interpret allocation amounts in the cash account
+  currency, convert at the payment-date or permissioned override rate, and post
+  differences from invoice carrying value to supplier FX gain or loss.
+
+### Changed
+
+- The API contract is version 10.0.1, with refreshed generated web and admin
+  API types.
+
+## 10.0.0 - 2026-10-02
+
+### Breaking
+
+- Every order transition now requires the current integer `version`; a stale
+  action returns 409 `STALE_ORDER_STATE` with the current status and version.
+- Checkout now requires explicit per-SKU price-version acceptance after any
+  increase or decrease, and customer cancellation after `pending` is a request
+  that staff approve or deny.
+
+### Added
+
+- The complete order state machine, business-hours acceptance deadlines and
+  idempotent late/auto-cancel processing in `Asia/Baghdad`.
+- Location-sorted order and batch pick lists, preparation-time FEFO
+  reallocation, visible shortage handling, and customer-approved reductions.
+- Failed-delivery reasons and retry without a second inventory issue.
+- Numbered partial retrieval documents that return custody at original issue
+  cost through balanced inventory/custody postings.
+- Below-cost protection for fixed and linked price publication and order
+  confirmation, including audited, separated-duty overrides.
+
+### Changed
+
+- Customer order reads now include the version, timeline, cancellation request,
+  price acceptance, late/attention flags, and linked retrieval summaries.
+- The API contract is version 10.0.0, with refreshed generated web and admin
+  API types.
+
 ## 8.2.0 - 2026-09-30
 
 ### Added

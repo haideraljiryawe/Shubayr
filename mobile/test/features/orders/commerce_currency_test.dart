@@ -39,6 +39,10 @@ void main() {
           'unit_price': 12.75,
           'line_total': 12.75,
           'available': true,
+          'price_version': 'fixture-v1',
+          'current_price_version': 'fixture-v1',
+          'price_changed': false,
+          'current_unit_price': 12.75,
           'available_qty': 10,
           'currency': 'USD',
         },
@@ -71,6 +75,7 @@ void main() {
     final delivery = Delivery.fromJson({
       'id': 'd1',
       'order_id': 'o1',
+      'order_version': 1,
       'status': 'assigned',
       'currency': 'USD',
       'delivery_fee': 1.25,

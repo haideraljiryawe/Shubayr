@@ -11,6 +11,12 @@ Delivery _$DeliveryFromJson(Map<String, dynamic> json) => Delivery(
   orderId: json['order_id'] as String,
   agentId: json['agent_id'] as String?,
   status: json['status'] as String,
+  orderVersion: (json['order_version'] as num?)?.toInt(),
+  failureReason: json['failure_reason'] as String?,
+  failedAt: json['failed_at'] == null
+      ? null
+      : DateTime.parse(json['failed_at'] as String),
+  retryCount: (json['retry_count'] as num?)?.toInt() ?? 0,
   deliveryFee: json['delivery_fee'] as num? ?? 0,
   currency: json['currency'] as String?,
   dispatchedAt: json['dispatched_at'] == null
@@ -26,6 +32,10 @@ Map<String, dynamic> _$DeliveryToJson(Delivery instance) => <String, dynamic>{
   'order_id': instance.orderId,
   'agent_id': instance.agentId,
   'status': instance.status,
+  'order_version': instance.orderVersion,
+  'failure_reason': instance.failureReason,
+  'failed_at': instance.failedAt?.toIso8601String(),
+  'retry_count': instance.retryCount,
   'delivery_fee': instance.deliveryFee,
   'currency': ?instance.currency,
   'dispatched_at': instance.dispatchedAt?.toIso8601String(),

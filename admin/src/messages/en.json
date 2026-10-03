@@ -96,7 +96,11 @@
     "forbiddenBody": "This page needs a permission your account doesn't have. Ask an administrator if you need it.",
     "loadFailedTitle": "The page could not load",
     "loadFailedBody": "We couldn't reach the server. Try again in a moment.",
-    "backToDashboard": "Back to the dashboard"
+    "backToDashboard": "Back to the dashboard",
+    "unavailable": "The server can't be reached right now. Check the connection and try again in a moment.",
+    "retry": "Try again",
+    "offlineTitle": "You're offline",
+    "offlineBody": "Check your internet connection, then try again."
   },
   "notFound": {
     "title": "Page not found",
@@ -181,7 +185,8 @@
     "errors": {
       "separation": "Separation of duties: the person who created this purchase can't also approve its payment, return or correction. Ask a colleague to post it.",
       "rateOverride": "Changing the exchange rate needs the purchases.override_rate permission. Leave the central rate, or ask someone who has it.",
-      "missingRate": "No central exchange rate is recorded for this currency on the document date. Record one under Currencies & rates first."
+      "missingRate": "No central exchange rate is recorded for this currency on the document date. Record one under Currencies & rates first.",
+      "missingRateLink": "Open Currencies & rates"
     },
     "date": {
       "documentDate": "Document date",
@@ -521,31 +526,32 @@
     },
     "payment": {
       "title": "Pay a supplier",
-      "description": "Pay from a cash or bank account, allocate to open invoices (partly if needed), keep any remainder as credit. The FX gain or loss is shown before you confirm.",
+      "description": "Pay from a cash or bank account in any currency, allocate to open invoices in any currency (partly if needed), keep any remainder as credit. The rate, the converted amounts and the FX gain or loss are shown before you confirm.",
       "back": "Supplier payments",
       "supplier": "Supplier",
       "pickSupplier": "Choose a supplier",
       "cashAccount": "Cash or bank account",
       "pickCash": "Choose an account",
       "amountIn": "Amount ({currency})",
-      "rate": "Settlement rate ({currency} → IQD)",
-      "rateCentral": "Central rate: {rate}.",
-      "rateHidden": "The central rate needs ledger.view to read; enter the rate.",
-      "rateMissing": "No central rate on this date; enter the rate.",
+      "rate": "Payment-date rate ({currency} → IQD)",
+      "rateCentral": "The rate on the payment date: {rate}. Changing it needs purchases.override_rate.",
+      "rateHidden": "The rate can't be read without ledger.view; the server applies the payment-date rate when posting.",
+      "rateMissing": "No rate is recorded for this date, so the payment can't be posted until one is.",
       "reference": "Reference",
       "allocations": "Allocate to invoices",
-      "allocationsBody": "Each allocation is carried at the invoice's own rate and paid at the settlement rate; the difference is the FX gain or loss.",
-      "noOpenInvoices": "This supplier has no open invoice in {currency}.",
-      "otherCurrencyInvoices": "Invoices in another currency are paid from an account in that currency.",
+      "allocationsBody": "Type each allocation in the payment currency. It is converted to the invoice's currency at the payment-date rate and carried at the invoice's own rate; the difference is the FX gain or loss.",
+      "noOpenInvoices": "This supplier has no open invoice.",
       "fxNeedsCost": "The invoice rates are visible only with cost.view, so the FX preview can't be shown; the server still posts it.",
       "columns": {
         "invoice": "Invoice",
         "remaining": "Remaining",
         "invoiceRate": "Invoice rate",
-        "apply": "Apply",
         "carrying": "Carried (IQD)",
         "paid": "Paid (IQD)",
-        "fx": "FX"
+        "fx": "FX",
+        "applyIn": "Apply ({currency})",
+        "rateUsed": "Rate used",
+        "converted": "Converted"
       },
       "summary": {
         "payment": "Payment (IQD)",
@@ -556,7 +562,7 @@
       "fxNone": "No FX difference",
       "fxLoss": "FX loss {amount}",
       "fxGain": "FX gain {amount}",
-      "needsCashAccounts": "Choosing the cash or bank account needs the cash_accounts.manage permission, which your account doesn't have. Ask an administrator.",
+      "needsCashAccounts": "Choosing the cash or bank account needs the cash_accounts.view permission, which your account doesn't have. Ask an administrator.",
       "review": "Review",
       "edit": "Edit",
       "confirm": "Confirm payment",
@@ -570,8 +576,19 @@
         "rate": "Enter the settlement rate.",
         "overRemaining": "More than what is left on {number}.",
         "overAllocated": "The allocations add up to more than the payment.",
-        "date": "Check the document date."
-      }
+        "date": "Check the document date.",
+        "mixedCurrencies": "One payment can involve only one foreign currency.",
+        "missingRate": "Record the {currency} rate for this date first."
+      },
+      "rateCentralEditable": "The rate on the payment date: {rate}. You may enter another rate (purchases.override_rate).",
+      "rateHiddenEditable": "The rate can't be read without ledger.view. Leave it empty for the payment-date rate, or enter one (purchases.override_rate).",
+      "rateMissingEditable": "No rate is recorded for this date. Enter one (purchases.override_rate) or record it first.",
+      "settle": "Settle",
+      "settleHint": "Fill in what settles this invoice at the rate shown.",
+      "rateUnknown": "payment-date",
+      "missingRateBody": "No {currency} exchange rate is recorded for {date}. The payment can't be posted until a rate on or before that date exists.",
+      "missingRateLink": "Open Currencies & rates",
+      "reviewBodyServerRate": "Pay {amount}. The server applies the payment-date rate and posts the FX difference."
     },
     "payments": {
       "title": "Supplier payments",
@@ -874,7 +891,10 @@
       "markReady": "Mark ready",
       "dispatch": "Hand over to agent",
       "cancel": "Cancel order (reason required)",
-      "reject": "Reject order"
+      "reject": "Reject order",
+      "deliver": "Mark delivered",
+      "fail": "Mark failed (reason required)",
+      "retry": "Retry delivery"
     },
     "confirm": {
       "accept": "Accept this order?",
@@ -885,7 +905,11 @@
       "cancelBody": "The order is cancelled before dispatch and its stock reservation released. The reason is kept in the order timeline and audit log.",
       "yes": "Confirm",
       "reject": "Reject order",
-      "rejectBody": "Only pending orders can be rejected. It is recorded as its own “rejected” status, separate from a cancellation. The reservation is released, the customer and order monitors are notified, and the reason is kept in the order timeline and audit log."
+      "rejectBody": "Only pending orders can be rejected. It is recorded as its own “rejected” status, separate from a cancellation. The reservation is released, the customer and order monitors are notified, and the reason is kept in the order timeline and audit log.",
+      "deliver": "Mark this order delivered?",
+      "fail": "Mark the delivery failed",
+      "failBody": "The goods stay in the agent's custody. Retry the delivery later, or bring the goods back with a retrieval.",
+      "retry": "Send this order out again? It reuses the goods already in the agent's custody."
     },
     "dispatchBlocked": {
       "noDelivery": "Can't hand over: this order has no delivery.",
@@ -906,7 +930,138 @@
     "done": "Order updated",
     "conflict": "This order changed before your action was saved — it is now “{status}”. The page has been refreshed to show what you can do now.",
     "conflictGeneric": "This order changed before your action was saved, so the page has been refreshed. Check its current state.",
-    "forbidden": "The server refused this action: you no longer have the permission it needs. The page has been refreshed to show what you can do now."
+    "forbidden": "The server refused this action: you no longer have the permission it needs. The page has been refreshed to show what you can do now.",
+    "badges": {
+      "late": "Late",
+      "attention": "Needs attention",
+      "cancelRequested": "Cancellation requested"
+    },
+    "lateAlert": "Not accepted in time: the acceptance deadline ({deadline}) has passed. The staff inbox has been alerted.",
+    "attentionRefused": "Resolve the short lines below before marking this order ready.",
+    "deliveryFailed": "Delivery failed: {reason}{count, plural, =0 {} one { · retried once} other { · retried # times}}",
+    "boardDescription": "Open orders by lifecycle stage. Each column is read from the server; flags show late, short and cancellation-requested orders.",
+    "board": {
+      "more": "{count} more in the list",
+      "empty": "None"
+    },
+    "views": {
+      "label": "Order views",
+      "list": "List",
+      "board": "Board"
+    },
+    "pickList": {
+      "open": "Pick list",
+      "title": "Pick list",
+      "batchTitle": "Batch pick list · {count} orders",
+      "batchTitleShort": "Batch pick list",
+      "generated": "Generated {at}",
+      "print": "Print",
+      "empty": "Nothing to pick.",
+      "chooseOrders": "Choose orders in preparation on the orders list, then print their pick lists together.",
+      "select": "Select",
+      "selectOrder": "Select order {number} for the batch pick list",
+      "selectHint": "Tick orders in preparation to print their pick lists together.",
+      "printSelected": "Print pick lists ({count})",
+      "columns": {
+        "location": "Location",
+        "product": "Product",
+        "lot": "Lot / expiry",
+        "quantity": "Quantity",
+        "order": "Order",
+        "picked": "✓"
+      }
+    },
+    "attention": {
+      "title": "Needs attention: stock is short",
+      "body": "Preparation found less stock than ordered. Propose a smaller quantity (the customer must accept it), or cancel the line or the whole order. The order can't be marked ready until this is resolved.",
+      "columns": {
+        "item": "Item",
+        "ordered": "Ordered",
+        "allocated": "Allocated",
+        "short": "Short"
+      },
+      "reduce": "Propose smaller quantity",
+      "cancelLine": "Cancel line",
+      "cancelOrder": "Cancel the whole order",
+      "needsPermission": "Resolving shortages needs the orders.shortage.resolve permission.",
+      "proposal": {
+        "pending": "Waiting for the customer to accept {item}: {from} → {to}.",
+        "accepted": "The customer accepted {item}: {from} → {to}.",
+        "denied": "The customer declined reducing {item} ({from} → {to}). Cancel the line or the order."
+      },
+      "dialog": {
+        "reduce": "Propose a smaller quantity",
+        "reduceBody": "The customer is asked to accept the new quantity before anything changes.",
+        "reduceConfirm": "Send to the customer",
+        "cancel_line": "Cancel this line",
+        "cancel_lineBody": "The line is removed from the order and its reservation released.",
+        "cancel_lineConfirm": "Cancel line",
+        "cancel_order": "Cancel the whole order",
+        "cancel_orderBody": "The order is cancelled and every reservation released.",
+        "cancel_orderConfirm": "Cancel order",
+        "newQuantity": "New quantity",
+        "newQuantityHint": "What can be supplied now: {allocated} of {ordered}.",
+        "quantityError": "Enter a quantity above zero and below {ordered}."
+      }
+    },
+    "cancellation": {
+      "title": "Cancellation request",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "denied": "Denied"
+      },
+      "reason": "Customer's reason",
+      "requestedAt": "Requested",
+      "resolution": "Decision note",
+      "approve": "Approve cancellation",
+      "deny": "Deny",
+      "afterDispatchPermission": "Approving after dispatch also needs orders.cancel_after_dispatch.",
+      "dialog": {
+        "approve": "Approve the cancellation",
+        "deny": "Deny the cancellation",
+        "approveBody": "The order is cancelled and its reservations released.",
+        "approveAfterDispatch": "The order is cancelled and a retrieval is opened to bring the goods back from the agent's custody.",
+        "denyBody": "The order continues; the customer sees your reason."
+      }
+    },
+    "retrievals": {
+      "title": "Retrievals",
+      "none": "No retrieval yet.",
+      "open": "Bring the goods back for a retry",
+      "outcome": {
+        "retry": "For retry",
+        "cancel": "Cancelled order"
+      },
+      "status": {
+        "open": "Open",
+        "partially_received": "Partly received",
+        "received": "Received",
+        "closed": "Closed"
+      },
+      "dialog": {
+        "title": "Open a retrieval",
+        "body": "The goods in the agent's custody come back to the store so the delivery can be retried. They are received on the retrieval's page, in full or in part."
+      }
+    },
+    "belowCost": {
+      "title": "Below the protected cost threshold",
+      "body": "Confirming would sell these SKUs below the protected threshold, so the server refused it.",
+      "columns": {
+        "sku": "SKU",
+        "price": "Price",
+        "threshold": "Threshold",
+        "cost": "Cost",
+        "minimum": "Minimum price"
+      },
+      "approve": "Approve below cost",
+      "needsApproval": "Someone with the sell_below_cost.approve permission must approve this exception.",
+      "selfRefused": "You can't approve a below-cost exception on your own order: separation of duties requires a different approver.",
+      "dialog": {
+        "title": "Approve selling below cost",
+        "body": "The order is confirmed at these prices. Your reason is recorded in the audit log."
+      }
+    }
   },
   "inbox": {
     "title": "Notifications",
@@ -956,7 +1111,8 @@
       "default_low_stock_threshold": "Default low-stock threshold",
       "backdating_window_days": "Back-dating window",
       "markup_alert_percent": "Markup alert percentage",
-      "sale_rounding_multiple": "Sale price rounding multiple"
+      "sale_rounding_multiple": "Sale price rounding multiple",
+      "separation_of_duties_level": "Separation of duties"
     },
     "units": {
       "currency": "In the base currency ({currency})",
@@ -999,6 +1155,11 @@
       "price": "Price",
       "quantity": "Quantity",
       "exchange_rate": "Exchange rate"
+    },
+    "separationOfDuties": {
+      "hint": "Standard lets a purchase creator record its payment or return. Strict requires another user for those actions. Nobody may approve their own request in either mode.",
+      "standard": "Standard",
+      "strict": "Strict"
     },
     "history": {
       "title": "Change history",
@@ -1545,7 +1706,8 @@
       "confirm": "Reindex now",
       "synchronized": "Search is up to date: every product was indexed.",
       "queued": "{count, plural, one {# product is} other {# products are}} still queued; the automatic catch-up will retry."
-    }
+    },
+    "belowCostNote": "Raise the price, or ask an approver: approving a below-cost price needs the API to record who proposed it (reported to the backend)."
   },
   "linkedPrices": {
     "preview": "Preview the price effect",
@@ -1572,7 +1734,8 @@
     "staleBody": "A rate, a linked SKU or the rounding rule changed since the preview, or it expired. Nothing was saved. Refresh the preview and review the new figures.",
     "refresh": "Refresh preview",
     "publishedToast": "Saved {rate} and published {count, plural, =0 {no prices} one {# price} other {# prices}}",
-    "rateOnlyToast": "Saved {rate} only; {count, plural, =0 {no linked prices} one {# price awaits it} other {# prices await it}}"
+    "rateOnlyToast": "Saved {rate} only; {count, plural, =0 {no linked prices} one {# price awaits it} other {# prices await it}}",
+    "approvalPendingToast": "The below-cost publish is pending approval; no rate or price was saved yet."
   },
   "inventory": {
     "skuPicker": {
@@ -1894,6 +2057,50 @@
       "title": "Stock",
       "body": "Read-only. Stock changes only through inventory documents — opening stock, transfers, counts and write-downs.",
       "view": "Stock view"
+    }
+  },
+  "retrievals": {
+    "title": "Retrieval",
+    "backToOrder": "Back to the order",
+    "description": "Goods coming back from an agent's custody, received in full or in part at their original issue cost.",
+    "status": "Status",
+    "outcome": "Purpose",
+    "opened": "Opened",
+    "journal": "Journal entry",
+    "viewEntry": "View entry",
+    "posted": "Posted",
+    "reason": "Reason",
+    "statuses": {
+      "open": "Open",
+      "partially_received": "Partly received",
+      "received": "Received",
+      "closed": "Closed"
+    },
+    "outcomes": {
+      "retry": "Return for a retry",
+      "cancel": "Cancelled after dispatch"
+    },
+    "lines": "Lines",
+    "linesBody": "Only what is in this agent's custody for the order is expected back.",
+    "columns": {
+      "product": "Product",
+      "lot": "Lot",
+      "expected": "Expected",
+      "received": "Received",
+      "unitCost": "Unit cost",
+      "receiveNow": "Receive now",
+      "putBack": "Put back at"
+    },
+    "left": "{value} left",
+    "lineDone": "Fully received",
+    "review": "Review",
+    "edit": "Edit",
+    "receive": "Receive",
+    "reviewBody": "{count, plural, one {# line} other {# lines}} to receive.",
+    "errors": {
+      "noLines": "Enter a quantity to receive.",
+      "overOutstanding": "More than what is still expected ({left}).",
+      "location": "Choose where to put it back."
     }
   }
 }

@@ -10,21 +10,36 @@ import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { ProductsService } from '../catalog/products.service';
 import { AuditService } from '../audit/audit.service';
+import { assertDifferentActor } from '../../common/access/separation-of-duties';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InventoryService } from '../inventory/inventory.service';
-import { businessDate } from '../finance/business-date';
+import {
+  businessDate,
+  businessDateText,
+  businessDayEnd,
+  businessDayStart,
+} from '../finance/business-date';
 import { calculateLineTotal } from '../catalog/pricing';
 import {
   activeCoupon,
   calculateCartTotals,
   skuUnitPrice,
+  skuPriceVersion,
   MAX_CART_ITEM_QUANTITY,
 } from './cart-pricing';
+import { addBusinessMinutes } from './business-time';
+import { assertOrderTransition, staleOrder } from './order-transition';
+import { BelowCostService } from '../catalog/below-cost.service';
 import {
   OrderQueryDto,
   OrderStatus,
   AdminOrderQueryDto,
   CancelOrderDto,
+  CustomerCancelDto,
+  CancellationRequestDto,
+  ResolveCancellationRequestDto,
+  ResolveShortageDto,
+  ShortageResponseDto,
   RejectOrderDto,
   PlaceOrderDto,
   UpdateOrderStatusDto,
@@ -32,20 +47,14 @@ import {
   ORDER_STATUSES,
 } from './dto/order.dto';
 
-const nextStatuses: Record<OrderStatus, readonly OrderStatus[]> = {
-  pending: ['confirmed'],
-  confirmed: ['preparing'],
-  preparing: ['ready_for_dispatch'],
-  ready_for_dispatch: ['dispatched'],
-  dispatched: [],
-  failed: [],
-  delivered: ['return_requested'],
-  return_requested: ['returned'],
-  returned: [],
-  cancelled: [],
-  rejected: [],
-};
-const orderInclude = { items: true } satisfies Prisma.OrderInclude;
+const orderInclude = {
+  items: true,
+  status_events: { orderBy: [{ at: 'asc' as const }, { id: 'asc' as const }] },
+  retrievals: {
+    select: { id: true, document_number: true, status: true, outcome: true },
+    orderBy: { created_at: 'desc' as const },
+  },
+} satisfies Prisma.OrderInclude;
 type OrderRow = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
 const adminOrderInclude = {
   items: { orderBy: { id: 'asc' as const } },
@@ -57,6 +66,10 @@ const adminOrderInclude = {
     },
   },
   status_events: { orderBy: [{ at: 'asc' as const }, { id: 'asc' as const }] },
+  retrievals: {
+    include: { lines: { orderBy: { id: 'asc' as const } } },
+    orderBy: { created_at: 'desc' as const },
+  },
 } satisfies Prisma.OrderInclude;
 type AdminOrderRow = Prisma.OrderGetPayload<{
   include: typeof adminOrderInclude;
@@ -76,6 +89,7 @@ export class OrdersService {
     private readonly audit: AuditService,
     private readonly notifications?: NotificationsService,
     private readonly inventory: InventoryService = undefined as unknown as InventoryService,
+    private readonly belowCost: BelowCostService = undefined as unknown as BelowCostService,
   ) {}
 
   async place(userId: string, input: PlaceOrderDto, rawKey?: string) {
@@ -94,6 +108,11 @@ export class OrdersService {
           address_id: input.address_id,
           coupon_code: input.coupon_code?.trim().toUpperCase() ?? null,
           payment_method: input.payment_method ?? 'cod',
+          accepted_price_versions: [
+            ...(input.accepted_price_versions ?? []),
+          ].sort((left, right) =>
+            left.variant_id.localeCompare(right.variant_id),
+          ),
         }),
       )
       .digest('hex');
@@ -135,6 +154,28 @@ export class OrdersService {
       const at = new Date();
       const documentDate = businessDate(at);
       const lines = [];
+      const acceptedVersions = new Map(
+        (input.accepted_price_versions ?? []).map((entry) => [
+          entry.variant_id,
+          entry.price_version,
+        ]),
+      );
+      if (
+        acceptedVersions.size !== (input.accepted_price_versions ?? []).length
+      ) {
+        throw new UnprocessableEntityException(
+          'accepted_price_versions must not repeat a variant',
+        );
+      }
+      const priceChanges: Array<{
+        product_id: string;
+        variant_id: string;
+        sku: string;
+        old_price: number;
+        new_price: number;
+        old_price_version: string;
+        new_price_version: string;
+      }> = [];
       for (const item of cart.items) {
         const requestedQuantity = Number(item.quantity);
         if (
@@ -172,15 +213,44 @@ export class OrdersService {
           );
         }
         const unit_price = skuUnitPrice(product, variant, at);
+        const priceVersion = skuPriceVersion(product, variant, unit_price);
+        const oldPrice = Number(item.unit_price);
+        const changed =
+          oldPrice !== unit_price || item.price_version !== priceVersion;
+        if (changed && acceptedVersions.get(variant.id) !== priceVersion) {
+          priceChanges.push({
+            product_id: product.id,
+            variant_id: variant.id,
+            sku: variant.sku,
+            old_price: oldPrice,
+            new_price: unit_price,
+            old_price_version: item.price_version,
+            new_price_version: priceVersion,
+          });
+        }
         lines.push({
           product_id: product.id,
           variant_id: item.variant_id,
           quantity: requestedQuantity,
           unit_price,
           line_total: calculateLineTotal(unit_price, requestedQuantity),
+          price_version: priceVersion,
           product_name_ar: product.name_ar,
           product_name_en: product.name_en,
           image_url: product.images[0]?.url ?? null,
+        });
+      }
+      if (priceChanges.length) {
+        throw new ConflictException({
+          status: 409,
+          code: 'PRICE_CHANGED',
+          message: 'One or more prices changed and require acceptance',
+          errors: priceChanges.map((change) => ({
+            field: `variant.${change.variant_id}`,
+            code: 'PRICE_CHANGED',
+            message: `The price for ${change.sku} changed`,
+            ...change,
+          })),
         });
       }
       // The coupon is rechecked at placement, under lock, never trusted from the client.
@@ -200,6 +270,7 @@ export class OrdersService {
           throw new ConflictException('Coupon is no longer valid');
       }
       const totals = calculateCartTotals(lines, coupon, at);
+      const deadlines = await this.acceptanceDeadlines(tx, at);
       const order = await tx.order.create({
         data: {
           user_id: userId,
@@ -210,6 +281,19 @@ export class OrdersService {
           order_number: `ORD-${Date.now().toString(36).toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`,
           payment_method: 'cod',
           status: 'pending',
+          acceptance_deadline: deadlines.acceptance,
+          auto_cancel_deadline: deadlines.autoCancel,
+          price_change_info:
+            (input.accepted_price_versions?.length ?? 0) > 0
+              ? {
+                  accepted_at: at.toISOString(),
+                  lines: lines.map((line) => ({
+                    variant_id: line.variant_id,
+                    unit_price: line.unit_price,
+                    price_version: line.price_version,
+                  })),
+                }
+              : undefined,
           document_date: documentDate,
           accounting_date: documentDate,
           ...totals,
@@ -270,6 +354,57 @@ export class OrdersService {
     return this.getOwned(userId, orderId);
   }
 
+  private async acceptanceDeadlines(
+    tx: Prisma.TransactionClient,
+    placedAt: Date,
+  ) {
+    const [settings, hours, closedDays] = await Promise.all([
+      tx.storeSetting.findMany({
+        where: {
+          key: {
+            in: [
+              'timezone',
+              'acceptance_alert_timeout_minutes',
+              'auto_cancel_enabled',
+              'auto_cancel_timeout_minutes',
+            ],
+          },
+        },
+      }),
+      tx.businessHour.findMany({ orderBy: { weekday: 'asc' } }),
+      tx.closedDay.findMany({ select: { date: true } }),
+    ]);
+    const values = Object.fromEntries(
+      settings.map((row) => [row.key, row.value]),
+    );
+    const timeZone = values.timezone || 'Asia/Baghdad';
+    const closed = new Set(closedDays.map((row) => businessDateText(row.date)));
+    const acceptanceMinutes = Number(
+      values.acceptance_alert_timeout_minutes || 15,
+    );
+    const acceptance = addBusinessMinutes(
+      placedAt,
+      acceptanceMinutes,
+      hours,
+      closed,
+      timeZone,
+    );
+    const autoCancelMinutes = Number(values.auto_cancel_timeout_minutes || 0);
+    return {
+      acceptance,
+      autoCancel:
+        values.auto_cancel_enabled === 'true' && autoCancelMinutes > 0
+          ? addBusinessMinutes(
+              placedAt,
+              autoCancelMinutes,
+              hours,
+              closed,
+              timeZone,
+            )
+          : null,
+    };
+  }
+
   async list(userId: string, query: OrderQueryDto) {
     const page = query.page ?? 1;
     const per_page = query.per_page ?? 20;
@@ -315,15 +450,10 @@ export class OrdersService {
     const placedAt: Prisma.DateTimeFilter | undefined =
       query.from || query.to
         ? {
-            ...(query.from
-              ? { gte: new Date(`${query.from}T00:00:00.000Z`) }
-              : {}),
+            ...(query.from ? { gte: businessDayStart(query.from) } : {}),
             ...(query.to
               ? {
-                  lt: new Date(
-                    new Date(`${query.to}T00:00:00.000Z`).getTime() +
-                      86_400_000,
-                  ),
+                  lt: new Date(businessDayEnd(query.to).getTime() + 1),
                 }
               : {}),
           }
@@ -497,7 +627,7 @@ export class OrdersService {
     };
   }
 
-  async cancel(userId: string, id: string) {
+  async cancel(userId: string, id: string, input: CustomerCancelDto) {
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
       const order = await tx.order.findUnique({ where: { id } });
@@ -507,9 +637,10 @@ export class OrdersService {
       await this.cancelOrder(
         tx,
         order,
-        ['pending', 'confirmed'],
+        ['pending'],
         userId,
         'Cancelled by customer',
+        input.version,
       );
     });
     return this.getOwned(userId, id);
@@ -526,6 +657,7 @@ export class OrdersService {
         cancellableStatuses,
         actorId,
         input.reason,
+        input.version,
       );
     });
     return this.getAdmin(id);
@@ -536,9 +668,15 @@ export class OrdersService {
       await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
       const order = await tx.order.findUnique({ where: { id } });
       if (!order) throw new NotFoundException('Order not found');
+      assertOrderTransition(
+        order.status,
+        'rejected',
+        order.version,
+        input.version,
+      );
       const updated = await tx.order.updateMany({
-        where: { id, status: 'pending' },
-        data: { status: 'rejected' },
+        where: { id, status: 'pending', version: input.version },
+        data: { status: 'rejected', version: { increment: 1 } },
       });
       if (!updated.count) {
         throw new ConflictException('Only a pending order can be rejected');
@@ -572,16 +710,449 @@ export class OrdersService {
     return this.getAdmin(id);
   }
 
-  async updateStatus(actorId: string, id: string, input: UpdateOrderStatusDto) {
+  async requestCancellation(
+    userId: string,
+    id: string,
+    input: CancellationRequestDto,
+  ) {
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
       const order = await tx.order.findUnique({ where: { id } });
       if (!order) throw new NotFoundException('Order not found');
-      const allowed = nextStatuses[order.status as OrderStatus] ?? [];
-      if (!allowed.includes(input.status)) {
-        throw new ConflictException('Order status transition is not allowed');
+      if (order.user_id !== userId)
+        throw new ForbiddenException('Order belongs to another customer');
+      if (order.version !== input.version)
+        throw staleOrder(order.status, order.version);
+      if (
+        ![
+          'confirmed',
+          'preparing',
+          'ready_for_dispatch',
+          'dispatched',
+          'failed',
+        ].includes(order.status)
+      ) {
+        throw new ConflictException(
+          order.status === 'pending'
+            ? 'A pending order can be cancelled directly'
+            : 'This order cannot receive a cancellation request',
+        );
+      }
+      if (order.cancellation_request_status === 'pending')
+        throw new ConflictException(
+          'A cancellation request is already pending',
+        );
+      const now = new Date();
+      await tx.order.update({
+        where: { id },
+        data: {
+          version: { increment: 1 },
+          cancellation_request_status: 'pending',
+          cancellation_request_reason: input.reason,
+          cancellation_requested_at: now,
+          cancellation_resolved_at: null,
+          cancellation_resolved_by: null,
+          cancellation_resolution_note: null,
+        },
+      });
+      await this.audit.record(tx, {
+        actorId: userId,
+        action: 'order.cancellation_request.create',
+        entityType: 'order',
+        entityId: id,
+        before: { status: order.status },
+        after: { status: order.status, reason: input.reason },
+      });
+    });
+    return this.getOwned(userId, id);
+  }
+
+  async resolveCancellationRequest(
+    actorId: string,
+    id: string,
+    input: ResolveCancellationRequestDto,
+    permissions: string[] = [],
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
+      const order = await tx.order.findUnique({ where: { id } });
+      if (!order) throw new NotFoundException('Order not found');
+      if (order.version !== input.version)
+        throw staleOrder(order.status, order.version);
+      if (order.cancellation_request_status !== 'pending')
+        throw new ConflictException('No cancellation request is pending');
+      assertDifferentActor(
+        actorId,
+        order.user_id,
+        'The cancellation requester cannot resolve their own request',
+      );
+      const now = new Date();
+      if (input.decision === 'denied') {
+        await tx.order.update({
+          where: { id },
+          data: {
+            version: { increment: 1 },
+            cancellation_request_status: 'denied',
+            cancellation_resolved_at: now,
+            cancellation_resolved_by: actorId,
+            cancellation_resolution_note: input.reason,
+          },
+        });
+      } else if (
+        ['pending', 'confirmed', 'preparing', 'ready_for_dispatch'].includes(
+          order.status,
+        )
+      ) {
+        await this.cancelOrder(
+          tx,
+          order,
+          cancellableStatuses,
+          actorId,
+          input.reason,
+          input.version,
+          true,
+        );
+      } else if (['dispatched', 'failed'].includes(order.status)) {
+        if (!permissions.includes('orders.cancel_after_dispatch')) {
+          throw new ForbiddenException(
+            'Missing orders.cancel_after_dispatch permission',
+          );
+        }
+        assertOrderTransition(
+          order.status,
+          'cancelled',
+          order.version,
+          input.version,
+        );
+        await tx.order.update({
+          where: { id },
+          data: {
+            status: 'cancelled',
+            version: { increment: 1 },
+            cancellation_request_status: 'approved',
+            cancellation_resolved_at: now,
+            cancellation_resolved_by: actorId,
+            cancellation_resolution_note: input.reason,
+          },
+        });
+        await tx.orderStatusEvent.create({
+          data: {
+            order_id: id,
+            status: 'cancelled',
+            note: input.reason,
+            at: now,
+          },
+        });
+        await this.inventory.openRetrieval(
+          tx,
+          id,
+          actorId,
+          'cancel',
+          input.reason,
+          `cancel:${id}:${input.version}`,
+        );
+        await this.recordOrderNotification(tx, id, 'cancelled');
+        await this.notifications?.recordOrderMonitors(
+          tx,
+          'order_cancelled',
+          id,
+          now.toISOString(),
+        );
+      } else {
+        throw new ConflictException('This order can no longer be cancelled');
+      }
+      await this.audit.record(tx, {
+        actorId,
+        action: 'order.cancellation_request.resolve',
+        entityType: 'order',
+        entityId: id,
+        before: { status: order.status, request_status: 'pending' },
+        after: { decision: input.decision, reason: input.reason },
+      });
+    });
+    return this.getAdmin(id);
+  }
+
+  async resolveShortage(
+    actorId: string,
+    id: string,
+    input: ResolveShortageDto,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
+      const order = await tx.order.findUnique({ where: { id } });
+      if (!order) throw new NotFoundException('Order not found');
+      if (order.version !== input.version)
+        throw staleOrder(order.status, order.version);
+      if (order.status !== 'preparing' || !order.inventory_attention_required)
+        throw new ConflictException(
+          'Order does not have a preparation shortage',
+        );
+      if (input.action === 'cancel_order') {
+        await this.cancelOrder(
+          tx,
+          order,
+          ['preparing'],
+          actorId,
+          input.reason,
+          input.version,
+        );
+        return;
+      }
+      const item = await tx.orderItem.findFirst({
+        where: { id: input.order_item_id, order_id: id },
+      });
+      if (!item) throw new NotFoundException('Order item not found');
+      const attention = this.attentionDetails(order.attention_details);
+      const shortLines = attention.short_lines.filter(
+        (line) => line.order_item_id !== item.id,
+      );
+      if (input.action === 'reduce') {
+        if (
+          input.new_quantity === undefined ||
+          input.new_quantity >= Number(item.quantity)
+        ) {
+          throw new UnprocessableEntityException(
+            'new_quantity must be lower than the ordered quantity',
+          );
+        }
+        await tx.order.update({
+          where: { id },
+          data: {
+            version: { increment: 1 },
+            attention_details: {
+              ...attention,
+              reduction_proposal: {
+                order_item_id: item.id,
+                old_quantity: Number(item.quantity),
+                new_quantity: input.new_quantity,
+                reason: input.reason,
+                status: 'pending',
+                requested_by: actorId,
+                requested_at: new Date().toISOString(),
+              },
+            },
+          },
+        });
+      } else {
+        await this.applyLineQuantity(tx, order, item, 0, actorId);
+        await tx.order.update({
+          where: { id },
+          data: {
+            version: { increment: 1 },
+            inventory_attention_required: shortLines.length > 0,
+            attention_details: shortLines.length
+              ? { short_lines: shortLines }
+              : Prisma.DbNull,
+          },
+        });
+      }
+      await this.audit.record(tx, {
+        actorId,
+        action: `order.shortage.${input.action}`,
+        entityType: 'order',
+        entityId: id,
+        before: { status: order.status, attention: order.attention_details },
+        after: { order_item_id: item.id, reason: input.reason },
+      });
+    });
+    return this.getAdmin(id);
+  }
+
+  async respondToShortage(
+    userId: string,
+    id: string,
+    input: ShortageResponseDto,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
+      const order = await tx.order.findUnique({ where: { id } });
+      if (!order) throw new NotFoundException('Order not found');
+      if (order.user_id !== userId)
+        throw new ForbiddenException('Order belongs to another customer');
+      if (order.version !== input.version)
+        throw staleOrder(order.status, order.version);
+      const attention = this.attentionDetails(order.attention_details);
+      const proposal = attention.reduction_proposal;
+      if (!proposal || proposal.status !== 'pending')
+        throw new ConflictException(
+          'No quantity reduction is awaiting acceptance',
+        );
+      const item = await tx.orderItem.findFirst({
+        where: { id: proposal.order_item_id, order_id: id },
+      });
+      if (!item) throw new NotFoundException('Order item not found');
+      if (input.decision === 'accepted') {
+        await this.applyLineQuantity(
+          tx,
+          order,
+          item,
+          proposal.new_quantity,
+          userId,
+        );
+      }
+      const shortLines =
+        input.decision === 'accepted'
+          ? attention.short_lines.filter(
+              (line) => line.order_item_id !== item.id,
+            )
+          : attention.short_lines;
+      await tx.order.update({
+        where: { id },
+        data: {
+          version: { increment: 1 },
+          inventory_attention_required: shortLines.length > 0,
+          attention_details: {
+            ...attention,
+            short_lines: shortLines,
+            reduction_proposal: {
+              ...proposal,
+              status: input.decision,
+              resolved_at: new Date().toISOString(),
+            },
+          },
+        },
+      });
+      await this.audit.record(tx, {
+        actorId: userId,
+        action: 'order.shortage.customer_response',
+        entityType: 'order',
+        entityId: id,
+        after: { decision: input.decision, order_item_id: item.id },
+      });
+    });
+    return this.getOwned(userId, id);
+  }
+
+  private attentionDetails(value: Prisma.JsonValue | null) {
+    type ShortLine = {
+      order_item_id: string;
+      variant_id: string;
+      requested: string;
+      allocated: string;
+      short: string;
+    };
+    type Proposal = {
+      order_item_id: string;
+      old_quantity: number;
+      new_quantity: number;
+      reason: string;
+      status: string;
+      requested_by: string;
+      requested_at: string;
+      resolved_at?: string;
+    };
+    const object =
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : {};
+    return {
+      short_lines: Array.isArray(object.short_lines)
+        ? (object.short_lines as ShortLine[])
+        : [],
+      reduction_proposal:
+        object.reduction_proposal &&
+        typeof object.reduction_proposal === 'object'
+          ? (object.reduction_proposal as Proposal)
+          : undefined,
+    };
+  }
+
+  private async applyLineQuantity(
+    tx: Prisma.TransactionClient,
+    order: {
+      id: string;
+      discount: Prisma.Decimal;
+      delivery_fee: Prisma.Decimal;
+    },
+    item: { id: string; unit_price: Prisma.Decimal },
+    quantity: number,
+    actorId: string,
+  ) {
+    await this.inventory.reduceOrderItemReservations(
+      tx,
+      item.id,
+      new Prisma.Decimal(quantity),
+      actorId,
+    );
+    await tx.orderItem.update({
+      where: { id: item.id },
+      data: {
+        quantity,
+        line_total: calculateLineTotal(item.unit_price, quantity),
+      },
+    });
+    const totals = await tx.orderItem.aggregate({
+      where: { order_id: order.id },
+      _sum: { line_total: true },
+    });
+    const subtotal = totals._sum.line_total ?? new Prisma.Decimal(0);
+    const discount = Prisma.Decimal.min(order.discount, subtotal);
+    await tx.order.update({
+      where: { id: order.id },
+      data: {
+        subtotal,
+        discount,
+        total: subtotal.minus(discount).plus(order.delivery_fee),
+      },
+    });
+  }
+
+  async updateStatus(
+    actorId: string,
+    id: string,
+    input: UpdateOrderStatusDto,
+    permissions: string[] = [],
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
+      const order = await tx.order.findUnique({ where: { id } });
+      if (!order) throw new NotFoundException('Order not found');
+      assertOrderTransition(
+        order.status,
+        input.status,
+        order.version,
+        input.version,
+      );
+      let belowCostBreaches: Awaited<
+        ReturnType<BelowCostService['assertAllowed']>
+      > = [];
+      if (input.status === 'confirmed' && this.belowCost) {
+        const priced = await tx.orderItem.findMany({
+          where: { order_id: id },
+          include: { variant: { select: { sku: true } } },
+        });
+        belowCostBreaches = await this.belowCost.assertAllowed(
+          tx,
+          actorId,
+          permissions,
+          priced.map((item) => ({
+            variant_id: item.variant_id,
+            sku: item.variant.sku,
+            price: Number(item.unit_price),
+          })),
+          {
+            reason: input.below_cost_override_reason,
+            originatorId: order.user_id,
+          },
+        );
       }
       const now = new Date();
+      if (
+        input.status === 'ready_for_dispatch' &&
+        order.inventory_attention_required
+      ) {
+        throw new ConflictException({
+          status: 409,
+          code: 'ORDER_NEEDS_ATTENTION',
+          message:
+            'Resolve preparation shortages before marking the order ready',
+          errors: [],
+        });
+      }
+      if (input.status === 'preparing') {
+        await this.inventory.prepareOrder(tx, id, actorId);
+      }
       let delivery: Awaited<ReturnType<typeof tx.delivery.findUnique>> | null =
         null;
       if (input.status === 'dispatched') {
@@ -604,11 +1175,12 @@ export class OrdersService {
         }
       }
       const updated = await tx.order.updateMany({
-        where: { id, status: order.status },
-        data: { status: input.status },
+        where: { id, status: order.status, version: input.version },
+        data: { status: input.status, version: { increment: 1 } },
       });
       if (!updated.count) {
-        throw new ConflictException('Order status transition is not allowed');
+        const current = await tx.order.findUniqueOrThrow({ where: { id } });
+        throw staleOrder(current.status, current.version);
       }
       await tx.orderStatusEvent.create({
         data: {
@@ -627,6 +1199,16 @@ export class OrdersService {
         before: { status: order.status },
         after: { status: input.status, note: input.note ?? null },
       });
+      if (belowCostBreaches.length) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'order.below_cost.override',
+          entityType: 'order',
+          entityId: id,
+          after: { variants: belowCostBreaches },
+          reason: input.below_cost_override_reason ?? undefined,
+        });
+      }
       if (input.status === 'dispatched' && delivery) {
         await this.inventory.issueOrderToCustody(
           tx,
@@ -658,10 +1240,12 @@ export class OrdersService {
 
   private async cancelOrder(
     tx: Prisma.TransactionClient,
-    order: { id: string; status: string },
+    order: { id: string; status: string; version: number },
     allowed: readonly string[],
     actorId: string,
     reason: string,
+    expectedVersion: number,
+    approvingRequest = false,
   ) {
     const id = order.id;
     const paidCod = await tx.payment.count({
@@ -670,9 +1254,30 @@ export class OrdersService {
     if (paidCod) {
       throw new ConflictException('A paid COD order cannot be cancelled');
     }
+    assertOrderTransition(
+      order.status,
+      'cancelled',
+      order.version,
+      expectedVersion,
+    );
     const updated = await tx.order.updateMany({
-      where: { id, status: { in: [...allowed] } },
-      data: { status: 'cancelled' },
+      where: {
+        id,
+        status: { in: [...allowed] },
+        version: expectedVersion,
+      },
+      data: {
+        status: 'cancelled',
+        version: { increment: 1 },
+        ...(approvingRequest
+          ? {
+              cancellation_request_status: 'approved',
+              cancellation_resolved_at: new Date(),
+              cancellation_resolved_by: actorId,
+              cancellation_resolution_note: reason,
+            }
+          : {}),
+      },
     });
     if (!updated.count)
       throw new ConflictException('Order status transition is not allowed');
@@ -728,6 +1333,7 @@ export class OrdersService {
       id: row.id,
       order_number: row.order_number,
       status: row.status,
+      version: row.version,
       payment_method: row.payment_method,
       address_id: row.address_id,
       delivery_id: row.delivery_id,
@@ -745,6 +1351,34 @@ export class OrdersService {
       delivery_lat: row.delivery_lat,
       delivery_lng: row.delivery_lng,
       placed_at: row.placed_at,
+      acceptance_deadline: row.acceptance_deadline,
+      auto_cancel_deadline: row.auto_cancel_deadline,
+      late_for_acceptance: row.late_for_acceptance,
+      cancellation_request: row.cancellation_request_status
+        ? {
+            status: row.cancellation_request_status,
+            reason: row.cancellation_request_reason,
+            requested_at: row.cancellation_requested_at,
+            resolved_at: row.cancellation_resolved_at,
+            resolution_note: row.cancellation_resolution_note,
+          }
+        : null,
+      price_change_info: row.price_change_info,
+      inventory_attention_required: row.inventory_attention_required,
+      attention_details: row.attention_details,
+      timeline: (row.status_events ?? []).map(({ status, note, at }) => ({
+        status,
+        note,
+        at,
+      })),
+      retrievals: (row.retrievals ?? []).map(
+        ({ id, document_number, status, outcome }) => ({
+          id,
+          document_number,
+          status,
+          outcome,
+        }),
+      ),
       items: row.items.map((item) => ({
         id: item.id,
         product_id: item.product_id,
@@ -754,6 +1388,7 @@ export class OrdersService {
         image_url: item.image_url,
         quantity: Number(item.quantity),
         unit_price: Number(item.unit_price),
+        price_version: item.price_version,
         line_total: Number(item.line_total),
         currency: item.currency_code,
         reviewed: Boolean(item.reviewed),
@@ -792,6 +1427,9 @@ export class OrdersService {
             currency: row.delivery.currency_code,
             dispatched_at: row.delivery.dispatched_at,
             delivered_at: row.delivery.delivered_at,
+            failure_reason: row.delivery.failure_reason,
+            failed_at: row.delivery.failed_at,
+            retry_count: row.delivery.retry_count,
             agent: row.delivery.agent,
           }
         : null,

@@ -39,6 +39,7 @@ class ReturnRequestItem {
     required this.orderItemId,
     required this.quantity,
     this.approvedQuantity,
+    this.reason,
   });
 
   @JsonKey(name: 'order_item_id')
@@ -46,6 +47,8 @@ class ReturnRequestItem {
   final num quantity;
   @JsonKey(name: 'approved_quantity', includeIfNull: false)
   final num? approvedQuantity;
+  @JsonKey(name: 'customer_reason', includeIfNull: false)
+  final String? reason;
 
   factory ReturnRequestItem.fromJson(Map<String, dynamic> json) =>
       _$ReturnRequestItemFromJson(json);

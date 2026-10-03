@@ -159,6 +159,7 @@ let deliveries: Delivery[] = [
 ].map(([status, dispatched_at, delivered_at], index) => ({
   id: `mock-delivery-${index + 1}`,
   order_id: monitorOrders[index].id,
+  order_version: 1,
   agent_id: "work-+9647700000005",
   status: status as DeliveryStatus,
   delivery_fee: 5,
@@ -194,6 +195,7 @@ export function updateMockDelivery(
   const next: Delivery = {
     ...current,
     status,
+    order_version: current.order_version + 1,
     dispatched_at:
       status === "out_for_delivery" ? now : (current.dispatched_at ?? null),
     delivered_at: status === "delivered" ? now : (current.delivered_at ?? null),

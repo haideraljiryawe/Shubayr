@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../../../core/error/failure.dart';
 
 part 'order.g.dart';
 
@@ -21,6 +22,7 @@ class Order {
   const Order({
     required this.id,
     this.orderNumber = '',
+    this.version,
     this.status = 'pending',
     this.paymentMethod = 'cod',
     this.addressId,
@@ -37,6 +39,10 @@ class Order {
   @JsonKey(name: 'order_number')
   final String orderNumber;
   final String status;
+
+  /// Absent versions cannot authorize a state-changing request.
+  @JsonKey(includeIfNull: false)
+  final int? version;
   @JsonKey(name: 'payment_method')
   final String paymentMethod;
   @JsonKey(name: 'address_id')
@@ -52,7 +58,13 @@ class Order {
   final DateTime? placedAt;
   final List<OrderItem> items;
 
-  factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
+  factory Order.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('version') &&
+        (json['version'] is! int || (json['version'] as int) < 1)) {
+      throw const AppFailure(FailureKind.server);
+    }
+    return _$OrderFromJson(json);
+  }
 
   Map<String, dynamic> toJson() => _$OrderToJson(this);
 }

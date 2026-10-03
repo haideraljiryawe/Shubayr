@@ -74,7 +74,7 @@ void main() {
       orders.onPlace = () async {
         carts.events.add('order:place');
         carts.current = const Cart();
-        return const Order(id: 'o', total: 777);
+        return const Order(version: 1, id: 'o', total: 777);
       };
       final checkout = c.read(checkoutControllerProvider.notifier).place('a');
       await flush();
@@ -109,7 +109,7 @@ void main() {
       await flush();
       expect(carts.events, ['cart:read']);
       carts.current = const Cart();
-      orders.placeGate.complete(const Order(id: 'o'));
+      orders.placeGate.complete(const Order(version: 1, id: 'o'));
       expect((await checkout).status, OrderActionStatus.succeeded);
       await flush();
       expect(carts.events, ['cart:read', 'cart:read', 'coupon:start']);
@@ -140,7 +140,7 @@ void main() {
       final action = c.read(checkoutControllerProvider.notifier).place('a');
       await flush();
       carts.onFetch = () async => throw const AppFailure.network();
-      orders.placeGate.complete(const Order(id: 'o'));
+      orders.placeGate.complete(const Order(version: 1, id: 'o'));
       expect((await action).status, OrderActionStatus.succeeded);
       await flush();
       expect(c.read(cartControllerProvider).hasError, isTrue);
@@ -159,7 +159,9 @@ void main() {
       () async {
         Future<OrderActionResult> run() => checkout
             ? c.read(checkoutControllerProvider.notifier).place('a')
-            : c.read(orderCancellationProvider('o').notifier).cancel();
+            : c
+                  .read(orderCancellationProvider('o').notifier)
+                  .cancel(version: 1);
         final first = run();
         await flush();
         expect((await run()).status, OrderActionStatus.duplicate);
@@ -174,9 +176,9 @@ void main() {
           isFalse,
         );
         if (checkout) {
-          orders.onPlace = () async => const Order(id: 'retry');
+          orders.onPlace = () async => const Order(version: 1, id: 'retry');
         } else {
-          orders.onCancel = () async => const Order(id: 'retry');
+          orders.onCancel = () async => const Order(version: 1, id: 'retry');
         }
         expect((await run()).status, OrderActionStatus.succeeded);
       },
@@ -187,7 +189,9 @@ void main() {
         () async {
           final first = checkout
               ? c.read(checkoutControllerProvider.notifier).place('a')
-              : c.read(orderCancellationProvider('o').notifier).cancel();
+              : c
+                    .read(orderCancellationProvider('o').notifier)
+                    .cancel(version: 1);
           await flush();
           switchCustomer('B');
           await flush();
@@ -200,7 +204,9 @@ void main() {
           }
           final second = checkout
               ? c.read(checkoutControllerProvider.notifier).place('b')
-              : c.read(orderCancellationProvider('o').notifier).cancel();
+              : c
+                    .read(orderCancellationProvider('o').notifier)
+                    .cancel(version: 1);
           await flush();
           final reads = orders.reads, cartReads = carts.reads;
           if (fail) {
@@ -209,7 +215,7 @@ void main() {
             );
           } else {
             (checkout ? orders.placeGate : orders.cancelGate).complete(
-              const Order(id: 'A-private'),
+              const Order(version: 1, id: 'A-private'),
             );
           }
           expect((await first).status, OrderActionStatus.superseded);
@@ -221,7 +227,7 @@ void main() {
                 : c.read(orderCancellationProvider('o')),
             isTrue,
           );
-          next.complete(const Order(id: 'B'));
+          next.complete(const Order(version: 1, id: 'B'));
           expect((await second).order!.id, 'B');
         },
       );
@@ -231,7 +237,9 @@ void main() {
       () async {
         final first = checkout
             ? c.read(checkoutControllerProvider.notifier).place('a')
-            : c.read(orderCancellationProvider('o').notifier).cancel();
+            : c
+                  .read(orderCancellationProvider('o').notifier)
+                  .cancel(version: 1);
         await flush();
         (c.read(sessionControllerProvider.notifier) as TestSession).setSession(
           const Session.signedIn(
@@ -240,7 +248,7 @@ void main() {
         );
         await flush();
         (checkout ? orders.placeGate : orders.cancelGate).complete(
-          const Order(id: 'o'),
+          const Order(version: 1, id: 'o'),
         );
         expect((await first).status, OrderActionStatus.succeeded);
       },
@@ -250,7 +258,9 @@ void main() {
       () async {
         final first = checkout
             ? c.read(checkoutControllerProvider.notifier).place('a')
-            : c.read(orderCancellationProvider('o').notifier).cancel();
+            : c
+                  .read(orderCancellationProvider('o').notifier)
+                  .cancel(version: 1);
         await flush();
         (c.read(sessionControllerProvider.notifier) as TestSession).setSession(
           const Session.signedOut(),
@@ -260,7 +270,7 @@ void main() {
         await flush();
         final reads = orders.reads;
         (checkout ? orders.placeGate : orders.cancelGate).complete(
-          const Order(id: 'old'),
+          const Order(version: 1, id: 'old'),
         );
         expect((await first).status, OrderActionStatus.superseded);
         expect(orders.reads, reads);
@@ -277,8 +287,12 @@ void main() {
     await c.read(orderTrackingProvider('o').future);
     await c.read(orderTrackingProvider('other').future);
     final details = orders.details, tracks = orders.tracks;
-    final action = c.read(orderCancellationProvider('o').notifier).cancel();
-    orders.cancelGate.complete(const Order(id: 'o', status: 'cancelled'));
+    final action = c
+        .read(orderCancellationProvider('o').notifier)
+        .cancel(version: 1);
+    orders.cancelGate.complete(
+      const Order(version: 1, id: 'o', status: 'cancelled'),
+    );
     await action;
     await flush();
     expect(orders.details, details + 1);

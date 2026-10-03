@@ -3,13 +3,14 @@ import { api, type Delivery, type DeliveryStatus } from "./api";
 /**
  * The moves PATCH /deliveries/{id} accepts today, from its contract text:
  * assigned → out_for_delivery; out_for_delivery → delivered or failed;
- * delivered → returned. Failed and returned are terminal. The server owns
+ * failed → out_for_delivery for a retry; delivered → returned. Returned is
+ * terminal. The server owns
  * this table and still answers 409 when the delivery or its order has moved
  * on (a delivery may start only once its order is ready_for_dispatch), so
  * the UI offers these and explains a refusal rather than predicting it.
  *
- * Nothing the API does not offer yet is shown: no collected amount, no
- * failure reason, no custody — those arrive with a later backend phase.
+ * Nothing the API does not offer yet is shown: no collected amount or
+ * custody details — those arrive with a later backend phase.
  */
 export type DeliveryAction = Exclude<DeliveryStatus, "assigned">;
 
@@ -17,7 +18,7 @@ export const DELIVERY_TRANSITIONS: Record<DeliveryStatus, DeliveryAction[]> = {
   assigned: ["out_for_delivery"],
   out_for_delivery: ["delivered", "failed"],
   delivered: ["returned"],
-  failed: [],
+  failed: ["out_for_delivery"],
   returned: [],
 };
 

@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../../../core/error/failure.dart';
 
 part 'delivery.g.dart';
 
@@ -10,6 +11,10 @@ class Delivery {
     required this.orderId,
     this.agentId,
     required this.status,
+    this.orderVersion,
+    this.failureReason,
+    this.failedAt,
+    this.retryCount = 0,
     this.deliveryFee = 0,
     this.currency,
     this.dispatchedAt,
@@ -22,6 +27,14 @@ class Delivery {
   @JsonKey(name: 'agent_id')
   final String? agentId;
   final String status;
+  @JsonKey(name: 'order_version')
+  final int? orderVersion;
+  @JsonKey(name: 'failure_reason')
+  final String? failureReason;
+  @JsonKey(name: 'failed_at')
+  final DateTime? failedAt;
+  @JsonKey(name: 'retry_count')
+  final int retryCount;
   @JsonKey(name: 'delivery_fee')
   final num deliveryFee;
   @JsonKey(includeIfNull: false)
@@ -45,18 +58,22 @@ class Delivery {
     'returned',
   ];
 
-  /// API 7.1 transitions. The server also checks order readiness before dispatch;
+  /// API 11 transitions. The server also checks order readiness before dispatch;
   /// that order state is intentionally absent from the Delivery response.
   @JsonKey(includeFromJson: false, includeToJson: false)
   List<String> get nextStatuses => switch (status) {
-    'assigned' => const ['out_for_delivery'],
+    'assigned' || 'failed' => const ['out_for_delivery'],
     'out_for_delivery' => const ['delivered', 'failed'],
     'delivered' => const ['returned'],
     _ => const [],
   };
 
-  factory Delivery.fromJson(Map<String, dynamic> json) =>
-      _$DeliveryFromJson(json);
+  factory Delivery.fromJson(Map<String, dynamic> json) {
+    if (json['order_version'] is! int || (json['order_version'] as int) < 1) {
+      throw const AppFailure(FailureKind.server);
+    }
+    return _$DeliveryFromJson(json);
+  }
   Map<String, dynamic> toJson() => _$DeliveryToJson(this);
 }
 

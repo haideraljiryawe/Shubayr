@@ -13,6 +13,8 @@ export const notificationTypes = [
   'order_cancelled',
   'order_rejected',
   'delivery_assigned',
+  'order_acceptance_late',
+  'retrieval_update',
 ] as const;
 export type NotificationType = (typeof notificationTypes)[number];
 export const notificationChannels = ['push', 'sms'] as const;
@@ -67,6 +69,14 @@ export function bilingualMessage(type: NotificationType) {
     order_cancelled: ['تم إلغاء طلب', 'تم إلغاء طلب ويتطلب المتابعة.'],
     order_rejected: ['تم رفض الطلب', 'تم رفض الطلب وإطلاق حجز المخزون.'],
     delivery_assigned: ['مهمة توصيل جديدة', 'تم إسناد طلب جديد إليك.'],
+    order_acceptance_late: [
+      'Order acceptance late',
+      'A pending order needs staff acceptance.',
+    ],
+    retrieval_update: [
+      'Retrieval update',
+      'A goods retrieval document was updated.',
+    ],
   };
   const english: Record<NotificationType, [string, string]> = {
     order_placed: ['Order placed', 'We received your order.'],
@@ -95,6 +105,14 @@ export function bilingualMessage(type: NotificationType) {
       'The order was rejected and its stock reservation was released.',
     ],
     delivery_assigned: ['New delivery', 'A delivery has been assigned to you.'],
+    order_acceptance_late: [
+      'Order acceptance late',
+      'A pending order needs staff acceptance.',
+    ],
+    retrieval_update: [
+      'Retrieval update',
+      'A goods retrieval document was updated.',
+    ],
   };
   return {
     title_ar: arabic[type][0],

@@ -137,7 +137,7 @@ void main() {
         await repo.placeOrder(addressId: 'a1', couponCode: 'SAVE10'),
         await repo.fetchOrder('o1'),
         (await repo.fetchOrders()).data.single,
-        await repo.cancelOrder('o1'),
+        await repo.cancelOrder('o1', version: 1),
       ];
       for (final order in orders) {
         expect(order.items.single.displayName('ar', _current), 'اسم الشراء');
@@ -219,7 +219,7 @@ void main() {
       final read = await repo.fetchOrder(placed.id);
       expect(read.items.single.toJson(), placed.items.single.toJson());
       expect(
-        (await repo.cancelOrder(placed.id)).items.single.toJson(),
+        (await repo.cancelOrder(placed.id, version: 1)).items.single.toJson(),
         placed.items.single.toJson(),
       );
       expect(

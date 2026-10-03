@@ -16,7 +16,7 @@ const product = {
 };
 
 describe('CartService', () => {
-  it('reprices persisted lines from the current catalog instead of cached unit_price', async () => {
+  it('keeps the seen price while exposing the current price for explicit acceptance', async () => {
     const prisma = {
       cart: {
         upsert: jest.fn().mockResolvedValue({ id: 'cart-1' }),
@@ -30,6 +30,7 @@ describe('CartService', () => {
               variant_id: 'variant-1',
               quantity: 2,
               unit_price: '999999',
+              price_version: 'seen-v1',
               currency_code: 'IQD',
               product,
               variant: { pricing_mode: 'fixed', selling_price: '20250' },
@@ -55,8 +56,12 @@ describe('CartService', () => {
           product_id: 'product-1',
           variant_id: 'variant-1',
           quantity: 2,
-          unit_price: 10125,
-          line_total: 20250,
+          unit_price: 999999,
+          price_version: 'seen-v1',
+          current_unit_price: 10125,
+          current_price_version: 'legacy:0:10125',
+          price_changed: true,
+          line_total: 1999998,
           currency: 'IQD',
           available_qty: 4,
           available: true,

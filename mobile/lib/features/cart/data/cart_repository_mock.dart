@@ -77,6 +77,12 @@ class CartRepositoryMock implements CartRepository {
           variantId: variantId,
           quantity: quantity,
           unitPrice: CatalogRepositoryMock.unitPrice(productId, variantId),
+          currentUnitPrice: CatalogRepositoryMock.unitPrice(
+            productId,
+            variantId,
+          ),
+          priceVersion: 'mock-price-v1',
+          currentPriceVersion: 'mock-price-v1',
           lineTotal:
               CatalogRepositoryMock.unitPrice(productId, variantId) * quantity,
           currency: 'IQD',

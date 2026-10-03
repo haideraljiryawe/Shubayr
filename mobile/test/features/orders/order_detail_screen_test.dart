@@ -27,6 +27,7 @@ const _product = Product(
 );
 
 Order _order(String status) => Order(
+  version: 1,
   id: 'o1',
   orderNumber: 'SH-9',
   status: status,
@@ -125,6 +126,7 @@ void main() {
         await tester.pumpWidget(
           _host(
             Order(
+              version: 1,
               id: 'o1',
               orderNumber: 'SH-9',
               status: 'delivered',
@@ -170,6 +172,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         Order(
+          version: 1,
           id: 'o1',
           orderNumber: 'SH-9',
           items: const [

@@ -227,7 +227,11 @@ void main() {
                         'order_id': 'o1',
                         'status': 'requested',
                         'items': [
-                          {'order_item_id': 'i1', 'quantity': 1},
+                          {
+                            'order_item_id': 'i1',
+                            'quantity': 1,
+                            'reason': 'Reason',
+                          },
                         ],
                       }
                     : {
@@ -262,7 +266,7 @@ void main() {
         'order_id': 'o1',
         'reason': 'Reason',
         'items': [
-          {'order_item_id': 'i1', 'quantity': 1},
+          {'order_item_id': 'i1', 'quantity': 1, 'reason': 'Reason'},
         ],
       });
     },

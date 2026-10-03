@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, Input } from "@/components/ui";
+import { ClipboardList } from "lucide-react";
+import { Alert, buttonClasses, Input } from "@/components/ui";
 import {
   DataTable,
   TableFilter,
@@ -11,26 +13,53 @@ import {
   type Column,
   type TableState,
 } from "@/components/table/data-table";
+import { OrderFlags } from "@/components/orders/order-flags";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
-import { ORDER_STATUSES, formatMoney, type AdminOrder } from "@/lib/orders";
+import { ORDER_STATUSES, PICKABLE_STATUSES, formatMoney, type AdminOrder, type OrderStatus } from "@/lib/orders";
 
 export function OrdersTable({
   rows,
   state,
   currency,
   invalidRange,
+  canPick = false,
 }: {
   rows: AdminOrder[];
   state: TableState;
   currency: string;
   invalidRange: boolean;
+  /** inventory.pick: orders in preparation can be picked as a batch. */
+  canPick?: boolean;
 }) {
   const t = useTranslations("orders");
   const locale = useLocale();
   const dateTime = useStoreDateTime();
+  const [selected, setSelected] = useState<string[]>([]);
+  const pickable = (order: AdminOrder) => canPick && PICKABLE_STATUSES.includes(order.status as OrderStatus);
+  const toggle = (id: string, on: boolean) =>
+    setSelected((current) => (on ? [...new Set([...current, id])] : current.filter((value) => value !== id)));
 
   const columns: Column<AdminOrder>[] = [
+    ...(canPick
+      ? [
+          {
+            key: "pick",
+            header: <span className="sr-only">{t("pickList.select")}</span>,
+            cell: (order: AdminOrder) =>
+              pickable(order) ? (
+                <input
+                  type="checkbox"
+                  className="size-4"
+                  aria-label={t("pickList.selectOrder", { number: order.order_number ?? "" })}
+                  checked={selected.includes(order.id!)}
+                  onChange={(event) => toggle(order.id!, event.target.checked)}
+                  data-testid="order-select"
+                />
+              ) : null,
+          },
+        ]
+      : []),
     {
       key: "number",
       header: t("columns.number"),
@@ -61,7 +90,12 @@ export function OrdersTable({
     {
       key: "status",
       header: t("columns.status"),
-      cell: (order) => <OrderStatusBadge status={order.status} />,
+      cell: (order) => (
+        <div className="flex flex-wrap items-center gap-1">
+          <OrderStatusBadge status={order.status} />
+          <OrderFlags order={order} />
+        </div>
+      ),
     },
     {
       key: "total",
@@ -119,6 +153,20 @@ export function OrdersTable({
             />
             <DateFilter name="from" label={t("from")} />
             <DateFilter name="to" label={t("to")} />
+            {canPick ? (
+              selected.length ? (
+                <Link
+                  href={`/orders/pick-lists?ids=${selected.join(",")}`}
+                  className={buttonClasses({ variant: "secondary", className: "self-end" })}
+                  data-testid="pick-batch"
+                >
+                  <ClipboardList className="size-4" aria-hidden />
+                  {t("pickList.printSelected", { count: selected.length })}
+                </Link>
+              ) : (
+                <span className="self-end text-xs text-text-muted">{t("pickList.selectHint")}</span>
+              )
+            ) : null}
           </>
         }
       />

@@ -242,6 +242,10 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
 
   Future<void> _submit(ReturnEligibility eligibility) async {
     if (_busy || !_quantities.values.any((n) => n > 0)) return;
+    if (_reason.text.trim().isEmpty || _reason.text.trim().length > 1000) {
+      setState(() => _error = const AppFailure(FailureKind.validation));
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -425,6 +429,7 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                     if (available.isNotEmpty) ...[
                       TextField(
                         controller: _reason,
+                        maxLength: 1000,
                         enabled: !_busy,
                         minLines: 3,
                         maxLines: 5,

@@ -9,6 +9,7 @@ import { AddressesService } from './addresses.service';
 import { AdminOrdersController } from './admin-orders.controller';
 import { MonitorOrdersController } from './monitor-orders.controller';
 import { InventoryModule } from '../inventory/inventory.module';
+import { OrderTimeoutService } from './order-timeout.service';
 
 @Module({
   imports: [CatalogModule, InventoryModule],
@@ -20,7 +21,12 @@ import { InventoryModule } from '../inventory/inventory.module';
     MonitorOrdersController,
     AddressesController,
   ],
-  providers: [CartService, OrdersService, AddressesService],
+  providers: [
+    CartService,
+    OrdersService,
+    AddressesService,
+    OrderTimeoutService,
+  ],
   exports: [CartService],
 })
 export class OrdersModule {}

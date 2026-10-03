@@ -1638,3 +1638,13 @@ ON CONFLICT DO NOTHING;
 
 -- Phase 6 uses the production migration as the single DDL source.
 \ir ../../backend/prisma/migrations/20261001031500_phase6_purchasing_suppliers/migration.sql
+
+-- Phase 7 uses the production migration as the single DDL source.
+\ir ../../backend/prisma/migrations/20261001050000_phase7_order_lifecycle_v2/migration.sql
+
+-- Business-date defaults are removed by the production sweep migration.
+\ir ../../backend/prisma/migrations/20261003120000_business_date_sweep/migration.sql
+
+-- C3 permission dependencies, separation of duties and price approvals use
+-- the production migration as the single DDL source.
+\ir ../../backend/prisma/migrations/20261003140000_permission_sod_price_approvals/migration.sql

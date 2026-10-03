@@ -313,7 +313,7 @@
   },
   "returnIncrease": "Increase return quantity",
   "returnDecrease": "Decrease return quantity",
-  "returnReason": "Reason for return (optional)",
+  "returnReason": "Reason for all selected items (required)",
   "returnSubmit": "Submit return request",
   "returnSubmitted": "Return request submitted.",
   "returnReference": "Request reference: {id}",
@@ -719,5 +719,12 @@
   "notificationsEmpty": "No notifications yet",
   "actionLoadMore": "Load more",
   "quantityInvalid": "Enter a quantity within the limits, with up to 3 decimal places.",
-  "quantityWholeInvalid": "Enter a whole quantity within the limits."
+  "quantityWholeInvalid": "Enter a whole quantity within the limits.",
+  "checkoutPricesChanged": "Prices changed",
+  "checkoutPricesChangedMessage": "Review the new unit prices before placing your order. The server will calculate the final total.",
+  "checkoutAcceptPrices": "Accept prices and place order",
+  "cartPricesChanged": "Some prices changed. You will be asked to review and accept them at checkout.",
+  "deliveryFailureReason": "Reason for failed delivery",
+  "deliveryRetryCount": "Retry count",
+  "orderStateConflict": "This order changed or can no longer be cancelled. Please review its latest status."
 }

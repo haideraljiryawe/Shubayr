@@ -8,6 +8,7 @@ import {
 import type { Prisma } from '../../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../database/prisma.service';
+import { assertDifferentActor } from '../../common/access/separation-of-duties';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { businessDate } from '../finance/business-date';
@@ -200,6 +201,11 @@ export class ReturnsService {
         if (!current) throw new NotFoundException('Return not found');
         if (current.status !== 'requested')
           throw new ConflictException('Return has already been reviewed');
+        assertDifferentActor(
+          actorId,
+          current.user_id,
+          'The return requester cannot approve or reject their own request',
+        );
 
         const decisions = new Map(
           (input.items ?? []).map((item) => [item.return_item_id, item]),
