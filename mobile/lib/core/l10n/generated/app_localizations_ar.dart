@@ -9,9 +9,6 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get homeBrandName => 'شُبَيّر';
-
-  @override
   String get storeFallbackName => 'المتجر';
 
   @override
@@ -482,6 +479,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String productLowStock(String count) {
     return 'باقٍ $count';
+  }
+
+  @override
+  String productReviewsPreview(String shown, String total) {
+    return 'عرض $shown من أصل $total تقييم — معاينة';
   }
 
   @override

@@ -678,17 +678,14 @@ class _PlaceOrderBar extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Text(l10n.checkoutTotal, style: context.text.titleSmall),
-                  const Spacer(),
-                  Text(
-                    money(total),
-                    style: context.text.titleLarge?.copyWith(
-                      color: colors.primaryDark,
-                    ),
+              ResponsiveValueRow(
+                label: Text(l10n.checkoutTotal, style: context.text.titleSmall),
+                value: Text(
+                  money(total),
+                  style: context.text.titleLarge?.copyWith(
+                    color: colors.primaryDark,
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               AppButton(

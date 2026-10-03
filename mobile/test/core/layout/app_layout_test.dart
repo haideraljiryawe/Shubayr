@@ -21,6 +21,67 @@ const responsiveWidths = <double>[
 ];
 
 void main() {
+  for (final direction in TextDirection.values) {
+    testWidgets(
+      'entity state survives reorder, deletion and resize $direction',
+      (tester) async {
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.binding.setSurfaceSize(const Size(390, 900));
+        var ids = ['a', 'b', 'c'];
+        late StateSetter update;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Directionality(
+                textDirection: direction,
+                child: StatefulBuilder(
+                  builder: (context, setState) {
+                    update = setState;
+                    return ResponsiveCardList(
+                      itemCount: ids.length,
+                      itemKeyBuilder: (i) => ids[i],
+                      itemBuilder: (_, i) =>
+                          _CounterTile(key: ValueKey(ids[i])),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        final b = find.byKey(const ValueKey('b'));
+        await tester.tap(
+          find.descendant(of: b, matching: find.byType(TextButton)),
+        );
+        await tester.pump();
+        final original = tester.state(b);
+        update(() => ids = ['c', 'a', 'b']);
+        await tester.pump();
+        expect(tester.state(b), same(original));
+        update(() => ids = ['c', 'b']);
+        await tester.pump();
+        expect(tester.state(b), same(original));
+        for (final width in [...responsiveWidths, 390.0]) {
+          await tester.binding.setSurfaceSize(Size(width, 900));
+          await tester.pump();
+          expect(tester.state(b), same(original));
+          expect(
+            find.descendant(of: b, matching: find.text('1')),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(
+              of: find.byKey(const ValueKey('c')),
+              matching: find.text('0'),
+            ),
+            findsOneWidget,
+          );
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+  }
+
   testWidgets('columns follow local space and text scale, not window classes', (
     tester,
   ) async {

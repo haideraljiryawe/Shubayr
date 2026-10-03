@@ -68,6 +68,7 @@ class WishlistScreen extends ConsumerWidget {
                     padding: AppLayout.pageInsets(context),
                     sliver: ProductGridSliver(
                       itemCount: items.length,
+                      itemKeyBuilder: (i) => items[i].productId,
                       itemBuilder: (_, i) => _WishlistCell(item: items[i]),
                     ),
                   ),

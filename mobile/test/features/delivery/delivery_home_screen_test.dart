@@ -71,6 +71,32 @@ Finder _listScroll() => find
     .first;
 
 void main() {
+  for (final locale in ['ar', 'en']) {
+    testWidgets('delivery timestamps use local Western dates $locale', (
+      tester,
+    ) async {
+      final repo = RecordingDeliveries()
+        ..onFetch = (_) async => DeliveryPage(
+          total: 1,
+          data: [
+            Delivery(
+              id: 'd',
+              orderId: 'o',
+              status: 'delivered',
+              orderVersion: 1,
+              dispatchedAt: DateTime(2026, 10, 3, 0, 15).toUtc(),
+              deliveredAt: DateTime(2026, 10, 3, 0, 45).toUtc(),
+            ),
+          ],
+        );
+      await tester.pumpWidget(_host(repo, locale: locale));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('2026/10/03 00:15'), findsOneWidget);
+      expect(find.textContaining('2026/10/03 00:45'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('failed delivery asks for a reason before enabling save', (
     tester,
   ) async {

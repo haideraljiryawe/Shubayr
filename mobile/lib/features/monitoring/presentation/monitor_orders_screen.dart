@@ -227,6 +227,7 @@ class _MonitorOrdersScreenState extends ConsumerState<MonitorOrdersScreen> {
                           padding: AppLayout.pageInsets(context),
                           minItemWidth: AppLayout.orderMinWidth,
                           itemCount: list.items.length,
+                          itemKeyBuilder: (i) => list.items[i].order.id,
                           itemBuilder: (_, index) =>
                               _OrderCard(item: list.items[index]),
                           footer: list.appendError != null

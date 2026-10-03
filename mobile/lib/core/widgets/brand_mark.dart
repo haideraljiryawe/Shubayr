@@ -9,13 +9,18 @@ import '../theme/tokens/app_radii.dart';
 /// The store's logo.
 ///
 /// Uses `StoreSettings.logo_url` when the API provides one, and otherwise
-/// falls back to a monogram built from the store name — so nothing about the
-/// brand is hard-coded in the app.
+/// falls back to optional bundled artwork or a store-name monogram.
 class BrandMark extends StatelessWidget {
-  const BrandMark({super.key, required this.brand, this.size = 56});
+  const BrandMark({
+    super.key,
+    required this.brand,
+    this.size = 56,
+    this.fallbackAsset,
+  });
 
   final Brand brand;
   final double size;
+  final String? fallbackAsset;
 
   @override
   Widget build(BuildContext context) {
@@ -29,9 +34,24 @@ class BrandMark extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.contain,
-          errorWidget: (context, _, _) => _Monogram(brand: brand, size: size),
+          errorWidget: (context, _, _) => _fallback(),
           placeholder: (context, _) => SizedBox(width: size, height: size),
         ),
+      );
+    }
+    return _fallback();
+  }
+
+  Widget _fallback() {
+    final asset = fallbackAsset;
+    if (asset != null) {
+      return Image.asset(
+        asset,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        excludeFromSemantics: true,
+        errorBuilder: (_, _, _) => _Monogram(brand: brand, size: size),
       );
     }
     return _Monogram(brand: brand, size: size);

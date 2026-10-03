@@ -163,3 +163,29 @@ Each feature is `data/` (models + repository implementations), `domain/`
 Follow [ROADMAP.md](ROADMAP.md) and the API 7.1 progress record. Older progress
 records are historical evidence, not implementation instructions. Tests use
 isolated fixtures; final integration uses the actual development API.
+
+### Branding another application
+
+`lib/core/config/store_identity.dart` owns the bundled Arabic/English name,
+logo asset and startup wordmark font resource. Keep the referenced assets and
+`pubspec.yaml` declarations in sync (font family tokens live in
+`core/theme/tokens/app_typography.dart`). Startup uses this build identity;
+Home, monitoring and the app title use API store settings when provided.
+`GET /settings` supplies only `store_name`, `logo_url`, `primary_color` and
+`currency`; missing values use the existing bundled presentation defaults.
+
+A separately published app still needs native/build changes: Android label in
+`android/app/src/main/AndroidManifest.xml`, namespace/applicationId in
+`android/app/build.gradle.kts` and matching MainActivity package; iOS display
+name in `ios/Runner/Info.plist` and bundle IDs/signing in
+`ios/Runner.xcodeproj/project.pbxproj`; launcher icons in Android mipmaps and
+iOS `Runner/Assets.xcassets/AppIcon.appiconset`. Update any enabled desktop/web
+runner metadata/icons, Dart package references if renaming the package, API
+build configuration and release signing for that app. Native identifiers are
+never taken from runtime settings. No flavors or tenant framework are required.
+
+Presentation dates use `DisplayDate`: timestamps become device-local time;
+calendar-only values retain their year/month/day. Numeric Gregorian dates use
+Western digits in both Arabic and English. These strings never replace raw
+API/domain dates. Product reviews display a read-only first-page preview, with
+an explicit shown/total label when further reviews exist.

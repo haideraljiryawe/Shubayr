@@ -1,3 +1,4 @@
+import '../core/config/store_identity.dart';
 import 'package:flutter/material.dart';
 
 import '../core/l10n/l10n_context.dart';
@@ -65,7 +66,9 @@ class _SplashScreenState extends State<SplashScreen> {
                               ),
                               const SizedBox(height: AppSpacing.sm),
                               Text(
-                                context.l10n.homeBrandName,
+                                StoreIdentity.name(
+                                  Localizations.localeOf(context).languageCode,
+                                ),
                                 textAlign: TextAlign.center,
                                 style: context.text.displaySmall?.copyWith(
                                   fontFamily: AppTypography.brandFontFamily,

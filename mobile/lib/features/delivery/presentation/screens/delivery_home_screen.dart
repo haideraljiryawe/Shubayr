@@ -2,7 +2,7 @@ import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart' show DateFormat;
+import '../../../../core/utils/display_date.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/error/failure.dart';
@@ -119,6 +119,7 @@ class _DeliveriesList extends ConsumerWidget {
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: AppLayout.pageInsets(context),
                           itemCount: list.items.length,
+                          itemKeyBuilder: (i) => list.items[i].id,
                           footer: list.loadMoreError != null
                               ? AppErrorView(
                                   error: list.loadMoreError,
@@ -369,7 +370,7 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
           if (delivery.dispatchedAt != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
-              '${l10n.deliveryDispatchedAt}: ${DateFormat('yyyy/MM/dd HH:mm', 'en').format(delivery.dispatchedAt!.toLocal())}',
+              '${l10n.deliveryDispatchedAt}: ${DisplayDate.localDateTime(delivery.dispatchedAt!)}',
               style: context.text.bodySmall,
             ),
           ],
@@ -384,7 +385,7 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
           if (delivery.deliveredAt != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
-              '${l10n.deliveryDeliveredAt}: ${DateFormat('yyyy/MM/dd HH:mm', 'en').format(delivery.deliveredAt!.toLocal())}',
+              '${l10n.deliveryDeliveredAt}: ${DisplayDate.localDateTime(delivery.deliveredAt!)}',
               style: context.text.bodySmall,
             ),
           ],

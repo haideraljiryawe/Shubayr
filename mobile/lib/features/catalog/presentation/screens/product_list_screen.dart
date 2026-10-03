@@ -342,6 +342,7 @@ class _Body extends StatelessWidget {
             padding: AppLayout.pageInsets(context),
             sliver: ProductGridSliver(
               itemCount: state.items.length,
+              itemKeyBuilder: (i) => state.items[i].id,
               itemBuilder: (context, i) {
                 final product = state.items[i];
                 return ProductCard(

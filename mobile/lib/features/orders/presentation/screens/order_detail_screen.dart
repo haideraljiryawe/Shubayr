@@ -5,7 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/display_date.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/error/failure.dart';
@@ -291,7 +291,7 @@ class _Header extends StatelessWidget {
                 Icon(Icons.event_outlined, size: 16, color: colors.textMuted),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  '${l10n.orderDate}: ${DateFormat('yyyy/MM/dd').format(placedAt)}',
+                  '${l10n.orderDate}: ${DisplayDate.localDate(placedAt)}',
                   style: context.text.bodySmall?.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -410,7 +410,7 @@ class _TimelineRow extends StatelessWidget {
                   if (at != null) ...[
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      DateFormat('yyyy/MM/dd — HH:mm').format(at),
+                      DisplayDate.localDateTime(at),
                       style: context.text.labelMedium?.copyWith(
                         color: colors.textMuted,
                       ),

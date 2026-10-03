@@ -123,6 +123,7 @@ void main() {
       final container = await containerWith(
         _remoteReturning({
           'store_name': 'Test Store',
+          'logo_url': 'https://store.example/logo.png',
           'primary_color': '#3366CC',
           'currency': 'USD',
         }),
@@ -134,6 +135,7 @@ void main() {
       final brand = container.read(brandProvider);
       expect(brand.primaryColor, const Color(0xFF3366CC));
       expect(brand.name, 'Test Store');
+      expect(brand.logoUrl, 'https://store.example/logo.png');
       expect(brand.currencyCode, 'USD');
     });
 

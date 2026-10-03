@@ -1,3 +1,8 @@
+import 'package:shubayr/core/config/store_identity.dart';
+import 'package:shubayr/core/widgets/brand_mark.dart';
+import 'package:shubayr/features/settings/data/store_settings.dart';
+import 'package:shubayr/features/settings/domain/settings_repository.dart';
+import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
 import 'package:shubayr/app/router/app_router.dart';
@@ -108,7 +113,16 @@ class _FakeCatalog implements CatalogRepository {
   }) async => const ReviewPage();
 }
 
-Future<ProviderContainer> _container() async {
+class _RuntimeSettings implements SettingsRepository {
+  @override
+  Future<StoreSettings> fetch() async => const StoreSettings(
+    storeName: 'Another Store',
+    primaryColor: '#3366CC',
+    currency: 'USD',
+  );
+}
+
+Future<ProviderContainer> _container({SettingsRepository? settings}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = PrefsStore(await SharedPreferences.getInstance());
   return ProviderContainer(
@@ -120,6 +134,8 @@ Future<ProviderContainer> _container() async {
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
       catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
+      if (settings != null)
+        settingsRepositoryProvider.overrideWithValue(settings),
       homeBannersProvider.overrideWith(
         (ref) async => const [
           HomeBanner(
@@ -134,6 +150,36 @@ Future<ProviderContainer> _container() async {
 }
 
 void main() {
+  testWidgets('home and app title update when API branding arrives', (
+    tester,
+  ) async {
+    final container = await _container(settings: _RuntimeSettings());
+    addTearDown(container.dispose);
+    await container
+        .read(localeControllerProvider.notifier)
+        .setLocale(const Locale('en'));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const ShubayrApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(StoreIdentity.nameEn), findsOneWidget);
+    final logo = tester.widget<BrandMark>(find.byType(BrandMark).first);
+    expect(logo.fallbackAsset, StoreIdentity.logoAsset);
+    await container.read(storeSettingsProvider.notifier).refresh();
+    await tester.pumpAndSettle();
+    expect(find.text('Another Store'), findsOneWidget);
+    expect(find.text(StoreIdentity.nameEn), findsNothing);
+    final context = tester.element(find.byType(HomeScreen));
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.onGenerateTitle!(context), 'Another Store');
+    expect(container.read(brandProvider).currencyCode, 'USD');
+    expect(container.read(brandProvider).primaryColor, const Color(0xFF3366CC));
+    expect(tester.takeException(), isNull);
+  });
+
   for (final lang in ['ar', 'en']) {
     testWidgets(
       'Home identity follows $lang direction and search still opens the product search',

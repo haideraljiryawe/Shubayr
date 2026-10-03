@@ -1,3 +1,7 @@
+import 'package:shubayr/core/config/store_identity.dart';
+import 'package:shubayr/core/widgets/brand_mark.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
 import '../helpers/test_session.dart';
@@ -56,11 +60,16 @@ class _BuildProbeState extends State<_BuildProbe> {
   );
 }
 
-Widget _host(GoRouter router, Widget child) => ProviderScope(
+Widget _host(
+  GoRouter router,
+  Widget child, {
+  Brand brand = const Brand.bundled(),
+}) => ProviderScope(
   overrides: [
     notificationSyncProvider.overrideWith((ref) {}),
     unreadCountProvider.overrideWith((ref) async => 0),
     dataSourceProvider.overrideWithValue(DataSource.mock),
+    brandProvider.overrideWithValue(brand),
     sessionControllerProvider.overrideWith(
       () => TestSession(initial: monitorSession),
     ),
@@ -85,6 +94,45 @@ void main() {
     () => TestWidgetsFlutterBinding.instance.platformDispatcher.views.first
         .reset(),
   );
+
+  testWidgets('monitor header uses build fallback and runtime name/logo', (
+    tester,
+  ) async {
+    final router = _router();
+    addTearDown(router.dispose);
+    _route(router, '/monitor/orders');
+    await tester.pumpWidget(_host(router, const Scaffold()));
+    await tester.pumpAndSettle();
+    expect(find.text(StoreIdentity.nameEn), findsOneWidget);
+    final fallback = tester.widget<BrandMark>(
+      find.byKey(const ValueKey('monitor-brand-logo')),
+    );
+    expect(fallback.fallbackAsset, StoreIdentity.logoAsset);
+    await tester.pumpWidget(
+      _host(
+        router,
+        const Scaffold(),
+        brand: const Brand(
+          name: 'Runtime Store',
+          logoUrl: 'https://store.example/logo.png',
+          primaryColor: Colors.green,
+          currencyCode: 'USD',
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Runtime Store'), findsOneWidget);
+    expect(find.text(StoreIdentity.nameEn), findsNothing);
+    expect(
+      tester
+          .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+          .imageUrl,
+      'https://store.example/logo.png',
+    );
+    // No network completion is needed to verify the runtime image source.
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'route notifications during an idle buildScope never rebuild an ancestor',

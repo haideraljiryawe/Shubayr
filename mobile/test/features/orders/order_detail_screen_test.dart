@@ -34,7 +34,7 @@ Order _order(String status) => Order(
   subtotal: 30000,
   deliveryFee: 5000,
   total: 35000,
-  placedAt: DateTime(2026, 9, 5),
+  placedAt: DateTime(2026, 9, 5, 0, 15).toUtc(),
   items: const [
     OrderItem(
       id: 'i1',
@@ -49,7 +49,7 @@ Order _order(String status) => Order(
 final _tracking = OrderTracking(
   orderId: 'o1',
   events: [
-    OrderEvent(status: 'pending', at: DateTime(2026, 9, 5, 9)),
+    OrderEvent(status: 'pending', at: DateTime(2026, 9, 5, 0, 15).toUtc()),
     OrderEvent(status: 'processing', at: DateTime(2026, 9, 5, 12)),
   ],
 );
@@ -85,6 +85,19 @@ Widget _host(
 
 void main() {
   for (final locale in ['ar', 'en']) {
+    testWidgets(
+      'order and tracking timestamps use local Western dates $locale',
+      (tester) async {
+        await tester.pumpWidget(_host(_order('processing'), locale: locale));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('2026/09/05'), findsWidgets);
+        await tester.ensureVisible(find.text('2026/09/05 00:15'));
+        await tester.pumpAndSettle();
+        expect(find.text('2026/09/05 00:15'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets(
       'rejected order shows saved currency and cannot be cancelled: $locale',
       (tester) async {

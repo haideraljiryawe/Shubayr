@@ -77,6 +77,7 @@ class AddressesScreen extends ConsumerWidget {
                       96,
                     ),
                     itemCount: list.length,
+                    itemKeyBuilder: (i) => list[i].id,
                     itemBuilder: (_, i) => _AddressCard(address: list[i]),
                   ),
           );

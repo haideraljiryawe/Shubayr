@@ -98,12 +98,6 @@ abstract class AppLocalizations {
     Locale('en'),
   ];
 
-  /// No description provided for @homeBrandName.
-  ///
-  /// In en, this message translates to:
-  /// **'Shubayr'**
-  String get homeBrandName;
-
   /// Neutral brand name used before store settings load.
   ///
   /// In en, this message translates to:
@@ -1021,6 +1015,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Only {count} left'**
   String productLowStock(String count);
+
+  /// No description provided for @productReviewsPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total} reviews — preview'**
+  String productReviewsPreview(String shown, String total);
 
   /// No description provided for @productReviews.
   ///

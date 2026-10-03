@@ -62,7 +62,7 @@ void main() {
         orderNumber: 'SH-1042',
         status: 'delivered',
         total: 30000,
-        placedAt: DateTime(2026, 9, 1),
+        placedAt: DateTime(2026, 9, 1, 0, 15).toUtc(),
       ),
       Order(
         version: 1,
@@ -70,7 +70,7 @@ void main() {
         orderNumber: 'SH-1061',
         status: 'processing',
         total: 15000,
-        placedAt: DateTime(2026, 9, 5),
+        placedAt: DateTime(2026, 9, 5, 0, 15).toUtc(),
       ),
     ],
   );
@@ -85,6 +85,8 @@ void main() {
 
     expect(find.text('SH-1042'), findsOneWidget);
     expect(find.text('SH-1061'), findsOneWidget);
+    expect(find.text('2026/09/01'), findsOneWidget);
+    expect(find.text('2026/09/05'), findsOneWidget);
     // Each status label now shows on the card pill and again on its filter chip.
     expect(find.text('Delivered'), findsWidgets);
     expect(find.text('Processing'), findsWidgets);

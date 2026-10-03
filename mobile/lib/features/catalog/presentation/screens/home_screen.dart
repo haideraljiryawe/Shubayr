@@ -1,3 +1,6 @@
+import '../../../settings/presentation/providers/settings_providers.dart';
+import '../../../../core/widgets/brand_mark.dart';
+import '../../../../core/config/store_identity.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +28,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final brand = ref.watch(brandProvider);
     final offers = ref.watch(homeOffersProvider);
 
     return Scaffold(
@@ -32,12 +36,10 @@ class HomeScreen extends ConsumerWidget {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              'assets/images/branding/shubayr-logo.png',
-              width: AppSpacing.xxl,
-              height: AppSpacing.xxl,
-              fit: BoxFit.contain,
-              excludeFromSemantics: true,
+            BrandMark(
+              brand: brand,
+              size: AppSpacing.xxl,
+              fallbackAsset: StoreIdentity.logoAsset,
             ),
             const SizedBox(width: AppSpacing.sm),
             Flexible(
@@ -46,7 +48,10 @@ class HomeScreen extends ConsumerWidget {
               child: Transform.translate(
                 offset: const Offset(0, AppSpacing.xxs),
                 child: Text(
-                  l10n.homeBrandName,
+                  brand.name ??
+                      StoreIdentity.name(
+                        Localizations.localeOf(context).languageCode,
+                      ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

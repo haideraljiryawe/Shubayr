@@ -4,7 +4,7 @@ import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/display_date.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
@@ -120,6 +120,7 @@ class OrdersScreen extends ConsumerWidget {
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: AppLayout.pageInsets(context),
                             itemCount: list.items.length,
+                            itemKeyBuilder: (i) => list.items[i].id,
                             footer: list.loadMoreError != null
                                 ? AppErrorView(
                                     error: list.loadMoreError,
@@ -242,7 +243,7 @@ class _OrderCard extends ConsumerWidget {
           if (placedAt != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              DateFormat('yyyy/MM/dd').format(placedAt),
+              DisplayDate.localDate(placedAt),
               style: context.text.bodySmall?.copyWith(color: colors.textMuted),
             ),
           ],

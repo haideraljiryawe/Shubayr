@@ -1,6 +1,5 @@
 {
   "@@locale": "ar",
-  "homeBrandName": "شُبَيّر",
   "storeFallbackName": "المتجر",
   "actionRetry": "إعادة المحاولة",
   "actionCancel": "إلغاء",
@@ -154,6 +153,7 @@
   "productQuantity": "الكمية",
   "productInStock": "متوفّر",
   "productLowStock": "باقٍ {count}",
+  "productReviewsPreview": "عرض {shown} من أصل {total} تقييم — معاينة",
   "productReviews": "التقييمات",
   "productNoReviews": "لا توجد تقييمات بعد",
   "productReviewsCount": "{count} تقييم",

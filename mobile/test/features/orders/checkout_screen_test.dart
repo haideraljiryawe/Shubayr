@@ -12,6 +12,7 @@ import 'package:shubayr/core/error/failure.dart';
 import 'package:shubayr/core/widgets/app_button.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/core/theme/brand.dart';
+import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/features/address/data/address.dart';
 import 'package:shubayr/features/address/presentation/providers/address_providers.dart';
 import 'package:shubayr/features/cart/data/cart.dart';
@@ -137,6 +138,9 @@ class _CouponCart extends CartRepositoryMock {
 
 Widget _host({
   Cart? cart,
+  String language = 'en',
+  bool dark = false,
+  double textScale = 1,
   _CouponCart? carts,
   GoRouter? router,
   _FakeOrders? repository,
@@ -192,15 +196,59 @@ Widget _host({
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
         )
-      : const MaterialApp(
-          locale: Locale('en'),
+      : MaterialApp(
+          locale: Locale(language),
+          theme: dark
+              ? AppTheme.dark(const Brand.bundled())
+              : AppTheme.light(const Brand.bundled()),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: CheckoutScreen(),
+          home: const CheckoutScreen(),
         ),
 );
 
 void main() {
+  for (final language in ['ar', 'en']) {
+    for (final dark in [false, true]) {
+      testWidgets('checkout 320px at 150%: $language dark=$dark', (
+        tester,
+      ) async {
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.binding.setSurfaceSize(const Size(320, 900));
+        await tester.pumpWidget(
+          _host(
+            language: language,
+            dark: dark,
+            textScale: 1.5,
+            cart: Cart.fromJson(pricedCart()),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        final l = AppLocalizations.of(
+          tester.element(find.byType(CheckoutScreen)),
+        );
+        await tester.ensureVisible(find.text(l.cartSubtotal));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('4,750'), findsWidgets);
+        expect(find.textContaining('4,321'), findsOneWidget);
+        expect(find.textContaining('321'), findsNWidgets(2));
+        expect(find.textContaining('750'), findsWidgets);
+        expect(
+          Directionality.of(tester.element(find.byType(CheckoutScreen))),
+          language == 'ar' ? TextDirection.rtl : TextDirection.ltr,
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
   for (final failure in <Object>[
     const AppFailure.network(),
     const AppFailure.timeout(),

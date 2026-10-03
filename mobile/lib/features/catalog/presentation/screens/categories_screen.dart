@@ -37,6 +37,7 @@ class CategoriesScreen extends ConsumerWidget {
               padding: AppLayout.pageInsets(context),
               minItemWidth: AppLayout.orderMinWidth,
               itemCount: list.length,
+              itemKeyBuilder: (i) => list[i].id,
               itemBuilder: (context, index) {
                 final category = list[index];
                 return CategoryCard(

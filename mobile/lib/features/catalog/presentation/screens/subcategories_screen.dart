@@ -79,6 +79,7 @@ class _SubcategoryGrid extends StatelessWidget {
       phoneColumns: 3,
       minItemWidth: AppLayout.subcategoryMinWidth,
       itemCount: children?.length ?? 6,
+      itemKeyBuilder: children == null ? null : (i) => children![i].id,
       itemBuilder: (context, index) => LayoutBuilder(
         builder: (context, constraints) {
           final labelStyle = context.text.labelMedium!;

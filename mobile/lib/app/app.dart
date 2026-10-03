@@ -1,3 +1,4 @@
+import '../core/config/store_identity.dart';
 import '../features/notifications/presentation/notification_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +31,8 @@ class ShubayrApp extends ConsumerWidget {
 
     return MaterialApp.router(
       onGenerateTitle: (context) =>
-          brand.name ?? AppLocalizations.of(context).storeFallbackName,
+          brand.name ??
+          StoreIdentity.name(Localizations.localeOf(context).languageCode),
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(brand),
       darkTheme: AppTheme.dark(brand),

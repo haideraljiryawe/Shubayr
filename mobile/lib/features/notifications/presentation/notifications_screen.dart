@@ -84,6 +84,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                   padding: AppLayout.pageInsets(context),
                   minItemWidth: AppLayout.orderMinWidth,
                   itemCount: data.items.length,
+                  itemKeyBuilder: (i) => data.items[i].id,
                   itemBuilder: (context, index) {
                     final item = data.items[index];
                     return AppCard(

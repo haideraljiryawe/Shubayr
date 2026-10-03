@@ -1,3 +1,4 @@
+import '../core/config/store_identity.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
@@ -10,9 +11,7 @@ import '../core/diagnostics/diagnostics.dart';
 abstract final class StartupAssets {
   // ExactAssetImage resolves synchronously once cached, including on the first
   // build. Native launch stays background-only until this artwork is ready.
-  static const logo = ExactAssetImage(
-    'assets/images/branding/shubayr-logo.png',
-  );
+  static const logo = ExactAssetImage(StoreIdentity.logoAsset);
 
   static Future<void> prepare({AssetBundle? bundle}) async {
     final assets = bundle ?? rootBundle;
@@ -20,7 +19,7 @@ abstract final class StartupAssets {
       _optional(() => _prepareLogo(assets)),
       _optional(() {
         final wordmark = FontLoader(AppTypography.brandFontFamily)
-          ..addFont(assets.load('assets/fonts/Zain-Bold.ttf'));
+          ..addFont(assets.load(StoreIdentity.wordmarkFontAsset));
         return wordmark.load();
       }),
     ]);

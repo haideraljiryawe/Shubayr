@@ -9,9 +9,6 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get homeBrandName => 'Shubayr';
-
-  @override
   String get storeFallbackName => 'Store';
 
   @override
@@ -489,6 +486,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String productLowStock(String count) {
     return 'Only $count left';
+  }
+
+  @override
+  String productReviewsPreview(String shown, String total) {
+    return 'Showing $shown of $total reviews — preview';
   }
 
   @override

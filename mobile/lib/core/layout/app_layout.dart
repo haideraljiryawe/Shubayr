@@ -165,12 +165,16 @@ class ResponsiveCardSliver extends StatefulWidget {
     super.key,
     required this.itemCount,
     required this.itemBuilder,
+    this.itemKeyBuilder,
     this.minItemWidth = AppLayout.cardMinWidth,
     this.phoneColumns = 1,
     this.equalHeight = false,
   });
   final int itemCount, phoneColumns;
   final IndexedWidgetBuilder itemBuilder;
+
+  /// Unique entity identity for mutable lists; omit only for static content.
+  final Object Function(int index)? itemKeyBuilder;
   final double minItemWidth;
   final bool equalHeight;
   @override
@@ -180,11 +184,20 @@ class ResponsiveCardSliver extends StatefulWidget {
 class _ResponsiveCardSliverState extends State<ResponsiveCardSliver> {
   // Rows change parents when column counts change. Preserve mounted card state
   // (including a delivery confirmation dialog) across that regrouping.
-  final _itemKeys = <int, GlobalKey>{};
+  final _itemKeys = <Object, GlobalKey>{};
+
+  Object _identity(int index) => widget.itemKeyBuilder?.call(index) ?? index;
   @override
   void didUpdateWidget(ResponsiveCardSliver oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _itemKeys.removeWhere((index, _) => index >= widget.itemCount);
+    final identities = {
+      for (var i = 0; i < widget.itemCount; i++) _identity(i),
+    };
+    assert(
+      identities.length == widget.itemCount,
+      'Card identities must be unique',
+    );
+    _itemKeys.removeWhere((identity, _) => !identities.contains(identity));
   }
 
   @override
@@ -211,7 +224,7 @@ class _ResponsiveCardSliverState extends State<ResponsiveCardSliver> {
                   child: row * columns + col < widget.itemCount
                       ? KeyedSubtree(
                           key: _itemKeys.putIfAbsent(
-                            row * columns + col,
+                            _identity(row * columns + col),
                             GlobalKey.new,
                           ),
                           child: widget.itemBuilder(
@@ -236,6 +249,7 @@ class ResponsiveCardList extends StatelessWidget {
     super.key,
     required this.itemCount,
     required this.itemBuilder,
+    this.itemKeyBuilder,
     this.padding,
     this.physics,
     this.controller,
@@ -246,6 +260,9 @@ class ResponsiveCardList extends StatelessWidget {
   });
   final int itemCount, phoneColumns;
   final IndexedWidgetBuilder itemBuilder;
+
+  /// Unique entity identity for mutable lists; omit only for static content.
+  final Object Function(int index)? itemKeyBuilder;
   final EdgeInsetsGeometry? padding;
   final ScrollPhysics? physics;
   final ScrollController? controller;
@@ -264,6 +281,7 @@ class ResponsiveCardList extends StatelessWidget {
             ResponsiveCardSliver(
               itemCount: itemCount,
               itemBuilder: itemBuilder,
+              itemKeyBuilder: itemKeyBuilder,
               minItemWidth: minItemWidth,
               phoneColumns: phoneColumns,
               equalHeight: equalHeight,
@@ -312,7 +330,11 @@ class ResponsiveSections extends StatelessWidget {
           runSpacing: stackedSpacing,
           children: [
             for (var i = 0; i < children.length; i++)
-              SizedBox(key: ValueKey(i), width: width, child: children[i]),
+              SizedBox(
+                key: ValueKey<Object>(children[i].key ?? i),
+                width: width,
+                child: children[i],
+              ),
           ],
         );
       },

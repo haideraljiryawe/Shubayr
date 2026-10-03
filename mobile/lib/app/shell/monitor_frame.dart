@@ -1,3 +1,6 @@
+import '../../features/settings/presentation/providers/settings_providers.dart';
+import '../../core/widgets/brand_mark.dart';
+import '../../core/config/store_identity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -120,6 +123,7 @@ class GlobalMonitorHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = context.l10n;
+    final brand = ref.watch(brandProvider);
     final colors = context.colors;
     final name = ref.watch(sessionControllerProvider).value?.user?.name?.trim();
     return Material(
@@ -138,18 +142,19 @@ class GlobalMonitorHeader extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                Image.asset(
-                  'assets/images/branding/shubayr-logo.png',
+                BrandMark(
+                  brand: brand,
+                  size: AppSpacing.xxl,
+                  fallbackAsset: StoreIdentity.logoAsset,
                   key: const ValueKey('monitor-brand-logo'),
-                  width: AppSpacing.xxl,
-                  height: AppSpacing.xxl,
-                  fit: BoxFit.contain,
-                  excludeFromSemantics: true,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    l.homeBrandName,
+                    brand.name ??
+                        StoreIdentity.name(
+                          Localizations.localeOf(context).languageCode,
+                        ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.text.titleLarge?.copyWith(

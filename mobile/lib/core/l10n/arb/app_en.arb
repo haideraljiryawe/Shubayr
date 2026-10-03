@@ -1,6 +1,5 @@
 {
   "@@locale": "en",
-  "homeBrandName": "Shubayr",
   "storeFallbackName": "Store",
   "@storeFallbackName": {
     "description": "Neutral brand name used before store settings load."
@@ -195,6 +194,8 @@
       }
     }
   },
+  "productReviewsPreview": "Showing {shown} of {total} reviews — preview",
+  "@productReviewsPreview": {"placeholders": {"shown": {"type": "String"}, "total": {"type": "String"}}},
   "productReviews": "Reviews",
   "productNoReviews": "No reviews yet",
   "productReviewsCount": "{count} reviews",
