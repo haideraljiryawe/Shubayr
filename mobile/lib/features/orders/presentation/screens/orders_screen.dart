@@ -1,3 +1,4 @@
+import '../../../../core/utils/quantity.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
@@ -216,7 +217,10 @@ class _OrderCard extends ConsumerWidget {
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
     final brand = ref.watch(brandProvider);
-    final count = order.items.fold<int>(0, (s, i) => s + i.quantity);
+    final count = order.items.fold<num>(
+      0,
+      (s, i) => addQuantity(s, i.quantity),
+    );
     final placedAt = order.placedAt;
 
     return AppCard(
@@ -246,7 +250,7 @@ class _OrderCard extends ConsumerWidget {
           Row(
             children: [
               Text(
-                l10n.orderItemsCount('$count'),
+                l10n.orderItemsCount(formatQuantity(count)),
                 style: context.text.bodySmall?.copyWith(
                   color: colors.textSecondary,
                 ),

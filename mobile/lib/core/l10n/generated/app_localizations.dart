@@ -3445,6 +3445,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Load more'**
   String get actionLoadMore;
+
+  /// No description provided for @quantityInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a quantity within the limits, with up to 3 decimal places.'**
+  String get quantityInvalid;
+
+  /// No description provided for @quantityWholeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole quantity within the limits.'**
+  String get quantityWholeInvalid;
 }
 
 class _AppLocalizationsDelegate

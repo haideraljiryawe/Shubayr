@@ -19,7 +19,7 @@ class _PendingCart extends CartRepositoryMock {
   Future<Cart> addItem({
     required String productId,
     String? variantId,
-    int quantity = 1,
+    num quantity = 1,
   }) => result.future;
 }
 

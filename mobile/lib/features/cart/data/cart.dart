@@ -1,5 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../core/utils/quantity.dart';
+
 part 'cart.g.dart';
 
 /// The current user's cart. Shapes match `Cart` in `api/openapi.yaml`. The API
@@ -22,7 +24,7 @@ class Cart {
   bool get isEmpty => items.isEmpty;
 
   /// Total number of units across all lines (for a future tab badge / count).
-  int get count => items.fold(0, (sum, i) => sum + i.quantity);
+  num get count => items.fold<num>(0, (sum, i) => addQuantity(sum, i.quantity));
 
   factory Cart.fromJson(Map<String, dynamic> json) => _$CartFromJson(json);
 
@@ -39,6 +41,8 @@ class CartItem {
     this.variantId,
     this.quantity = 1,
     this.unitPrice = 0,
+    this.availableQty,
+    this.available,
     this.currency,
   });
 
@@ -47,21 +51,28 @@ class CartItem {
   final String productId;
   @JsonKey(name: 'variant_id')
   final String? variantId;
-  final int quantity;
+  final num quantity;
   @JsonKey(name: 'unit_price')
   final num unitPrice;
   @JsonKey(includeIfNull: false)
   final String? currency;
 
+  @JsonKey(name: 'available_qty', includeIfNull: false)
+  final num? availableQty;
+  @JsonKey(includeIfNull: false)
+  final bool? available;
+
   num get lineTotal => unitPrice * quantity;
 
-  CartItem copyWith({int? quantity}) => CartItem(
+  CartItem copyWith({num? quantity}) => CartItem(
     id: id,
     productId: productId,
     variantId: variantId,
     quantity: quantity ?? this.quantity,
     unitPrice: unitPrice,
     currency: currency,
+    availableQty: availableQty,
+    available: available,
   );
 
   factory CartItem.fromJson(Map<String, dynamic> json) =>

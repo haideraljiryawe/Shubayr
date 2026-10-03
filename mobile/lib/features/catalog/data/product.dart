@@ -14,6 +14,11 @@ class ProductVariant {
     this.attributes = const {},
     this.priceDelta = 0,
     this.currency,
+    this.baseUnit,
+    this.wholeUnitsOnly = true,
+    this.availableQty,
+    this.inStock,
+    this.lowStockThreshold,
   });
 
   final String id;
@@ -23,6 +28,17 @@ class ProductVariant {
   final num priceDelta;
   @JsonKey(includeIfNull: false)
   final String? currency;
+
+  @JsonKey(name: 'base_unit', includeIfNull: false)
+  final String? baseUnit;
+  @JsonKey(name: 'whole_units_only')
+  final bool wholeUnitsOnly;
+  @JsonKey(name: 'available_qty', includeIfNull: false)
+  final num? availableQty;
+  @JsonKey(name: 'in_stock', includeIfNull: false)
+  final bool? inStock;
+  @JsonKey(name: 'low_stock_threshold', includeIfNull: false)
+  final num? lowStockThreshold;
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) =>
       _$ProductVariantFromJson(json);
@@ -140,7 +156,7 @@ class Product {
   @JsonKey(name: 'in_stock')
   final bool inStock;
   @JsonKey(name: 'available_qty')
-  final int availableQty;
+  final num availableQty;
   final List<String> _fixtureImages;
   @JsonKey(includeFromJson: false, includeToJson: false)
   List<String> get images => media.isEmpty

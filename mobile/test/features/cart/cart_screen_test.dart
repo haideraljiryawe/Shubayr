@@ -24,13 +24,25 @@ import '../../helpers/test_session.dart';
 
 /// Names any product 'Widget'; other reads aren't used by the cart screen.
 class _FakeCatalog implements CatalogRepository {
+  _FakeCatalog({this.whole});
+  final bool? whole;
   @override
-  Future<Product> fetchProduct(String id) async => const Product(
+  Future<Product> fetchProduct(String id) async => Product(
     id: 'x',
     categoryId: 'c',
     nameEn: 'Widget',
     nameAr: 'قطعة',
     salePrice: 1000,
+    variants: whole == null
+        ? const []
+        : [
+            ProductVariant(
+              id: 'v',
+              wholeUnitsOnly: whole!,
+              baseUnit: 'kg',
+              availableQty: 0.5,
+            ),
+          ],
   );
 
   @override
@@ -74,24 +86,31 @@ class _FailingCart extends CartRepositoryMock {
   @override
   Future<Cart> fetchCart() async => cart;
   @override
-  Future<Cart> updateItem(String itemId, int quantity) async =>
+  Future<Cart> updateItem(String itemId, num quantity) async =>
       throw const AppFailure.network();
   @override
   Future<Cart> removeItem(String itemId) async =>
       throw const AppFailure.network();
 }
 
-Widget _host(Cart cart, {bool failMutations = false}) => ProviderScope(
+Widget _host(
+  Cart cart, {
+  bool failMutations = false,
+  bool? whole,
+  CartRepositoryMock? repository,
+}) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
     notificationSyncProvider.overrideWith((ref) {}),
     unreadCountProvider.overrideWith((ref) async => 0),
     dataSourceProvider.overrideWithValue(DataSource.mock),
-    catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
+    catalogRepositoryProvider.overrideWithValue(_FakeCatalog(whole: whole)),
     brandProvider.overrideWithValue(const Brand.bundled()),
-    if (failMutations) ...[
+    if (failMutations || repository != null) ...[
       sessionControllerProvider.overrideWith(TestSession.new),
-      cartRepositoryProvider.overrideWithValue(_FailingCart(cart)),
+      cartRepositoryProvider.overrideWithValue(
+        repository ?? _FailingCart(cart),
+      ),
     ] else
       cartControllerProvider.overrideWith(() => _FixedCart(cart)),
   ],
@@ -103,7 +122,52 @@ Widget _host(Cart cart, {bool failMutations = false}) => ProviderScope(
   ),
 );
 
+class _UpdatingCart extends CartRepositoryMock {
+  _UpdatingCart(this.cart);
+  Cart cart;
+  num? requested;
+  @override
+  Future<Cart> fetchCart() async => cart;
+  @override
+  Future<Cart> updateItem(String id, num quantity) async {
+    requested = quantity;
+    return cart = Cart(items: [cart.items.single.copyWith(quantity: quantity)]);
+  }
+}
+
 void main() {
+  testWidgets(
+    'cart uses SKU fractional rules, preserves display and submits .125',
+    (tester) async {
+      const cart = Cart(
+        items: [
+          CartItem(
+            id: 'c1',
+            productId: 'x',
+            variantId: 'v',
+            quantity: 0.5,
+            availableQty: 0.5,
+          ),
+        ],
+      );
+      final repo = _UpdatingCart(cart);
+      await tester.pumpWidget(_host(cart, whole: false, repository: repo));
+      await tester.pumpAndSettle();
+      expect(find.text('0.5'), findsOneWidget);
+      await tester.tap(find.text('0.5'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), '0.125');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(repo.requested, 0.125);
+      expect(find.text('0.125'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+      expect(repo.requested, 0.5);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('shows cart lines and the subtotal', (tester) async {
     const cart = Cart(
       items: [CartItem(id: 'c1', productId: 'x', quantity: 2, unitPrice: 1000)],

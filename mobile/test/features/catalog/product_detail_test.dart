@@ -30,7 +30,12 @@ import '../../helpers/test_session.dart';
 /// A product with three variants (S=low stock, M=in stock, L=sold out) and no
 /// images, so the detail screen never touches the network.
 class _FakeCatalog implements CatalogRepository {
-  _FakeCatalog({this.promotion = false});
+  _FakeCatalog({
+    this.promotion = false,
+    this.fractional = false,
+    this.whole = false,
+  });
+  final bool fractional, whole;
   final bool promotion;
   static const _product = Product(
     id: 'v1',
@@ -57,7 +62,29 @@ class _FakeCatalog implements CatalogRepository {
   );
 
   @override
-  Future<Product> fetchProduct(String id) async => promotion
+  Future<Product> fetchProduct(String id) async => fractional
+      ? Product.fromJson({
+          ..._product.toJson(),
+          'available_qty': 0.5,
+          'variants': [
+            {
+              'id': 'v1-s',
+              'sku': 'S',
+              'whole_units_only': whole,
+              'base_unit': 'kg',
+              'available_qty': 0.5,
+              'in_stock': true,
+            },
+            {
+              'id': 'v1-m',
+              'sku': 'M',
+              'whole_units_only': true,
+              'available_qty': 3,
+              'in_stock': true,
+            },
+          ],
+        })
+      : promotion
       ? Product.fromJson({
           ..._product.toJson(),
           'price': 20000,
@@ -71,18 +98,49 @@ class _FakeCatalog implements CatalogRepository {
       : _product;
 
   @override
-  Future<ProductAvailability> fetchAvailability(
-    String id,
-  ) async => const ProductAvailability(
-    productId: 'v1',
-    inStock: true,
-    availableQty: 13,
-    variants: [
-      VariantAvailability(variantId: 'v1-s', availableQty: 3, inStock: true),
-      VariantAvailability(variantId: 'v1-m', availableQty: 10, inStock: true),
-      VariantAvailability(variantId: 'v1-l', availableQty: 0, inStock: false),
-    ],
-  );
+  Future<ProductAvailability> fetchAvailability(String id) async => fractional
+      ? ProductAvailability.fromJson({
+          'product_id': 'v1',
+          'in_stock': true,
+          'available_qty': 3.5,
+          'variants': [
+            {
+              'variant_id': 'v1-s',
+              'available_qty': 0.5,
+              'in_stock': true,
+              'whole_units_only': whole,
+              'base_unit': 'kg',
+            },
+            {
+              'variant_id': 'v1-m',
+              'available_qty': 3,
+              'in_stock': true,
+              'whole_units_only': true,
+            },
+          ],
+        })
+      : const ProductAvailability(
+          productId: 'v1',
+          inStock: true,
+          availableQty: 13,
+          variants: [
+            VariantAvailability(
+              variantId: 'v1-s',
+              availableQty: 3,
+              inStock: true,
+            ),
+            VariantAvailability(
+              variantId: 'v1-m',
+              availableQty: 10,
+              inStock: true,
+            ),
+            VariantAvailability(
+              variantId: 'v1-l',
+              availableQty: 0,
+              inStock: false,
+            ),
+          ],
+        );
 
   @override
   Future<List<Category>> fetchCategories() async => const [];
@@ -115,18 +173,22 @@ class _PendingCart extends CartRepositoryMock {
   Future<Cart> addItem({
     required String productId,
     String? variantId,
-    int quantity = 1,
+    num quantity = 1,
   }) => result.future;
 }
 
-Widget _host({bool promotion = false}) => ProviderScope(
+Widget _host({
+  bool promotion = false,
+  bool fractional = false,
+  bool whole = false,
+}) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
     notificationSyncProvider.overrideWith((ref) {}),
     unreadCountProvider.overrideWith((ref) async => 0),
     dataSourceProvider.overrideWithValue(DataSource.mock),
     catalogRepositoryProvider.overrideWithValue(
-      _FakeCatalog(promotion: promotion),
+      _FakeCatalog(promotion: promotion, fractional: fractional, whole: whole),
     ),
     brandProvider.overrideWithValue(const Brand.bundled()),
   ],
@@ -146,6 +208,45 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
   }
+
+  testWidgets(
+    'fractional SKU stock enables .5, editable .125, and whole variant resets selection',
+    (tester) async {
+      sizePhone(tester);
+      await tester.pumpWidget(_host(fractional: true));
+      await tester.pumpAndSettle();
+      expect(find.text('Only 0.5 left'), findsOneWidget);
+      expect(find.text('0.5'), findsOneWidget);
+      final addButton = find.widgetWithText(ElevatedButton, 'Add to cart');
+      expect(tester.widget<ElevatedButton>(addButton).onPressed, isNotNull);
+      await tester.ensureVisible(find.text('0.5'));
+      await tester.tap(find.text('0.5'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), '0.125');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.text('0.125'), findsOneWidget);
+      await tester.ensureVisible(find.text('M'));
+      await tester.tap(find.text('M'));
+      await tester.pumpAndSettle();
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('0.125'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('a whole-unit SKU with only .5 in stock cannot be added', (
+    tester,
+  ) async {
+    sizePhone(tester);
+    await tester.pumpWidget(_host(fractional: true, whole: true));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<ElevatedButton>(find.byType(ElevatedButton).last).onPressed,
+      isNull,
+    );
+    expect(find.text('0.5'), findsNothing);
+  });
 
   for (final switchSession in [false, true]) {
     testWidgets(

@@ -33,7 +33,7 @@ Map<String, dynamic> _$ReturnRequestToJson(ReturnRequest instance) =>
 ReturnRequestItem _$ReturnRequestItemFromJson(Map<String, dynamic> json) =>
     ReturnRequestItem(
       orderItemId: json['order_item_id'] as String,
-      quantity: (json['quantity'] as num).toInt(),
+      quantity: json['quantity'] as num,
     );
 
 Map<String, dynamic> _$ReturnRequestItemToJson(ReturnRequestItem instance) =>

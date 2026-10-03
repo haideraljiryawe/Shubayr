@@ -100,7 +100,7 @@ class OrderItem {
     return null;
   }
 
-  final int quantity;
+  final num quantity;
   @JsonKey(name: 'unit_price')
   final num unitPrice;
   @JsonKey(name: 'line_total')

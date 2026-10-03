@@ -13,6 +13,11 @@ ProductVariant _$ProductVariantFromJson(Map<String, dynamic> json) =>
       attributes: json['attributes'] as Map<String, dynamic>? ?? const {},
       priceDelta: json['price_delta'] as num? ?? 0,
       currency: json['currency'] as String?,
+      baseUnit: json['base_unit'] as String?,
+      wholeUnitsOnly: json['whole_units_only'] as bool? ?? true,
+      availableQty: json['available_qty'] as num?,
+      inStock: json['in_stock'] as bool?,
+      lowStockThreshold: json['low_stock_threshold'] as num?,
     );
 
 Map<String, dynamic> _$ProductVariantToJson(ProductVariant instance) =>
@@ -22,6 +27,11 @@ Map<String, dynamic> _$ProductVariantToJson(ProductVariant instance) =>
       'attributes': instance.attributes,
       'price_delta': instance.priceDelta,
       'currency': ?instance.currency,
+      'base_unit': ?instance.baseUnit,
+      'whole_units_only': instance.wholeUnitsOnly,
+      'available_qty': ?instance.availableQty,
+      'in_stock': ?instance.inStock,
+      'low_stock_threshold': ?instance.lowStockThreshold,
     };
 
 Product _$ProductFromJson(Map<String, dynamic> json) => Product(
@@ -51,7 +61,7 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
   ratingAvg: json['rating_avg'] as num? ?? 0,
   status: json['status'] as String? ?? 'active',
   inStock: json['in_stock'] as bool? ?? true,
-  availableQty: (json['available_qty'] as num?)?.toInt() ?? 0,
+  availableQty: json['available_qty'] as num? ?? 0,
   media:
       (json['images'] as List<dynamic>?)
           ?.map((e) => ProductImage.fromJson(e as Map<String, dynamic>))

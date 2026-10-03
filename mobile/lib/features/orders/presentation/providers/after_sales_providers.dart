@@ -1,3 +1,4 @@
+import '../../../../core/utils/quantity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
@@ -57,10 +58,10 @@ class AfterSalesReceipts {
   final List<Review> reviews;
   final List<ReturnRequest> returns;
   bool reviewed(String itemId) => reviews.any((r) => r.orderItemId == itemId);
-  int returnedQuantity(String itemId) => returns
+  num returnedQuantity(String itemId) => returns
       .expand((r) => r.items)
       .where((i) => i.orderItemId == itemId)
-      .fold(0, (sum, i) => sum + i.quantity);
+      .fold<num>(0, (sum, i) => addQuantity(sum, i.quantity));
 }
 
 class AfterSalesReceiptsController extends Notifier<AfterSalesReceipts> {

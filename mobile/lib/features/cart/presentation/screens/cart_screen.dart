@@ -60,7 +60,10 @@ class CartScreen extends ConsumerWidget {
                     itemCount: c.items.length,
                     separatorBuilder: (_, _) =>
                         const Divider(height: AppSpacing.xl),
-                    itemBuilder: (_, i) => _CartLine(item: c.items[i]),
+                    itemBuilder: (_, i) => _CartLine(
+                      key: ValueKey((c.id, c.items[i].id)),
+                      item: c.items[i],
+                    ),
                   ),
                 ),
                 _CartFooter(subtotal: c.subtotal, currency: c.currency),
@@ -74,7 +77,7 @@ class CartScreen extends ConsumerWidget {
 }
 
 class _CartLine extends ConsumerWidget {
-  const _CartLine({required this.item});
+  const _CartLine({super.key, required this.item});
 
   final CartItem item;
 
@@ -114,6 +117,21 @@ class _CartLine extends ConsumerWidget {
     final brand = ref.watch(brandProvider);
     final product = ref.watch(productProvider(item.productId)).value;
     final variantLabel = _variantLabel(product);
+    final variant = product?.variants
+        .where((v) => v.id == item.variantId)
+        .firstOrNull;
+    final availability = ref.watch(availabilityProvider(item.productId)).value;
+    final row = availability?.forVariant(item.variantId);
+    final whole = row?.wholeUnitsOnly ?? variant?.wholeUnitsOnly ?? true;
+    final available =
+        item.availableQty ?? row?.availableQty ?? variant?.availableQty;
+    final max =
+        (available == null
+                ? 99
+                : whole
+                ? available.floor()
+                : available)
+            .clamp(0, 99);
     final lineTotal = formatMoney(
       item.lineTotal,
       currencyCode: item.currency ?? brand.currencyCode,
@@ -148,6 +166,9 @@ class _CartLine extends ConsumerWidget {
               ResponsiveValueRow(
                 label: QuantityStepper(
                   quantity: item.quantity,
+                  wholeUnitsOnly: whole,
+                  max: max,
+                  baseUnit: row?.baseUnit ?? variant?.baseUnit,
                   onChanged: (q) => _showResult(
                     context,
                     ref

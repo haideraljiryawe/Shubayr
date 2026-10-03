@@ -1,3 +1,4 @@
+import '../../../../core/utils/quantity.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import '../widgets/product_promotion.dart';
@@ -98,7 +99,13 @@ class _DetailSkeleton extends StatelessWidget {
 }
 
 /// Stock resolved for what the shopper currently has selected.
-typedef _Stock = ({bool inStock, int qty});
+typedef _Stock = ({
+  bool inStock,
+  num qty,
+  bool wholeUnitsOnly,
+  String? baseUnit,
+  num lowStockThreshold,
+});
 
 class _Detail extends ConsumerStatefulWidget {
   const _Detail({required this.product});
@@ -111,7 +118,7 @@ class _Detail extends ConsumerStatefulWidget {
 
 class _DetailState extends ConsumerState<_Detail> {
   String? _selectedVariantId;
-  int _quantity = 1;
+  num _quantity = 1;
 
   @override
   void initState() {
@@ -133,12 +140,22 @@ class _DetailState extends ConsumerState<_Detail> {
   /// product's own computed values so the badge never blanks out.
   _Stock _resolveStock(ProductAvailability? a, ProductVariant? selected) {
     final product = widget.product;
-    if (a == null) return (inStock: product.inStock, qty: product.availableQty);
-    if (selected != null) {
-      final va = a.forVariant(selected.id);
-      if (va != null) return (inStock: va.inStock, qty: va.availableQty);
-    }
-    return (inStock: a.inStock, qty: a.availableQty);
+    final row = a?.forVariant(selected?.id);
+    final qty =
+        row?.availableQty ??
+        selected?.availableQty ??
+        (selected == null ? a?.availableQty ?? product.availableQty : 0);
+    final whole = row?.wholeUnitsOnly ?? selected?.wholeUnitsOnly ?? true;
+    return (
+      inStock:
+          (row?.inStock ?? selected?.inStock ?? product.inStock) &&
+          qty >= (whole ? 1 : 0.001),
+      qty: qty,
+      wholeUnitsOnly: whole,
+      baseUnit: row?.baseUnit ?? selected?.baseUnit,
+      lowStockThreshold:
+          row?.lowStockThreshold ?? selected?.lowStockThreshold ?? 5,
+    );
   }
 
   @override
@@ -157,6 +174,15 @@ class _DetailState extends ConsumerState<_Detail> {
       localeCode: lang,
     );
     final stock = _resolveStock(availability, selectedVariant);
+    final max = (stock.wholeUnitsOnly ? stock.qty.floor() : stock.qty).clamp(
+      0,
+      99,
+    );
+    final min = stock.wholeUnitsOnly ? 1 : 0.001;
+    // A new SKU or a live stock reduction must not leave an invalid selection.
+    final quantity = stock.inStock
+        ? (stock.wholeUnitsOnly ? _quantity.ceil() : _quantity).clamp(min, max)
+        : _quantity;
 
     return Column(
       children: [
@@ -219,6 +245,7 @@ class _DetailState extends ConsumerState<_Detail> {
                         _AvailabilityBadge(
                           inStock: stock.inStock,
                           qty: stock.qty,
+                          lowStockThreshold: stock.lowStockThreshold,
                         ),
                         if (product.variants.isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.lg),
@@ -245,7 +272,10 @@ class _DetailState extends ConsumerState<_Detail> {
                               ),
                               const Spacer(),
                               QuantityStepper(
-                                quantity: _quantity,
+                                quantity: quantity,
+                                wholeUnitsOnly: stock.wholeUnitsOnly,
+                                max: max,
+                                baseUnit: stock.baseUnit,
                                 onChanged: (q) => setState(() => _quantity = q),
                               ),
                             ],
@@ -283,7 +313,7 @@ class _DetailState extends ConsumerState<_Detail> {
           child: _AddToCartBar(
             productId: product.id,
             variantId: _selectedVariantId,
-            quantity: _quantity,
+            quantity: quantity,
             inStock: stock.inStock,
           ),
         ),
@@ -294,12 +324,16 @@ class _DetailState extends ConsumerState<_Detail> {
 
 /// In-stock / low-stock / out-of-stock indicator for the current selection.
 class _AvailabilityBadge extends StatelessWidget {
-  const _AvailabilityBadge({required this.inStock, required this.qty});
+  const _AvailabilityBadge({
+    required this.inStock,
+    required this.qty,
+    required this.lowStockThreshold,
+  });
 
   final bool inStock;
-  final int qty;
+  final num qty;
 
-  static const int _lowStockThreshold = 5;
+  final num lowStockThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -311,10 +345,10 @@ class _AvailabilityBadge extends StatelessWidget {
         Icons.remove_circle_outline,
         l10n.commonOutOfStock,
       ),
-      (true, final q) when q <= _lowStockThreshold => (
+      (true, final q) when q <= lowStockThreshold => (
         colors.warning,
         Icons.timelapse,
-        l10n.productLowStock('$q'),
+        l10n.productLowStock(formatQuantity(q)),
       ),
       _ => (colors.success, Icons.check_circle_outline, l10n.productInStock),
     };
@@ -359,7 +393,11 @@ class _VariantSelector extends StatelessWidget {
           Builder(
             builder: (context) {
               final va = availability?.forVariant(v.id);
-              final outOfStock = va != null && !va.inStock;
+              final qty = va?.availableQty ?? v.availableQty;
+              final whole = va?.wholeUnitsOnly ?? v.wholeUnitsOnly;
+              final outOfStock =
+                  (va?.inStock ?? v.inStock) == false ||
+                  (qty != null && qty < (whole ? 1 : 0.001));
               final label = v.attributes.values.isNotEmpty
                   ? v.attributes.values.join(' · ')
                   : v.sku;
@@ -390,7 +428,7 @@ class _AddToCartBar extends ConsumerStatefulWidget {
 
   final String productId;
   final String? variantId;
-  final int quantity;
+  final num quantity;
   final bool inStock;
 
   @override

@@ -1,3 +1,5 @@
+import '../../../core/error/failure.dart';
+import '../../../core/utils/quantity.dart';
 import '../../../core/network/api_client.dart';
 import '../../catalog/data/review.dart';
 import '../domain/after_sales_repository.dart';
@@ -35,7 +37,12 @@ class AfterSalesRepositoryRemote implements AfterSalesRepository {
       body: {
         'order_id': orderId,
         'reason': ?reason,
-        'items': items.map((item) => item.toJson()).toList(),
+        'items': items.map((item) {
+          if (!isValidQuantity(item.quantity)) {
+            throw const AppFailure(FailureKind.validation);
+          }
+          return item.toJson();
+        }).toList(),
       },
     ),
   );

@@ -1,3 +1,5 @@
+import '../../../core/error/failure.dart';
+import '../../../core/utils/quantity.dart';
 import '../../../core/network/api_client.dart';
 import '../domain/cart_repository.dart';
 import 'cart.dart';
@@ -15,23 +17,23 @@ class CartRepositoryRemote implements CartRepository {
   Future<Cart> addItem({
     required String productId,
     String? variantId,
-    int quantity = 1,
+    num quantity = 1,
   }) async => Cart.fromJson(
     await _api.post<Map<String, dynamic>>(
       '/cart/items',
       body: {
         'product_id': productId,
         'variant_id': ?variantId,
-        'quantity': quantity,
+        'quantity': _validatedQuantity(quantity),
       },
     ),
   );
 
   @override
-  Future<Cart> updateItem(String itemId, int quantity) async => Cart.fromJson(
+  Future<Cart> updateItem(String itemId, num quantity) async => Cart.fromJson(
     await _api.patch<Map<String, dynamic>>(
       '/cart/items/$itemId',
-      body: {'quantity': quantity},
+      body: {'quantity': _validatedQuantity(quantity)},
     ),
   );
 
@@ -41,4 +43,11 @@ class CartRepositoryRemote implements CartRepository {
     await _api.deleteVoid('/cart/items/$itemId');
     return fetchCart();
   }
+}
+
+num _validatedQuantity(num quantity) {
+  if (!isValidQuantity(quantity, max: 99)) {
+    throw const AppFailure(FailureKind.validation);
+  }
+  return quantity;
 }

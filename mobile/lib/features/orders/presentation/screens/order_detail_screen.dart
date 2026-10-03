@@ -1,3 +1,4 @@
+import '../../../../core/utils/quantity.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -420,7 +421,7 @@ class _OrderItemTile extends ConsumerWidget {
                 ],
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  l10n.orderLineQuantity('${item.quantity}'),
+                  l10n.orderLineQuantity(formatQuantity(item.quantity)),
                   style: context.text.bodySmall?.copyWith(
                     color: colors.textSecondary,
                   ),

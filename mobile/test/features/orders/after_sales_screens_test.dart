@@ -129,6 +129,46 @@ Widget _host(
 );
 
 void main() {
+  testWidgets('fractional historical return clamps shortcuts and sends .125', (
+    tester,
+  ) async {
+    final repository = _Repository();
+    await tester.pumpWidget(
+      _host(
+        const ReturnOrderScreen(orderId: 'o1'),
+        repository,
+        items: const [
+          OrderItem(
+            id: 'i1',
+            productId: 'p1',
+            quantity: 0.5,
+            productNameEn: 'Historical coffee',
+          ),
+        ],
+        catalogLookup: (_) async => throw StateError('Deleted'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Quantity available to request: 0.5'), findsOneWidget);
+    await tester.tap(find.byTooltip('Increase return quantity'));
+    await tester.pump();
+    expect(find.text('0.5'), findsOneWidget);
+    await tester.tap(find.byTooltip('Decrease return quantity'));
+    await tester.pump();
+    expect(find.text('0'), findsOneWidget);
+    await tester.tap(find.text('0'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '0.125');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.tap(find.text('Submit return request'));
+    await tester.pumpAndSettle();
+    expect(repository.lines.single.quantity, 0.125);
+    expect(find.text('Qty: 0.125'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'saved labels allow return input while variant lookup is pending',
     (tester) async {

@@ -101,7 +101,7 @@ void main() {
     testWidgets(
       'rendered hints and quantity controls keep disabled distinct $brightness',
       (tester) async {
-        var quantity = 1;
+        num quantity = 1;
         await tester.pumpWidget(
           MaterialApp(
             theme: theme,

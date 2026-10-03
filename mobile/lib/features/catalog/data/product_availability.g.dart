@@ -10,7 +10,7 @@ ProductAvailability _$ProductAvailabilityFromJson(Map<String, dynamic> json) =>
     ProductAvailability(
       productId: json['product_id'] as String,
       inStock: json['in_stock'] as bool,
-      availableQty: (json['available_qty'] as num).toInt(),
+      availableQty: json['available_qty'] as num,
       variants:
           (json['variants'] as List<dynamic>?)
               ?.map(
@@ -33,7 +33,10 @@ VariantAvailability _$VariantAvailabilityFromJson(Map<String, dynamic> json) =>
     VariantAvailability(
       variantId: json['variant_id'] as String?,
       sku: json['sku'] as String? ?? '',
-      availableQty: (json['available_qty'] as num).toInt(),
+      baseUnit: json['base_unit'] as String?,
+      wholeUnitsOnly: json['whole_units_only'] as bool?,
+      lowStockThreshold: json['low_stock_threshold'] as num?,
+      availableQty: json['available_qty'] as num,
       inStock: json['in_stock'] as bool,
     );
 
@@ -44,4 +47,7 @@ Map<String, dynamic> _$VariantAvailabilityToJson(
   'sku': instance.sku,
   'available_qty': instance.availableQty,
   'in_stock': instance.inStock,
+  'base_unit': ?instance.baseUnit,
+  'whole_units_only': ?instance.wholeUnitsOnly,
+  'low_stock_threshold': ?instance.lowStockThreshold,
 };

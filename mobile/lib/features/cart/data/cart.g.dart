@@ -28,8 +28,10 @@ CartItem _$CartItemFromJson(Map<String, dynamic> json) => CartItem(
   id: json['id'] as String,
   productId: json['product_id'] as String,
   variantId: json['variant_id'] as String?,
-  quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+  quantity: json['quantity'] as num? ?? 1,
   unitPrice: json['unit_price'] as num? ?? 0,
+  availableQty: json['available_qty'] as num?,
+  available: json['available'] as bool?,
   currency: json['currency'] as String?,
 );
 
@@ -40,4 +42,6 @@ Map<String, dynamic> _$CartItemToJson(CartItem instance) => <String, dynamic>{
   'quantity': instance.quantity,
   'unit_price': instance.unitPrice,
   'currency': ?instance.currency,
+  'available_qty': ?instance.availableQty,
+  'available': ?instance.available,
 };

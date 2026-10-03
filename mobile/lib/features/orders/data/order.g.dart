@@ -49,7 +49,7 @@ OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => OrderItem(
   productNameAr: json['product_name_ar'] as String?,
   productNameEn: json['product_name_en'] as String?,
   imageUrl: json['image_url'] as String?,
-  quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+  quantity: json['quantity'] as num? ?? 1,
   unitPrice: json['unit_price'] as num? ?? 0,
   lineTotal: json['line_total'] as num? ?? 0,
   currency: json['currency'] as String?,

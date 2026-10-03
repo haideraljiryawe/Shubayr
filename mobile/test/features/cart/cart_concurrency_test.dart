@@ -52,10 +52,10 @@ class _CartRepository implements CartRepository {
   Future<Cart> addItem({
     required String productId,
     String? variantId,
-    int quantity = 1,
+    num quantity = 1,
   }) => _request('add:$productId:$variantId:$quantity');
   @override
-  Future<Cart> updateItem(String itemId, int quantity) =>
+  Future<Cart> updateItem(String itemId, num quantity) =>
       _request('set:$itemId:$quantity');
   @override
   Future<Cart> removeItem(String itemId) => _request('remove:$itemId');

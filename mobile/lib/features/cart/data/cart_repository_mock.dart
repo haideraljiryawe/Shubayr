@@ -1,3 +1,4 @@
+import '../../../core/utils/quantity.dart';
 import '../../catalog/data/catalog_repository_mock.dart';
 import '../domain/cart_repository.dart';
 import 'cart.dart';
@@ -31,14 +32,16 @@ class CartRepositoryMock implements CartRepository {
   Future<Cart> addItem({
     required String productId,
     String? variantId,
-    int quantity = 1,
+    num quantity = 1,
   }) async {
     await Future<void>.delayed(delay);
     final i = _items.indexWhere(
       (it) => it.productId == productId && it.variantId == variantId,
     );
     if (i >= 0) {
-      _items[i] = _items[i].copyWith(quantity: _items[i].quantity + quantity);
+      _items[i] = _items[i].copyWith(
+        quantity: addQuantity(_items[i].quantity, quantity),
+      );
     } else {
       _items.add(
         CartItem(
@@ -54,7 +57,7 @@ class CartRepositoryMock implements CartRepository {
   }
 
   @override
-  Future<Cart> updateItem(String itemId, int quantity) async {
+  Future<Cart> updateItem(String itemId, num quantity) async {
     await Future<void>.delayed(delay);
     final i = _items.indexWhere((it) => it.id == itemId);
     if (i >= 0) _items[i] = _items[i].copyWith(quantity: quantity);

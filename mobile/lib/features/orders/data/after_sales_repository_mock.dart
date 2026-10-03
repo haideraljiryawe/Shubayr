@@ -1,3 +1,4 @@
+import '../../../core/utils/quantity.dart';
 import '../../../core/error/failure.dart';
 import '../../catalog/data/review.dart';
 import '../domain/after_sales_repository.dart';
@@ -88,10 +89,10 @@ class AfterSalesRepositoryMock implements AfterSalesRepository {
           .where((r) => r.orderId == orderId)
           .expand((r) => r.items)
           .where((i) => i.orderItemId == item.orderItemId)
-          .fold<int>(0, (sum, i) => sum + i.quantity);
+          .fold<num>(0, (sum, i) => addQuantity(sum, i.quantity));
       if (purchased.isEmpty ||
-          item.quantity < 1 ||
-          item.quantity + requested > purchased.first.quantity) {
+          !isValidQuantity(item.quantity) ||
+          addQuantity(item.quantity, requested) > purchased.first.quantity) {
         throw const AppFailure(FailureKind.validation);
       }
     }

@@ -717,5 +717,7 @@
   "monitorTitle": "Order monitoring",
   "notificationsTitle": "Notifications",
   "notificationsEmpty": "No notifications yet",
-  "actionLoadMore": "Load more"
+  "actionLoadMore": "Load more",
+  "quantityInvalid": "Enter a quantity within the limits, with up to 3 decimal places.",
+  "quantityWholeInvalid": "Enter a whole quantity within the limits."
 }

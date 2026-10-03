@@ -1,3 +1,4 @@
+import '../../../../core/utils/quantity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
@@ -75,18 +76,25 @@ class CartController extends AsyncNotifier<Cart> {
   Future<CartMutationResult> add({
     required String productId,
     String? variantId,
-    int quantity = 1,
-  }) => _run(
-    (r) => r.addItem(
+    num quantity = 1,
+  }) => _run((r) {
+    if (!isValidQuantity(quantity, max: 99)) {
+      throw const AppFailure(FailureKind.validation);
+    }
+    return r.addItem(
       productId: productId,
       variantId: variantId,
       quantity: quantity,
-    ),
-    duplicateKey: ('add', productId, variantId, quantity),
-  );
+    );
+  }, duplicateKey: ('add', productId, variantId, quantity));
 
-  Future<CartMutationResult> setQuantity(String itemId, int quantity) =>
-      _run((r) => r.updateItem(itemId, quantity));
+  Future<CartMutationResult> setQuantity(String itemId, num quantity) =>
+      _run((r) {
+        if (!isValidQuantity(quantity, max: 99)) {
+          throw const AppFailure(FailureKind.validation);
+        }
+        return r.updateItem(itemId, quantity);
+      });
 
   Future<CartMutationResult> remove(String itemId) =>
       _run((r) => r.removeItem(itemId), duplicateKey: ('remove', itemId));

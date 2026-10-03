@@ -1,3 +1,4 @@
+import '../../../core/utils/quantity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/layout/app_layout.dart';
@@ -118,7 +119,9 @@ class MonitorDetailScreen extends ConsumerWidget {
                           line.snapshotName(language) ?? line.productId,
                           style: context.text.titleSmall,
                         ),
-                        Text('${line.quantity} × ${money(line.unitPrice)}'),
+                        Text(
+                          '${formatQuantity(line.quantity)} × ${money(line.unitPrice)}',
+                        ),
                         Text(money(line.lineTotal)),
                       ],
                     ),

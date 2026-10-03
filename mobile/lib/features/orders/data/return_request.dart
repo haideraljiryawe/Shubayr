@@ -31,7 +31,7 @@ class ReturnRequestItem {
 
   @JsonKey(name: 'order_item_id')
   final String orderItemId;
-  final int quantity;
+  final num quantity;
 
   factory ReturnRequestItem.fromJson(Map<String, dynamic> json) =>
       _$ReturnRequestItemFromJson(json);

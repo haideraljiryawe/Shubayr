@@ -1,3 +1,5 @@
+import '../../../../core/widgets/quantity_stepper.dart';
+import '../../../../core/utils/quantity.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -202,7 +204,7 @@ class ReturnOrderScreen extends ConsumerStatefulWidget {
 
 class _ReturnOrderScreenState extends ConsumerState<ReturnOrderScreen> {
   final _reason = TextEditingController();
-  final Map<String, int> _quantities = {};
+  final Map<String, num> _quantities = {};
   bool _busy = false;
   ReturnRequest? _submitted;
   AppFailure? _error;
@@ -279,7 +281,7 @@ class _ReturnOrderScreenState extends ConsumerState<ReturnOrderScreen> {
                           ),
                         ),
                         subtitle: Text(
-                          l10n.orderLineQuantity('${line.quantity}'),
+                          l10n.orderLineQuantity(formatQuantity(line.quantity)),
                         ),
                       ),
                     if (submitted.reason != null) Text(submitted.reason!),
@@ -313,7 +315,12 @@ class _ReturnOrderScreenState extends ConsumerState<ReturnOrderScreen> {
                           const SizedBox(height: AppSpacing.sm),
                           Text(
                             l10n.returnAvailable(
-                              '${item.quantity - receipts.returnedQuantity(item.id)}',
+                              formatQuantity(
+                                subtractQuantity(
+                                  item.quantity,
+                                  receipts.returnedQuantity(item.id),
+                                ),
+                              ),
                             ),
                           ),
                           Row(
@@ -325,24 +332,63 @@ class _ReturnOrderScreenState extends ConsumerState<ReturnOrderScreen> {
                                     ? null
                                     : () => setState(
                                         () => _quantities[item.id] =
-                                            _quantities[item.id]! - 1,
+                                            subtractQuantity(
+                                              _quantities[item.id]!,
+                                              1,
+                                            ).clamp(0, item.quantity),
                                       ),
                                 icon: const Icon(Icons.remove),
                               ),
-                              Text('${_quantities[item.id] ?? 0}'),
+                              InkWell(
+                                onTap: _busy
+                                    ? null
+                                    : () async {
+                                        final quantity = await editQuantity(
+                                          context,
+                                          quantity: _quantities[item.id] ?? 0,
+                                          min: 0,
+                                          max: subtractQuantity(
+                                            item.quantity,
+                                            receipts.returnedQuantity(item.id),
+                                          ),
+                                        );
+                                        if (mounted && quantity != null) {
+                                          setState(
+                                            () =>
+                                                _quantities[item.id] = quantity,
+                                          );
+                                        }
+                                      },
+                                child: Text(
+                                  formatQuantity(_quantities[item.id] ?? 0),
+                                ),
+                              ),
                               IconButton(
                                 tooltip: l10n.returnIncrease,
                                 onPressed:
                                     _busy ||
                                         (_quantities[item.id] ?? 0) >=
-                                            item.quantity -
-                                                receipts.returnedQuantity(
-                                                  item.id,
-                                                )
+                                            subtractQuantity(
+                                              item.quantity,
+                                              receipts.returnedQuantity(
+                                                item.id,
+                                              ),
+                                            )
                                     ? null
                                     : () => setState(
                                         () => _quantities[item.id] =
-                                            (_quantities[item.id] ?? 0) + 1,
+                                            addQuantity(
+                                              _quantities[item.id] ?? 0,
+                                              1,
+                                            ).clamp(
+                                              0,
+                                              subtractQuantity(
+                                                item.quantity,
+                                                receipts.returnedQuantity(
+                                                  item.id,
+                                                ),
+                                              ),
+                                            ),
                                       ),
                                 icon: const Icon(Icons.add),
                               ),

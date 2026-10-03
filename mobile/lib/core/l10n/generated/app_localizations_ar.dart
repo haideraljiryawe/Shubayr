@@ -1751,4 +1751,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get actionLoadMore => 'تحميل المزيد';
+
+  @override
+  String get quantityInvalid =>
+      'أدخل كمية ضمن الحدود، بثلاث منازل عشرية كحد أقصى.';
+
+  @override
+  String get quantityWholeInvalid => 'أدخل كمية صحيحة ضمن الحدود.';
 }

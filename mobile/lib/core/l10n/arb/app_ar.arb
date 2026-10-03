@@ -612,5 +612,7 @@
   "monitorTitle": "متابعة الطلبات",
   "notificationsTitle": "الإشعارات",
   "notificationsEmpty": "لا توجد إشعارات حتى الآن",
-  "actionLoadMore": "تحميل المزيد"
+  "actionLoadMore": "تحميل المزيد",
+  "quantityInvalid": "أدخل كمية ضمن الحدود، بثلاث منازل عشرية كحد أقصى.",
+  "quantityWholeInvalid": "أدخل كمية صحيحة ضمن الحدود."
 }

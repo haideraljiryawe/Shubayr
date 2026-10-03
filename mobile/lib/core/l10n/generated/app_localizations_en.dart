@@ -1764,4 +1764,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get actionLoadMore => 'Load more';
+
+  @override
+  String get quantityInvalid =>
+      'Enter a quantity within the limits, with up to 3 decimal places.';
+
+  @override
+  String get quantityWholeInvalid =>
+      'Enter a whole quantity within the limits.';
 }
