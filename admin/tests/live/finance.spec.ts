@@ -295,7 +295,7 @@ test("posting into a closed period is refused with the message; reopening needs 
 test("a permission-limited user sees only the screens they may use", async ({ page, request }) => {
   const reader = await activateStaff(
     request,
-    await createStaff(request, { permissionKeys: ["ledger.view"], prefix: "ledger-reader" }),
+    await createStaff(request, { permissionKeys: ["ledger.view", "fx_rates.view"], prefix: "ledger-reader" }),
   );
   await uiLogin(page, reader.username, reader.password);
   await expect(page.getByTestId("dashboard")).toBeVisible();

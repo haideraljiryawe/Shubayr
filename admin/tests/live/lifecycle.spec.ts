@@ -3,6 +3,7 @@ import {
   ADMIN_PHONE,
   activateStaff,
   API,
+  apiLogin,
   adminApiToken,
   bearer,
   createStaff,
@@ -30,7 +31,7 @@ test.beforeEach(async ({ request }) => {
 const run = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
 const CATEGORY = "30000000-0000-4000-8000-000000000023";
 const LOCATION = "90000000-0000-4000-8000-000000000002";
-const state: { agentId?: string; approver?: { username: string; password: string } } = {};
+const state: { agentId?: string; approver?: { username: string; password: string; token: string } } = {};
 
 async function api(request: APIRequestContext, method: "GET" | "POST" | "PUT" | "PATCH", path: string, data?: unknown, token?: string) {
   const response = await request.fetch(`${API}${path}`, { method, headers: bearer(token ?? (await adminApiToken(request))), data });
@@ -120,7 +121,7 @@ async function countDown(request: APIRequestContext, item: Stocked, counted: str
     operation_id: `lc-count-${run}-${item.sku}`,
     document_date: today(),
     lines: count.lines.map((line: { batch_id: string; location_id: string }) => ({ batch_id: line.batch_id, location_id: line.location_id, counted_quantity: counted })),
-  });
+  }, state.approver!.token);
   expect(approved.status, JSON.stringify(approved.body)).toBe(201);
 }
 
@@ -138,7 +139,10 @@ test.beforeAll(async ({ request }) => {
   await requireLiveApi(request);
   const agent = await (await request.get(`${API}/me`, { headers: bearer(await phoneToken(request, "+9647700000005")) })).json();
   state.agentId = agent.id;
-  state.approver = await activateStaff(request, await createStaff(request, { presets: ["super_admin"], prefix: "approver" }));
+  const approver = await activateStaff(request, await createStaff(request, { presets: ["super_admin"], prefix: "approver" }));
+  const login = await apiLogin(request, approver.username, approver.password);
+  expect(login.status, JSON.stringify(login.body)).toBe(201);
+  state.approver = { ...approver, token: login.body.access_token as string };
 });
 
 /* ---------------------------------------------------------- happy path */
