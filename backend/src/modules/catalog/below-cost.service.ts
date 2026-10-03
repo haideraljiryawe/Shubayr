@@ -21,35 +21,7 @@ export class BelowCostService {
     variants: readonly { variant_id: string; sku: string; price: number }[],
     override: BelowCostOverride = {},
   ) {
-    if (!variants.length) return [];
-    const [threshold, costs] = await Promise.all([
-      db.protectionThreshold.findUnique({ where: { key: 'price' } }),
-      db.skuCost.findMany({
-        where: { variant_id: { in: variants.map((item) => item.variant_id) } },
-      }),
-    ]);
-    const percent = Number(threshold?.percent ?? 100);
-    const byVariant = new Map(costs.map((cost) => [cost.variant_id, cost]));
-    const breaches = variants.flatMap((variant) => {
-      const stored = byVariant.get(variant.variant_id);
-      if (!stored) return [];
-      const reference = Prisma.Decimal.max(
-        stored.average_cost_iqd,
-        stored.last_landed_cost_iqd ?? 0,
-      );
-      const minimum = reference.mul(percent).div(100);
-      if (new Prisma.Decimal(variant.price).gte(minimum)) return [];
-      return [
-        {
-          variant_id: variant.variant_id,
-          sku: variant.sku,
-          price: variant.price,
-          cost: Number(reference),
-          threshold_percent: percent,
-          minimum_price: Number(minimum),
-        },
-      ];
-    });
+    const breaches = await this.breaches(db, variants);
     if (!breaches.length) return [];
     const canApprove = permissions.includes('sell_below_cost.approve');
     if (canApprove && override.reason?.trim() && override.originatorId) {
@@ -78,6 +50,41 @@ export class BelowCostService {
           ? { cost: breach.cost, minimum_price: breach.minimum_price }
           : {}),
       })),
+    });
+  }
+
+  async breaches(
+    db: Db,
+    variants: readonly { variant_id: string; sku: string; price: number }[],
+  ) {
+    if (!variants.length) return [];
+    const [threshold, costs] = await Promise.all([
+      db.protectionThreshold.findUnique({ where: { key: 'price' } }),
+      db.skuCost.findMany({
+        where: { variant_id: { in: variants.map((item) => item.variant_id) } },
+      }),
+    ]);
+    const percent = Number(threshold?.percent ?? 100);
+    const byVariant = new Map(costs.map((cost) => [cost.variant_id, cost]));
+    return variants.flatMap((variant) => {
+      const stored = byVariant.get(variant.variant_id);
+      if (!stored) return [];
+      const reference = Prisma.Decimal.max(
+        stored.average_cost_iqd,
+        stored.last_landed_cost_iqd ?? 0,
+      );
+      const minimum = reference.mul(percent).div(100);
+      if (new Prisma.Decimal(variant.price).gte(minimum)) return [];
+      return [
+        {
+          variant_id: variant.variant_id,
+          sku: variant.sku,
+          price: variant.price,
+          cost: Number(reference),
+          threshold_percent: percent,
+          minimum_price: Number(minimum),
+        },
+      ];
     });
   }
 }

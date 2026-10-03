@@ -701,6 +701,24 @@ try {
   await request(`/admin/inventory/counts/${count.id}/approve`, {
     token: admin,
     method: 'POST',
+    expected: 403,
+    body: {
+      operation_id: `phase5-self-count-${Date.now()}`,
+      document_date: today,
+      lines: count.lines.map((line) => ({
+        batch_id: line.batch_id,
+        location_id: line.location_id,
+        counted_quantity: String(line.counted_quantity),
+      })),
+    },
+  });
+  await db.query(
+    "UPDATE stock_counts SET created_by=(SELECT id FROM users WHERE username='stock') WHERE id=$1",
+    [count.id],
+  );
+  await request(`/admin/inventory/counts/${count.id}/approve`, {
+    token: admin,
+    method: 'POST',
     expected: 409,
     body: {
       operation_id: `phase5-stale-count-${Date.now()}`,
@@ -732,6 +750,10 @@ try {
     expected: 201,
     body: { variant_id: countVariant, reason: 'Count shortage test' },
   });
+  await db.query(
+    "UPDATE stock_counts SET created_by=(SELECT id FROM users WHERE username='stock') WHERE id=$1",
+    [shortageDraft.id],
+  );
   const shortage = await request(
     `/admin/inventory/counts/${shortageDraft.id}/approve`,
     {
@@ -784,6 +806,10 @@ try {
     expected: 201,
     body: { variant_id: countVariant, reason: 'Count surplus test' },
   });
+  await db.query(
+    "UPDATE stock_counts SET created_by=(SELECT id FROM users WHERE username='stock') WHERE id=$1",
+    [surplusDraft.id],
+  );
   const surplus = await request(
     `/admin/inventory/counts/${surplusDraft.id}/approve`,
     {

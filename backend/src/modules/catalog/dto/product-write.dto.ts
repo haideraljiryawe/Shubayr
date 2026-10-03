@@ -128,10 +128,6 @@ export class ProductWriteDto extends BilingualNameDto {
   @MaxLength(500)
   below_cost_override_reason?: string | null;
 
-  @IsOptional()
-  @IsUUID()
-  below_cost_originator_id?: string | null;
-
   @IsUUID()
   category_id!: string;
 

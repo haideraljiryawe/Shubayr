@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 10.0.2
+  version: 11.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -797,7 +797,6 @@ paths:
                 version: { type: integer, minimum: 1 }
                 note: { type: [string, "null"], maxLength: 500 }
                 below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
-                below_cost_originator_id: { type: [string, "null"], format: uuid }
       responses:
         "200":
           description: Updated order
@@ -2095,7 +2094,6 @@ paths:
                 version: { type: integer, minimum: 1 }
                 note: { type: [string, "null"], maxLength: 500 }
                 below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
-                below_cost_originator_id: { type: [string, "null"], format: uuid }
       responses:
         "200":
           description: Updated order detail
@@ -2942,7 +2940,7 @@ paths:
       tags: [Finance]
       summary: List configured currencies
       x-surface: admin
-      x-permission: ledger.view
+      x-permission: fx_rates.view
       responses:
         "200":
           description: Currencies
@@ -2981,7 +2979,7 @@ paths:
       tags: [Finance]
       summary: List exchange-rate history newest first
       x-surface: admin
-      x-permission: ledger.view
+      x-permission: fx_rates.view
       parameters:
         - name: currency_code
           in: query
@@ -3007,7 +3005,7 @@ paths:
       tags: [Finance]
       summary: Resolve the latest rate effective at an instant
       x-surface: admin
-      x-permission: ledger.view
+      x-permission: fx_rates.view
       parameters:
         - name: code
           in: path
@@ -3059,7 +3057,7 @@ paths:
     post:
       tags: [Finance]
       summary: Atomically save a rate and publish one linked-price version
-      description: Refuses an expired or stale preview. Conversion and configured upward rounding occur before product discounts.
+      description: Refuses an expired or stale preview. Conversion and configured upward rounding occur before product discounts. If a resulting price is below protected cost, no rate or price is saved; a pending approval request is created for a different user to approve or reject.
       x-surface: admin
       x-permissions: [fx_rates.update, prices.publish_linked]
       requestBody:
@@ -3067,6 +3065,25 @@ paths:
         content: { application/json: { schema: { $ref: "#/components/schemas/LinkedPriceApplyInput" } } }
       responses:
         "201": { description: Rate and linked prices published, content: { application/json: { schema: { $ref: "#/components/schemas/LinkedPriceApplyResult" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/price-publish-approvals/{id}/decision:
+    post:
+      tags: [Finance]
+      summary: Approve or reject a pending below-cost linked-price publish
+      description: The authenticated proposer is stored server-side and can never decide their own request.
+      x-surface: admin
+      x-permission: sell_below_cost.approve
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PricePublishDecisionInput" } } }
+      responses:
+        "201": { description: Decided approval request, content: { application/json: { schema: { $ref: "#/components/schemas/PricePublishApproval" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -3209,7 +3226,7 @@ paths:
       tags: [Finance]
       summary: List cash and bank accounts with ledger-derived balances
       x-surface: admin
-      x-permission: cash_accounts.manage
+      x-permission: cash_accounts.view
       responses:
         "200": { description: Accounts, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/CashAccount" } } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -3228,7 +3245,7 @@ paths:
       tags: [Finance]
       summary: Read a cash or bank account with its ledger-derived balance
       x-surface: admin
-      x-permission: cash_accounts.manage
+      x-permission: cash_accounts.view
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       responses:
         "200": { description: Cash account, content: { application/json: { schema: { $ref: "#/components/schemas/CashAccount" } } } }
@@ -3298,9 +3315,9 @@ paths:
     get:
       tags: [Finance]
       summary: Read one posted financial document by id
-      description: Cash transfers and opening balances require either ledger.view or their own cash_accounts.manage permission.
+      description: Cash transfers and opening balances require either ledger.view or cash_accounts.view.
       x-surface: admin
-      x-permissions-any: [ledger.view, cash_accounts.manage]
+      x-permissions-any: [ledger.view, cash_accounts.view]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       responses:
         "200": { description: Posted financial document, content: { application/json: { schema: { $ref: "#/components/schemas/FinancialDocument" } } } }
@@ -4011,6 +4028,7 @@ components:
         available_qty: { type: number, multipleOf: 0.001, description: "computed: on-hand minus active batch reservations and temporary COD holds" }
         published_at: { type: [string, "null"], format: date-time }
         price_approved_at: { type: [string, "null"], format: date-time }
+        price_proposed_by: { type: [string, "null"], format: uuid }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         images:
@@ -4050,7 +4068,6 @@ components:
       required: [category_id, name_en, name_ar, price, variants]
       properties:
         below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
-        below_cost_originator_id: { type: [string, "null"], format: uuid }
         category_id: { type: string, format: uuid }
         brand_id: { type: [string, "null"], format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*', description: Required non-whitespace English name. }
@@ -4085,7 +4102,6 @@ components:
       description: All ProductInput fields are optional on PATCH. Omission preserves the stored value. Explicit null clears a nullable field; discount_type null clears discount_type, discount_value, discount_starts_at, and discount_ends_at together.
       properties:
         below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
-        below_cost_originator_id: { type: [string, "null"], format: uuid }
         category_id: { type: string, format: uuid }
         brand_id: { type: [string, "null"], format: uuid }
         name_en: { type: string, minLength: 1, pattern: '.*\S.*' }
@@ -4248,6 +4264,7 @@ components:
         reference_price: { type: [number, "null"], multipleOf: 0.000001 }
         published_price: { type: [number, "null"], multipleOf: 1 }
         price_approved_at: { type: [string, "null"], format: date-time }
+        price_proposed_by: { type: [string, "null"], format: uuid }
         price_version_id: { type: [string, "null"], format: uuid }
         awaiting_rate_id: { type: [string, "null"], format: uuid }
         on_sale: { type: boolean }
@@ -6107,17 +6124,42 @@ components:
       properties:
         preview_token: { type: string, format: uuid }
         below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
-        below_cost_originator_id: { type: [string, "null"], format: uuid }
 
     LinkedPriceApplyResult:
       type: object
       additionalProperties: false
-      required: [mode, exchange_rate_id, price_version_id, linked_sku_count]
+      required: [mode, exchange_rate_id, price_version_id, approval_request_id, linked_sku_count]
       properties:
-        mode: { type: string, enum: [rate_only, published] }
-        exchange_rate_id: { type: string, format: uuid }
+        mode: { type: string, enum: [rate_only, published, pending_approval] }
+        exchange_rate_id: { type: [string, "null"], format: uuid }
         price_version_id: { type: [string, "null"], format: uuid }
+        approval_request_id: { type: [string, "null"], format: uuid }
         linked_sku_count: { type: integer, minimum: 0 }
+
+    PricePublishDecisionInput:
+      type: object
+      additionalProperties: false
+      required: [decision, reason]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    PricePublishApproval:
+      type: object
+      additionalProperties: false
+      required: [id, preview_id, price_version_id, status, proposed_by, decided_by, proposal_reason, decision_reason, breaches, created_at, decided_at]
+      properties:
+        id: { type: string, format: uuid }
+        preview_id: { type: [string, "null"], format: uuid }
+        price_version_id: { type: [string, "null"], format: uuid }
+        status: { type: string, enum: [pending, approved, rejected] }
+        proposed_by: { type: string, format: uuid }
+        decided_by: { type: [string, "null"], format: uuid }
+        proposal_reason: { type: string }
+        decision_reason: { type: [string, "null"] }
+        breaches: { type: array, items: { type: object, additionalProperties: true } }
+        created_at: { type: string, format: date-time }
+        decided_at: { type: [string, "null"], format: date-time }
 
     OperationOutcome:
       type: object
@@ -6365,7 +6407,11 @@ components:
       additionalProperties: false
       required: [settings, business_hours, closed_days, protection_thresholds]
       properties:
-        settings: { type: object, additionalProperties: { type: [string, "null"] } }
+        settings:
+          type: object
+          properties:
+            separation_of_duties_level: { type: [string, "null"], enum: [standard, strict, null], default: standard }
+          additionalProperties: { type: [string, "null"] }
         business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHours" } }
         closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDay" } }
         protection_thresholds: { $ref: "#/components/schemas/ProtectionThresholds" }
@@ -6374,7 +6420,11 @@ components:
       type: object
       additionalProperties: false
       properties:
-        settings: { type: object, additionalProperties: { type: [string, "null"] } }
+        settings:
+          type: object
+          properties:
+            separation_of_duties_level: { type: [string, "null"], enum: [standard, strict, null] }
+          additionalProperties: { type: [string, "null"] }
         business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHoursInput" } }
         closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDayInput" } }
         protection_thresholds: { $ref: "#/components/schemas/ProtectionThresholds" }

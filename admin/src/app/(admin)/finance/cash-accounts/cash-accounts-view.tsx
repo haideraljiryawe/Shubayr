@@ -36,9 +36,11 @@ function precisionOf(currencies: CurrencyInfo[], code: string): number {
 export function CashAccountsView({
   accounts,
   currencies,
+  canManage,
 }: {
   accounts: CashAccount[];
   currencies: CurrencyInfo[];
+  canManage: boolean;
 }) {
   const t = useTranslations("cashAccounts");
   const locale = useLocale();
@@ -84,7 +86,7 @@ export function CashAccountsView({
                     </Badge>
                   </td>
                   <td className="py-2">
-                    <div className="flex flex-wrap justify-end gap-1">
+                    {canManage ? <div className="flex flex-wrap justify-end gap-1">
                       <Button size="sm" variant="ghost" onClick={() => setSelected({ id: account.id, mode: "edit" })} data-testid="account-edit">
                         {t("edit")}
                       </Button>
@@ -94,7 +96,7 @@ export function CashAccountsView({
                       <Button size="sm" variant="ghost" onClick={() => setDeleting(account)} data-testid="account-delete">
                         {t("delete")}
                       </Button>
-                    </div>
+                    </div> : null}
                   </td>
                 </tr>
               ))}
@@ -103,10 +105,10 @@ export function CashAccountsView({
         )}
       </Card>
 
-      {current && selected?.mode === "edit" ? (
+      {canManage && current && selected?.mode === "edit" ? (
         <EditAccount key={current.id} account={current} onDone={() => { setSelected(null); router.refresh(); }} onCancel={() => setSelected(null)} />
       ) : null}
-      {current && selected?.mode === "opening" ? (
+      {canManage && current && selected?.mode === "opening" ? (
         <OpeningBalance
           key={current.id}
           account={current}
@@ -116,11 +118,11 @@ export function CashAccountsView({
         />
       ) : null}
 
-      <TransferPanel accounts={accounts} currencies={currencies} onPosted={() => router.refresh()} />
+      {canManage ? <TransferPanel accounts={accounts} currencies={currencies} onPosted={() => router.refresh()} /> : null}
 
-      <CreateAccount currencies={currencies} onCreated={() => router.refresh()} />
+      {canManage ? <CreateAccount currencies={currencies} onCreated={() => router.refresh()} /> : null}
 
-      <ConfirmDialog
+      {canManage ? <ConfirmDialog
         open={deleting !== null}
         title={t("deleteTitle", { name: deleting?.name ?? "" })}
         body={t("deleteBody")}
@@ -132,7 +134,7 @@ export function CashAccountsView({
           router.refresh();
         }}
         onClose={() => setDeleting(null)}
-      />
+      /> : null}
     </div>
   );
 }

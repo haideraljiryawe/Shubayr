@@ -159,6 +159,13 @@ export function validateSettingsUpdate(
         error(field, 'boolean', `${field} must be "true" or "false"`),
       );
     } else if (
+      key === 'separation_of_duties_level' &&
+      !['standard', 'strict'].includes(value ?? '')
+    ) {
+      errors.push(
+        error(field, 'enum', `${field} must be "standard" or "strict"`),
+      );
+    } else if (
       ['auto_cancel_timeout_minutes', 'auto_cancel_warning_minutes'].includes(
         key,
       ) &&

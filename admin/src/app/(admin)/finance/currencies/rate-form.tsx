@@ -107,7 +107,10 @@ export function RateForm({
   async function apply(mode: "rate_only" | "published") {
     if (!preview || stale) return;
     setApplying(mode);
-    const body = { preview_token: preview.data.preview_token };
+    const body = {
+      preview_token: preview.data.preview_token,
+      below_cost_override_reason: preview.request.reason,
+    };
     const result = await api.run(async () => {
       try {
         return mode === "published"
@@ -125,16 +128,18 @@ export function RateForm({
     if (!result) return;
     const rateLabel = rateText(code, baseCode, String(preview.data.new_rate), locale);
     toast(
-      result.mode === "published"
-        ? tl("publishedToast", { rate: rateLabel, count: result.linked_sku_count })
-        : tl("rateOnlyToast", { rate: rateLabel, count: result.linked_sku_count }),
+      result.mode === "pending_approval"
+        ? tl("approvalPendingToast")
+        : result.mode === "published"
+          ? tl("publishedToast", { rate: rateLabel, count: result.linked_sku_count })
+          : tl("rateOnlyToast", { rate: rateLabel, count: result.linked_sku_count }),
     );
     setPreview(null);
     setRate(null);
     setRateText("");
     setReason("");
     setGeneration((value) => value + 1);
-    onSaved();
+    if (result.mode !== "pending_approval") onSaved();
   }
 
   const fieldError = (name: string) => errors[name] ?? api.fieldErrors[name] ?? null;

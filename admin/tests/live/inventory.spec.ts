@@ -1,6 +1,8 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import {
   activateStaff,
+  ADMIN_PASSWORD,
+  ADMIN_USERNAME,
   API,
   apiLogin,
   adminApiToken,
@@ -9,6 +11,7 @@ import {
   CUSTOMER_PHONE,
   phoneToken,
   requireLiveApi,
+  switchUser,
   uiLogin,
   uiLoginAsAdmin,
 } from "./helpers";
@@ -55,6 +58,7 @@ const state: {
   lotB?: string;
   orderId?: string;
   openingId?: string;
+  approver?: { username: string; password: string };
 } = { locations: {} };
 
 async function api(request: APIRequestContext, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, data?: unknown) {
@@ -87,6 +91,10 @@ async function pickSku(page: Page | Locator, prefix: string, sku: string) {
 
 test.beforeAll(async ({ request }) => {
   await requireLiveApi(request);
+  state.approver = await activateStaff(
+    request,
+    await createStaff(request, { presets: ["super_admin"], prefix: "count-approver" }),
+  );
   const created = await api(request, "POST", "/admin/products", {
     category_id: CATEGORY,
     name_en: PRODUCT,
@@ -321,6 +329,11 @@ test("count: approve a shortage and a surplus, posted to the ledger", async ({ p
   await page.getByTestId("count-reason").fill("Live test: shelf count");
   await page.getByTestId("count-create").click();
   await expect(page.getByTestId("count-draft")).toBeVisible();
+  const countUrl = page.url();
+
+  // The creator submits the count; a different authenticated user approves it.
+  await switchUser(page, state.approver!.username, state.approver!.password);
+  await page.goto(countUrl);
 
   const pieceLine = page.locator(`[data-testid="count-line"][data-sku="${PIECE}"]`);
   const weighedLine = page.locator(`[data-testid="count-line"][data-sku="${WEIGHED}"]`);
@@ -358,6 +371,10 @@ test("a stale count is refused, re-verified on a fresh snapshot, and its reserva
   await page.getByTestId("count-location").selectOption(state.locations[SELL]!);
   await page.getByTestId("count-reason").fill("Live test: stale count");
   await page.getByTestId("count-create").click();
+  await expect(page.getByTestId("count-draft")).toBeVisible();
+  const originalCountUrl = page.url();
+  await switchUser(page, state.approver!.username, state.approver!.password);
+  await page.goto(originalCountUrl);
   const line = page.locator(`[data-testid="count-line"][data-sku="${PIECE}"]`);
   await expect(line.getByTestId("count-system")).toHaveText("6");
   await line.getByTestId("count-input").fill("6");
@@ -380,9 +397,17 @@ test("a stale count is refused, re-verified on a fresh snapshot, and its reserva
   await page.getByTestId("count-reverify-button").click();
   await expect(page).not.toHaveURL(staleUrl);
   await expect(page.getByTestId("count-carried")).toBeVisible();
+  const carried = page.locator(`[data-testid="count-line"][data-sku="${PIECE}"]`);
+  await expect(carried.getByTestId("count-system")).toHaveText("5");
+  await expect(carried.getByTestId("count-reverify")).toBeVisible();
+  const freshCountUrl = page.url();
+
+  // Re-verification creates a new count as the approver above, so return to
+  // the original user before approving the fresh snapshot.
+  await switchUser(page, ADMIN_USERNAME, ADMIN_PASSWORD);
+  await page.goto(freshCountUrl);
   const fresh = page.locator(`[data-testid="count-line"][data-sku="${PIECE}"]`);
   await expect(fresh.getByTestId("count-system")).toHaveText("5");
-  await expect(fresh.getByTestId("count-reverify")).toBeVisible();
 
   // Counting below what is reserved (3) releases 2 and flags the order.
   await fresh.getByTestId("count-input").fill("1");

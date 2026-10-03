@@ -562,7 +562,7 @@
       "fxNone": "لا يوجد فرق عملة",
       "fxLoss": "خسارة فرق عملة {amount}",
       "fxGain": "ربح فرق عملة {amount}",
-      "needsCashAccounts": "اختيار الصندوق أو الحساب المصرفي يتطلب صلاحية cash_accounts.manage، وحسابك لا يملكها. اطلبها من المسؤول.",
+      "needsCashAccounts": "اختيار الصندوق أو الحساب المصرفي يتطلب صلاحية cash_accounts.view، وحسابك لا يملكها. اطلبها من المسؤول.",
       "review": "مراجعة",
       "edit": "تعديل",
       "confirm": "تأكيد الدفعة",
@@ -1111,7 +1111,8 @@
       "default_low_stock_threshold": "حد انخفاض المخزون الافتراضي",
       "backdating_window_days": "نافذة التاريخ السابق",
       "markup_alert_percent": "نسبة تنبيه هامش الربح",
-      "sale_rounding_multiple": "مضاعف تقريب سعر البيع"
+      "sale_rounding_multiple": "مضاعف تقريب سعر البيع",
+      "separation_of_duties_level": "فصل الواجبات"
     },
     "units": {
       "currency": "بعملة الأساس ({currency})",
@@ -1154,6 +1155,11 @@
       "price": "السعر",
       "quantity": "الكمية",
       "exchange_rate": "سعر الصرف"
+    },
+    "separationOfDuties": {
+      "hint": "يسمح المستوى القياسي لمنشئ الشراء بتسجيل دفعه أو إرجاعه. يتطلب المستوى الصارم مستخدمًا آخر. لا يجوز لأي شخص اعتماد طلبه في أي من المستويين.",
+      "standard": "قياسي",
+      "strict": "صارم"
     },
     "history": {
       "title": "سجل التغييرات",
@@ -1728,7 +1734,8 @@
     "staleBody": "تغيّر سعر صرف أو رمز مرتبط أو قاعدة التقريب منذ المعاينة، أو انتهت مدتها. لم يُحفظ شيء. حدّث المعاينة وراجع الأرقام الجديدة.",
     "refresh": "تحديث المعاينة",
     "publishedToast": "تم حفظ {rate} ونشر {count, plural, =0 {لا أسعار} one {سعر واحد} other {# أسعار}}",
-    "rateOnlyToast": "تم حفظ {rate} فقط؛ {count, plural, =0 {لا أسعار مرتبطة} one {سعر واحد بانتظاره} other {# أسعار بانتظاره}}"
+    "rateOnlyToast": "تم حفظ {rate} فقط؛ {count, plural, =0 {لا أسعار مرتبطة} one {سعر واحد بانتظاره} other {# أسعار بانتظاره}}",
+    "approvalPendingToast": "نشر السعر دون الكلفة بانتظار الاعتماد؛ لم يُحفظ سعر صرف أو سعر بيع بعد."
   },
   "inventory": {
     "skuPicker": {

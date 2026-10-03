@@ -10,6 +10,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { ProductsService } from '../catalog/products.service';
 import { AuditService } from '../audit/audit.service';
+import { assertDifferentActor } from '../../common/access/separation-of-duties';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InventoryService } from '../inventory/inventory.service';
 import {
@@ -780,6 +781,11 @@ export class OrdersService {
         throw staleOrder(order.status, order.version);
       if (order.cancellation_request_status !== 'pending')
         throw new ConflictException('No cancellation request is pending');
+      assertDifferentActor(
+        actorId,
+        order.user_id,
+        'The cancellation requester cannot resolve their own request',
+      );
       const now = new Date();
       if (input.decision === 'denied') {
         await tx.order.update({
@@ -1127,7 +1133,7 @@ export class OrdersService {
           })),
           {
             reason: input.below_cost_override_reason,
-            originatorId: input.below_cost_originator_id,
+            originatorId: order.user_id,
           },
         );
       }

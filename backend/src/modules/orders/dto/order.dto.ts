@@ -110,10 +110,6 @@ export class UpdateOrderStatusDto {
   @IsString()
   @MaxLength(500)
   below_cost_override_reason?: string | null;
-
-  @IsOptional()
-  @IsUUID()
-  below_cost_originator_id?: string | null;
 }
 
 export class AdminOrderQueryDto extends OrderQueryDto {

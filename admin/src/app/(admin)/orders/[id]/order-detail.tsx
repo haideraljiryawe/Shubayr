@@ -177,7 +177,6 @@ export function OrderDetailView({
             status: "confirmed",
             version: order.version!,
             below_cost_override_reason: reason,
-            below_cost_originator_id: order.customer?.id ?? null,
           },
         }),
       );

@@ -43,6 +43,7 @@ type PreparedVariant = {
   reference_price: number | null;
   published_price: number | null;
   price_approved_at: Date;
+  price_proposed_by?: string | null;
   awaiting_rate_id: null;
   updated_at: Date;
 };
@@ -116,10 +117,9 @@ export class ProductsService {
         errors: [],
       });
     }
-    const preparedVariants = await this.prepareVariants(
-      input.variants,
-      input.price,
-    );
+    const preparedVariants = (
+      await this.prepareVariants(input.variants, input.price)
+    ).map((variant) => ({ ...variant, price_proposed_by: actorId ?? null }));
     const belowCostBreaches = actorId
       ? await this.belowCost?.assertAllowed(
           this.prisma,
@@ -141,7 +141,7 @@ export class ProductsService {
           ),
           {
             reason: input.below_cost_override_reason,
-            originatorId: input.below_cost_originator_id,
+            originatorId: actorId,
           },
         )
       : [];
@@ -151,12 +151,10 @@ export class ProductsService {
       variants: _variants,
       published,
       below_cost_override_reason: _belowCostReason,
-      below_cost_originator_id: _belowCostOriginator,
       ...data
     } = input;
     void _variants;
     void _belowCostReason;
-    void _belowCostOriginator;
     const product = await this.prisma.$transaction(async (tx) => {
       const created = await tx.product.create({
         data: {
@@ -165,6 +163,7 @@ export class ProductsService {
           published_at:
             published || data.status === 'active' ? new Date() : null,
           price_approved_at: new Date(),
+          price_proposed_by: actorId ?? null,
           name_en: data.name_en.trim(),
           name_ar: data.name_ar.trim(),
           images: images?.length
@@ -190,6 +189,15 @@ export class ProductsService {
           entityType: 'product',
           entityId: created.id,
           after: { status: created.status, published_at: created.published_at },
+        });
+      }
+      if (actorId) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'prices.fixed.proposed',
+          entityType: 'product',
+          entityId: created.id,
+          after: { price: input.price, variant_count: preparedVariants.length },
         });
       }
       if (actorId && belowCostBreaches?.length) {
@@ -232,8 +240,13 @@ export class ProductsService {
     const data = this.productPatchData(input);
     const productPrice = input.price ?? Number(current.price);
     const preparedVariants = input.variants
-      ? await this.prepareVariants(input.variants, productPrice)
+      ? (await this.prepareVariants(input.variants, productPrice)).map(
+          (variant) => ({ ...variant, price_proposed_by: actorId ?? null }),
+        )
       : undefined;
+    const proposesPrice =
+      input.price !== undefined || preparedVariants !== undefined;
+    if (proposesPrice && actorId) data.price_proposed_by = actorId;
     const belowCostBreaches =
       actorId && preparedVariants
         ? await this.belowCost?.assertAllowed(
@@ -259,7 +272,7 @@ export class ProductsService {
             }),
             {
               reason: input.below_cost_override_reason,
-              originatorId: input.below_cost_originator_id,
+              originatorId: actorId,
             },
           )
         : [];
@@ -309,6 +322,19 @@ export class ProductsService {
           after: {
             status: input.status ?? current.status,
             published: input.published,
+          },
+        });
+      }
+      if (actorId && proposesPrice) {
+        await this.audit.record(tx, {
+          actorId,
+          action: 'prices.fixed.proposed',
+          entityType: 'product',
+          entityId: id,
+          before: { price: current.price.toString() },
+          after: {
+            price: productPrice,
+            variant_count: preparedVariants?.length ?? current.variants.length,
           },
         });
       }

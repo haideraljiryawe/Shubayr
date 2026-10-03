@@ -46,7 +46,7 @@ export interface PricingContext {
 /**
  * What the SKU editor needs to show a linked price before saving: the
  * enabled foreign currencies with the rate in effect now, and the store's
- * rounding rule. Each part degrades on its own — without ledger.view there
+ * rounding rule. Each part degrades on its own — without fx_rates.view there
  * are no rates to show, without settings.manage no rounding rule — and the
  * server computes the published price either way.
  */

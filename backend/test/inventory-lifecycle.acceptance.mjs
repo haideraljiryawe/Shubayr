@@ -107,7 +107,6 @@ async function placeAndDeliver({
           ? {
               below_cost_override_reason:
                 'Phase 5 lifecycle fixture below-cost approval',
-              below_cost_originator_id: shopper.userId,
             }
           : {}),
       },
@@ -372,7 +371,6 @@ try {
           ? {
               below_cost_override_reason:
                 'Phase 5 closed-period fixture below-cost approval',
-              below_cost_originator_id: closedShopper.userId,
             }
           : {}),
       },

@@ -76,6 +76,19 @@ try {
   const stock = stockLogin.access_token;
   const stockMe = await request('/me', { token: stock });
   check(stockMe.permissions.includes('cost.view'), true, 'stock controller preset grants cost.view');
+  check(stockMe.permissions.includes('supplier_payments.record'), false, 'stock controller preset does not grant supplier payments');
+  check(
+    amount(await scalar(`
+      SELECT count(*)::int AS value
+      FROM permission_presets preset
+      JOIN preset_permissions grant_row ON grant_row.preset_id=preset.id
+      JOIN permissions permission ON permission.id=grant_row.permission_id
+      WHERE preset.name IN ('cashier', 'accountant')
+        AND permission.key='supplier_payments.record'
+    `)),
+    2,
+    'cashier and accountant presets grant supplier payments',
+  );
   const adminId = await scalar("SELECT id::text AS value FROM users WHERE username='admin'");
 
   const locationId = await scalar(`

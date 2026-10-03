@@ -15,7 +15,7 @@ const UUID = /^[0-9a-fA-F-]{36}$/;
 
 /**
  * One posted financial document — an opening balance or a cash transfer
- * (contract 8.1: ledger.view or cash_accounts.manage) — with a direct link
+ * (contract 11.0: ledger.view or cash_accounts.view) — with a direct link
  * to the journal entry it posted.
  */
 export default async function DocumentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,14 +34,14 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
   const permissions = me.ok ? (me.data.permissions ?? []) : [];
   const canViewLedger = permissions.includes("ledger.view");
 
-  // Display precision: currencies need ledger.view; cash accounts carry their
-  // currency for a cash_accounts.manage-only reader.
+  // Display precision: currencies need fx_rates.view; cash accounts carry their
+  // currency for a cash_accounts.view-only reader.
   const code = document.data.currency_code;
   let precision: number | undefined;
   if (canViewLedger) {
     const currencies = await load(api.GET("/admin/currencies"));
     precision = currencies.ok ? currencies.data.find((row) => row.code === code)?.display_precision : undefined;
-  } else if (permissions.includes("cash_accounts.manage")) {
+  } else if (permissions.includes("cash_accounts.view")) {
     const accounts = await load(api.GET("/admin/cash-accounts"));
     precision = accounts.ok ? accounts.data.find((row) => row.currency_code === code)?.currency.display_precision : undefined;
   }

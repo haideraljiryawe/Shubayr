@@ -562,7 +562,7 @@
       "fxNone": "No FX difference",
       "fxLoss": "FX loss {amount}",
       "fxGain": "FX gain {amount}",
-      "needsCashAccounts": "Choosing the cash or bank account needs the cash_accounts.manage permission, which your account doesn't have. Ask an administrator.",
+      "needsCashAccounts": "Choosing the cash or bank account needs the cash_accounts.view permission, which your account doesn't have. Ask an administrator.",
       "review": "Review",
       "edit": "Edit",
       "confirm": "Confirm payment",
@@ -1111,7 +1111,8 @@
       "default_low_stock_threshold": "Default low-stock threshold",
       "backdating_window_days": "Back-dating window",
       "markup_alert_percent": "Markup alert percentage",
-      "sale_rounding_multiple": "Sale price rounding multiple"
+      "sale_rounding_multiple": "Sale price rounding multiple",
+      "separation_of_duties_level": "Separation of duties"
     },
     "units": {
       "currency": "In the base currency ({currency})",
@@ -1154,6 +1155,11 @@
       "price": "Price",
       "quantity": "Quantity",
       "exchange_rate": "Exchange rate"
+    },
+    "separationOfDuties": {
+      "hint": "Standard lets a purchase creator record its payment or return. Strict requires another user for those actions. Nobody may approve their own request in either mode.",
+      "standard": "Standard",
+      "strict": "Strict"
     },
     "history": {
       "title": "Change history",
@@ -1728,7 +1734,8 @@
     "staleBody": "A rate, a linked SKU or the rounding rule changed since the preview, or it expired. Nothing was saved. Refresh the preview and review the new figures.",
     "refresh": "Refresh preview",
     "publishedToast": "Saved {rate} and published {count, plural, =0 {no prices} one {# price} other {# prices}}",
-    "rateOnlyToast": "Saved {rate} only; {count, plural, =0 {no linked prices} one {# price awaits it} other {# prices await it}}"
+    "rateOnlyToast": "Saved {rate} only; {count, plural, =0 {no linked prices} one {# price awaits it} other {# prices await it}}",
+    "approvalPendingToast": "The below-cost publish is pending approval; no rate or price was saved yet."
   },
   "inventory": {
     "skuPicker": {
