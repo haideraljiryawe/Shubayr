@@ -54,7 +54,8 @@ test("the list filters and pages on the server", async ({ page, request }) => {
   }
 
   // Combined: status + search + today's date range still finds it…
-  const today = new Date().toISOString().slice(0, 10);
+  // The store's date (Asia/Baghdad), not UTC: they differ from 21:00 UTC.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(new Date());
   await page.goto(
     `/orders?status=pending&q=${order.order_number}&from=${today}&to=${today}`,
   );
