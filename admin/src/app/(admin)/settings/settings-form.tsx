@@ -259,7 +259,8 @@ export function SettingsForm({
         <div className="grid gap-4 md:grid-cols-3">
           <Field
             label={t("fields.separation_of_duties_level")}
-            hint={t("separationOfDuties.hint")}
+            // A plain explanation of the level chosen (the change is audited).
+            hint={t(`separationOfDuties.explain.${form.separationOfDutiesLevel}`)}
             name="separation_of_duties_level"
           >
             <Select

@@ -264,6 +264,13 @@ export function PaymentForm({
         <p className="text-sm text-text-muted">{t("allocationsBody")}</p>
         {loaded?.error ? <FormError kind={loaded.error} /> : null}
         {supplierId && cash && open.length === 0 && loaded ? <p className="text-sm text-text-muted">{t("noOpenInvoices")}</p> : null}
+        {rateCurrency !== "IQD" && central.status === "hidden" && !overridden ? (
+          // Without the exchange-rate read permission there is no preview to
+          // show; the server applies the payment-date rate when posting.
+          <Alert tone="info" data-testid="payment-server-rate">
+            {t("serverRate", { currency: rateCurrency })}
+          </Alert>
+        ) : null}
         {missingRate ? (
           <Alert data-testid="payment-missing-rate">
             <p>{t("missingRateBody", { currency: rateCurrency, date: date.date })}</p>

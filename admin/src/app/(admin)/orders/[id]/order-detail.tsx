@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { FormError } from "@/components/forms/form-error";
 import { AgentPicker } from "@/components/orders/agent-picker";
-import { AttentionPanel, BelowCostPanel, CancellationRequestPanel, RetrievalsPanel } from "@/components/orders/lifecycle-panels";
+import { AttentionPanel, BelowCostPanel, CancellationRequestPanel, DeliveryAttemptsPanel, RetrievalsPanel } from "@/components/orders/lifecycle-panels";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { browserApi, unwrap } from "@/lib/api/client";
@@ -435,6 +435,7 @@ export function OrderDetailView({
         </div>
 
         <div className="flex flex-col gap-5">
+          <DeliveryAttemptsPanel order={order} />
           <RetrievalsPanel order={order} permissions={permissions} onRefused={handleRefusal} />
 
           <Card className="flex flex-col gap-1 p-5">
