@@ -34,11 +34,12 @@ export default async function RetrievalsPage({ searchParams }: { searchParams: P
   const api = await serverApi();
   const permissions = await loadPermissions(api);
   const query = (page: number) => retrievalListQuery(params.filters, page, params.perPage);
-  const canListAgents = permissions.includes("orders.assign_agent");
-  const [first, counts, agents] = await Promise.all([
+  // Internal agents and external drivers (contract 11.2).
+  const canListParties = ["deliveries.manage", "orders.assign_agent", "drivers.manage"].some((key) => permissions.includes(key));
+  const [first, counts, parties] = await Promise.all([
     load(api.GET("/admin/retrievals", { params: { query: query(params.page) } })),
     permissions.includes("orders.view") ? loadQueueCounts(api) : Promise.resolve(undefined),
-    canListAgents ? load(api.GET("/admin/delivery-agents", { params: { query: { per_page: 100 } } })) : Promise.resolve(null),
+    canListParties ? load(api.GET("/admin/delivery-parties", { params: { query: { per_page: 100 } } })) : Promise.resolve(null),
   ]);
   let page = first;
   if (page.ok && page.data.data.length === 0 && page.data.total > 0 && params.page > 1) {
@@ -63,7 +64,7 @@ export default async function RetrievalsPage({ searchParams }: { searchParams: P
       <RetrievalsTable
         rows={page.data.data}
         state={{ page: page.data.page, perPage: page.data.per_page, total: page.data.total, sort: "document_date", dir: "desc" }}
-        agents={agents && agents.ok ? (agents.data.data ?? []).map((agent) => ({ id: agent.id!, label: agent.name ? `${agent.name} · ${agent.phone ?? ""}` : (agent.phone ?? agent.id!) })) : null}
+        parties={parties && parties.ok ? parties.data.data.map((party) => ({ id: party.id, label: `${party.name} · ${party.phone}` })) : null}
       />
     </>
   );

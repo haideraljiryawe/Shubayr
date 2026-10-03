@@ -10,12 +10,12 @@ import { RETRIEVAL_STATUSES, type RetrievalListItem } from "@/lib/retrievals";
 export function RetrievalsTable({
   rows,
   state,
-  agents,
+  parties,
 }: {
   rows: RetrievalListItem[];
   state: TableState;
-  /** Delivery agents to filter by, or null without orders.assign_agent. */
-  agents: Array<{ id: string; label: string }> | null;
+  /** Delivery parties to filter by, or null without a permission to list them. */
+  parties: Array<{ id: string; label: string }> | null;
 }) {
   const t = useTranslations("retrievals");
   const tl = useTranslations("retrievals.list");
@@ -45,7 +45,7 @@ export function RetrievalsTable({
       key: "party",
       header: tl("columns.party"),
       cell: (row) => (
-        // Filtering by a party works from any row, even without the agent list.
+        // Filtering by a party works from any row, even without the party list.
         <Link href={`/retrievals?party_id=${row.custody_party_id}`} className="hover:underline" data-testid="retrieval-list-party">
           {row.custody_party.name || <span dir="ltr">{row.custody_party.phone}</span>}
         </Link>
@@ -81,11 +81,11 @@ export function RetrievalsTable({
             label={tl("columns.status")}
             options={[{ value: "", label: tl("allStatuses") }, ...RETRIEVAL_STATUSES.map((status) => ({ value: status, label: t(`statuses.${status}`) }))]}
           />
-          {agents ? (
+          {parties ? (
             <TableFilter
               name="party_id"
               label={tl("columns.party")}
-              options={[{ value: "", label: tl("allParties") }, ...agents.map((agent) => ({ value: agent.id, label: agent.label }))]}
+              options={[{ value: "", label: tl("allParties") }, ...parties.map((party) => ({ value: party.id, label: party.label }))]}
             />
           ) : null}
           <DateFilter name="from" label={tl("from")} />
