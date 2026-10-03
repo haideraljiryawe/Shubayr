@@ -835,5 +835,23 @@
     "reconnecting": "Reconnecting…",
     "new": "New",
     "failed": "Couldn't update the notification. Please try again."
+  },
+  "seo": {
+    "homeDescription": "Shop everything you need at {store}: genuine products, prices in Iraqi dinars and fast delivery across Iraq.",
+    "categoryDescription": "Shop {name} at the best prices in Iraqi dinars, with fast delivery.",
+    "brandDescription": "Shop {name} products at the best prices in Iraqi dinars, with fast delivery.",
+    "productDescription": "Buy {name} at the best price in Iraqi dinars, with fast delivery."
+  },
+  "errors": {
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "This page may have moved or is no longer available.",
+    "backHome": "Back to the home page",
+    "browse": "Browse categories",
+    "unavailableTitle": "The store is temporarily unavailable",
+    "unavailableBody": "We couldn't load this page right now. Please try again in a moment.",
+    "offlineTitle": "You're offline",
+    "offlineBody": "Check your internet connection, then try again.",
+    "offlineBanner": "No internet connection. Some actions won't work until you're back online.",
+    "retry": "Try again"
   }
 }

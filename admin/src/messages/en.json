@@ -96,7 +96,11 @@
     "forbiddenBody": "This page needs a permission your account doesn't have. Ask an administrator if you need it.",
     "loadFailedTitle": "The page could not load",
     "loadFailedBody": "We couldn't reach the server. Try again in a moment.",
-    "backToDashboard": "Back to the dashboard"
+    "backToDashboard": "Back to the dashboard",
+    "unavailable": "The server can't be reached right now. Check the connection and try again in a moment.",
+    "retry": "Try again",
+    "offlineTitle": "You're offline",
+    "offlineBody": "Check your internet connection, then try again."
   },
   "notFound": {
     "title": "Page not found",

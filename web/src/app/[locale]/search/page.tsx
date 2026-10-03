@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { alternatesFor } from "@/lib/site";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { api } from "@/lib/api";
 import { flattenCategories } from "@/lib/catalog";
@@ -19,7 +20,26 @@ export async function generateMetadata({
 }: Props): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "catalog" });
-  const query = parseCatalogQuery(await searchParams);
+  const raw = await searchParams;
+  const query = parseCatalogQuery(raw);
+  const keys = Object.keys(raw).filter((key) => raw[key] !== undefined);
+  const brandId = typeof raw.brand_id === "string" ? raw.brand_id : null;
+  if (brandId && keys.length === 1) {
+    const brand = await api
+      .listBrands()
+      .then((all) => all.find((entry) => entry.id === brandId && entry.is_visible !== false))
+      .catch(() => undefined);
+    if (brand) {
+      const name = (locale === "ar" ? brand.name_ar || brand.name_en : brand.name_en || brand.name_ar) ?? "";
+      const seo = await getTranslations({ locale, namespace: "seo" });
+      const path = `/search?brand_id=${encodeURIComponent(brand.id)}`;
+      return {
+        title: name,
+        description: seo("brandDescription", { name }),
+        alternates: alternatesFor(locale, path),
+      };
+    }
+  }
   return {
     title: query.q ? t("searchTitle", { query: query.q }) : t("allProducts"),
     description: t("searchDescription"),
