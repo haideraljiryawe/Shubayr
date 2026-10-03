@@ -53,6 +53,10 @@ export default function config(phase: string): NextConfig {
   const nextConfig: NextConfig = {
     reactStrictMode: true,
     poweredByHeader: false,
+    // Every page renders per request (the CSP nonce), and Next.js would then
+    // stream metadata into <body> for anything it doesn't recognise as a bot
+    // — Lighthouse and some crawlers among them. Keep it in <head> for all.
+    htmlLimitedBots: /.*/,
     // Never ship browser source maps (the default, pinned here on purpose).
     productionBrowserSourceMaps: false,
     // The Docker image runs the self-contained server (web/Dockerfile).

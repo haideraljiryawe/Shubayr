@@ -104,7 +104,9 @@ export function Header() {
                 href="/login"
                 data-testid="header-login"
                 // Icon-only on the narrowest phones, where the header row has
-                // no room for a label beside the cart and bell.
+                // no room for a label beside the cart and bell — so it is
+                // named for screen readers there too.
+                aria-label={tAuth("signIn")}
                 className="inline-flex size-10 items-center justify-center gap-1.5 rounded-md text-sm font-semibold text-primary-dark transition-colors duration-150 hover:bg-card sm:w-auto sm:px-3"
               >
                 <LogIn className="size-4 rtl-flip" aria-hidden />
