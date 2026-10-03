@@ -99,6 +99,18 @@ class CartController extends AsyncNotifier<Cart> {
   Future<CartMutationResult> remove(String itemId) =>
       _run((r) => r.removeItem(itemId), duplicateKey: ('remove', itemId));
 
+  Future<CartMutationResult> applyCoupon(String code) => _run(
+    (r) => r.applyCoupon(code),
+    duplicateKey: ('coupon', code),
+    requireFreshSnapshot: true,
+  );
+
+  Future<CartMutationResult> removeCoupon() => _run(
+    (r) => r.removeCoupon(),
+    duplicateKey: 'remove-coupon',
+    requireFreshSnapshot: true,
+  );
+
   bool _owns(Object owner) =>
       ref.mounted && ref.read(_cartSessionProvider) == owner;
 
@@ -112,6 +124,7 @@ class CartController extends AsyncNotifier<Cart> {
   Future<CartMutationResult> _run(
     Future<Cart> Function(CartRepository) operation, {
     Object? duplicateKey,
+    bool requireFreshSnapshot = false,
   }) {
     if (!ref.mounted) {
       return Future.value(
@@ -146,6 +159,9 @@ class CartController extends AsyncNotifier<Cart> {
         if (!_owns(owner)) {
           return const CartMutationResult(CartMutationStatus.superseded);
         }
+        if (requireFreshSnapshot && generation == _loadGeneration) {
+          state = const AsyncLoading();
+        }
         final cart = await operation(repository);
         if (!_owns(owner)) {
           return const CartMutationResult(CartMutationStatus.superseded);
@@ -153,11 +169,16 @@ class CartController extends AsyncNotifier<Cart> {
         // A refresh queued behind this write owns the next displayed snapshot.
         if (generation == _loadGeneration) state = AsyncData(cart);
         return const CartMutationResult(CartMutationStatus.succeeded);
-      } catch (error) {
+      } catch (error, stack) {
         if (!_owns(owner)) {
           return const CartMutationResult(CartMutationStatus.superseded);
         }
-        // Keep the last valid cart. The caller presents this action's failure.
+        // Coupon application can succeed before the reprice read fails. Until
+        // retry verifies the server cart, its former totals are not trustworthy.
+        if (requireFreshSnapshot && generation == _loadGeneration) {
+          state = AsyncError(error, stack);
+        }
+        // Ordinary line mutations retain the last valid cart (C02).
         return CartMutationResult(CartMutationStatus.failed, error: error);
       } finally {
         if (duplicateKey != null) pending.remove(duplicateKey);

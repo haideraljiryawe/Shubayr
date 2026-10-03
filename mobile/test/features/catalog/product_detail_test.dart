@@ -32,11 +32,15 @@ import '../../helpers/test_session.dart';
 class _FakeCatalog implements CatalogRepository {
   _FakeCatalog({
     this.promotion = false,
+    this.authoritative = false,
+    this.simple = false,
     this.fractional = false,
     this.whole = false,
   });
   final bool fractional, whole;
   final bool promotion;
+  final bool authoritative;
+  final bool simple;
   static const _product = Product(
     id: 'v1',
     categoryId: 'c',
@@ -45,30 +49,70 @@ class _FakeCatalog implements CatalogRepository {
     salePrice: 10000,
     availableQty: 13,
     variants: [
-      ProductVariant(id: 'v1-s', sku: 'S', attributes: {'size': 'S'}),
+      ProductVariant(
+        effectivePrice: 10000,
+        id: 'v1-s',
+        sku: 'S',
+        attributes: {'size': 'S'},
+      ),
       ProductVariant(
         id: 'v1-m',
         sku: 'M',
         attributes: {'size': 'M'},
         priceDelta: 5000,
+        effectivePrice: 15000,
       ),
       ProductVariant(
         id: 'v1-l',
         sku: 'L',
         attributes: {'size': 'L'},
         priceDelta: 2000,
+        effectivePrice: 12000,
       ),
     ],
   );
 
   @override
-  Future<Product> fetchProduct(String id) async => fractional
+  Future<Product> fetchProduct(String id) async => simple
+      ? Product.fromJson({
+          ..._product.toJson(),
+          'variants': [],
+          if (promotion) ...{
+            'price': 20000,
+            'on_sale': true,
+            'discounted_price': 10000,
+            'effective_price': 10000,
+            'discount_percent': 50,
+          },
+        })
+      : authoritative
+      ? Product.fromJson({
+          ..._product.toJson(),
+          'variants': [
+            {
+              'id': 'v1-s',
+              'sku': 'S',
+              'attributes': {'size': 'S'},
+              'price_delta': 0,
+              'effective_price': 7000,
+            },
+            {
+              'id': 'v1-m',
+              'sku': 'M',
+              'attributes': {'size': 'M'},
+              'price_delta': 5000,
+              'effective_price': 17000,
+            },
+          ],
+        })
+      : fractional
       ? Product.fromJson({
           ..._product.toJson(),
           'available_qty': 0.5,
           'variants': [
             {
               'id': 'v1-s',
+              'effective_price': 10000,
               'sku': 'S',
               'whole_units_only': whole,
               'base_unit': 'kg',
@@ -77,6 +121,7 @@ class _FakeCatalog implements CatalogRepository {
             },
             {
               'id': 'v1-m',
+              'effective_price': 15000,
               'sku': 'M',
               'whole_units_only': true,
               'available_qty': 3,
@@ -178,6 +223,8 @@ class _PendingCart extends CartRepositoryMock {
 }
 
 Widget _host({
+  bool simple = false,
+  bool authoritative = false,
   bool promotion = false,
   bool fractional = false,
   bool whole = false,
@@ -188,7 +235,13 @@ Widget _host({
     unreadCountProvider.overrideWith((ref) async => 0),
     dataSourceProvider.overrideWithValue(DataSource.mock),
     catalogRepositoryProvider.overrideWithValue(
-      _FakeCatalog(promotion: promotion, fractional: fractional, whole: whole),
+      _FakeCatalog(
+        simple: simple,
+        authoritative: authoritative,
+        promotion: promotion,
+        fractional: fractional,
+        whole: whole,
+      ),
     ),
     brandProvider.overrideWithValue(const Brand.bundled()),
   ],
@@ -208,6 +261,43 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
   }
+
+  for (final promotion in [false, true]) {
+    testWidgets('simple product displays server price (sale: $promotion)', (
+      tester,
+    ) async {
+      sizePhone(tester);
+      await tester.pumpWidget(_host(simple: true, promotion: promotion));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('10,000'), findsOneWidget);
+      expect(find.text('50% off'), promotion ? findsOneWidget : findsNothing);
+      expect(
+        find.textContaining('20,000'),
+        promotion ? findsOneWidget : findsNothing,
+      );
+      expect(find.text('Base product offer'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'each selected SKU uses its server effective price, not base plus delta',
+    (tester) async {
+      sizePhone(tester);
+      await tester.pumpWidget(_host(authoritative: true));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('7,000'), findsOneWidget);
+      expect(find.textContaining('10,000'), findsNothing);
+      await tester.tap(find.text('M'));
+      await tester
+          .pump(); // The first rendered frame must already own M's price.
+      expect(find.textContaining('17,000'), findsOneWidget);
+      expect(find.textContaining('15,000'), findsNothing);
+      expect(find.textContaining('IQD7,000'), findsNothing);
+      expect(find.textContaining('null'), findsNothing);
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets(
     'fractional SKU stock enables .5, editable .125, and whole variant resets selection',
@@ -324,7 +414,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('50% off'), findsOneWidget);
       expect(find.textContaining('20,000'), findsOneWidget);
-      expect(find.text('Base product offer'), findsNothing);
+      expect(find.text('Base product offer'), findsOneWidget);
       await tester.ensureVisible(find.text('M'));
       await tester.tap(find.text('M'));
       await tester.pumpAndSettle();
@@ -347,7 +437,7 @@ void main() {
     expect(find.textContaining('10,000'), findsOneWidget);
     expect(find.text('Only 3 left'), findsOneWidget);
 
-    // Selecting M (price_delta 5000) lifts the price and refreshes the badge.
+    // Selecting M uses its effective price and refreshes the badge.
     await tester.tap(find.text('M'));
     await tester.pumpAndSettle();
     expect(find.textContaining('15,000'), findsOneWidget);

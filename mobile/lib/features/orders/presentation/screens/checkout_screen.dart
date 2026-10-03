@@ -18,14 +18,13 @@ import '../../../address/data/address.dart';
 import '../../../address/presentation/providers/address_providers.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
-import '../../data/coupon.dart';
+import '../../../cart/data/cart.dart';
 import '../../data/order.dart';
 import '../providers/order_providers.dart';
 
 /// Cash-on-Delivery checkout: pick a delivery address, optionally apply a
-/// coupon, review the summary and place the order. Amounts other than the
-/// subtotal (delivery fee, final total) are computed by the server and shown on
-/// the confirmation.
+/// coupon, review the server cart summary and place the order. Checkout
+/// reprices on the server again; confirmation uses the returned order snapshot.
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -36,7 +35,6 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _couponCtrl = TextEditingController();
   String? _addressId;
-  Coupon? _coupon;
   String? _couponError;
   bool _applyingCoupon = false;
   bool _placing = false;
@@ -72,28 +70,41 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _applyCoupon() async {
+    if (_applyingCoupon || _placing) return;
     final code = _couponCtrl.text.trim();
     if (code.isEmpty) return;
     setState(() {
       _applyingCoupon = true;
       _couponError = null;
     });
-    try {
-      final coupon = await ref
-          .read(orderRepositoryProvider)
-          .validateCoupon(code);
-      if (!mounted) return;
+    await _changeCoupon(remove: false, code: code);
+  }
+
+  Future<void> _changeCoupon({required bool remove, String? code}) async {
+    if (remove) {
+      if (_applyingCoupon || _placing) return;
       setState(() {
-        _coupon = coupon;
-        _applyingCoupon = false;
-      });
-    } on AppFailure {
-      if (!mounted) return;
-      setState(() {
-        _applyingCoupon = false;
-        _couponError = context.l10n.checkoutCouponInvalid;
+        _applyingCoupon = true;
+        _couponError = null;
       });
     }
+    final controller = ref.read(cartControllerProvider.notifier);
+    final result = await (remove
+        ? controller.removeCoupon()
+        : controller.applyCoupon(code!));
+    if (!mounted) return;
+    setState(() {
+      _applyingCoupon = false;
+      if (result.status == CartMutationStatus.succeeded ||
+          result.status == CartMutationStatus.superseded) {
+        _couponCtrl.clear();
+      } else if (result.status == CartMutationStatus.failed) {
+        final error = result.error;
+        _couponError = error is AppFailure
+            ? error.localizedMessage(context.l10n)
+            : context.l10n.stateErrorTitle;
+      }
+    });
   }
 
   Future<void> _placeOrder(String addressId) async {
@@ -102,7 +113,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     try {
       final order = await ref
           .read(orderRepositoryProvider)
-          .placeOrder(addressId: addressId, couponCode: _coupon?.code);
+          .placeOrder(
+            addressId: addressId,
+            couponCode: ref
+                .read(cartControllerProvider)
+                .requireValue
+                .couponCode,
+          );
       // The order consumed the cart; refresh so the badge and cart clear, and
       // refresh the orders list so the new order appears there.
       ref.invalidate(cartControllerProvider);
@@ -136,18 +153,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return _SuccessView(order: placed, money: _money);
     }
 
-    final cart = ref.watch(cartControllerProvider).value;
+    final cartState = ref.watch(cartControllerProvider);
+    final cart = cartState.asData?.value;
     final addressState = ref.watch(addressesControllerProvider);
     final addresses = addressState.value;
-    final subtotal = cart?.subtotal ?? 0;
-    final discount = _coupon?.discountOn(subtotal) ?? 0;
-    final estimatedTotal = subtotal - discount;
     final address = addresses == null ? null : _resolveAddress(addresses);
     final canPlace =
         address != null &&
         !addressState.isLoading &&
         !addressState.hasError &&
-        (cart?.items.isNotEmpty ?? false) &&
+        (cart?.canCheckout ?? false) &&
+        !cartState.isLoading &&
+        !cartState.hasError &&
+        !_applyingCoupon &&
         !_placing;
 
     return Scaffold(
@@ -201,16 +219,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   _SectionTitle(l10n.checkoutCoupon),
                   _CouponSection(
                     controller: _couponCtrl,
-                    applied: _coupon,
+                    applied: cart?.couponCode,
                     error: _couponError,
                     busy: _applyingCoupon,
-                    onApply: _applyCoupon,
-                    onRemove: () => setState(() {
-                      _coupon = null;
-                      _couponError = null;
-                      _couponCtrl.clear();
-                    }),
-                    money: _money,
+                    onApply:
+                        _applyingCoupon ||
+                            _placing ||
+                            cartState.isLoading ||
+                            cartState.hasError
+                        ? null
+                        : _applyCoupon,
+                    onRemove: _applyingCoupon || _placing
+                        ? null
+                        : () => _changeCoupon(remove: true),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   _SectionTitle(l10n.checkoutPayment),
@@ -233,26 +254,45 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ),
                 ],
               ),
-              _Summary(
-                subtotal: subtotal,
-                discount: discount,
-                total: estimatedTotal,
-                money: _money,
+              AsyncValueView<Cart>(
+                value: cartState,
+                loading: const AppCard(
+                  child: Column(
+                    children: [
+                      Skeleton.line(),
+                      SizedBox(height: AppSpacing.sm),
+                      Skeleton.line(),
+                      SizedBox(height: AppSpacing.sm),
+                      Skeleton.line(),
+                    ],
+                  ),
+                ),
+                onRetry: () => ref.invalidate(cartControllerProvider),
+                builder: (context, cart) => _Summary(
+                  subtotal: cart.subtotal,
+                  discount: cart.discount,
+                  deliveryFee: cart.deliveryFee,
+                  total: cart.total,
+                  money: _money,
+                ),
               ),
             ],
           ),
         ],
       ),
-      bottomNavigationBar: ResponsiveContent(
-        maxWidth: AppLayout.readingWidth,
-        child: _PlaceOrderBar(
-          total: estimatedTotal,
-          money: _money,
-          enabled: canPlace,
-          busy: _placing,
-          onPlace: canPlace ? () => _placeOrder(address.id) : null,
-        ),
-      ),
+      bottomNavigationBar:
+          cart == null || cartState.isLoading || cartState.hasError
+          ? null
+          : ResponsiveContent(
+              maxWidth: AppLayout.readingWidth,
+              child: _PlaceOrderBar(
+                total: cart.total,
+                money: _money,
+                enabled: canPlace,
+                busy: _placing,
+                onPlace: canPlace ? () => _placeOrder(address.id) : null,
+              ),
+            ),
     );
   }
 }
@@ -345,16 +385,14 @@ class _CouponSection extends StatelessWidget {
     required this.busy,
     required this.onApply,
     required this.onRemove,
-    required this.money,
   });
 
   final TextEditingController controller;
-  final Coupon? applied;
+  final String? applied;
   final String? error;
   final bool busy;
-  final VoidCallback onApply;
-  final VoidCallback onRemove;
-  final String Function(num) money;
+  final VoidCallback? onApply;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -368,7 +406,7 @@ class _CouponSection extends StatelessWidget {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
-                applied!.code,
+                applied!,
                 style: context.text.titleSmall?.copyWith(
                   color: colors.primaryDark,
                 ),
@@ -393,7 +431,7 @@ class _CouponSection extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => onApply(),
+                  onSubmitted: onApply == null ? null : (_) => onApply!(),
                   decoration: InputDecoration(
                     hintText: l10n.checkoutCouponHint,
                   ),
@@ -426,12 +464,14 @@ class _Summary extends StatelessWidget {
   const _Summary({
     required this.subtotal,
     required this.discount,
+    required this.deliveryFee,
     required this.total,
     required this.money,
   });
 
   final num subtotal;
   final num discount;
+  final num deliveryFee;
   final num total;
   final String Function(num) money;
 
@@ -453,7 +493,7 @@ class _Summary extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           _SummaryRow(
             label: l10n.checkoutDelivery,
-            value: l10n.checkoutDeliveryNote,
+            value: money(deliveryFee),
             muted: true,
           ),
           const Divider(height: AppSpacing.xl),

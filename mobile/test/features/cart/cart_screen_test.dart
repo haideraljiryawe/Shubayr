@@ -168,19 +168,30 @@ void main() {
     },
   );
 
-  testWidgets('shows cart lines and the subtotal', (tester) async {
+  testWidgets('shows server line and cart totals', (tester) async {
     const cart = Cart(
-      items: [CartItem(id: 'c1', productId: 'x', quantity: 2, unitPrice: 1000)],
-      subtotal: 2000,
+      items: [
+        CartItem(
+          id: 'c1',
+          productId: 'x',
+          quantity: 2,
+          unitPrice: 1000,
+          lineTotal: 2100,
+          available: true,
+        ),
+      ],
+      subtotal: 2100,
+      total: 2300,
     );
     await tester.pumpWidget(_host(cart));
     await tester.pumpAndSettle();
 
     expect(find.text('Widget'), findsOneWidget);
     expect(find.text('2'), findsOneWidget); // quantity in the stepper
-    expect(find.text('Subtotal'), findsOneWidget);
-    // Line total and subtotal are both 2,000.
-    expect(find.textContaining('2,000'), findsWidgets);
+    expect(find.text('Total'), findsOneWidget);
+    // Neither line total nor cart total is reconstructed from the catalog.
+    expect(find.textContaining('2,100'), findsOneWidget);
+    expect(find.textContaining('2,300'), findsOneWidget);
   });
 
   for (final icon in [Icons.add, Icons.close]) {
@@ -191,9 +202,17 @@ void main() {
         _host(
           const Cart(
             items: [
-              CartItem(id: 'c1', productId: 'x', quantity: 2, unitPrice: 1000),
+              CartItem(
+                id: 'c1',
+                productId: 'x',
+                quantity: 2,
+                unitPrice: 1000,
+                lineTotal: 2100,
+                available: true,
+              ),
             ],
-            subtotal: 2000,
+            subtotal: 2100,
+            total: 2300,
           ),
           failMutations: true,
         ),
@@ -205,7 +224,8 @@ void main() {
       expect(find.text(l10n.errorNetwork), findsOneWidget);
       expect(find.text('Widget'), findsOneWidget);
       expect(find.text('2'), findsOneWidget);
-      expect(find.textContaining('2,000'), findsWidgets);
+      expect(find.textContaining('2,100'), findsOneWidget);
+      expect(find.textContaining('2,300'), findsOneWidget);
       await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
     });

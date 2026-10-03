@@ -12,6 +12,7 @@ import 'package:shubayr/features/cart/domain/cart_repository.dart';
 import 'package:shubayr/features/cart/presentation/providers/cart_providers.dart';
 
 import '../../helpers/test_session.dart';
+import '../commerce/pricing_contract_test.dart' show pricedCart, pricedLine;
 
 const _a = Session.signedIn(User(id: 'A', role: 'customer'));
 const _b = Session.signedIn(User(id: 'B', role: 'customer'));
@@ -47,6 +48,11 @@ class _CartRepository implements CartRepository {
     requests.add(request);
     return request.result.future;
   }
+
+  @override
+  Future<Cart> applyCoupon(String code) => _request('coupon:$code');
+  @override
+  Future<Cart> removeCoupon() => _request('remove-coupon');
 
   @override
   Future<Cart> addItem({
@@ -91,6 +97,79 @@ void main() {
     await container.read(cartControllerProvider.future);
     controller = container.read(cartControllerProvider.notifier);
   });
+
+  test(
+    'serialized line and coupon mutations preserve authoritative snapshots',
+    () async {
+      final first = controller.setQuantity('line', .125);
+      final second = controller.applyCoupon('SAVE');
+      await flush();
+      expect(repository.requests.map((r) => r.operation), ['set:line:0.125']);
+      repository.requests[0].result.complete(Cart.fromJson(pricedCart()));
+      await first;
+      await flush();
+      expect(repository.requests.last.operation, 'coupon:SAVE');
+      expect(container.read(cartControllerProvider).isLoading, isTrue);
+      repository.requests[1].result.complete(
+        Cart.fromJson({
+          ...pricedCart(),
+          'items': [
+            {...pricedLine(), 'line_total': 1111},
+          ],
+          'subtotal': 4200,
+          'discount': 400,
+          'total': 4550,
+        }),
+      );
+      await second;
+      final cart = container.read(cartControllerProvider).requireValue;
+      expect(cart.items.single.quantity, .125);
+      expect(cart.items.single.lineTotal, 1111);
+      expect(cart.subtotal, 4200);
+      expect(cart.discount, 400);
+      expect(cart.total, 4550);
+    },
+  );
+
+  test(
+    'coupon reprice failure requires a successful read before checkout',
+    () async {
+      final pending = controller.applyCoupon('SAVE');
+      await flush();
+      repository.requests.single.result.completeError(_failure);
+      expect((await pending).status, CartMutationStatus.failed);
+      expect(container.read(cartControllerProvider).hasError, isTrue);
+      expect(container.read(cartControllerProvider).asData, isNull);
+      repository.onRead = () async => Cart.fromJson(pricedCart());
+      container.invalidate(cartControllerProvider);
+      expect((await container.read(cartControllerProvider.future)).total, 4750);
+    },
+  );
+
+  for (final remove in [false, true]) {
+    test(
+      'late coupon ${remove ? 'removal' : 'application'} cannot publish across sessions',
+      () async {
+        final pending = remove
+            ? controller.removeCoupon()
+            : controller.applyCoupon('SAVE');
+        await flush();
+        session.setSession(_b);
+        await flush();
+        await container.read(cartControllerProvider.future);
+        repository.requests.single.result.complete(Cart.fromJson(pricedCart()));
+        expect((await pending).status, CartMutationStatus.superseded);
+        expect(
+          container.read(cartControllerProvider).requireValue.id,
+          'B-loaded',
+        );
+        expect(
+          container.read(cartControllerProvider).requireValue.couponCode,
+          isNull,
+        );
+      },
+    );
+  }
 
   for (final differentLines in [false, true]) {
     test(

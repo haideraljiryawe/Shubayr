@@ -38,7 +38,7 @@ class CatalogRepositoryMock implements CatalogRepository {
       (v) => v.id == variantId,
       orElse: () => const ProductVariant(id: ''),
     );
-    return p.salePrice + v.priceDelta;
+    return v.id.isEmpty ? p.effectivePrice : v.effectivePrice;
   }
 
   static const _cElectronics = 'cat-electronics';
@@ -448,13 +448,24 @@ class CatalogRepositoryMock implements CatalogRepository {
       availableQty: 60,
       images: [_img('p7')],
       variants: const [
-        ProductVariant(id: 'p7-s', sku: 'TS-S', attributes: {'size': 'S'}),
-        ProductVariant(id: 'p7-m', sku: 'TS-M', attributes: {'size': 'M'}),
+        ProductVariant(
+          effectivePrice: 12000,
+          id: 'p7-s',
+          sku: 'TS-S',
+          attributes: {'size': 'S'},
+        ),
+        ProductVariant(
+          effectivePrice: 12000,
+          id: 'p7-m',
+          sku: 'TS-M',
+          attributes: {'size': 'M'},
+        ),
         ProductVariant(
           id: 'p7-l',
           sku: 'TS-L',
           attributes: {'size': 'L'},
           priceDelta: 1000,
+          effectivePrice: 13000,
         ),
       ],
     ),

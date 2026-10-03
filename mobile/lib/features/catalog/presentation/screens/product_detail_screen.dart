@@ -169,8 +169,12 @@ class _DetailState extends ConsumerState<_Detail> {
 
     final selectedVariant = _selectedVariant;
     final price = formatMoney(
-      product.salePrice + (selectedVariant?.priceDelta ?? 0),
-      currencyCode: product.currency ?? brand.currencyCode,
+      selectedVariant?.effectivePrice ?? product.effectivePrice,
+      currencyCode:
+          selectedVariant?.currencyCode ??
+          selectedVariant?.currency ??
+          product.currency ??
+          brand.currencyCode,
       localeCode: lang,
     );
     final stock = _resolveStock(availability, selectedVariant);
@@ -230,8 +234,7 @@ class _DetailState extends ConsumerState<_Detail> {
                         if (product.isOnSale) ...[
                           ProductPromotion(
                             product: product,
-                            showBasePrice:
-                                (selectedVariant?.priceDelta ?? 0) != 0,
+                            showBasePrice: selectedVariant != null,
                           ),
                           const SizedBox(height: AppSpacing.xs),
                         ],

@@ -14,7 +14,12 @@ void main() {
       'price': 12.75,
       'currency': 'USD',
       'variants': [
-        {'id': 'v1', 'attributes': null, 'currency': 'USD'},
+        {
+          'id': 'v1',
+          'attributes': null,
+          'currency': 'USD',
+          'effective_price': 12.75,
+        },
       ],
     }).copyWith(images: []);
     expect(product.currency, 'USD');
@@ -23,11 +28,18 @@ void main() {
     final cart = Cart.fromJson({
       'currency': 'USD',
       'subtotal': 12.75,
+      'discount': 0,
+      'delivery_fee': 0,
+      'total': 12.75,
+      'coupon_code': null,
       'items': [
         {
           'id': 'i1',
           'product_id': 'p1',
           'unit_price': 12.75,
+          'line_total': 12.75,
+          'available': true,
+          'available_qty': 10,
           'currency': 'USD',
         },
       ],
@@ -35,7 +47,10 @@ void main() {
     expect(cart.currency, 'USD');
     final updated = cart.items.single.copyWith(quantity: 2);
     expect(updated.currency, 'USD');
-    expect(updated.lineTotal, 25.5);
+    expect(
+      updated.lineTotal,
+      12.75,
+    ); // Quantity edits never reprice a snapshot.
     final order = Order.fromJson({
       'id': 'o1',
       'currency': 'USD',

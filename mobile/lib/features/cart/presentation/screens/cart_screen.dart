@@ -24,8 +24,8 @@ import '../../data/cart.dart';
 import '../providers/cart_providers.dart';
 
 /// The cart: each line looks its product up from the catalog for name/image
-/// (the API's cart item carries only ids, a quantity and a unit price). Quantity
-/// steppers and remove act on the server cart; a footer shows the subtotal.
+/// (the API supplies line totals and current availability). Quantity steppers
+/// and remove act on the server cart; the footer shows its authoritative total.
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
 
@@ -66,7 +66,11 @@ class CartScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                _CartFooter(subtotal: c.subtotal, currency: c.currency),
+                _CartFooter(
+                  total: c.total,
+                  currency: c.currency,
+                  canCheckout: c.canCheckout,
+                ),
               ],
             ),
           );
@@ -162,6 +166,15 @@ class _CartLine extends ConsumerWidget {
                   ),
                 ),
               ],
+              if (item.available == false) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  l10n.commonOutOfStock,
+                  style: context.text.labelMedium?.copyWith(
+                    color: colors.danger,
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.sm),
               ResponsiveValueRow(
                 label: QuantityStepper(
@@ -230,9 +243,14 @@ class _Thumb extends StatelessWidget {
 }
 
 class _CartFooter extends ConsumerWidget {
-  const _CartFooter({required this.subtotal, this.currency});
+  const _CartFooter({
+    required this.total,
+    this.currency,
+    required this.canCheckout,
+  });
 
-  final num subtotal;
+  final num total;
+  final bool canCheckout;
   final String? currency;
 
   @override
@@ -241,8 +259,8 @@ class _CartFooter extends ConsumerWidget {
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
     final brand = ref.watch(brandProvider);
-    final total = formatMoney(
-      subtotal,
+    final formattedTotal = formatMoney(
+      total,
       currencyCode: currency ?? brand.currencyCode,
       localeCode: lang,
     );
@@ -260,9 +278,9 @@ class _CartFooter extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ResponsiveValueRow(
-                label: Text(l10n.cartSubtotal, style: context.text.titleSmall),
+                label: Text(l10n.checkoutTotal, style: context.text.titleSmall),
                 value: Text(
-                  total,
+                  formattedTotal,
                   style: context.text.titleLarge?.copyWith(
                     color: colors.primaryDark,
                   ),
@@ -271,7 +289,9 @@ class _CartFooter extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               AppButton(
                 label: l10n.cartCheckout,
-                onPressed: () => context.pushNamed(AppRoutes.checkoutName),
+                onPressed: canCheckout
+                    ? () => context.pushNamed(AppRoutes.checkoutName)
+                    : null,
               ),
             ],
           ),

@@ -14,6 +14,19 @@ class CartRepositoryRemote implements CartRepository {
       Cart.fromJson(await _api.get<Map<String, dynamic>>('/cart'));
 
   @override
+  Future<Cart> applyCoupon(String code) async {
+    await _api.post<Map<String, dynamic>>(
+      '/coupons/validate',
+      body: {'code': code},
+    );
+    return fetchCart();
+  }
+
+  @override
+  Future<Cart> removeCoupon() async =>
+      Cart.fromJson(await _api.delete<Map<String, dynamic>>('/cart/coupon'));
+
+  @override
   Future<Cart> addItem({
     required String productId,
     String? variantId,

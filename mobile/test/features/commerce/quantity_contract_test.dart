@@ -18,6 +18,7 @@ void main() {
   test('SKU metadata and all stock fields preserve their scale', () {
     final variant = ProductVariant.fromJson({
       'id': 'v',
+      'effective_price': 10000,
       'whole_units_only': false,
       'base_unit': 'kg',
       'available_qty': 0.125,
@@ -41,6 +42,10 @@ void main() {
     final cart = CartItem.fromJson({
       'id': 'i',
       'product_id': 'p',
+      'unit_price': 10000,
+      'line_total': 1250,
+      'currency': 'IQD',
+      'available': true,
       'available_qty': 0.5,
     });
     expect(cart.availableQty, 0.5);
@@ -95,6 +100,11 @@ void main() {
       final item = CartItem.fromJson({
         'id': 'line',
         'product_id': 'product',
+        'unit_price': 10000,
+        'line_total': 1250,
+        'currency': 'IQD',
+        'available': true,
+        'available_qty': 10,
         'quantity': quantity,
       });
       expect(item.quantity, quantity);
@@ -138,6 +148,7 @@ void main() {
       'id': 'p',
       'category_id': 'c',
       'name_en': 'Coffee',
+      'effective_price': 10000,
       'name_ar': '',
       'available_qty': 0.5,
     });
@@ -175,10 +186,21 @@ void main() {
                       }
                     : {
                         'id': 'c',
+                        'subtotal': 1250,
+                        'discount': 0,
+                        'delivery_fee': 0,
+                        'total': 1250,
+                        'coupon_code': null,
+                        'currency': 'IQD',
                         'items': [
                           {
                             'id': 'i',
                             'product_id': 'p',
+                            'unit_price': 10000,
+                            'line_total': 1250,
+                            'currency': 'IQD',
+                            'available': true,
+                            'available_qty': 10,
                             'quantity': options.data['quantity'],
                           },
                         ],
@@ -192,6 +214,11 @@ void main() {
       final item = CartItem.fromJson({
         'id': 'i',
         'product_id': 'p',
+        'unit_price': 10000,
+        'line_total': 1250,
+        'currency': 'IQD',
+        'available': true,
+        'available_qty': 10,
         'quantity': 0.125,
       });
       expect(

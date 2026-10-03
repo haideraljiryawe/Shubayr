@@ -1,5 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../core/error/failure.dart';
 import 'media/catalog_image.dart';
 
 part 'product.g.dart';
@@ -13,6 +14,8 @@ class ProductVariant {
     this.sku = '',
     this.attributes = const {},
     this.priceDelta = 0,
+    this.effectivePrice = 0,
+    this.currencyCode,
     this.currency,
     this.baseUnit,
     this.wholeUnitsOnly = true,
@@ -26,6 +29,10 @@ class ProductVariant {
   final Map<String, dynamic> attributes;
   @JsonKey(name: 'price_delta')
   final num priceDelta;
+  @JsonKey(name: 'effective_price')
+  final num effectivePrice;
+  @JsonKey(name: 'currency_code', includeIfNull: false)
+  final String? currencyCode;
   @JsonKey(includeIfNull: false)
   final String? currency;
 
@@ -40,8 +47,12 @@ class ProductVariant {
   @JsonKey(name: 'low_stock_threshold', includeIfNull: false)
   final num? lowStockThreshold;
 
-  factory ProductVariant.fromJson(Map<String, dynamic> json) =>
-      _$ProductVariantFromJson(json);
+  factory ProductVariant.fromJson(Map<String, dynamic> json) {
+    // v9's effective SKU price includes linked conversion and the product
+    // discount. A delta or fixed override cannot reconstruct that value.
+    _checkedPrice(json['effective_price']);
+    return _$ProductVariantFromJson(json);
+  }
 
   Map<String, dynamic> toJson() => _$ProductVariantToJson(this);
 }
@@ -187,6 +198,16 @@ class Product {
     return Product.fromJson({
       ...json,
       'images': <dynamic>[],
+      'variants': [
+        for (final variant in json['variants'] as List? ?? [])
+          {
+            ...variant as Map<String, dynamic>,
+            'effective_price':
+                variant['effective_price'] ??
+                (sale ?? json['effective_price'] ?? json['price'] ?? 0) +
+                    (variant['price_delta'] ?? 0),
+          },
+      ],
       if (sale != null) ...{
         'price': discounted ? original : sale,
         'discount_type': discounted ? 'amount' : null,
@@ -261,8 +282,26 @@ class Product {
         variants: variants,
       );
 
-  factory Product.fromJson(Map<String, dynamic> json) =>
-      _$ProductFromJson(json);
+  factory Product.fromJson(Map<String, dynamic> json) {
+    // The original promotion price must also be usable before showing it.
+    if (json.containsKey('price') || json['on_sale'] == true) {
+      _checkedPrice(json['price']);
+    }
+    // Product read properties are optional in v9. For older partial responses,
+    // use the server's discounted_price while on sale, otherwise its base price.
+    // Never infer a scheduled promotion using the device clock or legacy fields.
+    final price = json.containsKey('effective_price')
+        ? json['effective_price']
+        : json['on_sale'] == true
+        ? json['discounted_price']
+        : json['on_sale'] == false || json['discount_type'] == null
+        ? json['price']
+        : null;
+    return _$ProductFromJson({
+      ...json,
+      'effective_price': _checkedPrice(price),
+    });
+  }
 
   Map<String, dynamic> toJson() {
     final json = _$ProductToJson(this);
@@ -320,4 +359,11 @@ class ProductImage {
   factory ProductImage.fromJson(Map<String, dynamic> json) =>
       _$ProductImageFromJson(json);
   Map<String, dynamic> toJson() => _$ProductImageToJson(this);
+}
+
+num _checkedPrice(Object? value) {
+  if (value is! num || !value.isFinite || value < 0) {
+    throw const AppFailure(FailureKind.server);
+  }
+  return value;
 }

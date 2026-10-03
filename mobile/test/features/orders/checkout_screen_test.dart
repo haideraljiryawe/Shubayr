@@ -15,6 +15,8 @@ import 'package:shubayr/core/theme/brand.dart';
 import 'package:shubayr/features/address/data/address.dart';
 import 'package:shubayr/features/address/presentation/providers/address_providers.dart';
 import 'package:shubayr/features/cart/data/cart.dart';
+import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
+import '../commerce/pricing_contract_test.dart' show pricedCart, pricedLine;
 import 'package:shubayr/features/cart/presentation/providers/cart_providers.dart';
 import 'package:shubayr/features/orders/data/coupon.dart';
 import 'package:shubayr/features/orders/data/order.dart';
@@ -91,7 +93,42 @@ class _FakeOrders implements OrderRepository {
       Order(id: id, status: 'cancelled');
 }
 
+class _CouponCart extends CartRepositoryMock {
+  Cart cart = Cart.fromJson({
+    ...pricedCart(),
+    'coupon_code': null,
+    'discount': 0,
+    'total': 5071,
+  });
+  bool failReprice = false;
+  Completer<void>? repriceGate;
+  final actions = <String>[];
+  @override
+  Future<Cart> fetchCart() async => cart;
+  @override
+  Future<Cart> applyCoupon(String code) async {
+    actions.add('apply:$code');
+    await repriceGate?.future;
+    cart = Cart.fromJson(pricedCart());
+    if (failReprice) throw const AppFailure.network();
+    return cart;
+  }
+
+  @override
+  Future<Cart> removeCoupon() async {
+    actions.add('remove');
+    return cart = Cart.fromJson({
+      ...pricedCart(),
+      'coupon_code': null,
+      'discount': 0,
+      'total': 5071,
+    });
+  }
+}
+
 Widget _host({
+  Cart? cart,
+  _CouponCart? carts,
   GoRouter? router,
   _FakeOrders? repository,
   String? initialStatus,
@@ -102,16 +139,28 @@ Widget _host({
     notificationSyncProvider.overrideWith((ref) {}),
     unreadCountProvider.overrideWith((ref) async => 0),
     dataSourceProvider.overrideWithValue(DataSource.mock),
-    cartControllerProvider.overrideWith(
-      () => _FixedCart(
-        const Cart(
-          items: [
-            CartItem(id: 'c1', productId: 'x', quantity: 1, unitPrice: 50000),
-          ],
-          subtotal: 50000,
+    if (carts != null)
+      cartRepositoryProvider.overrideWithValue(carts)
+    else
+      cartControllerProvider.overrideWith(
+        () => _FixedCart(
+          cart ??
+              const Cart(
+                items: [
+                  CartItem(
+                    id: 'c1',
+                    productId: 'x',
+                    quantity: 1,
+                    unitPrice: 50000,
+                    lineTotal: 50000,
+                    available: true,
+                  ),
+                ],
+                subtotal: 50000,
+                total: 50000,
+              ),
         ),
       ),
-    ),
     if (addresses != null) ...[
       sessionControllerProvider.overrideWith(AddressTestSession.new),
       addressRepositoryProvider.overrideWithValue(addresses),
@@ -143,6 +192,141 @@ Widget _host({
 );
 
 void main() {
+  for (final fail in [false, true]) {
+    testWidgets(
+      'first pending reprice frame hides stale totals (failure: $fail)',
+      (tester) async {
+        final gate = Completer<void>();
+        final carts = _CouponCart()
+          ..repriceGate = gate
+          ..failReprice = fail;
+        await tester.pumpWidget(_host(carts: carts));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('5,071'), findsWidgets);
+        await tester.enterText(find.byType(TextField), 'SAVE');
+        await tester.tap(find.text('Apply'));
+        await tester.pump();
+        expect(find.textContaining('5,071'), findsNothing);
+        expect(find.text('Place order'), findsNothing);
+        expect(find.textContaining('null'), findsNothing);
+        await tester.pump(const Duration(seconds: 1));
+        expect(find.textContaining('5,071'), findsNothing);
+        gate.complete();
+        await tester.pumpAndSettle();
+        expect(find.textContaining('5,071'), findsNothing);
+        expect(
+          find.textContaining('4,750'),
+          fail ? findsNothing : findsWidgets,
+        );
+        expect(find.text('Place order'), fail ? findsNothing : findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('coupon application and removal display returned totals', (
+    tester,
+  ) async {
+    final carts = _CouponCart();
+    await tester.pumpWidget(_host(carts: carts));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('5,071'), findsWidgets);
+    await tester.enterText(find.byType(TextField), 'SAVE');
+    await tester.tap(find.text('Apply'));
+    await tester.pumpAndSettle();
+    expect(carts.actions, ['apply:SAVE']);
+    expect(find.textContaining('4,750'), findsWidgets);
+    expect(find.text('SAVE'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(carts.actions, ['apply:SAVE', 'remove']);
+    expect(find.textContaining('5,071'), findsWidgets);
+    expect(find.text('SAVE'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'failed coupon reprice hides old total and retry reads applied coupon',
+    (tester) async {
+      final carts = _CouponCart()..failReprice = true;
+      await tester.pumpWidget(_host(carts: carts));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'SAVE');
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('5,071'), findsNothing);
+      expect(find.text('Place order'), findsNothing);
+      await tester.ensureVisible(find.text('Retry'));
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('4,750'), findsWidgets);
+      expect(find.text('SAVE'), findsOneWidget);
+      expect(carts.actions, ['apply:SAVE']);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('server unavailable line prevents placing an order', (
+    tester,
+  ) async {
+    final orders = _FakeOrders();
+    await tester.pumpWidget(
+      _host(
+        repository: orders,
+        cart: Cart.fromJson({
+          ...pricedCart(),
+          'items': [
+            {...pricedLine(), 'available': false},
+          ],
+        }),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<AppButton>(find.widgetWithText(AppButton, 'Place order'))
+          .onPressed,
+      isNull,
+    );
+    expect(orders.placed, isNull);
+  });
+
+  testWidgets('checkout displays the server total, discount and delivery fee', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        cart: Cart.fromJson({
+          'id': 'c',
+          'items': [
+            {
+              'id': 'i',
+              'product_id': 'p',
+              'variant_id': 'v',
+              'quantity': .125,
+              'unit_price': 10000,
+              'line_total': 1234,
+              'currency': 'IQD',
+              'available': true,
+              'available_qty': 1,
+            },
+          ],
+          'subtotal': 4321,
+          'discount': 321,
+          'delivery_fee': 750,
+          'total': 4750,
+          'coupon_code': 'SAVE',
+          'currency': 'IQD',
+        }),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('4,750'), findsWidgets);
+    await tester.scrollUntilVisible(find.textContaining('750').last, 200);
+    expect(find.textContaining('321'), findsWidgets);
+    expect(find.text('SAVE'), findsOneWidget);
+  });
+
   testWidgets('checkout waits for all address pages and uses a later default', (
     tester,
   ) async {

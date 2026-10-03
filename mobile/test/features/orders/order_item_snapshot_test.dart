@@ -191,6 +191,8 @@ void main() {
       final renamed = Product.fromMock({
         ...atPurchase.toMock(),
         'name_en': 'Renamed after purchase',
+        'sale_price': 99000,
+        'compare_at_price': null,
         'images': <String>[],
       });
       replace([
@@ -200,6 +202,9 @@ void main() {
       await cart.addItem(productId: 'p1', quantity: 1);
       final next = await repo.placeOrder(addressId: 'a1');
       expect(next.items.single.productNameEn, 'Renamed after purchase');
+      expect(next.items.single.unitPrice, 99000);
+      expect(placed.items.single.unitPrice, isNot(99000));
+      expect((await repo.fetchOrder(placed.id)).total, placed.total);
       expect(next.items.single.imageSnapshotProvided, isTrue);
       expect(next.items.single.imageUrl, isNull);
       expect(

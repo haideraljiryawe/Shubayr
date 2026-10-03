@@ -1,4 +1,6 @@
 import '../../../core/utils/quantity.dart';
+import '../../../core/error/failure.dart';
+import '../../orders/data/coupon.dart';
 import '../../catalog/data/catalog_repository_mock.dart';
 import '../domain/cart_repository.dart';
 import 'cart.dart';
@@ -12,6 +14,7 @@ class CartRepositoryMock implements CartRepository {
   final Duration delay;
   final List<CartItem> _items = [];
   var _seq = 0;
+  Coupon? _coupon;
 
   Cart _cart() {
     final subtotal = _items.fold<num>(0, (sum, i) => sum + i.lineTotal);
@@ -19,12 +22,34 @@ class CartRepositoryMock implements CartRepository {
       id: 'mock-cart',
       items: List.unmodifiable(_items),
       subtotal: subtotal,
+      discount: _coupon?.discountOn(subtotal) ?? 0,
+      total: subtotal - (_coupon?.discountOn(subtotal) ?? 0),
+      couponCode: _coupon?.code,
+      currency: 'IQD',
     );
   }
 
   @override
   Future<Cart> fetchCart() async {
     await Future<void>.delayed(delay);
+    return _cart();
+  }
+
+  @override
+  Future<Cart> applyCoupon(String code) async {
+    await Future<void>.delayed(delay);
+    _coupon = switch (code.trim().toUpperCase()) {
+      'SAVE10' => const Coupon(code: 'SAVE10', type: 'percentage', value: 10),
+      'WELCOME' => const Coupon(code: 'WELCOME', type: 'fixed', value: 5000),
+      _ => throw const AppFailure(FailureKind.notFound),
+    };
+    return _cart();
+  }
+
+  @override
+  Future<Cart> removeCoupon() async {
+    await Future<void>.delayed(delay);
+    _coupon = null;
     return _cart();
   }
 
@@ -39,8 +64,10 @@ class CartRepositoryMock implements CartRepository {
       (it) => it.productId == productId && it.variantId == variantId,
     );
     if (i >= 0) {
+      final updatedQuantity = addQuantity(_items[i].quantity, quantity);
       _items[i] = _items[i].copyWith(
-        quantity: addQuantity(_items[i].quantity, quantity),
+        quantity: updatedQuantity,
+        lineTotal: _items[i].unitPrice * updatedQuantity,
       );
     } else {
       _items.add(
@@ -50,6 +77,11 @@ class CartRepositoryMock implements CartRepository {
           variantId: variantId,
           quantity: quantity,
           unitPrice: CatalogRepositoryMock.unitPrice(productId, variantId),
+          lineTotal:
+              CatalogRepositoryMock.unitPrice(productId, variantId) * quantity,
+          currency: 'IQD',
+          available: true,
+          availableQty: 99,
         ),
       );
     }
@@ -60,7 +92,12 @@ class CartRepositoryMock implements CartRepository {
   Future<Cart> updateItem(String itemId, num quantity) async {
     await Future<void>.delayed(delay);
     final i = _items.indexWhere((it) => it.id == itemId);
-    if (i >= 0) _items[i] = _items[i].copyWith(quantity: quantity);
+    if (i >= 0) {
+      _items[i] = _items[i].copyWith(
+        quantity: quantity,
+        lineTotal: _items[i].unitPrice * quantity,
+      );
+    }
     return _cart();
   }
 
