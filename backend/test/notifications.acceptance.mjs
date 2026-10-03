@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import pg from 'pg';
 import Redis from 'ioredis';
+import { businessDate } from '../dist/src/modules/finance/business-date.js';
 
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
 if (
@@ -295,9 +296,14 @@ try {
     await db.query('BEGIN');
     try {
       await db.query(
-        `INSERT INTO orders (id,user_id,order_number,status,payment_method,subtotal,delivery_fee,discount,total,delivery_contact_phone,delivery_city)
-        VALUES ($1,$2,$3,'ready_for_dispatch','cod',10,0,0,10,'+9647700000000','Baghdad')`,
-        [orderId, userId, `VERIFY-NOTIFY-${orderId.slice(0, 8)}`],
+        `INSERT INTO orders (id,user_id,order_number,status,payment_method,subtotal,delivery_fee,discount,total,delivery_contact_phone,delivery_city,document_date,accounting_date)
+        VALUES ($1,$2,$3,'ready_for_dispatch','cod',10,0,0,10,'+9647700000000','Baghdad',$4,$4)`,
+        [
+          orderId,
+          userId,
+          `VERIFY-NOTIFY-${orderId.slice(0, 8)}`,
+          businessDate(),
+        ],
       );
       await db.query(
         `INSERT INTO order_items

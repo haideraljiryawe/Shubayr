@@ -362,7 +362,7 @@ try {
       currency_code: 'USD',
       rate: '1520',
       basis: 1,
-      effective_at: `${today}T00:00:00.000Z`,
+      effective_at: new Date().toISOString(),
       reason: 'Cross-currency supplier-payment acceptance rate',
     },
   });
