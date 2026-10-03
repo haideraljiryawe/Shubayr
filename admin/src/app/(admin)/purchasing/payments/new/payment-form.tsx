@@ -221,7 +221,10 @@ export function PaymentForm({
         </Field>
         {rateCurrency !== "IQD" ? (
           <Field
-            key={`rate-${central.status}-${rateCurrency}`}
+            // Keyed by what resets the rate (currency, cash account) — never by
+            // the day's rate loading, which must not remount the field and
+            // drop a rate the user already typed (it arrives as a prefill).
+            key={`rate-${rateCurrency}-${cashId}`}
             label={t("rate", { currency: rateCurrency })}
             name="exchange_rate"
             hint={
@@ -241,10 +244,11 @@ export function PaymentForm({
             }
           >
             <DecimalInput
-              value={overridden ? rate : central.status === "ready" ? central.rate : ""}
+              value={rate}
+              prefill={central.status === "ready" ? central.rate : ""}
               parse={{ maxDecimals: 10 }}
               disabled={!canOverride || locked}
-              onValueChange={(_, text) => setRate(text.trim() === (central.status === "ready" ? central.rate : "") ? "" : text.trim())}
+              onValueChange={(_, text) => setRate(text.trim())}
               data-testid="payment-rate"
             />
           </Field>

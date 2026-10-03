@@ -11,9 +11,14 @@ import { parseLocalizedDecimal, type NumberParseOptions } from "@/lib/number";
  * STRING ("1450.25"), never a float, because that is what the API stores.
  * The typed text is kept verbatim; the error shows on blur, or at once when
  * the parent passes `error` (e.g. from a 422 or a submit attempt).
+ *
+ * `prefill` is a default that may arrive late (the day's exchange rate): it is
+ * shown while the field is untouched, follows later changes while it stays
+ * untouched, and never replaces anything the user has typed.
  */
 export function DecimalInput({
   value,
+  prefill,
   onValueChange,
   parse,
   error,
@@ -21,13 +26,18 @@ export function DecimalInput({
 }: Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type"> & {
   /** The initial text; the field is uncontrolled after that. */
   value: string;
+  /** A (possibly late) default, shown only until the user edits the field. */
+  prefill?: string;
   onValueChange: (value: string | null, text: string) => void;
   parse?: NumberParseOptions;
   error?: string | null;
 }) {
   const t = useTranslations("numbers");
   const [text, setText] = useState(value);
+  const [edited, setEdited] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Untouched: show the typed-in initial value, else the prefill as it arrives.
+  const display = edited || value !== "" || prefill === undefined ? text : prefill;
 
   function evaluate(next: string, show: boolean) {
     const result = parseLocalizedDecimal(next, parse);
@@ -49,14 +59,18 @@ export function DecimalInput({
         inputMode="decimal"
         dir="ltr"
         autoComplete="off"
-        value={text}
+        value={display}
+        data-edited={edited ? "true" : "false"}
+        data-prefill={prefill}
         aria-invalid={shown ? true : undefined}
         onChange={(event) => {
+          setEdited(true);
           setText(event.target.value);
           evaluate(event.target.value, false);
         }}
         onBlur={(event) => {
-          evaluate(event.target.value, true);
+          // An untouched prefilled field holds the parent's default, not input.
+          if (edited || prefill === undefined) evaluate(event.target.value, true);
           props.onBlur?.(event);
         }}
       />

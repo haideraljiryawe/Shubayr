@@ -452,6 +452,42 @@ test("an IQD invoice paid from a USD account at the payment-date rate, with no F
   expect((await api(request, "GET", `/admin/purchase-invoices/${invoice.id}`)).body.settlement_status).toBe("paid");
 });
 
+test("a rate typed before the day's rate arrives is kept, and is the one posted", async ({ page, request }) => {
+  const invoice = await invoiceFor(page, request, state.usdSupplier!.id, "K", "1", "100");
+  await switchUser(page, state.payer!.username, state.payer!.password);
+  // Hold the day's rate back, so the user types first.
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/api/proxy/admin/exchange-rates/USD/applicable**", async (route) => {
+    await held;
+    await route.continue();
+  });
+  const loaded = page.waitForResponse((response) => response.url().includes("/exchange-rates/USD/applicable"));
+  await startPayment(page, state.usdSupplier!.id, state.usdCash!, invoice.id);
+  const rate = page.getByTestId("payment-rate");
+  await expect(rate).toHaveValue("");
+  // The user is mid-way through typing when the default (1,500) arrives: the
+  // field must neither be replaced (losing focus and the rest of the typing)
+  // nor take the default over what was typed.
+  await rate.click();
+  await page.keyboard.type("15");
+  release();
+  await loaded;
+  await expect(rate).toHaveAttribute("data-prefill", "1500");
+  await page.keyboard.type("20");
+  await expect(rate).toHaveValue("1520");
+  await expect(rate).toHaveAttribute("data-edited", "true");
+  await page.getByTestId("payment-amount").fill("100");
+  const row = page.locator(`[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`);
+  await row.getByTestId("payment-apply").fill("100");
+  await expect(row.getByTestId("payment-row-rate")).toHaveText("1520");
+  const posted = await confirmPayment(page);
+  expect(posted.status, JSON.stringify(posted.body)).toBe(201);
+  expect(posted.body.exchange_rate).toBe(1520);
+  expect(posted.body.allocations[0]).toMatchObject({ fx_difference_iqd: 2000 });
+  await page.unroute("**/api/proxy/admin/exchange-rates/USD/applicable**");
+});
+
 test("a payment dated before any USD rate: the form says so before review, and the API's EXCHANGE_RATE_NOT_FOUND is shown with a link", async ({ page, request }) => {
   const invoice = await invoiceFor(page, request, state.usdSupplier!.id, "J", "1", "100");
   const OLD = "2001-01-15";

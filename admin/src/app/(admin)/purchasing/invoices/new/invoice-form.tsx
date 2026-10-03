@@ -405,7 +405,9 @@ export function InvoiceForm({
         </Field>
         {state.currency !== "IQD" ? (
           <Field
-            key={`rate-${generation}-${central.status}-${state.currency}`}
+            // Not keyed by the rate's loading state: a late-arriving default
+            // must not remount the field over a rate the user typed.
+            key={`rate-${generation}-${state.currency}`}
             label={t("rate", { currency: state.currency })}
             name="exchange_rate"
             error={err("rate")}
@@ -422,10 +424,11 @@ export function InvoiceForm({
             }
           >
             <DecimalInput
-              value={overridden ? state.rate : central.status === "ready" ? central.rate : ""}
+              value={overridden ? state.rate : ""}
+              prefill={central.status === "ready" ? central.rate : ""}
               parse={{ maxDecimals: 10 }}
               disabled={!canOverride || locked}
-              onValueChange={(value, text) => set({ rate: value === null ? text : value === (central.status === "ready" ? central.rate : "") ? "" : value })}
+              onValueChange={(value, text) => set({ rate: value === null ? text : value })}
               data-testid="invoice-rate"
             />
           </Field>
