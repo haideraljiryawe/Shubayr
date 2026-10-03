@@ -60,6 +60,8 @@ export function PaymentForm({
   const [reference, setReference] = useState("");
   const [date, setDate] = useState<DocumentDateValue>({ date: today, backdateReason: "" });
   const [applied, setApplied] = useState<Record<string, string>>({});
+  /** Bumped when "settle" fills a row, to remount its (uncontrolled) input. */
+  const [filled, setFilled] = useState<Record<string, number>>({});
   const [invoices, setInvoices] = useState<{ key: string; rows: PurchaseInvoice[]; error: ErrorKind | null } | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const [review, setReview] = useState<{ operationId: string } | null>(null);
@@ -319,6 +321,7 @@ export function PaymentForm({
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1">
                         <DecimalInput
+                          key={`${invoice.id}-${filled[invoice.id] ?? 0}`}
                           value={applied[invoice.id] ?? ""}
                           parse={{ maxDecimals: precisionOf(currency) }}
                           className="h-9"
@@ -331,7 +334,10 @@ export function PaymentForm({
                           variant="ghost"
                           disabled={locked || settle === null || settle === 0n}
                           title={t("settleHint")}
-                          onClick={() => setApplied((current) => ({ ...current, [invoice.id]: fixedText(settle ?? 0n, precisionOf(currency)) }))}
+                          onClick={() => {
+                            setApplied((current) => ({ ...current, [invoice.id]: fixedText(settle ?? 0n, precisionOf(currency)) }));
+                            setFilled((current) => ({ ...current, [invoice.id]: (current[invoice.id] ?? 0) + 1 }));
+                          }}
                           data-testid="payment-settle"
                         >
                           {t("settle")}
