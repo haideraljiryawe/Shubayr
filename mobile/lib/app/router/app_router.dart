@@ -65,7 +65,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref
     ..listen(
       sessionControllerProvider.select(
-        (s) => (s.isLoading, s.value?.isSignedIn ?? false, s.value?.role),
+        (s) => (
+          s.isLoading,
+          s.hasError,
+          s.value?.isSignedIn ?? false,
+          s.value?.role,
+        ),
       ),
       (_, _) => refresh.value++,
     )
@@ -82,7 +87,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
       final session = ref.read(sessionControllerProvider);
-      final status = !ref.read(startupDisplayReadyProvider)
+      final status =
+          !ref.read(startupDisplayReadyProvider) ||
+              session.isLoading ||
+              session.hasError
           ? SessionStatus.restoring
           : switch (session) {
               AsyncLoading() => SessionStatus.restoring,
@@ -136,10 +144,17 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        builder: (context, state) => SplashScreen(
-          onDisplayed: ref
-              .read(startupDisplayReadyProvider.notifier)
-              .beginDisplay,
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final session = ref.watch(sessionControllerProvider);
+            return SplashScreen(
+              error: session.isLoading ? null : session.error,
+              onRetry: () => ref.invalidate(sessionControllerProvider),
+              onDisplayed: ref
+                  .read(startupDisplayReadyProvider.notifier)
+                  .beginDisplay,
+            );
+          },
         ),
       ),
       GoRoute(

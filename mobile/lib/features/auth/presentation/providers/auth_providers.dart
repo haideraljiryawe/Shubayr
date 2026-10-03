@@ -41,7 +41,7 @@ class SessionController extends AsyncNotifier<Session> {
   int _profileRevision = 0;
   @override
   Future<Session> build() async {
-    _sessionRevision++;
+    final revision = ++_sessionRevision;
     ref.onDispose(() => _sessionRevision++);
     // The interceptor raises this only when token rotation cannot restore access.
     ref.listen(unauthorizedSignalProvider, (previous, next) {
@@ -50,16 +50,37 @@ class SessionController extends AsyncNotifier<Session> {
 
     final token = await ref.read(tokenStoreProvider).readAccessToken();
     if (!ref.mounted) return const Session.signedOut();
+    if (revision != _sessionRevision) {
+      return state.value ?? const Session.signedOut();
+    }
     if (token == null || token.isEmpty) return const Session.signedOut();
 
     try {
       final user = await ref.read(authRepositoryProvider).currentUser();
+      if (!ref.mounted) return const Session.signedOut();
+      if (revision != _sessionRevision) {
+        return state.value ?? const Session.signedOut();
+      }
       final session = Session.signedIn(user);
       if (!session.isSignedIn) throw const AppFailure.unauthorized();
       return session;
-    } on AppFailure {
+    } catch (error) {
       if (!ref.mounted) return const Session.signedOut();
+      if (revision != _sessionRevision) {
+        return state.value ?? const Session.signedOut();
+      }
+      // /me's UNAUTHORIZED reaches here after the interceptor has attempted
+      // recovery. FORBIDDEN is a permission failure, not invalid credentials.
+      // Transport/server (and other unverifiable) failures remain AsyncError:
+      // retain the credentials, authorize nobody, and allow an explicit retry.
+      if (error is! AppFailure || error.kind != FailureKind.unauthorized) {
+        rethrow;
+      }
       await ref.read(tokenStoreProvider).clear();
+      if (!ref.mounted) return const Session.signedOut();
+      if (revision != _sessionRevision) {
+        return state.value ?? const Session.signedOut();
+      }
       return const Session.signedOut();
     }
   }

@@ -4,6 +4,55 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/network/interceptors/auth_interceptor.dart';
 
 void main() {
+  for (final type in [
+    DioExceptionType.connectionError,
+    DioExceptionType.receiveTimeout,
+  ]) {
+    test(
+      'refresh $type leaves credentials available for a later retry',
+      () async {
+        var signOuts = 0;
+        var retries = 0;
+        final failure = DioException(
+          requestOptions: RequestOptions(path: '/auth/refresh'),
+          type: type,
+        );
+        final dio = Dio();
+        addTearDown(dio.close);
+        dio.interceptors.add(
+          AuthInterceptor(
+            readToken: () async => 'stored-token',
+            onUnauthorized: () async {
+              signOuts++;
+            },
+            refresh: () => Future.error(failure),
+            retry: (request) async {
+              retries++;
+              return Response(requestOptions: request);
+            },
+          ),
+        );
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (request, handler) {
+              handler.reject(
+                DioException(
+                  requestOptions: request,
+                  response: Response(requestOptions: request, statusCode: 401),
+                  type: DioExceptionType.badResponse,
+                ),
+                true,
+              );
+            },
+          ),
+        );
+        await expectLater(dio.get('/me'), throwsA(same(failure)));
+        expect(signOuts, 0);
+        expect(retries, 0);
+      },
+    );
+  }
+
   test(
     'concurrent 401 responses rotate once and retry with the new app token',
     () async {

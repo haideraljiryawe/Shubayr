@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n/l10n_context.dart';
+import '../core/widgets/state_views.dart';
 import '../core/layout/app_layout.dart';
 import '../core/theme/theme_context.dart';
 import '../core/theme/tokens/app_spacing.dart';
@@ -9,9 +10,11 @@ import 'startup_assets.dart';
 
 /// The router waits for both session readiness and the minimum display window.
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key, this.onDisplayed});
+  const SplashScreen({super.key, this.onDisplayed, this.error, this.onRetry});
 
   final VoidCallback? onDisplayed;
+  final Object? error;
+  final VoidCallback? onRetry;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -43,52 +46,59 @@ class _SplashScreenState extends State<SplashScreen> {
                     constraints: const BoxConstraints(
                       maxWidth: AppLayout.authWidth,
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Image(
-                          image: StartupAssets.logo,
-                          width: AppSpacing.xxxl * 2,
-                          height: AppSpacing.xxxl * 2,
-                          fit: BoxFit.contain,
-                          excludeFromSemantics: true,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          context.l10n.homeBrandName,
-                          textAlign: TextAlign.center,
-                          style: context.text.displaySmall?.copyWith(
-                            fontFamily: AppTypography.brandFontFamily,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        // Only the tagline sets this group's intrinsic width;
-                        // the progress bar takes that width without stretching it.
-                        IntrinsicWidth(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                    child: widget.error != null
+                        ? AppErrorView(
+                            error: widget.error,
+                            onRetry: widget.onRetry,
+                          )
+                        : Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              Image(
+                                image: StartupAssets.logo,
+                                width: AppSpacing.xxxl * 2,
+                                height: AppSpacing.xxxl * 2,
+                                fit: BoxFit.contain,
+                                excludeFromSemantics: true,
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
                               Text(
-                                context.l10n.startupTagline,
+                                context.l10n.homeBrandName,
                                 textAlign: TextAlign.center,
-                                style: context.text.bodyMedium?.copyWith(
-                                  color: colors.textSecondary,
+                                style: context.text.displaySmall?.copyWith(
+                                  fontFamily: AppTypography.brandFontFamily,
+                                  color: colors.textPrimary,
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.md),
-                              LinearProgressIndicator(
-                                minHeight: AppSpacing.xs,
-                                color: colors.primary,
-                                backgroundColor: colors.primarySoft,
-                                semanticsLabel: context.l10n.startupLoading,
+                              const SizedBox(height: AppSpacing.sm),
+                              // Only the tagline sets this group's intrinsic width;
+                              // the progress bar takes that width without stretching it.
+                              IntrinsicWidth(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      context.l10n.startupTagline,
+                                      textAlign: TextAlign.center,
+                                      style: context.text.bodyMedium?.copyWith(
+                                        color: colors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: AppSpacing.md),
+                                    LinearProgressIndicator(
+                                      minHeight: AppSpacing.xs,
+                                      color: colors.primary,
+                                      backgroundColor: colors.primarySoft,
+                                      semanticsLabel:
+                                          context.l10n.startupLoading,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),
