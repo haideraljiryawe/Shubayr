@@ -32,6 +32,12 @@ test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
+  // Start every test from a known form. The new-invoice screen restores the
+  // signed-in user's saved draft, and a run that stopped mid-form leaves one
+  // behind for `admin` — which would replace the supplier and lines a test
+  // is filling in. (Each run's payer is a new staff member with no draft.)
+  const cleared = await api(request, "DELETE", "/admin/drafts/purchase_invoice");
+  expect([200, 204, 404]).toContain(cleared.status);
 });
 
 const run = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
@@ -577,14 +583,15 @@ test("statement, balances and aging; without cost.view the costs are hidden", as
 
   const viewer = await activateStaff(request, await createStaff(request, { permissionKeys: ["suppliers.view", "purchases.create"], prefix: unique("buyer").split(".")[0] }));
   await switchUser(page, viewer.username, viewer.password);
-  const invoices = (await api(request, "GET", `/admin/purchase-invoices?supplier_id=${state.iqdSupplier!.id}&per_page=1`)).body.data;
-  await page.goto(`/purchasing/invoices/${invoices[0].id}`);
+  // The exact invoice this run created, not whatever a list shows first.
+  const invoiceId = state.firstInvoiceId!;
+  await page.goto(`/purchasing/invoices/${invoiceId}`);
   await expect(page.getByTestId("invoice-detail")).toBeVisible();
   await expect(page.getByTestId("cost-column")).toHaveCount(0);
   await expect(page.getByTestId("invoice-total")).toHaveCount(0);
   await expect(page.getByTestId("invoice-line-base-cost")).toHaveCount(0);
   const token = (await apiLogin(request, viewer.username, viewer.password)).body.access_token as string;
-  const read = await api(request, "GET", `/admin/purchase-invoices/${invoices[0].id}`, undefined, token);
+  const read = await api(request, "GET", `/admin/purchase-invoices/${invoiceId}`, undefined, token);
   expect(read.body).not.toHaveProperty("total_cost");
   expect(read.body.items[0]).not.toHaveProperty("unit_cost");
 });

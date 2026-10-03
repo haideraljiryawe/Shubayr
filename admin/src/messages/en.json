@@ -2101,6 +2101,7 @@
       "noLines": "Enter a quantity to receive.",
       "overOutstanding": "More than what is still expected ({left}).",
       "location": "Choose where to put it back."
-    }
+    },
+    "receiveMore": "Receive more"
   }
 }

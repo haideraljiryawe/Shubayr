@@ -16,16 +16,28 @@ type Api = Awaited<ReturnType<typeof serverApi>>;
 
 const PICKER_PAGES = 5;
 
-/** Up to 500 suppliers for a picker, active first. */
-export async function loadSupplierOptions(api: Api): Promise<{ suppliers: Supplier[]; complete: boolean }> {
+/**
+ * Up to 500 suppliers for a picker, active first. A supplier the page was
+ * opened for (`?supplier_id=`) is always included, even beyond those 500, so
+ * the link still selects it however many suppliers exist.
+ */
+export async function loadSupplierOptions(api: Api, include?: string): Promise<{ suppliers: Supplier[]; complete: boolean }> {
   const suppliers: Supplier[] = [];
+  let complete = false;
   for (let page = 1; page <= PICKER_PAGES; page += 1) {
     const result = await load(api.GET("/admin/suppliers", { params: { query: { page, per_page: 100 } } }));
     if (!result.ok) return { suppliers, complete: false };
     suppliers.push(...result.data.data);
-    if (suppliers.length >= result.data.total || result.data.data.length === 0) return { suppliers: sortSuppliers(suppliers), complete: true };
+    if (suppliers.length >= result.data.total || result.data.data.length === 0) {
+      complete = true;
+      break;
+    }
   }
-  return { suppliers: sortSuppliers(suppliers), complete: false };
+  if (include && !suppliers.some((supplier) => supplier.id === include)) {
+    const one = await load(api.GET("/admin/suppliers/{id}", { params: { path: { id: include } } }));
+    if (one.ok) suppliers.push(one.data as Supplier);
+  }
+  return { suppliers: sortSuppliers(suppliers), complete };
 }
 
 function sortSuppliers(rows: Supplier[]): Supplier[] {

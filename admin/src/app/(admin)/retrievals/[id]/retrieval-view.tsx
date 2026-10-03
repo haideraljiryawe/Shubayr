@@ -49,7 +49,10 @@ export function RetrievalView({
   );
   const [review, setReview] = useState<{ operationId: string } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  /** Bumped to start a fresh receipt: remounts the (uncontrolled) quantity inputs. */
+  const [round, setRound] = useState(0);
   const busy = posting.state.phase === "posting" || posting.state.phase === "checking";
+  const posted = posting.state.phase === "posted";
   const qty = (value: number | string | undefined) => formatQuantity(value, locale);
   const productName = (line: Line) => {
     const item = (line.order_item ?? {}) as { product_name_ar?: string; product_name_en?: string };
@@ -72,8 +75,19 @@ export function RetrievalView({
     setReview({ operationId: newOperationId() });
   }
 
+  /** After a receipt, start another for what is still outstanding (a new operation). */
+  function receiveMore() {
+    posting.reset();
+    setReview(null);
+    setQuantities({});
+    setProblem(null);
+    setRound((value) => value + 1);
+  }
+
   async function confirm() {
-    if (!review) return;
+    // Once posted, this review is done: the button is gone, and this guard
+    // (with the operation id on the API side) keeps a second post out.
+    if (!review || posting.state.phase === "posted") return;
     const state = await posting.post(review.operationId, async () => {
       const received = await unwrap(
         browserApi.POST("/admin/retrievals/{id}/receive", {
@@ -86,6 +100,8 @@ export function RetrievalView({
       );
       return { id: received.id ?? retrieval.id!, document_number: received.document_number ?? "", journal_entry_id: received.journal_entry_id };
     });
+    // Refresh the document (status, received quantities) in place; the view
+    // keeps its state, so the confirmation stays on screen.
     if (state?.phase === "posted") router.refresh();
   }
 
@@ -166,6 +182,7 @@ export function RetrievalView({
                       <>
                         <td className="px-3 py-2">
                           <DecimalInput
+                            key={`${line.id}-${round}`}
                             value={quantities[line.id!] ?? ""}
                             parse={{ maxDecimals: 3 }}
                             className="h-9"
@@ -202,15 +219,23 @@ export function RetrievalView({
         </table>
       </Card>
 
-      {canReceive && open.length ? (
-        <Card className="flex flex-col gap-3">
+      {/* Shown while lines are open, and kept after a receipt (even the last
+          one) so its confirmation stays visible. */}
+      {canReceive && (open.length || (review && posted)) ? (
+        <Card className="flex flex-col gap-3" data-testid="retrieval-receipt" data-phase={posting.state.phase}>
           {problem ? <Alert data-testid="retrieval-problem">{problem}</Alert> : null}
           {review ? (
             <>
-              <p className="text-sm">{t("reviewBody", { count: chosen.length })}</p>
+              {posted ? null : <p className="text-sm">{t("reviewBody", { count: chosen.length })}</p>}
               <PurchasingPostingStatus state={posting.state} href={(document) => `/retrievals/${document.id}`} onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
               <div className="flex justify-end gap-2">
-                {posting.state.phase === "posted" ? null : (
+                {posted ? (
+                  open.length ? (
+                    <Button variant="secondary" onClick={receiveMore} data-testid="retrieval-receive-more">
+                      {t("receiveMore")}
+                    </Button>
+                  ) : null
+                ) : (
                   <>
                     <Button variant="ghost" onClick={() => setReview(null)} disabled={busy}>
                       {t("edit")}

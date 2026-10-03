@@ -340,9 +340,32 @@ test("a failed delivery comes back by a partial retrieval", async ({ page, reque
   await page.getByTestId("retrieval-quantity").fill("1");
   await page.getByTestId("retrieval-review").click();
   await page.getByTestId("retrieval-confirm").click();
-  await expect(page.getByTestId("posting-done")).toBeVisible();
+  // Deterministic: the receipt reaches "posted", the refreshed document then
+  // shows the new status — and the confirmation is STILL there afterwards.
+  const receipt = page.getByTestId("retrieval-receipt");
+  await expect(receipt).toHaveAttribute("data-phase", "posted");
   await expect(page.getByTestId("retrieval-detail")).toHaveAttribute("data-status", "partially_received");
   await expect(page.getByTestId("retrieval-received")).toHaveText("1");
+  await expect(page.getByTestId("posting-done")).toBeVisible();
+  // No second post: the confirm button is gone once posted.
+  await expect(page.getByTestId("retrieval-confirm")).toHaveCount(0);
+
+  // The rest comes back as a new receipt; the last one keeps its confirmation too.
+  await page.getByTestId("retrieval-receive-more").click();
+  await expect(receipt).toHaveAttribute("data-phase", "idle");
+  await page.getByTestId("retrieval-quantity").fill("1");
+  await page.getByTestId("retrieval-review").click();
+  await page.getByTestId("retrieval-confirm").click();
+  await expect(receipt).toHaveAttribute("data-phase", "posted");
+  await expect(page.getByTestId("retrieval-detail")).toHaveAttribute("data-status", /^(received|closed)$/);
+  await expect(page.getByTestId("retrieval-received")).toHaveText("2");
+  await expect(page.getByTestId("posting-done")).toBeVisible();
+  await expect(page.getByTestId("retrieval-receive-more")).toHaveCount(0);
+  await expect(page.getByTestId("retrieval-confirm")).toHaveCount(0);
+  // Exactly what was received, once each.
+  const id = page.url().split("/").pop()!;
+  const { body } = await api(request, "GET", `/admin/retrievals/${id}`);
+  expect((body.lines as Array<{ received_quantity: number | string }>).reduce((sum, line) => sum + Number(line.received_quantity), 0)).toBe(2);
 });
 
 /* ---------------------------------------------------------------- below cost */

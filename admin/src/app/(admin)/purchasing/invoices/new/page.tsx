@@ -28,14 +28,14 @@ export default async function NewInvoicePage({ searchParams }: { searchParams: P
   const t = await getTranslations("purchasing.invoice");
   const raw = await searchParams;
   const api = await serverApi();
+  const preset = typeof raw.supplier_id === "string" && UUID.test(raw.supplier_id) ? raw.supplier_id : "";
   const [permissions, { suppliers, complete }, { locations }, windowDays] = await Promise.all([
     loadPermissions(api),
-    loadSupplierOptions(api),
+    loadSupplierOptions(api, preset || undefined),
     loadWarehouses(api),
     loadBackdatingWindow(api),
   ]);
   if (!permissions.includes("purchases.create")) return <PageError error={new ApiError(403, "purchases.create required")} />;
-  const preset = typeof raw.supplier_id === "string" && UUID.test(raw.supplier_id) ? raw.supplier_id : "";
 
   return (
     <>
