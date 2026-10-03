@@ -448,6 +448,8 @@ test("the all-retrievals list filters by order, status, party and date on the se
   await row().getByTestId("retrieval-list-party").click();
   await expect(page).toHaveURL(new RegExp(`party_id=${state.agentId}`));
   await expect(row()).toHaveCount(1);
+  // The party dropdown lists delivery parties (contract 11.2) and shows the one chosen.
+  await expect(page.getByTestId("filter-party_id")).toHaveValue(state.agentId);
   const { body } = await api(request, "GET", `/admin/retrievals?party_id=${state.agentId}&per_page=100`);
   expect((body.data as Array<{ custody_party_id: string }>).every((entry) => entry.custody_party_id === state.agentId)).toBe(true);
   // The orders area links here too.
