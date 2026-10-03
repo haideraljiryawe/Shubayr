@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { Cairo } from "next/font/google";
+import { cairoVariables } from "@/fonts/cairo";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { AppShell } from "@/components/layout/app-shell";
@@ -16,13 +16,6 @@ import { api } from "@/lib/api";
 import { SITE_URL, openGraphFor } from "@/lib/site";
 import { OfflineNotice } from "@/components/layout/offline-notice";
 import "../globals.css";
-
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-cairo",
-  display: "swap",
-});
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -82,7 +75,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={localeDirection[locale as Locale]}
-      className={cairo.variable}
+      className={cairoVariables}
       suppressHydrationWarning
     >
       <body>

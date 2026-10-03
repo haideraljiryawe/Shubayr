@@ -1,18 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Cairo } from "next/font/google";
+import { cairoVariables } from "@/fonts/cairo";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { ToastProvider } from "@/components/ui/toast";
 import { localeDirection, type Locale } from "@/i18n/config";
 import "./globals.css";
-
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-cairo",
-  display: "swap",
-});
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("brand");
@@ -35,7 +28,7 @@ export default async function RootLayout({
     <html
       lang={locale}
       dir={localeDirection[locale]}
-      className={cairo.variable}
+      className={cairoVariables}
     >
       <body>
         <NextIntlClientProvider messages={messages}>
