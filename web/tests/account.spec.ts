@@ -420,10 +420,12 @@ test("notification preferences toggle per type and channel", async ({
   await expect(mandatory).toBeChecked();
   await expect(mandatory).toBeDisabled();
 
-  // Every type is offered on both channels.
+  // Every type is offered on both channels — the three API 11.1 customer
+  // notifications included.
   await expect(page.getByTestId("notification-prefs").locator("> li")).toHaveCount(
-    10,
+    13,
   );
+  await expect(page.getByTestId("notify-quantity_reduction_proposed-push")).toBeChecked();
 });
 
 test("payments states that cash on delivery is the only method", async ({
