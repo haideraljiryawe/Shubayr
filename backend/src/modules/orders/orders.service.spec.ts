@@ -55,6 +55,58 @@ describe('OrdersService', () => {
       lt: new Date('2026-11-01T21:00:00.000Z'),
     });
   });
+
+  it('filters admin order queues and returns server-side badge counts', async () => {
+    const count = jest
+      .fn()
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(4)
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(1);
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      order: { count, findMany },
+      $transaction: jest.fn((queries: Promise<unknown>[]) =>
+        Promise.all(queries),
+      ),
+    };
+    const service = new OrdersService(prisma as never, {} as never, audit);
+
+    const result = await service.listAdmin({
+      status: 'preparing',
+      late: true,
+      needs_attention: true,
+      cancellation_request: 'pending',
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: 'preparing',
+          late_for_acceptance: true,
+          inventory_attention_required: true,
+          cancellation_request_status: 'pending',
+        },
+      }),
+    );
+    expect(count).toHaveBeenNthCalledWith(2, {
+      where: { status: 'preparing', late_for_acceptance: true },
+    });
+    expect(count).toHaveBeenNthCalledWith(3, {
+      where: { status: 'preparing', inventory_attention_required: true },
+    });
+    expect(count).toHaveBeenNthCalledWith(4, {
+      where: { status: 'preparing', cancellation_request_status: 'pending' },
+    });
+    expect(result).toMatchObject({
+      total: 2,
+      badge_counts: {
+        late: 4,
+        needs_attention: 3,
+        pending_cancellation: 1,
+      },
+    });
+  });
   it('returns the original order for an idempotent retry without touching the cleared cart', async () => {
     const row = {
       id: 'order-1',

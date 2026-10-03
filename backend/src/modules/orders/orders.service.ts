@@ -458,7 +458,7 @@ export class OrdersService {
               : {}),
           }
         : undefined;
-    const where: Prisma.OrderWhereInput = {
+    const baseWhere: Prisma.OrderWhereInput = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.customer_id ? { user_id: query.customer_id } : {}),
       ...(query.q
@@ -471,7 +471,20 @@ export class OrdersService {
         : {}),
       ...(placedAt ? { placed_at: placedAt } : {}),
     };
-    const [total, rows] = await this.prisma.$transaction([
+    const where: Prisma.OrderWhereInput = {
+      ...baseWhere,
+      ...(query.late === undefined
+        ? {}
+        : { late_for_acceptance: query.late }),
+      ...(query.needs_attention === undefined
+        ? {}
+        : { inventory_attention_required: query.needs_attention }),
+      ...(query.cancellation_request
+        ? { cancellation_request_status: query.cancellation_request }
+        : {}),
+    };
+    const [total, rows, late, needsAttention, pendingCancellation] =
+      await this.prisma.$transaction([
       this.prisma.order.count({ where }),
       this.prisma.order.findMany({
         where,
@@ -480,11 +493,25 @@ export class OrdersService {
         skip: (page - 1) * perPage,
         take: perPage,
       }),
+      this.prisma.order.count({
+        where: { ...baseWhere, late_for_acceptance: true },
+      }),
+      this.prisma.order.count({
+        where: { ...baseWhere, inventory_attention_required: true },
+      }),
+      this.prisma.order.count({
+        where: { ...baseWhere, cancellation_request_status: 'pending' },
+      }),
     ]);
     return {
       page,
       per_page: perPage,
       total,
+      badge_counts: {
+        late,
+        needs_attention: needsAttention,
+        pending_cancellation: pendingCancellation,
+      },
       data: rows.map((row) => this.toAdminResponse(row)),
     };
   }
