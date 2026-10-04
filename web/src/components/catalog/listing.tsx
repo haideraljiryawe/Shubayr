@@ -1,7 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { X } from "lucide-react";
 import { api, type Brand, type Category, type ProductPage } from "@/lib/api";
-import { listCatalogProducts } from "@/lib/catalog";
 import { catalogHref, type CatalogQuery } from "@/lib/catalog-query";
 import { Link } from "@/i18n/navigation";
 import { localeDirection, type Locale } from "@/i18n/routing";
@@ -10,6 +9,7 @@ import { hasPriceRange, pricingForVariant, primaryImageUrl } from "@/lib/product
 import { buttonClasses } from "@/components/ui/button";
 import { DesktopFilters, MobileFilters, SortControl } from "./filters";
 import { CatalogEmpty, CatalogError } from "./states";
+import { getBrandsOnce, getProductReviewCountOnce, listCatalogProductsOnce } from "@/lib/server-data";
 
 export async function ProductListing({
   locale,
@@ -33,9 +33,9 @@ export async function ProductListing({
   let brands: Brand[];
   try {
     [result, brands] = await Promise.all([
-      listCatalogProducts(query),
+      listCatalogProductsOnce(query),
       // The brand filter degrades to absent, never to a broken page.
-      api.listBrands().catch(() => []),
+      getBrandsOnce().catch(() => []),
     ]);
   } catch {
     return <CatalogError />;
@@ -43,7 +43,7 @@ export async function ProductListing({
   const counts = await Promise.all(
     result.data.map((product) =>
       product.id
-        ? api.getProductReviewCount(product.id).catch(() => undefined)
+        ? getProductReviewCountOnce(product.id).catch(() => undefined)
         : Promise.resolve(undefined),
     ),
   );

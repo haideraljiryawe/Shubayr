@@ -26,7 +26,7 @@ import {
 import type { Locale } from "@/i18n/routing";
 import { jsonLdText, productJsonLd } from "@/lib/seo";
 import { SITE_URL, alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
-import { getCategoriesOnce, getProductOnce, getSettingsOnce } from "@/lib/server-data";
+import { getCategoriesOnce, getProductAvailabilityOnce, getProductOnce, getProductReviewCountOnce, getSettingsOnce } from "@/lib/server-data";
 
 type Props = {
   params: Promise<{ locale: string; id: string }>;
@@ -98,7 +98,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   // Availability gates the CTA, so it is awaited with the product. A failure
   // degrades that piece rather than blanking a page that already has the item.
   const [availability, categories] = await Promise.all([
-    api.getProductAvailability(id).catch(() => null),
+    getProductAvailabilityOnce(id).catch(() => null),
     getCategoriesOnce().catch(() => null),
   ]);
 
@@ -117,7 +117,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
   // Only the count is needed up front (it sits beside the title); the review
   // bodies stream in below.
-  const reviewCount = await api.getProductReviewCount(id).catch(() => 0);
+  const reviewCount = await getProductReviewCountOnce(id).catch(() => 0);
   const [settings, nonce] = await Promise.all([
     getSettingsOnce().catch(() => null),
     headers().then((list) => list.get("x-nonce") ?? undefined),

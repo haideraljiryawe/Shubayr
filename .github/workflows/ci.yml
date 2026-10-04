@@ -442,10 +442,10 @@ jobs:
         working-directory: web
         env:
           PLAYWRIGHT_LIVE_API: ${{ env.LIVE_API }}
-          # Parallel workers render many pages a second, all from the store
-          # server's one address; caching settings and categories briefly keeps
-          # those renders under the API's per-address rate limit.
-          STORE_READ_CACHE_SECONDS: "30"
+          # The test runner stands in for the store's front proxy: the store
+          # forwards each worker's address (X-Forwarded-For) on its own API
+          # calls, so server renders count against that worker, not the store.
+          TRUSTED_FRONT_PROXIES: loopback
         # Four workers, each with its own customer, agent and monitor
         # (web/tests/live-api.ts); store-wide checks run last, alone.
         run: npm run test:live

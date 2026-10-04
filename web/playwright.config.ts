@@ -26,7 +26,7 @@ export default defineConfig({
     : streaming
       ? "**/catalog-streaming.spec.ts"
       : work
-        ? ["**/work-pages.spec.ts", "**/inbox.spec.ts"]
+        ? ["**/work-pages.spec.ts", "**/inbox.spec.ts", "**/forwarding.spec.ts"]
         : [
           "**/catalog.spec.ts",
           "**/catalog-data.spec.ts",
@@ -40,6 +40,7 @@ export default defineConfig({
           "**/account-reviews.spec.ts",
           "**/order-lifecycle.spec.ts",
           "**/work-account.spec.ts",
+          "**/forwarding-rules.spec.ts",
           // Skips itself unless a real backend is reachable.
           "**/live-catalog.spec.ts",
           "**/live-checkout.spec.ts",
@@ -63,6 +64,16 @@ export default defineConfig({
         streaming || work
           ? `http://127.0.0.1:${apiPort}/api/v1`
           : "http://127.0.0.1:1/api/v1",
+      ...(work
+        ? {
+            // forwarding.spec.ts: the runner is the store's front proxy, with
+            // a trusted CDN hop at 192.0.2.10; no read cache, so every render
+            // reaches the scripted API and its headers can be checked.
+            TRUSTED_FRONT_PROXIES: "loopback,192.0.2.10",
+            STORE_CACHE_SHARED_SECONDS: "0",
+            STORE_CACHE_CATALOG_SECONDS: "0",
+          }
+        : {}),
     },
   },
 });

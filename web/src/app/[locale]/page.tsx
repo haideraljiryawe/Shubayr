@@ -14,7 +14,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { api } from "@/lib/api";
 import type { Locale } from "@/i18n/routing";
 import { alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
-import { getCategoriesOnce, getSettingsOnce } from "@/lib/server-data";
+import { getBannersOnce, getCategoriesOnce, getSettingsOnce, listDealsOnce, listProductsOnce } from "@/lib/server-data";
 
 /** The store's front door: canonical at the bare path, English as its alternate. */
 export async function generateMetadata({
@@ -49,7 +49,7 @@ export async function generateMetadata({
 async function Hero() {
   let banners;
   try {
-    banners = await api.getBanners();
+    banners = await getBannersOnce();
   } catch {
     // A dead promo feed must never cost us the rest of the page.
     return null;
@@ -128,7 +128,7 @@ export default async function HomePage({
           locale={typedLocale}
           priority
           load={async () =>
-            (await api.listProducts({ sort: "rating", per_page: 5 })).data
+            (await listProductsOnce({ sort: "rating", per_page: 5 })).data
           }
         />
       </Suspense>
@@ -145,7 +145,7 @@ export default async function HomePage({
           viewAllHref="/search?sort=newest"
           locale={typedLocale}
           load={async () =>
-            (await api.listProducts({ sort: "newest", per_page: 5 })).data
+            (await listProductsOnce({ sort: "newest", per_page: 5 })).data
           }
         />
       </Suspense>
@@ -161,7 +161,7 @@ export default async function HomePage({
           title={t("dealsTitle")}
           viewAllHref="/search?on_sale=true"
           locale={typedLocale}
-          load={() => api.listDeals(5)}
+          load={() => listDealsOnce(5)}
         />
       </Suspense>
     </div>

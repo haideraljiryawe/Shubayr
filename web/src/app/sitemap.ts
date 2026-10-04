@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { api, type Product } from "@/lib/api";
 import { sitemapEntries } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
+import { getBrandsOnce, getCategoriesOnce, listProductsOnce } from "@/lib/server-data";
 
 /**
  * /sitemap.xml — home, the directories, visible categories and brands, and
@@ -18,7 +19,7 @@ const MAX_PRODUCTS = 45_000;
 async function allProducts(): Promise<Product[]> {
   const products: Product[] = [];
   for (let page = 1; products.length < MAX_PRODUCTS; page += 1) {
-    const result = await api.listProducts({ page, per_page: 100 });
+    const result = await listProductsOnce({ page, per_page: 100 });
     products.push(...result.data);
     if (result.data.length === 0 || page * result.per_page >= result.total) break;
   }
@@ -27,8 +28,8 @@ async function allProducts(): Promise<Product[]> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [categories, brands, products] = await Promise.all([
-    api.getCategories().catch(() => []),
-    api.listBrands().catch(() => []),
+    getCategoriesOnce().catch(() => []),
+    getBrandsOnce().catch(() => []),
     allProducts().catch(() => []),
   ]);
   return sitemapEntries({ siteUrl: SITE_URL, categories, brands, products });
