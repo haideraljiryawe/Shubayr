@@ -4,26 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import {
-  ArrowRight,
-  ClipboardList,
-  History,
-  MapPin,
-  Truck,
-  User,
-} from "lucide-react";
+import { ArrowRight, ClipboardList, History, MapPin, Truck, User } from "lucide-react";
 import { Alert, Badge, Button, Card } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { FormError } from "@/components/forms/form-error";
 import { AgentPicker } from "@/components/orders/agent-picker";
-import {
-  AttentionPanel,
-  BelowCostPanel,
-  CancellationRequestPanel,
-  DeliveryAttemptsPanel,
-  RetrievalsPanel,
-} from "@/components/orders/lifecycle-panels";
+import { AttentionPanel, BelowCostPanel, CancellationRequestPanel, DeliveryAttemptsPanel, RetrievalsPanel } from "@/components/orders/lifecycle-panels";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { browserApi, unwrap } from "@/lib/api/client";
@@ -119,10 +106,7 @@ export function OrderDetailView({
         browserApi.GET("/admin/orders/{id}", { params: { path: { id } } }),
       ).catch(() => null);
       if (fresh) setOrder(fresh);
-      setNotice({
-        kind: "conflict",
-        status: fresh?.status ?? stale?.status ?? null,
-      });
+      setNotice({ kind: "conflict", status: fresh?.status ?? stale?.status ?? null });
       router.refresh();
       return;
     }
@@ -139,35 +123,31 @@ export function OrderDetailView({
     try {
       // Reject and cancel are different routes and different statuses: a
       // store's refusal of a pending order is never recorded as a cancel.
-      const next =
-        action === "reject"
-          ? await unwrap(
-              browserApi.POST("/admin/orders/{id}/reject", {
-                params: { path: { id } },
-                body: { reason, version: order.version! },
-              }),
-            )
-          : action === "cancel"
-            ? await unwrap(
-                browserApi.POST("/admin/orders/{id}/cancel", {
-                  params: { path: { id } },
-                  body: { reason, version: order.version! },
-                }),
-              )
-            : action in DELIVERY_MOVES
-              ? await moveDelivery(
-                  action as keyof typeof DELIVERY_MOVES,
-                  reason,
-                )
-              : await unwrap(
-                  browserApi.PATCH("/admin/orders/{id}/status", {
-                    params: { path: { id } },
-                    body: {
-                      status: STATUS_MOVES[action as keyof typeof STATUS_MOVES],
-                      version: order.version!,
-                    },
-                  }),
-                );
+      const next = action === "reject"
+        ? await unwrap(
+            browserApi.POST("/admin/orders/{id}/reject", {
+              params: { path: { id } },
+              body: { reason, version: order.version! },
+            }),
+          )
+        : action === "cancel"
+        ? await unwrap(
+            browserApi.POST("/admin/orders/{id}/cancel", {
+              params: { path: { id } },
+              body: { reason, version: order.version! },
+            }),
+          )
+        : action in DELIVERY_MOVES
+        ? await moveDelivery(action as keyof typeof DELIVERY_MOVES, reason)
+        : await unwrap(
+            browserApi.PATCH("/admin/orders/{id}/status", {
+              params: { path: { id } },
+              body: {
+                status: STATUS_MOVES[action as keyof typeof STATUS_MOVES],
+                version: order.version!,
+              },
+            }),
+          );
       setOrder(next);
       setBelowCost(null);
       toast(t("done"));
@@ -226,10 +206,7 @@ export function OrderDetailView({
    * Deliver, fail (with a reason) or retry through the staff delivery route
    * (API 10.0). It answers the delivery, so the order is read again.
    */
-  async function moveDelivery(
-    action: keyof typeof DELIVERY_MOVES,
-    reason: string,
-  ): Promise<AdminOrder> {
+  async function moveDelivery(action: keyof typeof DELIVERY_MOVES, reason: string): Promise<AdminOrder> {
     const deliveryId = order.delivery?.id;
     if (!deliveryId) throw new ApiError(409, "Order has no current delivery");
     await unwrap(
@@ -250,9 +227,7 @@ export function OrderDetailView({
         },
       }),
     );
-    return unwrap(
-      browserApi.GET("/admin/orders/{id}", { params: { path: { id } } }),
-    );
+    return unwrap(browserApi.GET("/admin/orders/{id}", { params: { path: { id } } }));
   }
 
   async function assign() {
@@ -292,11 +267,7 @@ export function OrderDetailView({
   const agent = order.delivery?.agent;
 
   return (
-    <div
-      className="flex flex-col gap-5"
-      data-testid="order-detail"
-      data-status={order.status}
-    >
+    <div className="flex flex-col gap-5" data-testid="order-detail" data-status={order.status}>
       <Link
         href="/orders"
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-dark"
@@ -307,42 +278,26 @@ export function OrderDetailView({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h1
-            className="text-2xl font-bold"
-            dir="ltr"
-            data-testid="order-number"
-          >
+          <h1 className="text-2xl font-bold" dir="ltr" data-testid="order-number">
             {order.order_number}
           </h1>
-          <span className="text-sm text-text-muted">
-            {dateTime(order.placed_at)}
-          </span>
+          <span className="text-sm text-text-muted">{dateTime(order.placed_at)}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {order.late_for_acceptance && order.status === "pending" ? (
-            <Badge tone="danger" data-testid="order-late">
-              {t("badges.late")}
-            </Badge>
+            <Badge tone="danger" data-testid="order-late">{t("badges.late")}</Badge>
           ) : null}
           {order.inventory_attention_required ? (
-            <Badge tone="warning" data-testid="order-needs-attention">
-              {t("badges.attention")}
-            </Badge>
+            <Badge tone="warning" data-testid="order-needs-attention">{t("badges.attention")}</Badge>
           ) : null}
           {order.cancellation_request?.status === "pending" ? (
-            <Badge tone="warning" data-testid="order-cancel-requested">
-              {t("badges.cancelRequested")}
-            </Badge>
+            <Badge tone="warning" data-testid="order-cancel-requested">{t("badges.cancelRequested")}</Badge>
           ) : null}
           <OrderStatusBadge status={order.status} />
         </div>
       </div>
-      {order.late_for_acceptance &&
-      order.status === "pending" &&
-      order.acceptance_deadline ? (
-        <Alert data-testid="order-late-alert">
-          {t("lateAlert", { deadline: dateTime(order.acceptance_deadline) })}
-        </Alert>
+      {order.late_for_acceptance && order.status === "pending" && order.acceptance_deadline ? (
+        <Alert data-testid="order-late-alert">{t("lateAlert", { deadline: dateTime(order.acceptance_deadline) })}</Alert>
       ) : null}
 
       {notice?.kind === "conflict" ? (
@@ -356,9 +311,7 @@ export function OrderDetailView({
         <Alert data-testid="order-forbidden">{t("forbidden")}</Alert>
       ) : null}
       {notice?.kind === "attention" ? (
-        <Alert data-testid="order-attention-refused">
-          {t("attentionRefused")}
-        </Alert>
+        <Alert data-testid="order-attention-refused">{t("attentionRefused")}</Alert>
       ) : null}
       {belowCost ? (
         <BelowCostPanel
@@ -369,18 +322,8 @@ export function OrderDetailView({
           onApprove={approveBelowCost}
         />
       ) : null}
-      <AttentionPanel
-        order={order}
-        permissions={permissions}
-        onDone={onPanelDone}
-        onRefused={handleRefusal}
-      />
-      <CancellationRequestPanel
-        order={order}
-        permissions={permissions}
-        onDone={onPanelDone}
-        onRefused={handleRefusal}
-      />
+      <AttentionPanel order={order} permissions={permissions} onDone={onPanelDone} onRefused={handleRefusal} />
+      <CancellationRequestPanel order={order} permissions={permissions} onDone={onPanelDone} onRefused={handleRefusal} />
 
       <Card className="flex flex-col gap-3 p-5" data-testid="order-actions">
         <h2 className="font-bold">{t("detail.actions")}</h2>
@@ -395,13 +338,7 @@ export function OrderDetailView({
               return (
                 <Button
                   key={action}
-                  variant={
-                    REASON_ACTIONS.has(action)
-                      ? "danger"
-                      : action === "retry"
-                        ? "secondary"
-                        : "primary"
-                  }
+                  variant={REASON_ACTIONS.has(action) ? "danger" : action === "retry" ? "secondary" : "primary"}
                   disabled={blocked}
                   onClick={() => setPending(action)}
                   data-testid={`order-action-${action}`}
@@ -413,29 +350,18 @@ export function OrderDetailView({
           </div>
         )}
         {hasPickList(order, permissions) ? (
-          <Link
-            href={`/orders/${id}/pick-list`}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-dark hover:underline"
-            data-testid="order-pick-list"
-          >
+          <Link href={`/orders/${id}/pick-list`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-dark hover:underline" data-testid="order-pick-list">
             <ClipboardList className="size-4" aria-hidden />
             {t("pickList.open")}
           </Link>
         ) : null}
-        {order.delivery?.status === "failed" &&
-        order.delivery.failure_reason ? (
+        {order.delivery?.status === "failed" && order.delivery.failure_reason ? (
           <p className="text-sm" data-testid="delivery-failure">
-            {t("deliveryFailed", {
-              reason: order.delivery.failure_reason,
-              count: order.delivery.retry_count ?? 0,
-            })}
+            {t("deliveryFailed", { reason: order.delivery.failure_reason, count: order.delivery.retry_count ?? 0 })}
           </p>
         ) : null}
         {actions.includes("dispatch") && blocker ? (
-          <p
-            className="text-sm text-text-muted"
-            data-testid="order-dispatch-blocked"
-          >
+          <p className="text-sm text-text-muted" data-testid="order-dispatch-blocked">
             {t(`dispatchBlocked.${blocker}`)}
           </p>
         ) : null}
@@ -448,31 +374,17 @@ export function OrderDetailView({
             <table className="w-full text-sm">
               <thead className="text-text-muted">
                 <tr>
-                  <th className="py-1 text-start font-semibold">
-                    {t("detail.items")}
-                  </th>
-                  <th className="py-1 text-center font-semibold">
-                    {t("detail.quantity")}
-                  </th>
-                  <th className="py-1 text-end font-semibold">
-                    {t("detail.unitPrice")}
-                  </th>
-                  <th className="py-1 text-end font-semibold">
-                    {t("detail.lineTotal")}
-                  </th>
+                  <th className="py-1 text-start font-semibold">{t("detail.items")}</th>
+                  <th className="py-1 text-center font-semibold">{t("detail.quantity")}</th>
+                  <th className="py-1 text-end font-semibold">{t("detail.unitPrice")}</th>
+                  <th className="py-1 text-end font-semibold">{t("detail.lineTotal")}</th>
                 </tr>
               </thead>
               <tbody>
                 {(order.items ?? []).map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-t border-border"
-                    data-testid="order-item"
-                  >
+                  <tr key={item.id} className="border-t border-border" data-testid="order-item">
                     <td className="py-2">
-                      {locale === "ar"
-                        ? item.product_name_ar
-                        : item.product_name_en}
+                      {locale === "ar" ? item.product_name_ar : item.product_name_en}
                     </td>
                     <td className="py-2 text-center">{item.quantity}</td>
                     <td className="py-2 text-end">{money(item.unit_price)}</td>
@@ -482,19 +394,10 @@ export function OrderDetailView({
               </tbody>
             </table>
             <dl className="mt-4 flex flex-col gap-1 border-t border-border pt-3 text-sm">
-              <SummaryRow
-                label={t("detail.subtotal")}
-                value={money(order.subtotal)}
-              />
-              <SummaryRow
-                label={t("detail.deliveryFee")}
-                value={money(order.delivery_fee)}
-              />
+              <SummaryRow label={t("detail.subtotal")} value={money(order.subtotal)} />
+              <SummaryRow label={t("detail.deliveryFee")} value={money(order.delivery_fee)} />
               {order.discount ? (
-                <SummaryRow
-                  label={t("detail.discount")}
-                  value={`-${money(order.discount)}`}
-                />
+                <SummaryRow label={t("detail.discount")} value={`-${money(order.discount)}`} />
               ) : null}
               <div className="flex justify-between font-bold">
                 <dt>{t("detail.total")}</dt>
@@ -517,9 +420,7 @@ export function OrderDetailView({
               {t("detail.timeline")}
             </h2>
             {events.length === 0 ? (
-              <p className="text-sm text-text-muted">
-                {t("detail.noTimeline")}
-              </p>
+              <p className="text-sm text-text-muted">{t("detail.noTimeline")}</p>
             ) : (
               <ol className="flex flex-col gap-3" data-testid="order-timeline">
                 {events.map((event, index) => (
@@ -532,12 +433,8 @@ export function OrderDetailView({
                     <span className="font-semibold">
                       {event.status ? t(`status.${event.status}`) : ""}
                     </span>
-                    <span className="text-xs text-text-muted">
-                      {dateTime(event.at)}
-                    </span>
-                    {event.note ? (
-                      <span className="text-sm">{event.note}</span>
-                    ) : null}
+                    <span className="text-xs text-text-muted">{dateTime(event.at)}</span>
+                    {event.note ? <span className="text-sm">{event.note}</span> : null}
                   </li>
                 ))}
               </ol>
@@ -547,11 +444,7 @@ export function OrderDetailView({
 
         <div className="flex flex-col gap-5">
           <DeliveryAttemptsPanel order={order} />
-          <RetrievalsPanel
-            order={order}
-            permissions={permissions}
-            onRefused={handleRefusal}
-          />
+          <RetrievalsPanel order={order} permissions={permissions} onRefused={handleRefusal} />
 
           <Card className="flex flex-col gap-1 p-5">
             <h2 className="mb-2 flex items-center gap-2 font-bold">
@@ -582,10 +475,7 @@ export function OrderDetailView({
             </span>
           </Card>
 
-          <Card
-            className="flex flex-col gap-3 p-5"
-            data-testid="order-delivery"
-          >
+          <Card className="flex flex-col gap-3 p-5" data-testid="order-delivery">
             <h2 className="flex items-center gap-2 font-bold">
               <Truck className="size-4" aria-hidden />
               {t("detail.delivery")}
@@ -594,11 +484,7 @@ export function OrderDetailView({
               <>
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   {order.delivery.status ? (
-                    <Badge
-                      tone="info"
-                      data-testid="delivery-status"
-                      data-status={order.delivery.status}
-                    >
+                    <Badge tone="info" data-testid="delivery-status" data-status={order.delivery.status}>
                       {t(`deliveryStatus.${order.delivery.status}`)}
                     </Badge>
                   ) : null}
@@ -617,10 +503,7 @@ export function OrderDetailView({
                     <span className="text-sm font-semibold">
                       {agent ? t("assign.reassign") : t("assign.title")}
                     </span>
-                    <AgentPicker
-                      value={agentId}
-                      onChange={(picked) => setAgentId(picked?.id ?? "")}
-                    />
+                    <AgentPicker value={agentId} onChange={(picked) => setAgentId(picked?.id ?? "")} />
                     <FormError kind={assignError} />
                     <Button
                       type="submit"
@@ -635,9 +518,7 @@ export function OrderDetailView({
                 ) : null}
               </>
             ) : (
-              <p className="text-sm text-text-muted">
-                {t("detail.noDelivery")}
-              </p>
+              <p className="text-sm text-text-muted">{t("detail.noDelivery")}</p>
             )}
           </Card>
         </div>
