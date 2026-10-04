@@ -36,6 +36,8 @@ export function PartiesView({
   const toast = useToast();
   const formRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState<DeliveryParty | null>(null);
+  // A new key empties the form after each save.
+  const [saves, setSaves] = useState(0);
   const [pending, setPending] = useState<Pending | null>(null);
   const [notice, setNotice] = useState<{ kind: "duplicatePhone" | "deleted" | "deactivated"; name: string } | null>(null);
 
@@ -115,10 +117,11 @@ export function PartiesView({
       {canManageDrivers ? (
         <div ref={formRef}>
           <DriverForm
-            key={editing?.id ?? "new"}
+            key={`${editing?.id ?? "new"}:${saves}`}
             initial={editing}
             onDone={(saved, created) => {
               setEditing(null);
+              setSaves((count) => count + 1);
               setNotice(saved.duplicate_phone_warning ? { kind: "duplicatePhone", name: saved.name } : null);
               toast(created ? t("created") : t("updated"));
               router.refresh();
