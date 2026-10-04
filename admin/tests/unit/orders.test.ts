@@ -194,6 +194,7 @@ describe("adminInboxHref", () => {
   it("opens orders in the admin and everything else in the inbox", () => {
     expect(adminInboxHref(`/admin/orders/${id}`)).toBe(`/orders/${id}`);
     expect(adminInboxHref(`/orders/${id}`)).toBe(`/orders/${id}`);
+    expect(adminInboxHref(`/admin/finance/price-approvals/${id}`)).toBe(`/finance/price-approvals/${id}`);
     expect(adminInboxHref(`/monitor/orders/${id}`)).toBe("/notifications");
     expect(adminInboxHref("https://evil.example/orders/x")).toBe("/notifications");
     expect(adminInboxHref(`/admin/orders/${id}/../../x`)).toBe("/notifications");

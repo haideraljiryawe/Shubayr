@@ -23,6 +23,7 @@ import { LinkedPricingService } from './linked-pricing.service';
 import {
   LinkedPriceApplyDto,
   LinkedPricePreviewDto,
+  PricePublishApprovalQueryDto,
   PricePublishDecisionDto,
 } from './dto/linked-price.dto';
 import { DraftService } from './draft.service';
@@ -125,6 +126,37 @@ export class ExchangeRateController {
 export class PricePublishApprovalsController {
   constructor(private readonly linkedPrices: LinkedPricingService) {}
 
+  @Get()
+  @AdminAnyPermissionPolicy(
+    'sell_below_cost.approve',
+    'prices.change',
+    'prices.publish_linked',
+  )
+  list(
+    @Req() request: AdminRequest,
+    @Query() query: PricePublishApprovalQueryDto,
+  ) {
+    return this.linkedPrices.listApprovals(
+      request.user.id,
+      request.user.permissions,
+      query,
+    );
+  }
+
+  @Get(':id')
+  @AdminAnyPermissionPolicy(
+    'sell_below_cost.approve',
+    'prices.change',
+    'prices.publish_linked',
+  )
+  get(@Req() request: AdminRequest, @Param('id', uuid) id: string) {
+    return this.linkedPrices.getApproval(
+      request.user.id,
+      request.user.permissions,
+      id,
+    );
+  }
+
   @Post(':id/decision')
   @AdminPolicy('sell_below_cost.approve')
   decide(
@@ -132,7 +164,12 @@ export class PricePublishApprovalsController {
     @Param('id', uuid) id: string,
     @Body() input: PricePublishDecisionDto,
   ) {
-    return this.linkedPrices.decide(request.user.id, id, input);
+    return this.linkedPrices.decide(
+      request.user.id,
+      id,
+      input,
+      request.user.permissions,
+    );
   }
 }
 

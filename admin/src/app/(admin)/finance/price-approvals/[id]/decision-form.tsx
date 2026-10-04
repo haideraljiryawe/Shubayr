@@ -24,12 +24,12 @@ function isOwnRequest(error: unknown): boolean {
   return error instanceof ApiError && (error.code === "SEPARATION_OF_DUTIES_VIOLATION" || (error.status === 403 && /own|cannot approve|cannot decide/i.test(error.message)));
 }
 
-export function DecisionForm({ id, canViewCost }: { id: string; canViewCost: boolean }) {
+export function DecisionForm({ id, approval, canDecide, canViewCost }: { id: string; approval: Approval; canDecide: boolean; canViewCost: boolean }) {
   const t = useTranslations("priceApprovals");
   const locale = useLocale();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
-  const [decided, setDecided] = useState<Approval | null>(null);
+  const [decided, setDecided] = useState<Approval | null>(approval.status === "pending" ? null : approval);
   const [own, setOwn] = useState(false);
   const [problem, setProblem] = useState<ErrorKind | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
@@ -96,10 +96,40 @@ export function DecisionForm({ id, canViewCost }: { id: string; canViewCost: boo
     );
   }
 
+  const breaches = (approval.breaches ?? []) as Breach[];
   return (
-    <Card className="flex max-w-xl flex-col gap-4 p-5" data-testid="price-approval-form">
+    <Card className="flex max-w-3xl flex-col gap-4 p-5" data-testid="price-approval-form">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="warning">{t(`status.${approval.status}`)}</Badge>
+        <span className="text-sm text-text-muted">{t(`kind.${approval.kind}`)}</span>
+        <span className="text-sm text-text-muted">{t("proposedBy", { name: approval.proposer.name ?? approval.proposed_by })}</span>
+      </div>
       <p className="text-sm text-text-muted">{t("body")}</p>
-      {own ? (
+      {breaches.length ? (
+        <table className="w-full text-sm" data-testid="price-approval-breaches">
+          <thead className="text-text-muted">
+            <tr>
+              <th className="px-2 py-1 text-start">{t("columns.sku")}</th>
+              <th className="px-2 py-1 text-end">{t("columns.price")}</th>
+              <th className="px-2 py-1 text-end">{t("columns.threshold")}</th>
+              {canViewCost ? <th className="px-2 py-1 text-end">{t("columns.cost")}</th> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {breaches.map((breach, index) => (
+              <tr key={`${breach.sku}-${index}`} className="border-t border-border">
+                <td className="px-2 py-1" dir="ltr">{breach.sku ?? "—"}</td>
+                <td className="px-2 py-1 text-end" dir="ltr">{number(breach.price)}</td>
+                <td className="px-2 py-1 text-end" dir="ltr">{breach.threshold_percent === undefined ? "—" : `${number(breach.threshold_percent)}%`}</td>
+                {canViewCost ? <td className="px-2 py-1 text-end" dir="ltr">{number(breach.cost)}</td> : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {!canDecide ? (
+        <Alert tone="info" data-testid="price-approval-read-only">{t("readOnly")}</Alert>
+      ) : own ? (
         <Alert data-testid="price-approval-own">{t("ownRequest")}</Alert>
       ) : (
         <>

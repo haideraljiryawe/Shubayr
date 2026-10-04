@@ -18,6 +18,9 @@ export const notificationTypes = [
   'quantity_reduction_proposed',
   'cancellation_request_approved',
   'cancellation_request_denied',
+  'price_approval_requested',
+  'price_approval_approved',
+  'price_approval_rejected',
 ] as const;
 export type NotificationType = (typeof notificationTypes)[number];
 export const notificationChannels = ['push', 'sms'] as const;
@@ -89,6 +92,15 @@ export function bilingualMessage(type: NotificationType) {
       'تم رفض طلب الإلغاء',
       'لم يوافق المتجر على طلب إلغاء طلبك.',
     ],
+    price_approval_requested: [
+      'طلب موافقة على سعر',
+      'يوجد نشر سعر أقل من الكلفة يحتاج إلى قرارك.',
+    ],
+    price_approval_approved: [
+      'تمت الموافقة على السعر',
+      'وافق موظف آخر على طلب نشر السعر.',
+    ],
+    price_approval_rejected: ['تم رفض السعر', 'رفض موظف آخر طلب نشر السعر.'],
   };
   const english: Record<NotificationType, [string, string]> = {
     order_placed: ['Order placed', 'We received your order.'],
@@ -136,6 +148,18 @@ export function bilingualMessage(type: NotificationType) {
     cancellation_request_denied: [
       'Cancellation denied',
       'The store denied your cancellation request.',
+    ],
+    price_approval_requested: [
+      'Price approval requested',
+      'A below-cost price publish needs your decision.',
+    ],
+    price_approval_approved: [
+      'Price approved',
+      'Another staff member approved your price publish request.',
+    ],
+    price_approval_rejected: [
+      'Price rejected',
+      'Another staff member rejected your price publish request.',
     ],
   };
   return {

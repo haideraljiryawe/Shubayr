@@ -208,7 +208,7 @@ try {
   const enabled = (prefs, type, channel) =>
     prefs.preferences.find((p) => p.type === type && p.channel === channel)
       ?.enabled;
-  check(defaults.preferences.length, 38, 'all type/channel pairs returned');
+  check(defaults.preferences.length, 44, 'all type/channel pairs returned');
   check(
     enabled(defaults, 'delivered', 'push'),
     true,
