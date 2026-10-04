@@ -109,6 +109,13 @@ test.describe("live purchase funnel", () => {
     await expect(page.getByTestId("cart-items").locator("> li")).toHaveCount(1);
 
     await signIn(page, "/cart");
+    // Let the sign-in replay land before navigating: leaving the page while
+    // its POST is in flight can still double the line (POST /cart/items has no
+    // idempotency key — reported), which a production build's speed exposes.
+    await expect(page.getByTestId("cart-summary")).toHaveAttribute(
+      "data-server-priced",
+      "true",
+    );
 
     // Back on the cart the server is now the authority — and the single guest
     // line must have become a single server line. Two would mean the replay
