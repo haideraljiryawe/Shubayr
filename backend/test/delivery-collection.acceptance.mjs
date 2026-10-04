@@ -25,6 +25,20 @@ function check(actual, expected, message) {
   assertions += 1;
 }
 
+function baghdadDate(value) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Baghdad',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .formatToParts(new Date(value))
+      .map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 async function request(
   path,
   { token, method = 'GET', body, expected = 200 } = {},
@@ -54,16 +68,29 @@ async function agentLogin() {
   });
 }
 
-const [admin, agent] = await Promise.all([
+async function customerLogin() {
+  const challenge = await request('/auth/request-otp', {
+    method: 'POST',
+    body: { phone: '+9647700000006' },
+  });
+  return request('/auth/verify-otp', {
+    method: 'POST',
+    body: { phone: '+9647700000006', code: challenge.dev_otp },
+  });
+}
+
+const [admin, agent, customer] = await Promise.all([
   request('/admin/auth/login', {
     method: 'POST',
     expected: 201,
     body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' },
   }),
   agentLogin(),
+  customerLogin(),
 ]);
 const adminToken = admin.access_token;
 const agentToken = agent.access_token;
+const customerToken = customer.access_token;
 const customerId = (
   await db.query("SELECT id FROM users WHERE phone='+9647700000006'")
 ).rows[0].id;
@@ -231,6 +258,22 @@ async function posting(deliveryId, event) {
 }
 
 const full = await fixture('full', agent.user.id);
+const assigned = await request('/deliveries/assigned?per_page=100', {
+  token: agentToken,
+});
+const assignedFull = assigned.data.find(
+  (delivery) => delivery.id === full.deliveryId,
+);
+check(
+  assignedFull.amount_due,
+  105000,
+  'agent sees goods plus delivery fee due before confirming collection',
+);
+check(
+  assigned.data.every((delivery) => delivery.agent_id === agent.user.id),
+  true,
+  'agent delivery read remains scoped to the authenticated agent',
+);
 const fullResult = await request(`/deliveries/${full.deliveryId}`, {
   token: agentToken,
   method: 'PATCH',
@@ -248,6 +291,33 @@ check(
   'agent records a full collection',
 );
 await posting(full.deliveryId, 'delivered_full');
+const customerFullOrder = await request(`/orders/${full.orderId}`, {
+  token: customerToken,
+});
+check(
+  customerFullOrder.collection,
+  {
+    result: 'full',
+    amount_collected: 105000,
+    shortfall: 0,
+    confirmation_state: 'confirmed',
+    currency: 'IQD',
+  },
+  'customer order exposes only the customer-safe full collection result',
+);
+check(
+  Object.keys(customerFullOrder.collection).sort(),
+  ['amount_collected', 'confirmation_state', 'currency', 'result', 'shortfall'],
+  'customer collection result contains no delivery-party identity',
+);
+const staffFullOrder = await request(`/admin/orders/${full.orderId}`, {
+  token: adminToken,
+});
+check(
+  staffFullOrder.collection,
+  customerFullOrder.collection,
+  'staff order read includes the full collection amounts and state',
+);
 
 const short = await fixture('short-boundary', external.id);
 const shortResult = await request(
@@ -298,6 +368,20 @@ async function deliverUnconfirmed(label) {
 
 const laterFull = await deliverUnconfirmed('later-full');
 const laterShort = await deliverUnconfirmed('later-short');
+const customerUnconfirmed = await request(`/orders/${laterFull.orderId}`, {
+  token: customerToken,
+});
+check(
+  customerUnconfirmed.collection,
+  {
+    result: 'unconfirmed',
+    amount_collected: null,
+    shortfall: null,
+    confirmation_state: 'unconfirmed',
+    currency: 'IQD',
+  },
+  'customer sees appropriate unconfirmed wording without party data',
+);
 const pending = await request('/admin/deliveries/unconfirmed?per_page=100', {
   token: adminToken,
 });
@@ -305,6 +389,25 @@ check(
   pending.data.map((item) => item.delivery_id).sort(),
   [laterFull.deliveryId, laterShort.deliveryId].sort(),
   'staff list contains every delivered-but-unconfirmed order',
+);
+const pendingDay = baghdadDate(pending.data[0].delivered_at);
+const filteredPending = await request(
+  `/admin/deliveries/unconfirmed?party_id=${external.id}&date_from=${pendingDay}&date_to=${pendingDay}&amount_min=105000&amount_max=105000&page=1&per_page=1`,
+  { token: adminToken },
+);
+check(
+  [filteredPending.total, filteredPending.data.length],
+  [2, 1],
+  'unconfirmed filters compose with stable pagination',
+);
+const excludedPending = await request(
+  `/admin/deliveries/unconfirmed?party_id=${agent.user.id}&amount_min=105001`,
+  { token: adminToken },
+);
+check(
+  excludedPending.total,
+  0,
+  'unconfirmed party and amount filters exclude non-matching collections',
 );
 
 const confirmedFull = await request(
@@ -342,6 +445,32 @@ check(
   'later short confirmation closes with an exception',
 );
 await posting(laterShort.deliveryId, 'later_short_confirmation');
+
+const partyCollections = await request(
+  `/admin/delivery-parties/${external.id}/collections?page=1&per_page=2`,
+  { token: adminToken },
+);
+check(
+  [partyCollections.total, partyCollections.data.length],
+  [3, 2],
+  'per-party collections are paginated and scoped to that party',
+);
+check(
+  partyCollections.data.every(
+    (collection) => collection.party_id === external.id,
+  ),
+  true,
+  'per-party collection rows cannot leak another party',
+);
+const shortCollections = await request(
+  `/admin/delivery-parties/${external.id}/collections?status=confirmed_short&amount_min=105000&amount_max=105000&order_id=${laterShort.orderId}&page=1&per_page=10`,
+  { token: adminToken },
+);
+check(
+  shortCollections.data.map((collection) => collection.order_id),
+  [laterShort.orderId],
+  'per-party collection filters cover status, amount and order',
+);
 
 const noLongerPending = await request(
   '/admin/deliveries/unconfirmed?per_page=100',

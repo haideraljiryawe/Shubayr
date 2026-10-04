@@ -1,5 +1,6 @@
 import { cache } from "react";
-import { api } from "./api";
+import { headers } from "next/headers";
+import { api, type ProductQuery } from "./api";
 
 /* ---------------------------------------------------------------------------
  * Server-render reads, once per request.
@@ -23,10 +24,57 @@ import { api } from "./api";
  * them fresh unless it is set there too.
  */
 const readCacheSeconds = Number(process.env.STORE_READ_CACHE_SECONDS ?? 0);
-const cached = readCacheSeconds > 0 ? { next: { revalidate: readCacheSeconds } } : undefined;
+const cached =
+  readCacheSeconds > 0 ? { next: { revalidate: readCacheSeconds } } : undefined;
 
-export const getSettingsOnce = cache(() => api.getSettings(cached));
+async function forwarded(init?: RequestInit): Promise<RequestInit> {
+  const incoming = await headers();
+  const forwardedFor = incoming.get("x-forwarded-for");
+  if (!forwardedFor) return init ?? {};
+  const merged = new Headers(init?.headers);
+  merged.set("x-forwarded-for", forwardedFor);
+  return { ...init, headers: merged };
+}
 
-export const getCategoriesOnce = cache(() => api.getCategories(cached));
+export const getSettingsOnce = cache(async () =>
+  api.getSettings(await forwarded(cached)),
+);
 
-export const getProductOnce = cache((id: string) => api.getProduct(id));
+export const getCategoriesOnce = cache(async () =>
+  api.getCategories(await forwarded(cached)),
+);
+
+export const getProductOnce = cache(async (id: string) =>
+  api.getProduct(id, await forwarded()),
+);
+
+export async function getBannersForRequest() {
+  return api.getBanners(await forwarded());
+}
+
+export async function getBrandsForRequest() {
+  return api.listBrands(await forwarded());
+}
+
+export async function getProductsForRequest(query: ProductQuery = {}) {
+  return api.listProducts(query, await forwarded());
+}
+
+export async function getDealsForRequest(limit = 6) {
+  return api.listDeals(limit, await forwarded());
+}
+
+export async function getAvailabilityForRequest(id: string) {
+  return api.getProductAvailability(id, await forwarded());
+}
+
+export async function getReviewCountForRequest(id: string) {
+  return api.getProductReviewCount(id, await forwarded());
+}
+
+export async function getReviewsForRequest(
+  id: string,
+  query: { page?: number; per_page?: number } = {},
+) {
+  return api.listReviews(id, query, await forwarded());
+}

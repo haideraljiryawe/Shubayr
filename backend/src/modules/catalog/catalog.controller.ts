@@ -54,6 +54,7 @@ export class CatalogController {
   }
 
   @Post('products/:id/negotiations')
+  @RateLimitTier(RateLimitRisk.Normal)
   negotiationRemoved() {
     throw new GoneException({
       status: 410,

@@ -7,7 +7,7 @@ import { CatalogError } from "@/components/catalog/states";
 import { Card } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import { api } from "@/lib/api";
+import { getBrandsForRequest } from "@/lib/server-data";
 
 /**
  * Rendered per request: brands are added, hidden and reordered from the Web
@@ -40,7 +40,7 @@ export default async function BrandsPage({ params }: BrandsPageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("catalog");
-  const brands = await api.listBrands().catch(() => null);
+  const brands = await getBrandsForRequest().catch(() => null);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
@@ -55,7 +55,10 @@ export default async function BrandsPage({ params }: BrandsPageProps) {
         <CatalogError />
       ) : brands.length === 0 ? (
         <Card tone="muted" padding="lg" className="py-12 text-center">
-          <PackageOpen className="mx-auto size-10 text-text-muted" aria-hidden />
+          <PackageOpen
+            className="mx-auto size-10 text-text-muted"
+            aria-hidden
+          />
           <p className="mt-4 font-medium text-text">{t("brandsEmpty")}</p>
         </Card>
       ) : (

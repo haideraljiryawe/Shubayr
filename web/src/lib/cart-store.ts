@@ -286,7 +286,9 @@ export const cartStore = {
    * are cleared only once the merge has landed, so a
    * failure mid-way leaves the basket on the device rather than losing it.
    */
-  async attachServerCart(isCancelled: () => boolean = () => false): Promise<void> {
+  async attachServerCart(
+    isCancelled: () => boolean = () => false,
+  ): Promise<void> {
     // React invokes effects twice in development StrictMode. Without this the
     // guest basket is replayed onto the server twice and every quantity
     // doubles, which is a real bug the moment a retry happens in production.
@@ -313,9 +315,9 @@ export const cartStore = {
         if (guest.length > 0) {
           cart = await api.mergeCart(
             guest.map((line) => ({
-            product_id: line.product_id,
-            variant_id: line.variant_id,
-            quantity: line.quantity,
+              product_id: line.product_id,
+              variant_id: line.variant_id,
+              quantity: line.quantity,
             })),
             mergeKey,
           );
@@ -342,12 +344,15 @@ export const cartStore = {
         // A coupon the guest had applied is re-offered to the server, which
         // re-validates it against the merged basket.
         if (guestCouponCode) {
-          await cartStore.applyCouponCode(guestCouponCode).catch(() => undefined);
+          await cartStore
+            .applyCouponCode(guestCouponCode)
+            .catch(() => undefined);
         }
       } catch {
         // Offline or a failing cart endpoint: stay on the device cart rather
         // than showing an empty one to someone who has items.
-        if (!isCancelled()) setState({ ...state, server: null }, { save: false });
+        if (!isCancelled())
+          setState({ ...state, server: null }, { save: false });
       }
     });
   },
@@ -391,12 +396,18 @@ export const cartStore = {
     };
     const additions: CartLine[] = [];
     if (!known.has(lineId(productId, null))) {
-      additions.push({ ...base, id: lineId(productId, null), variant_id: null });
+      additions.push({
+        ...base,
+        id: lineId(productId, null),
+        variant_id: null,
+      });
     }
     for (const variant of product.variants ?? []) {
       if (!variant.id || known.has(lineId(productId, variant.id))) continue;
       const label = Object.entries(variant.attributes ?? {})
-        .filter(([key, value]) => typeof value === "string" && !key.includes("_"))
+        .filter(
+          ([key, value]) => typeof value === "string" && !key.includes("_"),
+        )
         .map(([, value]) => value as string)
         .join(" · ");
       additions.push({

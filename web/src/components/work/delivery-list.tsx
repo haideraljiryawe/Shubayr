@@ -76,7 +76,10 @@ export function DeliveryList() {
       </div>
 
       {deliveries.failed ? (
-        <AccountError message={tWork("loadError")} onRetry={deliveries.reload} />
+        <AccountError
+          message={tWork("loadError")}
+          onRetry={deliveries.reload}
+        />
       ) : deliveries.loading || !data ? (
         <AccountSkeleton rows={3} />
       ) : data.data.length === 0 ? (
@@ -86,7 +89,12 @@ export function DeliveryList() {
           body={t("emptyBody")}
         />
       ) : (
-        <div className={cn("flex flex-col gap-3", deliveries.stale && "opacity-60")}>
+        <div
+          className={cn(
+            "flex flex-col gap-3",
+            deliveries.stale && "opacity-60",
+          )}
+        >
           <ul className="flex flex-col gap-3">
             {data.data.map((delivery) => (
               <li key={delivery.id}>
@@ -109,14 +117,24 @@ export function DeliveryList() {
                       </span>
                       {delivery.dispatched_at ? (
                         <span className="text-xs text-text-muted">
-                          {t("dispatchedAt")}: {dateTime(delivery.dispatched_at)}
+                          {t("dispatchedAt")}:{" "}
+                          {dateTime(delivery.dispatched_at)}
                         </span>
                       ) : null}
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <DeliveryStatusBadge status={delivery.status} />
                       <span className="text-sm text-text-muted">
-                        {t("fee")}: {formatPrice(delivery.delivery_fee ?? 0, currency, locale)}
+                        {t("fee")}:{" "}
+                        {formatPrice(
+                          delivery.delivery_fee ?? 0,
+                          currency,
+                          locale,
+                        )}
+                      </span>
+                      <span className="text-sm font-semibold text-text">
+                        {t("collection.due")}:{" "}
+                        {formatPrice(delivery.amount_due, "IQD", locale)}
                       </span>
                     </div>
                   </Card>

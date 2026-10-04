@@ -11,10 +11,15 @@ import {
 } from "@/components/home/skeletons";
 import { SectionEmpty, SectionError } from "@/components/home/states";
 import { SectionHeader } from "@/components/ui/section-header";
-import { api } from "@/lib/api";
 import type { Locale } from "@/i18n/routing";
 import { alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
-import { getCategoriesOnce, getSettingsOnce } from "@/lib/server-data";
+import {
+  getBannersForRequest,
+  getCategoriesOnce,
+  getDealsForRequest,
+  getProductsForRequest,
+  getSettingsOnce,
+} from "@/lib/server-data";
 
 /** The store's front door: canonical at the bare path, English as its alternate. */
 export async function generateMetadata({
@@ -25,7 +30,10 @@ export async function generateMetadata({
   const { locale } = await params;
   const settings = await getSettingsOnce().catch(() => null);
   const siteName = await storeNameFor(locale, settings?.store_name);
-  const description = (await getTranslations({ locale, namespace: "seo" }))("homeDescription", { store: siteName });
+  const description = (await getTranslations({ locale, namespace: "seo" }))(
+    "homeDescription",
+    { store: siteName },
+  );
   return {
     alternates: alternatesFor(locale, "/"),
     openGraph: openGraphFor({
@@ -34,7 +42,9 @@ export async function generateMetadata({
       title: siteName,
       description,
       path: "/",
-      images: settings?.logo_url ? [{ url: settings.logo_url, alt: siteName }] : undefined,
+      images: settings?.logo_url
+        ? [{ url: settings.logo_url, alt: siteName }]
+        : undefined,
     }),
   };
 }
@@ -49,7 +59,7 @@ export async function generateMetadata({
 async function Hero() {
   let banners;
   try {
-    banners = await api.getBanners();
+    banners = await getBannersForRequest();
   } catch {
     // A dead promo feed must never cost us the rest of the page.
     return null;
@@ -128,7 +138,7 @@ export default async function HomePage({
           locale={typedLocale}
           priority
           load={async () =>
-            (await api.listProducts({ sort: "rating", per_page: 5 })).data
+            (await getProductsForRequest({ sort: "rating", per_page: 5 })).data
           }
         />
       </Suspense>
@@ -145,7 +155,7 @@ export default async function HomePage({
           viewAllHref="/search?sort=newest"
           locale={typedLocale}
           load={async () =>
-            (await api.listProducts({ sort: "newest", per_page: 5 })).data
+            (await getProductsForRequest({ sort: "newest", per_page: 5 })).data
           }
         />
       </Suspense>
@@ -161,7 +171,7 @@ export default async function HomePage({
           title={t("dealsTitle")}
           viewAllHref="/search?on_sale=true"
           locale={typedLocale}
-          load={() => api.listDeals(5)}
+          load={() => getDealsForRequest(5)}
         />
       </Suspense>
     </div>

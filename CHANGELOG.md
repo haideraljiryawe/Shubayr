@@ -1,5 +1,23 @@
 # Changelog
 
+## 13.1.0 - 2026-10-05
+
+### Added
+
+- Optional idempotency keys for cart adds and an atomic, idempotent guest-cart
+  merge endpoint that serializes safely with signed-in cart writes.
+- Delivery amount due on agent reads, customer-safe collection summaries on
+  order reads, filtered per-party collection history, and additional filters
+  for the unconfirmed-collection queue.
+- Configurable catalog, normal and strict risk-tier rate limits. Trusted web
+  and admin proxies share the real forwarded shopper/staff address; untrusted
+  forwarded headers remain ignored.
+
+### Changed
+
+- The API contract is version 13.1.0. This release is additive and does not
+  break existing web or admin callers.
+
 ## 13.0.0 - 2026-10-04
 
 ### Breaking

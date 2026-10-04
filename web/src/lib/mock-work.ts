@@ -133,18 +133,16 @@ export function listMockMonitorOrders(
     per_page: perPage,
     total: filtered.length,
     status_counts,
-    data: filtered
-      .slice((page - 1) * perPage, page * perPage)
-      .map((order) => ({
-        id: order.id,
-        order_number: order.order_number,
-        status: order.status,
-        customer_name: order.customer.name,
-        customer_phone: order.customer.phone,
-        total: order.total,
-        payment_method: order.payment_method,
-        placed_at: order.placed_at,
-      })),
+    data: filtered.slice((page - 1) * perPage, page * perPage).map((order) => ({
+      id: order.id,
+      order_number: order.order_number,
+      status: order.status,
+      customer_name: order.customer.name,
+      customer_phone: order.customer.phone,
+      total: order.total,
+      payment_method: order.payment_method,
+      placed_at: order.placed_at,
+    })),
   };
 }
 
@@ -162,6 +160,7 @@ let deliveries: Delivery[] = [
   id: `mock-delivery-${index + 1}`,
   order_id: monitorOrders[index].id,
   order_version: 1,
+  amount_due: monitorOrders[index].total,
   agent_id: "work-+9647700000005",
   status: status as DeliveryStatus,
   delivery_fee: 5,
@@ -173,16 +172,28 @@ let deliveries: Delivery[] = [
 export function getMockCustody(): DeliveryCustody {
   const order = monitorOrders[1];
   const lines = deliveries
-    .filter((delivery) => delivery.status === "out_for_delivery" || delivery.status === "failed")
+    .filter(
+      (delivery) =>
+        delivery.status === "out_for_delivery" || delivery.status === "failed",
+    )
     .map((delivery, index) => ({
       holding_id: `mock-holding-${index + 1}`,
-      order: { id: delivery.order_id ?? order.id, order_number: monitorOrders.find((row) => row.id === delivery.order_id)?.order_number ?? order.order_number },
+      order: {
+        id: delivery.order_id ?? order.id,
+        order_number:
+          monitorOrders.find((row) => row.id === delivery.order_id)
+            ?.order_number ?? order.order_number,
+      },
       delivery_id: delivery.id ?? `mock-delivery-${index + 1}`,
       batch_id: `mock-batch-${index + 1}`,
       lot_number: `LOT-${index + 1}`,
       variant_id: `mock-variant-${index + 1}`,
       sku: `SKU-${String(index + 1).padStart(3, "0")}`,
-      product: { id: `mock-product-${index + 1}`, name_en: "Ceramic mug", name_ar: "كوب خزفي" },
+      product: {
+        id: `mock-product-${index + 1}`,
+        name_en: "Ceramic mug",
+        name_ar: "كوب خزفي",
+      },
       quantity: 2,
       issued_at: delivery.dispatched_at ?? "2026-09-28T07:30:00Z",
       age_days: 1,
@@ -203,7 +214,9 @@ export function getMockCustody(): DeliveryCustody {
     },
     goods: {
       quantity: lines.reduce((sum, line) => sum + line.quantity, 0),
-      oldest_age_days: lines.length ? Math.max(...lines.map((line) => line.age_days)) : null,
+      oldest_age_days: lines.length
+        ? Math.max(...lines.map((line) => line.age_days))
+        : null,
       lines,
     },
     cash: { currency: "IQD", amount: 0, oldest_age_days: null },
@@ -319,7 +332,8 @@ let inbox: InboxNotification[] = [
   body_ar: item.body_ar,
   title_en: item.title_en,
   body_en: item.body_en,
-  deep_link: item.type === "promo" ? "/notifications" : `/orders/${item.entity_id}`,
+  deep_link:
+    item.type === "promo" ? "/notifications" : `/orders/${item.entity_id}`,
   entity_type: "order",
   entity_id: item.entity_id,
   created_at: new Date(BASE - index * 3_600_000).toISOString(),
@@ -344,17 +358,24 @@ export function mockUnreadCount(): number {
   return inbox.filter((item) => !item.read_at).length;
 }
 
-export function markMockRead(id: string): { id: string; read_at: string } | null {
+export function markMockRead(
+  id: string,
+): { id: string; read_at: string } | null {
   const item = inbox.find((entry) => entry.id === id);
   if (!item) return null;
   const read_at = item.read_at ?? new Date().toISOString();
-  inbox = inbox.map((entry) => (entry.id === id ? { ...entry, read_at } : entry));
+  inbox = inbox.map((entry) =>
+    entry.id === id ? { ...entry, read_at } : entry,
+  );
   return { id, read_at };
 }
 
 export function markAllMockRead(): { updated: number; read_at: string } {
   const read_at = new Date().toISOString();
   const updated = mockUnreadCount();
-  inbox = inbox.map((entry) => ({ ...entry, read_at: entry.read_at ?? read_at }));
+  inbox = inbox.map((entry) => ({
+    ...entry,
+    read_at: entry.read_at ?? read_at,
+  }));
   return { updated, read_at };
 }
