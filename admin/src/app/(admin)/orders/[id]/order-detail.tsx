@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -9,11 +9,18 @@ import { Alert, Badge, Button, Card } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { FormError } from "@/components/forms/form-error";
+import { CollectionFields, CollectionSummary } from "@/components/orders/collection-fields";
 import { PartyPicker } from "@/components/orders/party-picker";
 import { AttentionPanel, BelowCostPanel, CancellationRequestPanel, DeliveryAttemptsPanel, RetrievalsPanel } from "@/components/orders/lifecycle-panels";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { browserApi, unwrap } from "@/lib/api/client";
+import {
+  CollectionOperation,
+  staffDeliveryFields,
+  type CollectionChoice,
+  type DeliveryCollection,
+} from "@/lib/collection";
 import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
 import {
   DELIVERY_MOVES,
@@ -82,6 +89,13 @@ export function OrderDetailView({
   const [partyId, setPartyId] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<ErrorKind | null>(null);
+  // Delivering on a party's behalf says what was collected (API 12.0).
+  const [collectionChoice, setCollectionChoice] = useState<CollectionChoice>("confirmed");
+  const [collectionAmount, setCollectionAmount] = useState<string | null>(null);
+  const deliveryOperation = useRef(new CollectionOperation("admin-delivery"));
+  // The collection the API answered with. The order read carries none yet
+  // (a contract gap), so it is shown from this answer until the page reloads.
+  const [recorded, setRecorded] = useState<DeliveryCollection | null>(null);
   /** Confirmation refused below cost (API 10.0), until approved or left. */
   const [belowCost, setBelowCost] = useState<BelowCostBreach[] | null>(null);
   const [selfRefused, setSelfRefused] = useState(false);
@@ -209,7 +223,10 @@ export function OrderDetailView({
   async function moveDelivery(action: keyof typeof DELIVERY_MOVES, reason: string): Promise<AdminOrder> {
     const deliveryId = order.delivery?.id;
     if (!deliveryId) throw new ApiError(409, "Order has no current delivery");
-    await unwrap(
+    if (action === "deliver" && collectionChoice === "confirmed" && collectionAmount === null) {
+      throw new ApiError(422, t("collectionInvalid"));
+    }
+    const moved = await unwrap(
       browserApi.PATCH("/admin/deliveries/{id}/status", {
         params: { path: { id: deliveryId } },
         body: {
@@ -217,16 +234,12 @@ export function OrderDetailView({
           order_version: order.version!,
           ...(action === "fail" ? { reason } : {}),
           ...(action === "deliver"
-            ? {
-                operation_id: `admin-delivery-${deliveryId}-${order.version}`,
-                collection_confirmation: "confirmed" as const,
-                collected_amount: String(order.total),
-                source: "web_admin",
-              }
+            ? staffDeliveryFields(deliveryOperation.current, collectionChoice, collectionAmount)
             : {}),
         },
       }),
     );
+    if (moved.collection) setRecorded(moved.collection);
     return unwrap(browserApi.GET("/admin/orders/{id}", { params: { path: { id } } }));
   }
 
@@ -342,7 +355,13 @@ export function OrderDetailView({
                   key={action}
                   variant={REASON_ACTIONS.has(action) ? "danger" : action === "retry" ? "secondary" : "primary"}
                   disabled={blocked}
-                  onClick={() => setPending(action)}
+                  onClick={() => {
+                    if (action === "deliver") {
+                      setCollectionChoice("confirmed");
+                      setCollectionAmount(String(order.total ?? 0));
+                    }
+                    setPending(action);
+                  }}
                   data-testid={`order-action-${action}`}
                 >
                   {t(`action.${action}`)}
@@ -445,6 +464,12 @@ export function OrderDetailView({
         </div>
 
         <div className="flex flex-col gap-5">
+          {recorded && recorded.order_id === order.id ? (
+            <Card className="flex flex-col gap-2 p-5" data-testid="order-collection">
+              <h2 className="font-bold">{t("collectionTitle")}</h2>
+              <CollectionSummary collection={recorded} />
+            </Card>
+          ) : null}
           <DeliveryAttemptsPanel order={order} />
           <RetrievalsPanel order={order} permissions={permissions} onRefused={handleRefusal} />
 
@@ -543,7 +568,19 @@ export function OrderDetailView({
         requireReason={pending !== null && REASON_ACTIONS.has(pending)}
         onConfirm={(reason) => perform(pending!, reason)}
         onClose={() => setPending(null)}
-      />
+      >
+        {pending === "deliver" ? (
+          <CollectionFields
+            due={Number(order.total ?? 0)}
+            currency={order.currency ?? currency}
+            choice={collectionChoice}
+            onChoice={setCollectionChoice}
+            amount={collectionAmount}
+            onAmount={setCollectionAmount}
+            allowUnconfirmed
+          />
+        ) : null}
+      </ConfirmDialog>
     </div>
   );
 }

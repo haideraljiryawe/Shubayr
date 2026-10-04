@@ -830,6 +830,24 @@
       "next": "Retry when ready: the goods are still in your custody.",
       "retryTitle": "Delivery retry",
       "lastAt": "Last failed {at}"
+    },
+    "collection": {
+      "title": "Payment collected",
+      "collected": "I collected the payment",
+      "amount": "Amount collected",
+      "notConfirmed": "Amount not confirmed yet",
+      "notConfirmedHint": "The order is delivered now; the store confirms the amount later.",
+      "checkedNote": "Enter exactly what the customer paid. The store checks it against the order: anything less is recorded as a shortfall.",
+      "amountInvalid": "Enter the amount in numbers, e.g. 25000.",
+      "due": "Amount due",
+      "collectedAmount": "Collected",
+      "shortfall": "Shortfall",
+      "result": {
+        "confirmed_full": "Collected in full",
+        "confirmed_short": "Collected less than due",
+        "unconfirmed": "Amount not confirmed yet"
+      },
+      "unconfirmedNext": "The store will confirm the amount you hand in."
     }
   },
   "inbox": {

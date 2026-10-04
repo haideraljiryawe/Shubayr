@@ -9,6 +9,7 @@ import {
   signIn,
   staffToken,
   tokenFor,
+  customerAddress,
 } from "./live-api";
 
 /** A count as the page prints it: the same digits, thousands grouped or not. */
@@ -32,7 +33,6 @@ function grouped(value: number): RegExp {
 /** Stock sits on the variant; the variantless SKU is seeded at zero. */
 const EARBUDS = "40000000-0000-4000-8000-000000000001";
 const EARBUDS_VARIANT = "50000000-0000-4000-8000-000000000001";
-const SEEDED_ADDRESS = "10000000-0000-4000-8000-000000000001";
 
 interface DeliveredOrder {
   id: string;
@@ -76,7 +76,7 @@ async function mintDeliveredOrder(
       ...bearer(customer),
       "Idempotency-Key": `live-account-${Date.now()}-${Math.random()}`,
     },
-    data: { address_id: SEEDED_ADDRESS, payment_method: "cod" },
+    data: { address_id: await customerAddress(request), payment_method: "cod" },
   });
   expect(placed.ok()).toBe(true);
   const order = await placed.json();
@@ -104,10 +104,12 @@ async function mintDeliveredOrder(
       data: {
         status,
         order_version: orderVersion,
+        // API 12.0: delivered says what was collected — here, all of it.
         ...(status === "delivered"
           ? {
-              operation_id: `live-account-delivery-${order.id}-${orderVersion}`,
-              collection_confirmation: "unconfirmed",
+              operation_id: `live-account-${order.delivery_id}`,
+              collection_confirmation: "confirmed",
+              collected_amount: String(order.total),
             }
           : {}),
       },
@@ -202,6 +204,9 @@ test.describe("live account extras", () => {
     page,
     request,
   }) => {
+    // This worker's customer earns points the way every customer does: a
+    // delivered order. (A new account starts with none to show or spend.)
+    await mintDeliveredOrder(request, 1);
     const customer = await customerToken(request);
     const before = await (
       await request.get(`${API}/loyalty?per_page=1`, {

@@ -10,6 +10,7 @@ import type {
   NotificationPage,
   OrderStatus,
 } from "./api";
+import type { CollectionInput } from "./collection";
 import { DELIVERY_TRANSITIONS, type DeliveryAction } from "./deliveries";
 
 /* ---------------------------------------------------------------------------
@@ -229,11 +230,18 @@ export function listMockDeliveries(
 export function updateMockDelivery(
   id: string,
   status: DeliveryAction,
+  collection?: CollectionInput,
 ): Delivery | null | "conflict" {
   const current = deliveries.find((delivery) => delivery.id === id);
   if (!current?.status) return null;
   if (!DELIVERY_TRANSITIONS[current.status].includes(status)) return "conflict";
   const now = new Date().toISOString();
+  const order = monitorOrders.find((row) => row.id === current.order_id);
+  const due = order?.total ?? 0;
+  const collected =
+    collection?.collection_confirmation === "confirmed"
+      ? Math.min(Number(collection.collected_amount ?? 0), due)
+      : null;
   const next: Delivery = {
     ...current,
     status,
@@ -241,6 +249,31 @@ export function updateMockDelivery(
     dispatched_at:
       status === "out_for_delivery" ? now : (current.dispatched_at ?? null),
     delivered_at: status === "delivered" ? now : (current.delivered_at ?? null),
+    ...(status === "delivered" && collection
+      ? {
+          collection: {
+            id: `mock-collection-${id}`,
+            delivery_id: id,
+            order_id: current.order_id ?? "",
+            party_id: current.agent_id ?? "",
+            status:
+              collected === null
+                ? ("unconfirmed" as const)
+                : collected < due
+                  ? ("confirmed_short" as const)
+                  : ("confirmed_full" as const),
+            due_amount: due,
+            collected_amount: collected,
+            shortfall_amount: collected === null ? null : due - collected,
+            currency: "IQD",
+            delivered_at: now,
+            accounting_date: now.slice(0, 10),
+            confirmed_at: collected === null ? null : now,
+            delivery_journal_entry_id: `mock-entry-${id}`,
+            confirmation_journal_entry_id: null,
+          },
+        }
+      : {}),
   };
   deliveries = deliveries.map((delivery) =>
     delivery.id === id ? next : delivery,

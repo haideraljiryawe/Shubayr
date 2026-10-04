@@ -56,7 +56,7 @@ export default async function OrdersPage({
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
-      <OrdersTabs active="list" queue={queue} counts={queueCounts(orders.data.badge_counts)} canViewRetrievals={permissions.includes("retrieval.view")} />
+      <OrdersTabs active="list" queue={queue} counts={queueCounts(orders.data.badge_counts)} canViewRetrievals={permissions.includes("retrieval.view")} canViewCollections={permissions.includes("deliveries.manage")} />
       <OrdersTable
         rows={orders.data.data ?? []}
         state={{

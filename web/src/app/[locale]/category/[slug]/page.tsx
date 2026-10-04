@@ -10,6 +10,7 @@ import { CatalogError, CatalogSkeleton } from "@/components/catalog/states";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
+import { getCategoriesOnce, getSettingsOnce } from "@/lib/server-data";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -33,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: alternatesFor(locale, `/category/${slug}`),
     openGraph: openGraphFor({
       locale,
-      siteName: await storeNameFor(locale, (await api.getSettings().catch(() => null))?.store_name),
+      siteName: await storeNameFor(locale, (await getSettingsOnce().catch(() => null))?.store_name),
       title: name,
       description,
       path: `/category/${slug}`,
@@ -48,7 +49,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const t = await getTranslations("catalog");
   // Keep category validation blocking, with no route-level loading.tsx:
   // notFound() must run before a Suspense fallback can flush HTTP 200.
-  const categories = await api.getCategories().catch(() => null);
+  const categories = await getCategoriesOnce().catch(() => null);
   if (categories === null)
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">

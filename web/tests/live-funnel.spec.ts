@@ -16,10 +16,15 @@ import {
   CUSTOMER_E164,
   CUSTOMER_LOCAL as PHONE_LOCAL,
   awaitQuota,
+  advanceOrder,
+  assignToAgent,
+  bearer,
   customerToken as token,
+  placeOrder,
   requireLiveApi,
   signIn,
   staffToken,
+  stockedProduct,
 } from "./live-api";
 
 /**
@@ -63,8 +68,8 @@ async function emptyServerCart(request: APIRequestContext): Promise<void> {
 }
 
 /** Put one earbuds line in the guest basket, choosing the in-stock variant. */
-async function addEarbudsAsGuest(page: Page): Promise<void> {
-  await page.goto(`/product/${EARBUDS}`);
+async function addEarbudsAsGuest(page: Page, productId = EARBUDS): Promise<void> {
+  await page.goto(`/product/${productId}`);
 
   // Stock is on the VARIANTS: the seed leaves the variantless SKU at zero, so
   // the CTA only becomes live once one is chosen. Pick the first in-stock
@@ -109,6 +114,13 @@ test.describe("live purchase funnel", () => {
     await expect(page.getByTestId("cart-items").locator("> li")).toHaveCount(1);
 
     await signIn(page, "/cart");
+    // Let the sign-in replay land before navigating: leaving the page while
+    // its POST is in flight can still double the line (POST /cart/items has no
+    // idempotency key — reported), which a production build's speed exposes.
+    await expect(page.getByTestId("cart-summary")).toHaveAttribute(
+      "data-server-priced",
+      "true",
+    );
 
     // Back on the cart the server is now the authority — and the single guest
     // line must have become a single server line. Two would mean the replay
@@ -334,7 +346,10 @@ test.describe("live purchase funnel", () => {
     page,
     request,
   }) => {
-    await addEarbudsAsGuest(page);
+    // A product of its own: hiding the seeded earbuds would fail every other
+    // worker's earbuds order while it is off sale.
+    const own = await stockedProduct(request, "UNAVAILABLE");
+    await addEarbudsAsGuest(page, own.id);
     await signIn(page, "/cart");
     await expect(page.getByTestId("cart-summary")).toHaveAttribute(
       "data-server-priced",
@@ -344,7 +359,7 @@ test.describe("live purchase funnel", () => {
 
     try {
       // The product goes off sale while the basket already holds it.
-      await setProductStatus(request, EARBUDS, "hidden");
+      await setProductStatus(request, own.id, "hidden");
       await page.reload();
 
       // The row says which line is the problem, and the CTA is not a link any
@@ -354,7 +369,7 @@ test.describe("live purchase funnel", () => {
       await expect(page.getByTestId("cart-checkout")).toHaveCount(0);
       await expect(page.getByTestId("cart-checkout-blocked")).toBeDisabled();
     } finally {
-      await setProductStatus(request, EARBUDS, "active");
+      await setProductStatus(request, own.id, "active");
     }
 
     // Put back on sale, the cart is buyable again without any other action.
@@ -367,7 +382,8 @@ test.describe("live purchase funnel", () => {
     page,
     request,
   }) => {
-    await addEarbudsAsGuest(page);
+    const own = await stockedProduct(request, "SELLOUT");
+    await addEarbudsAsGuest(page, own.id);
     await signIn(page, "/checkout");
     await expect(page.getByTestId("saved-addresses")).toBeVisible();
     await page.getByTestId("address-submit").click();
@@ -376,7 +392,7 @@ test.describe("live purchase funnel", () => {
     try {
       // Sold out between reaching review and pressing the button — the race
       // POST /orders answers 409 for.
-      await setProductStatus(request, EARBUDS, "hidden");
+      await setProductStatus(request, own.id, "hidden");
       await page.getByTestId("place-order").click();
 
       // Not an error beside a dead button: the shopper is returned to the one
@@ -385,14 +401,43 @@ test.describe("live purchase funnel", () => {
       await expect(page.getByTestId("cart-unavailable-banner")).toBeVisible();
       await expect(page.getByTestId("cart-line-unavailable")).toHaveCount(1);
     } finally {
-      await setProductStatus(request, EARBUDS, "active");
+      await setProductStatus(request, own.id, "active");
     }
   });
 
-  test("tracking shows the delivery's own stage for every seeded order", async ({
+  test("tracking shows the delivery's own stage for orders in every stage", async ({
     page,
     request,
   }) => {
+    test.setTimeout(150_000);
+    // Orders of this worker's customer's own, one per stage: pending,
+    // out for delivery, delivered.
+    await placeOrder(request);
+    const dispatched = await placeOrder(request);
+    await advanceOrder(request, dispatched.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+    await assignToAgent(request, dispatched.delivery_id);
+    await advanceOrder(request, dispatched.id, ["dispatched"]);
+    const delivered = await placeOrder(request);
+    await advanceOrder(request, delivered.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+    await assignToAgent(request, delivered.delivery_id);
+    await advanceOrder(request, delivered.id, ["dispatched"]);
+    const admin = await staffToken(request);
+    const current = await (
+      await request.get(`${API}/admin/orders/${delivered.id}`, { headers: bearer(admin) })
+    ).json();
+    const done = await request.patch(`${API}/admin/deliveries/${delivered.delivery_id}/status`, {
+      headers: bearer(admin),
+      data: {
+        status: "delivered",
+        order_version: current.version,
+        operation_id: `web-live-track-${delivered.delivery_id}`,
+        collection_confirmation: "confirmed",
+        collected_amount: String(delivered.total),
+        source: "web live test",
+      },
+    });
+    expect(done.ok(), await done.text()).toBe(true);
+
     const access = await token(request);
     const orders = await (
       await request.get(`${API}/orders?per_page=50`, {
@@ -413,8 +458,8 @@ test.describe("live purchase funnel", () => {
 
     await signIn(page, "/account/orders");
 
-    // The seed carries an order in each stage, so this walks them all rather
-    // than asserting one and hoping the mapping holds for the rest.
+    // An order in each stage, so this walks them all rather than asserting
+    // one and hoping the mapping holds for the rest.
     const seen = new Set<string>();
     for (const order of orders.data ?? []) {
       const stage = expected[order.status as string];

@@ -26,6 +26,7 @@ import {
 import type { Locale } from "@/i18n/routing";
 import { jsonLdText, productJsonLd } from "@/lib/seo";
 import { SITE_URL, alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
+import { getCategoriesOnce, getProductOnce, getSettingsOnce } from "@/lib/server-data";
 
 type Props = {
   params: Promise<{ locale: string; id: string }>;
@@ -35,7 +36,7 @@ type Props = {
 /** Fetches the product, turning a contract 404 into a Next notFound(). */
 async function loadProduct(id: string): Promise<Product | null> {
   try {
-    return await api.getProduct(id);
+    return await getProductOnce(id);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
@@ -65,7 +66,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: alternatesFor(locale, path),
     openGraph: openGraphFor({
       locale,
-      siteName: await storeNameFor(locale, (await api.getSettings().catch(() => null))?.store_name),
+      siteName: await storeNameFor(locale, (await getSettingsOnce().catch(() => null))?.store_name),
       title: name,
       description,
       path,
@@ -98,7 +99,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   // degrades that piece rather than blanking a page that already has the item.
   const [availability, categories] = await Promise.all([
     api.getProductAvailability(id).catch(() => null),
-    api.getCategories().catch(() => null),
+    getCategoriesOnce().catch(() => null),
   ]);
 
   const name = (typedLocale === "ar" ? product.name_ar : product.name_en) ?? "";
@@ -118,7 +119,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   // bodies stream in below.
   const reviewCount = await api.getProductReviewCount(id).catch(() => 0);
   const [settings, nonce] = await Promise.all([
-    api.getSettings().catch(() => null),
+    getSettingsOnce().catch(() => null),
     headers().then((list) => list.get("x-nonce") ?? undefined),
   ]);
 

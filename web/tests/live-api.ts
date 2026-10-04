@@ -29,15 +29,39 @@ export const API =
 export const OTP = process.env.DEV_OTP ?? "000000";
 
 /**
- * Seeded phone accounts, by app role. Since API 6.0 a phone only ever yields
- * an `app` session — staff operations need `staffToken` below.
+ * Each Playwright worker's own phone accounts, by app role, so parallel
+ * workers never share a cart, orders, custody, or an inbox. Since API 6.0 a
+ * phone only ever yields an `app` session — staff operations need
+ * `staffToken` below.
+ *
+ * A number is +964 7{role}{slot}{stamp}: the role digit, the worker's slot
+ * (TEST_PARALLEL_INDEX, unique among the workers running at once) and the
+ * seconds since the epoch when the worker started, so every run — and every
+ * worker a failure restarts — gets fresh accounts on a database that keeps
+ * the earlier ones. The customer is created by its first OTP sign-in; the
+ * agent and monitor are registered as work phones first (`ensureIdentity`).
  */
-export const CUSTOMER_E164 = "+9647700000006";
-export const CUSTOMER_LOCAL = "07700000006";
-export const AGENT_E164 = "+9647700000005";
-export const AGENT_LOCAL = "07700000005";
-export const MONITOR_E164 = "+9647700000008";
-export const MONITOR_LOCAL = "07700000008";
+const SLOT = Number(process.env.TEST_PARALLEL_INDEX ?? "0") % 10;
+const STAMP = String(Math.floor(Date.now() / 1000) % 10_000_000).padStart(7, "0");
+
+function workerPhone(role: string): { e164: string; local: string } {
+  const national = `7${role}${SLOT}${STAMP}`;
+  return { e164: `+964${national}`, local: `0${national}` };
+}
+
+const CUSTOMER = workerPhone("5");
+const AGENT = workerPhone("6");
+const MONITOR = workerPhone("4");
+
+export const CUSTOMER_E164 = CUSTOMER.e164;
+export const CUSTOMER_LOCAL = CUSTOMER.local;
+export const AGENT_E164 = AGENT.e164;
+export const AGENT_LOCAL = AGENT.local;
+export const MONITOR_E164 = MONITOR.e164;
+export const MONITOR_LOCAL = MONITOR.local;
+
+/** The seeded customer, for the few checks about the seed itself. */
+export const SEEDED_CUSTOMER_E164 = "+9647700000006";
 
 /** The seeded staff administrator (backend/prisma/seed.ts, dev only). */
 export const STAFF_USERNAME = process.env.LIVE_ADMIN_USERNAME ?? "admin";
@@ -120,6 +144,7 @@ export async function tokenFor(
   const cached = tokens.get(phone);
   if (cached) return cached;
 
+  await ensureIdentity(request, phone);
   await awaitQuota(request);
   await request.post(`${API}/auth/request-otp`, { data: { phone } });
   const verified = await request.post(`${API}/auth/verify-otp`, {
@@ -129,6 +154,8 @@ export async function tokenFor(
 
   const token = (await verified.json()).access_token as string;
   tokens.set(phone, token);
+  // A new customer has no address yet; checkout and orders need one.
+  if (phone === CUSTOMER.e164) await customerAddress(request);
   return token;
 }
 
@@ -157,6 +184,78 @@ export async function staffToken(request: APIRequestContext): Promise<string> {
   return staff;
 }
 
+/** This worker's agent and monitor phones, by the role they must hold. */
+const WORK_ROLES: Record<string, "delivery_agent" | "order_monitor"> = {
+  [AGENT.e164]: "delivery_agent",
+  [MONITOR.e164]: "order_monitor",
+};
+const provisioned = new Map<string, Promise<void>>();
+
+/**
+ * Make sure this worker's agent or monitor exists before its phone first
+ * signs in: an unregistered number would sign in as a customer instead.
+ * Registering a delivery agent also gives it its delivery party (API 11.2).
+ * Once per phone per worker; customers need nothing — their first OTP
+ * sign-in creates them.
+ */
+export async function ensureIdentity(
+  request: APIRequestContext,
+  phone: string,
+): Promise<void> {
+  const role = WORK_ROLES[phone];
+  if (!role) return;
+  let done = provisioned.get(phone);
+  if (!done) {
+    done = (async () => {
+      const admin = await staffToken(request);
+      const registered = await request.post(`${API}/admin/work-phones`, {
+        headers: bearer(admin),
+        data: {
+          phone,
+          name: `Live ${role} ${SLOT}-${STAMP}`,
+          role,
+          reason: "Web live suite: this worker's own account",
+        },
+      });
+      expect(registered.ok(), await registered.text()).toBe(true);
+    })();
+    provisioned.set(phone, done);
+    done.catch(() => provisioned.delete(phone));
+  }
+  await done;
+}
+
+let addressId: Promise<string> | null = null;
+
+/** This worker's customer's delivery address, created on first use. */
+export async function customerAddress(request: APIRequestContext): Promise<string> {
+  if (!addressId) {
+    addressId = (async () => {
+      const headers = bearer(await customerToken(request));
+      const list = await (await request.get(`${API}/addresses`, { headers })).json();
+      const existing = (list.data ?? list)?.[0]?.id as string | undefined;
+      if (existing) return existing;
+      const created = await request.post(`${API}/addresses`, {
+        headers,
+        data: {
+          label: "المنزل",
+          city: "واسط",
+          area: "الكوت",
+          street: "شارع الجمهورية",
+          contact_phone: CUSTOMER.e164,
+          is_default: true,
+        },
+      });
+      expect(created.ok(), await created.text()).toBe(true);
+      return (await created.json()).id as string;
+    })();
+    addressId.catch(() => {
+      addressId = null;
+    });
+  }
+  return addressId;
+}
+
 /**
  * Sign in through the real phone-OTP form and land on `next`.
  *
@@ -169,6 +268,10 @@ export async function signIn(
   next: string,
   phoneLocal: string = CUSTOMER_LOCAL,
 ): Promise<void> {
+  const e164 = `+964${phoneLocal.slice(1)}`;
+  await ensureIdentity(page.request, e164);
+  // Checkout and orders need the customer's saved address.
+  if (e164 === CUSTOMER.e164) await customerAddress(page.request);
   await page.goto(`/login?next=${encodeURIComponent(next)}`);
   // The form is rendered twice (narrow and wide); only one is ever visible.
   const phone = page.locator('[data-testid="auth-phone"]:visible');
@@ -186,17 +289,18 @@ export async function signIn(
 /** Stock sits on the variant; the variantless SKU is seeded at zero. */
 const EARBUDS = "40000000-0000-4000-8000-000000000001";
 const EARBUDS_VARIANT = "50000000-0000-4000-8000-000000000001";
-const SEEDED_ADDRESS = "10000000-0000-4000-8000-000000000001";
 
 export interface PlacedOrder {
   id: string;
   order_number: string;
   delivery_id: string;
+  total: number;
 }
 
 /**
- * Place a fresh COD order as the seeded customer. A new order notifies every
- * active order monitor (`new_order`), which is what the inbox specs lean on.
+ * Place a fresh COD order as this worker's customer. A new order notifies
+ * every active order monitor (`new_order`), which is what the inbox specs
+ * lean on.
  */
 export async function placeOrder(request: APIRequestContext): Promise<PlacedOrder> {
   const customer = await customerToken(request);
@@ -217,7 +321,7 @@ export async function placeOrder(request: APIRequestContext): Promise<PlacedOrde
       ...bearer(customer),
       "Idempotency-Key": `live-work-${Date.now()}-${Math.random()}`,
     },
-    data: { address_id: SEEDED_ADDRESS, payment_method: "cod" },
+    data: { address_id: await customerAddress(request), payment_method: "cod" },
   });
   expect(placed.ok(), await placed.text()).toBe(true);
   return (await placed.json()) as PlacedOrder;
@@ -245,7 +349,53 @@ export async function advanceOrder(
   }
 }
 
-/** Assign a delivery to the seeded delivery agent. */
+/** The seeded shelf and sellable location (backend/prisma/seed.ts). */
+const SEEDED_CATEGORY = "30000000-0000-4000-8000-000000000023";
+const SEEDED_LOCATION = "90000000-0000-4000-8000-000000000002";
+
+/**
+ * A published one-SKU product with its own opening stock, for a test that
+ * changes a product (hides it, sells it out) without touching the seeded
+ * catalogue the other workers are ordering from at the same time.
+ */
+export async function stockedProduct(
+  request: APIRequestContext,
+  key: string,
+  quantity = 5,
+): Promise<{ id: string; variant: string }> {
+  const admin = bearer(await staffToken(request));
+  const tag = `${key}-${SLOT}${STAMP}-${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+  const created = await request.post(`${API}/admin/products`, {
+    headers: admin,
+    data: {
+      category_id: SEEDED_CATEGORY,
+      name_en: `Live ${tag}`,
+      name_ar: `منتج حي ${tag}`,
+      price: 15000,
+      discount_type: null,
+      tracks_expiry: false,
+      status: "active",
+      published: true,
+      variants: [{ sku: `WEB-LIVE-${tag}`, base_unit: "piece", whole_units_only: true, pricing_mode: "fixed" }],
+    },
+  });
+  expect(created.status(), await created.text()).toBe(201);
+  const product = await created.json();
+  const variant = product.variants[0].id as string;
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(new Date());
+  const opening = await request.post(`${API}/admin/inventory/openings`, {
+    headers: admin,
+    data: {
+      operation_id: `web-live-open-${tag}`,
+      document_date: today,
+      lines: [{ variant_id: variant, location_id: SEEDED_LOCATION, quantity: String(quantity), unit_cost_iqd: "5000" }],
+    },
+  });
+  expect(opening.status(), await opening.text()).toBe(201);
+  return { id: product.id as string, variant };
+}
+
+/** Assign a delivery to this worker's delivery agent. */
 export async function assignToAgent(
   request: APIRequestContext,
   deliveryId: string,
