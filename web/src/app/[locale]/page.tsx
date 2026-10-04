@@ -14,6 +14,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { api } from "@/lib/api";
 import type { Locale } from "@/i18n/routing";
 import { alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
+import { getCategoriesOnce, getSettingsOnce } from "@/lib/server-data";
 
 /** The store's front door: canonical at the bare path, English as its alternate. */
 export async function generateMetadata({
@@ -22,7 +23,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const settings = await api.getSettings().catch(() => null);
+  const settings = await getSettingsOnce().catch(() => null);
   const siteName = await storeNameFor(locale, settings?.store_name);
   const description = (await getTranslations({ locale, namespace: "seo" }))("homeDescription", { store: siteName });
   return {
@@ -63,7 +64,7 @@ async function Categories({ locale }: { locale: Locale }) {
 
   let categories;
   try {
-    categories = await api.getCategories();
+    categories = await getCategoriesOnce();
   } catch {
     categories = null;
   }

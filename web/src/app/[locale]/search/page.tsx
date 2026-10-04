@@ -8,6 +8,7 @@ import { parseCatalogQuery } from "@/lib/catalog-query";
 import { ProductListing } from "@/components/catalog/listing";
 import { CatalogSkeleton } from "@/components/catalog/states";
 import type { Locale } from "@/i18n/routing";
+import { getCategoriesOnce } from "@/lib/server-data";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -52,7 +53,7 @@ export default async function SearchPage({ params, searchParams }: Props) {
   setRequestLocale(locale);
   const t = await getTranslations("catalog");
   const query = parseCatalogQuery(await searchParams);
-  const categories = await api.getCategories().catch(() => null);
+  const categories = await getCategoriesOnce().catch(() => null);
   const options = flattenCategories(categories ?? []).filter(
     (c) => c.is_visible !== false,
   );

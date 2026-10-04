@@ -93,7 +93,9 @@ test.describe("work pages on the live store", () => {
     await expect(page.getByTestId("work-forbidden")).toBeVisible();
   });
 
-  test("the monitor list: chips, each filter alone, and combined", async ({ page, request }) => {
+  // @global: compares the store-wide order counts every monitor sees, which
+  // other workers' orders would move mid-test — it runs alone, after the rest.
+  test("the monitor list: chips, each filter alone, and combined", { tag: "@global" }, async ({ page, request }) => {
     const fresh = await placeOrder(request);
     const all = await monitorCounts(request);
 
@@ -277,13 +279,18 @@ test.describe("notification center on the live store", () => {
     await awaitQuota(request);
   });
 
-  test("two sessions stay in step: arrival and read sync live", async ({ browser, request }) => {
+  // @global: counts unread notifications, and every order any worker places
+  // notifies every monitor — it runs alone, after the rest.
+  test("two sessions stay in step: arrival and read sync live", { tag: "@global" }, async ({ browser, request }) => {
     const first = await newSession(browser, MONITOR_LOCAL, "/notifications");
     const second = await newSession(browser, MONITOR_LOCAL, "/notifications");
     for (const page of [first, second]) {
       await expect(page.getByTestId("inbox")).toHaveAttribute("data-stream", "open");
     }
 
+    // Two arrivals: one is read below, the other keeps "mark all" something
+    // to do — this worker's monitor may be new, with no older notifications.
+    await placeOrder(request);
     await placeOrder(request);
     const monitor = await tokenFor(request, MONITOR_E164);
     const newest = (
@@ -332,6 +339,9 @@ test.describe("notification center on the live store", () => {
     page.on("request", (sent) => {
       if (sent.url().includes("/notifications/stream?")) streams.push(sent.url());
     });
+    // This worker's monitor exists, then has at least one notification.
+    await tokenFor(request, MONITOR_E164);
+    await placeOrder(request);
     await signIn(page, "/notifications", MONITOR_LOCAL);
     await expect(page.getByTestId("inbox")).toHaveAttribute("data-stream", "open");
     await expect(page.getByTestId("inbox-item").first()).toBeVisible();
