@@ -43,6 +43,9 @@ Runtime variables (set with `docker run -e`):
 |---|---|---|
 | `PORT` | `3000` | The port the server listens on. |
 | `HOSTNAME` | `0.0.0.0` | The interface the server listens on. |
+| `TRUSTED_FRONT_PROXIES` | *(empty)* | The store's own front proxies: comma-separated addresses, CIDRs, or the keywords `loopback`, `private` and `linklocal`. The store takes the shopper's address from them and passes it to the API (see [The production chain](#the-production-chain)). **Empty means no address is forwarded**, and every shopper shares the store server's rate-limit budget. A malformed entry makes pages fail with an error naming it, rather than silently trusting nothing. |
+| `STORE_CACHE_SHARED_SECONDS` | `60` | How long the store server keeps the store settings, categories and brands before reading them again. `0` turns it off. |
+| `STORE_CACHE_CATALOG_SECONDS` | `10` | The same for banners, product lists and a product page's data (product, availability, review count). `0` turns it off. |
 
 ## Web Admin variables
 
@@ -74,8 +77,8 @@ API proxy and rate-limit settings depend on these apps:
     cannot choose or split its rate-limit bucket.
 
   Keep the web and admin application ports private behind a reverse proxy that
-  overwrites (rather than appends user-supplied) forwarding headers. List that
-  load balancer or reverse proxy too when it connects directly to the API.
+  follows the production-chain rules below. List that load balancer or reverse
+  proxy too when it connects directly to the API.
 - Configure the three per-client, per-route one-minute limits on the API:
 
   | Variable | Default | Intended traffic |
@@ -116,11 +119,82 @@ docker run -p 3200:3200 \
 CI builds both images and checks their health on every pull request (the
 `Production images` job).
 
+## The production chain
+
+A shopper's request reaches the API by two routes:
+
+```
+browser ──(1)──▶ CDN / front proxy ──(2)──▶ web store server ──(3)──▶ API
+browser ─────────────────────(4)──────────────────────────────────▶ API
+```
+
+1. **Browser → front proxy.** TLS ends here. The proxy is the only thing on
+   the internet that can reach the store server.
+2. **Front proxy → store server.** The proxy **appends** the address it was
+   reached from to `X-Forwarded-For`. With a CDN in front of your proxy, the
+   chain grows: `client-claimed…, shopper, CDN edge`.
+3. **Store server → API** (pages rendered on the server). The store reads
+   the chain from the right, skipping every address in
+   `TRUSTED_FRONT_PROXIES`; the first address that is not a trusted proxy is
+   the shopper. It sends the API **only that address**, in `X-Forwarded-For`
+   and `X-Real-IP`, replacing whatever it received. Anything to the left,
+   which is what the client claimed, is never passed on. The API believes it
+   because the store server is in the API's `TRUSTED_PROXIES`.
+4. **Browser → API** (cart, checkout, account, delivery agent and monitor
+   pages, which use the session the browser holds). The API sees the shopper
+   directly, or through its own proxy listed in `TRUSTED_PROXIES`.
+
+What each part must be set to:
+
+| Part | Setting |
+|---|---|
+| Front proxy / CDN | Append the client address (`X-Forwarded-For`), never drop it. |
+| Network | **The store server must be reachable only through the front proxy.** Once a request carries `X-Forwarded-For`, the store can't see who connected to it, so it trusts the chain's last hop to be its proxy. |
+| Store server | `TRUSTED_FRONT_PROXIES` = the front proxy's address (and the CDN's ranges if there is one). |
+| API | `TRUSTED_PROXIES` = the store server's and the admin server's addresses (and the API's own proxy, if any). |
+
+Example: nginx in front of the store, on the same private network:
+
+```nginx
+location / {
+  proxy_pass http://web-store:3000;
+  # Appends $remote_addr to whatever chain arrived.
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Host $host;
+}
+```
+
+with `TRUSTED_FRONT_PROXIES=10.0.1.5` (nginx's address as the store sees it)
+on the store, and `TRUSTED_PROXIES=10.0.1.10,10.0.1.20` (the store's and the
+admin's servers) on the API. Behind a CDN, add the CDN's published ranges to
+`TRUSTED_FRONT_PROXIES`.
+
+### What the store server caches
+
+Only public catalogue reads, and only on the store server:
+
+| Read | For |
+|---|---|
+| Store settings, categories, brands | `STORE_CACHE_SHARED_SECONDS` (60 s) |
+| Banners, product lists (home, category, search, sitemap), a product page's product, availability and review count | `STORE_CACHE_CATALOG_SECONDS` (10 s) |
+
+A change in the Web Admin therefore shows on the store within those times
+(prices are still checked at checkout, which reads the cart live). The cache
+is keyed by the read and its query, never by who asked; whichever shopper's
+render misses fills it, and that read carries that shopper's address.
+
+Nothing personal is cached: the store server never reads a shopper's data.
+Cart, checkout, account, wishlist, notifications, delivery agent and monitor
+pages read it in the browser, with the session the browser holds, and every
+page is sent `Cache-Control: no-store` (each also carries its own CSP nonce).
+
 ## Behind a reverse proxy
 
 - **Terminate TLS in front of both apps.** Both apps send
   `Strict-Transport-Security`, so serve them only over HTTPS once they are live.
-- **Forward the client address** in `X-Forwarded-For` (see `TRUSTED_PROXIES`).
+- **Forward the client address** in `X-Forwarded-For` (see
+  [The production chain](#the-production-chain)).
 - **Don't strip the security headers** the apps set: Content-Security-Policy
   with a per-request nonce, `X-Content-Type-Options`, `Referrer-Policy`,
   `Permissions-Policy`, `X-Frame-Options` and `Cross-Origin-Opener-Policy`.

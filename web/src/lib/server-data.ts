@@ -1,80 +1,85 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { headers } from "next/headers";
 import { api, type ProductQuery } from "./api";
+import { listCatalogProducts } from "./catalog";
+import type { CatalogQuery } from "./catalog-query";
+import { compileTrust, forwardedHeaders, shopperAddress } from "./forwarding";
 
 /* ---------------------------------------------------------------------------
- * Server-render reads, once per request.
+ * Every API read the store makes while rendering on its server.
  *
- * generateMetadata, the layout and the page of one render each asked the API
- * for the store settings (and some for the categories or the product), so a
- * single page view cost up to four identical calls — all from the store's one
- * server address, against the API's per-address rate limit. React's `cache`
- * shares one answer across a single request and nothing more, so nothing is
- * ever served stale; a failure is shared the same way, and callers keep their
- * own fallbacks.
+ * 1. The shopper's address goes with each call (X-Forwarded-For and
+ *    X-Real-IP, overwriting anything the client sent), taken only from the
+ *    store's trusted front proxies — see forwarding.ts. The API then
+ *    rate-limits each shopper, not the store server as a whole.
+ *
+ * 2. Public catalogue reads are cached across requests for a short while:
+ *    settings, categories and brands for STORE_CACHE_SHARED_SECONDS (60 s);
+ *    banners, product lists and a product's page data for
+ *    STORE_CACHE_CATALOG_SECONDS (10 s). 0 turns a tier off. The cache key is
+ *    the read and its arguments — never the shopper's headers, which Next's
+ *    own fetch cache would key on — so one shopper's miss fills the entry
+ *    for everyone, fetched with that shopper's address.
+ *
+ * 3. Within one render, generateMetadata, the layout and the page share one
+ *    answer (React `cache`).
+ *
+ * Only public reads live here. Nothing personal is ever read on the store's
+ * server: the session lives in the browser, and the cart, checkout, account,
+ * agent and monitor pages call the API from there, uncached.
  * ------------------------------------------------------------------------- */
 
-/**
- * STORE_READ_CACHE_SECONDS (server only, default 0 = off) additionally keeps
- * the settings and the category tree in Next's data cache for that long, so
- * busy rendering costs one call per window instead of one per page view.
- * Every page view needs the settings, and they come from the store's one
- * server address, so under load they alone can exhaust the API's
- * per-address rate limit. The live CI job sets it; production keeps reading
- * them fresh unless it is set there too.
- */
-const readCacheSeconds = Number(process.env.STORE_READ_CACHE_SECONDS ?? 0);
-const cached =
-  readCacheSeconds > 0 ? { next: { revalidate: readCacheSeconds } } : undefined;
+interface ServerRequestContext {
+  headers: Record<string, string>;
+}
 
-async function forwarded(init?: RequestInit): Promise<RequestInit> {
+const context = new AsyncLocalStorage<ServerRequestContext>();
+// api.ts reads it on the server (it is shared with the browser bundle, so it
+// can't import node:async_hooks itself).
+(globalThis as { __shubayrServerRequest?: AsyncLocalStorage<ServerRequestContext> }).__shubayrServerRequest = context;
+
+const trust = compileTrust(process.env.TRUSTED_FRONT_PROXIES);
+
+function seconds(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+const SHARED_SECONDS = seconds("STORE_CACHE_SHARED_SECONDS", 60);
+const CATALOG_SECONDS = seconds("STORE_CACHE_CATALOG_SECONDS", 10);
+
+async function shopperHeaders(): Promise<Record<string, string>> {
   const incoming = await headers();
-  const forwardedFor = incoming.get("x-forwarded-for");
-  if (!forwardedFor) return init ?? {};
-  const merged = new Headers(init?.headers);
-  merged.set("x-forwarded-for", forwardedFor);
-  return { ...init, headers: merged };
+  return forwardedHeaders(shopperAddress(incoming.get("x-forwarded-for"), trust));
 }
 
-export const getSettingsOnce = cache(async () =>
-  api.getSettings(await forwarded(cached)),
+/** A public read: forwarded, cached across requests for `ttl` seconds, deduped per render. */
+function publicRead<A extends unknown[], T>(name: string, ttl: number, load: (...args: A) => Promise<T>) {
+  return cache(async (...args: A): Promise<T> => {
+    const request = { headers: await shopperHeaders() };
+    const run = () => context.run(request, () => load(...args));
+    if (ttl <= 0) return run();
+    return unstable_cache(run, [name, JSON.stringify(args)], { revalidate: ttl, tags: [name] })();
+  });
+}
+
+export const getSettingsOnce = publicRead("settings", SHARED_SECONDS, () => api.getSettings());
+export const getCategoriesOnce = publicRead("categories", SHARED_SECONDS, () => api.getCategories());
+export const getBrandsOnce = publicRead("brands", SHARED_SECONDS, () => api.listBrands());
+
+export const getBannersOnce = publicRead("banners", CATALOG_SECONDS, () => api.getBanners());
+export const listProductsOnce = publicRead("products", CATALOG_SECONDS, (query: ProductQuery) => api.listProducts(query));
+export const listDealsOnce = publicRead("deals", CATALOG_SECONDS, (limit: number) => api.listDeals(limit));
+export const listCatalogProductsOnce = publicRead("listing", CATALOG_SECONDS, (query: CatalogQuery) => listCatalogProducts(query));
+export const getProductOnce = publicRead("product", CATALOG_SECONDS, (id: string) => api.getProduct(id));
+export const getProductAvailabilityOnce = publicRead("availability", CATALOG_SECONDS, (id: string) => api.getProductAvailability(id));
+export const getProductReviewCountOnce = publicRead("review-count", CATALOG_SECONDS, (id: string) => api.getProductReviewCount(id));
+export const listReviewsOnce = publicRead(
+  "reviews",
+  CATALOG_SECONDS,
+  (id: string, query: { page?: number; per_page?: number }) => api.listReviews(id, query),
 );
-
-export const getCategoriesOnce = cache(async () =>
-  api.getCategories(await forwarded(cached)),
-);
-
-export const getProductOnce = cache(async (id: string) =>
-  api.getProduct(id, await forwarded()),
-);
-
-export async function getBannersForRequest() {
-  return api.getBanners(await forwarded());
-}
-
-export async function getBrandsForRequest() {
-  return api.listBrands(await forwarded());
-}
-
-export async function getProductsForRequest(query: ProductQuery = {}) {
-  return api.listProducts(query, await forwarded());
-}
-
-export async function getDealsForRequest(limit = 6) {
-  return api.listDeals(limit, await forwarded());
-}
-
-export async function getAvailabilityForRequest(id: string) {
-  return api.getProductAvailability(id, await forwarded());
-}
-
-export async function getReviewCountForRequest(id: string) {
-  return api.getProductReviewCount(id, await forwarded());
-}
-
-export async function getReviewsForRequest(
-  id: string,
-  query: { page?: number; per_page?: number } = {},
-) {
-  return api.listReviews(id, query, await forwarded());
-}
