@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
-import { Alert, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
@@ -429,9 +429,15 @@ function LinkedPreviewPanel({
                     data-testid="preview-row"
                     data-sku={item.sku}
                     data-direction={direction}
+                    data-requires-approval={item.requires_below_cost_approval}
                   >
                     <td className="py-1.5">
                       <code dir="ltr">{item.sku}</code>
+                      {item.requires_below_cost_approval ? (
+                        <Badge tone="warning" className="ms-2" data-testid="preview-below-cost">
+                          {tl("belowCostApproval")}
+                        </Badge>
+                      ) : null}
                     </td>
                     <td className="py-1.5" dir="ltr" data-testid="preview-old">
                       {money(item.old_price)}

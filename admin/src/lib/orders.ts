@@ -258,7 +258,9 @@ export function formatMoney(
  */
 export function adminInboxHref(deepLink: string): string {
   const match = /^\/(?:admin\/)?orders\/([0-9a-fA-F-]{36})$/.exec(deepLink);
-  return match ? `/orders/${match[1]}` : "/notifications";
+  if (match) return `/orders/${match[1]}`;
+  const approval = /^\/admin\/finance\/price-approvals\/([0-9a-fA-F-]{36})$/.exec(deepLink);
+  return approval ? `/finance/price-approvals/${approval[1]}` : "/notifications";
 }
 
 /* ------------------------------------------------------- lifecycle v2 */

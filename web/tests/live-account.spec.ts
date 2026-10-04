@@ -101,7 +101,16 @@ async function mintDeliveredOrder(
   for (const status of ["out_for_delivery", "delivered"]) {
     const moved = await request.patch(`${API}/deliveries/${order.delivery_id}`, {
       headers: bearer(agent),
-      data: { status, order_version: orderVersion },
+      data: {
+        status,
+        order_version: orderVersion,
+        ...(status === "delivered"
+          ? {
+              operation_id: `live-account-delivery-${order.id}-${orderVersion}`,
+              collection_confirmation: "unconfirmed",
+            }
+          : {}),
+      },
     });
     expect(moved.ok()).toBe(true);
     orderVersion = ((await moved.json()) as { order_version: number }).order_version;

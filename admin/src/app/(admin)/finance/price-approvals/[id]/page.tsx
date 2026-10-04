@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { ApiError } from "@/lib/api/errors";
 import { loadPermissions } from "@/lib/api/inventory-server";
-import { serverApi } from "@/lib/api/server";
+import { load, serverApi } from "@/lib/api/server";
 import { UUID } from "@/lib/inventory";
 import { DecisionForm } from "./decision-form";
 
@@ -14,23 +14,24 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Approve or reject a below-cost linked-price publish (sell_below_cost.approve,
- * contract 11.0). The proposer is recorded by the server from their session
+ * Inspect a fixed or linked below-cost price publish and, with the approval
+ * permission, approve or reject it. The proposer is recorded by the server from their session
  * and can never decide their own request; nothing here sends who proposed it.
- *
- * The API has no read of a single request or list of pending ones yet, so an
- * approver arrives here from the link the proposer shares (see the PR notes).
  */
 export default async function PriceApprovalPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const t = await getTranslations("priceApprovals");
-  const permissions = await loadPermissions(await serverApi());
-  if (!permissions.includes("sell_below_cost.approve")) return <PageError error={new ApiError(403, "sell_below_cost.approve required")} />;
+  const api = await serverApi();
+  const permissions = await loadPermissions(api);
+  const mayRead = ["sell_below_cost.approve", "prices.change", "prices.publish_linked"].some((permission) => permissions.includes(permission));
+  if (!mayRead) return <PageError error={new ApiError(403, "Price approval permission required")} />;
   if (!UUID.test(id)) return <PageError error={new ApiError(404, "Unknown approval request")} />;
+  const approval = await load(api.GET("/admin/price-publish-approvals/{id}", { params: { path: { id } } }));
+  if (!approval.ok) return <PageError error={approval.error} />;
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
-      <DecisionForm id={id} canViewCost={permissions.includes("cost.view")} />
+      <DecisionForm id={id} approval={approval.data} canDecide={permissions.includes("sell_below_cost.approve")} canViewCost={permissions.includes("cost.view")} />
     </>
   );
 }

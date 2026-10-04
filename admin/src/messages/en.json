@@ -174,7 +174,8 @@
       "purchasing": "Receive purchase invoices into stock with pack sizes, landed costs and lots.",
       "suppliers": "Suppliers, their opening balances, statements and credits.",
       "supplierPayments": "Pay suppliers, allocate to invoices and see the FX gain or loss.",
-      "payables": "What is owed to each supplier, and accounts-payable aging."
+      "payables": "What is owed to each supplier, and accounts-payable aging.",
+      "deliveryParties": "Internal agents and external drivers, with the goods, cash and orders in their custody."
     },
     "comingTitle": "Coming next",
     "comingBody": "Orders, catalog, stock and accounting arrive with the next backend phases.",
@@ -1737,7 +1738,11 @@
       "synchronized": "Search is up to date: every product was indexed.",
       "queued": "{count, plural, one {# product is} other {# products are}} still queued; the automatic catch-up will retry."
     },
-    "belowCostNote": "Raise the price, or ask an approver: approving a below-cost price needs the API to record who proposed it (reported to the backend)."
+    "belowCostNote": "Raise the price or submit it for approval by another user.",
+    "approvalPendingTitle": "Price change waiting for approval",
+    "approvalPendingBody": "The live price was not changed. Another user with below-cost approval permission must approve or reject this request.",
+    "approvalPendingToast": "The below-cost price change is pending approval.",
+    "openApproval": "Open approval request"
   },
   "linkedPrices": {
     "preview": "Preview the price effect",
@@ -1756,6 +1761,7 @@
       "change": "Change"
     },
     "firstPrice": "First price",
+    "belowCostApproval": "Approval required",
     "saveRateOnly": "Save rate only",
     "saveAndPublish": "Save rate and publish linked prices",
     "discard": "Edit the entry",
@@ -2169,6 +2175,12 @@
     "approve": "Approve and publish",
     "reject": "Reject",
     "ownRequest": "You proposed this change, so you can't decide it. Another approver must approve or reject it.",
+    "readOnly": "You can inspect this request, but deciding it requires the below-cost approval permission.",
+    "proposedBy": "Proposed by {name}",
+    "kind": {
+      "fixed": "Fixed-price change",
+      "linked": "Linked-price publish"
+    },
     "approvedBody": "Approved: the rate and the linked prices are published.",
     "rejectedBody": "Rejected: nothing was published.",
     "status": {

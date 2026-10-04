@@ -20,6 +20,7 @@ import type { AuthenticatedRequestUser } from '../../common/guards/permissions.g
 import { DeliveryPartiesService } from './delivery-parties.service';
 import {
   CreateExternalDriverDto,
+  CustodyOverviewQueryDto,
   DeliveryPartyKind,
   DeliveryPartyQueryDto,
   PartyStatementQueryDto,
@@ -50,8 +51,23 @@ export class DeliveryPartiesController {
     'orders.assign_agent',
     'drivers.manage',
   )
-  list(@Query() query: DeliveryPartyQueryDto) {
-    return this.parties.list(query);
+  list(@Req() request: AdminRequest, @Query() query: DeliveryPartyQueryDto) {
+    return this.parties.list(
+      query,
+      request.user.permissions.includes('cost.view'),
+    );
+  }
+
+  @Get('custody-overview')
+  @AdminPolicy('deliveries.manage')
+  overview(
+    @Req() request: AdminRequest,
+    @Query() query: CustodyOverviewQueryDto,
+  ) {
+    return this.parties.custodyOverview(
+      query,
+      request.user.permissions.includes('cost.view'),
+    );
   }
 
   @Get(':id')
@@ -96,11 +112,14 @@ export class ExternalDriversController {
 
   @Get()
   @AdminPolicy('drivers.manage')
-  list(@Query() query: DeliveryPartyQueryDto) {
-    return this.parties.list({
-      ...query,
-      kind: DeliveryPartyKind.ExternalDriver,
-    });
+  list(@Req() request: AdminRequest, @Query() query: DeliveryPartyQueryDto) {
+    return this.parties.list(
+      {
+        ...query,
+        kind: DeliveryPartyKind.ExternalDriver,
+      },
+      request.user.permissions.includes('cost.view'),
+    );
   }
 
   @Post()

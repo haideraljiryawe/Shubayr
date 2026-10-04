@@ -801,7 +801,7 @@
     "notFoundBody": "It may have been reassigned to another agent.",
     "actions": "Actions",
     "noActions": "There is nothing to do on this delivery right now.",
-    "detailsNote": "Customer, address and collected-amount details arrive in a later phase.",
+    "detailsNote": "Confirming delivery records the cash collection as unconfirmed for staff follow-up.",
     "action": {
       "out_for_delivery": "Start delivery",
       "delivered": "Confirm delivered",

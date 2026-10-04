@@ -138,6 +138,7 @@ try {
   await stopApi();
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
+  await run('test/c5b-gaps.acceptance.mjs', [], acceptanceEnv);
   await run('test/qa-fixes.acceptance.mjs', [], acceptanceEnv);
   // Keep inventory lifecycle last: delivered/returned rows are intentionally
   // immutable and cannot be removed without defeating the database guards.

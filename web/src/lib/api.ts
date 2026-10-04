@@ -925,6 +925,7 @@ export const api = {
           delivery_lat: chosen?.lat ?? null,
           delivery_lng: chosen?.lng ?? null,
           placed_at: new Date().toISOString(),
+          delivery_attempts: [],
           items: draft?.items ?? [],
         };
         // So the confirmation's «تتبّع الطلب» link opens a real order page.
@@ -1365,6 +1366,12 @@ export const api = {
         body: JSON.stringify({
           status,
           order_version: orderVersion,
+          ...(status === "delivered"
+            ? {
+                operation_id: `web-delivery-${id}-${orderVersion}`,
+                collection_confirmation: "unconfirmed" as const,
+              }
+            : {}),
           ...(reason ? { reason } : {}),
         }),
       });

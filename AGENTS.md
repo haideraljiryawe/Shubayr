@@ -21,6 +21,7 @@
 - Strict response validation (types + no undeclared properties) must pass.
 - Bump the version per semver and state in the PR description what is breaking (if anything).
 - Declare every new error code on every affected route.
+- A change that breaks existing callers (major version) must not merge until the web/ and admin/ live suites pass against the new API. If callers break, stop and report the exact affected calls instead of merging. List affected web/admin/mobile calls in the PR description.
 
 ## Money and dates
 

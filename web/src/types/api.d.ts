@@ -4575,6 +4575,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/delivery-parties/custody-overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Paginated custody totals across all delivery parties
+         * @description Goods value is omitted unless the caller has cost.view; sorting by goods value also requires cost.view.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    kind?: "internal_agent" | "external_driver";
+                    active?: boolean;
+                    q?: string;
+                    sort_by?: "name" | "goods_value_iqd" | "cash_held" | "oldest_item_age_days" | "orders_held";
+                    sort_direction?: "asc" | "desc";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Delivery parties with ledger-reconciling custody totals */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPartyPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/delivery-parties/{id}": {
         parameters: {
             query?: never;
@@ -5619,7 +5668,7 @@ export interface paths {
         head?: never;
         /**
          * Update a product
-         * @description Omitted fields are preserved. Explicit null clears only nullable fields; `discount_type: null` clears the complete stored discount definition. Updating unrelated fields never changes a scheduled discount.
+         * @description Omitted fields are preserved. Explicit null clears only nullable fields; `discount_type: null` clears the complete stored discount definition. Updating unrelated fields never changes a scheduled discount. A fixed price below protected cost is not applied: the response retains the live price and identifies the pending request for another user.
          */
         patch: {
             parameters: {
@@ -7080,6 +7129,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/price-publish-approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List below-cost price-publish approval requests
+         * @description Approvers can discover all requests; price proposers can read only their own requests. Cost fields require cost.view.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    status?: "pending" | "approved" | "rejected";
+                    proposer_id?: string;
+                    sku?: string;
+                    from?: string;
+                    to?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated approval requests */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PricePublishApprovalPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/price-publish-approvals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one below-cost price-publish approval request
+         * @description Approvers can read any request; a proposer can read their own request. Cost fields require cost.view.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Approval request */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PricePublishApproval"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/price-publish-approvals/{id}/decision": {
         parameters: {
             query?: never;
@@ -7090,7 +7232,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Approve or reject a pending below-cost linked-price publish
+         * Approve or reject a pending below-cost fixed or linked-price publish
          * @description The authenticated proposer is stored server-side and can never decide their own request.
          */
         post: {
@@ -9167,6 +9309,16 @@ export interface components {
             price_approved_at?: string | null;
             /** Format: uuid */
             price_proposed_by?: string | null;
+            /**
+             * @description Present when this save created a below-cost fixed-price approval request and left the live price unchanged.
+             * @enum {string}
+             */
+            price_update_status?: "pending_approval";
+            /**
+             * Format: uuid
+             * @description Present with price_update_status.
+             */
+            price_approval_request_id?: string;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -9593,7 +9745,7 @@ export interface components {
                 resolved_at?: string;
             };
         };
-        Order: {
+        OrderBase: {
             /** Format: uuid */
             id?: string;
             order_number?: string;
@@ -9659,8 +9811,6 @@ export interface components {
             price_change_info?: null | components["schemas"]["OrderPriceChangeInfo"];
             inventory_attention_required?: boolean;
             attention_details?: null | components["schemas"]["OrderAttentionDetails"];
-            /** @description Immutable chronological history across the order's original and replacement deliveries. */
-            delivery_attempts?: components["schemas"]["DeliveryAttempt"][];
             timeline?: {
                 status?: components["schemas"]["OrderStatus"];
                 note?: string | null;
@@ -9678,10 +9828,16 @@ export interface components {
             }[];
             items?: components["schemas"]["OrderItem"][];
         };
+        Order: components["schemas"]["OrderBase"] & {
+            /** @description Immutable chronological history without courier or delivery-party identity. */
+            delivery_attempts: components["schemas"]["CustomerDeliveryAttempt"][];
+        };
         OrderPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Order"][];
         };
-        AdminOrder: components["schemas"]["Order"] & {
+        AdminOrder: components["schemas"]["OrderBase"] & {
+            /** @description Staff history retains the assigned internal agent or external driver's identity. */
+            delivery_attempts: components["schemas"]["DeliveryAttempt"][];
             customer: {
                 /** Format: uuid */
                 id: string;
@@ -9949,6 +10105,16 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        DeliveryPartyCustodySummary: {
+            /** @description Present only with cost.view; sums open goods-custody holdings at fixed issue cost. */
+            goods_value_iqd?: number;
+            /** @description Confirmed COD cash currently held for the store. */
+            cash_held: number;
+            /** @description Oldest open goods or cash custody item in Baghdad business days. */
+            oldest_item_age_days: number | null;
+            /** @description Distinct orders with goods currently in this party's custody. */
+            orders_held: number;
         };
         SupplierInput: {
             name: string;
@@ -10687,9 +10853,12 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+            custody_summary?: components["schemas"]["DeliveryPartyCustodySummary"];
         };
         DeliveryPartyPage: components["schemas"]["Pagination"] & {
-            data: components["schemas"]["DeliveryParty"][];
+            data: (components["schemas"]["DeliveryParty"] & {
+                custody_summary: components["schemas"]["DeliveryPartyCustodySummary"];
+            })[];
         };
         ExternalDriverCreate: {
             name: string;
@@ -10895,6 +11064,20 @@ export interface components {
             attempts?: components["schemas"]["DeliveryAttempt"][];
             collection?: components["schemas"]["DeliveryCollection"] | null;
         };
+        CustomerDeliveryAttempt: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            delivery_id: string;
+            attempt_number: number;
+            /** @enum {string} */
+            status: "out_for_delivery" | "delivered" | "failed";
+            reason: string | null;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+        };
         DeliveryAttempt: {
             /** Format: uuid */
             id: string;
@@ -11045,7 +11228,7 @@ export interface components {
         };
         NotificationPreferenceEntry: {
             /** @enum {string} */
-            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "order_rejected" | "delivery_assigned" | "order_acceptance_late" | "retrieval_update" | "quantity_reduction_proposed" | "cancellation_request_approved" | "cancellation_request_denied";
+            type: "order_placed" | "order_confirmed" | "order_status_changed" | "out_for_delivery" | "delivered" | "delivery_failed" | "return_update" | "loyalty_points_earned" | "review_moderated" | "promo" | "new_order" | "order_cancelled" | "order_rejected" | "delivery_assigned" | "order_acceptance_late" | "retrieval_update" | "quantity_reduction_proposed" | "cancellation_request_approved" | "cancellation_request_denied" | "price_approval_requested" | "price_approval_approved" | "price_approval_rejected";
             /** @enum {string} */
             channel: "push" | "sms";
             enabled: boolean;
@@ -11324,6 +11507,8 @@ export interface components {
             new_price: number;
             /** @description Signed percentage; decreases are negative. */
             percent_change: number | null;
+            /** @description True when publishing this previewed SKU price requires a second user's below-cost approval. */
+            requires_below_cost_approval: boolean;
         };
         LinkedPricePreview: {
             /** Format: uuid */
@@ -11361,25 +11546,62 @@ export interface components {
         PricePublishApproval: {
             /** Format: uuid */
             id: string;
+            /** @enum {string} */
+            kind: "linked" | "fixed";
             /** Format: uuid */
             preview_id: string | null;
+            /** Format: uuid */
+            product_id: string | null;
             /** Format: uuid */
             price_version_id: string | null;
             /** @enum {string} */
             status: "pending" | "approved" | "rejected";
             /** Format: uuid */
             proposed_by: string;
+            proposer: {
+                /** Format: uuid */
+                id: string;
+                name: string | null;
+            };
             /** Format: uuid */
             decided_by: string | null;
+            decider: null | {
+                /** Format: uuid */
+                id: string;
+                name: string | null;
+            };
             proposal_reason: string;
             decision_reason: string | null;
+            sku_list: string[];
             breaches: {
-                [key: string]: unknown;
+                /** Format: uuid */
+                variant_id: string;
+                sku: string;
+                price: number;
+                threshold_percent: number;
+                /** @description Present only with cost.view. */
+                cost?: number;
+                /** @description Present only with cost.view. */
+                minimum_price?: number;
             }[];
+            fixed_proposal: null | {
+                /** Format: uuid */
+                product_id: string;
+                proposed_product_price: number;
+                variants: {
+                    /** Format: uuid */
+                    variant_id: string;
+                    sku: string;
+                    proposed_selling_price: number | null;
+                }[];
+            };
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             decided_at: string | null;
+        };
+        PricePublishApprovalPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["PricePublishApproval"][];
         };
         OperationOutcome: {
             /** Format: uuid */

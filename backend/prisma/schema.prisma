@@ -726,6 +726,7 @@ model Product {
   wishlist_items         WishlistItem[]
   order_items            OrderItem[]
   product_reviews        ProductReview[]
+  price_approval_requests PricePublishApproval[]
 
   @@index([category_id], map: "idx_products_category")
   @@index([brand_id], map: "idx_products_brand")
@@ -814,22 +815,29 @@ model LinkedPricePreview {
 
 model PricePublishApproval {
   id               String              @id(map: "price_publish_approvals_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind             String              @default("linked") @db.VarChar(20)
   preview_id       String?             @unique(map: "price_publish_approvals_preview_id_key") @db.Uuid
   price_version_id String?             @unique(map: "price_publish_approvals_price_version_id_key") @db.Uuid
+  product_id       String?             @db.Uuid
   status           String              @default("pending") @db.VarChar(20)
   proposed_by      String              @db.Uuid
   decided_by       String?             @db.Uuid
   proposal_reason  String              @db.VarChar(500)
   decision_reason  String?             @db.VarChar(500)
   breaches         Json                @db.JsonB
+  fixed_payload    Json?               @db.JsonB
+  sku_list         String[]            @default([]) @db.VarChar(80)
   created_at       DateTime            @default(now()) @db.Timestamptz(6)
   decided_at       DateTime?           @db.Timestamptz(6)
   preview          LinkedPricePreview? @relation(fields: [preview_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "price_publish_approvals_preview_id_fkey")
   price_version    PriceVersion?       @relation(fields: [price_version_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_publish_approvals_price_version_id_fkey")
+  product          Product?            @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_publish_approvals_product_id_fkey")
   proposer         User                @relation("PricePublishApprovalProposer", fields: [proposed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_publish_approvals_proposed_by_fkey")
   decider          User?               @relation("PricePublishApprovalDecider", fields: [decided_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "price_publish_approvals_decided_by_fkey")
 
   @@index([status, created_at(sort: Desc)], map: "idx_price_publish_approvals_status")
+  @@index([proposed_by, created_at(sort: Desc)], map: "idx_price_publish_approvals_proposer")
+  @@index([product_id, created_at(sort: Desc)], map: "idx_price_publish_approvals_product")
   @@map("price_publish_approvals")
 }
 

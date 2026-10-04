@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 12.0.0
+  version: 13.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -2152,6 +2152,29 @@ paths:
               schema: { $ref: "#/components/schemas/DeliveryPartyPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/custody-overview:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Paginated custody totals across all delivery parties
+      description: Goods value is omitted unless the caller has cost.view; sorting by goods value also requires cost.view.
+      x-permission: deliveries.manage
+      x-error-codes: [COST_VIEW_REQUIRED]
+      parameters:
+        - { name: kind, in: query, schema: { type: string, enum: [internal_agent, external_driver] } }
+        - { name: active, in: query, schema: { type: boolean } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: sort_by, in: query, schema: { type: string, enum: [name, goods_value_iqd, cash_held, oldest_item_age_days, orders_held], default: name } }
+        - { name: sort_direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Delivery parties with ledger-reconciling custody totals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/delivery-parties/{id}:
     get:
       tags: [Admin, Deliveries]
@@ -2696,7 +2719,9 @@ paths:
       description: >
         Omitted fields are preserved. Explicit null clears only nullable fields;
         `discount_type: null` clears the complete stored discount definition.
-        Updating unrelated fields never changes a scheduled discount.
+        Updating unrelated fields never changes a scheduled discount. A fixed
+        price below protected cost is not applied: the response retains the
+        live price and identifies the pending request for another user.
       x-permissions: [catalog.products, prices.change]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -3344,14 +3369,48 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  /admin/price-publish-approvals:
+    get:
+      tags: [Finance]
+      summary: List below-cost price-publish approval requests
+      description: Approvers can discover all requests; price proposers can read only their own requests. Cost fields require cost.view.
+      x-surface: admin
+      x-any-permissions: [sell_below_cost.approve, prices.change, prices.publish_linked]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected] } }
+        - { name: proposer_id, in: query, schema: { type: string, format: uuid } }
+        - { name: sku, in: query, schema: { type: string, maxLength: 80 } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Paginated approval requests, content: { application/json: { schema: { $ref: "#/components/schemas/PricePublishApprovalPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/price-publish-approvals/{id}:
+    get:
+      tags: [Finance]
+      summary: Get one below-cost price-publish approval request
+      description: Approvers can read any request; a proposer can read their own request. Cost fields require cost.view.
+      x-surface: admin
+      x-any-permissions: [sell_below_cost.approve, prices.change, prices.publish_linked]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Approval request, content: { application/json: { schema: { $ref: "#/components/schemas/PricePublishApproval" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+
   /admin/price-publish-approvals/{id}/decision:
     post:
       tags: [Finance]
-      summary: Approve or reject a pending below-cost linked-price publish
+      summary: Approve or reject a pending below-cost fixed or linked-price publish
       description: The authenticated proposer is stored server-side and can never decide their own request.
       x-surface: admin
       x-permission: sell_below_cost.approve
-      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION]
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, STALE_PRICE_APPROVAL]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody:
         required: true
@@ -4304,6 +4363,8 @@ components:
         published_at: { type: [string, "null"], format: date-time }
         price_approved_at: { type: [string, "null"], format: date-time }
         price_proposed_by: { type: [string, "null"], format: uuid }
+        price_update_status: { type: string, enum: [pending_approval], description: Present when this save created a below-cost fixed-price approval request and left the live price unchanged. }
+        price_approval_request_id: { type: string, format: uuid, description: Present with price_update_status. }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         images:
@@ -4733,7 +4794,7 @@ components:
             requested_at: { type: string, format: date-time }
             resolved_at: { type: string, format: date-time }
 
-    Order:
+    OrderBase:
       type: object
       properties:
         id: { type: string, format: uuid }
@@ -4779,10 +4840,6 @@ components:
           oneOf:
             - { type: "null" }
             - { $ref: "#/components/schemas/OrderAttentionDetails" }
-        delivery_attempts:
-          type: array
-          description: Immutable chronological history across the order's original and replacement deliveries.
-          items: { $ref: "#/components/schemas/DeliveryAttempt" }
         timeline:
           type: array
           items:
@@ -4804,6 +4861,17 @@ components:
           type: array
           items: { $ref: "#/components/schemas/OrderItem" }
 
+    Order:
+      allOf:
+        - $ref: "#/components/schemas/OrderBase"
+        - type: object
+          required: [delivery_attempts]
+          properties:
+            delivery_attempts:
+              type: array
+              description: Immutable chronological history without courier or delivery-party identity.
+              items: { $ref: "#/components/schemas/CustomerDeliveryAttempt" }
+
     OrderPage:
       allOf:
         - $ref: "#/components/schemas/Pagination"
@@ -4816,10 +4884,14 @@ components:
 
     AdminOrder:
       allOf:
-        - $ref: "#/components/schemas/Order"
+        - $ref: "#/components/schemas/OrderBase"
         - type: object
-          required: [customer, shipping_snapshot, payments, delivery, status_events]
+          required: [customer, shipping_snapshot, payments, delivery, delivery_attempts, status_events]
           properties:
+            delivery_attempts:
+              type: array
+              description: Staff history retains the assigned internal agent or external driver's identity.
+              items: { $ref: "#/components/schemas/DeliveryAttempt" }
             customer:
               type: object
               required: [id, name, phone, email]
@@ -5134,6 +5206,16 @@ components:
         is_active: { type: boolean }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    DeliveryPartyCustodySummary:
+      type: object
+      additionalProperties: false
+      required: [cash_held, oldest_item_age_days, orders_held]
+      properties:
+        goods_value_iqd: { type: number, minimum: 0, description: Present only with cost.view; sums open goods-custody holdings at fixed issue cost. }
+        cash_held: { type: number, minimum: 0, description: Confirmed COD cash currently held for the store. }
+        oldest_item_age_days: { type: [integer, "null"], minimum: 0, description: Oldest open goods or cash custody item in Baghdad business days. }
+        orders_held: { type: integer, minimum: 0, description: Distinct orders with goods currently in this party's custody. }
 
     SupplierInput:
       type: object
@@ -5975,6 +6057,7 @@ components:
         is_active: { type: boolean }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+        custody_summary: { $ref: "#/components/schemas/DeliveryPartyCustodySummary" }
 
     DeliveryPartyPage:
       allOf:
@@ -5984,7 +6067,13 @@ components:
           properties:
             data:
               type: array
-              items: { $ref: "#/components/schemas/DeliveryParty" }
+              items:
+                allOf:
+                  - { $ref: "#/components/schemas/DeliveryParty" }
+                  - type: object
+                    required: [custody_summary]
+                    properties:
+                      custody_summary: { $ref: "#/components/schemas/DeliveryPartyCustodySummary" }
 
     ExternalDriverCreate:
       type: object
@@ -6227,6 +6316,19 @@ components:
             - { $ref: "#/components/schemas/DeliveryCollection" }
             - { type: "null" }
 
+    CustomerDeliveryAttempt:
+      type: object
+      additionalProperties: false
+      required: [id, delivery_id, attempt_number, status, reason, started_at, completed_at]
+      properties:
+        id: { type: string, format: uuid }
+        delivery_id: { type: string, format: uuid }
+        attempt_number: { type: integer, minimum: 1 }
+        status: { type: string, enum: [out_for_delivery, delivered, failed] }
+        reason: { type: [string, "null"], maxLength: 500 }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+
     DeliveryAttempt:
       type: object
       additionalProperties: false
@@ -6398,7 +6500,7 @@ components:
       additionalProperties: false
       required: [type, channel, enabled]
       properties:
-        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, order_rejected, delivery_assigned, order_acceptance_late, retrieval_update, quantity_reduction_proposed, cancellation_request_approved, cancellation_request_denied] }
+        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, order_rejected, delivery_assigned, order_acceptance_late, retrieval_update, quantity_reduction_proposed, cancellation_request_approved, cancellation_request_denied, price_approval_requested, price_approval_approved, price_approval_rejected] }
         channel: { type: string, enum: [push, sms] }
         enabled: { type: boolean }
 
@@ -6782,13 +6884,14 @@ components:
     LinkedPricePreviewItem:
       type: object
       additionalProperties: false
-      required: [variant_id, sku, old_price, new_price, percent_change]
+      required: [variant_id, sku, old_price, new_price, percent_change, requires_below_cost_approval]
       properties:
         variant_id: { type: string, format: uuid }
         sku: { type: string }
         old_price: { type: [number, "null"] }
         new_price: { type: number }
         percent_change: { type: [number, "null"], description: "Signed percentage; decreases are negative." }
+        requires_below_cost_approval: { type: boolean, description: True when publishing this previewed SKU price requires a second user's below-cost approval. }
 
     LinkedPricePreview:
       type: object
@@ -6834,19 +6937,77 @@ components:
     PricePublishApproval:
       type: object
       additionalProperties: false
-      required: [id, preview_id, price_version_id, status, proposed_by, decided_by, proposal_reason, decision_reason, breaches, created_at, decided_at]
+      required: [id, kind, preview_id, product_id, price_version_id, status, proposed_by, proposer, decided_by, decider, proposal_reason, decision_reason, sku_list, breaches, fixed_proposal, created_at, decided_at]
       properties:
         id: { type: string, format: uuid }
+        kind: { type: string, enum: [linked, fixed] }
         preview_id: { type: [string, "null"], format: uuid }
+        product_id: { type: [string, "null"], format: uuid }
         price_version_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [pending, approved, rejected] }
         proposed_by: { type: string, format: uuid }
+        proposer:
+          type: object
+          additionalProperties: false
+          required: [id, name]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: [string, "null"] }
         decided_by: { type: [string, "null"], format: uuid }
+        decider:
+          oneOf:
+            - { type: "null" }
+            - type: object
+              additionalProperties: false
+              required: [id, name]
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: [string, "null"] }
         proposal_reason: { type: string }
         decision_reason: { type: [string, "null"] }
-        breaches: { type: array, items: { type: object, additionalProperties: true } }
+        sku_list: { type: array, items: { type: string } }
+        breaches:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [variant_id, sku, price, threshold_percent]
+            properties:
+              variant_id: { type: string, format: uuid }
+              sku: { type: string }
+              price: { type: number }
+              threshold_percent: { type: number }
+              cost: { type: number, description: Present only with cost.view. }
+              minimum_price: { type: number, description: Present only with cost.view. }
+        fixed_proposal:
+          oneOf:
+            - { type: "null" }
+            - type: object
+              additionalProperties: false
+              required: [product_id, proposed_product_price, variants]
+              properties:
+                product_id: { type: string, format: uuid }
+                proposed_product_price: { type: number }
+                variants:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [variant_id, sku, proposed_selling_price]
+                    properties:
+                      variant_id: { type: string, format: uuid }
+                      sku: { type: string }
+                      proposed_selling_price: { type: [number, "null"] }
         created_at: { type: string, format: date-time }
         decided_at: { type: [string, "null"], format: date-time }
+
+    PricePublishApprovalPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/PricePublishApproval" } }
 
     OperationOutcome:
       type: object

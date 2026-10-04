@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -14,9 +15,12 @@ import {
 } from '../finance/business-date';
 import {
   CreateExternalDriverDto,
+  CustodyOverviewQueryDto,
+  CustodyOverviewSort,
   DeliveryPartyKind,
   DeliveryPartyQueryDto,
   PartyStatementQueryDto,
+  SortDirection,
   UpdateExternalDriverDto,
 } from './dto/delivery-party.dto';
 
@@ -41,23 +45,11 @@ export class DeliveryPartiesService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(query: DeliveryPartyQueryDto) {
+  async list(query: DeliveryPartyQueryDto, canViewCost = false) {
     const page = query.page ?? 1;
     const perPage = query.per_page ?? 20;
     const q = query.q?.trim();
-    const where: Prisma.DeliveryPartyWhereInput = {
-      ...(query.kind ? { kind: query.kind } : {}),
-      ...(query.active === undefined ? {} : { is_active: query.active }),
-      ...(q
-        ? {
-            OR: [
-              { name: { contains: q, mode: 'insensitive' } },
-              { phone: { contains: q } },
-              { vehicle_number: { contains: q, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
-    };
+    const where = this.partyWhere(query, q);
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.deliveryParty.count({ where }),
       this.prisma.deliveryParty.findMany({
@@ -68,7 +60,69 @@ export class DeliveryPartiesService {
         take: perPage,
       }),
     ]);
-    return { page, per_page: perPage, total, data: rows };
+    const summaries = await this.custodySummaries(
+      rows.map((row) => row.id),
+      canViewCost,
+    );
+    return {
+      page,
+      per_page: perPage,
+      total,
+      data: rows.map((row) => ({
+        ...row,
+        custody_summary: summaries.get(row.id)!,
+      })),
+    };
+  }
+
+  async custodyOverview(query: CustodyOverviewQueryDto, canViewCost: boolean) {
+    if (query.sort_by === CustodyOverviewSort.GoodsValue && !canViewCost) {
+      throw new ForbiddenException({
+        status: 403,
+        code: 'COST_VIEW_REQUIRED',
+        message: 'cost.view is required to sort by goods value',
+        errors: [],
+      });
+    }
+    const q = query.q?.trim();
+    const parties = await this.prisma.deliveryParty.findMany({
+      where: this.partyWhere(query, q),
+      select: partySelect,
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+    const summaries = await this.custodySummaries(
+      parties.map((party) => party.id),
+      canViewCost,
+    );
+    const rows = parties.map((party) => ({
+      ...party,
+      custody_summary: summaries.get(party.id)!,
+    }));
+    const key = query.sort_by ?? CustodyOverviewSort.Name;
+    const direction = query.sort_direction === SortDirection.Desc ? -1 : 1;
+    rows.sort((left, right) => {
+      if (key === CustodyOverviewSort.Name) {
+        return (
+          direction * left.name.localeCompare(right.name) ||
+          left.id.localeCompare(right.id)
+        );
+      }
+      const leftValue = left.custody_summary[key] ?? -1;
+      const rightValue = right.custody_summary[key] ?? -1;
+      return (
+        direction * (Number(leftValue) - Number(rightValue)) ||
+        left.name.localeCompare(right.name) ||
+        left.id.localeCompare(right.id)
+      );
+    });
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    return {
+      page,
+      per_page: perPage,
+      total: rows.length,
+      data: rows.slice((page - 1) * perPage, page * perPage),
+    };
   }
 
   async get(id: string) {
@@ -448,6 +502,105 @@ export class DeliveryPartiesService {
       }
     }
     return { party, data: [...grouped.values()] };
+  }
+
+  private partyWhere(
+    query: DeliveryPartyQueryDto,
+    q = query.q?.trim(),
+  ): Prisma.DeliveryPartyWhereInput {
+    return {
+      ...(query.kind ? { kind: query.kind } : {}),
+      ...(query.active === undefined ? {} : { is_active: query.active }),
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { phone: { contains: q } },
+              { vehicle_number: { contains: q, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+  }
+
+  private async custodySummaries(ids: string[], canViewCost: boolean) {
+    type Summary = {
+      goods_value_iqd?: number;
+      cash_held: number;
+      oldest_item_age_days: number | null;
+      orders_held: number;
+    };
+    const summaries = new Map<string, Summary>(
+      ids.map((id) => [
+        id,
+        {
+          ...(canViewCost ? { goods_value_iqd: 0 } : {}),
+          cash_held: 0,
+          oldest_item_age_days: null,
+          orders_held: 0,
+        },
+      ]),
+    );
+    if (!ids.length) return summaries;
+    const [holdings, collections] = await Promise.all([
+      this.prisma.custodyHolding.findMany({
+        where: {
+          custody_party_id: { in: ids },
+          status: 'in_custody',
+          remaining_quantity: { gt: 0 },
+        },
+        select: {
+          custody_party_id: true,
+          order_id: true,
+          remaining_quantity: true,
+          unit_cost_iqd: true,
+          issued_at: true,
+        },
+      }),
+      this.prisma.deliveryCollection.findMany({
+        where: {
+          party_id: { in: ids },
+          status: { in: ['confirmed_full', 'confirmed_short'] },
+          collected_amount: { not: null },
+        },
+        select: {
+          party_id: true,
+          collected_amount: true,
+          confirmed_at: true,
+          delivered_at: true,
+        },
+      }),
+    ]);
+    const today = businessDate();
+    const orders = new Map<string, Set<string>>();
+    const recordAge = (summary: Summary, at: Date) => {
+      const age = businessDateDifference(today, businessDate(at));
+      summary.oldest_item_age_days = Math.max(
+        summary.oldest_item_age_days ?? 0,
+        age,
+      );
+    };
+    for (const holding of holdings) {
+      const summary = summaries.get(holding.custody_party_id)!;
+      if (canViewCost) {
+        summary.goods_value_iqd =
+          (summary.goods_value_iqd ?? 0) +
+          Number(holding.remaining_quantity) * Number(holding.unit_cost_iqd);
+      }
+      const partyOrders = orders.get(holding.custody_party_id) ?? new Set();
+      partyOrders.add(holding.order_id);
+      orders.set(holding.custody_party_id, partyOrders);
+      recordAge(summary, holding.issued_at);
+    }
+    for (const collection of collections) {
+      const summary = summaries.get(collection.party_id)!;
+      summary.cash_held += Number(collection.collected_amount ?? 0);
+      recordAge(summary, collection.confirmed_at ?? collection.delivered_at);
+    }
+    for (const [id, partyOrders] of orders) {
+      summaries.get(id)!.orders_held = partyOrders.size;
+    }
+    return summaries;
   }
 
   private assertExternal(

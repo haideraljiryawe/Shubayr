@@ -201,6 +201,14 @@ await request(`/admin/delivery-parties/${internalB.id}/custody`, {
 const allParties = await request('/admin/delivery-parties?per_page=100', {
   token: adminToken,
 });
+check(allParties.data.every((party) => party.custody_summary), true, 'delivery-party list includes custody totals for every party');
+const overview = await request('/admin/delivery-parties/custody-overview?sort_by=cash_held&sort_direction=desc&per_page=100', { token: adminToken });
+check(overview.total, allParties.total, 'custody overview covers all parties');
+check(
+  overview.data.every((party, index, rows) => index === 0 || rows[index - 1].custody_summary.cash_held >= party.custody_summary.cash_held),
+  true,
+  'custody overview applies server-side sorting',
+);
 let custodyValue = 0;
 for (const party of allParties.data) {
   const summary = await request(
@@ -221,6 +229,22 @@ check(
   Number(custodyValue.toFixed(6)),
   Number(Number(ledger.rows[0].balance).toFixed(6)),
   'party custody totals equal the goods-in-custody ledger balance',
+);
+check(
+  Number(allParties.data.reduce((sum, party) => sum + party.custody_summary.goods_value_iqd, 0).toFixed(6)),
+  Number(Number(ledger.rows[0].balance).toFixed(6)),
+  'list goods-value totals equal the custody ledger balance',
+);
+const cashLedger = await db.query(
+  `SELECT coalesce(sum(line.debit_base - line.credit_base), 0)::numeric AS balance
+   FROM journal_lines line
+   JOIN ledger_accounts account ON account.id = line.account_id
+   WHERE account.code = '1020'`,
+);
+check(
+  Number(allParties.data.reduce((sum, party) => sum + party.custody_summary.cash_held, 0).toFixed(6)),
+  Number(Number(cashLedger.rows[0].balance).toFixed(6)),
+  'list cash totals equal the cash-in-custody ledger balance',
 );
 await db.end();
 

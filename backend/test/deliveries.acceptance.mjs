@@ -284,6 +284,16 @@ check(
   'Recipient unavailable',
   'customer can read the failed-attempt reason',
 );
+check(
+  'party' in secondFailed.delivery_attempts[0],
+  false,
+  'customer attempt history hides the courier identity',
+);
+check(
+  'party_id' in secondFailed.delivery_attempts[0],
+  false,
+  'customer attempt history hides the courier identifier',
+);
 await request(`/deliveries/${second.delivery_id}`, {
   token: token(agentA),
   method: 'PATCH',
@@ -364,6 +374,11 @@ check(
   staffAttemptHistory.delivery_attempts.map(({ reason }) => reason),
   ['Recipient unavailable', 'Second attempt failed'],
   'staff can read every delivery attempt',
+);
+check(
+  Boolean(staffAttemptHistory.delivery_attempts[0].party?.id),
+  true,
+  'staff attempt history retains the full courier identity',
 );
 const agentAttemptHistory = await request(
   '/deliveries/assigned?status=failed&per_page=100',

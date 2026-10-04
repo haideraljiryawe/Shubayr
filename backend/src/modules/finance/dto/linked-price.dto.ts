@@ -10,7 +10,16 @@ import {
   Min,
   IsOptional,
   MinLength,
+  IsInt,
+  IsEnum,
+  Max,
 } from 'class-validator';
+
+export enum PricePublishApprovalStatus {
+  Pending = 'pending',
+  Approved = 'approved',
+  Rejected = 'rejected',
+}
 
 export class LinkedPricePreviewDto {
   @IsString()
@@ -52,4 +61,40 @@ export class PricePublishDecisionDto {
   @MinLength(3)
   @MaxLength(500)
   reason!: string;
+}
+
+export class PricePublishApprovalQueryDto {
+  @IsOptional()
+  @IsEnum(PricePublishApprovalStatus)
+  status?: PricePublishApprovalStatus;
+
+  @IsOptional()
+  @IsUUID()
+  proposer_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  sku?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  from?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  to?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  per_page = 20;
 }

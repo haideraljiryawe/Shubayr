@@ -294,6 +294,7 @@ function buildOrder(
     delivery_lat: source?.lat ?? null,
     delivery_lng: source?.lng ?? null,
     placed_at: isoAgo(placedDaysAgo),
+    delivery_attempts: [],
     items,
   };
 }
