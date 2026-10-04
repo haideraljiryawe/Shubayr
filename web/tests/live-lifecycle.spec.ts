@@ -173,6 +173,8 @@ test("back to cart orders nothing", async ({ page, request }) => {
   const before = await (await request.get(`${API}/orders?per_page=1`, { headers })).json();
 
   await signIn(page, "/checkout");
+  // The saved addresses first: a click before the step is ready does nothing.
+  await expect(page.getByTestId("saved-addresses")).toBeVisible();
   await page.getByTestId("address-submit").click();
   await page.getByTestId("place-order").click();
   const line = page.locator("dialog[open]").getByTestId("price-change-line");
