@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api";
+import { getBrandsOnce } from "@/lib/server-data";
 
 /**
  * Rendered per request: brands are added, hidden and reordered from the Web
@@ -40,7 +41,7 @@ export default async function BrandsPage({ params }: BrandsPageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("catalog");
-  const brands = await api.listBrands().catch(() => null);
+  const brands = await getBrandsOnce().catch(() => null);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">

@@ -8,7 +8,7 @@ import { parseCatalogQuery } from "@/lib/catalog-query";
 import { ProductListing } from "@/components/catalog/listing";
 import { CatalogSkeleton } from "@/components/catalog/states";
 import type { Locale } from "@/i18n/routing";
-import { getCategoriesOnce } from "@/lib/server-data";
+import { getBrandsOnce, getCategoriesOnce } from "@/lib/server-data";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -26,8 +26,7 @@ export async function generateMetadata({
   const keys = Object.keys(raw).filter((key) => raw[key] !== undefined);
   const brandId = typeof raw.brand_id === "string" ? raw.brand_id : null;
   if (brandId && keys.length === 1) {
-    const brand = await api
-      .listBrands()
+    const brand = await getBrandsOnce()
       .then((all) => all.find((entry) => entry.id === brandId && entry.is_visible !== false))
       .catch(() => undefined);
     if (brand) {

@@ -250,7 +250,8 @@ test("availability is the API's label per SKU, never a quantity", async ({ page,
 
   // The seeded earbuds, which other workers order meanwhile: the page and the
   // API are read together until they agree, so an order landing between the
-  // two reads can't fail the comparison.
+  // two reads can't fail the comparison. The page's read is cached for up to
+  // STORE_CACHE_CATALOG_SECONDS (10 s), hence the longer wait.
   const labels = { in_stock: "متوفر في المخزون", low_stock: "مخزون منخفض", out_of_stock: "غير متوفر في المخزون" };
   await expect
     .poll(async () => {
@@ -258,7 +259,7 @@ test("availability is the API's label per SKU, never a quantity", async ({ page,
       const std = seeded.variants.find((v: { variant_id: string }) => v.variant_id === EARBUDS_STD);
       await page.goto(`/product/${EARBUDS}?variant=${EARBUDS_STD}`);
       return (await label.innerText()) === labels[std.availability as keyof typeof labels];
-    })
+    }, { timeout: 30_000 })
     .toBe(true);
 });
 

@@ -336,18 +336,35 @@ function buildUrl(path: string, query?: Query): string {
   return url.toString();
 }
 
+/**
+ * On the store's server, a render's public read runs inside a context from
+ * server-data.ts carrying the shopper's forwarded address. Its headers go
+ * last, so they always replace anything else; the read is cached there by
+ * key, so Next's fetch cache (which keys on headers) is skipped.
+ */
+function serverRequestContext(): { headers: Record<string, string> } | undefined {
+  if (typeof window !== "undefined") return undefined;
+  const store = (globalThis as {
+    __shubayrServerRequest?: { getStore(): { headers: Record<string, string> } | undefined };
+  }).__shubayrServerRequest;
+  return store?.getStore();
+}
+
 async function request<T>(
   path: string,
   { query, ...init }: RequestInit & { query?: Query } = {},
 ): Promise<T> {
   const token = accessToken();
+  const server = serverRequestContext();
   const response = await fetch(buildUrl(path, query), {
     ...init,
+    ...(server ? { cache: "no-store" as const } : {}),
     signal: withTimeout(init.signal),
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init.headers,
+      ...(server?.headers ?? {}),
     },
   });
 

@@ -45,6 +45,7 @@ export default defineConfig({
     "**/live-work-account.spec.ts",
     "**/live-work-pages.spec.ts",
     "**/live-lifecycle.spec.ts",
+    "**/live-privacy.spec.ts",
   ],
   timeout: 90000,
   use: {
