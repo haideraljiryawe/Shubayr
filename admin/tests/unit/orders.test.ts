@@ -119,6 +119,21 @@ describe("dispatchBlocker", () => {
       ),
     ).toBe("deliveryNotAssigned");
   });
+
+  it("accepts an external driver, which has a party but no agent (11.2)", () => {
+    expect(
+      dispatchBlocker(
+        order("ready_for_dispatch", {
+          delivery: {
+            id: "d",
+            status: "assigned",
+            agent: null,
+            party: { id: "p", kind: "external_driver", name: "Driver", phone: "+9647700000099" },
+          },
+        }),
+      ),
+    ).toBeNull();
+  });
 });
 
 describe("canAssignAgent", () => {
