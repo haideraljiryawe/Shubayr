@@ -95,7 +95,7 @@ id, phone, surname, or journal reference.
 The body of `POST /cart/items` is unchanged. 13.1 adds this optional header:
 
 ```http
-Idempotency-Key: 8f9d75fe-8438-4bb2-8d34-f075826173b2
+Idempotency-Key: <unique-retry-key>
 ```
 
 Generate a new 8-128 character key for each tap/action. Keep the key with the
