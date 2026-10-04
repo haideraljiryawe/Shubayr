@@ -49,6 +49,29 @@ export class DeliveryPartyQueryDto {
   per_page = 20;
 }
 
+export enum CustodyOverviewSort {
+  Name = 'name',
+  GoodsValue = 'goods_value_iqd',
+  CashHeld = 'cash_held',
+  OldestItemAge = 'oldest_item_age_days',
+  OrdersHeld = 'orders_held',
+}
+
+export enum SortDirection {
+  Asc = 'asc',
+  Desc = 'desc',
+}
+
+export class CustodyOverviewQueryDto extends DeliveryPartyQueryDto {
+  @IsOptional()
+  @IsEnum(CustodyOverviewSort)
+  sort_by: CustodyOverviewSort = CustodyOverviewSort.Name;
+
+  @IsOptional()
+  @IsEnum(SortDirection)
+  sort_direction: SortDirection = SortDirection.Asc;
+}
+
 export class CreateExternalDriverDto {
   @IsString()
   @MinLength(1)

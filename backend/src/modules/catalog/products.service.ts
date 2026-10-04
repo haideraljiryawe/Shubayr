@@ -19,6 +19,21 @@ import { computeProductPricing, mergeProductPricingPatch } from './pricing';
 import { CatalogSearchService } from './catalog-search.service';
 import { BelowCostService } from './below-cost.service';
 import { businessDate } from '../finance/business-date';
+import { NotificationsService } from '../notifications/notifications.service';
+
+export type FixedPriceApprovalPayload = {
+  product_id: string;
+  expected_product_price: number;
+  proposed_product_price: number;
+  variants: Array<{
+    variant_id: string;
+    sku: string;
+    expected_selling_price: number | null;
+    expected_price_delta: number;
+    proposed_selling_price: number | null;
+    proposed_price_delta: number;
+  }>;
+};
 
 const productInclude = {
   category: true,
@@ -56,6 +71,7 @@ export class ProductsService {
     private readonly audit: AuditService,
     private readonly search?: CatalogSearchService,
     private readonly belowCost?: BelowCostService,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   listPublic(query: ProductQueryDto) {
@@ -247,35 +263,99 @@ export class ProductsService {
     const proposesPrice =
       input.price !== undefined || preparedVariants !== undefined;
     if (proposesPrice && actorId) data.price_proposed_by = actorId;
+    const priceCandidates = proposesPrice
+      ? current.variants.map((existing) => {
+          const proposed = preparedVariants?.find(
+            (entry) => entry.id === existing.id || entry.sku === existing.sku,
+          );
+          const pricingMode = proposed?.pricing_mode ?? existing.pricing_mode;
+          return {
+            variant_id: existing.id,
+            sku: proposed?.sku ?? existing.sku,
+            pricing_mode: pricingMode,
+            price:
+              pricingMode === 'linked'
+                ? Number(proposed?.published_price ?? existing.published_price)
+                : Number(
+                    proposed
+                      ? (proposed.selling_price ?? productPrice)
+                      : (existing.selling_price ?? productPrice),
+                  ),
+          };
+        })
+      : [];
     const belowCostBreaches =
-      actorId && preparedVariants
-        ? await this.belowCost?.assertAllowed(
-            this.prisma,
-            actorId,
-            permissions,
-            preparedVariants.flatMap((variant) => {
-              const existing = current.variants.find(
-                (entry) => entry.id === variant.id || entry.sku === variant.sku,
-              );
-              return existing
-                ? [
-                    {
-                      variant_id: existing.id,
-                      sku: variant.sku,
-                      price:
-                        variant.pricing_mode === 'linked'
-                          ? Number(variant.published_price ?? productPrice)
-                          : Number(variant.selling_price ?? productPrice),
-                    },
-                  ]
-                : [];
-            }),
-            {
-              reason: input.below_cost_override_reason,
-              originatorId: actorId,
-            },
-          )
+      actorId && priceCandidates.length
+        ? ((await this.belowCost?.breaches(this.prisma, priceCandidates)) ?? [])
         : [];
+    const fixedIds = new Set(
+      priceCandidates
+        .filter((candidate) => candidate.pricing_mode === 'fixed')
+        .map((candidate) => candidate.variant_id),
+    );
+    const fixedBreaches = belowCostBreaches.filter((breach) =>
+      fixedIds.has(breach.variant_id),
+    );
+    if (actorId && fixedBreaches.length) {
+      const payload = this.fixedPriceApprovalPayload(
+        current,
+        preparedVariants,
+        productPrice,
+      );
+      const request = await this.prisma.$transaction(async (tx) => {
+        const approval = await tx.pricePublishApproval.create({
+          data: {
+            kind: 'fixed',
+            product_id: id,
+            proposed_by: actorId,
+            proposal_reason:
+              input.below_cost_override_reason?.trim() ||
+              'Fixed-price change submitted for approval',
+            breaches: fixedBreaches,
+            fixed_payload: payload,
+            sku_list: fixedBreaches.map((breach) => breach.sku),
+          },
+        });
+        await this.audit.record(tx, {
+          actorId,
+          action: 'prices.fixed.approval_requested',
+          entityType: 'price_publish_approval',
+          entityId: approval.id,
+          after: {
+            status: 'pending',
+            product_id: id,
+            variants: fixedBreaches,
+          },
+          reason: approval.proposal_reason,
+        });
+        await this.notifications?.recordStaffWithPermission(
+          tx,
+          'sell_below_cost.approve',
+          'price_approval_requested',
+          'price_publish_approval',
+          approval.id,
+          'created',
+        );
+        return approval;
+      });
+      return {
+        ...(await this.getAdmin(id)),
+        price_update_status: 'pending_approval' as const,
+        price_approval_request_id: request.id,
+      };
+    }
+    if (actorId && belowCostBreaches.length) {
+      await this.belowCost?.assertAllowed(
+        this.prisma,
+        actorId,
+        permissions,
+        priceCandidates,
+        {
+          reason: input.below_cost_override_reason,
+          originatorId: actorId,
+        },
+      );
+    }
     if (input.published === true || input.status === 'active') {
       const publishableVariants = preparedVariants ?? current.variants;
       const productPriceApproved =
@@ -363,6 +443,83 @@ export class ProductsService {
 
     await this.search?.indexProduct(id);
     return this.getAdmin(id);
+  }
+
+  async applyApprovedFixedPrice(
+    tx: Prisma.TransactionClient,
+    approval: {
+      product_id: string | null;
+      proposed_by: string;
+      fixed_payload: Prisma.JsonValue | null;
+    },
+  ) {
+    const payload = approval.fixed_payload as FixedPriceApprovalPayload | null;
+    if (
+      !approval.product_id ||
+      !payload ||
+      payload.product_id !== approval.product_id
+    ) {
+      throw new ConflictException(
+        'Fixed-price proposal is no longer available',
+      );
+    }
+    const product = await tx.product.findUnique({
+      where: { id: approval.product_id },
+      include: { variants: true },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+    const stale =
+      Number(product.price) !== payload.expected_product_price ||
+      payload.variants.some((proposal) => {
+        const current = product.variants.find(
+          (variant) => variant.id === proposal.variant_id,
+        );
+        return (
+          !current ||
+          current.pricing_mode !== 'fixed' ||
+          (current.selling_price === null
+            ? null
+            : Number(current.selling_price)) !==
+            proposal.expected_selling_price ||
+          Number(current.price_delta) !== proposal.expected_price_delta
+        );
+      });
+    if (stale) {
+      throw new ConflictException({
+        status: 409,
+        code: 'STALE_PRICE_APPROVAL',
+        message: 'The fixed price changed after this approval was requested',
+        errors: [],
+      });
+    }
+    const approvedAt = new Date();
+    await tx.product.update({
+      where: { id: product.id },
+      data: {
+        price: payload.proposed_product_price,
+        price_approved_at: approvedAt,
+        price_proposed_by: approval.proposed_by,
+        updated_at: approvedAt,
+        search_sync_required: true,
+      },
+    });
+    for (const proposal of payload.variants) {
+      await tx.productVariant.update({
+        where: { id: proposal.variant_id },
+        data: {
+          selling_price: proposal.proposed_selling_price,
+          price_delta: proposal.proposed_price_delta,
+          price_approved_at: approvedAt,
+          price_proposed_by: approval.proposed_by,
+          updated_at: approvedAt,
+        },
+      });
+    }
+    return payload;
+  }
+
+  refreshSearch(id: string) {
+    return this.search?.indexProduct(id);
   }
 
   async archive(id: string): Promise<void> {
@@ -643,6 +800,48 @@ export class ProductsService {
         sort_order: image.sort_order,
         is_primary: index === 0,
       })),
+      variants,
+    };
+  }
+
+  private fixedPriceApprovalPayload(
+    current: ProductRow,
+    prepared: PreparedVariant[] | undefined,
+    proposedProductPrice: number,
+  ): FixedPriceApprovalPayload {
+    const variants = current.variants.flatMap((existing) => {
+      const proposal = prepared?.find(
+        (variant) => variant.id === existing.id || variant.sku === existing.sku,
+      );
+      if ((proposal?.pricing_mode ?? existing.pricing_mode) !== 'fixed') {
+        return [];
+      }
+      const proposedSelling = proposal
+        ? proposal.selling_price
+        : existing.selling_price === null
+          ? null
+          : Number(existing.selling_price);
+      return [
+        {
+          variant_id: existing.id,
+          sku: proposal?.sku ?? existing.sku,
+          expected_selling_price:
+            existing.selling_price === null
+              ? null
+              : Number(existing.selling_price),
+          expected_price_delta: Number(existing.price_delta),
+          proposed_selling_price: proposedSelling,
+          proposed_price_delta:
+            proposedSelling === null
+              ? 0
+              : proposedSelling - proposedProductPrice,
+        },
+      ];
+    });
+    return {
+      product_id: current.id,
+      expected_product_price: Number(current.price),
+      proposed_product_price: proposedProductPrice,
       variants,
     };
   }

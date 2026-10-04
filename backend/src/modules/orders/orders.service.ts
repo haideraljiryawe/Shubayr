@@ -52,7 +52,6 @@ const orderInclude = {
   deliveries: {
     include: {
       attempts: {
-        include: { party: { select: { id: true, name: true } } },
         orderBy: { attempt_number: 'asc' as const },
       },
     },
@@ -1461,7 +1460,6 @@ export class OrdersService {
             reason: attempt.reason,
             started_at: attempt.started_at,
             completed_at: attempt.completed_at,
-            party: attempt.party,
           })),
         )
         .sort(
@@ -1503,6 +1501,24 @@ export class OrdersService {
     const base = this.toResponse(row);
     return {
       ...base,
+      delivery_attempts: (row.deliveries ?? [])
+        .flatMap((delivery) =>
+          delivery.attempts.map((attempt) => ({
+            id: attempt.id,
+            delivery_id: attempt.delivery_id,
+            attempt_number: attempt.attempt_number,
+            status: attempt.status,
+            reason: attempt.reason,
+            started_at: attempt.started_at,
+            completed_at: attempt.completed_at,
+            party: attempt.party,
+          })),
+        )
+        .sort(
+          (left, right) =>
+            left.started_at.getTime() - right.started_at.getTime() ||
+            left.attempt_number - right.attempt_number,
+        ),
       customer: row.user,
       shipping_snapshot: {
         contact_phone: row.delivery_contact_phone,

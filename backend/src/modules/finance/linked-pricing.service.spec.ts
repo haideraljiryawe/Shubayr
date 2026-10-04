@@ -1,4 +1,5 @@
 jest.mock('../../database/prisma.service', () => ({ PrismaService: class {} }));
+jest.mock('../catalog/products.service', () => ({ ProductsService: class {} }));
 
 import { ForbiddenException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
@@ -34,16 +35,22 @@ const breach = {
 function setup() {
   const pending = {
     id: 'approval-1',
+    kind: 'linked',
     preview_id: preview.id,
     price_version_id: null,
+    product_id: null,
     status: 'pending',
     proposed_by: preview.actor_id,
     decided_by: null,
     proposal_reason: 'Clearance pricing',
     decision_reason: null,
     breaches: [breach],
+    fixed_payload: null,
+    sku_list: ['SKU-1'],
     created_at: new Date(),
     decided_at: null,
+    proposer: { id: preview.actor_id, name: 'Proposer' },
+    decider: null,
   };
   const approved = {
     ...pending,
@@ -53,6 +60,7 @@ function setup() {
     decided_by: 'approver',
     decision_reason: 'Approved by finance',
     decided_at: new Date(),
+    decider: { id: 'approver', name: 'Approver' },
   };
   const createApproval = jest
     .fn<
@@ -115,7 +123,7 @@ function setup() {
     pricePublishApproval: {
       ...tx.pricePublishApproval,
       findUnique: jest.fn().mockResolvedValue(pending),
-      findUniqueOrThrow: jest.fn().mockResolvedValue(approved),
+      findFirst: jest.fn().mockResolvedValue(approved),
     },
     $transaction: jest.fn((work: (client: typeof tx) => Promise<unknown>) =>
       work(tx),

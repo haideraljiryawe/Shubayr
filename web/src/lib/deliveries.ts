@@ -9,8 +9,9 @@ import { api, type Delivery, type DeliveryStatus } from "./api";
  * on (a delivery may start only once its order is ready_for_dispatch), so
  * the UI offers these and explains a refusal rather than predicting it.
  *
- * Nothing the API does not offer yet is shown: no collected amount or
- * custody details — those arrive with a later backend phase.
+ * The current agent screen records delivery with collection still
+ * unconfirmed. Staff can then close the collection with the confirmed amount;
+ * this never invents cash merely because the parcel was handed over.
  */
 export type DeliveryAction = Exclude<DeliveryStatus, "assigned">;
 

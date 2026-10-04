@@ -21,6 +21,7 @@
 - Strict response validation (types + no undeclared properties) must pass.
 - Bump the version per semver and state in the PR description what is breaking (if anything).
 - Declare every new error code on every affected route.
+- web/ and admin/ live suites must pass before a breaking change merges. mobile/ on main is a stale snapshot of the app: do not block on it — instead document every mobile-affecting change in docs/mobile/contract-changes-<from>-to-<to>.md in the same PR. Never edit mobile/ or the mobile branches.
 
 ## Money and dates
 
