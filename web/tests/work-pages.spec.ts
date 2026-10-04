@@ -320,6 +320,27 @@ test.describe("work pages only for their role", () => {
   });
 });
 
+/** The API's collection answer for an order of 25 (12.0). */
+function collectionFor(collected: string | undefined) {
+  const amount = collected === undefined ? null : Number(collected);
+  return {
+    id: "c1",
+    delivery_id: "d0000000-0000-4000-8000-000000000001",
+    order_id: "o0000000-0000-4000-8000-000000000001",
+    party_id: "u-agent",
+    status: amount === null ? "unconfirmed" : amount < 25 ? "confirmed_short" : "confirmed_full",
+    due_amount: 25,
+    collected_amount: amount,
+    shortfall_amount: amount === null ? null : 25 - amount,
+    currency: "IQD",
+    delivered_at: new Date().toISOString(),
+    accounting_date: "2026-10-04",
+    confirmed_at: amount === null ? null : new Date().toISOString(),
+    delivery_journal_entry_id: "j1",
+    confirmation_journal_entry_id: null,
+  };
+}
+
 test.describe("delivery agent", () => {
   const DELIVERY = {
     id: "d0000000-0000-4000-8000-000000000001",
@@ -355,7 +376,7 @@ test.describe("delivery agent", () => {
     let current: typeof DELIVERY & { retry_count?: number; failure_reason?: string | null; failed_at?: string } = { ...DELIVERY };
     serveDeliveries(() => current);
     api.on("PATCH", /^\/deliveries\/[^/]+$/, (seen) => {
-      const { status, reason } = seen.body as { status: string; reason?: string };
+      const { status, reason, collected_amount } = seen.body as { status: string; reason?: string; collected_amount?: string };
       // API 10.0: a failure keeps its reason; going out again is a retry.
       const retrying = current.status === "failed" && status === "out_for_delivery";
       current = {
@@ -367,6 +388,8 @@ test.describe("delivery agent", () => {
         failure_reason: status === "failed" ? (reason ?? null) : null,
         ...(status === "failed" ? { failed_at: new Date().toISOString() } : {}),
         retry_count: (current.retry_count ?? 0) + (retrying ? 1 : 0),
+        // API 12.0: delivered answers with the collection (25 due here).
+        ...(status === "delivered" ? { collection: collectionFor(collected_amount) } : {}),
       };
       return { body: current };
     });
@@ -389,7 +412,7 @@ test.describe("delivery agent", () => {
     await expect(actions).toHaveCount(2);
     await expect(page.getByTestId("delivery-action-delivered")).toBeVisible();
     await expect(page.getByTestId("delivery-action-failed")).toBeVisible();
-    // Nothing the API does not offer yet: no collected-amount or custody input.
+    // No input until a step asks for one.
     await expect(page.getByTestId("delivery-detail").locator("input, textarea, select")).toHaveCount(0);
 
     await page.getByTestId("delivery-action-failed").click();
@@ -416,10 +439,89 @@ test.describe("delivery agent", () => {
     await expect(page.getByTestId("delivery-failure-text")).toHaveCount(0);
     await expect(page.getByTestId("delivery-retry-count")).toHaveText("أُعيدت المحاولة مرة");
 
+    // Delivered asks what was collected (API 12.0): 20 of the 25 due.
     await page.getByTestId("delivery-action-delivered").click();
+    await expect(page.getByTestId("delivery-collection-step")).toBeVisible();
+    await expect(page.getByTestId("delivery-confirm-yes")).toBeDisabled();
+    await page.getByTestId("delivery-collected-amount").fill("٢٠");
     await page.getByTestId("delivery-confirm-yes").click();
     await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "delivered");
+    const delivered = api.requests("PATCH", /^\/deliveries\//).at(-1)!.body as Record<string, unknown>;
+    expect(delivered).toMatchObject({ status: "delivered", order_version: 4, collection_confirmation: "confirmed", collected_amount: "20" });
+    expect(String(delivered.operation_id)).toMatch(/^delivery-[0-9a-f-]{36}$/);
+    // The server's result: short by 5, said plainly.
+    await expect(page.getByTestId("delivery-collection")).toHaveAttribute("data-status", "confirmed_short");
+    await expect(page.getByTestId("delivery-collection-shortfall")).toBeVisible();
     await expect(page.getByTestId("delivery-action-returned")).toBeVisible();
+  });
+
+  test("a double tap posts once, and a retry after a failure replays the same operation", async ({ page }) => {
+    let current = { ...DELIVERY, status: "out_for_delivery", dispatched_at: new Date().toISOString() };
+    serveDeliveries(() => current);
+    const slow = gate();
+    let calls = 0;
+    api.on("PATCH", /^\/deliveries\/[^/]+$/, async (seen) => {
+      calls += 1;
+      if (calls === 1) {
+        // The first answer is held, then lost: the agent never learns it posted.
+        await slow.promise;
+        return { status: 503, body: { code: "UNAVAILABLE", message: "Try again" } };
+      }
+      const { collected_amount } = seen.body as { collected_amount?: string };
+      current = { ...current, status: "delivered", order_version: current.order_version + 1, collection: collectionFor(collected_amount) } as typeof current;
+      return { body: current };
+    });
+    await signInAs(page, "delivery_agent");
+    await page.goto(`/deliveries/${DELIVERY.id}`);
+    await page.getByTestId("delivery-action-delivered").click();
+    await page.getByTestId("delivery-collected-amount").fill("25");
+    const confirm = page.getByTestId("delivery-confirm-yes");
+    await confirm.click();
+    // A second tap while the first is on its way does nothing.
+    await expect(confirm).toBeDisabled();
+    await confirm.click({ force: true }).catch(() => undefined);
+    slow.release();
+    await expect(page.getByRole("alert").filter({ hasText: /حفظ|save/i })).toBeVisible();
+    expect(calls).toBe(1);
+
+    // Try again with the same amount: the same operation id, so the server
+    // replays the first result instead of posting the cash twice.
+    await page.getByTestId("delivery-action-delivered").click();
+    await expect(page.getByTestId("delivery-collected-amount")).toHaveValue("25");
+    await confirm.click();
+    await expect(page.getByTestId("delivery-collection")).toHaveAttribute("data-status", "confirmed_full");
+    const [first, second] = api.requests("PATCH", /^\/deliveries\//).map((seen) => seen.body as { operation_id: string });
+    expect(second.operation_id).toBe(first.operation_id);
+  });
+
+  test("amount not confirmed yet sends no amount, and a refused amount keeps the step with the server's reason", async ({ page }) => {
+    let current = { ...DELIVERY, status: "out_for_delivery", dispatched_at: new Date().toISOString() };
+    serveDeliveries(() => current);
+    api.on("PATCH", /^\/deliveries\/[^/]+$/, (seen) => {
+      const body = seen.body as { collection_confirmation: string; collected_amount?: string };
+      if (body.collection_confirmation === "confirmed" && Number(body.collected_amount) > 25) {
+        return { status: 422, body: { code: "VALIDATION_FAILED", message: "collected_amount must be between zero and the order amount due", errors: [] } };
+      }
+      current = { ...current, status: "delivered", order_version: current.order_version + 1, collection: collectionFor(undefined) } as typeof current;
+      return { body: current };
+    });
+    await signInAs(page, "delivery_agent");
+    await page.goto(`/deliveries/${DELIVERY.id}`);
+    await page.getByTestId("delivery-action-delivered").click();
+    await page.getByTestId("delivery-collected-amount").fill("99");
+    await page.getByTestId("delivery-confirm-yes").click();
+    await expect(page.getByTestId("delivery-collection-error")).toContainText("amount due");
+    await expect(page.getByTestId("delivery-collection-step")).toBeVisible();
+
+    await page.getByTestId("delivery-collection-unconfirmed").check();
+    await expect(page.getByTestId("delivery-collected-amount")).toHaveCount(0);
+    await page.getByTestId("delivery-confirm-yes").click();
+    await expect(page.getByTestId("delivery-collection")).toHaveAttribute("data-status", "unconfirmed");
+    const requests = api.requests("PATCH", /^\/deliveries\//).map((seen) => seen.body as Record<string, unknown>);
+    expect(requests.at(-1)).toMatchObject({ status: "delivered", collection_confirmation: "unconfirmed" });
+    expect(requests.at(-1)).not.toHaveProperty("collected_amount");
+    // A different request gets a different operation id.
+    expect(requests.at(-1)!.operation_id).not.toBe(requests[0].operation_id);
   });
 
   test("cancelling the confirmation sends nothing", async ({ page }) => {

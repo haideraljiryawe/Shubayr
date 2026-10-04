@@ -192,6 +192,7 @@ export interface PlacedOrder {
   id: string;
   order_number: string;
   delivery_id: string;
+  total: number;
 }
 
 /**
