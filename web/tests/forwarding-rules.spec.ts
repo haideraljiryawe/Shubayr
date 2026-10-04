@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { expect, test } from "@playwright/test";
 import { compileTrust, forwardedHeaders, normalizeAddress, shopperAddress } from "../src/lib/forwarding";
 
@@ -54,5 +56,28 @@ test.describe("forwarding rules", () => {
   test("the API gets the shopper's address in both headers, or no header at all", () => {
     expect(forwardedHeaders("203.0.113.7")).toEqual({ "X-Forwarded-For": "203.0.113.7", "X-Real-IP": "203.0.113.7" });
     expect(forwardedHeaders(null)).toEqual({});
+  });
+
+  test("every server-side API read goes through server-data.ts, so none skips the forwarding", () => {
+    // A server component that calls `api.` directly sends the store server's
+    // own address (and skips the read cache). Client components ("use client")
+    // call the API from the browser and are fine.
+    const root = join(__dirname, "..", "src");
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.(tsx?|mts)$/.test(name)) files.push(path);
+      }
+    };
+    walk(join(root, "app"));
+    walk(join(root, "components"));
+    const offenders = files.filter((path) => {
+      const source = readFileSync(path, "utf8");
+      if (/^\s*["']use client["']/.test(source)) return false;
+      return /\bapi\s*\.\s*[a-zA-Z]+\s*\(/.test(source);
+    });
+    expect(offenders.map((path) => relative(root, path))).toEqual([]);
   });
 });

@@ -60,6 +60,11 @@ export const AGENT_LOCAL = AGENT.local;
 export const MONITOR_E164 = MONITOR.e164;
 export const MONITOR_LOCAL = MONITOR.local;
 
+/** A second customer per worker, for checks that two shoppers stay apart. */
+const OTHER_CUSTOMER = workerPhone("3");
+export const OTHER_CUSTOMER_E164 = OTHER_CUSTOMER.e164;
+export const OTHER_CUSTOMER_LOCAL = OTHER_CUSTOMER.local;
+
 /** The seeded customer, for the few checks about the seed itself. */
 export const SEEDED_CUSTOMER_E164 = "+9647700000006";
 

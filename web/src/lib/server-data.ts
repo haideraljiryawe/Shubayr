@@ -78,3 +78,8 @@ export const listCatalogProductsOnce = publicRead("listing", CATALOG_SECONDS, (q
 export const getProductOnce = publicRead("product", CATALOG_SECONDS, (id: string) => api.getProduct(id));
 export const getProductAvailabilityOnce = publicRead("availability", CATALOG_SECONDS, (id: string) => api.getProductAvailability(id));
 export const getProductReviewCountOnce = publicRead("review-count", CATALOG_SECONDS, (id: string) => api.getProductReviewCount(id));
+export const listReviewsOnce = publicRead(
+  "reviews",
+  CATALOG_SECONDS,
+  (id: string, query: { page?: number; per_page?: number }) => api.listReviews(id, query),
+);

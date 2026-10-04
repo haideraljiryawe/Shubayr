@@ -26,7 +26,7 @@ import {
 import type { Locale } from "@/i18n/routing";
 import { jsonLdText, productJsonLd } from "@/lib/seo";
 import { SITE_URL, alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
-import { getCategoriesOnce, getProductAvailabilityOnce, getProductOnce, getProductReviewCountOnce, getSettingsOnce } from "@/lib/server-data";
+import { getCategoriesOnce, getProductAvailabilityOnce, getProductOnce, getProductReviewCountOnce, getSettingsOnce, listProductsOnce, listReviewsOnce } from "@/lib/server-data";
 
 type Props = {
   params: Promise<{ locale: string; id: string }>;
@@ -218,9 +218,7 @@ async function ReviewsSection({
   id: string;
   ratingAvg: number;
 }) {
-  const page = await api
-    .listReviews(id, { page: 1, per_page: 50 })
-    .catch(() => null);
+  const page = await listReviewsOnce(id, { page: 1, per_page: 50 }).catch(() => null);
 
   return (
     <ProductReviews
@@ -244,8 +242,7 @@ async function RelatedSection({
   const t = await getTranslations("product");
   if (!categoryId) return null;
 
-  const related = await api
-    .listProducts({ category_id: categoryId, per_page: 6 })
+  const related = await listProductsOnce({ category_id: categoryId, per_page: 6 })
     .then((page) => page.data.filter((item) => item.id !== excludeId))
     .catch(() => []);
 

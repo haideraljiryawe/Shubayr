@@ -19,8 +19,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
-  const category = await api
-    .getCategories()
+  const category = await getCategoriesOnce()
     .then((all) => findCategoryBySlug(all, slug))
     .catch(() => undefined);
   const seo = await getTranslations({ locale, namespace: "seo" });

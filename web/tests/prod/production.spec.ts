@@ -53,6 +53,32 @@ test.describe("security headers", () => {
     }
   });
 
+  test("personal pages are never cacheable: cart, checkout, account, agent and monitor pages are no-store", async ({ request }) => {
+    // The session lives in the browser and these pages read the shopper's
+    // data from there; the HTML itself must still never be kept by a proxy
+    // or the browser, so one person's page is never shown to another.
+    const personal = [
+      "/cart",
+      "/checkout",
+      "/account",
+      "/account/orders",
+      "/account/addresses",
+      "/account/points",
+      "/wishlist",
+      "/notifications",
+      "/deliveries",
+      "/deliveries/custody",
+      "/monitor/orders",
+      "/en/account",
+    ];
+    for (const path of personal) {
+      const response = await request.get(path);
+      expect(response.status(), path).toBe(200);
+      expect(response.headers()["cache-control"] ?? "", path).toMatch(/no-store/);
+      expect(response.headers()["cache-control"] ?? "", path).not.toMatch(/\bpublic\b|s-maxage/);
+    }
+  });
+
   test("each response has its own nonce, and every script in the page carries it", async ({ request }) => {
     const first = await request.get("/");
     const second = await request.get("/");
