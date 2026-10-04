@@ -217,8 +217,7 @@ test("an order dispatched to an external driver is in that driver's custody; rem
 test("the custody statement pages, filters by date and by order on the server", async ({ page, request }) => {
   test.setTimeout(240_000);
   // One order of eleven SKUs handed to a driver: eleven statement lines, more
-  // than a page of ten. (Not delivered: the API answers 500 when staff mark
-  // an external driver's delivery delivered — reported to the backend.)
+  // than a page of ten.
   await awaitHeadroom(request, 80);
   const driver = await createDriver(request, `Pager ${run}`);
   const items = [];
@@ -257,6 +256,28 @@ test("the custody statement pages, filters by date and by order on the server", 
   await expect(page.getByTestId("statement-order-filter")).toContainText(placed.order_number);
   await expect(rows).toHaveCount(11);
   await expect(table.getByTestId("statement-order").filter({ hasNotText: placed.order_number })).toHaveCount(0);
+
+  // Delivered with the cash collected (12.0): the goods leave custody and
+  // the cash enters it.
+  const { body: current } = await api(request, "GET", `/admin/orders/${placed.id}`);
+  const delivered = await api(request, "PATCH", `/admin/deliveries/${placed.delivery_id}/status`, {
+    status: "delivered",
+    order_version: current.version,
+    operation_id: `pty-deliver-${placed.delivery_id}`,
+    collection_confirmation: "confirmed",
+    collected_amount: String(current.total),
+    source: "admin live test",
+  });
+  expect(delivered.status, JSON.stringify(delivered.body)).toBe(200);
+  const { body: custody } = await api(request, "GET", `/admin/delivery-parties/${driver.id}/custody`);
+  expect(custody.cash.amount).toBeGreaterThan(0);
+  await page.goto(`/delivery-parties/${driver.id}?per_page=50`);
+  await expect(rows).toHaveCount(22);
+  await expect(rows.last().getByTestId("statement-event")).toHaveAttribute("data-event", "custody_to_sold");
+  await expect(rows.last().getByTestId("statement-running")).toHaveText("0");
+  await expect(page.getByTestId("custody-empty")).toBeVisible();
+  await expect(page.getByTestId("custody-cash-amount")).toContainText(new Intl.NumberFormat("en-US").format(custody.cash.amount));
+  await expect(page.getByTestId("custody-cash-age")).not.toHaveText("—");
 });
 
 test("lot cost and values are hidden from a user without cost.view", async ({ page, request }) => {
