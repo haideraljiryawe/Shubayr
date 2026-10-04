@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -21,7 +23,9 @@ import { AssignedDeliveriesQueryDto } from './dto/assigned-deliveries-query.dto'
 import { DeliveryAgentsQueryDto } from './dto/delivery-agents-query.dto';
 import {
   AssignDeliveryDto,
+  ConfirmDeliveryCollectionDto,
   CreateDeliveryRatingDto,
+  UnconfirmedDeliveriesQueryDto,
   UpdateStaffDeliveryStatusDto,
   UpdateDeliveryStatusDto,
 } from './dto/delivery.dto';
@@ -81,6 +85,23 @@ export class DeliveriesController {
 @Controller('admin/deliveries')
 export class AdminDeliveriesController {
   constructor(private readonly deliveries: DeliveriesService) {}
+
+  @Get('unconfirmed')
+  @AdminPolicy('deliveries.manage')
+  listUnconfirmed(@Query() query: UnconfirmedDeliveriesQueryDto) {
+    return this.deliveries.listUnconfirmed(query);
+  }
+
+  @Post(':id/collection-confirmation')
+  @HttpCode(HttpStatus.OK)
+  @AdminPolicy('orders.deliver')
+  confirmCollection(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: ConfirmDeliveryCollectionDto,
+  ) {
+    return this.deliveries.confirmCollection(request.user.id, id, input);
+  }
 
   @Patch(':id/status')
   @Policy({

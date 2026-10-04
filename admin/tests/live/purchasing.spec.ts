@@ -162,7 +162,7 @@ async function placeOrder(request: APIRequestContext, item: { id: string; varian
     data: { address_id: addressId, payment_method: "cod" },
   });
   expect(placed.ok(), await placed.text()).toBe(true);
-  return (await placed.json()) as { id: string; delivery_id: string };
+  return (await placed.json()) as { id: string; delivery_id: string; total: number };
 }
 
 /** Take an order to dispatched (its stock goes into the agent's custody). */
@@ -654,7 +654,13 @@ test("a late landed cost previews its 3-way split (stock 6, custody 2, sold 2) a
   const agentToken = await phoneToken(request, "+9647700000005");
   const delivered = await request.patch(`${API}/deliveries/${sold.delivery_id}`, {
     headers: bearer(agentToken),
-    data: { status: "delivered", order_version: soldVersion },
+    data: {
+      status: "delivered",
+      order_version: soldVersion,
+      operation_id: `purchasing-live-delivery-${sold.delivery_id}`,
+      collection_confirmation: "confirmed",
+      collected_amount: String(sold.total),
+    },
   });
   expect(delivered.ok(), await delivered.text()).toBe(true);
 

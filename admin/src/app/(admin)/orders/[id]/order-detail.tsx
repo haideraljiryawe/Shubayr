@@ -216,6 +216,14 @@ export function OrderDetailView({
           status: DELIVERY_MOVES[action],
           order_version: order.version!,
           ...(action === "fail" ? { reason } : {}),
+          ...(action === "deliver"
+            ? {
+                operation_id: `admin-delivery-${deliveryId}-${order.version}`,
+                collection_confirmation: "confirmed" as const,
+                collected_amount: String(order.total),
+                source: "web_admin",
+              }
+            : {}),
         },
       }),
     );

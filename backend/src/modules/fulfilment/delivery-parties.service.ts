@@ -217,6 +217,19 @@ export class DeliveryPartiesService {
       },
       orderBy: [{ issued_at: 'asc' }, { id: 'asc' }],
     });
+    const cashRows = await this.prisma.deliveryCollection.findMany({
+      where: {
+        party_id: id,
+        status: { in: ['confirmed_full', 'confirmed_short'] },
+        collected_amount: { not: null },
+      },
+      select: {
+        collected_amount: true,
+        confirmed_at: true,
+        delivered_at: true,
+      },
+      orderBy: [{ confirmed_at: 'asc' }, { id: 'asc' }],
+    });
     const today = businessDate();
     const goods = rows.map((row) => {
       const quantity = Number(row.remaining_quantity);
@@ -255,7 +268,23 @@ export class DeliveryPartiesService {
           : null,
         lines: goods,
       },
-      cash: { currency: 'IQD', amount: 0, oldest_age_days: null },
+      cash: {
+        currency: 'IQD',
+        amount: cashRows.reduce(
+          (sum, row) => sum + Number(row.collected_amount ?? 0),
+          0,
+        ),
+        oldest_age_days: cashRows.length
+          ? Math.max(
+              ...cashRows.map((row) =>
+                businessDateDifference(
+                  today,
+                  businessDate(row.confirmed_at ?? row.delivered_at),
+                ),
+              ),
+            )
+          : null,
+      },
     };
   }
 
