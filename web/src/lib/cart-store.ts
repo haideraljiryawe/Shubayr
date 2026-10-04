@@ -14,8 +14,7 @@ import { roundQuantity } from "./quantity";
  * what the server says, so the screen must show the server's arithmetic rather
  * than its own guess at it.
  *
- * Signing in replays the guest lines through POST /cart/items, which is the
- * merge the contract prescribes (identical product/variant lines add up).
+ * Signing in attaches every guest line in one idempotent POST /cart/merge.
  * ------------------------------------------------------------------------- */
 
 export const CART_STORAGE_KEY = "shubayr.cart.v1";
@@ -79,6 +78,8 @@ export interface CartState {
   server: Cart | null;
   /** True while a server mutation is in flight, so the UI can hold steady. */
   pending: boolean;
+  /** Stable for one guest-basket snapshot, so a failed merge can be replayed. */
+  mergeKey: string | null;
 }
 
 export function lineId(productId: string, variantId?: string | null): string {
@@ -93,6 +94,7 @@ const EMPTY_STATE: CartState = Object.freeze({
   hydrated: false,
   server: null,
   pending: false,
+  mergeKey: null,
 });
 
 let state: CartState = EMPTY_STATE;
@@ -108,7 +110,11 @@ function persist(next: CartState): void {
     // Only the device-side half is persisted; the server cart is refetched.
     window.localStorage.setItem(
       CART_STORAGE_KEY,
-      JSON.stringify({ lines: next.lines, coupon: next.coupon }),
+      JSON.stringify({
+        lines: next.lines,
+        coupon: next.coupon,
+        mergeKey: next.mergeKey,
+      }),
     );
   } catch {
     /* Private mode or a full quota: the cart still works for this session. */
@@ -174,25 +180,37 @@ function clampLine(line: CartLine): CartLine {
   return quantity === line.quantity ? line : { ...line, quantity };
 }
 
-type StoredCart = Pick<CartState, "lines" | "coupon">;
+type StoredCart = Pick<CartState, "lines" | "coupon" | "mergeKey">;
 
 /**
  * Read persisted state. Anything unparseable is discarded rather than thrown: a
  * stale or hand-edited entry must not be able to break the storefront.
  */
 function readStorage(): StoredCart {
-  if (typeof window === "undefined") return { lines: [], coupon: null };
+  if (typeof window === "undefined")
+    return { lines: [], coupon: null, mergeKey: null };
   try {
     const raw = window.localStorage.getItem(CART_STORAGE_KEY);
-    if (!raw) return { lines: [], coupon: null };
+    if (!raw) return { lines: [], coupon: null, mergeKey: null };
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const lines = Array.isArray(parsed.lines)
       ? parsed.lines.filter(isLine).map(migrateLine).map(clampLine)
       : [];
-    return { lines, coupon: isCoupon(parsed.coupon) ? parsed.coupon : null };
+    return {
+      lines,
+      coupon: isCoupon(parsed.coupon) ? parsed.coupon : null,
+      mergeKey: typeof parsed.mergeKey === "string" ? parsed.mergeKey : null,
+    };
   } catch {
-    return { lines: [], coupon: null };
+    return { lines: [], coupon: null, mergeKey: null };
   }
+}
+
+function idempotencyKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `cart-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 /** The server row for a product/variant, when the cart is server-backed. */
@@ -262,11 +280,10 @@ export const cartStore = {
   },
 
   /**
-   * Adopt the server cart at sign-in, replaying whatever the guest built.
+   * Adopt the server cart at sign-in, atomically merging whatever the guest built.
    *
-   * The replay is POST /cart/items per guest line, exactly as the contract
-   * describes; the server merges identical product/variant lines by adding
-   * quantities. Guest lines are cleared only once the replay has landed, so a
+   * POST /cart/merge carries one stable key for the whole basket. Guest lines
+   * are cleared only once the merge has landed, so a
    * failure mid-way leaves the basket on the device rather than losing it.
    */
   async attachServerCart(isCancelled: () => boolean = () => false): Promise<void> {
@@ -287,16 +304,21 @@ export const cartStore = {
         let cart = await api.getCart();
         if (isCancelled()) return;
 
-        // Replay the guest basket. Cancellation is checked before each add,
-        // never after one: returning mid-replay would leave lines behind that
-        // the next mount would add all over again.
-        for (const line of guestLines(state.lines)) {
-          if (isCancelled()) break;
-          cart = await api.addCartItem({
+        const guest = guestLines(state.lines);
+        const mergeKey = state.mergeKey ?? idempotencyKey();
+        // Make the server authoritative before merging. A click arriving while
+        // the merge is in flight is then a separate, idempotent server add; the
+        // cart row lock serializes both operations without losing either one.
+        setState({ ...state, server: cart, mergeKey });
+        if (guest.length > 0) {
+          cart = await api.mergeCart(
+            guest.map((line) => ({
             product_id: line.product_id,
             variant_id: line.variant_id,
             quantity: line.quantity,
-          });
+            })),
+            mergeKey,
+          );
         }
 
         // Read the guest coupon BEFORE the state that holds it is replaced:
@@ -314,6 +336,7 @@ export const cartStore = {
           // coupon is on the cart.
           coupon: null,
           server: cart,
+          mergeKey: null,
         });
 
         // A coupon the guest had applied is re-offered to the server, which
@@ -407,6 +430,7 @@ export const cartStore = {
           product_id: input.product_id,
           variant_id: input.variant_id,
           quantity: quantity > 0 ? roundQuantity(quantity) : 1,
+          idempotency_key: idempotencyKey(),
         });
         // The server holds the quantity; the device keeps only presentation
         // detail, at quantity 0 — the marker that stops the next sign-in
@@ -436,6 +460,7 @@ export const cartStore = {
       lines: lines.map((line) =>
         line.id === id ? { ...line, quantity: next } : line,
       ),
+      mergeKey: idempotencyKey(),
     });
   },
 
@@ -465,6 +490,7 @@ export const cartStore = {
     setState({
       ...state,
       lines: state.lines.map((item) => (item.id === id ? line : item)),
+      mergeKey: idempotencyKey(),
     });
   },
 
@@ -486,7 +512,12 @@ export const cartStore = {
     const lines = state.lines.filter((line) => line.id !== id);
     // An emptied cart drops the coupon with it: it was validated against a
     // basket that no longer exists.
-    setState({ ...state, lines, coupon: lines.length ? state.coupon : null });
+    setState({
+      ...state,
+      lines,
+      coupon: lines.length ? state.coupon : null,
+      mergeKey: idempotencyKey(),
+    });
   },
 
   /**
@@ -507,7 +538,12 @@ export const cartStore = {
       });
       return;
     }
-    setState({ ...state, lines: [], coupon: null });
+    setState({
+      ...state,
+      lines: [],
+      coupon: null,
+      mergeKey: idempotencyKey(),
+    });
   },
 
   /**
@@ -557,7 +593,7 @@ export const cartStore = {
 
   /** After an order is placed the server has consumed the cart. */
   async onOrderPlaced(): Promise<void> {
-    setState({ ...state, lines: [], coupon: null });
+    setState({ ...state, lines: [], coupon: null, mergeKey: null });
     await cartStore.refresh();
   },
 };

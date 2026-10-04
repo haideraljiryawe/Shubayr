@@ -3,7 +3,10 @@ import type { Request } from 'express';
 import { Policy } from '../../common/decorators/access-policy.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
-import { Throttle } from '@nestjs/throttler';
+import {
+  RateLimitRisk,
+  RateLimitTier,
+} from '../../common/rate-limit/rate-limit-tier';
 import { AuthService } from './auth.service';
 import {
   AdminLoginDto,
@@ -19,12 +22,14 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('request-otp')
+  @RateLimitTier(RateLimitRisk.Strict)
   @HttpCode(200)
   requestOtp(@Body() input: RequestOtpDto) {
     return this.auth.requestOtp(input);
   }
 
   @Post('verify-otp')
+  @RateLimitTier(RateLimitRisk.Strict)
   @HttpCode(200)
   verifyOtp(@Body() input: VerifyOtpDto) {
     return this.auth.verifyOtp(input);
@@ -47,7 +52,7 @@ export class AdminAuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Public()
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @RateLimitTier(RateLimitRisk.Strict)
   @Post('login')
   login(@Body() input: AdminLoginDto, @Req() request: Request) {
     return this.auth.adminLogin(input, request.ip);

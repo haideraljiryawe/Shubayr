@@ -1500,16 +1500,38 @@ export const api = {
     product_id: string;
     variant_id?: string | null;
     quantity: number;
+    idempotency_key?: string;
   }): Promise<Cart> {
     return withFreshToken(async () => {
       requireAuthenticated();
       return request<Cart>("/cart/items", {
         method: "POST",
+        headers: input.idempotency_key
+          ? { "Idempotency-Key": input.idempotency_key }
+          : undefined,
         body: JSON.stringify({
           product_id: input.product_id,
           variant_id: input.variant_id ?? null,
           quantity: input.quantity,
         }),
+      });
+    });
+  },
+
+  async mergeCart(
+    items: Array<{
+      product_id: string;
+      variant_id?: string | null;
+      quantity: number;
+    }>,
+    idempotencyKey: string,
+  ): Promise<Cart> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<Cart>("/cart/merge", {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({ items }),
       });
     });
   },

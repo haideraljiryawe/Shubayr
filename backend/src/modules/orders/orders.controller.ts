@@ -26,6 +26,10 @@ import {
   ShortageResponseDto,
 } from './dto/order.dto';
 import { OrdersService } from './orders.service';
+import {
+  RateLimitRisk,
+  RateLimitTier,
+} from '../../common/rate-limit/rate-limit-tier';
 
 type UserRequest = Request & { user: AuthenticatedRequestUser };
 
@@ -41,6 +45,7 @@ export class OrdersController {
 
   @Post()
   @AppPolicy('customer')
+  @RateLimitTier(RateLimitRisk.Strict)
   place(
     @Req() request: UserRequest,
     @Body() input: PlaceOrderDto,

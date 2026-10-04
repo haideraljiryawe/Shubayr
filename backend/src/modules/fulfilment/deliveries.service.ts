@@ -22,11 +22,17 @@ import {
   UpdateDeliveryStatusDto,
   ConfirmDeliveryCollectionDto,
   UnconfirmedDeliveriesQueryDto,
+  PartyCollectionsQueryDto,
 } from './dto/delivery.dto';
 import { assertOrderTransition, staleOrder } from '../orders/order-transition';
 import { LedgerService, type PostingLine } from '../finance/ledger.service';
 import { OperationService } from '../finance/operation.service';
-import { businessDate, businessDateText } from '../finance/business-date';
+import {
+  businessDate,
+  businessDateText,
+  businessDayEnd,
+  businessDayStart,
+} from '../finance/business-date';
 import {
   materializeDeliveryPosting,
   type DeliveryPostingAmounts,
@@ -129,7 +135,7 @@ export class DeliveriesService {
       this.prisma.delivery.findMany({
         where,
         include: {
-          order: { select: { version: true } },
+          order: { select: { version: true, total: true } },
           party: {
             select: {
               id: true,
@@ -210,7 +216,7 @@ export class DeliveriesService {
         where: { id },
         data: { agent_id: partyId },
         include: {
-          order: { select: { version: true } },
+          order: { select: { version: true, total: true } },
           party: {
             select: {
               id: true,
@@ -635,7 +641,7 @@ export class DeliveriesService {
             : {}),
         },
         include: {
-          order: { select: { version: true } },
+          order: { select: { version: true, total: true } },
           party: {
             select: {
               id: true,
@@ -669,10 +675,76 @@ export class DeliveriesService {
   }
 
   async listUnconfirmed(query: UnconfirmedDeliveriesQueryDto) {
+    return this.listCollections(
+      {
+        ...query,
+        status: 'unconfirmed',
+      },
+      query.party_id,
+    );
+  }
+
+  async listPartyCollections(partyId: string, query: PartyCollectionsQueryDto) {
+    const party = await this.prisma.deliveryParty.findUnique({
+      where: { id: partyId },
+      select: { id: true },
+    });
+    if (!party) throw new NotFoundException('Delivery party not found');
+    return this.listCollections(query, partyId);
+  }
+
+  private async listCollections(
+    query:
+      | PartyCollectionsQueryDto
+      | (UnconfirmedDeliveriesQueryDto & {
+          status: 'unconfirmed';
+        }),
+    partyId?: string,
+  ) {
+    if (query.date_from && query.date_to && query.date_from > query.date_to) {
+      throw new UnprocessableEntityException(
+        'date_from must be on or before date_to',
+      );
+    }
+    if (
+      query.amount_min !== undefined &&
+      query.amount_max !== undefined &&
+      query.amount_min > query.amount_max
+    ) {
+      throw new UnprocessableEntityException(
+        'amount_min must be less than or equal to amount_max',
+      );
+    }
     const page = query.page ?? 1;
     const perPage = query.per_page ?? 20;
     const where: Prisma.DeliveryCollectionWhereInput = {
-      status: 'unconfirmed',
+      ...(query.status ? { status: query.status } : {}),
+      ...(partyId ? { party_id: partyId } : {}),
+      ...('order_id' in query && query.order_id
+        ? { order_id: query.order_id }
+        : {}),
+      ...(query.date_from || query.date_to
+        ? {
+            delivered_at: {
+              ...(query.date_from
+                ? { gte: businessDayStart(query.date_from) }
+                : {}),
+              ...(query.date_to ? { lte: businessDayEnd(query.date_to) } : {}),
+            },
+          }
+        : {}),
+      ...(query.amount_min !== undefined || query.amount_max !== undefined
+        ? {
+            due_amount: {
+              ...(query.amount_min !== undefined
+                ? { gte: query.amount_min }
+                : {}),
+              ...(query.amount_max !== undefined
+                ? { lte: query.amount_max }
+                : {}),
+            },
+          }
+        : {}),
     };
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.deliveryCollection.count({ where }),
@@ -994,7 +1066,7 @@ export class DeliveriesService {
 
   private present(
     row: Delivery & {
-      order: { version: number };
+      order: { version: number; total: PrismaRuntime.Decimal };
       party?: {
         id: string;
         kind: string;
@@ -1034,6 +1106,7 @@ export class DeliveriesService {
       id: row.id,
       order_id: row.order_id,
       order_version: row.order.version,
+      amount_due: Number(row.order.total),
       agent_id:
         row.party === undefined ? row.agent_id : (row.party?.user_id ?? null),
       party_id: row.agent_id,

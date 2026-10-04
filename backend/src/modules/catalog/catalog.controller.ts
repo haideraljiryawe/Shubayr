@@ -13,8 +13,13 @@ import { CategoryQueryDto, ProductQueryDto } from './dto/catalog-query.dto';
 import { ProductsService } from './products.service';
 import { BrandsService } from './brands.service';
 import { BrandQueryDto } from './dto/brand.dto';
+import {
+  RateLimitRisk,
+  RateLimitTier,
+} from '../../common/rate-limit/rate-limit-tier';
 
 @Public()
+@RateLimitTier(RateLimitRisk.Catalog)
 @Controller()
 export class CatalogController {
   constructor(

@@ -49,6 +49,7 @@ import {
 
 const orderInclude = {
   items: true,
+  delivery_collection: true,
   deliveries: {
     include: {
       attempts: {
@@ -65,6 +66,7 @@ const orderInclude = {
 type OrderRow = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
 const adminOrderInclude = {
   items: { orderBy: { id: 'asc' as const } },
+  delivery_collection: true,
   payments: { orderBy: { id: 'asc' as const } },
   user: { select: { id: true, name: true, phone: true, email: true } },
   delivery: {
@@ -1467,6 +1469,9 @@ export class OrdersService {
             left.started_at.getTime() - right.started_at.getTime() ||
             left.attempt_number - right.attempt_number,
         ),
+      collection: row.delivery_collection
+        ? this.collectionSummary(row.delivery_collection)
+        : null,
       timeline: (row.status_events ?? []).map(({ status, note, at }) => ({
         status,
         note,
@@ -1565,6 +1570,29 @@ export class OrdersService {
         note,
         at,
       })),
+    };
+  }
+
+  private collectionSummary(row: {
+    status: string;
+    collected_amount: Prisma.Decimal | null;
+    shortfall_amount: Prisma.Decimal | null;
+    currency_code: string;
+  }) {
+    return {
+      result:
+        row.status === 'confirmed_full'
+          ? 'full'
+          : row.status === 'confirmed_short'
+            ? 'short'
+            : 'unconfirmed',
+      amount_collected:
+        row.collected_amount === null ? null : Number(row.collected_amount),
+      shortfall:
+        row.shortfall_amount === null ? null : Number(row.shortfall_amount),
+      confirmation_state:
+        row.status === 'unconfirmed' ? 'unconfirmed' : 'confirmed',
+      currency: row.currency_code,
     };
   }
 }
