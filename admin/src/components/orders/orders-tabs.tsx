@@ -3,22 +3,25 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { ORDER_QUEUES, type OrderQueue } from "@/lib/orders";
 
-type View = "list" | "board" | "retrievals";
+type View = "list" | "board" | "retrievals" | "collections";
 
 /**
  * The orders area: every order, the three server-filtered work queues (each
- * with the API's count), the status board, and the retrieval documents.
+ * with the API's count), the status board, the retrieval documents, and the
+ * deliveries whose cash is not confirmed yet.
  */
 export function OrdersTabs({
   active,
   queue = null,
   counts,
   canViewRetrievals = false,
+  canViewCollections = false,
 }: {
   active: View;
   queue?: OrderQueue | null;
   counts?: Record<OrderQueue, number | null>;
   canViewRetrievals?: boolean;
+  canViewCollections?: boolean;
 }) {
   const t = useTranslations("orders.views");
   const tab = (key: string, href: string, label: string, current: boolean, count?: number | null) => (
@@ -49,6 +52,7 @@ export function OrdersTabs({
       {ORDER_QUEUES.map((key) => tab(key, `/orders?queue=${key}`, t(`queues.${key}`), active === "list" && queue === key, counts?.[key]))}
       {tab("board", "/orders/board", t("board"), active === "board")}
       {canViewRetrievals ? tab("retrievals", "/retrievals", t("retrievals"), active === "retrievals") : null}
+      {canViewCollections ? tab("collections", "/deliveries/unconfirmed", t("collections"), active === "collections") : null}
     </nav>
   );
 }

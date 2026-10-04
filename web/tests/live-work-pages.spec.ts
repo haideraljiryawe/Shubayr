@@ -44,6 +44,12 @@ async function monitorCounts(
   return response.json();
 }
 
+/** The cash the signed-in agent holds, from their own custody read. */
+async function agentCash(request: APIRequestContext, token: string): Promise<number> {
+  const custody = await (await request.get(`${API}/deliveries/custody`, { headers: bearer(token) })).json();
+  return Number(custody.cash.amount);
+}
+
 async function newSession(browser: Browser, phoneLocal: string, next: string): Promise<Page> {
   const context = await browser.newContext({ baseURL: test.info().project.use.baseURL });
   const page = await context.newPage();
@@ -157,9 +163,16 @@ test.describe("work pages on the live store", () => {
     await page.getByTestId("delivery-action-out_for_delivery").click();
     await page.getByTestId("delivery-confirm-yes").click();
     await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "out_for_delivery");
+    // Delivered asks what was collected (12.0): the full amount here.
+    const agentToken = await tokenFor(request, AGENT_E164);
+    const cashBefore = await agentCash(request, agentToken);
     await page.getByTestId("delivery-action-delivered").click();
+    await page.getByTestId("delivery-collected-amount").fill(String(order.total));
     await page.getByTestId("delivery-confirm-yes").click();
     await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "delivered");
+    await expect(page.getByTestId("delivery-collection")).toHaveAttribute("data-status", "confirmed_full");
+    await expect(page.getByTestId("delivery-collection-shortfall")).toHaveCount(0);
+    expect(await agentCash(request, agentToken)).toBe(cashBefore + order.total);
 
     const customer = await tokenFor(request, CUSTOMER_E164);
     const fresh = await (
@@ -211,6 +224,34 @@ test.describe("work pages on the live store", () => {
     expect((own.goods.lines as Array<{ unit_cost_iqd?: number }>).every((line) => line.unit_cost_iqd === undefined)).toBe(true);
     const other = await request.get(`${API}/admin/delivery-parties/${driver.id}/custody`, { headers: bearer(agent) });
     expect([401, 403]).toContain(other.status());
+  });
+
+  test("an agent delivers short: the shortfall is shown and only the cash collected is in their custody", async ({ page, request }) => {
+    const order = await placeOrder(request);
+    await advanceOrder(request, order.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+    await assignToAgent(request, order.delivery_id);
+    await advanceOrder(request, order.id, ["dispatched"]);
+    const agentToken = await tokenFor(request, AGENT_E164);
+    const cashBefore = await agentCash(request, agentToken);
+    const collected = Math.floor(order.total / 2);
+    await awaitQuota(request);
+
+    await signIn(page, `/deliveries/${order.delivery_id}`, AGENT_LOCAL);
+    await page.getByTestId("delivery-action-delivered").click();
+    await page.getByTestId("delivery-collected-amount").fill(String(collected));
+    await page.getByTestId("delivery-confirm-yes").click();
+    const result = page.getByTestId("delivery-collection");
+    await expect(result).toHaveAttribute("data-status", "confirmed_short");
+    await expect(page.getByTestId("delivery-collection-shortfall")).toContainText(
+      new Intl.NumberFormat("en-US").format(order.total - collected),
+    );
+    // Only what was collected went into the agent's cash custody.
+    expect(await agentCash(request, agentToken)).toBe(cashBefore + collected);
+    await page.getByTestId("work-nav-home").click();
+    await page.getByTestId("agent-tab-custody").click();
+    await expect(page.getByTestId("my-custody-cash")).toContainText(
+      new Intl.NumberFormat("en-US").format(cashBefore + collected),
+    );
   });
 
   test("a stale delivery action is refused and explained", async ({ page, request }) => {

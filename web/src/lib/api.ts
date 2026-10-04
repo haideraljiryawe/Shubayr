@@ -46,6 +46,7 @@ import {
   mockUnreadCount,
   updateMockDelivery,
 } from "./mock-work";
+import type { CollectionInput } from "./collection";
 import { STORE_TIME_ZONE } from "./config";
 import {
   demoProducts,
@@ -1342,18 +1343,21 @@ export const api = {
   /**
    * Move one of the agent's deliveries along. The server owns the transition
    * table and answers 409 when the delivery (or its order) has moved on.
+   * Delivered carries what was collected and an operation id (API 12.0): the
+   * same id with the same body replays the first answer.
    */
   async updateDeliveryStatus(
     id: string,
     status: Exclude<DeliveryStatus, "assigned">,
     orderVersion: number,
     reason?: string,
+    collection?: CollectionInput,
   ): Promise<Delivery> {
     return withFreshToken(async () => {
       if (!isLive("deliveries")) {
         await mockLatency();
         requireMockAuth();
-        const updated = updateMockDelivery(id, status);
+        const updated = updateMockDelivery(id, status, collection);
         if (updated === null) throw new ApiError(404, "Delivery not found");
         if (updated === "conflict") {
           throw new ApiError(409, "Delivery status transition is not allowed", "CONFLICT");
@@ -1366,6 +1370,7 @@ export const api = {
           status,
           order_version: orderVersion,
           ...(reason ? { reason } : {}),
+          ...(status === "delivered" && collection ? collection : {}),
         }),
       });
     });

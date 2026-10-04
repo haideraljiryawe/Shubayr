@@ -959,7 +959,8 @@
         "attention": "Needs attention",
         "cancellation": "Cancellation requests"
       },
-      "retrievals": "Retrievals"
+      "retrievals": "Retrievals",
+      "collections": "Cash to confirm"
     },
     "pickList": {
       "open": "Pick list",
@@ -1087,7 +1088,9 @@
         "delivered": "Delivered",
         "failed": "Failed"
       }
-    }
+    },
+    "collectionInvalid": "Enter the amount collected in numbers, e.g. 25000.",
+    "collectionTitle": "Cash collected"
   },
   "inbox": {
     "title": "Notifications",
@@ -2290,6 +2293,48 @@
       "issue_to_custody": "Handed over",
       "custody_to_sold": "Delivered",
       "return_in": "Brought back"
+    }
+  },
+  "collections": {
+    "fields": {
+      "title": "Cash collected",
+      "due": "Amount due",
+      "collected": "The party collected",
+      "amount": "Amount collected",
+      "amountInvalid": "Enter the amount collected in numbers, e.g. 25000.",
+      "notConfirmed": "Amount not confirmed yet",
+      "notConfirmedHint": "The order is delivered now; the amount is confirmed later from the Cash to confirm list."
+    },
+    "preview": {
+      "full": "The full amount: nothing is short.",
+      "short": "Short by {shortfall}. The shortfall is recorded against the party.",
+      "over": "More than is due. Enter at most the amount due.",
+      "unconfirmed": "Revenue is recorded now; no cash is counted until the amount is confirmed.",
+      "invalid": "Enter the amount in numbers."
+    },
+    "status": {
+      "confirmed_full": "Collected in full",
+      "confirmed_short": "Collected short",
+      "unconfirmed": "Not confirmed yet"
+    },
+    "summary": {
+      "collected": "Collected",
+      "shortfall": "Shortfall"
+    },
+    "queue": {
+      "title": "Cash to confirm",
+      "description": "Delivered orders whose amount collected isn't confirmed yet, oldest first. Confirm what the party handed in: the full amount, or less (a shortfall).",
+      "columns": {
+        "order": "Order",
+        "party": "Delivered by",
+        "delivered": "Delivered",
+        "actions": "Actions"
+      },
+      "empty": "Every delivered order's cash is confirmed.",
+      "confirm": "Confirm amount",
+      "confirmTitle": "Confirm the cash for order {number}",
+      "confirmBody": "Enter what the party handed in. This posts once; it can't be changed afterwards.",
+      "done": "Order {number}: cash confirmed."
     }
   }
 }
