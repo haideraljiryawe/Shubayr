@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 11.2.0
+  version: 12.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1682,7 +1682,7 @@ paths:
     get:
       tags: [Deliveries]
       summary: Current agent's own goods and cash custody
-      description: The party is resolved from the authenticated delivery-agent session; no party id is accepted. Cost fields are never returned to an agent. Cash is zero until phase 8b collection postings exist.
+      description: The party is resolved from the authenticated delivery-agent session; no party id is accepted. Cost fields are never returned to an agent. Cash equals confirmed COD held in the party's account 1020 custody balance.
       x-app-role: delivery_agent
       responses:
         "200":
@@ -1704,8 +1704,11 @@ paths:
         to out_for_delivery for a custody-preserving retry; and delivered to
         returned. Returned is terminal. Dispatch and delivery
         timestamps are recorded, and the order advances atomically through its
-        corresponding status events. Successful delivery reconciles a pending
-        COD payment to paid in the same transaction.
+        corresponding status events. For status=delivered, operation_id and
+        collection_confirmation are required. A confirmed collection also
+        requires collected_amount. Revenue, cost of goods sold, and cash
+        custody or collection exception are posted atomically. An unconfirmed
+        collection recognizes revenue without inventing cash received.
       x-app-role: delivery_agent
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1719,6 +1722,9 @@ paths:
                 status: { type: string, enum: [out_for_delivery, delivered, failed, returned] }
                 order_version: { type: integer, minimum: 1 }
                 reason: { type: string, minLength: 1, maxLength: 500, description: Required when status=failed. }
+                operation_id: { type: string, minLength: 8, maxLength: 128, description: Required when status=delivered. }
+                collection_confirmation: { type: string, enum: [confirmed, unconfirmed], description: Required when status=delivered. }
+                collected_amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$', description: Required only for a confirmed collection; must be at most the amount due. }
       responses:
         "200":
           description: Updated delivery
@@ -1756,12 +1762,60 @@ paths:
                 status: { type: string, enum: [out_for_delivery, delivered, failed] }
                 order_version: { type: integer, minimum: 1 }
                 reason: { type: string, minLength: 1, maxLength: 500, description: Required when status=failed. }
+                operation_id: { type: string, minLength: 8, maxLength: 128, description: Required when status=delivered. }
+                collection_confirmation: { type: string, enum: [confirmed, unconfirmed], description: Required when status=delivered. }
+                collected_amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$', description: Required only for a confirmed collection; must be at most the amount due. }
+                event_at: { type: string, format: date-time, description: Optional delivery event time reported by staff; posting uses its Baghdad business date. }
+                source: { type: string, minLength: 1, maxLength: 120, description: Required when staff records a delivery on behalf of a party. }
       responses:
         "200":
           description: Updated delivery
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Delivery" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/deliveries/unconfirmed:
+    get:
+      tags: [Deliveries]
+      summary: List delivered orders whose collection awaits confirmation
+      x-permission: deliveries.manage
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Oldest unconfirmed collection first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryCollectionPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/deliveries/{id}/collection-confirmation:
+    post:
+      tags: [Deliveries]
+      summary: Confirm the amount collected for an unconfirmed delivery
+      description: Posts only the later full or later short confirmation map; sale revenue and COGS are never repeated.
+      x-permission: orders.deliver
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [operation_id, collected_amount]
+              properties:
+                operation_id: { type: string, minLength: 8, maxLength: 128 }
+                collected_amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$' }
+      responses:
+        "200":
+          description: Confirmed collection
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryCollection" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
@@ -6049,8 +6103,8 @@ components:
           required: [currency, amount, oldest_age_days]
           properties:
             currency: { type: string, const: IQD }
-            amount: { type: number, const: 0 }
-            oldest_age_days: { type: "null" }
+            amount: { type: number, minimum: 0 }
+            oldest_age_days: { type: [integer, "null"], minimum: 0 }
 
     DeliveryPartyStatementEntry:
       type: object
@@ -6103,6 +6157,47 @@ components:
               held_since: { type: string, format: date-time }
               age_days: { type: integer, minimum: 0 }
 
+    DeliveryCollection:
+      type: object
+      additionalProperties: false
+      required: [id, delivery_id, order_id, party_id, status, due_amount, collected_amount, shortfall_amount, currency, delivered_at, accounting_date, confirmed_at, delivery_journal_entry_id, confirmation_journal_entry_id]
+      properties:
+        id: { type: string, format: uuid }
+        delivery_id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        party_id: { type: string, format: uuid }
+        status: { type: string, enum: [confirmed_full, confirmed_short, unconfirmed] }
+        due_amount: { type: number, minimum: 0 }
+        collected_amount: { type: [number, "null"], minimum: 0 }
+        shortfall_amount: { type: [number, "null"], minimum: 0 }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        delivered_at: { type: string, format: date-time }
+        accounting_date: { type: string, format: date }
+        confirmed_at: { type: [string, "null"], format: date-time }
+        delivery_journal_entry_id: { type: string, format: uuid }
+        confirmation_journal_entry_id: { type: [string, "null"], format: uuid }
+        order:
+          type: object
+          additionalProperties: false
+          required: [id, order_number, user_id, total, delivery_fee]
+          properties:
+            id: { type: string, format: uuid }
+            order_number: { type: string }
+            user_id: { type: string, format: uuid }
+            total: { type: number }
+            delivery_fee: { type: number }
+        party: { $ref: "#/components/schemas/DeliveryPartySummary" }
+
+    DeliveryCollectionPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/DeliveryCollection" }
+
     Delivery:
       type: object
       required: [order_version]
@@ -6127,6 +6222,10 @@ components:
         attempts:
           type: array
           items: { $ref: "#/components/schemas/DeliveryAttempt" }
+        collection:
+          oneOf:
+            - { $ref: "#/components/schemas/DeliveryCollection" }
+            - { type: "null" }
 
     DeliveryAttempt:
       type: object

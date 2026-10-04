@@ -153,7 +153,12 @@ await request(`/deliveries/${alreadyDelivered.delivery_id}/rating`, {
 await request(`/deliveries/${assigned.delivery_id}`, {
   token: token(agentA),
   method: 'PATCH',
-  body: { status: 'delivered', order_version: assigned.version },
+  body: {
+    status: 'delivered',
+    order_version: assigned.version,
+    operation_id: 'delivery-invalid-before-dispatch',
+    collection_confirmation: 'unconfirmed',
+  },
   expected: 409,
 });
 const dispatched = await request(`/deliveries/${assigned.delivery_id}`, {
@@ -170,7 +175,13 @@ check(afterDispatch.status, 'dispatched', 'dispatch advances parent order');
 const delivered = await request(`/deliveries/${assigned.delivery_id}`, {
   token: token(agentA),
   method: 'PATCH',
-  body: { status: 'delivered', order_version: afterDispatch.version },
+  body: {
+    status: 'delivered',
+    order_version: afterDispatch.version,
+    operation_id: 'delivery-assigned-full',
+    collection_confirmation: 'confirmed',
+    collected_amount: String(assigned.total),
+  },
 });
 check(delivered.status, 'delivered', 'legal delivered transition');
 check(Boolean(delivered.delivered_at), true, 'delivery timestamp stamped');
@@ -219,7 +230,12 @@ check(afterReturn.status, 'returned', 'return advances order');
 await request(`/deliveries/${assigned.delivery_id}`, {
   token: token(agentA),
   method: 'PATCH',
-  body: { status: 'delivered', order_version: afterReturn.version },
+  body: {
+    status: 'delivered',
+    order_version: afterReturn.version,
+    operation_id: 'delivery-invalid-after-return',
+    collection_confirmation: 'unconfirmed',
+  },
   expected: 409,
 });
 
@@ -271,7 +287,12 @@ check(
 await request(`/deliveries/${second.delivery_id}`, {
   token: token(agentA),
   method: 'PATCH',
-  body: { status: 'delivered', order_version: secondFailed.version },
+  body: {
+    status: 'delivered',
+    order_version: secondFailed.version,
+    operation_id: 'delivery-invalid-after-failure',
+    collection_confirmation: 'unconfirmed',
+  },
   expected: 409,
 });
 

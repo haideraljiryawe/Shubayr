@@ -5,7 +5,9 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import type { Delivery, Prisma } from '../../generated/prisma/client';
+import { Prisma as PrismaRuntime } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
@@ -18,8 +20,18 @@ import {
   CreateDeliveryRatingDto,
   UpdateStaffDeliveryStatusDto,
   UpdateDeliveryStatusDto,
+  ConfirmDeliveryCollectionDto,
+  UnconfirmedDeliveriesQueryDto,
 } from './dto/delivery.dto';
 import { assertOrderTransition, staleOrder } from '../orders/order-transition';
+import { LedgerService, type PostingLine } from '../finance/ledger.service';
+import { OperationService } from '../finance/operation.service';
+import { businessDate, businessDateText } from '../finance/business-date';
+import {
+  materializeDeliveryPosting,
+  type DeliveryPostingAmounts,
+  type DeliveryPostingScenario,
+} from '../finance/posting-scenarios';
 
 const transitions: Record<string, readonly string[]> = {
   assigned: ['out_for_delivery'],
@@ -37,6 +49,8 @@ export class DeliveriesService {
     private readonly audit: AuditService,
     private readonly notifications?: NotificationsService,
     private readonly inventory: InventoryService = undefined as unknown as InventoryService,
+    private readonly ledger: LedgerService = undefined as unknown as LedgerService,
+    private readonly operations: OperationService = undefined as unknown as OperationService,
   ) {}
 
   listAssigned(agentId: string, query: AssignedDeliveriesQueryDto) {
@@ -129,6 +143,7 @@ export class DeliveriesService {
             include: { party: { select: { id: true, name: true } } },
             orderBy: { attempt_number: 'asc' },
           },
+          collection: true,
         },
         orderBy: [{ dispatched_at: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * perPage,
@@ -209,6 +224,7 @@ export class DeliveriesService {
             include: { party: { select: { id: true, name: true } } },
             orderBy: { attempt_number: 'asc' },
           },
+          collection: true,
         },
       });
       await this.audit.record(tx, {
@@ -240,6 +256,16 @@ export class DeliveriesService {
     id: string,
     input: UpdateDeliveryStatusDto,
   ) {
+    if (input.status === 'delivered') {
+      return this.operations.execute({
+        userId: agentId,
+        operationId: input.operation_id!,
+        endpoint: `PATCH /deliveries/${id}`,
+        payload: input,
+        work: (tx) =>
+          this.transitionStatus(agentId, id, input, true, false, tx),
+      });
+    }
     return this.transitionStatus(agentId, id, input, true);
   }
 
@@ -248,6 +274,16 @@ export class DeliveriesService {
     id: string,
     input: UpdateStaffDeliveryStatusDto,
   ) {
+    if (input.status === 'delivered') {
+      return this.operations.execute({
+        userId: actorId,
+        operationId: input.operation_id!,
+        endpoint: `PATCH /admin/deliveries/${id}/status`,
+        payload: input,
+        work: (tx) =>
+          this.transitionStatus(actorId, id, input, false, true, tx),
+      });
+    }
     return this.transitionStatus(actorId, id, input, false, true);
   }
 
@@ -257,8 +293,9 @@ export class DeliveriesService {
     input: UpdateDeliveryStatusDto | UpdateStaffDeliveryStatusDto,
     assignedAgentOnly: boolean,
     retryOnlyForDispatch = false,
+    transaction?: Prisma.TransactionClient,
   ) {
-    const row = await this.prisma.$transaction(async (tx) => {
+    const work = async (tx: Prisma.TransactionClient) => {
       const initial = await tx.delivery.findUnique({ where: { id } });
       if (!initial) throw new NotFoundException('Delivery not found');
       // Order first, then delivery: staff order transitions lock in this order.
@@ -328,7 +365,10 @@ export class DeliveriesService {
           break;
       }
 
-      const now = new Date();
+      const now =
+        input.status === 'delivered' && 'event_at' in input && input.event_at
+          ? new Date(input.event_at)
+          : new Date();
       for (const [index, status] of orderSteps.entries()) {
         const priorStatus = index === 0 ? orderStatus : orderSteps[index - 1];
         assertOrderTransition(
@@ -389,32 +429,119 @@ export class DeliveriesService {
         );
       }
       if (input.status === 'delivered') {
-        await this.inventory.settleCustodyToSold(
+        if (!delivery.agent_id) {
+          throw new ConflictException('Delivery has no assigned party');
+        }
+        if (delivery.order.currency_code !== 'IQD') {
+          throw new ConflictException(
+            'COD delivery posting currently requires IQD',
+          );
+        }
+        const due = new PrismaRuntime.Decimal(delivery.order.total);
+        const deliveryFee = new PrismaRuntime.Decimal(
+          delivery.order.delivery_fee,
+        );
+        const goodsRevenue = due.minus(deliveryFee);
+        if (due.lt(0) || goodsRevenue.lt(0)) {
+          throw new ConflictException('Order delivery amount is invalid');
+        }
+        const confirmation = input.collection_confirmation!;
+        if (
+          confirmation === 'unconfirmed' &&
+          input.collected_amount !== undefined
+        ) {
+          throw new UnprocessableEntityException(
+            'collected_amount must be omitted while collection is unconfirmed',
+          );
+        }
+        const collected =
+          confirmation === 'confirmed'
+            ? new PrismaRuntime.Decimal(input.collected_amount!)
+            : new PrismaRuntime.Decimal(0);
+        if (collected.lt(0) || collected.gt(due)) {
+          throw new UnprocessableEntityException(
+            'collected_amount must be between zero and the order amount due',
+          );
+        }
+        const shortfall = due.minus(collected);
+        const scenario: DeliveryPostingScenario =
+          confirmation === 'unconfirmed'
+            ? 'delivered_unconfirmed'
+            : shortfall.isZero()
+              ? 'delivered_full'
+              : 'delivered_short';
+        const cost = await this.inventory.settleCustodyToSold(
           tx,
           delivery.order_id,
-          delivery.agent_id!,
+          actorId,
         );
-        const payments = await tx.payment.findMany({
-          where: {
+        const amounts = this.deliveryPostingAmounts(
+          cost,
+          goodsRevenue,
+          deliveryFee,
+          due,
+          collected,
+          shortfall,
+        );
+        const collectionId = randomUUID();
+        const postingDate = businessDate(now);
+        const entry = await this.ledger.post(tx, {
+          sourceType: 'delivery_collection',
+          sourceId: collectionId,
+          event: scenario,
+          documentDate: postingDate,
+          accountingDate: postingDate,
+          createdBy: actorId,
+          description: 'Revenue and COD collection recognized on delivery',
+          lines: this.deliveryPostingLines(scenario, amounts),
+        });
+        const collectionStatus =
+          scenario === 'delivered_unconfirmed'
+            ? 'unconfirmed'
+            : scenario === 'delivered_full'
+              ? 'confirmed_full'
+              : 'confirmed_short';
+        await tx.deliveryCollection.create({
+          data: {
+            id: collectionId,
+            delivery_id: id,
             order_id: delivery.order_id,
-            method: 'cod',
-            status: 'pending',
+            party_id: delivery.agent_id,
+            status: collectionStatus,
+            due_amount: due,
+            collected_amount: confirmation === 'confirmed' ? collected : null,
+            shortfall_amount: confirmation === 'confirmed' ? shortfall : null,
+            currency_code: delivery.order.currency_code,
+            delivered_operation_id: input.operation_id!,
+            delivered_by: actorId,
+            delivered_at: now,
+            accounting_date: postingDate,
+            delivery_journal_entry_id: entry.id,
+            ...(confirmation === 'confirmed'
+              ? { confirmed_by: actorId, confirmed_at: now }
+              : {}),
           },
         });
-        for (const payment of payments) {
-          await tx.payment.update({
-            where: { id: payment.id },
-            data: { status: 'paid', paid_at: now },
-          });
-          await this.audit.record(tx, {
-            actorId,
-            action: 'payment.reconcile_cod',
-            entityType: 'payment',
-            entityId: payment.id,
-            before: { status: payment.status, paid_at: payment.paid_at },
-            after: { status: 'paid', paid_at: now.toISOString() },
-          });
+        if (scenario === 'delivered_full') {
+          await this.reconcileCodPayments(tx, delivery.order_id, actorId, now);
         }
+        await this.audit.record(tx, {
+          actorId,
+          action: 'delivery.collection_record',
+          entityType: 'delivery_collection',
+          entityId: collectionId,
+          after: {
+            status: collectionStatus,
+            due_amount: due.toString(),
+            collected_amount:
+              confirmation === 'confirmed' ? collected.toString() : null,
+            shortfall_amount:
+              confirmation === 'confirmed' ? shortfall.toString() : null,
+            party_id: delivery.agent_id,
+            source:
+              'source' in input && input.source ? input.source : 'agent_app',
+          },
+        });
         await this.loyalty.earnDelivered(tx, delivery.order_id, actorId);
       }
       await this.notifications?.record(
@@ -522,6 +649,7 @@ export class DeliveriesService {
             include: { party: { select: { id: true, name: true } } },
             orderBy: { attempt_number: 'asc' },
           },
+          collection: true,
         },
       });
       await this.audit.record(tx, {
@@ -533,8 +661,285 @@ export class DeliveriesService {
         after: { status: input.status },
       });
       return updated;
-    });
+    };
+    const row = transaction
+      ? await work(transaction)
+      : await this.prisma.$transaction(work);
     return this.present(row);
+  }
+
+  async listUnconfirmed(query: UnconfirmedDeliveriesQueryDto) {
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    const where: Prisma.DeliveryCollectionWhereInput = {
+      status: 'unconfirmed',
+    };
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.deliveryCollection.count({ where }),
+      this.prisma.deliveryCollection.findMany({
+        where,
+        include: {
+          order: {
+            select: {
+              id: true,
+              order_number: true,
+              user_id: true,
+              total: true,
+              delivery_fee: true,
+            },
+          },
+          party: {
+            select: {
+              id: true,
+              kind: true,
+              user_id: true,
+              name: true,
+              phone: true,
+            },
+          },
+        },
+        orderBy: [{ delivered_at: 'asc' }, { id: 'asc' }],
+        skip: (page - 1) * perPage,
+        take: perPage,
+      }),
+    ]);
+    return {
+      page,
+      per_page: perPage,
+      total,
+      data: rows.map((row) => this.presentCollection(row)),
+    };
+  }
+
+  confirmCollection(
+    actorId: string,
+    deliveryId: string,
+    input: ConfirmDeliveryCollectionDto,
+  ) {
+    return this.operations.execute({
+      userId: actorId,
+      operationId: input.operation_id,
+      endpoint: `POST /admin/deliveries/${deliveryId}/collection-confirmation`,
+      payload: input,
+      work: async (tx) => {
+        await tx.$queryRaw`SELECT id FROM delivery_collections WHERE delivery_id = ${deliveryId}::uuid FOR UPDATE`;
+        const collection = await tx.deliveryCollection.findUnique({
+          where: { delivery_id: deliveryId },
+          include: {
+            order: {
+              select: {
+                id: true,
+                order_number: true,
+                user_id: true,
+                total: true,
+                delivery_fee: true,
+              },
+            },
+            party: {
+              select: {
+                id: true,
+                kind: true,
+                user_id: true,
+                name: true,
+                phone: true,
+              },
+            },
+          },
+        });
+        if (!collection) {
+          throw new NotFoundException('Delivery collection not found');
+        }
+        if (collection.status !== 'unconfirmed') {
+          throw new ConflictException(
+            'Delivery collection is already confirmed',
+          );
+        }
+        const due = new PrismaRuntime.Decimal(collection.due_amount);
+        const collected = new PrismaRuntime.Decimal(input.collected_amount);
+        if (collected.lt(0) || collected.gt(due)) {
+          throw new UnprocessableEntityException(
+            'collected_amount must be between zero and the order amount due',
+          );
+        }
+        const shortfall = due.minus(collected);
+        const scenario: DeliveryPostingScenario = shortfall.isZero()
+          ? 'later_full_confirmation'
+          : 'later_short_confirmation';
+        const now = new Date();
+        const postingDate = businessDate(now);
+        const amounts = this.deliveryPostingAmounts(
+          new PrismaRuntime.Decimal(0),
+          new PrismaRuntime.Decimal(0),
+          new PrismaRuntime.Decimal(0),
+          due,
+          collected,
+          shortfall,
+        );
+        const entry = await this.ledger.post(tx, {
+          sourceType: 'delivery_collection',
+          sourceId: collection.id,
+          event: scenario,
+          documentDate: postingDate,
+          accountingDate: postingDate,
+          createdBy: actorId,
+          description: 'COD collection confirmed after delivery',
+          lines: this.deliveryPostingLines(scenario, amounts),
+        });
+        const status = shortfall.isZero()
+          ? 'confirmed_full'
+          : 'confirmed_short';
+        const updated = await tx.deliveryCollection.update({
+          where: { id: collection.id },
+          data: {
+            status,
+            collected_amount: collected,
+            shortfall_amount: shortfall,
+            confirmed_operation_id: input.operation_id,
+            confirmed_by: actorId,
+            confirmed_at: now,
+            confirmation_journal_entry_id: entry.id,
+          },
+          include: {
+            order: {
+              select: {
+                id: true,
+                order_number: true,
+                user_id: true,
+                total: true,
+                delivery_fee: true,
+              },
+            },
+            party: {
+              select: {
+                id: true,
+                kind: true,
+                user_id: true,
+                name: true,
+                phone: true,
+              },
+            },
+          },
+        });
+        if (status === 'confirmed_full') {
+          await this.reconcileCodPayments(
+            tx,
+            collection.order_id,
+            actorId,
+            now,
+          );
+        }
+        await this.audit.record(tx, {
+          actorId,
+          action: 'delivery.collection_confirm',
+          entityType: 'delivery_collection',
+          entityId: collection.id,
+          before: { status: collection.status },
+          after: {
+            status,
+            collected_amount: collected.toString(),
+            shortfall_amount: shortfall.toString(),
+          },
+        });
+        return this.presentCollection(updated);
+      },
+    });
+  }
+
+  private deliveryPostingAmounts(
+    cost: PrismaRuntime.Decimal,
+    goodsRevenue: PrismaRuntime.Decimal,
+    deliveryFee: PrismaRuntime.Decimal,
+    due: PrismaRuntime.Decimal,
+    collected: PrismaRuntime.Decimal,
+    shortfall: PrismaRuntime.Decimal,
+  ): DeliveryPostingAmounts {
+    return {
+      cost: cost.toString(),
+      goodsRevenue: goodsRevenue.toString(),
+      deliveryFee: deliveryFee.toString(),
+      due: due.toString(),
+      collected: collected.toString(),
+      shortfall: shortfall.toString(),
+    };
+  }
+
+  private deliveryPostingLines(
+    scenario: DeliveryPostingScenario,
+    amounts: DeliveryPostingAmounts,
+  ): PostingLine[] {
+    return materializeDeliveryPosting(scenario, amounts).map((item) => ({
+      accountCode: item.accountCode,
+      side: item.side,
+      baseAmount: item.amount,
+      currencyCode: 'IQD',
+      originalAmount: item.amount,
+      exchangeRate: '1',
+    }));
+  }
+
+  private async reconcileCodPayments(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+    actorId: string,
+    at: Date,
+  ) {
+    const payments = await tx.payment.findMany({
+      where: { order_id: orderId, method: 'cod', status: 'pending' },
+    });
+    for (const payment of payments) {
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: { status: 'paid', paid_at: at },
+      });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'payment.reconcile_cod',
+        entityType: 'payment',
+        entityId: payment.id,
+        before: { status: payment.status, paid_at: payment.paid_at },
+        after: { status: 'paid', paid_at: at.toISOString() },
+      });
+    }
+  }
+
+  private presentCollection(row: {
+    id: string;
+    delivery_id: string;
+    order_id: string;
+    party_id: string;
+    status: string;
+    due_amount: PrismaRuntime.Decimal;
+    collected_amount: PrismaRuntime.Decimal | null;
+    shortfall_amount: PrismaRuntime.Decimal | null;
+    currency_code: string;
+    delivered_at: Date;
+    accounting_date: Date;
+    confirmed_at: Date | null;
+    delivery_journal_entry_id: string;
+    confirmation_journal_entry_id: string | null;
+    order?: unknown;
+    party?: unknown;
+  }) {
+    return {
+      id: row.id,
+      delivery_id: row.delivery_id,
+      order_id: row.order_id,
+      party_id: row.party_id,
+      status: row.status,
+      due_amount: Number(row.due_amount),
+      collected_amount:
+        row.collected_amount === null ? null : Number(row.collected_amount),
+      shortfall_amount:
+        row.shortfall_amount === null ? null : Number(row.shortfall_amount),
+      currency: row.currency_code,
+      delivered_at: row.delivered_at,
+      accounting_date: businessDateText(row.accounting_date),
+      confirmed_at: row.confirmed_at,
+      delivery_journal_entry_id: row.delivery_journal_entry_id,
+      confirmation_journal_entry_id: row.confirmation_journal_entry_id,
+      ...(row.order === undefined ? {} : { order: row.order }),
+      ...(row.party === undefined ? {} : { party: row.party }),
+    };
   }
 
   async rate(
@@ -607,6 +1012,22 @@ export class DeliveriesService {
         completed_at: Date | null;
         party: { id: string; name: string | null };
       }>;
+      collection?: {
+        id: string;
+        delivery_id: string;
+        order_id: string;
+        party_id: string;
+        status: string;
+        due_amount: PrismaRuntime.Decimal;
+        collected_amount: PrismaRuntime.Decimal | null;
+        shortfall_amount: PrismaRuntime.Decimal | null;
+        currency_code: string;
+        delivered_at: Date;
+        accounting_date: Date;
+        confirmed_at: Date | null;
+        delivery_journal_entry_id: string;
+        confirmation_journal_entry_id: string | null;
+      } | null;
     },
   ) {
     return {
@@ -626,6 +1047,9 @@ export class DeliveriesService {
       failed_at: row.failed_at,
       retry_count: row.retry_count,
       attempts: row.attempts,
+      collection: row.collection
+        ? this.presentCollection(row.collection)
+        : null,
     };
   }
 }

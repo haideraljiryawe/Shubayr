@@ -3554,7 +3554,7 @@ export interface paths {
         };
         /**
          * Current agent's own goods and cash custody
-         * @description The party is resolved from the authenticated delivery-agent session; no party id is accepted. Cost fields are never returned to an agent. Cash is zero until phase 8b collection postings exist.
+         * @description The party is resolved from the authenticated delivery-agent session; no party id is accepted. Cost fields are never returned to an agent. Cash equals confirmed COD held in the party's account 1020 custody balance.
          */
         get: {
             parameters: {
@@ -3601,7 +3601,7 @@ export interface paths {
         head?: never;
         /**
          * Update delivery status (agent)
-         * @description Only the assigned agent may act. An assigned delivery may start only when its order is ready_for_dispatch. Legal transitions are assigned to out_for_delivery; out_for_delivery to delivered or failed; failed back to out_for_delivery for a custody-preserving retry; and delivered to returned. Returned is terminal. Dispatch and delivery timestamps are recorded, and the order advances atomically through its corresponding status events. Successful delivery reconciles a pending COD payment to paid in the same transaction.
+         * @description Only the assigned agent may act. An assigned delivery may start only when its order is ready_for_dispatch. Legal transitions are assigned to out_for_delivery; out_for_delivery to delivered or failed; failed back to out_for_delivery for a custody-preserving retry; and delivered to returned. Returned is terminal. Dispatch and delivery timestamps are recorded, and the order advances atomically through its corresponding status events. For status=delivered, operation_id and collection_confirmation are required. A confirmed collection also requires collected_amount. Revenue, cost of goods sold, and cash custody or collection exception are posted atomically. An unconfirmed collection recognizes revenue without inventing cash received.
          */
         patch: {
             parameters: {
@@ -3620,6 +3620,15 @@ export interface paths {
                         order_version: number;
                         /** @description Required when status=failed. */
                         reason?: string;
+                        /** @description Required when status=delivered. */
+                        operation_id?: string;
+                        /**
+                         * @description Required when status=delivered.
+                         * @enum {string}
+                         */
+                        collection_confirmation?: "confirmed" | "unconfirmed";
+                        /** @description Required only for a confirmed collection; must be at most the amount due. */
+                        collected_amount?: string;
                     };
                 };
             };
@@ -3675,6 +3684,22 @@ export interface paths {
                         order_version: number;
                         /** @description Required when status=failed. */
                         reason?: string;
+                        /** @description Required when status=delivered. */
+                        operation_id?: string;
+                        /**
+                         * @description Required when status=delivered.
+                         * @enum {string}
+                         */
+                        collection_confirmation?: "confirmed" | "unconfirmed";
+                        /** @description Required only for a confirmed collection; must be at most the amount due. */
+                        collected_amount?: string;
+                        /**
+                         * Format: date-time
+                         * @description Optional delivery event time reported by staff; posting uses its Baghdad business date.
+                         */
+                        event_at?: string;
+                        /** @description Required when staff records a delivery on behalf of a party. */
+                        source?: string;
                     };
                 };
             };
@@ -3694,6 +3719,98 @@ export interface paths {
                 422: components["responses"]["Validation"];
             };
         };
+        trace?: never;
+    };
+    "/admin/deliveries/unconfirmed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List delivered orders whose collection awaits confirmation */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Oldest unconfirmed collection first */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryCollectionPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/deliveries/{id}/collection-confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm the amount collected for an unconfirmed delivery
+         * @description Posts only the later full or later short confirmation map; sale revenue and COGS are never repeated.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        operation_id: string;
+                        collected_amount: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Confirmed collection */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryCollection"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/deliveries/{id}/assign": {
@@ -10667,9 +10784,8 @@ export interface components {
             cash: {
                 /** @constant */
                 currency: "IQD";
-                /** @constant */
-                amount: 0;
-                oldest_age_days: null;
+                amount: number;
+                oldest_age_days: number | null;
             };
         };
         DeliveryPartyStatementEntry: {
@@ -10714,6 +10830,45 @@ export interface components {
                 age_days: number;
             }[];
         };
+        DeliveryCollection: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            delivery_id: string;
+            /** Format: uuid */
+            order_id: string;
+            /** Format: uuid */
+            party_id: string;
+            /** @enum {string} */
+            status: "confirmed_full" | "confirmed_short" | "unconfirmed";
+            due_amount: number;
+            collected_amount: number | null;
+            shortfall_amount: number | null;
+            currency: string;
+            /** Format: date-time */
+            delivered_at: string;
+            /** Format: date */
+            accounting_date: string;
+            /** Format: date-time */
+            confirmed_at: string | null;
+            /** Format: uuid */
+            delivery_journal_entry_id: string;
+            /** Format: uuid */
+            confirmation_journal_entry_id: string | null;
+            order?: {
+                /** Format: uuid */
+                id: string;
+                order_number: string;
+                /** Format: uuid */
+                user_id: string;
+                total: number;
+                delivery_fee: number;
+            };
+            party?: components["schemas"]["DeliveryPartySummary"];
+        };
+        DeliveryCollectionPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["DeliveryCollection"][];
+        };
         Delivery: {
             /** Format: uuid */
             id?: string;
@@ -10738,6 +10893,7 @@ export interface components {
             failed_at?: string | null;
             retry_count?: number;
             attempts?: components["schemas"]["DeliveryAttempt"][];
+            collection?: components["schemas"]["DeliveryCollection"] | null;
         };
         DeliveryAttempt: {
             /** Format: uuid */

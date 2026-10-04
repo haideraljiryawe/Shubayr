@@ -14,12 +14,91 @@ export type PostingScenario = {
 const line = (
   accountCode: string,
   side: Side,
-  amount: number,
+  amount: number | string,
 ): ScenarioLine => ({
   accountCode,
   side,
   amount: String(amount),
 });
+
+export type DeliveryPostingScenario =
+  | 'delivered_full'
+  | 'delivered_short'
+  | 'delivered_unconfirmed'
+  | 'later_full_confirmation'
+  | 'later_short_confirmation';
+
+export type DeliveryPostingAmounts = {
+  cost: string;
+  goodsRevenue: string;
+  deliveryFee: string;
+  due: string;
+  collected: string;
+  shortfall: string;
+};
+
+type DeliveryAmountKey = keyof DeliveryPostingAmounts;
+type DeliveryMapLine = Omit<ScenarioLine, 'amount'> & {
+  amount: DeliveryAmountKey;
+};
+
+/**
+ * The phase-3 delivery maps are the single source of truth for both their
+ * executable fixtures and live phase-8b postings.
+ */
+export const DELIVERY_POSTING_MAPS: Readonly<
+  Record<DeliveryPostingScenario, readonly DeliveryMapLine[]>
+> = {
+  delivered_full: [
+    { accountCode: '5000', side: 'debit', amount: 'cost' },
+    { accountCode: '1020', side: 'debit', amount: 'due' },
+    { accountCode: '1010', side: 'credit', amount: 'cost' },
+    { accountCode: '4000', side: 'credit', amount: 'goodsRevenue' },
+    { accountCode: '4010', side: 'credit', amount: 'deliveryFee' },
+  ],
+  delivered_short: [
+    { accountCode: '5000', side: 'debit', amount: 'cost' },
+    { accountCode: '1020', side: 'debit', amount: 'collected' },
+    { accountCode: '1040', side: 'debit', amount: 'shortfall' },
+    { accountCode: '1010', side: 'credit', amount: 'cost' },
+    { accountCode: '4000', side: 'credit', amount: 'goodsRevenue' },
+    { accountCode: '4010', side: 'credit', amount: 'deliveryFee' },
+  ],
+  delivered_unconfirmed: [
+    { accountCode: '5000', side: 'debit', amount: 'cost' },
+    { accountCode: '1030', side: 'debit', amount: 'due' },
+    { accountCode: '1010', side: 'credit', amount: 'cost' },
+    { accountCode: '4000', side: 'credit', amount: 'goodsRevenue' },
+    { accountCode: '4010', side: 'credit', amount: 'deliveryFee' },
+  ],
+  later_full_confirmation: [
+    { accountCode: '1020', side: 'debit', amount: 'due' },
+    { accountCode: '1030', side: 'credit', amount: 'due' },
+  ],
+  later_short_confirmation: [
+    { accountCode: '1020', side: 'debit', amount: 'collected' },
+    { accountCode: '1040', side: 'debit', amount: 'shortfall' },
+    { accountCode: '1030', side: 'credit', amount: 'due' },
+  ],
+};
+
+export function materializeDeliveryPosting(
+  scenario: DeliveryPostingScenario,
+  amounts: DeliveryPostingAmounts,
+): ScenarioLine[] {
+  return DELIVERY_POSTING_MAPS[scenario]
+    .map((item) => line(item.accountCode, item.side, amounts[item.amount]))
+    .filter((item) => Number(item.amount) !== 0);
+}
+
+const workedDeliveryAmounts: DeliveryPostingAmounts = {
+  cost: '60000',
+  goodsRevenue: '100000',
+  deliveryFee: '5000',
+  due: '105000',
+  collected: '95000',
+  shortfall: '10000',
+};
 
 /** Executable section 17.1 fixtures using the specification's worked IQD figures. */
 export const POSTING_SCENARIOS: readonly PostingScenario[] = [
@@ -40,50 +119,36 @@ export const POSTING_SCENARIOS: readonly PostingScenario[] = [
   {
     key: 'delivered_full',
     event: 'full delivery and collection confirmed',
-    lines: [
-      line('5000', 'debit', 60_000),
-      line('1020', 'debit', 105_000),
-      line('1010', 'credit', 60_000),
-      line('4000', 'credit', 100_000),
-      line('4010', 'credit', 5_000),
-    ],
+    lines: materializeDeliveryPosting('delivered_full', workedDeliveryAmounts),
   },
   {
     key: 'delivered_short',
     event: 'delivery confirmed with a short collection',
-    lines: [
-      line('5000', 'debit', 60_000),
-      line('1020', 'debit', 95_000),
-      line('1040', 'debit', 10_000),
-      line('1010', 'credit', 60_000),
-      line('4000', 'credit', 100_000),
-      line('4010', 'credit', 5_000),
-    ],
+    lines: materializeDeliveryPosting('delivered_short', workedDeliveryAmounts),
   },
   {
     key: 'delivered_unconfirmed',
     event: 'delivery with collection awaiting confirmation',
-    lines: [
-      line('5000', 'debit', 60_000),
-      line('1030', 'debit', 105_000),
-      line('1010', 'credit', 60_000),
-      line('4000', 'credit', 100_000),
-      line('4010', 'credit', 5_000),
-    ],
+    lines: materializeDeliveryPosting(
+      'delivered_unconfirmed',
+      workedDeliveryAmounts,
+    ),
   },
   {
     key: 'later_full_confirmation',
     event: 'full collection confirmed later without a second sale',
-    lines: [line('1020', 'debit', 105_000), line('1030', 'credit', 105_000)],
+    lines: materializeDeliveryPosting(
+      'later_full_confirmation',
+      workedDeliveryAmounts,
+    ),
   },
   {
     key: 'later_short_confirmation',
     event: 'short collection confirmed later without a second sale',
-    lines: [
-      line('1020', 'debit', 95_000),
-      line('1040', 'debit', 10_000),
-      line('1030', 'credit', 105_000),
-    ],
+    lines: materializeDeliveryPosting(
+      'later_short_confirmation',
+      workedDeliveryAmounts,
+    ),
   },
   {
     key: 'exception_handover',

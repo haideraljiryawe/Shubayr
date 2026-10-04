@@ -397,7 +397,13 @@ try {
   await request(`/deliveries/${pending.delivery.id}`, {
     token: agent,
     method: 'PATCH',
-    body: { status: 'delivered', order_version: dispatched.version },
+    body: {
+      status: 'delivered',
+      order_version: dispatched.version,
+      operation_id: 'admin-orders-delivery-full',
+      collection_confirmation: 'confirmed',
+      collected_amount: String(pending.total),
+    },
   });
   check(
     await scalar(
