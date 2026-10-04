@@ -8,12 +8,7 @@ import type { TableParams } from "@/lib/table-params";
  * ------------------------------------------------------------------------- */
 
 export type DeliveryParty = components["schemas"]["DeliveryParty"];
-type Custody = components["schemas"]["DeliveryPartyCustody"];
-/**
- * The custody read as the client returns it: openapi-fetch drops keys whose
- * only type is null (the cash age until collections exist), so it is optional.
- */
-export type PartyCustody = Omit<Custody, "cash"> & { cash: Omit<Custody["cash"], "oldest_age_days"> & { oldest_age_days?: null } };
+export type PartyCustody = components["schemas"]["DeliveryPartyCustody"];
 export type CustodyLine = components["schemas"]["DeliveryPartyCustodyLine"];
 export type StatementEntry = components["schemas"]["DeliveryPartyStatementEntry"];
 export type HeldOrder = components["schemas"]["DeliveryPartyHeldOrders"]["data"][number];

@@ -150,7 +150,9 @@ export function PartyView({
               {formatMoney(cash.amount, cash.currency, locale)}
             </dd>
             <dt className="text-text-muted">{t("custody.oldest")}</dt>
-            <dd className="text-end">{days(cash.oldest_age_days ?? null)}</dd>
+            <dd className="text-end" data-testid="custody-cash-age">
+              {days(cash.oldest_age_days)}
+            </dd>
           </dl>
         </Card>
       </div>
