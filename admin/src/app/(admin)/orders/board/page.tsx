@@ -41,7 +41,7 @@ export default async function OrdersBoardPage() {
   return (
     <>
       <PageHeader title={t("title")} description={t("boardDescription")} />
-      <OrdersTabs active="board" counts={columns[0]?.ok ? queueCounts(columns[0].data.badge_counts) : undefined} canViewRetrievals={permissions.includes("retrieval.view")} />
+      <OrdersTabs active="board" counts={columns[0]?.ok ? queueCounts(columns[0].data.badge_counts) : undefined} canViewRetrievals={permissions.includes("retrieval.view")} canViewCollections={permissions.includes("deliveries.manage")} />
       <div className="grid gap-4 overflow-x-auto pb-2 md:grid-cols-3 xl:grid-cols-6" data-testid="orders-board">
         {COLUMNS.map((status, index) => {
           const column = columns[index]!;

@@ -52,7 +52,7 @@ export default async function RetrievalsPage({ searchParams }: { searchParams: P
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
-      {permissions.includes("orders.view") ? <OrdersTabs active="retrievals" counts={counts} canViewRetrievals /> : null}
+      {permissions.includes("orders.view") ? <OrdersTabs active="retrievals" counts={counts} canViewRetrievals canViewCollections={permissions.includes("deliveries.manage")} /> : null}
       {orderId ? (
         <p className="mb-3 text-sm" data-testid="retrievals-order-filter">
           {t("forOrder", { number: orderNumber ?? "…" })}{" "}
