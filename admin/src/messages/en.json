@@ -32,7 +32,8 @@
     "purchasing": "Purchase invoices",
     "suppliers": "Suppliers",
     "supplierPayments": "Supplier payments",
-    "payables": "Payables & aging"
+    "payables": "Payables & aging",
+    "deliveryParties": "Delivery parties"
   },
   "auth": {
     "signIn": "Sign in",
@@ -918,15 +919,19 @@
       "deliveryNotAssigned": "The delivery is not in the “assigned” state, so it can't be handed over."
     },
     "assign": {
-      "title": "Assign agent",
-      "reassign": "Change agent",
-      "pick": "Choose an agent",
+      "title": "Assign who delivers",
+      "reassign": "Change who delivers",
+      "pick": "Choose an agent or driver",
       "submit": "Assign",
-      "done": "Agent assigned",
-      "noAgents": "No active delivery agents are registered.",
-      "search": "Search agents by name or phone",
-      "noMatch": "No agent matches.",
-      "refine": "Showing {shown} of {total} — narrow the search to reach the rest."
+      "done": "Delivery assigned",
+      "search": "Search agents and drivers by name, phone or vehicle",
+      "noMatch": "No agent or driver matches.",
+      "refine": "Showing {shown} of {total} — narrow the search to reach the rest.",
+      "noParties": "No active agents or external drivers.",
+      "kinds": {
+        "internal_agent": "Agent",
+        "external_driver": "External driver"
+      }
     },
     "done": "Order updated",
     "conflict": "This order changed before your action was saved — it is now “{status}”. The page has been refreshed to show what you can do now.",
@@ -2176,6 +2181,115 @@
       "price": "New price",
       "threshold": "Threshold",
       "cost": "Cost"
+    }
+  },
+  "parties": {
+    "title": "Delivery parties",
+    "description": "Everyone who carries orders: the store's agents (with the app) and external drivers (no account). Open a party to see the goods they hold.",
+    "columns": {
+      "name": "Name",
+      "kind": "Type",
+      "phone": "Phone",
+      "vehicle": "Vehicle",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "kinds": {
+      "internal_agent": "Agent",
+      "external_driver": "External driver"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "allKinds": "All types",
+    "allStatuses": "All",
+    "search": "Search by name, phone or vehicle",
+    "empty": "No delivery parties match.",
+    "viewCustody": "Custody",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "remove": "Remove",
+    "created": "External driver added.",
+    "updated": "External driver updated.",
+    "activated": "Driver activated.",
+    "deactivated": "Driver deactivated.",
+    "notice": {
+      "duplicatePhone": "{name} was saved, but another delivery party already uses this phone number. Check it isn't the same person.",
+      "deleted": "{name} was deleted: nobody had used this driver yet.",
+      "deactivated": "{name} has deliveries, custody or retrievals on record, so the driver was kept and made inactive instead of deleted."
+    },
+    "confirm": {
+      "deactivateTitle": "Deactivate {name}?",
+      "deactivateBody": "The driver can no longer be chosen for new deliveries. Their history and any goods they hold stay as they are.",
+      "activateTitle": "Activate {name}?",
+      "activateBody": "The driver can be chosen for deliveries again.",
+      "removeTitle": "Remove {name}?",
+      "removeBody": "A driver nobody has used yet is deleted. A driver with any delivery, custody or retrieval is kept for the records and made inactive instead."
+    },
+    "form": {
+      "createTitle": "Add an external driver",
+      "editTitle": "Edit {name}",
+      "hint": "A driver without an account. Staff assign them to orders and record their deliveries.",
+      "name": "Name",
+      "nameRequired": "Enter the driver's name.",
+      "phone": "Phone number",
+      "phoneHint": "Local 07XXXXXXXXX or international +964…",
+      "phoneInvalid": "Enter a valid phone number, e.g. 07701234567.",
+      "vehicle": "Vehicle (optional)",
+      "description": "Description (optional)",
+      "notes": "Notes (optional)",
+      "create": "Add driver",
+      "save": "Save changes"
+    },
+    "backToList": "All delivery parties",
+    "detail": {
+      "title": "Delivery party",
+      "description": "What this party holds right now, the orders it belongs to, and every movement in and out of their custody."
+    },
+    "days": "{count, plural, =0 {today} one {# day} other {# days}}",
+    "custody": {
+      "goods": "Goods held",
+      "cash": "Cash held",
+      "quantity": "Quantity",
+      "value": "Value",
+      "oldest": "Oldest item",
+      "amount": "Amount",
+      "lines": "Goods in custody",
+      "none": "This party holds no goods.",
+      "product": "Product",
+      "age": "Held for",
+      "unitCost": "Unit cost"
+    },
+    "held": {
+      "title": "Orders held",
+      "none": "No orders are in this party's hands.",
+      "status": "Order status",
+      "since": "Held since"
+    },
+    "statement": {
+      "title": "Custody statement",
+      "hint": "Goods issued to this party (+) and delivered or brought back (−), with the balance after each movement. Click an order to see only its movements.",
+      "when": "When",
+      "event": "Movement",
+      "order": "Order",
+      "sku": "SKU",
+      "lot": "Lot",
+      "quantity": "Quantity",
+      "running": "Balance",
+      "value": "Value",
+      "runningValue": "Balance value",
+      "forOrder": "Showing the movements of order {number}.",
+      "allOrders": "Show all orders",
+      "empty": "No movements match these filters.",
+      "from": "From",
+      "to": "To"
+    },
+    "events": {
+      "issue_to_custody": "Handed over",
+      "custody_to_sold": "Delivered",
+      "return_in": "Brought back"
     }
   }
 }

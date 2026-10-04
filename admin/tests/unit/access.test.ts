@@ -83,8 +83,13 @@ describe("visibleNav", () => {
         "settings.manage",
         "audit.view",
         "inventory.view",
+        "deliveries.manage",
       ]),
     ).toHaveLength(NAV_ITEMS.length);
+    expect(visibleNav(["deliveries.manage"]).map((item) => item.key)).toEqual([
+      "dashboard",
+      "deliveryParties",
+    ]);
   });
 
   it("marks nested routes active, and the dashboard only at the root", () => {

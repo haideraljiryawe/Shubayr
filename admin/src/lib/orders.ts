@@ -119,14 +119,16 @@ export type DispatchBlocker = "noDelivery" | "noAgent" | "deliveryNotAssigned";
 
 /**
  * Why a handover would be refused even with the permission: the API needs the
- * order's current delivery to have an agent and still be `assigned`.
+ * order's current delivery to have a party (an internal agent or, since
+ * contract 11.2, an external driver, which has no `agent`) and still be
+ * `assigned`.
  */
 export function dispatchBlocker(
   order: Pick<AdminOrder, "delivery">,
 ): DispatchBlocker | null {
   const delivery = order.delivery;
   if (!delivery) return "noDelivery";
-  if (!delivery.agent) return "noAgent";
+  if (!delivery.party && !delivery.agent) return "noAgent";
   if (delivery.status !== "assigned") return "deliveryNotAssigned";
   return null;
 }

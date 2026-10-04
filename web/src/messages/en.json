@@ -869,5 +869,26 @@
     "offlineBody": "Check your internet connection, then try again.",
     "offlineBanner": "No internet connection. Some actions won't work until you're back online.",
     "retry": "Try again"
+  },
+  "custody": {
+    "title": "My custody",
+    "tabs": {
+      "label": "Delivery pages",
+      "deliveries": "My deliveries",
+      "custody": "My custody"
+    },
+    "goodsQuantity": "Goods you hold",
+    "oldest": "Held longest",
+    "cash": "Cash you hold",
+    "goodsTitle": "Goods in your custody",
+    "noGoods": "You aren't holding any goods.",
+    "orderNumber": "Order {number}",
+    "lot": "Lot",
+    "since": "With you since {at}",
+    "days": "{count, plural, =0 {Today} one {# day} other {# days}}",
+    "assignedTitle": "Assigned to you",
+    "noAssigned": "Nothing assigned to you right now",
+    "noParty": "Your account isn't set up for deliveries",
+    "noPartyBody": "Ask the store to register your phone as a delivery agent."
   }
 }

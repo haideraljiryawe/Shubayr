@@ -193,7 +193,8 @@ test("happy path through the admin UI: accept → prepare → ready → assign �
   await expect(page.getByTestId("order-pick-list")).toBeVisible();
   await act(page, "markReady");
   await expectStatus(page, "ready_for_dispatch");
-  await page.getByTestId("agent-option").first().click();
+  // An internal agent (the picker also lists external drivers, 11.2).
+  await page.locator('[data-testid="party-option"][data-kind="internal_agent"]').first().click();
   await page.getByTestId("assign-submit").click();
   await expect(page.getByTestId("order-action-dispatch")).toBeEnabled();
   await act(page, "dispatch");

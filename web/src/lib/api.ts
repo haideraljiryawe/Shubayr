@@ -36,6 +36,7 @@ import {
   listMockMyReviews,
 } from "./mock-account";
 import {
+  getMockCustody,
   getMockMonitorOrder,
   listMockDeliveries,
   listMockInbox,
@@ -125,6 +126,8 @@ export type MonitorOrderQuery = NonNullable<
 export type Delivery = Schemas["Delivery"];
 export type DeliveryPage = Schemas["DeliveryPage"];
 export type DeliveryStatus = NonNullable<Delivery["status"]>;
+/** The signed-in agent's custody (API 11.2); cost is never sent to an agent. */
+export type DeliveryCustody = Schemas["DeliveryPartyCustody"];
 /** Named for the inbox so it never shadows the DOM's `Notification`. */
 export type InboxNotification = Schemas["Notification"];
 export type NotificationPage = Schemas["NotificationPage"];
@@ -1317,6 +1320,22 @@ export const api = {
         );
       }
       return request<DeliveryPage>("/deliveries/assigned", { query });
+    });
+  },
+
+  /**
+   * What the signed-in agent holds right now: goods in custody (by order,
+   * with ages) and cash. The server resolves the agent from the session, so
+   * it is only ever their own; no cost is included.
+   */
+  async getMyCustody(): Promise<DeliveryCustody> {
+    return withFreshToken(async () => {
+      if (!isLive("deliveries")) {
+        await mockLatency(120);
+        requireMockAuth();
+        return getMockCustody();
+      }
+      return request<DeliveryCustody>("/deliveries/custody");
     });
   },
 

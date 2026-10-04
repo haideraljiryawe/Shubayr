@@ -9,6 +9,7 @@
 export type NavKey =
   | "dashboard"
   | "orders"
+  | "deliveryParties"
   | "products"
   | "categories"
   | "brands"
@@ -43,6 +44,8 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", href: "/", requires: [] },
   { key: "orders", href: "/orders", requires: ["orders.view"] },
+  // Delivery parties and their custody (API 11.2).
+  { key: "deliveryParties", href: "/delivery-parties", requires: ["deliveries.manage"] },
   // Catalog v2 (API 8.0).
   { key: "products", href: "/catalog/products", requires: ["catalog.products"] },
   { key: "categories", href: "/catalog/categories", requires: ["catalog.categories"] },

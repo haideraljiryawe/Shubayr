@@ -20,6 +20,7 @@ import {
   PackageX,
   Warehouse,
   CalendarCheck,
+  Bike,
   ClipboardList,
   Coins,
   FolderTree,
@@ -79,6 +80,7 @@ async function fetchSession(): Promise<SessionResult> {
 const ICONS: Record<NavKey, LucideIcon> = {
   dashboard: LayoutDashboard,
   orders: ClipboardList,
+  deliveryParties: Bike,
   products: Package,
   categories: FolderTree,
   brands: Tags,
