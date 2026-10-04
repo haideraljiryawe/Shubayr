@@ -1,5 +1,6 @@
 import type {
   Delivery,
+  DeliveryCustody,
   DeliveryPage,
   DeliveryStatus,
   InboxNotification,
@@ -166,6 +167,47 @@ let deliveries: Delivery[] = [
   dispatched_at,
   delivered_at,
 }));
+
+/** The out-for-delivery order's goods, held since it left the store. */
+export function getMockCustody(): DeliveryCustody {
+  const order = monitorOrders[1];
+  const lines = deliveries
+    .filter((delivery) => delivery.status === "out_for_delivery" || delivery.status === "failed")
+    .map((delivery, index) => ({
+      holding_id: `mock-holding-${index + 1}`,
+      order: { id: delivery.order_id ?? order.id, order_number: monitorOrders.find((row) => row.id === delivery.order_id)?.order_number ?? order.order_number },
+      delivery_id: delivery.id ?? `mock-delivery-${index + 1}`,
+      batch_id: `mock-batch-${index + 1}`,
+      lot_number: `LOT-${index + 1}`,
+      variant_id: `mock-variant-${index + 1}`,
+      sku: `SKU-${String(index + 1).padStart(3, "0")}`,
+      product: { id: `mock-product-${index + 1}`, name_en: "Ceramic mug", name_ar: "كوب خزفي" },
+      quantity: 2,
+      issued_at: delivery.dispatched_at ?? "2026-09-28T07:30:00Z",
+      age_days: 1,
+    }));
+  return {
+    party: {
+      id: "work-+9647700000005",
+      kind: "internal_agent",
+      user_id: "work-+9647700000005",
+      name: "Development Delivery",
+      phone: "+9647700000005",
+      vehicle_number: null,
+      description: null,
+      notes: null,
+      is_active: true,
+      created_at: "2026-09-01T00:00:00Z",
+      updated_at: "2026-09-01T00:00:00Z",
+    },
+    goods: {
+      quantity: lines.reduce((sum, line) => sum + line.quantity, 0),
+      oldest_age_days: lines.length ? Math.max(...lines.map((line) => line.age_days)) : null,
+      lines,
+    },
+    cash: { currency: "IQD", amount: 0, oldest_age_days: null },
+  };
+}
 
 export function listMockDeliveries(
   status: DeliveryStatus | undefined,

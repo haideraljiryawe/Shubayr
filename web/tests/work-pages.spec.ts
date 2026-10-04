@@ -449,3 +449,90 @@ test.describe("delivery agent", () => {
     await expect(page.getByTestId("delivery-action-delivered")).toBeVisible();
   });
 });
+
+test.describe("agent custody", () => {
+  const CUSTODY = {
+    party: {
+      id: "u-agent",
+      kind: "internal_agent",
+      user_id: "u-agent",
+      name: "Agent",
+      phone: "+9647700000005",
+      vehicle_number: null,
+      description: null,
+      notes: null,
+      is_active: true,
+      created_at: "2026-09-01T00:00:00Z",
+      updated_at: "2026-09-01T00:00:00Z",
+    },
+    goods: {
+      quantity: 3,
+      oldest_age_days: 2,
+      lines: [
+        {
+          holding_id: "h1",
+          order: { id: "o1", order_number: "SH-2001" },
+          delivery_id: "d1",
+          batch_id: "b1",
+          lot_number: "LOT-7",
+          variant_id: "v1",
+          sku: "MUG-001",
+          product: { id: "p1", name_en: "Ceramic mug", name_ar: "كوب خزفي" },
+          quantity: 3,
+          issued_at: "2026-10-02T08:00:00Z",
+          age_days: 2,
+        },
+      ],
+    },
+    cash: { currency: "IQD", amount: 0, oldest_age_days: null },
+  };
+
+  function serveAssigned() {
+    api.on("GET", /^\/deliveries\/assigned$/, (seen) => {
+      const status = seen.query.get("status");
+      const data =
+        status === "out_for_delivery"
+          ? [{ id: "d0000000-0000-4000-8000-000000000009", order_id: "o1", order_version: 3, agent_id: "u-agent", status, delivery_fee: 5, dispatched_at: "2026-10-02T08:00:00Z", delivered_at: null }]
+          : [];
+      return { body: { page: 1, per_page: 50, total: data.length, data } };
+    });
+  }
+
+  test("shows the agent's own goods, cash and active deliveries, asking only for the session's custody", async ({ page }) => {
+    api.on("GET", /^\/deliveries\/custody$/, () => ({ body: CUSTODY }));
+    serveAssigned();
+    await signInAs(page, "delivery_agent");
+    await page.goto("/deliveries");
+    await page.getByTestId("agent-tab-custody").click();
+    await expect(page).toHaveURL(/\/deliveries\/custody$/);
+    await expect(page.getByTestId("my-custody-quantity")).toHaveText("3");
+    const line = page.getByTestId("my-custody-line");
+    await expect(line).toHaveCount(1);
+    await expect(line).toHaveAttribute("data-order", "SH-2001");
+    await expect(line).toContainText("كوب خزفي");
+    await expect(line).toContainText("LOT-7");
+    await expect(page.getByTestId("my-custody-line-age")).toHaveText("يومان");
+    await expect(page.getByTestId("my-custody-delivery")).toHaveCount(1);
+    // No party id is ever sent: the server resolves it from the session.
+    const asked = api.requests("GET", /^\/deliveries\/custody$/);
+    expect(asked.length).toBeGreaterThan(0);
+    for (const seen of asked) expect(seen.query.toString()).toBe("");
+    // An agent is never shown a cost.
+    await expect(page.getByTestId("my-custody")).not.toContainText(/cost|كلفة/i);
+  });
+
+  test("an account that is not a delivery party is told so", async ({ page }) => {
+    api.on("GET", /^\/deliveries\/custody$/, () => ({ status: 404, body: { code: "NOT_FOUND", message: "Delivery party not found" } }));
+    serveAssigned();
+    await signInAs(page, "delivery_agent");
+    await page.goto("/deliveries/custody");
+    await expect(page.getByText("حسابك غير مهيأ للتوصيل")).toBeVisible();
+  });
+
+  test("a monitor cannot open the custody page", async ({ page }) => {
+    await signInAs(page, "order_monitor");
+    await page.goto("/deliveries/custody");
+    await expect(page.getByTestId("work-forbidden")).toBeVisible();
+    expect(api.requests("GET", /^\/deliveries/)).toHaveLength(0);
+  });
+});
