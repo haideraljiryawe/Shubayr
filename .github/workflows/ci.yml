@@ -398,6 +398,10 @@ jobs:
           MEILI_HOST: http://localhost:7700
           MEILI_MASTER_KEY: masterKey_web_ci
           JWT_SECRET: web_ci_access_secret_at_least_32_chars_
+          # The workers present themselves as separate clients (X-Forwarded-For,
+          # see web/playwright.live.config.ts); trusting this runner lets the
+          # per-address rate limit treat them as such.
+          TRUSTED_PROXIES: loopback
           JWT_REFRESH_SECRET: web_ci_refresh_secret_at_least_32_chars
           DEV_OTP: "000000"
           PUBLIC_API_URL: http://localhost:8000/api/v1
@@ -438,7 +442,12 @@ jobs:
         working-directory: web
         env:
           PLAYWRIGHT_LIVE_API: ${{ env.LIVE_API }}
-        # One worker: the specs share the seeded customer's cart and orders.
+          # Parallel workers render many pages a second, all from the store
+          # server's one address; caching settings and categories briefly keeps
+          # those renders under the API's per-address rate limit.
+          STORE_READ_CACHE_SECONDS: "30"
+        # Four workers, each with its own customer, agent and monitor
+        # (web/tests/live-api.ts); store-wide checks run last, alone.
         run: npm run test:live
       - name: API log
         if: failure()

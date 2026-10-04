@@ -20,12 +20,12 @@ import {
   requireLiveApi,
   signIn,
   staffToken,
+  customerAddress,
 } from "./live-api";
 
 const run = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
 const CATEGORY = "30000000-0000-4000-8000-000000000023";
 const LOCATION = "90000000-0000-4000-8000-000000000002";
-const SEEDED_ADDRESS = "10000000-0000-4000-8000-000000000001";
 
 /** Inventory documents are dated by the Baghdad business day. */
 function today(): string {
@@ -113,7 +113,7 @@ async function order(request: APIRequestContext, item: Stocked, quantity: number
   await fillCart(request, item, quantity);
   const placed = await request.post(`${API}/orders`, {
     headers: { ...bearer(await customerToken(request)), "Idempotency-Key": `wlc-${run}-${Math.random()}` },
-    data: { address_id: SEEDED_ADDRESS, payment_method: "cod" },
+    data: { address_id: await customerAddress(request), payment_method: "cod" },
   });
   expect(placed.ok(), await placed.text()).toBe(true);
   return (await placed.json()) as { id: string; order_number: string; version: number };
@@ -173,6 +173,8 @@ test("back to cart orders nothing", async ({ page, request }) => {
   const before = await (await request.get(`${API}/orders?per_page=1`, { headers })).json();
 
   await signIn(page, "/checkout");
+  // The saved addresses first: a click before the step is ready does nothing.
+  await expect(page.getByTestId("saved-addresses")).toBeVisible();
   await page.getByTestId("address-submit").click();
   await page.getByTestId("place-order").click();
   const line = page.locator("dialog[open]").getByTestId("price-change-line");

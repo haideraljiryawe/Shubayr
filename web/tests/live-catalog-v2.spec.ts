@@ -248,14 +248,18 @@ test("availability is the API's label per SKU, never a quantity", async ({ page,
   await expect(label).toHaveText("غير متوفر في المخزون");
   await expect(cta(page)).toBeDisabled();
 
-  const seeded = await (await request.get(`${API}/products/${EARBUDS}/availability`)).json();
-  const std = seeded.variants.find((v: { variant_id: string }) => v.variant_id === EARBUDS_STD);
-  await page.goto(`/product/${EARBUDS}?variant=${EARBUDS_STD}`);
-  await expect(label).toHaveText(
-    { in_stock: "متوفر في المخزون", low_stock: "مخزون منخفض", out_of_stock: "غير متوفر في المخزون" }[
-      std.availability as "in_stock"
-    ],
-  );
+  // The seeded earbuds, which other workers order meanwhile: the page and the
+  // API are read together until they agree, so an order landing between the
+  // two reads can't fail the comparison.
+  const labels = { in_stock: "متوفر في المخزون", low_stock: "مخزون منخفض", out_of_stock: "غير متوفر في المخزون" };
+  await expect
+    .poll(async () => {
+      const seeded = await (await request.get(`${API}/products/${EARBUDS}/availability`)).json();
+      const std = seeded.variants.find((v: { variant_id: string }) => v.variant_id === EARBUDS_STD);
+      await page.goto(`/product/${EARBUDS}?variant=${EARBUDS_STD}`);
+      return (await label.innerText()) === labels[std.availability as keyof typeof labels];
+    })
+    .toBe(true);
 });
 
 test("a weight SKU takes 1.5 kg into the server cart; a piece SKU refuses a fraction", async ({ page, request }) => {
