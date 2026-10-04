@@ -13,9 +13,10 @@ import {
   ExternalDriversController,
 } from './delivery-parties.controller';
 import { DeliveryPartiesService } from './delivery-parties.service';
+import { FinanceModule } from '../finance/finance.module';
 
 @Module({
-  imports: [LoyaltyModule, InventoryModule],
+  imports: [LoyaltyModule, InventoryModule, FinanceModule],
   controllers: [
     DeliveriesController,
     AdminDeliveriesController,

@@ -8,8 +8,12 @@ import {
   MaxLength,
   Min,
   IsNotEmpty,
+  IsDecimal,
+  IsISO8601,
+  MinLength,
   ValidateIf,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export const AGENT_DELIVERY_STATUSES = [
   'out_for_delivery',
@@ -26,7 +30,40 @@ export const STAFF_DELIVERY_STATUSES = [
 ] as const;
 export type StaffDeliveryStatus = (typeof STAFF_DELIVERY_STATUSES)[number];
 
-export class UpdateDeliveryStatusDto {
+export const COLLECTION_CONFIRMATION_STATUSES = [
+  'confirmed',
+  'unconfirmed',
+] as const;
+export type CollectionConfirmationStatus =
+  (typeof COLLECTION_CONFIRMATION_STATUSES)[number];
+
+class DeliveryCollectionInput {
+  @ValidateIf(
+    (input: DeliveryCollectionInput & { status?: string }) =>
+      input.status === 'delivered',
+  )
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  operation_id?: string;
+
+  @ValidateIf(
+    (input: DeliveryCollectionInput & { status?: string }) =>
+      input.status === 'delivered',
+  )
+  @IsIn(COLLECTION_CONFIRMATION_STATUSES)
+  collection_confirmation?: CollectionConfirmationStatus;
+
+  @ValidateIf(
+    (input: DeliveryCollectionInput & { status?: string }) =>
+      input.status === 'delivered' &&
+      input.collection_confirmation === 'confirmed',
+  )
+  @IsDecimal({ decimal_digits: '0,6', force_decimal: false })
+  collected_amount?: string;
+}
+
+export class UpdateDeliveryStatusDto extends DeliveryCollectionInput {
   @IsIn(AGENT_DELIVERY_STATUSES)
   status!: AgentDeliveryStatus;
 
@@ -41,7 +78,7 @@ export class UpdateDeliveryStatusDto {
   reason?: string;
 }
 
-export class UpdateStaffDeliveryStatusDto {
+export class UpdateStaffDeliveryStatusDto extends DeliveryCollectionInput {
   @IsIn(STAFF_DELIVERY_STATUSES)
   status!: StaffDeliveryStatus;
 
@@ -56,6 +93,43 @@ export class UpdateStaffDeliveryStatusDto {
   @IsNotEmpty()
   @MaxLength(500)
   reason?: string;
+
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  event_at?: string;
+
+  @ValidateIf(
+    (input: UpdateStaffDeliveryStatusDto) => input.status === 'delivered',
+  )
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  source?: string;
+}
+
+export class ConfirmDeliveryCollectionDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  operation_id!: string;
+
+  @IsDecimal({ decimal_digits: '0,6', force_decimal: false })
+  collected_amount!: string;
+}
+
+export class UnconfirmedDeliveriesQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  per_page = 20;
 }
 
 export class AssignDeliveryDto {

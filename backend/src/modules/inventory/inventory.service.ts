@@ -1505,7 +1505,6 @@ export class InventoryService {
   }
 
   async settleCustodyToSold(tx: Tx, orderId: string, actorId: string) {
-    const postingDate = businessDate();
     const holdings = await tx.custodyHolding.findMany({
       where: {
         order_id: orderId,
@@ -1514,7 +1513,7 @@ export class InventoryService {
       },
       orderBy: { id: 'asc' },
     });
-    if (!holdings.length) return;
+    if (!holdings.length) return D(0);
     let total = D(0);
     for (const row of holdings) {
       await tx.custodyHolding.update({
@@ -1540,17 +1539,7 @@ export class InventoryService {
       });
       total = total.plus(row.quantity.times(row.unit_cost_iqd));
     }
-    if (total.gt(0))
-      await this.ledger.post(tx, {
-        sourceType: 'order',
-        sourceId: orderId,
-        event: 'custody_to_sold',
-        documentDate: postingDate,
-        accountingDate: postingDate,
-        createdBy: actorId,
-        description: 'Delivered inventory cost of goods sold',
-        lines: this.posting('5000', '1010', total),
-      });
+    return total;
   }
 
   createRetrieval(

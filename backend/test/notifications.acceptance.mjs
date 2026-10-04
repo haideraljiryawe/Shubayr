@@ -361,7 +361,13 @@ try {
     await request(`/deliveries/${deliveryId}`, {
       token: agent,
       method: 'PATCH',
-      body: { status: 'delivered', order_version: 2 },
+      body: {
+        status: 'delivered',
+        order_version: 2,
+        operation_id: `notify-delivery-${deliveryId}`,
+        collection_confirmation: 'confirmed',
+        collected_amount: '10',
+      },
     });
   }
   const aPush = await waitFor(

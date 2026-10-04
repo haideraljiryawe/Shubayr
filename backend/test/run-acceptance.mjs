@@ -59,7 +59,7 @@ async function freePort() {
 }
 
 async function waitForApi(url) {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
     if (api.exitCode !== null)
       throw new Error('Acceptance API stopped before it became ready');
     try {
@@ -72,7 +72,7 @@ async function waitForApi(url) {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error('Acceptance API did not become ready within 30 seconds');
+  throw new Error('Acceptance API did not become ready within 60 seconds');
 }
 
 async function stopApi() {
@@ -124,6 +124,7 @@ try {
   await run('test/backend-followups.acceptance.mjs', [], acceptanceEnv);
   await run('test/wishlist.acceptance.mjs', [], acceptanceEnv);
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
+  await run('test/delivery-collection.acceptance.mjs', [], acceptanceEnv);
   await run('test/admin-orders.acceptance.mjs', [], acceptanceEnv);
   await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
   await run('test/delivery-parties.acceptance.mjs', [], acceptanceEnv);
@@ -132,6 +133,11 @@ try {
   await run('test/reviews.acceptance.mjs', [], acceptanceEnv);
   await run('test/notifications.acceptance.mjs', [], acceptanceEnv);
   await run('test/phase2-monitoring.acceptance.mjs', [], acceptanceEnv);
+  // Reset the in-memory admin-login throttle before the final packs. The C5
+  // delivery collection pack adds another staff session to the combined run.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
   await run('test/qa-fixes.acceptance.mjs', [], acceptanceEnv);
   // Keep inventory lifecycle last: delivered/returned rows are intentionally
   // immutable and cannot be removed without defeating the database guards.
