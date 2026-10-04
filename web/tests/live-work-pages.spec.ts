@@ -14,6 +14,7 @@ import {
   placeOrder,
   requireLiveApi,
   signIn,
+  staffToken,
   tokenFor,
 } from "./live-api";
 
@@ -165,6 +166,51 @@ test.describe("work pages on the live store", () => {
       await request.get(`${API}/orders/${order.id}`, { headers: bearer(customer) })
     ).json();
     expect(fresh.status).toBe("delivered");
+  });
+
+  test("an agent's custody page shows only their own goods", async ({ page, request }) => {
+    test.setTimeout(120_000);
+    const admin = bearer(await staffToken(request));
+    // One order handed to the agent, one to an external driver.
+    const mine = await placeOrder(request);
+    await advanceOrder(request, mine.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+    await assignToAgent(request, mine.delivery_id);
+    await advanceOrder(request, mine.id, ["dispatched"]);
+    const driver = await (
+      await request.post(`${API}/admin/external-drivers`, {
+        headers: admin,
+        data: { name: `Web live driver ${Date.now()}`, phone: `+964789${String(Date.now()).slice(-7)}` },
+      })
+    ).json();
+    const theirs = await placeOrder(request);
+    await advanceOrder(request, theirs.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+    const assigned = await request.patch(`${API}/deliveries/${theirs.delivery_id}/assign`, {
+      headers: admin,
+      data: { party_id: driver.id },
+    });
+    expect(assigned.ok(), await assigned.text()).toBe(true);
+    await advanceOrder(request, theirs.id, ["dispatched"]);
+    await awaitQuota(request);
+
+    await signIn(page, "/deliveries/custody", AGENT_LOCAL);
+    const agent = await tokenFor(request, AGENT_E164);
+    const me = await (await request.get(`${API}/me`, { headers: bearer(agent) })).json();
+    await expect(page.getByTestId("my-custody")).toHaveAttribute("data-party", me.id);
+    await expect(page.locator(`[data-testid="my-custody-line"][data-order="${mine.order_number}"]`)).toHaveCount(1);
+    await expect(page.locator(`[data-testid="my-custody-line"][data-order="${theirs.order_number}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-testid="my-custody-delivery"][data-delivery-id="${mine.delivery_id}"]`)).toHaveCount(1);
+
+    // The API agrees: only the agent's own party, no cost, and no way to
+    // read another party's custody.
+    const own = await (await request.get(`${API}/deliveries/custody`, { headers: bearer(agent) })).json();
+    expect(own.party.id).toBe(me.id);
+    const orders = (own.goods.lines as Array<{ order: { order_number: string }; unit_cost_iqd?: number }>).map((line) => line.order.order_number);
+    expect(orders).toContain(mine.order_number);
+    expect(orders).not.toContain(theirs.order_number);
+    expect(own.goods.value_iqd).toBeUndefined();
+    expect((own.goods.lines as Array<{ unit_cost_iqd?: number }>).every((line) => line.unit_cost_iqd === undefined)).toBe(true);
+    const other = await request.get(`${API}/admin/delivery-parties/${driver.id}/custody`, { headers: bearer(agent) });
+    expect([401, 403]).toContain(other.status());
   });
 
   test("a stale delivery action is refused and explained", async ({ page, request }) => {
