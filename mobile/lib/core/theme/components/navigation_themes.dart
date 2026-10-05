@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
 import '../tokens/app_radii.dart';
+import '../tokens/app_spacing.dart';
 
 abstract final class NavigationThemes {
   // ---------------------------------------------------------------------------
@@ -28,11 +29,13 @@ abstract final class NavigationThemes {
     top: 3,
   );
 
-  /// Active-tab top indicator — the thick bar shown at the top edge of the
-  /// selected destination, in the active (primary) colour. Tune its size here;
-  /// never hard-code these in CustomerShell.
-  static const double bottomBarIndicatorWidth = 50;
-  static const double bottomBarIndicatorThickness = 5;
+  /// The capsule stays inside its equal-width destination, capped on tablets.
+  static const EdgeInsets bottomBarCapsulePadding = EdgeInsets.all(
+    AppSpacing.xs,
+  );
+  static const double bottomBarCapsuleMaxWidth = 96;
+  static const double bottomBarSelectedScale = 1.05;
+  static const Curve bottomBarCurve = Curves.easeInOut;
 
   /// Icon size in the wide-layout navigation rail (left untouched by the
   /// phone-oriented refinement above).

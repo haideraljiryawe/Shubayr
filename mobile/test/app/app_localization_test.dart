@@ -67,7 +67,7 @@ void main() {
               );
           expect(
             tester.widget<Text>(find.text(homeLabel)).style!.color,
-            colors.primaryDark,
+            colors.primary,
           );
           expect(
             tester.widget<Text>(find.text(categoriesLabel)).style!.color,

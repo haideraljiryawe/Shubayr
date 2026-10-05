@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,6 +8,7 @@ import '../../core/l10n/l10n_context.dart';
 import '../../core/theme/components/navigation_themes.dart';
 import '../../core/theme/theme_context.dart';
 import '../../core/theme/tokens/app_motion.dart';
+import '../../core/theme/tokens/app_radii.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/cart/presentation/providers/cart_providers.dart';
 
@@ -172,8 +174,8 @@ class CustomerShell extends ConsumerWidget {
 }
 
 /// The customer bottom bar: a hairline top border and a soft upward shadow so
-/// its edge never disappears over white content, and a thick top indicator on
-/// the selected tab in the active (primary) colour.
+/// its edge never disappears over white content, with one capsule that slides
+/// between equally sized destinations in the ambient reading direction.
 class _BottomNavBar extends StatelessWidget {
   const _BottomNavBar({
     required this.destinations,
@@ -204,17 +206,63 @@ class _BottomNavBar extends StatelessWidget {
         top: false,
         child: SizedBox(
           height: NavigationThemes.bottomBarHeight,
-          child: Row(
-            children: [
-              for (var i = 0; i < destinations.length; i++)
-                Expanded(
-                  child: _BottomNavItem(
-                    destination: destinations[i],
-                    selected: i == selectedIndex,
-                    onTap: () => onSelected(i),
+          child: LayoutBuilder(
+            builder: (context, constraints) => Stack(
+              fit: StackFit.expand,
+              children: [
+                IgnorePointer(
+                  child: AnimatedAlign(
+                    alignment: AlignmentDirectional(
+                      destinations.length == 1
+                          ? 0
+                          : -1 + 2 * selectedIndex / (destinations.length - 1),
+                      0,
+                    ),
+                    duration: AppMotion.medium,
+                    curve: NavigationThemes.bottomBarCurve,
+                    child: SizedBox(
+                      width: constraints.maxWidth / destinations.length,
+                      child: Padding(
+                        padding: NavigationThemes.bottomBarCapsulePadding,
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth:
+                                  NavigationThemes.bottomBarCapsuleMaxWidth,
+                            ),
+                            child: DecoratedBox(
+                              key: const ValueKey('bottom-nav-capsule'),
+                              decoration: BoxDecoration(
+                                color: colors.primarySoft,
+                                borderRadius: AppRadii.pillAll,
+                              ),
+                              child: const SizedBox.expand(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-            ],
+                Row(
+                  children: [
+                    for (var i = 0; i < destinations.length; i++)
+                      Expanded(
+                        child: _BottomNavItem(
+                          destination: destinations[i],
+                          selected: i == selectedIndex,
+                          onTap: () {
+                            if (i != selectedIndex) {
+                              HapticFeedback.selectionClick();
+                            }
+                            onSelected(i);
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -236,68 +284,42 @@ class _BottomNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    // Icon and label sizes/colours read exactly from NavigationThemes (the
-    // bar's central metrics) so this custom bar matches the original — only the
-    // top border/shadow and active indicator are new.
     final iconColor = selected ? colors.primary : colors.textMuted;
-    final labelStyle = selected
-        ? context.text.labelMedium?.copyWith(
-            color: colors.primaryDark,
-            fontWeight: FontWeight.w700,
-          )
-        : context.text.labelMedium?.copyWith(
-            color: colors.textMuted,
-            fontWeight: FontWeight.w500,
-          );
+    final labelStyle = context.text.labelMedium?.copyWith(
+      color: iconColor,
+      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+    );
 
-    return InkWell(
-      onTap: onTap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Icon + label, centred.
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _badged(
-                context,
-                Icon(
+    return Semantics(
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _badged(
+              context,
+              AnimatedScale(
+                scale: selected ? NavigationThemes.bottomBarSelectedScale : 1,
+                duration: AppMotion.medium,
+                curve: NavigationThemes.bottomBarCurve,
+                child: Icon(
                   selected ? destination.selectedIcon : destination.icon,
                   color: iconColor,
                   size: NavigationThemes.bottomBarIconSize,
                 ),
-                destination.badge,
               ),
-              Padding(
-                padding: NavigationThemes.bottomBarLabelPadding,
-                child: Text(
-                  destination.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: labelStyle,
-                ),
-              ),
-            ],
-          ),
-          // Thick top indicator, shown only for the active tab.
-          Align(
-            alignment: Alignment.topCenter,
-            child: AnimatedContainer(
-              duration: AppMotion.medium,
-              curve: AppMotion.standard,
-              height: NavigationThemes.bottomBarIndicatorThickness,
-              width: selected ? NavigationThemes.bottomBarIndicatorWidth : 0,
-              decoration: BoxDecoration(
-                color: colors.primary,
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(
-                    NavigationThemes.bottomBarIndicatorThickness,
-                  ),
-                ),
+              destination.badge,
+            ),
+            Padding(
+              padding: NavigationThemes.bottomBarLabelPadding,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(destination.label, maxLines: 1, style: labelStyle),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
