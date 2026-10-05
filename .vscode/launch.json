@@ -55,6 +55,23 @@
         "ADMIN_COOKIE_SECURE": "true"
       },
       "preLaunchTask": "Check remote: admin"
+    },
+    {
+      "name": "Android Emulator (Remote)",
+      "presentation": {
+        "order": 5,
+        "group": "Remote"
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "deviceId": "emulator-5554",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define=API_URL=http://10.0.2.2:8000/api/v1"
+      ]
     }
   ],
   "compounds": [
