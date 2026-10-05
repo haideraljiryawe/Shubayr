@@ -7,6 +7,35 @@
 
 ## Git workflow
 
+### Flutter / Mobile — standing policy
+
+- The default branch for all Flutter/Mobile work is `mobile`. Make requested
+  changes directly in Ahmed's usual project checkout on `mobile`, and leave
+  them there so he can run and inspect the app immediately.
+- Do not create a branch, clone, worktree or Pull Request unless Ahmed explicitly
+  requests it. An isolated branch/worktree is not an automatic safety measure.
+- Do not merge, squash or rebase without Ahmed's explicit request. Do not switch
+  to or work on `main` unless he explicitly requests it. If the checkout is on
+  another branch, stop and ask before switching or starting edits.
+- Before editing, check the working tree and Git operation state. If conflicting
+  uncommitted changes, an unfinished merge/rebase, Git conflicts or another
+  condition could put existing work at risk, stop, explain the issue briefly,
+  and wait for Ahmed's decision. Do not create a branch/worktree or move, stash,
+  discard or overwrite existing work as an automatic workaround.
+- Leave changes uncommitted unless Ahmed explicitly requests a commit or a clear
+  earlier instruction for the current task already requires one. Approval of
+  the implementation alone is not an instruction to commit or push; pushing
+  also requires explicit authorization for the task.
+- This policy supersedes conflicting Git/handoff rules for Mobile, including
+  the former prohibition on working on `mobile`, automatic branching from
+  `origin/main`, automatic PRs/pushes and returning the checkout to `main`.
+  The branch/worktree/PR workflow used for PR #99 is not the Mobile default.
+
+### Other projects
+
+The following workflow applies outside Flutter/Mobile. It does not override
+the Mobile policy above.
+
 - One agent per clone/worktree. Branch off current `origin/main`.
 - Open a DRAFT PR as soon as the first commit exists; push after every locally green step so another session can continue.
 - Never force-push. Never delete a branch, worktree or folder whose unique commits aren't proven on the remote.
@@ -37,6 +66,10 @@
 
 ## Handoff (for switching sessions/accounts)
 
+- For Flutter/Mobile, report changed files, verification and remaining work in
+  the conversation; keep the edits in the usual checkout on `mobile`. Do not
+  create a PR or commit merely to satisfy handoff requirements. The PR-based
+  requirements below apply only when a PR workflow is authorized for the task.
 - The PR description keeps:
   - a checklist of the task's numbered items, ticked as they are done;
   - a "Handoff" section updated before you stop for any reason: last green commit, what is in progress, the exact next step, commands to verify.

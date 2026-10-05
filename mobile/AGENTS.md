@@ -252,16 +252,28 @@ ApiClient**. Features stay shallow; introduce only the types/layers they need.
 
 ## Git and handoff
 
-- Use Ahmed's existing checkout on `mobile`; no new worktree/clone/branch unless
-  requested. Ask before switching if on another branch; preserve local changes.
+- The standing Flutter/Mobile policy in root `AGENTS.md` takes precedence over
+  conflicting general Git/handoff rules. `mobile` is the default branch for all
+  Flutter tasks. Make requested edits directly in Ahmed's usual checkout and
+  leave them there for him to run and inspect.
+- Do not create a branch, clone, worktree or PR without Ahmed's explicit request.
+  Do not use isolation as an automatic safety workaround. The workflow used
+  for PR #99 is not the default for Mobile.
+- Do not switch to or work on `main` unless explicitly requested. If the checkout
+  is on another branch, stop and ask before switching or starting edits.
+- Check for conflicting uncommitted changes, unfinished merge/rebase operations,
+  Git conflicts and any other risk to existing work before editing. If unsafe,
+  stop, explain the issue briefly and wait for Ahmed's decision. Do not create a
+  branch/worktree or move, stash, discard or overwrite work to bypass the issue.
 - At task start and before committing/pushing, `git fetch origin main` and inspect
   `git log mobile..origin/main`. Report new team changes and their relevance to
   Mobile/contracts. A failed fetch is an incomplete check, not proof of currency.
-- Do not merge/rebase/cherry-pick main without authorization. Root/team history
-  does not authorize changing another independently owned project.
-- Present changes and verification for review; no commit/push until Ahmed approves
-  the completed result. Checks alone are not approval. Once approved, commit only
-  task files and push to `origin/mobile` under his standing instruction; no second
-  confirmation is needed. Never include unrelated edits or target main/open a PR
-  unless requested.
+- Do not merge, squash or rebase without Ahmed's explicit request; cherry-picking
+  main also requires authorization. Root/team history does not authorize changing
+  another independently owned project.
+- Present changes and verification for review and leave edits uncommitted unless
+  Ahmed explicitly requests a commit or a clear earlier instruction for the
+  current task already requires one. Implementation approval alone does not
+  authorize committing or pushing. Push only with explicit authorization for
+  the task, and include only task files in any authorized commit.
 - End with a concise Arabic report of changes, evidence and actual limitations.
