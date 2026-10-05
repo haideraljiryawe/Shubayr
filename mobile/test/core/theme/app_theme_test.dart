@@ -98,7 +98,10 @@ void main() {
         nav.iconTheme?.resolve({WidgetState.selected})?.color,
         colors.primary,
       );
-      expect(nav.iconTheme?.resolve(const {})?.color, colors.textMuted);
+      expect(
+        nav.iconTheme?.resolve(const {})?.color,
+        theme.colorScheme.onSurface.withValues(alpha: 0.92),
+      );
       expect(
         nav.labelTextStyle?.resolve({WidgetState.selected})?.color,
         colors.primaryDark,

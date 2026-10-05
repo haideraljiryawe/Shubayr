@@ -2,6 +2,28 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/tokens/app_spacing.dart';
 
+/// Scroll clearance supplied only by the customer shell's floating navigation.
+/// Keeping it scoped avoids changing layouts that reuse screens outside it.
+class BottomNavigationInset extends InheritedWidget {
+  const BottomNavigationInset({
+    super.key,
+    required this.bottom,
+    required super.child,
+  });
+
+  final double bottom;
+
+  static double of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<BottomNavigationInset>()
+          ?.bottom ??
+      0;
+
+  @override
+  bool updateShouldNotify(BottomNavigationInset oldWidget) =>
+      bottom != oldWidget.bottom;
+}
+
 /// Shared content sizing. Only compact spacing/columns and the retained wide
 /// header need window thresholds; page content otherwise follows its slot.
 abstract final class AppLayout {
@@ -25,6 +47,12 @@ abstract final class AppLayout {
     top,
     pageHorizontal(context),
     bottom,
+  );
+
+  /// Clearance is inside the scroll view, never a fixed footer around it.
+  static EdgeInsetsDirectional scrollInsets(BuildContext context) => pageInsets(
+    context,
+    bottom: AppSpacing.screenH + BottomNavigationInset.of(context),
   );
 
   static const productFilterWidth = 520.0;

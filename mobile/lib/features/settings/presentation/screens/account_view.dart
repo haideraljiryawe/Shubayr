@@ -37,7 +37,7 @@ class AccountView extends ConsumerWidget {
     final isSignedIn = session?.isSignedIn ?? false;
 
     return ListView(
-      padding: AppLayout.pageInsets(context),
+      padding: AppLayout.scrollInsets(context),
       children: [
         ResponsiveContent(
           alignment: AlignmentDirectional.topStart,

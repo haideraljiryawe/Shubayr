@@ -51,6 +51,48 @@ class CartScreen extends ConsumerWidget {
               message: l10n.cartEmptyMessage,
             );
           }
+          final bottomInset = BottomNavigationInset.of(context);
+          if (bottomInset > 0) {
+            // Keep checkout reachable while the whole cart scrolls behind the
+            // floating bar. Clearance scrolls with the content, not a footer.
+            return ResponsiveContent(
+              child: CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: AppLayout.pageInsets(context),
+                    sliver: SliverList.separated(
+                      itemCount: c.items.length,
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: AppSpacing.xl),
+                      itemBuilder: (_, i) => _CartLine(
+                        key: ValueKey((c.id, c.items[i].id)),
+                        item: c.items[i],
+                      ),
+                    ),
+                  ),
+                  if (c.items.any((item) => item.priceChanged))
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: AppLayout.pageInsets(context),
+                        child: Text(l10n.cartPricesChanged),
+                      ),
+                    ),
+                  SliverToBoxAdapter(
+                    child: MediaQuery.removePadding(
+                      context: context,
+                      removeBottom: true,
+                      child: _CartFooter(
+                        total: c.total,
+                        currency: c.currency,
+                        canCheckout: c.canCheckout,
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
+                ],
+              ),
+            );
+          }
           return ResponsiveContent(
             child: Column(
               children: [

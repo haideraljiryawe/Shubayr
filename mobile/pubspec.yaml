@@ -1,7 +1,7 @@
 name: shubayr
 description: "Shubayr — commerce app for customers, delivery agents and order monitors."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.12.0

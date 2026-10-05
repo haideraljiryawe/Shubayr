@@ -58,6 +58,9 @@ void main() {
           final colors = Theme.of(
             tester.element(find.byType(HomeScreen)),
           ).extension<AppColors>()!;
+          final unselectedColor = Theme.of(
+            tester.element(find.byType(HomeScreen)),
+          ).colorScheme.onSurface.withValues(alpha: 0.92);
           final homeLabel = locale == 'ar' ? 'الرئيسية' : 'Home';
           final categoriesLabel = locale == 'ar' ? 'الأقسام' : 'Categories';
           Finder destinationIcon(String label, IconData icon) =>
@@ -72,11 +75,11 @@ void main() {
               );
           expect(
             tester.widget<Text>(find.text(homeLabel)).style!.color,
-            colors.primaryDark,
+            colors.primary,
           );
           expect(
             tester.widget<Text>(find.text(categoriesLabel)).style!.color,
-            colors.textMuted,
+            unselectedColor,
           );
           expect(
             tester
@@ -84,19 +87,19 @@ void main() {
                   destinationIcon(categoriesLabel, Icons.grid_view_outlined),
                 )
                 .color,
-            colors.textMuted,
+            unselectedColor,
           );
           await tester.tap(find.text(categoriesLabel));
           await tester.pumpAndSettle();
           expect(
             tester.widget<Text>(find.text(homeLabel)).style!.color,
-            colors.textMuted,
+            unselectedColor,
           );
           expect(
             tester
                 .widget<Icon>(destinationIcon(homeLabel, Icons.home_outlined))
                 .color,
-            colors.textMuted,
+            unselectedColor,
           );
           expect(
             tester

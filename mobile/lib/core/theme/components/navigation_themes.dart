@@ -1,7 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
 import '../tokens/app_radii.dart';
+import '../tokens/app_motion.dart';
+import '../tokens/app_spacing.dart';
 
 abstract final class NavigationThemes {
   // ---------------------------------------------------------------------------
@@ -9,30 +13,111 @@ abstract final class NavigationThemes {
   // Tune the bar here; never hard-code these numbers in CustomerShell.
   // ---------------------------------------------------------------------------
 
-  /// Content height of the bottom navigation bar.
-  ///
-  /// This is the *content* height only: when the bar is used as
-  /// `Scaffold.bottomNavigationBar`, Flutter adds the device's bottom safe-area
-  /// inset (the iPhone home indicator) on top of it automatically. Material's
-  /// own default is 80; the bar reads too tall on a phone at that size.
-  ///
-  /// The destination is tappable across the full height, so this doubles as the
-  /// touch-target height — keep it at or above 48.
-  static const double bottomBarHeight = 70;
+  /// Whole surface and touch-target height; system insets stay outside the bar.
+  /// Each destination still has a touch target taller than 48px.
+  static const double bottomBarHeight = 66;
 
-  /// Icon size inside the bottom navigation bar.
-  static const double bottomBarIconSize = 30;
+  /// Reserve real breathing room at larger accessibility text sizes too.
+  static double bottomBarHeightFor(MediaQueryData media) => math
+      .max(
+        bottomBarHeight,
+        bottomBarIconSize * bottomBarSelectedScale +
+            bottomBarLabelGap +
+            (media.textScaler.scale(bottomBarLabelSize) * bottomBarLabelHeight)
+                .ceilToDouble() +
+            2 * (bottomBarCapsuleInset + bottomBarSelectedVerticalPadding),
+      )
+      .ceilToDouble();
 
-  /// Gap between a destination's icon and its label.
-  static const EdgeInsetsGeometry bottomBarLabelPadding = EdgeInsets.only(
-    top: 3,
+  static const double bottomBarBottomGap = 4;
+
+  /// viewPadding retains system UI clearance even when the keyboard consumes
+  /// padding. Gesture insets can be larger (Android gesture navigation).
+  /// Neither changes internal geometry; the larger exclusion wins, not a sum.
+  static double bottomBarBottomOffset(MediaQueryData media) =>
+      math.max(media.viewPadding.bottom, media.systemGestureInsets.bottom) +
+      bottomBarBottomGap;
+
+  // Frosted surface, outline and shadow. Lower opacity = more transparent.
+  static const double bottomBarSurfaceOpacity = 0.60;
+  static const double bottomBarBlurSigma = 3;
+  static const double bottomBarBorderOpacity = 0.16;
+  static const double bottomBarBorderWidth = 0.7;
+  static const double bottomBarShadowOpacity = 0.08;
+  static const double bottomBarShadowBlur = 20;
+  static const double bottomBarShadowSpread = 0;
+  static const Offset bottomBarShadowOffset = Offset(0, 3);
+
+  static BoxShadow bottomBarShadow(Color shadow) => BoxShadow(
+    color: shadow.withValues(alpha: bottomBarShadowOpacity),
+    blurRadius: bottomBarShadowBlur,
+    spreadRadius: bottomBarShadowSpread,
+    offset: bottomBarShadowOffset,
+  );
+  static BorderSide bottomBarBorder(AppColors colors) => BorderSide(
+    color: colors.textPrimary.withValues(alpha: bottomBarBorderOpacity),
+    width: bottomBarBorderWidth,
   );
 
-  /// Active-tab top indicator — the thick bar shown at the top edge of the
-  /// selected destination, in the active (primary) colour. Tune its size here;
-  /// never hard-code these in CustomerShell.
-  static const double bottomBarIndicatorWidth = 50;
-  static const double bottomBarIndicatorThickness = 5;
+  static const double bottomBarCornerRadius = AppRadii.xl;
+  static const BorderRadius bottomBarRadius = BorderRadius.all(
+    Radius.circular(bottomBarCornerRadius),
+  );
+  static const double bottomBarIconSize = 26;
+  static const double bottomBarLabelSize = 12;
+  static const double bottomBarUnselectedOpacity = 0.92;
+  static Color bottomBarUnselectedColor(ColorScheme colors) =>
+      colors.onSurface.withValues(alpha: bottomBarUnselectedOpacity);
+  static const FontWeight bottomBarSelectedLabelWeight = FontWeight.w700;
+  static const FontWeight bottomBarUnselectedLabelWeight = FontWeight.w600;
+
+  static TextStyle? bottomBarLabelStyle(
+    TextTheme text, {
+    required Color color,
+    required bool selected,
+  }) => text.labelSmall?.copyWith(
+    fontSize: bottomBarLabelSize,
+    height: bottomBarLabelHeight,
+    color: color,
+    fontWeight: selected
+        ? bottomBarSelectedLabelWeight
+        : bottomBarUnselectedLabelWeight,
+  );
+
+  static const double bottomBarLabelGap = 3;
+  static const double bottomBarLabelHeight = 1.2;
+  static const EdgeInsets bottomBarLabelPadding = EdgeInsets.only(
+    top: bottomBarLabelGap,
+  );
+
+  /// Each capsule fills its equal-width slot minus this concentric inset.
+  /// No fixed width cap: 3, 4 and 5 destinations share the same geometry.
+  static const double bottomBarCapsuleInset = AppSpacing.xs;
+  static const EdgeInsets bottomBarCapsulePadding = EdgeInsets.all(
+    bottomBarCapsuleInset,
+  );
+
+  /// Content clearance is measured INSIDE the capsule, on every destination
+  /// so selection never changes the icon/label position or available width.
+  static const double bottomBarSelectedHorizontalPadding = 8;
+  static const double bottomBarSelectedVerticalPadding = 6;
+  static const EdgeInsets bottomBarContentPadding = EdgeInsets.symmetric(
+    horizontal: bottomBarCapsuleInset + bottomBarSelectedHorizontalPadding,
+    vertical: bottomBarCapsuleInset + bottomBarSelectedVerticalPadding,
+  );
+  // Concentric corners: inner radius = outer radius minus the inset.
+  static const BorderRadius bottomBarCapsuleRadius = BorderRadius.all(
+    Radius.circular(bottomBarCornerRadius - bottomBarCapsuleInset),
+  );
+  static const double bottomBarSelectedSurfaceOpacity = 0.20;
+  static Color bottomBarSelectedSurfaceColor(AppColors colors) =>
+      colors.primary.withValues(alpha: bottomBarSelectedSurfaceOpacity);
+  static const double bottomBarSelectedScale = 1.05;
+  static const Duration bottomBarSelectionDuration = AppMotion.medium;
+  static const Curve bottomBarCurve = Curves.easeInOut;
+  static const double bottomBarPressedScale = 0.97;
+  static const Duration bottomBarPressDuration = Duration(milliseconds: 100);
+  static const Curve bottomBarPressCurve = Curves.easeOutCubic;
 
   /// Bottom navigation.
   ///
@@ -55,19 +140,15 @@ abstract final class NavigationThemes {
         labelPadding: bottomBarLabelPadding,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              // primaryDark rather than primary: 12px text needs the darker
-              // shade to stay legible on the light surface.
-              ? text.labelMedium?.copyWith(
-                  color: c.primaryDark,
-                  fontWeight: FontWeight.w700,
-                )
-              : text.labelMedium?.copyWith(
-                  color: states.contains(WidgetState.disabled)
-                      ? c.textDisabled
-                      : c.textMuted,
-                  fontWeight: FontWeight.w500,
-                ),
+          (states) => bottomBarLabelStyle(
+            text,
+            selected: states.contains(WidgetState.selected),
+            color: states.contains(WidgetState.selected)
+                ? c.primaryDark
+                : states.contains(WidgetState.disabled)
+                ? c.textDisabled
+                : bottomBarUnselectedColor(c.toColorScheme()),
+          ),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
@@ -76,7 +157,7 @@ abstract final class NavigationThemes {
                 ? c.primary
                 : states.contains(WidgetState.disabled)
                 ? c.textDisabled
-                : c.textMuted,
+                : bottomBarUnselectedColor(c.toColorScheme()),
           ),
         ),
       );

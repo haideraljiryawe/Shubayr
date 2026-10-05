@@ -118,7 +118,7 @@ class OrdersScreen extends ConsumerWidget {
                         : ResponsiveCardList(
                             key: ValueKey(status),
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: AppLayout.pageInsets(context),
+                            padding: AppLayout.scrollInsets(context),
                             itemCount: list.items.length,
                             itemKeyBuilder: (i) => list.items[i].id,
                             footer: list.loadMoreError != null

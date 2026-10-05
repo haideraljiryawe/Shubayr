@@ -73,8 +73,9 @@ void main() {
         colors.textMuted,
       );
       final nav = theme.navigationBarTheme;
-      expect(nav.labelTextStyle!.resolve({})!.color, colors.textMuted);
-      expect(nav.iconTheme!.resolve({})!.color, colors.textMuted);
+      final unselected = theme.colorScheme.onSurface.withValues(alpha: 0.92);
+      expect(nav.labelTextStyle!.resolve({})!.color, unselected);
+      expect(nav.iconTheme!.resolve({})!.color, unselected);
       expect(nav.iconTheme!.resolve(disabled)!.color, oldMuted);
       expect(nav.labelTextStyle!.resolve(disabled)!.color, oldMuted);
       expect(nav.iconTheme!.resolve(selected)!.color, colors.primary);

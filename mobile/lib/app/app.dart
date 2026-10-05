@@ -1,5 +1,6 @@
 import '../core/config/store_identity.dart';
 import '../features/notifications/presentation/notification_providers.dart';
+import '../features/cart/presentation/providers/cart_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,6 +25,11 @@ class ShubayrApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(notificationSyncProvider);
+    // The cart backs an app-wide badge and session-owned mutations. Keep its
+    // subscription above the route TickerModes: a covered shell pauses watches,
+    // and resuming its stale identity graph during Overlay build can invalidate
+    // another active provider while Riverpod's scope cannot rebuild.
+    ref.listen(cartControllerProvider, (_, _) {});
     final brand = ref.watch(brandProvider);
     final locale = ref.watch(localeControllerProvider);
     final themeMode = ref.watch(themeModeControllerProvider);

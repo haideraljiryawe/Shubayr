@@ -95,7 +95,9 @@ class HomeScreen extends ConsumerWidget {
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+          padding: EdgeInsets.only(
+            bottom: AppSpacing.xxl + BottomNavigationInset.of(context),
+          ),
           children: [
             const HomeBanners(),
             const SizedBox(height: AppSpacing.homeBannerToCategories),

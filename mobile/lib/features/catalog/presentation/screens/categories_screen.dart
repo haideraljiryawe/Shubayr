@@ -22,11 +22,12 @@ class CategoriesScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(context.l10n.mainCategoriesTitle)),
       body: SafeArea(
         top: false,
+        bottom: BottomNavigationInset.of(context) == 0,
         child: AsyncValueView(
           value: ref.watch(categoriesProvider),
           onRetry: () => ref.invalidate(categoriesProvider),
           loading: ResponsiveCardList(
-            padding: AppLayout.pageInsets(context),
+            padding: AppLayout.scrollInsets(context),
             minItemWidth: AppLayout.orderMinWidth,
             itemCount: 4,
             itemBuilder: (_, _) => const CategoryCardSkeleton(),
@@ -34,7 +35,7 @@ class CategoriesScreen extends ConsumerWidget {
           builder: (context, list) {
             if (list.isEmpty) return const AppEmptyView();
             return ResponsiveCardList(
-              padding: AppLayout.pageInsets(context),
+              padding: AppLayout.scrollInsets(context),
               minItemWidth: AppLayout.orderMinWidth,
               itemCount: list.length,
               itemKeyBuilder: (i) => list[i].id,

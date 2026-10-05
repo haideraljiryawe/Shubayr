@@ -47,10 +47,18 @@ class SubcategoriesScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         top: false,
+        bottom: BottomNavigationInset.of(context) == 0,
         child: AsyncValueView(
           value: categories,
           onRetry: () => ref.invalidate(categoriesProvider),
-          loading: const CustomScrollView(slivers: [_SubcategoryGrid()]),
+          loading: CustomScrollView(
+            slivers: [
+              const _SubcategoryGrid(),
+              SliverToBoxAdapter(
+                child: SizedBox(height: BottomNavigationInset.of(context)),
+              ),
+            ],
+          ),
           builder: (context, list) {
             final category = parentIn(list);
             if (category == null) {
@@ -58,7 +66,12 @@ class SubcategoriesScreen extends ConsumerWidget {
             }
             if (category.children.isEmpty) return const AppEmptyView();
             return CustomScrollView(
-              slivers: [_SubcategoryGrid(children: category.children)],
+              slivers: [
+                _SubcategoryGrid(children: category.children),
+                SliverToBoxAdapter(
+                  child: SizedBox(height: BottomNavigationInset.of(context)),
+                ),
+              ],
             );
           },
         ),

@@ -170,6 +170,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       ),
       body: SafeArea(
         top: false,
+        bottom: BottomNavigationInset.of(context) == 0,
         child: Column(
           children: [
             ProductSearchBar(
@@ -309,6 +310,9 @@ class _Body extends StatelessWidget {
               itemBuilder: (_, _) => const ProductCardSkeleton(),
             ),
           ),
+          SliverToBoxAdapter(
+            child: SizedBox(height: BottomNavigationInset.of(context)),
+          ),
         ],
       );
     }
@@ -328,6 +332,9 @@ class _Body extends StatelessWidget {
                       message: context.l10n.searchNoResults,
                     ),
             ),
+          SliverToBoxAdapter(
+            child: SizedBox(height: BottomNavigationInset.of(context)),
+          ),
         ],
       );
     }
@@ -366,6 +373,9 @@ class _Body extends StatelessWidget {
             SliverToBoxAdapter(
               child: AppErrorView(error: state.error, onRetry: onRetry),
             ),
+          SliverToBoxAdapter(
+            child: SizedBox(height: BottomNavigationInset.of(context)),
+          ),
         ],
       ),
     );
