@@ -5,9 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/app/shell/customer_bottom_navigation.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
+import 'package:shubayr/core/theme/components/navigation_themes.dart';
 
 void main() {
-  for (final count in [1, 2, 3, 4, 5, 6]) {
+  for (final count in [2, 3, 4, 5]) {
     for (final width in [
       280.0,
       320.0,
@@ -25,8 +26,26 @@ void main() {
           addTearDown(() => tester.binding.setSurfaceSize(null));
           final semantics = tester.ensureSemantics();
           try {
-            for (final viewInset in [0.0, 8.0, 21.0, 34.0, 48.0]) {
-              for (final gestureInset in [0.0, 8.0, 21.0, 34.0, 48.0]) {
+            for (final viewInset in [
+              0.0,
+              8.0,
+              16.0,
+              21.0,
+              24.0,
+              34.0,
+              48.0,
+              60.0,
+            ]) {
+              for (final gestureInset in [
+                0.0,
+                8.0,
+                16.0,
+                21.0,
+                24.0,
+                34.0,
+                48.0,
+                60.0,
+              ]) {
                 final selections = <int>[];
                 await tester.pumpWidget(
                   MaterialApp(
@@ -65,25 +84,49 @@ void main() {
                   find.byKey(const ValueKey('bottom-nav-surface')),
                 );
                 final safeBoundary = 844 - math.max(viewInset, gestureInset);
-                expect(bar.height, closeTo(67.6, .01));
+                expect(
+                  bar.height,
+                  closeTo(NavigationThemes.bottomBarHeight, .01),
+                );
                 expect(bar.bottom, lessThanOrEqualTo(844));
                 expect(bar.top, greaterThanOrEqualTo(0));
                 // The visible overlap is limited to decoration, never more than
-                // 11.8px, and cannot move the surface outside a zero-inset screen.
-                expect(bar.bottom - safeBoundary, inInclusiveRange(0, 11.8 + .01));
+                // the decorative margin, and never below a zero-inset screen.
+                expect(
+                  bar.bottom - safeBoundary,
+                  inInclusiveRange(
+                    0,
+                    NavigationThemes.bottomBarSafeVisualOverlap + .01,
+                  ),
+                );
                 for (var i = 0; i < count; i++) {
                   final destination = find.bySemanticsLabel('Destination $i');
                   final target = tester.getRect(destination);
-                  expect(target.height, closeTo(44, .01));
+                  expect(
+                    target.height,
+                    closeTo(
+                      NavigationThemes.bottomBarMinimumInteractiveHeight,
+                      .01,
+                    ),
+                  );
                   expect(target.width, closeTo(bar.width / count, .01));
-                  expect(target.width, greaterThanOrEqualTo(28 * 1.10));
+                  expect(target.width, greaterThanOrEqualTo(44));
                   expect(target.center.dy, closeTo(bar.center.dy, .01));
-                  expect(target.top - bar.top, closeTo(11.8, .01));
-                  expect(bar.bottom - target.bottom, closeTo(11.8, .01));
+                  expect(
+                    target.top - bar.top,
+                    closeTo(NavigationThemes.bottomBarSafeVisualOverlap, .01),
+                  );
+                  expect(
+                    bar.bottom - target.bottom,
+                    closeTo(NavigationThemes.bottomBarSafeVisualOverlap, .01),
+                  );
                   expect(target.bottom, lessThanOrEqualTo(safeBoundary + .01));
                   expect(
                     tester.getSemantics(destination).rect.height,
-                    closeTo(44, .01),
+                    closeTo(
+                      NavigationThemes.bottomBarMinimumInteractiveHeight,
+                      .01,
+                    ),
                   );
                 }
                 final last = tester.getRect(

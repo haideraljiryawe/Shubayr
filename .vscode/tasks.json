@@ -20,6 +20,24 @@
       }
     },
     {
+      "label": "Check remote: iphone",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/mobile/tool/check_debug_environment.mjs",
+        "iphone"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": true
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
       "label": "Check remote: chrome",
       "type": "process",
       "command": "node",

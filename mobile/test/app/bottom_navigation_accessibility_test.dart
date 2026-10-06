@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/app/shell/customer_bottom_navigation.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
 
 void main() {
-  for (final count in [1, 2, 3, 4, 5, 6]) {
+  for (final count in [2, 3, 4, 5]) {
     for (final rtl in [false, true]) {
       testWidgets(
         '$count icon tabs retain accessible names and actions rtl=$rtl',
@@ -18,6 +19,12 @@ void main() {
           await tester.pumpWidget(
             MaterialApp(
               theme: AppTheme.light(const Brand.bundled()),
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(3)),
+                child: child!,
+              ),
               home: Directionality(
                 textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
                 child: StatefulBuilder(
@@ -41,6 +48,26 @@ void main() {
               ),
             ),
           );
+          final traversalLabels = <String>[];
+          void collectLabels(SemanticsNode node) {
+            if (labels.contains(node.label)) traversalLabels.add(node.label);
+            for (final child in node.debugListChildrenInOrder(
+              DebugSemanticsDumpOrder.traversalOrder,
+            )) {
+              collectLabels(child);
+            }
+          }
+
+          collectLabels(
+            tester
+                .binding
+                .renderViews
+                .single
+                .owner!
+                .semanticsOwner!
+                .rootSemanticsNode!,
+          );
+          expect(traversalLabels, labels.take(count).toList());
           for (var i = 0; i < count; i++) {
             expect(find.text(labels[i]), findsNothing);
             expect(find.byTooltip(labels[i]), findsOneWidget);
@@ -49,6 +76,7 @@ void main() {
             expect(
               tester.getSemantics(tab),
               matchesSemantics(
+                role: SemanticsRole.tab,
                 label: labels[i],
                 value: i == 2 ? '3' : '',
                 isButton: true,

@@ -54,6 +54,50 @@ are retained only for explicit automated-test overrides. `DATA_SOURCE=mock`
 does not enable a mock application. Use work phones configured by Web Admin;
 the OTP response determines the role.
 
+### VS Code: iOS Simulator and real iPhone
+
+Both opening the repository root and opening `mobile/` in VS Code provide:
+
+- **Shubayr - iOS Simulator**: the existing iPhone 17 Pro simulator, debug mode,
+  `http://localhost:8000/api/v1`, and the existing API preflight.
+- **Shubayr - iPhone Device**: Ahmed's connected physical iPhone, debug mode,
+  with `API_URL` passed to the existing `AppConfig` through Flutter's
+  `--dart-define-from-file`.
+
+Select the configuration in **Run and Debug**, then press **F5**. No file edits
+are needed to switch environments. The **only Mac IP setting** is `API_URL` in
+[`mobile/.vscode/iphone.json`](.vscode/iphone.json); both launch files and the
+iPhone preflight read that same file. If the Mac IP changes, update it there
+(Wi-Fi address: `ipconfig getifaddr en0`), then stop and relaunch the app because
+Dart defines are build-time values. Keep the backend port and `/api/v1` suffix.
+
+The iPhone must be paired/trusted, unlocked, have Developer Mode enabled, and
+use the same local network as the Mac. Use the existing
+[local signing setup](docs/ios-local-signing.md). The device profile pins Ahmed's
+physical device ID so selecting a simulator in the status bar cannot redirect
+it; a replacement phone requires updating `deviceId` in the launch files using
+`flutter devices`.
+
+Start the existing backend first. Its server listens on `0.0.0.0:8000` inside
+the container, but Docker must also publish API port 8000 to the Mac's LAN
+interface; a `127.0.0.1:8000:8000` mapping only supports the simulator. Keep
+database and other service ports restricted to localhost. Allow the API's
+incoming connections through the Mac firewall if prompted. Open the value
+of `API_URL` plus `/health` in **Safari on the iPhone**: an HTTP 200 JSON response
+confirms phone-to-backend connectivity. Then launch the app, allow **Local
+Network** access when asked, and check that the catalog loads. If access was
+denied, enable Shubayr under iOS Settings → Privacy & Security → Local Network.
+The preflight only checks the LAN endpoint from the Mac; it cannot prove the
+iPhone's network access or permission.
+
+Only the Xcode **Debug** configuration uses `ios/Runner/Info-Debug.plist`, adding
+the local-network usage message and `NSAllowsLocalNetworking` for local HTTP.
+It does not enable `NSAllowsArbitraryLoads`. Flutter supplies its own Bonjour
+VM-service entry during development builds. Release and Profile keep the
+original `Info.plist` and existing production HTTPS validation. Keep shared app
+metadata in both plist files in sync when changing it. See Apple's
+[local networking policy](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking).
+
 ### Production release configuration
 
 Profile and release require an explicit `--dart-define=API_URL=https://<production-dns-host>/api/v1`.

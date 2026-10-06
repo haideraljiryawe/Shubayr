@@ -203,15 +203,19 @@ void main() {
                 find.byWidget(scaffold.bottomNavigationBar!),
               );
               final expectedHeight = NavigationThemes.bottomBarHeight;
-              expect(bar.height, closeTo(expectedHeight + 22.2, .01));
+              expect(bar.height, closeTo(expectedHeight + 24.0, .01));
               expect(bar.bottom, 844);
               final surface = tester.getRect(_surface);
               final gutter = width < 600 ? 8.0 : 16.0;
-              final expectedWidth = math.min((width - 2 * gutter) * .90, 760.0);
+              final geometry = NavigationThemes.bottomBarGeometry(
+                width - 2 * gutter,
+                count,
+              );
+              final expectedWidth = geometry.barWidth;
               expect(surface.width, closeTo(expectedWidth, .01));
               expect(surface.center.dx, closeTo(width / 2, .01));
               expect(surface.height, closeTo(expectedHeight, .01));
-              expect(surface.bottom, closeTo(844 - 22.2, .01));
+              expect(surface.bottom, closeTo(844 - 24.0, .01));
               for (var i = 0; i < count; i++) {
                 final rect = tester.getRect(_tabs.at(i));
                 expect(rect.width, closeTo(surface.width / count, 0.01));
@@ -237,7 +241,7 @@ void main() {
               expect(pill.center.dx, closeTo(active.center.dx, 0.01));
               expect(pill.width, lessThan(active.width));
               expect(pill.width + .01, greaterThanOrEqualTo(pill.height));
-              expect(pill.width, closeTo(active.width - 12, .01));
+              expect(pill.width, closeTo(geometry.selected.width, .01));
               expect(pill.height, closeTo(math.min(52, pill.width), .01));
               expect(pill.top, greaterThan(surface.top));
               expect(pill.bottom, lessThan(surface.bottom));
@@ -701,13 +705,13 @@ void main() {
           sideInset: 20,
         );
         final surface = tester.getRect(_surface);
-        expect(surface.left, closeTo(34, .01));
-        expect(surface.right, closeTo(286, .01));
+        expect(surface.left, closeTo(25.6, .01));
+        expect(surface.right, closeTo(294.4, .01));
         expect(
           surface.bottom,
-          closeTo(844 - math.max(0, bottomInset - 11.8), .01),
+          closeTo(844 - math.max(0, bottomInset - 10), .01),
         );
-        expect(surface.height, closeTo(67.6, .01));
+        expect(surface.height, closeTo(64, .01));
         expect(
           tester.getRect(_capsule).center.dy,
           closeTo(surface.center.dy, .01),
@@ -715,7 +719,7 @@ void main() {
         for (var i = 0; i < 5; i++) {
           final target = tester.getRect(_tabs.at(i));
           expect(target.height, closeTo(44, .01));
-          expect(target.bottom, closeTo(surface.bottom - 11.8, .01));
+          expect(target.bottom, closeTo(surface.bottom - 10, .01));
           expect(target.bottom, lessThan(surface.bottom + 0.01));
         }
         final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
@@ -726,12 +730,9 @@ void main() {
         final scope = tester.widget<BottomNavigationInset>(
           find.byType(BottomNavigationInset),
         );
-        expect(
-          scope.bottom,
-          closeTo(67.6 + math.max(0, bottomInset - 11.8), .01),
-        );
+        expect(scope.bottom, closeTo(64 + math.max(0, bottomInset - 10), .01));
         final material = tester.widget<Material>(_surface);
-        expect(material.color, Colors.white.withValues(alpha: 0.91));
+        expect(material.color, Colors.white);
         final clip = find
             .ancestor(of: _surface, matching: find.byType(ClipRRect))
             .first;
@@ -748,7 +749,7 @@ void main() {
         );
         expect(
           find.ancestor(of: _surface, matching: find.byType(BackdropFilter)),
-          findsOneWidget,
+          findsNothing,
         );
         final shadow =
             tester
@@ -961,10 +962,10 @@ void main() {
   }
 
   for (final metrics in [
-    (padding: 0.0, view: 0.0, gesture: 24.0, keyboard: 0.0, offset: 12.2),
-    (padding: 21.0, view: 21.0, gesture: 32.0, keyboard: 0.0, offset: 20.2),
-    (padding: 48.0, view: 48.0, gesture: 0.0, keyboard: 0.0, offset: 36.2),
-    (padding: 0.0, view: 34.0, gesture: 0.0, keyboard: 300.0, offset: 22.2),
+    (padding: 0.0, view: 0.0, gesture: 24.0, keyboard: 0.0, offset: 14.0),
+    (padding: 21.0, view: 21.0, gesture: 32.0, keyboard: 0.0, offset: 22.0),
+    (padding: 48.0, view: 48.0, gesture: 0.0, keyboard: 0.0, offset: 38.0),
+    (padding: 0.0, view: 34.0, gesture: 0.0, keyboard: 300.0, offset: 24.0),
   ]) {
     testWidgets(
       'system UI and gesture exclusions position the whole bar: $metrics',
@@ -979,16 +980,13 @@ void main() {
           keyboardInset: metrics.keyboard,
         );
         final rect = tester.getRect(_surface);
-        expect(rect.height, closeTo(67.6, .01));
+        expect(rect.height, closeTo(64, .01));
         expect(rect.bottom, closeTo(844 - metrics.offset, .01));
         for (var i = 0; i < 3; i++) {
-          expect(
-            tester.getRect(_tabs.at(i)).top,
-            closeTo(rect.top + 11.8, .01),
-          );
+          expect(tester.getRect(_tabs.at(i)).top, closeTo(rect.top + 10, .01));
           expect(
             tester.getRect(_tabs.at(i)).bottom,
-            closeTo(rect.bottom - 11.8, .01),
+            closeTo(rect.bottom - 10, .01),
           );
         }
         expect(tester.takeException(), isNull);

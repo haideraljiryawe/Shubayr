@@ -23,8 +23,10 @@ From the repository root, start or resume the configured stack:
 docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full up -d api
 ```
 
-`docker-compose.local.yml` is an ignored workstation configuration. It binds
-service ports to localhost, permits Flutter Web on `http://localhost:7357`, and
+`docker-compose.local.yml` is an ignored workstation configuration. It publishes
+only API port 8000 on `0.0.0.0` for localhost and physical devices on the LAN;
+database and internal service ports stay bound to localhost. It permits Flutter
+Web on `http://localhost:7357`, and
 overrides API startup to generate Prisma, deploy migrations and run the API
 **without reseeding**. It does not modify Backend source or the shared compose
 file. If this file is missing on another machine, recreate those overrides
@@ -50,11 +52,15 @@ simulator and Web Admin together against `http://localhost:8000/api/v1`.
 Open `http://localhost:3200` for Web Admin. Stopping either debug session stops
 both sessions in this compound. Start the existing backend before launching.
 
-Standalone profiles remain available: **iOS Simulator (Remote)**,
+Standalone profiles remain available: **Shubayr - iOS Simulator**,
 **Web Admin (Remote)** and **Chrome Preview (Remote)**. Chrome uses
 `http://localhost:7357` for CORS and separate browser storage; the compound does
 not launch Chrome. Stop an existing standalone session before starting the
 compound to avoid duplicate processes.
+
+For a physical iPhone, select **Shubayr - iPhone Device** instead. The shared
+Mac address setting, local network requirements, and health check are described
+in [VS Code: iOS Simulator and real iPhone](../README.md#vs-code-ios-simulator-and-real-iphone).
 
 Pre-launch tasks use Node.js to check API health and require a free port for
 Admin/Chrome. Admin also requires Node.js >=22.12 and installed dependencies

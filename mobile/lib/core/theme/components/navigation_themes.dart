@@ -14,52 +14,48 @@ abstract final class NavigationThemes {
   static const double bottomPageIncomingOpacity = 0.96;
 
   // ---------------------------------------------------------------------------
-  // Bottom navigation metrics — the single source of truth for the bar's size.
-  // Tune the bar here; never hard-code these numbers in CustomerShell.
+  // Bottom navigation supports 2–5 top-level destinations. Geometry comes from
+  // safe constraints: 96% phone width, capped at 560, with >=44px touch slots.
   // ---------------------------------------------------------------------------
 
   /// Visual bounds are taller than the centered interactive strip. Only the
   /// decorative margin may overlap a system exclusion; hit targets never do.
-  static const double bottomBarHeight = 67.6;
+  // Preserve vertical clearance around the base pill; visual widths are capped
+  // independently so wide slots do not stretch their decorative capsules.
+  static const double _bottomBarGeometricHeight =
+      bottomBarSelectedBaseHeight + 2 * bottomBarSelectedSlotInset;
+  static const double bottomBarHeight =
+      _bottomBarGeometricHeight >= bottomBarMinimumInteractiveHeight
+      ? _bottomBarGeometricHeight
+      : bottomBarMinimumInteractiveHeight;
+  static const int bottomBarMinDestinations = 2;
+  static const int bottomBarMaxDestinations = 5;
   static const double bottomBarWidthFactor = 0.96;
-  // Keep the established minimum hit height centered within the taller glass.
+  static const double bottomBarMaxWidth = 560;
+  // Keep the established minimum hit height centered within the taller surface.
   static const double bottomBarMinimumInteractiveHeight = 44;
-  static const double bottomBarBottomGap = 0;
   static double get bottomBarSafeVisualOverlap =>
       math.max(0.0, (bottomBarHeight - bottomBarMinimumInteractiveHeight) / 2);
 
   /// viewPadding retains system UI clearance when the keyboard consumes
   /// padding. The larger system exclusion wins on every platform. Clamping
   /// the offset keeps the visual surface on screen when the inset is small.
-  static double bottomBarBottomOffset(MediaQueryData media) =>
-      math.max(
-        0.0,
-        math.max(media.viewPadding.bottom, media.systemGestureInsets.bottom) -
-            bottomBarSafeVisualOverlap,
-      ) +
-      bottomBarBottomGap;
+  static double bottomBarBottomOffset(MediaQueryData media) => math.max(
+    0.0,
+    math.max(media.viewPadding.bottom, media.systemGestureInsets.bottom) -
+        bottomBarSafeVisualOverlap,
+  );
 
-  // Frosted surface, outline and shadow. Lower opacity = more transparent.
-  static const double bottomBarSurfaceOpacityLight = 0.91;
-  static const double bottomBarSurfaceOpacityDark = 0.92;
-  static const double bottomBarDarkSurfaceTintOpacity = 0.08;
-  static double bottomBarSurfaceOpacity(Brightness brightness) =>
-      brightness == Brightness.dark
-      ? bottomBarSurfaceOpacityDark
-      : bottomBarSurfaceOpacityLight;
-  static Color bottomBarSurfaceColor(ColorScheme colors) {
-    final base = colors.brightness == Brightness.dark
-        ? Color.alphaBlend(
-            Colors.white.withValues(alpha: bottomBarDarkSurfaceTintOpacity),
-            colors.surface,
-          )
-        : Colors.white;
-    return base.withValues(alpha: bottomBarSurfaceOpacity(colors.brightness));
-  }
+  /// Blend the established dark tint into the color, not the backdrop.
+  static Color bottomBarSurfaceColor(ColorScheme colors) =>
+      colors.brightness == Brightness.dark
+      ? Color.alphaBlend(
+          Colors.white.withValues(alpha: 0.08),
+          colors.surface.withValues(alpha: 1),
+        )
+      : Colors.white;
 
-  static const double bottomBarBlurSigma = 18;
-  static const double bottomBarBorderOpacityLight = 0.22;
-  static const double bottomBarBorderOpacityDark = 0.22;
+  static const double bottomBarBorderOpacity = 0.22;
   static const double bottomBarBorderWidth = 0.8;
   static const double bottomBarShadowOpacityLight = 0.11;
   static const double bottomBarShadowOpacityDark = 0.12;
@@ -78,11 +74,7 @@ abstract final class NavigationThemes {
     offset: bottomBarShadowOffset,
   );
   static BorderSide bottomBarBorder(AppColors colors) => BorderSide(
-    color: colors.textPrimary.withValues(
-      alpha: colors.brightness == Brightness.dark
-          ? bottomBarBorderOpacityDark
-          : bottomBarBorderOpacityLight,
-    ),
+    color: colors.textPrimary.withValues(alpha: bottomBarBorderOpacity),
     width: bottomBarBorderWidth,
   );
 
@@ -121,11 +113,86 @@ abstract final class NavigationThemes {
   // Keep horizontal geometry independent of the increased vertical clearance.
   static const double bottomBarSelectedSlotInset = 6;
 
-  /// Dense layouts reduce only the decorative indicator. Icons and full-width
-  /// hit targets keep their existing sizes. Radius follows the resulting height.
-  static Size bottomBarSelectedSize(double slotWidth) {
-    final width = math.max(0.0, slotWidth - 2 * bottomBarSelectedSlotInset);
-    return Size(width, math.min(bottomBarSelectedBaseHeight, width));
+  static const double bottomBarSelectedMaxAspectRatio = 2.2;
+  static const double bottomBarPressedMaxAspectRatio = 2.2;
+
+  static EdgeInsets bottomBarPadding(MediaQueryData media, double gutter) =>
+      EdgeInsets.only(
+        left: math.max(
+          gutter,
+          math.max(media.viewPadding.left, media.padding.left),
+        ),
+        right: math.max(
+          gutter,
+          math.max(media.viewPadding.right, media.padding.right),
+        ),
+        bottom: bottomBarBottomOffset(media),
+      );
+
+  static bool isBottomBarDestinationCountValid(int count) =>
+      count >= bottomBarMinDestinations && count <= bottomBarMaxDestinations;
+
+  static double bottomBarMinimumSafeWidth(int destinationCount) =>
+      destinationCount *
+      bottomBarMinimumInteractiveHeight /
+      bottomBarWidthFactor;
+
+  /// Reject unsupported constraints rather than silently shrinking touch targets.
+  static ({double barWidth, double slotWidth, Size selected, Size pressed})
+  bottomBarGeometry(double safeAvailableWidth, int destinationCount) {
+    if (!isBottomBarDestinationCountValid(destinationCount)) {
+      throw FlutterError(
+        'Bottom Navigation supports 2–5 top-level destinations; '
+        'received $destinationCount.',
+      );
+    }
+    final minimumBarWidth =
+        destinationCount * bottomBarMinimumInteractiveHeight;
+    final barWidth = math.min(
+      safeAvailableWidth * bottomBarWidthFactor,
+      bottomBarMaxWidth,
+    );
+    if (!safeAvailableWidth.isFinite || barWidth < minimumBarWidth) {
+      throw FlutterError(
+        'Bottom Navigation requires at least '
+        '${bottomBarMinimumSafeWidth(destinationCount)} logical pixels of safe '
+        'available width for $destinationCount destinations with 44×44 touch '
+        'targets; received $safeAvailableWidth.',
+      );
+    }
+    final slotWidth = barWidth / destinationCount;
+    final selectedNaturalWidth = slotWidth - 2 * bottomBarSelectedSlotInset;
+    final selectedHeight = math.min(
+      bottomBarSelectedBaseHeight,
+      selectedNaturalWidth,
+    );
+    final pressedInset = math.max(
+      bottomBarPressedMinSlotInset,
+      bottomBarSelectedSlotInset * bottomBarPressedSlotInsetRatio,
+    );
+    final pressedNaturalWidth = slotWidth - 2 * pressedInset;
+    final pressedHeight = math.min(
+      bottomBarHeight - 2 * bottomBarPressedVerticalInset,
+      pressedNaturalWidth,
+    );
+    return (
+      barWidth: barWidth,
+      slotWidth: slotWidth,
+      selected: Size(
+        math.min(
+          selectedNaturalWidth,
+          selectedHeight * bottomBarSelectedMaxAspectRatio,
+        ),
+        selectedHeight,
+      ),
+      pressed: Size(
+        math.min(
+          pressedNaturalWidth,
+          pressedHeight * bottomBarPressedMaxAspectRatio,
+        ),
+        pressedHeight,
+      ),
+    );
   }
 
   static const double bottomBarSelectedSurfaceOpacity = 0.20;
@@ -153,16 +220,6 @@ abstract final class NavigationThemes {
   );
   static const Curve bottomBarPressedExpandCurve = Curves.easeOutCubic;
 
-  static Size bottomBarPressedSize(double slotWidth) {
-    final inset = math.max(
-      bottomBarPressedMinSlotInset,
-      bottomBarSelectedSlotInset * bottomBarPressedSlotInsetRatio,
-    );
-    final width = math.max(0.0, slotWidth - 2 * inset);
-    final targetHeight = bottomBarHeight - 2 * bottomBarPressedVerticalInset;
-    return Size(width, math.min(targetHeight, width));
-  }
-
   static double bottomBarStateOpacity(
     Set<WidgetState> states, {
     required bool selected,
@@ -179,8 +236,8 @@ abstract final class NavigationThemes {
     return 0;
   }
 
-  /// Bottom navigation.
-  ///
+  /// Default Material NavigationBar theme, separate from the customer shell's
+  /// icon-only CustomerBottomNavigation and its custom selected capsule.
   /// Deliberately has no selected indicator: the Material 3 pill is switched
   /// off (transparent indicator *and* transparent overlay) so a destination is
   /// just an icon above a label. Selection is carried entirely by foreground

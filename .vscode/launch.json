@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "iOS Simulator (Remote)",
+      "name": "Shubayr - iOS Simulator",
       "presentation": {
         "order": 2,
         "group": "Remote"
@@ -18,6 +18,24 @@
         "--dart-define=API_URL=http://localhost:8000/api/v1"
       ],
       "preLaunchTask": "Check remote: ios"
+    },
+    {
+      "name": "Shubayr - iPhone Device",
+      "presentation": {
+        "order": 6,
+        "group": "Remote"
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "deviceId": "00008140-001125441AFB001C",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define-from-file=${workspaceFolder}/mobile/.vscode/iphone.json"
+      ],
+      "preLaunchTask": "Check remote: iphone"
     },
     {
       "name": "Chrome Preview (Remote)",
@@ -79,7 +97,7 @@
       "name": "iOS + Web Admin (Remote)",
       "configurations": [
         "Web Admin (Remote)",
-        "iOS Simulator (Remote)"
+        "Shubayr - iOS Simulator"
       ],
       "preLaunchTask": "Check remote: admin",
       "stopAll": true,

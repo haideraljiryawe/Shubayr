@@ -1,5 +1,4 @@
-import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
+import 'dart:ui' show SemanticsRole;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,15 +30,19 @@ Widget _badged(BuildContext context, Widget child, int count) {
 }
 
 /// Floating customer bottom bar with one capsule sliding between equally sized
-/// destinations in the ambient reading direction. Only the rounded surface is
-/// frosted; content remains visible behind the safe area and outer margins.
+/// destinations in the ambient reading direction. Supports 2–5 top-level tabs;
+/// the opaque surface leaves content visible through the outer margins.
 class CustomerBottomNavigation extends StatelessWidget {
   const CustomerBottomNavigation({
     super.key,
     required this.destinations,
     required this.selectedIndex,
     required this.onSelected,
-  }) : assert(destinations.length > 0),
+  }) : assert(
+         destinations.length >= NavigationThemes.bottomBarMinDestinations &&
+             destinations.length <= NavigationThemes.bottomBarMaxDestinations,
+         'Bottom Navigation supports 2–5 top-level destinations.',
+       ),
        assert(selectedIndex >= 0 && selectedIndex < destinations.length);
 
   final List<CustomerNavigationDestination> destinations;
@@ -48,100 +51,87 @@ class CustomerBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Empty is invalid configuration. If it still reaches a release build during
+    // a session change, unmount old gestures without dividing by zero.
+    if (destinations.isEmpty) return const SizedBox.shrink();
+
     final colors = context.colors;
     final colorScheme = Theme.of(context).colorScheme;
     final media = MediaQuery.of(context);
     final reduceMotion = media.disableAnimations || media.accessibleNavigation;
-    final gutter = AppLayout.pageHorizontal(context);
-    // The app normally consumes horizontal safe areas above the Navigator.
-    // Also support unconsumed insets without adding the gutter on top of them.
-    final left = math.max(
-      gutter,
-      math.max(media.viewPadding.left, media.padding.left),
-    );
-    final right = math.max(
-      gutter,
-      math.max(media.viewPadding.right, media.padding.right),
-    );
     return Padding(
-      padding: EdgeInsets.only(
-        left: left,
-        right: right,
-        bottom: NavigationThemes.bottomBarBottomOffset(media),
+      padding: NavigationThemes.bottomBarPadding(
+        media,
+        AppLayout.pageHorizontal(context),
       ),
-      // Narrow the safe parent allocation before applying the existing cap.
-      // Neither a raw screen width nor a device/platform is assumed here.
-      child: FractionallySizedBox(
-        widthFactor: NavigationThemes.bottomBarWidthFactor,
-        child: ResponsiveContent(
-          child: SizedBox(
-            width: double.infinity,
-            child: DecoratedBox(
-              key: const ValueKey('bottom-nav-shadow'),
-              decoration: BoxDecoration(
-                borderRadius: NavigationThemes.bottomBarRadius,
-                boxShadow: [
-                  NavigationThemes.bottomBarShadow(colorScheme),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: NavigationThemes.bottomBarRadius,
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: NavigationThemes.bottomBarBlurSigma,
-                    sigmaY: NavigationThemes.bottomBarBlurSigma,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final geometry = NavigationThemes.bottomBarGeometry(
+            constraints.maxWidth,
+            destinations.length,
+          );
+          return Semantics(
+            container: true,
+            explicitChildNodes: true,
+            role: SemanticsRole.tabBar,
+            textDirection: Directionality.of(context),
+            child: Align(
+              alignment: Alignment.topCenter,
+              heightFactor: 1,
+              child: SizedBox(
+                width: geometry.barWidth,
+                height: NavigationThemes.bottomBarHeight,
+                child: DecoratedBox(
+                  key: const ValueKey('bottom-nav-shadow'),
+                  decoration: BoxDecoration(
+                    borderRadius: NavigationThemes.bottomBarRadius,
+                    boxShadow: [NavigationThemes.bottomBarShadow(colorScheme)],
                   ),
-                  child: Material(
-                    key: const ValueKey('bottom-nav-surface'),
-                    color: NavigationThemes.bottomBarSurfaceColor(colorScheme),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: NavigationThemes.bottomBarRadius,
-                      side: NavigationThemes.bottomBarBorder(colors),
-                    ),
-                    child: SizedBox(
-                      height: NavigationThemes.bottomBarHeight,
+                  child: ClipRRect(
+                    borderRadius: NavigationThemes.bottomBarRadius,
+                    child: Material(
+                      key: const ValueKey('bottom-nav-surface'),
+                      color: NavigationThemes.bottomBarSurfaceColor(
+                        colorScheme,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: NavigationThemes.bottomBarRadius,
+                        side: NavigationThemes.bottomBarBorder(colors),
+                      ),
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
                           IgnorePointer(
                             child: AnimatedAlign(
                               alignment: AlignmentDirectional(
-                                destinations.length == 1
-                                    ? 0
-                                    : -1 +
-                                          2 *
-                                              selectedIndex /
-                                              (destinations.length - 1),
+                                -1 +
+                                    2 *
+                                        selectedIndex /
+                                        (destinations.length - 1),
                                 0,
                               ),
                               duration: reduceMotion
                                   ? Duration.zero
                                   : NavigationThemes.bottomBarSelectionDuration,
                               curve: NavigationThemes.bottomBarCurve,
-                              child: FractionallySizedBox(
-                                widthFactor: 1 / destinations.length,
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final size =
-                                        NavigationThemes.bottomBarSelectedSize(
-                                          constraints.maxWidth,
-                                        );
-                                    return Center(
-                                      child: DecoratedBox(
-                                        key: const ValueKey('bottom-nav-capsule'),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              NavigationThemes.bottomBarSelectedSurfaceColor(
-                                                colors,
-                                              ),
-                                          borderRadius: BorderRadius.circular(
-                                            size.height / 2,
+                              child: SizedBox(
+                                width: geometry.slotWidth,
+                                child: Center(
+                                  child: DecoratedBox(
+                                    key: const ValueKey('bottom-nav-capsule'),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          NavigationThemes.bottomBarSelectedSurfaceColor(
+                                            colors,
                                           ),
-                                        ),
-                                        child: SizedBox.fromSize(size: size),
+                                      borderRadius: BorderRadius.circular(
+                                        geometry.selected.height / 2,
                                       ),
-                                    );
-                                  },
+                                    ),
+                                    child: SizedBox.fromSize(
+                                      size: geometry.selected,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -158,6 +148,7 @@ class CustomerBottomNavigation extends StatelessWidget {
                                       child: _BottomNavItem(
                                         destination: destinations[i],
                                         selected: i == selectedIndex,
+                                        pressedSize: geometry.pressed,
                                         onTap: () {
                                           if (i != selectedIndex) {
                                             HapticFeedback.selectionClick();
@@ -177,8 +168,8 @@ class CustomerBottomNavigation extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -189,11 +180,13 @@ class _BottomNavItem extends StatefulWidget {
     required this.destination,
     required this.selected,
     required this.onTap,
+    required this.pressedSize,
   });
 
   final CustomerNavigationDestination destination;
   final bool selected;
   final VoidCallback onTap;
+  final Size pressedSize;
 
   @override
   State<_BottomNavItem> createState() => _BottomNavItemState();
@@ -293,7 +286,13 @@ class _BottomNavItemState extends State<_BottomNavItem>
     final media = MediaQuery.of(context);
     final reduceMotion = media.disableAnimations || media.accessibleNavigation;
 
+    final size = widget.pressedSize;
+    final opacity = NavigationThemes.bottomBarStateOpacity(
+      _states.value,
+      selected: selected,
+    );
     return Semantics(
+      role: SemanticsRole.tab,
       label: destination.label,
       value: destination.badge > 0 ? '${destination.badge}' : null,
       button: true,
@@ -319,69 +318,58 @@ class _BottomNavItemState extends State<_BottomNavItem>
             splashFactory: NoSplash.splashFactory,
             splashColor: Colors.transparent,
             highlightColor: Colors.transparent,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final size = NavigationThemes.bottomBarPressedSize(
-                  constraints.maxWidth,
-                );
-                final opacity = NavigationThemes.bottomBarStateOpacity(
-                  _states.value,
-                  selected: selected,
-                );
-                return Stack(
-                  fit: StackFit.expand,
-                  clipBehavior: Clip.none,
-                  children: [
-                    IgnorePointer(
-                      child: OverflowBox(
-                        minWidth: size.width,
-                        maxWidth: size.width,
-                        minHeight: size.height,
-                        maxHeight: size.height,
-                        child: ScaleTransition(
-                          key: const ValueKey('bottom-nav-press-expansion'),
-                          scale: reduceMotion
-                              ? const AlwaysStoppedAnimation(1)
-                              : _pressedScale,
-                          child: ClipRRect(
-                            key: const ValueKey('bottom-nav-state-layer'),
-                            borderRadius: BorderRadius.circular(size.height / 2),
-                            child: AnimatedOpacity(
-                              opacity: opacity,
-                              duration: reduceMotion
-                                  ? Duration.zero
-                                  : _states.value.contains(WidgetState.pressed)
-                                  ? NavigationThemes.bottomBarPressedExpandDuration
-                                  : NavigationThemes.bottomBarPressedFadeDuration,
-                              child: ColoredBox(color: colors.primary),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Center(
-                      child: _badged(
-                        context,
-                        AnimatedScale(
-                          scale: selected && !reduceMotion
-                              ? NavigationThemes.bottomBarSelectedScale
-                              : 1,
+            child: Stack(
+              fit: StackFit.expand,
+              clipBehavior: Clip.none,
+              children: [
+                IgnorePointer(
+                  child: OverflowBox(
+                    minWidth: size.width,
+                    maxWidth: size.width,
+                    minHeight: size.height,
+                    maxHeight: size.height,
+                    child: ScaleTransition(
+                      key: const ValueKey('bottom-nav-press-expansion'),
+                      scale: reduceMotion
+                          ? const AlwaysStoppedAnimation(1)
+                          : _pressedScale,
+                      child: ClipRRect(
+                        key: const ValueKey('bottom-nav-state-layer'),
+                        borderRadius: BorderRadius.circular(size.height / 2),
+                        child: AnimatedOpacity(
+                          opacity: opacity,
                           duration: reduceMotion
                               ? Duration.zero
-                              : NavigationThemes.bottomBarSelectedIconDuration,
-                          curve: NavigationThemes.bottomBarSelectedIconCurve,
-                          child: Icon(
-                            selected ? destination.selectedIcon : destination.icon,
-                            color: iconColor,
-                            size: NavigationThemes.bottomBarIconSize,
-                          ),
+                              : _states.value.contains(WidgetState.pressed)
+                              ? NavigationThemes.bottomBarPressedExpandDuration
+                              : NavigationThemes.bottomBarPressedFadeDuration,
+                          child: ColoredBox(color: colors.primary),
                         ),
-                        destination.badge,
                       ),
                     ),
-                  ],
-                );
-              },
+                  ),
+                ),
+                Center(
+                  child: _badged(
+                    context,
+                    AnimatedScale(
+                      scale: selected && !reduceMotion
+                          ? NavigationThemes.bottomBarSelectedScale
+                          : 1,
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : NavigationThemes.bottomBarSelectedIconDuration,
+                      curve: NavigationThemes.bottomBarSelectedIconCurve,
+                      child: Icon(
+                        selected ? destination.selectedIcon : destination.icon,
+                        color: iconColor,
+                        size: NavigationThemes.bottomBarIconSize,
+                      ),
+                    ),
+                    destination.badge,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
