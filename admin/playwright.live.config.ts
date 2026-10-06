@@ -29,7 +29,11 @@ export default defineConfig({
     browserName: "chromium",
     headless: true,
     locale: "ar",
+    // A failed test keeps its trace (test-results/), uploaded by CI.
+    trace: "retain-on-failure",
   },
+  // Keeps the API's log next to the report (LIVE_API_LOG_FILE / LIVE_API_CONTAINER).
+  globalTeardown: "./tests/live/save-api-log.ts",
   // The specs share one seeded database and the API's rate limit.
   workers: 1,
   reporter: process.env.CI ? [["list"], ["github"]] : "list",
@@ -48,6 +52,9 @@ export default defineConfig({
       // Secure cookies on plain http://localhost: browsers treat localhost as
       // a secure context, so this also proves the production cookie flags.
       ADMIN_COOKIE_SECURE: "true",
+      // The runner stands in for the admin's front proxy: the forwarding
+      // spec sends client addresses through it (tests/live/forwarding.spec.ts).
+      TRUSTED_FRONT_PROXIES: process.env.TRUSTED_FRONT_PROXIES ?? "loopback",
     },
   },
 });

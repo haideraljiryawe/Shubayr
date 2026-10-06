@@ -3,7 +3,8 @@
 # Build context is the REPOSITORY ROOT (see docker-compose.yml), because the
 # admin imports the storefront's design tokens from web/src/app/tokens.css and
 # its self-hosted Cairo font from web/src/fonts — one palette and one font for
-# both apps. Only those are taken from web/.
+# both apps — and the forwarded-address rule (web/src/lib/forwarding.ts) both
+# servers apply. Only those are taken from web/.
 #
 #   docker build -f admin/Dockerfile --target production -t shubayr-admin .
 #   docker run -e API_URL=https://api.example.com/api/v1 \
@@ -22,6 +23,7 @@ FROM dependencies AS development
 ENV NODE_ENV=development
 COPY web/src/app/tokens.css /repo/web/src/app/tokens.css
 COPY web/src/fonts /repo/web/src/fonts
+COPY web/src/lib/forwarding.ts /repo/web/src/lib/forwarding.ts
 COPY api/openapi.yaml /repo/api/openapi.yaml
 COPY admin/ /repo/admin/
 EXPOSE 3200
@@ -32,6 +34,7 @@ ENV NEXT_OUTPUT=standalone \
     NEXT_TELEMETRY_DISABLED=1
 COPY web/src/app/tokens.css /repo/web/src/app/tokens.css
 COPY web/src/fonts /repo/web/src/fonts
+COPY web/src/lib/forwarding.ts /repo/web/src/lib/forwarding.ts
 COPY admin/ /repo/admin/
 RUN npm run build
 

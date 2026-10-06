@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { API_URL } from "@/lib/config";
 import { applySession, forward, respond } from "@/lib/session/bff";
+import { clientForwardHeaders } from "@/lib/session/forwarding";
 
 /**
  * GET /api/notifications/stream — the staff inbox's live stream, proxied.
@@ -78,6 +79,7 @@ export async function GET(request: NextRequest) {
         headers: {
           Accept: "text/event-stream",
           ...(since ? { "Last-Event-ID": since } : {}),
+          ...clientForwardHeaders(request.headers),
         },
         cache: "no-store",
         // The browser going away closes the API's stream too.

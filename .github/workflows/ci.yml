@@ -169,7 +169,18 @@ jobs:
           npm run build
       - name: Prove catalog and COD order real-data acceptance on a disposable database
         working-directory: backend
-        run: npm run test:acceptance
+        # The runner's API writes to the same output, so the file keeps the
+        # API's log with the test steps around it.
+        run: |
+          set -o pipefail
+          npm run test:acceptance 2>&1 | tee "$RUNNER_TEMP/acceptance.log"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: acceptance-diagnostics
+          path: ${{ runner.temp }}/acceptance.log
+          retention-days: 14
+          if-no-files-found: ignore
 
   web:
     name: Web (Next.js)
@@ -291,6 +302,9 @@ jobs:
           MEILI_HOST: http://localhost:7700
           MEILI_MASTER_KEY: masterKey_admin_ci
           JWT_SECRET: admin_ci_access_secret_at_least_32_chars
+          # The admin server runs on this runner: the API believes the staff
+          # address it forwards (admin/tests/live/forwarding.spec.ts).
+          TRUSTED_PROXIES: loopback
           JWT_REFRESH_SECRET: admin_ci_refresh_secret_at_least_32_chars
           DEV_OTP: "000000"
           PUBLIC_API_URL: http://localhost:8000/api/v1
@@ -320,6 +334,8 @@ jobs:
         working-directory: admin
         env:
           ADMIN_LIVE_API: http://localhost:8000/api/v1
+          # Copied next to the report (test-results/api.log) when the run ends.
+          LIVE_API_LOG_FILE: ${{ runner.temp }}/api.log
         run: npm run test:live
       - name: API log
         if: failure()
@@ -327,8 +343,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: admin-playwright
-          path: admin/test-results
+          name: admin-live-diagnostics
+          # Traces of the failed tests, the report, and the API's log.
+          path: |
+            admin/test-results
+            ${{ runner.temp }}/api.log
+          retention-days: 14
           if-no-files-found: ignore
 
   web-live:
@@ -446,6 +466,8 @@ jobs:
           # forwards each worker's address (X-Forwarded-For) on its own API
           # calls, so server renders count against that worker, not the store.
           TRUSTED_FRONT_PROXIES: loopback
+          # Copied next to the report (test-results/api.log) when the run ends.
+          LIVE_API_LOG_FILE: ${{ runner.temp }}/api.log
         # Four workers, each with its own customer, agent and monitor
         # (web/tests/live-api.ts); store-wide checks run last, alone.
         run: npm run test:live
@@ -455,8 +477,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: web-live-playwright
-          path: web/test-results
+          name: web-live-diagnostics
+          # Traces of the failed tests, the report, and the API's log.
+          path: |
+            web/test-results
+            ${{ runner.temp }}/api.log
+          retention-days: 14
           if-no-files-found: ignore
 
   images:

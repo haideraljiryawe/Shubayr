@@ -5,6 +5,7 @@ import {
   crossOriginRejected,
   isSameOrigin,
 } from "@/lib/session/bff";
+import { clientForwardHeaders } from "@/lib/session/forwarding";
 import { REFRESH_COOKIE } from "@/lib/session/tokens";
 
 /**
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
   if (refresh) {
     await fetch(`${API_URL}/auth/logout`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...clientForwardHeaders(request.headers) },
       body: JSON.stringify({ refresh_token: refresh }),
       cache: "no-store",
       signal: AbortSignal.timeout(5_000),

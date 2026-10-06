@@ -1,9 +1,10 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import createClient from "openapi-fetch";
 import type { paths } from "@/types/api";
 import { API_URL } from "../config";
+import { clientForwardHeaders } from "../session/forwarding";
 import { ACCESS_COOKIE } from "../session/tokens";
 import { ApiError, ERROR_CODES, toApiError } from "./errors";
 
@@ -19,9 +20,11 @@ import { ApiError, ERROR_CODES, toApiError } from "./errors";
 
 export async function serverApi() {
   const token = (await cookies()).get(ACCESS_COOKIE)?.value;
+  // The staff member's address, from a trusted front proxy only.
+  const forwarded = clientForwardHeaders(await headers());
   return createClient<paths>({
     baseUrl: API_URL,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: { ...forwarded, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     fetch: (input) => fetch(input, { cache: "no-store" }),
   });
 }

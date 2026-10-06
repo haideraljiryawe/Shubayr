@@ -58,16 +58,21 @@ All of these are read when the server starts (`docker run -e NAME=value`).
 | `ADMIN_COOKIE_SECURE` | No (default `true`) | `true` | Session cookies are `httpOnly`, `SameSite=Strict` and `Secure`. `false` exists only for plain-HTTP development hosts. **Never `false` in production.** |
 | `PORT` | No (default `3200`) | `3200` | The port the server listens on. |
 | `HOSTNAME` | No (default `0.0.0.0`) | `0.0.0.0` | The interface the server listens on. |
+| `TRUSTED_FRONT_PROXIES` | No (empty) | `10.0.1.5` | The admin's own front proxies, in the same form as the store's (addresses, CIDRs, `loopback` / `private` / `linklocal`). The admin takes the staff member's address only from them and passes it to the API. **Empty means no address is forwarded**: every staff member then counts against the admin server's single address for the API's login limit. A malformed value stops the server from starting. |
 
 ## Settings needed on the API
 
 Two API settings depend on these apps:
 
 - **`TRUSTED_PROXIES` must include the admin server's address.** Every staff
-  request reaches the API through the admin's server, which passes the
-  browser's address on in `X-Forwarded-For`. The API only believes that header
-  from addresses listed in `TRUSTED_PROXIES` (comma-separated IPs or CIDRs).
-  - **If it is listed:** rate limits and audit logs apply per staff member.
+  request reaches the API through the admin's server, which passes the staff
+  member's address on in `X-Forwarded-For` and `X-Real-IP`, worked out the same
+  way as the store does: only from the admin's `TRUSTED_FRONT_PROXIES`, and
+  never what the browser sent (see [The production chain](#the-production-chain)).
+  The API only believes that header from addresses listed in `TRUSTED_PROXIES`
+  (comma-separated IPs or CIDRs).
+  - **If it is listed:** rate limits, the login limit and audit logs apply per
+    staff member.
   - **If it is not listed:** every staff member shares one rate-limit bucket
     and one audit address, the admin server's own.
 
@@ -109,6 +114,14 @@ CI builds both images and checks their health on every pull request (the
 
 ## The production chain
 
+The same chain carries staff to the API through the Web Admin, with the
+admin's server in place of the store's (it forwards **every** call: sign-in,
+token refresh, pages and the browser's proxied requests), and its own
+`TRUSTED_FRONT_PROXIES`. Both servers use one helper,
+`web/src/lib/forwarding.ts`. Before this was shared, the admin passed the
+browser's `X-Forwarded-For` through unchanged, so anyone could pick the address
+the API's login limit counted.
+
 A shopper's request reaches the API by two routes:
 
 ```
@@ -139,6 +152,7 @@ What each part must be set to:
 | Front proxy / CDN | Append the client address (`X-Forwarded-For`), never drop it. |
 | Network | **The store server must be reachable only through the front proxy.** Once a request carries `X-Forwarded-For`, the store can't see who connected to it, so it trusts the chain's last hop to be its proxy. |
 | Store server | `TRUSTED_FRONT_PROXIES` = the front proxy's address (and the CDN's ranges if there is one). |
+| Admin server | `TRUSTED_FRONT_PROXIES` = the admin's front proxy's address. It, too, must be reachable only through that proxy. |
 | API | `TRUSTED_PROXIES` = the store server's and the admin server's addresses (and the API's own proxy, if any). |
 
 Example: nginx in front of the store, on the same private network:
