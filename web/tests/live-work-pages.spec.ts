@@ -165,11 +165,16 @@ test.describe("work pages on the live store", () => {
     await page.getByTestId("delivery-action-out_for_delivery").click();
     await page.getByTestId("delivery-confirm-yes").click();
     await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "out_for_delivery");
-    // Delivered asks what was collected (12.0): the full amount here.
+    // Delivered asks what was collected (12.0), starting from the amount due
+    // the API sends with the delivery (13.1): confirmed as it stands, in full.
     const agentToken = await tokenFor(request, AGENT_E164);
     const cashBefore = await agentCash(request, agentToken);
+    await expect(page.getByTestId("delivery-amount-due")).toContainText(
+      new Intl.NumberFormat("en-US").format(order.total),
+    );
     await page.getByTestId("delivery-action-delivered").click();
-    await page.getByTestId("delivery-collected-amount").fill(String(order.total));
+    await expect(page.getByTestId("delivery-collected-amount")).toHaveValue(String(order.total));
+    await expect(page.getByTestId("delivery-pending-shortfall")).toHaveCount(0);
     await page.getByTestId("delivery-confirm-yes").click();
     await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "delivered");
     await expect(page.getByTestId("delivery-collection")).toHaveAttribute("data-status", "confirmed_full");
@@ -228,7 +233,7 @@ test.describe("work pages on the live store", () => {
     expect([401, 403]).toContain(other.status());
   });
 
-  test("an agent delivers short: the shortfall is shown and only the cash collected is in their custody", async ({ page, request }) => {
+  test("an agent delivers short: the shortfall is shown and only the cash collected is in their custody", async ({ browser, page, request }) => {
     const order = await placeOrder(request);
     await advanceOrder(request, order.id, ["confirmed", "preparing", "ready_for_dispatch"]);
     await assignToAgent(request, order.delivery_id);
@@ -241,6 +246,11 @@ test.describe("work pages on the live store", () => {
     await signIn(page, `/deliveries/${order.delivery_id}`, AGENT_LOCAL);
     await page.getByTestId("delivery-action-delivered").click();
     await page.getByTestId("delivery-collected-amount").fill(String(collected));
+    // The shortfall is shown before anything is confirmed.
+    await expect(page.getByTestId("delivery-pending-shortfall")).toContainText(
+      new Intl.NumberFormat("en-US").format(order.total - collected),
+    );
+    expect(await agentCash(request, agentToken)).toBe(cashBefore);
     await page.getByTestId("delivery-confirm-yes").click();
     const result = page.getByTestId("delivery-collection");
     await expect(result).toHaveAttribute("data-status", "confirmed_short");
@@ -254,6 +264,20 @@ test.describe("work pages on the live store", () => {
     await expect(page.getByTestId("my-custody-cash")).toContainText(
       new Intl.NumberFormat("en-US").format(cashBefore + collected),
     );
+
+    // The customer's own order says what they paid and what is still to pay,
+    // read with the order (13.1), so it is there after a reload.
+    const customer = await newSession(browser, CUSTOMER_LOCAL, `/account/orders/${order.id}`);
+    await customer.reload();
+    const paid = customer.getByTestId("order-collection");
+    await expect(paid).toHaveAttribute("data-result", "short");
+    await expect(customer.getByTestId("order-collection-paid")).toContainText(
+      new Intl.NumberFormat("en-US").format(collected),
+    );
+    await expect(customer.getByTestId("order-collection-remaining")).toContainText(
+      new Intl.NumberFormat("en-US").format(order.total - collected),
+    );
+    await customer.context().close();
   });
 
   test("a stale delivery action is refused and explained", async ({ page, request }) => {

@@ -133,3 +133,23 @@ test("an order past pending offers a cancellation request and shows its status",
   // A request is already waiting: nothing to ask again.
   await expect(page.getByTestId("order-request-cancel")).toHaveCount(0);
 });
+
+test("the order says what was paid on delivery, and still does after a reload", async ({ page }) => {
+  await signIn(page);
+  // SB-1035 was paid 5 short (the fixture), SB-1028 in full, SB-1039 is on its way.
+  await page.goto("/account/orders/sb-1035");
+  const collection = page.getByTestId("order-collection");
+  await expect(collection).toHaveAttribute("data-result", "short");
+  await expect(page.getByTestId("order-collection-remaining")).toContainText("5");
+  // The shopper's words only: nothing about couriers, custody or shortfalls.
+  await expect(collection).not.toContainText(/مندوب|عهدة|عجز|courier|agent|custody|shortfall/i);
+  await page.reload();
+  await expect(page.getByTestId("order-collection")).toHaveAttribute("data-result", "short");
+
+  await page.goto("/account/orders/sb-1028");
+  await expect(page.getByTestId("order-collection")).toHaveAttribute("data-result", "full");
+  await expect(page.getByTestId("order-collection-remaining")).toHaveCount(0);
+
+  await page.goto("/account/orders/sb-1039");
+  await expect(page.getByTestId("order-collection")).toHaveCount(0);
+});

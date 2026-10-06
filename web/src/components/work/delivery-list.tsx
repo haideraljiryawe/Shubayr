@@ -132,7 +132,10 @@ export function DeliveryList() {
                           locale,
                         )}
                       </span>
-                      <span className="text-sm font-semibold text-text">
+                      <span
+                        className="text-sm font-semibold text-text"
+                        data-testid="delivery-row-amount-due"
+                      >
                         {t("collection.due")}:{" "}
                         {formatPrice(delivery.amount_due, "IQD", locale)}
                       </span>

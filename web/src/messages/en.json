@@ -486,6 +486,13 @@
         "failed": "We couldn't deliver"
       },
       "note": "Courier's note: {note}"
+    },
+    "collection": {
+      "full": "Paid in full on delivery",
+      "short": "Part of the amount was paid on delivery",
+      "unconfirmed": "The store is confirming your payment",
+      "paid": "Paid:",
+      "remaining": "Still to pay:"
     }
   },
   "addresses": {

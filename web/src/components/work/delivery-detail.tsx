@@ -367,7 +367,9 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
                   setNotice(null);
                   setFailureReason("");
                   if (action === "delivered") {
-                    setAmountText(String(delivery.amount_due));
+                    // Start from the amount due, but keep what the agent typed
+                    // before a failed save: retrying it must replay, not differ.
+                    setAmountText((typed) => typed || String(delivery.amount_due));
                   }
                   setConfirming(action);
                 }}
