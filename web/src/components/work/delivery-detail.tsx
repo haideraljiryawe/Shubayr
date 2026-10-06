@@ -84,13 +84,20 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
       <div className="flex flex-col gap-4">
         {back}
         {notice === "conflict" ? <ConflictNotice text={t("conflict")} /> : null}
-        <Card padding="lg" className="text-center" data-testid="delivery-not-found">
+        <Card
+          padding="lg"
+          className="text-center"
+          data-testid="delivery-not-found"
+        >
           <Truck className="mx-auto size-10 text-text-muted" aria-hidden />
           <h2 className="mt-3 text-lg font-bold text-text">{t("notFound")}</h2>
           <p className="mt-2 text-sm text-text-muted">{t("notFoundBody")}</p>
           <Link
             href="/deliveries"
-            className={buttonClasses({ variant: "secondary", className: "mt-5" })}
+            className={buttonClasses({
+              variant: "secondary",
+              className: "mt-5",
+            })}
           >
             {t("backToList")}
           </Link>
@@ -99,14 +106,14 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
     );
   }
 
-  const delivery =
-    updated && updated.id === data.id ? updated : data;
+  const delivery = updated && updated.id === data.id ? updated : data;
   const actions = delivery.status ? DELIVERY_TRANSITIONS[delivery.status] : [];
 
   async function perform(action: DeliveryAction) {
     let collection;
     if (action === "delivered") {
-      const amount = choice === "confirmed" ? parseCollectedAmount(amountText) : null;
+      const amount =
+        choice === "confirmed" ? parseCollectedAmount(amountText) : null;
       if (choice === "confirmed" && amount === null) {
         setAmountError(t("collection.amountInvalid"));
         return;
@@ -130,7 +137,11 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
       setAmountText("");
       showToast(t("done"));
     } catch (cause) {
-      if (action === "delivered" && cause instanceof ApiError && cause.status === 422) {
+      if (
+        action === "delivered" &&
+        cause instanceof ApiError &&
+        cause.status === 422
+      ) {
         // The amount was refused (above what is due, for one): say why, keep the step.
         setAmountError(cause.message);
         return;
@@ -158,12 +169,18 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
 
       {notice === "conflict" ? <ConflictNotice text={t("conflict")} /> : null}
       {notice === "failed" ? (
-        <p className="rounded-md bg-error/10 p-3 text-sm text-error-dark" role="alert">
+        <p
+          className="rounded-md bg-error/10 p-3 text-sm text-error-dark"
+          role="alert"
+        >
           {t("failedSave")}
         </p>
       ) : null}
 
-      <Card padding="md" className="flex flex-wrap items-center justify-between gap-3">
+      <Card
+        padding="md"
+        className="flex flex-wrap items-center justify-between gap-3"
+      >
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-bold text-text">
             {t("delivery", { ref: shortRef(delivery.id ?? "") })}
@@ -176,7 +193,16 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
       </Card>
 
       <Card padding="md">
-        <dl className="grid gap-3 text-sm sm:grid-cols-3">
+        <dl className="grid gap-3 text-sm sm:grid-cols-4">
+          <div>
+            <dt className="text-text-muted">{t("collection.due")}</dt>
+            <dd
+              className="font-semibold text-text"
+              data-testid="delivery-amount-due"
+            >
+              {formatPrice(delivery.amount_due, "IQD", locale)}
+            </dd>
+          </div>
           <div>
             <dt className="text-text-muted">{t("fee")}</dt>
             <dd className="font-semibold text-text">
@@ -214,7 +240,9 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
           data-state={delivery.status === "failed" ? "failed" : "retrying"}
         >
           <h3 className="font-bold text-text">
-            {delivery.status === "failed" ? t("failure.title") : t("failure.retryTitle")}
+            {delivery.status === "failed"
+              ? t("failure.title")
+              : t("failure.retryTitle")}
           </h3>
           {delivery.failure_reason ? (
             <p className="text-text" data-testid="delivery-failure-text">
@@ -237,10 +265,17 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
         </Card>
       ) : null}
 
-      <Card padding="md" className="flex flex-col gap-3" data-testid="delivery-actions">
+      <Card
+        padding="md"
+        className="flex flex-col gap-3"
+        data-testid="delivery-actions"
+      >
         <h3 className="font-bold text-text">{t("actions")}</h3>
         {actions.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="delivery-no-actions">
+          <p
+            className="text-sm text-text-muted"
+            data-testid="delivery-no-actions"
+          >
             {t("noActions")}
           </p>
         ) : confirming ? (
@@ -269,6 +304,7 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
             {confirming === "delivered" ? (
               <CollectionStep
                 currency={delivery.currency ?? currency}
+                amountDue={delivery.amount_due}
                 choice={choice}
                 onChoice={(next) => {
                   setChoice(next);
@@ -289,12 +325,16 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
                 disabled={
                   saving ||
                   (confirming === "failed" && !failureReason.trim()) ||
-                  (confirming === "delivered" && choice === "confirmed" && !amountText.trim())
+                  (confirming === "delivered" &&
+                    choice === "confirmed" &&
+                    !amountText.trim())
                 }
                 onClick={() => void perform(confirming)}
                 data-testid="delivery-confirm-yes"
                 startIcon={
-                  saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null
+                  saving ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : null
                 }
               >
                 {saving ? t("saving") : t("confirmYes")}
@@ -318,10 +358,17 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
             {actions.map((action) => (
               <Button
                 key={action}
-                variant={action === "failed" || action === "returned" ? "secondary" : "primary"}
+                variant={
+                  action === "failed" || action === "returned"
+                    ? "secondary"
+                    : "primary"
+                }
                 onClick={() => {
                   setNotice(null);
                   setFailureReason("");
+                  if (action === "delivered") {
+                    setAmountText(String(delivery.amount_due));
+                  }
                   setConfirming(action);
                 }}
                 data-testid={`delivery-action-${action}`}
@@ -339,14 +386,10 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
   );
 }
 
-/**
- * What was collected. The amount due is not sent to the agent before the
- * delivery (the API has no field for it yet), so the agent types what the
- * customer paid; the server checks it against the order and answers with the
- * result, shown on the page once delivered.
- */
+/** What was collected, compared with the server-provided amount due. */
 function CollectionStep({
   currency,
+  amountDue,
   choice,
   onChoice,
   amount,
@@ -355,6 +398,7 @@ function CollectionStep({
   disabled,
 }: {
   currency: string;
+  amountDue: number;
   choice: CollectionChoice;
   onChoice: (choice: CollectionChoice) => void;
   amount: string;
@@ -363,6 +407,12 @@ function CollectionStep({
   disabled: boolean;
 }) {
   const t = useTranslations("deliveries.collection");
+  const locale = useLocale() as Locale;
+  const parsedAmount = parseCollectedAmount(amount);
+  const shortfall =
+    parsedAmount === null
+      ? null
+      : Math.max(0, amountDue - Number(parsedAmount));
   return (
     <fieldset
       className="flex flex-col gap-3 text-sm"
@@ -370,6 +420,26 @@ function CollectionStep({
       disabled={disabled}
     >
       <legend className="mb-1 font-semibold text-text">{t("title")}</legend>
+      <dl className="grid grid-cols-2 gap-2 rounded-md bg-surface p-3">
+        <div>
+          <dt className="text-xs text-text-muted">{t("due")}</dt>
+          <dd className="font-semibold text-text" dir="ltr">
+            {formatPrice(amountDue, "IQD", locale)}
+          </dd>
+        </div>
+        {shortfall !== null && shortfall > 0 ? (
+          <div>
+            <dt className="text-xs text-text-muted">{t("shortfall")}</dt>
+            <dd
+              className="font-semibold text-warning-dark"
+              dir="ltr"
+              data-testid="delivery-pending-shortfall"
+            >
+              {formatPrice(shortfall, "IQD", locale)}
+            </dd>
+          </div>
+        ) : null}
+      </dl>
       <label className="flex items-start gap-2">
         <input
           type="radio"
@@ -410,7 +480,9 @@ function CollectionStep({
         />
         <span className="flex flex-col">
           <span className="text-text">{t("notConfirmed")}</span>
-          <span className="text-xs text-text-muted">{t("notConfirmedHint")}</span>
+          <span className="text-xs text-text-muted">
+            {t("notConfirmedHint")}
+          </span>
         </span>
       </label>
       <p className="text-xs text-text-muted">{t("checkedNote")}</p>
@@ -446,11 +518,17 @@ function CollectionResult({ delivery }: { delivery: Delivery }) {
       data-testid="delivery-collection"
       data-status={collection.status}
     >
-      <h3 className="font-bold text-text">{t(`result.${collection.status}`)}</h3>
+      <h3 className="font-bold text-text">
+        {t(`result.${collection.status}`)}
+      </h3>
       <dl className="grid gap-2 sm:grid-cols-3">
         <div>
           <dt className="text-text-muted">{t("due")}</dt>
-          <dd className="font-semibold text-text" dir="ltr" data-testid="delivery-collection-due">
+          <dd
+            className="font-semibold text-text"
+            dir="ltr"
+            data-testid="delivery-collection-due"
+          >
             {money(collection.due_amount)}
           </dd>
         </div>

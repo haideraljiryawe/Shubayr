@@ -10,6 +10,8 @@ import {
   IsNotEmpty,
   IsDecimal,
   IsISO8601,
+  IsDateString,
+  IsNumber,
   MinLength,
   ValidateIf,
 } from 'class-validator';
@@ -118,6 +120,73 @@ export class ConfirmDeliveryCollectionDto {
 }
 
 export class UnconfirmedDeliveriesQueryDto {
+  @IsOptional()
+  @IsUUID()
+  party_id?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  date_from?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  date_to?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  amount_min?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  amount_max?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  per_page = 20;
+}
+
+export class PartyCollectionsQueryDto {
+  @IsOptional()
+  @IsIn(['confirmed_full', 'confirmed_short', 'unconfirmed'])
+  status?: 'confirmed_full' | 'confirmed_short' | 'unconfirmed';
+
+  @IsOptional()
+  @IsUUID()
+  order_id?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  date_from?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  date_to?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  amount_min?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  amount_max?: number;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

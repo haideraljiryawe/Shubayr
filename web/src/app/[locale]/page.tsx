@@ -11,7 +11,6 @@ import {
 } from "@/components/home/skeletons";
 import { SectionEmpty, SectionError } from "@/components/home/states";
 import { SectionHeader } from "@/components/ui/section-header";
-import { api } from "@/lib/api";
 import type { Locale } from "@/i18n/routing";
 import { alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
 import { getBannersOnce, getCategoriesOnce, getSettingsOnce, listDealsOnce, listProductsOnce } from "@/lib/server-data";
@@ -25,7 +24,10 @@ export async function generateMetadata({
   const { locale } = await params;
   const settings = await getSettingsOnce().catch(() => null);
   const siteName = await storeNameFor(locale, settings?.store_name);
-  const description = (await getTranslations({ locale, namespace: "seo" }))("homeDescription", { store: siteName });
+  const description = (await getTranslations({ locale, namespace: "seo" }))(
+    "homeDescription",
+    { store: siteName },
+  );
   return {
     alternates: alternatesFor(locale, "/"),
     openGraph: openGraphFor({
@@ -34,7 +36,9 @@ export async function generateMetadata({
       title: siteName,
       description,
       path: "/",
-      images: settings?.logo_url ? [{ url: settings.logo_url, alt: siteName }] : undefined,
+      images: settings?.logo_url
+        ? [{ url: settings.logo_url, alt: siteName }]
+        : undefined,
     }),
   };
 }

@@ -969,7 +969,7 @@ export interface paths {
         };
         /**
          * Get the authenticated caller's repriced cart
-         * @description Guest carts remain client-side. After login, clients replay guest lines through POST /cart/items; identical product/variant lines are merged by incrementing quantity. Every response reprices from current server-time effective_price. Subtotal is the sum of effective-price line totals; discount is the coupon amount only, and delivery_fee is zero until a delivery-fee policy is configured at checkout.
+         * @description Guest carts remain client-side. After login, clients atomically attach them through POST /cart/merge. Every response reprices from current server-time effective_price. Subtotal is the sum of effective-price line totals; discount is the coupon amount only, and delivery_fee is zero until a delivery-fee policy is configured at checkout.
          */
         get: {
             parameters: {
@@ -1009,11 +1009,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add an item to the cart */
+        /**
+         * Add an item to the cart
+         * @description An optional Idempotency-Key makes retries repeat-safe. Reusing the key with the same body returns the cart without adding again; a different body returns 409.
+         */
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "Idempotency-Key"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -1039,6 +1044,63 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cart/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Atomically merge a guest basket into the authenticated cart
+         * @description The entire guest basket is merged under the cart lock. Replaying the same key and body is a no-op; a simultaneous add is serialized and retained exactly once.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            product_id: string;
+                            /** Format: uuid */
+                            variant_id?: string | null;
+                            quantity: number;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Merged cart */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Cart"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -3732,6 +3794,15 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    party_id?: string;
+                    /** @description Baghdad business date */
+                    date_from?: string;
+                    /** @description Baghdad business date */
+                    date_to?: string;
+                    /** @description Minimum amount due */
+                    amount_min?: number;
+                    /** @description Maximum amount due */
+                    amount_max?: number;
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -4783,6 +4854,61 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["DeliveryPartyHeldOrders"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/delivery-parties/{id}/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List delivered-order collections for one delivery party
+         * @description Date filters use complete Asia/Baghdad business days; amount filters apply to amount due.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    status?: "confirmed_full" | "confirmed_short" | "unconfirmed";
+                    order_id?: string;
+                    date_from?: string;
+                    date_to?: string;
+                    /** @description Minimum amount due */
+                    amount_min?: number;
+                    /** @description Maximum amount due */
+                    amount_max?: number;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated collection history for the party */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryCollectionPage"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -9811,6 +9937,7 @@ export interface components {
             price_change_info?: null | components["schemas"]["OrderPriceChangeInfo"];
             inventory_attention_required?: boolean;
             attention_details?: null | components["schemas"]["OrderAttentionDetails"];
+            collection?: components["schemas"]["OrderCollectionResult"] | null;
             timeline?: {
                 status?: components["schemas"]["OrderStatus"];
                 note?: string | null;
@@ -11038,12 +11165,25 @@ export interface components {
         DeliveryCollectionPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["DeliveryCollection"][];
         };
+        /** @description Customer-safe collection result for the caller's own order; it never contains a delivery party, courier, user id, phone, or journal reference. */
+        OrderCollectionResult: {
+            /** @enum {string} */
+            result: "full" | "short" | "unconfirmed";
+            amount_collected: number | null;
+            shortfall: number | null;
+            /** @enum {string} */
+            confirmation_state: "confirmed" | "unconfirmed";
+            /** @constant */
+            currency: "IQD";
+        };
         Delivery: {
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
             order_id?: string;
             order_version: number;
+            /** @description Goods plus delivery fee payable in IQD */
+            amount_due: number;
             /** Format: uuid */
             agent_id?: string | null;
             /** Format: uuid */

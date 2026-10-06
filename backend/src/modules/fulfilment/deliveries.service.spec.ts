@@ -16,8 +16,9 @@ type DeliveryRow = {
   agent_id: string;
   status: DeliveryStatus;
   dispatched_at: Date | null;
-  order?: { version: number };
+  order?: { version: number; total: number };
   order_version?: number;
+  amount_due?: number;
   party?: { user_id: string };
 };
 
@@ -30,7 +31,7 @@ describe('DeliveriesService', () => {
       agent_id: currentAgent,
       status: DeliveryStatus.Assigned,
       dispatched_at: new Date(Date.UTC(2026, 0, 1, 0, index)),
-      order: { version: 1 },
+      order: { version: 1, total: 105000 },
       party: { user_id: currentAgent },
     })),
     ...Array.from({ length: 8 }, (_, index) => ({
@@ -38,7 +39,7 @@ describe('DeliveriesService', () => {
       agent_id: currentAgent,
       status: DeliveryStatus.Delivered,
       dispatched_at: new Date(Date.UTC(2026, 0, 2, 0, index)),
-      order: { version: 2 },
+      order: { version: 2, total: 105000 },
       party: { user_id: currentAgent },
     })),
     ...Array.from({ length: 7 }, (_, index) => ({
@@ -46,7 +47,7 @@ describe('DeliveriesService', () => {
       agent_id: otherAgent,
       status: DeliveryStatus.Assigned,
       dispatched_at: new Date(Date.UTC(2026, 0, 3, 0, index)),
-      order: { version: 1 },
+      order: { version: 1, total: 105000 },
       party: { user_id: otherAgent },
     })),
   ];
@@ -114,6 +115,9 @@ describe('DeliveriesService', () => {
       ),
     ).toBe(true);
     expect(deliveries.every(({ order_version }) => order_version === 1)).toBe(
+      true,
+    );
+    expect(deliveries.every(({ amount_due }) => amount_due === 105000)).toBe(
       true,
     );
     expect(findMany).toHaveBeenCalledWith(

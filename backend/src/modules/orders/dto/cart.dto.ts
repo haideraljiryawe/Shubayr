@@ -1,5 +1,7 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsNumber,
   IsNotEmpty,
   IsOptional,
@@ -8,6 +10,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { MAX_CART_ITEM_QUANTITY } from '../cart-pricing';
 
@@ -23,6 +26,14 @@ export class AddCartItemDto {
   @Min(0.001)
   @Max(MAX_CART_ITEM_QUANTITY)
   quantity!: number;
+}
+
+export class MergeCartDto {
+  @ValidateNested({ each: true })
+  @Type(() => AddCartItemDto)
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  items!: AddCartItemDto[];
 }
 
 export class UpdateCartItemDto {

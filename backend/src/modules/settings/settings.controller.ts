@@ -5,12 +5,17 @@ import { Public } from '../../common/decorators/public.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { AdminSettingsUpdateDto } from './dto/admin-settings.dto';
 import { SettingsService } from './settings.service';
+import {
+  RateLimitRisk,
+  RateLimitTier,
+} from '../../common/rate-limit/rate-limit-tier';
 
 @Controller('settings')
 export class SettingsController {
   constructor(private readonly settings: SettingsService) {}
 
   @Public()
+  @RateLimitTier(RateLimitRisk.Catalog)
   @Get()
   getPublicSettings(): Promise<Record<string, string>> {
     return this.settings.getPublicSettings();

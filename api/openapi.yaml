@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 13.0.0
+  version: 13.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -510,9 +510,8 @@ paths:
       tags: [Cart]
       summary: Get the authenticated caller's repriced cart
       description: >
-        Guest carts remain client-side. After login, clients replay guest lines
-        through POST /cart/items; identical product/variant lines are merged by
-        incrementing quantity. Every response reprices from current server-time
+        Guest carts remain client-side. After login, clients atomically attach
+        them through POST /cart/merge. Every response reprices from current server-time
         effective_price. Subtotal is the sum of effective-price line totals;
         discount is the coupon amount only, and delivery_fee is zero until a
         delivery-fee policy is configured at checkout.
@@ -527,6 +526,13 @@ paths:
     post:
       tags: [Cart]
       summary: Add an item to the cart
+      x-error-codes: [IDEMPOTENCY_KEY_REUSED]
+      description: An optional Idempotency-Key makes retries repeat-safe. Reusing the key with the same body returns the cart without adding again; a different body returns 409.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string, minLength: 8, maxLength: 128 }
       requestBody:
         required: true
         content:
@@ -545,6 +551,48 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /cart/merge:
+    post:
+      tags: [Cart]
+      summary: Atomically merge a guest basket into the authenticated cart
+      x-error-codes: [IDEMPOTENCY_KEY_REUSED]
+      description: The entire guest basket is merged under the cart lock. Replaying the same key and body is a no-op; a simultaneous add is serialized and retained exactly once.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [product_id, quantity]
+                    properties:
+                      product_id: { type: string, format: uuid }
+                      variant_id: { type: [string, "null"], format: uuid }
+                      quantity: { type: number, multipleOf: 0.001, minimum: 0.001, maximum: 99 }
+      responses:
+        "200":
+          description: Merged cart
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Cart" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /cart/coupon:
     delete:
@@ -1783,6 +1831,11 @@ paths:
       summary: List delivered orders whose collection awaits confirmation
       x-permission: deliveries.manage
       parameters:
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, description: Baghdad business date, schema: { type: string, format: date } }
+        - { name: date_to, in: query, description: Baghdad business date, schema: { type: string, format: date } }
+        - { name: amount_min, in: query, description: Minimum amount due, schema: { type: number, minimum: 0 } }
+        - { name: amount_max, in: query, description: Maximum amount due, schema: { type: number, minimum: 0 } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -2240,6 +2293,31 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DeliveryPartyHeldOrders" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}/collections:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List delivered-order collections for one delivery party
+      description: Date filters use complete Asia/Baghdad business days; amount filters apply to amount due.
+      x-permission: deliveries.manage
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: status, in: query, schema: { type: string, enum: [confirmed_full, confirmed_short, unconfirmed] } }
+        - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: amount_min, in: query, description: Minimum amount due, schema: { type: number, minimum: 0 } }
+        - { name: amount_max, in: query, description: Maximum amount due, schema: { type: number, minimum: 0 } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated collection history for the party
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryCollectionPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
@@ -4840,6 +4918,10 @@ components:
           oneOf:
             - { type: "null" }
             - { $ref: "#/components/schemas/OrderAttentionDetails" }
+        collection:
+          oneOf:
+            - { $ref: "#/components/schemas/OrderCollectionResult" }
+            - { type: "null" }
         timeline:
           type: array
           items:
@@ -6287,13 +6369,26 @@ components:
               type: array
               items: { $ref: "#/components/schemas/DeliveryCollection" }
 
+    OrderCollectionResult:
+      type: object
+      additionalProperties: false
+      required: [result, amount_collected, shortfall, confirmation_state, currency]
+      description: Customer-safe collection result for the caller's own order; it never contains a delivery party, courier, user id, phone, or journal reference.
+      properties:
+        result: { type: string, enum: [full, short, unconfirmed] }
+        amount_collected: { type: [number, "null"], minimum: 0 }
+        shortfall: { type: [number, "null"], minimum: 0 }
+        confirmation_state: { type: string, enum: [confirmed, unconfirmed] }
+        currency: { type: string, const: IQD }
+
     Delivery:
       type: object
-      required: [order_version]
+      required: [order_version, amount_due]
       properties:
         id: { type: string, format: uuid }
         order_id: { type: string, format: uuid }
         order_version: { type: integer, minimum: 1 }
+        amount_due: { type: number, minimum: 0, description: Goods plus delivery fee payable in IQD, available before confirmation. }
         agent_id: { type: [string, "null"], format: uuid }
         party_id: { type: [string, "null"], format: uuid }
         party:
