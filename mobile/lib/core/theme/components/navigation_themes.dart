@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../tokens/app_radii.dart';
 import '../tokens/app_motion.dart';
-import '../tokens/app_spacing.dart';
 
 abstract final class NavigationThemes {
   // ---------------------------------------------------------------------------
@@ -15,21 +14,11 @@ abstract final class NavigationThemes {
 
   /// Whole surface and touch-target height; system insets stay outside the bar.
   /// Each destination still has a touch target taller than 48px.
-  static const double bottomBarHeight = 66;
+  static const double bottomBarHeight = 58;
 
-  /// Reserve real breathing room at larger accessibility text sizes too.
-  static double bottomBarHeightFor(MediaQueryData media) => math
-      .max(
-        bottomBarHeight,
-        bottomBarIconSize * bottomBarSelectedScale +
-            bottomBarLabelGap +
-            (media.textScaler.scale(bottomBarLabelSize) * bottomBarLabelHeight)
-                .ceilToDouble() +
-            2 * (bottomBarCapsuleInset + bottomBarSelectedVerticalPadding),
-      )
-      .ceilToDouble();
-
-  static const double bottomBarBottomGap = 4;
+  // Icon-only content does not grow with text scaling. Tooltips and semantics
+  // retain the destination names without changing the safe 58px touch height.
+  static const double bottomBarBottomGap = 2;
 
   /// viewPadding retains system UI clearance even when the keyboard consumes
   /// padding. Gesture insets can be larger (Android gesture navigation).
@@ -39,9 +28,9 @@ abstract final class NavigationThemes {
       bottomBarBottomGap;
 
   // Frosted surface, outline and shadow. Lower opacity = more transparent.
-  static const double bottomBarSurfaceOpacity = 0.60;
-  static const double bottomBarBlurSigma = 3;
-  static const double bottomBarBorderOpacity = 0.16;
+  static const double bottomBarSurfaceOpacity = 0.58;
+  static const double bottomBarBlurSigma = 18;
+  static const double bottomBarBorderOpacity = 0.10;
   static const double bottomBarBorderWidth = 0.7;
   static const double bottomBarShadowOpacity = 0.08;
   static const double bottomBarShadowBlur = 20;
@@ -59,11 +48,11 @@ abstract final class NavigationThemes {
     width: bottomBarBorderWidth,
   );
 
-  static const double bottomBarCornerRadius = AppRadii.xl;
+  static const double bottomBarCornerRadius = bottomBarHeight / 2;
   static const BorderRadius bottomBarRadius = BorderRadius.all(
     Radius.circular(bottomBarCornerRadius),
   );
-  static const double bottomBarIconSize = 26;
+  static const double bottomBarIconSize = 28;
   static const double bottomBarLabelSize = 12;
   static const double bottomBarUnselectedOpacity = 0.92;
   static Color bottomBarUnselectedColor(ColorScheme colors) =>
@@ -90,32 +79,19 @@ abstract final class NavigationThemes {
     top: bottomBarLabelGap,
   );
 
-  /// Each capsule fills its equal-width slot minus this concentric inset.
-  /// No fixed width cap: 3, 4 and 5 destinations share the same geometry.
-  static const double bottomBarCapsuleInset = AppSpacing.xs;
-  static const EdgeInsets bottomBarCapsulePadding = EdgeInsets.all(
-    bottomBarCapsuleInset,
-  );
-
-  /// Content clearance is measured INSIDE the capsule, on every destination
-  /// so selection never changes the icon/label position or available width.
-  static const double bottomBarSelectedHorizontalPadding = 8;
-  static const double bottomBarSelectedVerticalPadding = 6;
-  static const EdgeInsets bottomBarContentPadding = EdgeInsets.symmetric(
-    horizontal: bottomBarCapsuleInset + bottomBarSelectedHorizontalPadding,
-    vertical: bottomBarCapsuleInset + bottomBarSelectedVerticalPadding,
-  );
-  // Concentric corners: inner radius = outer radius minus the inset.
+  /// A compact circle centered within the moving equal-width slot. Its size
+  /// depends on the bar height, never on how many destinations are visible.
+  static const double bottomBarCapsuleSize = bottomBarHeight - 12;
   static const BorderRadius bottomBarCapsuleRadius = BorderRadius.all(
-    Radius.circular(bottomBarCornerRadius - bottomBarCapsuleInset),
+    Radius.circular(bottomBarCapsuleSize / 2),
   );
   static const double bottomBarSelectedSurfaceOpacity = 0.20;
   static Color bottomBarSelectedSurfaceColor(AppColors colors) =>
       colors.primary.withValues(alpha: bottomBarSelectedSurfaceOpacity);
-  static const double bottomBarSelectedScale = 1.05;
+  static const double bottomBarSelectedScale = 1.03;
   static const Duration bottomBarSelectionDuration = AppMotion.medium;
   static const Curve bottomBarCurve = Curves.easeInOut;
-  static const double bottomBarPressedScale = 0.97;
+  static const double bottomBarPressedScale = 0.95;
   static const Duration bottomBarPressDuration = Duration(milliseconds: 100);
   static const Curve bottomBarPressCurve = Curves.easeOutCubic;
 

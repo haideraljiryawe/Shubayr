@@ -65,21 +65,14 @@ void main() {
           final categoriesLabel = locale == 'ar' ? 'الأقسام' : 'Categories';
           Finder destinationIcon(String label, IconData icon) =>
               find.descendant(
-                of: find
-                    .ancestor(
-                      of: find.text(label),
-                      matching: find.byType(InkWell),
-                    )
-                    .first,
+                of: find.byTooltip(label),
                 matching: find.byIcon(icon),
               );
+          expect(find.text(homeLabel), findsNothing);
+          expect(find.text(categoriesLabel), findsNothing);
           expect(
-            tester.widget<Text>(find.text(homeLabel)).style!.color,
+            tester.widget<Icon>(destinationIcon(homeLabel, Icons.home)).color,
             colors.primary,
-          );
-          expect(
-            tester.widget<Text>(find.text(categoriesLabel)).style!.color,
-            unselectedColor,
           );
           expect(
             tester
@@ -89,12 +82,8 @@ void main() {
                 .color,
             unselectedColor,
           );
-          await tester.tap(find.text(categoriesLabel));
+          await tester.tap(find.byTooltip(categoriesLabel));
           await tester.pumpAndSettle();
-          expect(
-            tester.widget<Text>(find.text(homeLabel)).style!.color,
-            unselectedColor,
-          );
           expect(
             tester
                 .widget<Icon>(destinationIcon(homeLabel, Icons.home_outlined))
@@ -130,9 +119,9 @@ void main() {
     final context = tester.element(find.byType(HomeScreen));
     expect(Directionality.of(context), TextDirection.rtl);
     expect(Localizations.localeOf(context).languageCode, 'ar');
-    expect(find.text('الرئيسية'), findsOneWidget);
-    expect(find.text('الأقسام'), findsOneWidget);
-    expect(find.text('الحساب'), findsOneWidget);
+    expect(find.byTooltip('الرئيسية'), findsOneWidget);
+    expect(find.byTooltip('الأقسام'), findsOneWidget);
+    expect(find.byTooltip('الحساب'), findsOneWidget);
   });
 
   testWidgets('guest bottom navigation has exactly three destinations', (
@@ -149,11 +138,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Guest bar = Home · Categories · Account (each label once); Cart absent.
-    expect(find.text('الرئيسية'), findsOneWidget);
-    expect(find.text('الأقسام'), findsOneWidget);
-    expect(find.text('الحساب'), findsOneWidget);
-    expect(find.text('السلة'), findsNothing);
+    // Guest bar retains localized tooltips; Cart is absent.
+    expect(find.byTooltip('الرئيسية'), findsOneWidget);
+    expect(find.byTooltip('الأقسام'), findsOneWidget);
+    expect(find.byTooltip('الحساب'), findsOneWidget);
+    expect(find.byTooltip('السلة'), findsNothing);
   });
 
   testWidgets('a guest can reach Categories from the bottom navigation', (
@@ -196,9 +185,9 @@ void main() {
 
     final context = tester.element(find.byType(HomeScreen));
     expect(Directionality.of(context), TextDirection.ltr);
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Categories'), findsOneWidget);
-    expect(find.text('Account'), findsOneWidget);
+    expect(find.byTooltip('Home'), findsOneWidget);
+    expect(find.byTooltip('Categories'), findsOneWidget);
+    expect(find.byTooltip('Account'), findsOneWidget);
   });
 
   testWidgets('paints the bundled green brand on a warm off-white ground', (

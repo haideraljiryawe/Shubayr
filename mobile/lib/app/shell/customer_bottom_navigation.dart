@@ -50,6 +50,7 @@ class CustomerBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final media = MediaQuery.of(context);
+    final reduceMotion = media.disableAnimations || media.accessibleNavigation;
     final gutter = AppLayout.pageHorizontal(context);
     // The app normally consumes horizontal safe areas above the Navigator.
     // Also support unconsumed insets without adding the gutter on top of them.
@@ -99,9 +100,7 @@ class CustomerBottomNavigation extends StatelessWidget {
                     side: NavigationThemes.bottomBarBorder(colors),
                   ),
                   child: SizedBox(
-                    height: NavigationThemes.bottomBarHeightFor(
-                      MediaQuery.of(context),
-                    ),
+                    height: NavigationThemes.bottomBarHeight,
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -116,14 +115,13 @@ class CustomerBottomNavigation extends StatelessWidget {
                                             (destinations.length - 1),
                               0,
                             ),
-                            duration:
-                                NavigationThemes.bottomBarSelectionDuration,
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : NavigationThemes.bottomBarSelectionDuration,
                             curve: NavigationThemes.bottomBarCurve,
                             child: FractionallySizedBox(
                               widthFactor: 1 / destinations.length,
-                              child: Padding(
-                                padding:
-                                    NavigationThemes.bottomBarCapsulePadding,
+                              child: Center(
                                 child: DecoratedBox(
                                   key: const ValueKey('bottom-nav-capsule'),
                                   decoration: BoxDecoration(
@@ -134,7 +132,10 @@ class CustomerBottomNavigation extends StatelessWidget {
                                     borderRadius:
                                         NavigationThemes.bottomBarCapsuleRadius,
                                   ),
-                                  child: const SizedBox.expand(),
+                                  child: const SizedBox.square(
+                                    dimension:
+                                        NavigationThemes.bottomBarCapsuleSize,
+                                  ),
                                 ),
                               ),
                             ),
@@ -199,58 +200,53 @@ class _BottomNavItemState extends State<_BottomNavItem> {
         : NavigationThemes.bottomBarUnselectedColor(
             Theme.of(context).colorScheme,
           );
-    final labelStyle = NavigationThemes.bottomBarLabelStyle(
-      context.text,
-      color: iconColor,
-      selected: selected,
-    );
+    final media = MediaQuery.of(context);
+    final reduceMotion = media.disableAnimations || media.accessibleNavigation;
 
     return Semantics(
+      label: destination.label,
+      value: destination.badge > 0 ? '${destination.badge}' : null,
+      button: true,
       selected: selected,
-      child: InkWell(
-        onTap: widget.onTap,
-        onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
-        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-        splashFactory: NoSplash.splashFactory,
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        child: AnimatedScale(
-          scale: _pressed ? NavigationThemes.bottomBarPressedScale : 1,
-          duration: NavigationThemes.bottomBarPressDuration,
-          curve: NavigationThemes.bottomBarPressCurve,
-          child: Padding(
-            padding: NavigationThemes.bottomBarContentPadding,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _badged(
-                  context,
-                  AnimatedScale(
-                    scale: selected
-                        ? NavigationThemes.bottomBarSelectedScale
-                        : 1,
-                    duration: NavigationThemes.bottomBarSelectionDuration,
-                    curve: NavigationThemes.bottomBarCurve,
-                    child: Icon(
-                      selected ? destination.selectedIcon : destination.icon,
-                      color: iconColor,
-                      size: NavigationThemes.bottomBarIconSize,
-                    ),
-                  ),
-                  destination.badge,
-                ),
-                Padding(
-                  padding: NavigationThemes.bottomBarLabelPadding,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      destination.label,
-                      maxLines: 1,
-                      style: labelStyle,
-                    ),
+      onTap: widget.onTap,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: destination.label,
+        excludeFromSemantics: true,
+        child: InkWell(
+          onTap: widget.onTap,
+          onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
+          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+          splashFactory: NoSplash.splashFactory,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          child: AnimatedScale(
+            scale: _pressed && !reduceMotion
+                ? NavigationThemes.bottomBarPressedScale
+                : 1,
+            duration: reduceMotion
+                ? Duration.zero
+                : NavigationThemes.bottomBarPressDuration,
+            curve: NavigationThemes.bottomBarPressCurve,
+            child: Center(
+              child: _badged(
+                context,
+                AnimatedScale(
+                  scale: selected && !reduceMotion
+                      ? NavigationThemes.bottomBarSelectedScale
+                      : 1,
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : NavigationThemes.bottomBarSelectionDuration,
+                  curve: NavigationThemes.bottomBarCurve,
+                  child: Icon(
+                    selected ? destination.selectedIcon : destination.icon,
+                    color: iconColor,
+                    size: NavigationThemes.bottomBarIconSize,
                   ),
                 ),
-              ],
+                destination.badge,
+              ),
             ),
           ),
         ),

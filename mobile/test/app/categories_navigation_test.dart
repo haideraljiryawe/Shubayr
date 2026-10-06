@@ -59,14 +59,16 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.text(locale == 'ar' ? 'الأقسام' : 'Categories'));
+        await tester.tap(
+          find.byTooltip(locale == 'ar' ? 'الأقسام' : 'Categories'),
+        );
         await tester.pumpAndSettle();
         expect(
           find.text(locale == 'ar' ? 'الأقسام الرئيسية' : 'Main Categories'),
           findsOneWidget,
         );
         expect(
-          find.text(locale == 'ar' ? 'الأقسام' : 'Categories'),
+          find.byTooltip(locale == 'ar' ? 'الأقسام' : 'Categories'),
           findsOneWidget,
         );
         await tester.tap(find.byKey(const ValueKey('cat-card-parent')));
@@ -78,7 +80,7 @@ void main() {
         );
         expect(find.text(locale == 'ar' ? 'الفرعي' : 'Child'), findsOneWidget);
         expect(
-          find.text(locale == 'ar' ? 'الحساب' : 'Account'),
+          find.byTooltip(locale == 'ar' ? 'الحساب' : 'Account'),
           findsOneWidget,
         );
         await tester.tap(find.byType(BackButton));
@@ -96,7 +98,7 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.byType(NavigationRail), findsNothing);
           expect(
-            find.text(locale == 'ar' ? 'الحساب' : 'Account'),
+            find.byTooltip(locale == 'ar' ? 'الحساب' : 'Account'),
             findsOneWidget,
           );
           expect(find.byType(CategoriesScreen), findsOneWidget);

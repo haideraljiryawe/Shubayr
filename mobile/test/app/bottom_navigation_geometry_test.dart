@@ -107,14 +107,27 @@ void main() {
                     matching: find.byType(InkWell),
                   );
                   expect(tabs, findsNWidgets(count));
-                  expect(surface.bottom, 844 - inset - 4);
+                  expect(surface.bottom, 844 - inset - 2);
                   final gutter = width < 600 ? 8.0 : 16.0;
                   expect(
                     surface.width,
                     closeTo((width - 2 * gutter).clamp(0, 760), .01),
                   );
                   expect(surface.center.dx, closeTo(width / 2, .01));
-                  for (final index in {0, count ~/ 2, count - 1}) {
+                  expect(surface.height, 58);
+                  final material = tester.widget<Material>(
+                    find.byKey(const ValueKey('bottom-nav-surface')),
+                  );
+                  final outer = (material.shape! as RoundedRectangleBorder)
+                      .borderRadius
+                      .resolve(TextDirection.ltr)
+                      .toRRect(surface);
+                  expect(outer.tlRadiusX, surface.height / 2);
+                  expect(
+                    find.descendant(of: tabs, matching: find.byType(Text)),
+                    findsNothing,
+                  );
+                  for (var index = 0; index < count; index++) {
                     await tester.tap(tabs.at(index));
                     await tester.pumpAndSettle();
                     final slot = tester.getRect(tabs.at(index));
@@ -123,18 +136,20 @@ void main() {
                     );
                     final capsule = tester.getRect(capsuleFinder);
                     expect(slot.width, closeTo(surface.width / count, .01));
-                    expect(capsule.left - slot.left, closeTo(4, .01));
-                    expect(slot.right - capsule.right, closeTo(4, .01));
-                    expect(capsule.top - slot.top, closeTo(4, .01));
-                    expect(slot.bottom - capsule.bottom, closeTo(4, .01));
+                    expect(slot.width, greaterThanOrEqualTo(48));
+                    expect(slot.height, greaterThanOrEqualTo(48));
+                    expect(capsule.width, closeTo(46, .01));
+                    expect(capsule.height, 46);
+                    expect(capsule.center.dx, closeTo(slot.center.dx, .01));
+                    expect(capsule.center.dy, closeTo(slot.center.dy, .01));
                     final decoration =
                         tester.widget<DecoratedBox>(capsuleFinder).decoration
                             as BoxDecoration;
                     final shape = decoration.borderRadius!
                         .resolve(TextDirection.ltr)
                         .toRRect(capsule);
-                    expect(shape.tlRadiusX, 22);
-                    for (final type in [Icon, Text]) {
+                    expect(shape.tlRadiusX, 23);
+                    for (final type in [Icon]) {
                       final content = _paintedRect(
                         tester,
                         find.descendant(
@@ -142,6 +157,8 @@ void main() {
                           matching: find.byType(type),
                         ),
                       );
+                      expect(content.center.dx, closeTo(slot.center.dx, .01));
+                      expect(content.center.dy, closeTo(slot.center.dy, .01));
                       expect(
                         content.left - capsule.left,
                         greaterThanOrEqualTo(7.99),
@@ -164,6 +181,7 @@ void main() {
                         content.bottomLeft,
                         content.bottomRight,
                       ]) {
+                        expect(outer.contains(point), isTrue);
                         expect(
                           shape.contains(point),
                           isTrue,

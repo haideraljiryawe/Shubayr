@@ -200,10 +200,8 @@ void main() {
               final bar = tester.getRect(
                 find.byWidget(scaffold.bottomNavigationBar!),
               );
-              final expectedHeight = NavigationThemes.bottomBarHeightFor(
-                MediaQuery.of(tester.element(_surface)),
-              );
-              expect(bar.height, expectedHeight + 38);
+              final expectedHeight = NavigationThemes.bottomBarHeight;
+              expect(bar.height, expectedHeight + 36);
               expect(bar.bottom, 844);
               final surface = tester.getRect(_surface);
               final gutter = width < 600 ? 8.0 : 16.0;
@@ -211,7 +209,7 @@ void main() {
               expect(surface.width, closeTo(expectedWidth, .01));
               expect(surface.center.dx, closeTo(width / 2, .01));
               expect(surface.height, expectedHeight);
-              expect(surface.bottom, 844 - 34 - 4);
+              expect(surface.bottom, 844 - 34 - 2);
               for (var i = 0; i < count; i++) {
                 final rect = tester.getRect(_tabs.at(i));
                 expect(rect.width, closeTo(surface.width / count, 0.01));
@@ -221,22 +219,22 @@ void main() {
                   rect.left,
                   closeTo(surface.left + slot * surface.width / count, 0.01),
                 );
-                final text = find.descendant(
-                  of: _tabs.at(i),
-                  matching: find.byType(Text),
-                );
-                final labelRect = _paintedRect(tester, text);
-                expect(rect.inflate(0.01).contains(labelRect.topLeft), isTrue);
                 expect(
-                  rect.inflate(0.01).contains(labelRect.bottomRight),
-                  isTrue,
+                  find.descendant(of: _tabs.at(i), matching: find.byType(Text)),
+                  findsNothing,
                 );
+                final iconRect = _paintedRect(
+                  tester,
+                  find.descendant(of: _tabs.at(i), matching: find.byType(Icon)),
+                );
+                expect(iconRect.center.dx, closeTo(rect.center.dx, .01));
+                expect(iconRect.center.dy, closeTo(rect.center.dy, .01));
               }
               final pill = tester.getRect(_capsule);
               final active = tester.getRect(_tabs.first);
               expect(pill.center.dx, closeTo(active.center.dx, 0.01));
               expect(pill.width, lessThan(active.width));
-              expect(pill.width, closeTo(active.width - 8, 0.01));
+              expect(pill.width, closeTo(46, 0.01));
               expect(pill.top, greaterThan(active.top));
               expect(pill.bottom, lessThan(active.bottom));
               final colors = tester.element(_capsule).colors;
@@ -246,31 +244,17 @@ void main() {
                     .color,
                 colors.primary.withValues(alpha: 0.20),
               );
-              final label = tester.widget<Text>(
-                find.descendant(of: _tabs.first, matching: find.byType(Text)),
-              );
-              expect(label.style?.color, colors.primary);
-              expect(label.style?.fontWeight, FontWeight.w700);
               for (var i = 0; i < count; i++) {
-                final tabLabel = tester.widget<Text>(
-                  find.descendant(of: _tabs.at(i), matching: find.byType(Text)),
-                );
-                expect(tabLabel.style?.fontSize, 12);
-                expect(
-                  tabLabel.style?.fontWeight,
-                  i == 0 ? FontWeight.w700 : FontWeight.w600,
-                );
                 final icon = tester.widget<Icon>(
                   find.descendant(of: _tabs.at(i), matching: find.byType(Icon)),
                 );
-                expect(icon.size, 26);
+                expect(icon.size, 28);
                 final foreground = i == 0
                     ? colors.primary
                     : Theme.of(
                         tester.element(_surface),
                       ).colorScheme.onSurface.withValues(alpha: 0.92);
                 expect(icon.color, foreground);
-                expect(tabLabel.style?.color, foreground);
               }
               expect(tester.takeException(), isNull);
             }
@@ -325,7 +309,7 @@ void main() {
             '/account',
           );
           expect(haptics, ['HapticFeedbackType.selectionClick']);
-          expect(tester.getSize(_tabs.last).height, 66);
+          expect(tester.getSize(_tabs.last).height, 58);
           final scale = tester.widget<ScaleTransition>(
             find
                 .descendant(
@@ -334,7 +318,7 @@ void main() {
                 )
                 .last,
           );
-          expect(scale.scale.value, closeTo(1.05, 0.001));
+          expect(scale.scale.value, closeTo(1.03, 0.001));
 
           // Re-selection still resets the active branch, without another haptic.
           harness.router.go('/account/detail');
@@ -398,9 +382,7 @@ void main() {
             final touchBounds = tester.getRect(tab);
             final capsuleBefore = tester.getRect(_capsule);
             final icon = find.descendant(of: tab, matching: find.byType(Icon));
-            final label = find.descendant(of: tab, matching: find.byType(Text));
             final iconBefore = _paintedRect(tester, icon);
-            final labelBefore = _paintedRect(tester, label);
             final ink = tester.widget<InkWell>(tab);
             expect(ink.splashFactory, NoSplash.splashFactory);
             expect(ink.splashColor, Colors.transparent);
@@ -417,11 +399,7 @@ void main() {
             await tester.pump(const Duration(milliseconds: 100));
             expect(
               _paintedRect(tester, icon).width,
-              closeTo(iconBefore.width * 0.97, 0.01),
-            );
-            expect(
-              _paintedRect(tester, label).width,
-              closeTo(labelBefore.width * 0.97, 0.01),
+              closeTo(iconBefore.width * 0.95, 0.01),
             );
             expect(tester.getRect(tab), touchBounds);
             expect(tester.getRect(_capsule), capsuleBefore);
@@ -499,13 +477,13 @@ void main() {
         final surface = tester.getRect(_surface);
         expect(surface.left, 20);
         expect(surface.right, 300);
-        expect(surface.bottom, 844 - bottomInset - 4);
-        expect(surface.height, 66);
+        expect(surface.bottom, 844 - bottomInset - 2);
+        expect(surface.height, 58);
         expect(tester.getRect(_capsule).center.dy, surface.center.dy);
         for (var i = 0; i < 5; i++) {
           final target = tester.getRect(_tabs.at(i));
-          expect(target.height, 66);
-          expect(target.bottom, 844 - bottomInset - 4);
+          expect(target.height, 58);
+          expect(target.bottom, 844 - bottomInset - 2);
           expect(target.bottom, lessThan(surface.bottom + 0.01));
         }
         final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
@@ -516,11 +494,11 @@ void main() {
         final scope = tester.widget<BottomNavigationInset>(
           find.byType(BottomNavigationInset),
         );
-        expect(scope.bottom, bottomInset + 70);
+        expect(scope.bottom, bottomInset + 60);
         final material = tester.widget<Material>(_surface);
         expect(
           material.color,
-          tester.element(_surface).colors.surface.withValues(alpha: 0.60),
+          tester.element(_surface).colors.surface.withValues(alpha: 0.58),
         );
         final clip = find
             .ancestor(of: _surface, matching: find.byType(ClipRRect))
@@ -534,7 +512,7 @@ void main() {
         expect(outline.side.width, 0.7);
         expect(
           outline.side.color,
-          tester.element(_surface).colors.textPrimary.withValues(alpha: 0.16),
+          tester.element(_surface).colors.textPrimary.withValues(alpha: 0.10),
         );
         expect(
           find.ancestor(of: _surface, matching: find.byType(BackdropFilter)),
@@ -556,14 +534,14 @@ void main() {
         final capsule =
             tester.widget<DecoratedBox>(_capsule).decoration as BoxDecoration;
         final inner = capsule.borderRadius!.resolve(TextDirection.rtl);
-        expect(outer.topLeft.x, inner.topLeft.x + 4);
-        expect(outer.topLeft.x, lessThan(surface.height / 2));
+        expect(outer.topLeft.x, inner.topLeft.x + 6);
+        expect(outer.topLeft.x, surface.height / 2);
         // End tabs stay readable inside the rounded surface, even when selected.
         for (var i = 0; i < 5; i++) {
           await tester.tap(_tabs.at(i));
           await tester.pumpAndSettle();
           final shape = outer.toRRect(surface);
-          for (final type in [Text, Icon]) {
+          for (final type in [Icon]) {
             final rect = _paintedRect(
               tester,
               find.descendant(of: _tabs.at(i), matching: find.byType(type)),
@@ -745,10 +723,10 @@ void main() {
   }
 
   for (final metrics in [
-    (padding: 0.0, view: 0.0, gesture: 24.0, keyboard: 0.0, offset: 28.0),
-    (padding: 21.0, view: 21.0, gesture: 32.0, keyboard: 0.0, offset: 36.0),
-    (padding: 48.0, view: 48.0, gesture: 0.0, keyboard: 0.0, offset: 52.0),
-    (padding: 0.0, view: 34.0, gesture: 0.0, keyboard: 300.0, offset: 38.0),
+    (padding: 0.0, view: 0.0, gesture: 24.0, keyboard: 0.0, offset: 26.0),
+    (padding: 21.0, view: 21.0, gesture: 32.0, keyboard: 0.0, offset: 34.0),
+    (padding: 48.0, view: 48.0, gesture: 0.0, keyboard: 0.0, offset: 50.0),
+    (padding: 0.0, view: 34.0, gesture: 0.0, keyboard: 300.0, offset: 36.0),
   ]) {
     testWidgets(
       'system UI and gesture exclusions position the whole bar: $metrics',
@@ -763,7 +741,7 @@ void main() {
           keyboardInset: metrics.keyboard,
         );
         final rect = tester.getRect(_surface);
-        expect(rect.height, 66);
+        expect(rect.height, 58);
         expect(rect.bottom, 844 - metrics.offset);
         for (var i = 0; i < 3; i++) {
           expect(tester.getRect(_tabs.at(i)).top, rect.top);
