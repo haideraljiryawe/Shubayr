@@ -16,7 +16,7 @@ import {
 } from "@/components/product/skeletons";
 import { ProductCard } from "@/components/ui/product-card";
 import { SectionHeader } from "@/components/ui/section-header";
-import { api, ApiError, type Product } from "@/lib/api";
+import { ApiError, type Product } from "@/lib/api";
 import {
   hasPriceRange,
   pricingForVariant,
@@ -66,7 +66,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: alternatesFor(locale, path),
     openGraph: openGraphFor({
       locale,
-      siteName: await storeNameFor(locale, (await getSettingsOnce().catch(() => null))?.store_name),
+      siteName: await storeNameFor(
+        locale,
+        (await getSettingsOnce().catch(() => null))?.store_name,
+      ),
       title: name,
       description,
       path,

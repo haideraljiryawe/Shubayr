@@ -462,9 +462,7 @@ function requireAuthenticated(): void {
 
 function requireMockAuth(): void {
   const token = accessToken();
-  const valid = isLive("auth")
-    ? Boolean(token)
-    : isMockAccessTokenValid(token);
+  const valid = isLive("auth") ? Boolean(token) : isMockAccessTokenValid(token);
   if (!valid) {
     throw new ApiError(401, "Access token missing or expired");
   }
@@ -518,7 +516,7 @@ export const api = {
    * GET /brands; a store has tens of brands, not thousands, so the pages are
    * read through and joined for the filter and the brands page.
    */
-  async listBrands(): Promise<Brand[]> {
+  async listBrands(init?: RequestInit): Promise<Brand[]> {
     if (!isLive("catalog")) {
       return mockBrands
         .filter((brand) => brand.is_visible)
@@ -527,6 +525,7 @@ export const api = {
     const brands: Brand[] = [];
     for (let page = 1; page <= 20; page += 1) {
       const result = await request<BrandPage>("/brands", {
+        ...init,
         query: { page, per_page: 100 },
       });
       brands.push(...result.data);
@@ -535,7 +534,10 @@ export const api = {
     return brands;
   },
 
-  async listProducts(query: ProductQuery = {}): Promise<ProductPage> {
+  async listProducts(
+    query: ProductQuery = {},
+    init?: RequestInit,
+  ): Promise<ProductPage> {
     if (!isLive("catalog")) {
       const perPage = query.per_page ?? 20;
       const page = query.page ?? 1;
@@ -594,13 +596,13 @@ export const api = {
         },
       };
     }
-    return request<ProductPage>("/products", { query });
+    return request<ProductPage>("/products", { ...init, query });
   },
 
   /** Map the shared banner contract into the existing home carousel view. */
-  async getBanners(): Promise<Banner[]> {
+  async getBanners(init?: RequestInit): Promise<Banner[]> {
     if (!isLive("banners")) return mockBanners;
-    const banners = await request<Schemas["Banner"][]>("/banners");
+    const banners = await request<Schemas["Banner"][]>("/banners", init);
     return banners.map((banner, index) => ({
       id: banner.id ?? `banner-${index}`,
       title_ar: banner.title ?? "",
@@ -615,12 +617,13 @@ export const api = {
   },
 
   /** Discounted products use the same typed endpoint as catalog filters. */
-  async listDeals(limit = 6): Promise<Product[]> {
-    return (await api.listProducts({ on_sale: true, per_page: limit })).data;
+  async listDeals(limit = 6, init?: RequestInit): Promise<Product[]> {
+    return (await api.listProducts({ on_sale: true, per_page: limit }, init))
+      .data;
   },
 
   /** Product has no review count field; the published reviews envelope does. */
-  async getProductReviewCount(id: string): Promise<number> {
+  async getProductReviewCount(id: string, init?: RequestInit): Promise<number> {
     if (!isLive("catalog")) {
       const product = demoProducts.find((item) => item.id === id);
       if (!product) throw new ApiError(404, `Product ${id} not found`);
@@ -628,18 +631,18 @@ export const api = {
     }
     const reviews = await request<Schemas["ReviewPage"]>(
       `/products/${encodeURIComponent(id)}/reviews`,
-      { query: { page: 1, per_page: 1 } },
+      { ...init, query: { page: 1, per_page: 1 } },
     );
     return reviews.total;
   },
 
-  async getProduct(id: string): Promise<Product> {
+  async getProduct(id: string, init?: RequestInit): Promise<Product> {
     if (!isLive("catalog")) {
       const found = mockProducts.find((p) => p.id === id);
       if (!found) throw new ApiError(404, `Product ${id} not found`);
       return found;
     }
-    return request<Product>(`/products/${encodeURIComponent(id)}`);
+    return request<Product>(`/products/${encodeURIComponent(id)}`, init);
   },
 
   /**
@@ -647,7 +650,10 @@ export const api = {
    * contract computes it at read time — it is the volatile half of the page and
    * the part that must not be cached with the catalog copy.
    */
-  async getProductAvailability(id: string): Promise<ProductAvailability> {
+  async getProductAvailability(
+    id: string,
+    init?: RequestInit,
+  ): Promise<ProductAvailability> {
     if (!isLive("catalog")) {
       const product = demoProducts.find((item) => item.id === id);
       if (!product) throw new ApiError(404, `Product ${id} not found`);
@@ -655,6 +661,7 @@ export const api = {
     }
     return request<ProductAvailability>(
       `/products/${encodeURIComponent(id)}/availability`,
+      init,
     );
   },
 
@@ -912,7 +919,10 @@ export const api = {
    */
   async placeOrder(
     body: OrderRequest,
-    { idempotencyKey, draft }: { idempotencyKey?: string; draft?: OrderDraft } = {},
+    {
+      idempotencyKey,
+      draft,
+    }: { idempotencyKey?: string; draft?: OrderDraft } = {},
   ): Promise<Order> {
     return withFreshToken(async () => {
       if (!isLive("checkout")) {
@@ -1024,9 +1034,10 @@ export const api = {
    * delivered subtotal less discount, excluding delivery — are not the
    * client's to reimplement.
    */
-  async getLoyalty(
-    { page = 1, per_page = 20 }: { page?: number; per_page?: number } = {},
-  ): Promise<LoyaltyAccount> {
+  async getLoyalty({
+    page = 1,
+    per_page = 20,
+  }: { page?: number; per_page?: number } = {}): Promise<LoyaltyAccount> {
     return withFreshToken(async () => {
       if (!isLive("loyalty")) {
         await mockLatency(120);
@@ -1062,7 +1073,9 @@ export const api = {
       }
       return request<LoyaltyRedemption>("/loyalty/redeem", {
         method: "POST",
-        body: JSON.stringify(note?.trim() ? { points, note: note.trim() } : { points }),
+        body: JSON.stringify(
+          note?.trim() ? { points, note: note.trim() } : { points },
+        ),
       });
     });
   },
@@ -1378,7 +1391,11 @@ export const api = {
         const updated = updateMockDelivery(id, status, collection);
         if (updated === null) throw new ApiError(404, "Delivery not found");
         if (updated === "conflict") {
-          throw new ApiError(409, "Delivery status transition is not allowed", "CONFLICT");
+          throw new ApiError(
+            409,
+            "Delivery status transition is not allowed",
+            "CONFLICT",
+          );
         }
         return updated;
       }
@@ -1517,16 +1534,38 @@ export const api = {
     product_id: string;
     variant_id?: string | null;
     quantity: number;
+    idempotency_key?: string;
   }): Promise<Cart> {
     return withFreshToken(async () => {
       requireAuthenticated();
       return request<Cart>("/cart/items", {
         method: "POST",
+        headers: input.idempotency_key
+          ? { "Idempotency-Key": input.idempotency_key }
+          : undefined,
         body: JSON.stringify({
           product_id: input.product_id,
           variant_id: input.variant_id ?? null,
           quantity: input.quantity,
         }),
+      });
+    });
+  },
+
+  async mergeCart(
+    items: Array<{
+      product_id: string;
+      variant_id?: string | null;
+      quantity: number;
+    }>,
+    idempotencyKey: string,
+  ): Promise<Cart> {
+    return withFreshToken(async () => {
+      requireAuthenticated();
+      return request<Cart>("/cart/merge", {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({ items }),
       });
     });
   },
@@ -1587,7 +1626,11 @@ export const api = {
         const order = getMockOrder(id);
         if (!order) throw new ApiError(404, `Order ${id} not found`);
         if (order.status !== "pending" || (order.version ?? 1) !== version) {
-          throw new ApiError(409, "A pending order can be cancelled directly", "STALE_ORDER_STATE");
+          throw new ApiError(
+            409,
+            "A pending order can be cancelled directly",
+            "STALE_ORDER_STATE",
+          );
         }
         return updateMockOrder(id, (stored) => {
           stored.status = "cancelled";
@@ -1605,7 +1648,11 @@ export const api = {
    * Ask the store to cancel an order that is past pending (confirmed until
    * delivery). The store approves or denies it; the order shows the status.
    */
-  async requestCancellation(id: string, version: number, reason: string): Promise<Order> {
+  async requestCancellation(
+    id: string,
+    version: number,
+    reason: string,
+  ): Promise<Order> {
     return withFreshToken(async () => {
       if (!isLive("orders")) {
         await mockLatency();
@@ -1616,19 +1663,32 @@ export const api = {
           throw new ApiError(409, "A cancellation request is already pending");
         }
         return updateMockOrder(id, (stored) => {
-          stored.cancellation_request = { status: "pending", reason, requested_at: new Date().toISOString(), resolved_at: null, resolution_note: null };
+          stored.cancellation_request = {
+            status: "pending",
+            reason,
+            requested_at: new Date().toISOString(),
+            resolved_at: null,
+            resolution_note: null,
+          };
           stored.version = version + 1;
         })!;
       }
-      return request<Order>(`/orders/${encodeURIComponent(id)}/cancellation-request`, {
-        method: "POST",
-        body: JSON.stringify({ version, reason }),
-      });
+      return request<Order>(
+        `/orders/${encodeURIComponent(id)}/cancellation-request`,
+        {
+          method: "POST",
+          body: JSON.stringify({ version, reason }),
+        },
+      );
     });
   },
 
   /** Accept or decline the smaller quantity the store proposed after a shortage. */
-  async respondToShortage(id: string, version: number, decision: "accepted" | "denied"): Promise<Order> {
+  async respondToShortage(
+    id: string,
+    version: number,
+    decision: "accepted" | "denied",
+  ): Promise<Order> {
     return withFreshToken(async () => {
       if (!isLive("orders")) {
         await mockLatency();
@@ -1637,16 +1697,26 @@ export const api = {
         if (!order) throw new ApiError(404, `Order ${id} not found`);
         const details = order.attention_details;
         const proposal = details?.reduction_proposal;
-        if (!proposal) throw new ApiError(409, "No quantity reduction is awaiting acceptance");
+        if (!proposal)
+          throw new ApiError(
+            409,
+            "No quantity reduction is awaiting acceptance",
+          );
         return updateMockOrder(id, (stored) => {
-          stored.attention_details = { ...details, reduction_proposal: { ...proposal, status: decision } };
+          stored.attention_details = {
+            ...details,
+            reduction_proposal: { ...proposal, status: decision },
+          };
           stored.version = version + 1;
         })!;
       }
-      return request<Order>(`/orders/${encodeURIComponent(id)}/shortage-response`, {
-        method: "POST",
-        body: JSON.stringify({ version, decision }),
-      });
+      return request<Order>(
+        `/orders/${encodeURIComponent(id)}/shortage-response`,
+        {
+          method: "POST",
+          body: JSON.stringify({ version, decision }),
+        },
+      );
     });
   },
 
@@ -1654,6 +1724,7 @@ export const api = {
   async listReviews(
     id: string,
     { page = 1, per_page = 5 }: { page?: number; per_page?: number } = {},
+    init?: RequestInit,
   ): Promise<ReviewPage> {
     if (!isLive("catalog")) {
       const all = mockReviewsFor(id);
@@ -1664,9 +1735,9 @@ export const api = {
         data: all.slice((page - 1) * per_page, page * per_page),
       };
     }
-    return request<ReviewPage>(
-      `/products/${encodeURIComponent(id)}/reviews`,
-      { query: { page, per_page } },
-    );
+    return request<ReviewPage>(`/products/${encodeURIComponent(id)}/reviews`, {
+      ...init,
+      query: { page, per_page },
+    });
   },
 };

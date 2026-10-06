@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "C5c mobile guide idempotency-key example (not a credential)"
+regexTarget = "line"
+regexes = ['''Idempotency-Key: 8f9d75fe-8438-4bb2-8d34-f075826173b2''']

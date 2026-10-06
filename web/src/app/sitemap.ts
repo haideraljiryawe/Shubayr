@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { api, type Product } from "@/lib/api";
+import type { Product } from "@/lib/api";
 import { sitemapEntries } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
 import { getBrandsOnce, getCategoriesOnce, listProductsOnce } from "@/lib/server-data";
@@ -21,7 +21,8 @@ async function allProducts(): Promise<Product[]> {
   for (let page = 1; products.length < MAX_PRODUCTS; page += 1) {
     const result = await listProductsOnce({ page, per_page: 100 });
     products.push(...result.data);
-    if (result.data.length === 0 || page * result.per_page >= result.total) break;
+    if (result.data.length === 0 || page * result.per_page >= result.total)
+      break;
   }
   return products;
 }

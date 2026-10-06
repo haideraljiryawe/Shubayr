@@ -62,27 +62,39 @@ All of these are read when the server starts (`docker run -e NAME=value`).
 
 ## Settings needed on the API
 
-Two API settings depend on these apps:
+API proxy and rate-limit settings depend on these apps:
 
-- **`TRUSTED_PROXIES` must include the admin server's address.** Every staff
-  request reaches the API through the admin's server, which passes the staff
-  member's address on in `X-Forwarded-For` and `X-Real-IP`, worked out the same
-  way as the store does: only from the admin's `TRUSTED_FRONT_PROXIES`, and
-  never what the browser sent (see [The production chain](#the-production-chain)).
-  The API only believes that header from addresses listed in `TRUSTED_PROXIES`
-  (comma-separated IPs or CIDRs).
-  - **If it is listed:** rate limits, the login limit and audit logs apply per
-    staff member.
-  - **If it is not listed:** every staff member shares one rate-limit bucket
-    and one audit address, the admin server's own.
+- **`TRUSTED_PROXIES` must include both the web server and admin server
+  addresses.** Use their private container/VM addresses or narrow CIDRs, for
+  example `10.20.0.12/32,10.20.0.13/32`; never use an unrestricted public
+  range. Neither Next.js server passes the browser's `X-Forwarded-For` chain
+  on: each works out the shopper's or staff member's address only from its own
+  `TRUSTED_FRONT_PROXIES` and sends the API that one address, in
+  `X-Forwarded-For` and `X-Real-IP` (see [The production chain](#the-production-chain)).
+  The API believes it only when the direct connection comes from an address in
+  this allow-list.
+  - **If both are listed:** catalog, customer and staff rate limits (the login
+    limit included) and audit logs use the resolved shopper/staff address.
+    Neither server is exempt from limits.
+  - **If one is missing:** its users share the server's connection-address
+    bucket. This is safe but may throttle many users together.
+  - **If a caller is untrusted:** its forwarded headers are ignored, so it
+    cannot choose or split its rate-limit bucket.
 
-  List your load balancer or reverse proxy there too.
-- **`TRUSTED_PROXIES` must also include the web store server's address.**
-  The store renders pages on its server, and those renders call the API on the
-  shopper's behalf with the shopper's address in `X-Forwarded-For`. If the
-  store server isn't listed, every page any shopper opens counts against the
-  store server's single rate-limit budget, and a busy store is throttled by its
-  own API.
+  Keep the web and admin application ports private behind a reverse proxy that
+  follows the production-chain rules below. List that load balancer or reverse
+  proxy too when it connects directly to the API.
+- Configure the three per-client, per-route one-minute limits on the API:
+
+  | Variable | Default | Intended traffic |
+  |---|---:|---|
+  | `RATE_LIMIT_CATALOG_PER_MINUTE` | `600` | Public settings, banners, categories, brands, products, search, availability and published reviews |
+  | `RATE_LIMIT_NORMAL_PER_MINUTE` | `120` | Authenticated customer and ordinary staff reads, plus routes without a stricter classification |
+  | `RATE_LIMIT_STRICT_PER_MINUTE` | `30` | OTP request/verify, admin login, checkout/order creation and cart writes |
+
+  Tune these values for observed production traffic, but keep strict routes at
+  or below the normal tier. Limits always apply; there is no trusted-server
+  bypass.
 - **`CORS_ORIGINS` must include the web store's origin** (`NEXT_PUBLIC_SITE_URL`),
   because shoppers' browsers call the API directly. The admin needs no CORS
   entry.

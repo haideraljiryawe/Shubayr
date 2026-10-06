@@ -18,6 +18,8 @@ import {
 } from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { DeliveryPartiesService } from './delivery-parties.service';
+import { DeliveriesService } from './deliveries.service';
+import { PartyCollectionsQueryDto } from './dto/delivery.dto';
 import {
   CreateExternalDriverDto,
   CustodyOverviewQueryDto,
@@ -43,7 +45,10 @@ export class AgentCustodyController {
 
 @Controller('admin/delivery-parties')
 export class DeliveryPartiesController {
-  constructor(private readonly parties: DeliveryPartiesService) {}
+  constructor(
+    private readonly parties: DeliveryPartiesService,
+    private readonly deliveries: DeliveriesService,
+  ) {}
 
   @Get()
   @AdminAnyPermissionPolicy(
@@ -103,6 +108,15 @@ export class DeliveryPartiesController {
   @AdminPolicy('deliveries.manage')
   heldOrders(@Param('id', uuid) id: string) {
     return this.parties.heldOrders(id);
+  }
+
+  @Get(':id/collections')
+  @AdminPolicy('deliveries.manage')
+  collections(
+    @Param('id', uuid) id: string,
+    @Query() query: PartyCollectionsQueryDto,
+  ) {
+    return this.deliveries.listPartyCollections(id, query);
   }
 }
 

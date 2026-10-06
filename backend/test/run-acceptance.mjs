@@ -27,6 +27,9 @@ const environment = {
   DATABASE_URL: testUrl.toString(),
   APP_ENV: 'development',
   TRUSTED_PROXIES: process.env.TRUSTED_PROXIES ?? '127.0.0.1/32',
+  RATE_LIMIT_CATALOG_PER_MINUTE: '600',
+  RATE_LIMIT_NORMAL_PER_MINUTE: '120',
+  RATE_LIMIT_STRICT_PER_MINUTE: '30',
 };
 const node = process.execPath;
 const prisma = 'node_modules/prisma/build/index.js';
@@ -129,6 +132,13 @@ try {
   await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
   await run('test/delivery-parties.acceptance.mjs', [], acceptanceEnv);
   await run('test/returns.acceptance.mjs', [], acceptanceEnv);
+  // Each pack models a separate client, but packs without an explicit
+  // forwarded address otherwise share the runner's loopback OTP bucket.
+  // Reset only the in-memory limiter before the remaining app-client packs;
+  // the disposable database and all durable state stay in place.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
   await run('test/loyalty.acceptance.mjs', [], acceptanceEnv);
   await run('test/reviews.acceptance.mjs', [], acceptanceEnv);
   await run('test/notifications.acceptance.mjs', [], acceptanceEnv);
@@ -138,6 +148,7 @@ try {
   await stopApi();
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
+  await run('test/c5c-cart-rate-limits.acceptance.mjs', [], acceptanceEnv);
   await run('test/c5b-gaps.acceptance.mjs', [], acceptanceEnv);
   await run('test/qa-fixes.acceptance.mjs', [], acceptanceEnv);
   // Keep inventory lifecycle last: delivered/returned rows are intentionally
