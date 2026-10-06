@@ -272,25 +272,7 @@ export class DeliveryPartiesService {
       },
       orderBy: [{ issued_at: 'asc' }, { id: 'asc' }],
     });
-    const [cashRows, cashReceipts] = await Promise.all([
-      this.prisma.deliveryCollection.findMany({
-        where: {
-          party_id: id,
-          status: { in: ['confirmed_full', 'confirmed_short'] },
-          collected_amount: { not: null },
-        },
-        select: {
-          collected_amount: true,
-          confirmed_at: true,
-          delivered_at: true,
-        },
-        orderBy: [{ confirmed_at: 'asc' }, { id: 'asc' }],
-      }),
-      this.prisma.cashReceiptVoucher.aggregate({
-        where: { party_id: id, reversal: { is: null } },
-        _sum: { amount_iqd: true },
-      }),
-    ]);
+    const cashBalance = (await this.cashCustodyBalances([id])).get(id)!;
     const today = businessDate();
     const goods = rows.map((row) => {
       const quantity = Number(row.remaining_quantity);
@@ -312,12 +294,6 @@ export class DeliveryPartiesService {
           : {}),
       };
     });
-    const cashAmount = cashRows
-      .reduce(
-        (sum, row) => sum.plus(row.collected_amount ?? 0),
-        new Prisma.Decimal(0),
-      )
-      .minus(cashReceipts._sum.amount_iqd ?? 0);
     return {
       party,
       goods: {
@@ -337,18 +313,8 @@ export class DeliveryPartiesService {
       },
       cash: {
         currency: 'IQD',
-        amount: Number(cashAmount),
-        oldest_age_days:
-          cashAmount.gt(0) && cashRows.length
-            ? Math.max(
-                ...cashRows.map((row) =>
-                  businessDateDifference(
-                    today,
-                    businessDate(row.confirmed_at ?? row.delivered_at),
-                  ),
-                ),
-              )
-            : null,
+        amount: Number(cashBalance.amount),
+        oldest_age_days: cashBalance.oldestAgeDays,
       },
     };
   }
@@ -680,7 +646,7 @@ export class DeliveryPartiesService {
       ]),
     );
     if (!ids.length) return summaries;
-    const [holdings, collections, receipts] = await Promise.all([
+    const [holdings, cashBalances] = await Promise.all([
       this.prisma.custodyHolding.findMany({
         where: {
           custody_party_id: { in: ids },
@@ -695,27 +661,7 @@ export class DeliveryPartiesService {
           issued_at: true,
         },
       }),
-      this.prisma.deliveryCollection.findMany({
-        where: {
-          party_id: { in: ids },
-          status: { in: ['confirmed_full', 'confirmed_short'] },
-          collected_amount: { not: null },
-        },
-        select: {
-          party_id: true,
-          collected_amount: true,
-          confirmed_at: true,
-          delivered_at: true,
-        },
-      }),
-      this.prisma.cashReceiptVoucher.groupBy({
-        by: ['party_id'],
-        where: {
-          party_id: { in: ids },
-          reversal: { is: null },
-        },
-        _sum: { amount_iqd: true },
-      }),
+      this.cashCustodyBalances(ids),
     ]);
     const today = businessDate();
     const orders = new Map<string, Set<string>>();
@@ -738,20 +684,122 @@ export class DeliveryPartiesService {
       orders.set(holding.custody_party_id, partyOrders);
       recordAge(summary, holding.issued_at);
     }
-    for (const collection of collections) {
-      const summary = summaries.get(collection.party_id)!;
-      summary.cash_held += Number(collection.collected_amount ?? 0);
-      recordAge(summary, collection.confirmed_at ?? collection.delivered_at);
-    }
-    for (const receipt of receipts) {
-      summaries.get(receipt.party_id)!.cash_held -= Number(
-        receipt._sum.amount_iqd ?? 0,
-      );
+    for (const [id, balance] of cashBalances) {
+      const summary = summaries.get(id)!;
+      summary.cash_held = Number(balance.amount);
+      if (balance.oldestAgeDays !== null) {
+        summary.oldest_item_age_days = Math.max(
+          summary.oldest_item_age_days ?? 0,
+          balance.oldestAgeDays,
+        );
+      }
     }
     for (const [id, partyOrders] of orders) {
       summaries.get(id)!.orders_held = partyOrders.size;
     }
     return summaries;
+  }
+
+  /**
+   * Active allocations settle named orders. Any physically received but still
+   * unallocated remainder also leaves custody, so apply that remainder FIFO
+   * only for custody ageing while preserving its explicit unallocated status.
+   */
+  private async cashCustodyBalances(ids: string[]) {
+    type Balance = {
+      amount: Prisma.Decimal;
+      oldestAgeDays: number | null;
+    };
+    const result = new Map<string, Balance>(
+      ids.map((id) => [
+        id,
+        { amount: new Prisma.Decimal(0), oldestAgeDays: null },
+      ]),
+    );
+    if (!ids.length) return result;
+    const [collections, receipts] = await Promise.all([
+      this.prisma.deliveryCollection.findMany({
+        where: {
+          party_id: { in: ids },
+          status: { in: ['confirmed_full', 'confirmed_short'] },
+          collected_amount: { not: null },
+        },
+        select: {
+          id: true,
+          party_id: true,
+          collected_amount: true,
+          confirmed_at: true,
+          delivered_at: true,
+          cash_receipt_allocations: {
+            where: { batch: { voucher: { reversal: { is: null } } } },
+            select: { amount_iqd: true },
+          },
+        },
+      }),
+      this.prisma.cashReceiptVoucher.findMany({
+        where: { party_id: { in: ids }, reversal: { is: null } },
+        select: {
+          party_id: true,
+          amount_iqd: true,
+          allocation_batches: {
+            select: {
+              allocations: { select: { amount_iqd: true } },
+            },
+          },
+        },
+      }),
+    ]);
+    const unallocated = new Map<string, Prisma.Decimal>(
+      ids.map((id) => [id, new Prisma.Decimal(0)]),
+    );
+    for (const receipt of receipts) {
+      const allocated = receipt.allocation_batches.reduce(
+        (sum, batch) =>
+          batch.allocations.reduce(
+            (inner, allocation) => inner.plus(allocation.amount_iqd),
+            sum,
+          ),
+        new Prisma.Decimal(0),
+      );
+      unallocated.set(
+        receipt.party_id,
+        unallocated
+          .get(receipt.party_id)!
+          .plus(receipt.amount_iqd.minus(allocated)),
+      );
+    }
+    collections.sort(
+      (left, right) =>
+        (left.confirmed_at ?? left.delivered_at).getTime() -
+          (right.confirmed_at ?? right.delivered_at).getTime() ||
+        left.id.localeCompare(right.id),
+    );
+    const today = businessDate();
+    for (const collection of collections) {
+      const allocated = collection.cash_receipt_allocations.reduce(
+        (sum, allocation) => sum.plus(allocation.amount_iqd),
+        new Prisma.Decimal(0),
+      );
+      let remaining = Prisma.Decimal.max(
+        0,
+        collection.collected_amount!.minus(allocated),
+      );
+      const unapplied = unallocated.get(collection.party_id)!;
+      if (remaining.gt(0) && unapplied.gt(0)) {
+        const consumed = Prisma.Decimal.min(remaining, unapplied);
+        remaining = remaining.minus(consumed);
+        unallocated.set(collection.party_id, unapplied.minus(consumed));
+      }
+      if (!remaining.gt(0)) continue;
+      const balance = result.get(collection.party_id)!;
+      balance.amount = balance.amount.plus(remaining);
+      const age = businessDateDifference(
+        today,
+        businessDate(collection.confirmed_at ?? collection.delivered_at),
+      );
+      balance.oldestAgeDays = Math.max(balance.oldestAgeDays ?? 0, age);
+    }
+    return result;
   }
 
   private assertExternal(

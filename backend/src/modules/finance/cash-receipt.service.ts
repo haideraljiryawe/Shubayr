@@ -546,31 +546,35 @@ export class CashReceiptService {
         { delivered_at: 'asc' },
         { id: 'asc' },
       ],
-      take: query.per_page ?? 100,
     });
     let left = requested;
-    const data = rows.flatMap((row) => {
-      const collected = row.collected_amount ?? new Prisma.Decimal(0);
-      const allocated = row.cash_receipt_allocations.reduce(
-        (sum, allocation) => sum.plus(allocation.amount_iqd),
-        new Prisma.Decimal(0),
-      );
-      const remaining = collected.minus(allocated);
-      if (!remaining.gt(0)) return [];
-      const suggested = left ? Prisma.Decimal.min(remaining, left) : remaining;
-      if (left) left = Prisma.Decimal.max(0, left.minus(suggested));
-      return [
-        {
-          collection_id: row.id,
-          order: row.order,
-          collected_amount_iqd: Number(collected),
-          allocated_amount_iqd: Number(allocated),
-          unsettled_amount_iqd: Number(remaining),
-          suggested_amount_iqd: Number(suggested),
-          collected_at: row.confirmed_at ?? row.delivered_at,
-        },
-      ];
-    });
+    const data = rows
+      .flatMap((row) => {
+        if (left?.lte(0)) return [];
+        const collected = row.collected_amount ?? new Prisma.Decimal(0);
+        const allocated = row.cash_receipt_allocations.reduce(
+          (sum, allocation) => sum.plus(allocation.amount_iqd),
+          new Prisma.Decimal(0),
+        );
+        const remaining = collected.minus(allocated);
+        if (!remaining.gt(0)) return [];
+        const suggested = left
+          ? Prisma.Decimal.min(remaining, left)
+          : remaining;
+        if (left) left = Prisma.Decimal.max(0, left.minus(suggested));
+        return [
+          {
+            collection_id: row.id,
+            order: row.order,
+            collected_amount_iqd: Number(collected),
+            allocated_amount_iqd: Number(allocated),
+            unsettled_amount_iqd: Number(remaining),
+            suggested_amount_iqd: Number(suggested),
+            collected_at: row.confirmed_at ?? row.delivered_at,
+          },
+        ];
+      })
+      .slice(0, query.per_page ?? 100);
     return {
       party,
       requested_amount_iqd: requested === null ? null : Number(requested),
