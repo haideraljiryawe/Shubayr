@@ -18,6 +18,7 @@ import { AdminAnyPermissionPolicy } from '../../common/decorators/access-policy.
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { Prisma } from '../../generated/prisma/client';
 import { CashAccountService } from './cash-account.service';
+import { CashReceiptService } from './cash-receipt.service';
 import { CurrencyService } from './currency.service';
 import { LinkedPricingService } from './linked-pricing.service';
 import {
@@ -44,6 +45,13 @@ import {
 import { LedgerService } from './ledger.service';
 import { OperationService } from './operation.service';
 import { PeriodService } from './period.service';
+import {
+  AllocateCashReceiptDto,
+  CashReceiptQueryDto,
+  CashReceiptSuggestionQueryDto,
+  CreateCashReceiptDto,
+  ReverseCashReceiptDto,
+} from './dto/cash-receipt.dto';
 
 type AdminRequest = Request & { user: AuthenticatedRequestUser };
 const uuid = new ParseUUIDPipe({ errorHttpStatusCode: 422 });
@@ -325,6 +333,61 @@ export class CashTransfersController {
   @Post()
   create(@Req() request: AdminRequest, @Body() input: CashTransferDto) {
     return this.cash.transfer(request.user, input);
+  }
+}
+
+@Controller('admin/cash-receipts')
+export class CashReceiptsController {
+  constructor(private readonly receipts: CashReceiptService) {}
+
+  @Post()
+  @AdminPolicy('cash_receipts.receive')
+  create(@Req() request: AdminRequest, @Body() input: CreateCashReceiptDto) {
+    return this.receipts.create(request.user, input);
+  }
+
+  @Get()
+  @AdminPolicy('deliveries.manage')
+  list(@Query() query: CashReceiptQueryDto) {
+    return this.receipts.list(query);
+  }
+
+  @Get('unallocated')
+  @AdminPolicy('deliveries.manage')
+  unallocated(@Query() query: CashReceiptQueryDto) {
+    return this.receipts.unallocated(query);
+  }
+
+  @Get('allocation-suggestions')
+  @AdminPolicy('cash_receipts.allocate')
+  suggestions(@Query() query: CashReceiptSuggestionQueryDto) {
+    return this.receipts.suggestions(query);
+  }
+
+  @Get(':id')
+  @AdminPolicy('deliveries.manage')
+  get(@Param('id', uuid) id: string) {
+    return this.receipts.get(id);
+  }
+
+  @Post(':id/allocations')
+  @AdminPolicy('cash_receipts.allocate')
+  allocate(
+    @Req() request: AdminRequest,
+    @Param('id', uuid) id: string,
+    @Body() input: AllocateCashReceiptDto,
+  ) {
+    return this.receipts.allocate(request.user, id, input);
+  }
+
+  @Post(':id/reversal')
+  @AdminPolicy('cash_receipts.reverse')
+  reverse(
+    @Req() request: AdminRequest,
+    @Param('id', uuid) id: string,
+    @Body() input: ReverseCashReceiptDto,
+  ) {
+    return this.receipts.reverse(request.user, id, input);
   }
 }
 

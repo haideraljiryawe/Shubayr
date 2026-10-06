@@ -1,5 +1,28 @@
 # Changelog
 
+## 13.2.0 - 2026-10-06
+
+### Added
+
+- Immutable, numbered cash receipt vouchers for handing delivery-party cash
+  into an IQD cash account using the phase-3 `cash_received` posting map.
+- Partial, replay-safe allocation batches, oldest-collection suggestions,
+  unallocated receipt discovery, and reversal documents that restore custody
+  and order settlement without editing posted records.
+- Voucher list/detail filters, settlement links in per-party collection reads,
+  and cash receipt/reversal activity in party statements.
+- Separate receive, allocate, and reverse permissions in the cashier and
+  accountant presets, including declared read dependencies and standard/strict
+  separation-of-duties enforcement.
+
+### Changed
+
+- Delivery-party custody cash now subtracts active receipt vouchers and returns
+  to custody when a voucher is reversed. The total continues to reconcile to
+  ledger account 1020.
+- The API contract is version 13.2.0. This release is additive and does not
+  break existing web, admin, or mobile callers.
+
 ## 13.1.0 - 2026-10-05
 
 ### Added

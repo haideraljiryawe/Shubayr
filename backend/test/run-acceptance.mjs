@@ -128,6 +128,7 @@ try {
   await run('test/wishlist.acceptance.mjs', [], acceptanceEnv);
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
   await run('test/delivery-collection.acceptance.mjs', [], acceptanceEnv);
+  await run('test/cash-receipts.acceptance.mjs', [], acceptanceEnv);
   await run('test/admin-orders.acceptance.mjs', [], acceptanceEnv);
   await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
   await run('test/delivery-parties.acceptance.mjs', [], acceptanceEnv);

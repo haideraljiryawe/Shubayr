@@ -4,6 +4,7 @@ import {
   AccountingPeriodsController,
   CashAccountsController,
   CashTransfersController,
+  CashReceiptsController,
   CurrencyController,
   DraftsController,
   ExchangeRateController,
@@ -21,6 +22,7 @@ import { OperationService } from './operation.service';
 import { LinkedPricingService } from './linked-pricing.service';
 import { PeriodService } from './period.service';
 import { CatalogModule } from '../catalog/catalog.module';
+import { CashReceiptService } from './cash-receipt.service';
 
 @Module({
   imports: [CatalogModule],
@@ -32,6 +34,7 @@ import { CatalogModule } from '../catalog/catalog.module';
     LedgerController,
     CashAccountsController,
     CashTransfersController,
+    CashReceiptsController,
     FinancialDocumentsController,
     AccountingPeriodsController,
     PricePublishApprovalsController,
@@ -44,6 +47,7 @@ import { CatalogModule } from '../catalog/catalog.module';
     LedgerService,
     OperationService,
     CashAccountService,
+    CashReceiptService,
     PeriodService,
     LinkedPricingService,
   ],
