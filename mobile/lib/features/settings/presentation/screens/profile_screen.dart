@@ -1,3 +1,4 @@
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../app/shell/work_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
@@ -139,6 +140,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ResponsiveFields(
                   children: [
                     TextFormField(
+                      contextMenuBuilder: appTextSelectionToolbar,
                       key: const ValueKey('profile-name'),
                       controller: _nameController,
                       enabled: !_saving && signedIn,
@@ -162,6 +164,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       },
                     ),
                     TextFormField(
+                      contextMenuBuilder: appTextSelectionToolbar,
                       key: const ValueKey('profile-email'),
                       controller: _emailController,
                       enabled: !_saving && signedIn,

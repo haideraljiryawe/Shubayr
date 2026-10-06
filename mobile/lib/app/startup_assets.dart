@@ -17,9 +17,17 @@ abstract final class StartupAssets {
     final assets = bundle ?? rootBundle;
     await Future.wait([
       _optional(() => _prepareLogo(assets)),
-      _optional(() {
-        final wordmark = FontLoader(AppTypography.brandFontFamily)
-          ..addFont(assets.load(StoreIdentity.wordmarkFontAsset));
+      _optional(() async {
+        // Wordmarks and UI share one family, so preload every available weight.
+        final faces = await Future.wait([
+          assets.load('assets/fonts/Zain-Regular.ttf'),
+          assets.load(StoreIdentity.wordmarkFontAsset),
+          assets.load('assets/fonts/Zain-ExtraBold.ttf'),
+        ]);
+        final wordmark = FontLoader(AppTypography.brandFontFamily);
+        for (final face in faces) {
+          wordmark.addFont(Future.value(face));
+        }
         return wordmark.load();
       }),
     ]);

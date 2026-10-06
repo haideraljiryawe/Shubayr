@@ -1,3 +1,4 @@
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -146,7 +147,7 @@ class DesignGalleryScreen extends ConsumerWidget {
 
           // ---- Typography -----------------------------------------------
           _Section(
-            title: 'Typography (Cairo)',
+            title: 'Typography (Zain)',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -211,6 +212,7 @@ class DesignGalleryScreen extends ConsumerWidget {
             child: Column(
               children: [
                 const TextField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   decoration: InputDecoration(
                     labelText: 'Label',
                     hintText: 'Hint text',
@@ -218,6 +220,7 @@ class DesignGalleryScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 const TextField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   decoration: InputDecoration(
                     labelText: 'With error',
                     errorText: 'Something is wrong',
@@ -343,8 +346,7 @@ class _Label extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) =>
-      Text(text, style: context.text.titleSmall);
+  Widget build(BuildContext context) => Text(text, style: context.sectionTitle);
 }
 
 class _Swatch extends StatelessWidget {

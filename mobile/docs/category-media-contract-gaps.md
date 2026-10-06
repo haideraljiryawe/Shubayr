@@ -109,7 +109,7 @@ whitespace-only content is invalid. Subcategories do not require descriptions.
 
 At 320 logical pixels, existing 8px page insets leave 304px; the unchanged 0.42
 image fraction leaves 176.32px for text before 32px inner padding, or **144.32px**.
-Cairo `bodySmall` remains 12px / weight 600 / line-height 1.45, giving 34.8px for
+Zain `bodySmall` remains 12px / weight 400 / line-height 1.45, giving 34.8px for
 two description lines. The chosen conservative limits support brief Arabic and
 English phrases at this width; targeted TextPainter checks use the bundled font.
 Word/character limits cannot guarantee exact wrapping for arbitrary glyphs or text

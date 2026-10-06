@@ -138,9 +138,7 @@ class _SectionLabel extends StatelessWidget {
     ),
     child: Text(
       text,
-      style: context.text.labelLarge?.copyWith(
-        color: context.colors.textSecondary,
-      ),
+      style: context.sectionTitle.copyWith(color: context.colors.textSecondary),
     ),
   );
 }

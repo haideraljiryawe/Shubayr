@@ -1,3 +1,4 @@
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -269,6 +270,7 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
                   if (selection == 'failed') ...[
                     const SizedBox(height: AppSpacing.md),
                     TextField(
+                      contextMenuBuilder: appTextSelectionToolbar,
                       maxLength: 500,
                       minLines: 2,
                       maxLines: 4,

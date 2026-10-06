@@ -95,9 +95,7 @@ class ProductCardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    double lineHeight(TextStyle style) =>
-        MediaQuery.textScalerOf(context).scale(style.fontSize!) *
-        (style.height ?? 1);
+    double lineHeight(TextStyle style) => context.textLineHeight(style);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,

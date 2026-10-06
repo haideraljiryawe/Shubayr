@@ -19,9 +19,9 @@ Rect _paintedRect(WidgetTester tester, Finder finder) {
 
 void main() {
   setUpAll(() async {
-    final fonts = FontLoader('Cairo');
-    for (final weight in ['Regular', 'Medium', 'SemiBold', 'Bold']) {
-      fonts.addFont(rootBundle.load('assets/fonts/Cairo-$weight.ttf'));
+    final fonts = FontLoader('Zain');
+    for (final weight in ['Regular', 'Bold', 'ExtraBold']) {
+      fonts.addFont(rootBundle.load('assets/fonts/Zain-$weight.ttf'));
     }
     await fonts.load();
   });

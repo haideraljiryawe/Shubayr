@@ -72,9 +72,11 @@ Widget _host(
 
 void main() {
   setUpAll(() async {
-    await (FontLoader(
-      'Cairo',
-    )..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))).load();
+    await (FontLoader('Zain')
+          ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf')))
+        .load();
   });
 
   for (final role in ['customer', 'order_monitor', 'delivery_agent']) {

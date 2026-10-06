@@ -1,3 +1,4 @@
+import 'app_text_selection_toolbar.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/theme_context.dart';
@@ -134,6 +135,7 @@ Future<num?> editQuantity(
         content: Form(
           key: formKey,
           child: TextFormField(
+            contextMenuBuilder: appTextSelectionToolbar,
             initialValue: formatQuantity(quantity),
             onSaved: (text) =>
                 selected = num.parse(text!.trim().replaceAll('٫', '.')),

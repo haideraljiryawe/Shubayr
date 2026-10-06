@@ -104,10 +104,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     // Measure the badge with the actual bundled font, not the test placeholder.
-    final font = FontLoader('Cairo')
-      ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/Cairo-SemiBold.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf'));
+    final font = FontLoader('Zain')
+      ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf'));
     await font.load();
   });
 

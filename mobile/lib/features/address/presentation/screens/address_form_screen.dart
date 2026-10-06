@@ -1,3 +1,4 @@
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/utils/numeric_input_formatters.dart';
 import '../../../../core/utils/numeric_text.dart';
 import '../../../../core/layout/app_layout.dart';
@@ -141,11 +142,13 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
             child: ResponsiveFields(
               children: [
                 TextFormField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   controller: _label,
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(labelText: l10n.addressLabel),
                 ),
                 TextFormField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   controller: _city,
                   textInputAction: TextInputAction.next,
                   validator: (v) => (v == null || v.trim().isEmpty)
@@ -154,12 +157,14 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                   decoration: InputDecoration(labelText: l10n.addressCity),
                 ),
                 TextFormField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   controller: _area,
                   inputFormatters: const [WesternDigitsInputFormatter()],
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(labelText: l10n.addressArea),
                 ),
                 TextFormField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   controller: _street,
                   inputFormatters: const [WesternDigitsInputFormatter()],
                   textInputAction: TextInputAction.next,
@@ -168,6 +173,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                 ResponsiveField(
                   fullWidth: true,
                   child: TextFormField(
+                    contextMenuBuilder: appTextSelectionToolbar,
                     controller: _details,
                     inputFormatters: const [WesternDigitsInputFormatter()],
                     maxLines: 2,
@@ -225,6 +231,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                         ),
                         if (!_usePrimaryPhone)
                           TextFormField(
+                            contextMenuBuilder: appTextSelectionToolbar,
                             key: const ValueKey('address-other-phone'),
                             controller: _otherPhone,
                             enabled: !_busy,

@@ -64,13 +64,13 @@ void main() {
       expect(theme.useMaterial3, isTrue);
     });
 
-    test('uses the bundled Cairo family throughout the text theme', () {
+    test('uses the bundled Zain family throughout the text theme', () {
       final theme = AppTheme.light(const Brand.bundled());
 
-      expect(AppTypography.fontFamily, 'Cairo');
-      expect(theme.textTheme.bodyMedium?.fontFamily, 'Cairo');
-      expect(theme.textTheme.titleLarge?.fontFamily, 'Cairo');
-      expect(theme.textTheme.labelSmall?.fontFamily, 'Cairo');
+      expect(AppTypography.fontFamily, 'Zain');
+      expect(theme.textTheme.bodyMedium?.fontFamily, 'Zain');
+      expect(theme.textTheme.titleLarge?.fontFamily, 'Zain');
+      expect(theme.textTheme.labelSmall?.fontFamily, 'Zain');
     });
 
     test('bottom navigation is flat, compact and token-driven', () {

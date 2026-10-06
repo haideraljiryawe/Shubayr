@@ -258,7 +258,7 @@ void main() {
           );
           expect(
             Theme.of(tester.element(name)).textTheme.titleLarge!.fontFamily,
-            'Cairo',
+            'Zain',
           );
           expect(tester.takeException(), isNull);
         }

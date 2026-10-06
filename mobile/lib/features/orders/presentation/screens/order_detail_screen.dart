@@ -395,7 +395,7 @@ class _TimelineRow extends StatelessWidget {
                   Text(
                     orderStatusLabel(context.l10n, event.status),
                     style: context.text.bodyMedium?.copyWith(
-                      fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isLast ? FontWeight.w700 : FontWeight.w400,
                     ),
                   ),
                   if (event.note != null && event.note!.trim().isNotEmpty) ...[
@@ -590,7 +590,10 @@ class _SummaryRow extends StatelessWidget {
       value: Text(
         value,
         style: (emphasize ? context.text.titleMedium : context.text.bodyMedium)
-            ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
+            ?.copyWith(
+              color: valueColor,
+              fontWeight: emphasize ? FontWeight.w700 : FontWeight.w400,
+            ),
       ),
     );
   }
@@ -607,6 +610,6 @@ class _SectionTitle extends StatelessWidget {
       start: AppSpacing.xs,
       bottom: AppSpacing.sm,
     ),
-    child: Text(text, style: context.text.titleSmall),
+    child: Text(text, style: context.sectionTitle),
   );
 }

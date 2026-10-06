@@ -1,3 +1,4 @@
+import '../../../core/widgets/app_text_selection_toolbar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -134,6 +135,7 @@ class _MonitorOrdersScreenState extends ConsumerState<MonitorOrdersScreen> {
             child: ResponsiveFields(
               children: [
                 TextField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   controller: _search,
                   maxLength: 80,
                   decoration: InputDecoration(

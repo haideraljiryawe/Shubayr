@@ -50,9 +50,11 @@ Future<void> save(WidgetTester tester) async {
 
 void main() {
   setUpAll(() async {
-    await (FontLoader(
-      'Cairo',
-    )..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))).load();
+    await (FontLoader('Zain')
+          ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf')))
+        .load();
   });
   testWidgets(
     'failure keeps drafts and retry saves, reloads and clears only email',

@@ -103,9 +103,7 @@ class _SubcategoryGrid extends StatelessWidget {
             AppSpacing.md * 2 +
                 AppLayout.categoryIconSize +
                 AppSpacing.sm +
-                MediaQuery.textScalerOf(context).scale(labelStyle.fontSize!) *
-                    (labelStyle.height ?? 1) *
-                    2,
+                context.textLineHeight(labelStyle) * 2,
           );
           final category = children?[index];
           if (category == null) {

@@ -93,10 +93,10 @@ void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = PrefsStore(await SharedPreferences.getInstance());
-    await (FontLoader('Cairo')
-          ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Cairo-SemiBold.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf')))
+    await (FontLoader('Zain')
+          ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf')))
         .load();
   });
   for (final (locale, dark) in [('ar', false), ('en', true)]) {
@@ -203,6 +203,32 @@ void main() {
             findsNothing,
             reason: '$screen must show data',
           );
+          final l10n = AppLocalizations.of(
+            tester.element(find.byType(Scaffold).first),
+          );
+          final sectionLabels = switch (screen) {
+            CheckoutScreen() => [
+              l10n.checkoutAddress,
+              l10n.checkoutCoupon,
+              l10n.checkoutPayment,
+            ],
+            OrderDetailScreen() => [
+              l10n.orderTrackingTitle,
+              l10n.orderItemsSection,
+              l10n.orderSummary,
+            ],
+            Scaffold(body: AccountView()) => [
+              l10n.accountPreferences,
+              l10n.accountSupport,
+            ],
+            _ => <String>[],
+          };
+          for (final label in sectionLabels) {
+            final heading = tester.widget<Text>(find.text(label));
+            expect(heading.style!.fontFamily, 'Zain');
+            expect(heading.style!.fontSize, 16);
+            expect(heading.style!.fontWeight, FontWeight.w700);
+          }
           final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
           if (screen is CheckoutScreen ||
               screen is CartScreen ||

@@ -36,10 +36,10 @@ synchronously by `ShubayrApp`. The existing router holds `/splash` while the
 session loads and resolves the role/return-to destination when it completes.
 
 The session/role routing sequence is preserved. The old generic Flutter brand mark is now the
-local Shubayr logo (96 logical pixels), localized wordmark in Zain-Bold, localized
+local Shubayr logo (96 logical pixels), localized wordmark in Zain (weight 700), localized
 tagline and an indeterminate progress bar directly below it. SafeArea, content-width limits
 and a scrollable identity region support short windows and enlarged text.
-Cairo remains the general UI font. The existing Home wordmark is unchanged.
+Zain is the shared family for UI text and all wordmarks.
 
 Initially no percentage or minimum display duration was used (superseded by
 the current two-second policy above). The current policy also holds fast guest startup for the minimum window. The initial implementation added no lifecycle observer/timer/controller;
@@ -85,7 +85,7 @@ initialization or navigate to startup.
   the tagline's intrinsic/constrained width, uses AppSpacing.md (12px) above
   it and AppSpacing.xs (4px) thickness, and remains indeterminate.
 - Previously, Image.asset could build an empty RawImage while text was already
-  present. StartupAssets now prepares the decoded logo and Zain font before
+  present. StartupAssets now prepares the decoded logo and all three Zain faces before
   runApp; Splash uses that exact image provider so its first frame can resolve
   the cached image synchronously. No delay, new dependency or routing rule.
 - The first-frame regression test checks actual decoded RawImage availability

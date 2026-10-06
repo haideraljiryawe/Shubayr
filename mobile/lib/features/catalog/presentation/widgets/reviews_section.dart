@@ -32,7 +32,7 @@ class ReviewsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.productReviews, style: context.text.titleSmall),
+        Text(l10n.productReviews, style: context.sectionTitle),
         const SizedBox(height: AppSpacing.sm),
         AsyncValueView<ReviewPage>(
           value: reviews,
@@ -161,7 +161,7 @@ class _VerifiedBadge extends StatelessWidget {
           context.l10n.productVerifiedPurchase,
           style: context.text.labelSmall?.copyWith(
             color: colors.success,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],

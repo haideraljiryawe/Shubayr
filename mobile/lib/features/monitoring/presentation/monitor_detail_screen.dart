@@ -84,7 +84,7 @@ class MonitorDetailScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(l.checkoutCod, style: context.text.titleMedium),
+                        Text(l.checkoutCod, style: context.sectionTitle),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           '${l.cartSubtotal}: ${money(item.order.subtotal)}',
@@ -106,7 +106,7 @@ class MonitorDetailScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
-              Text(l.orderItemsSection, style: context.text.titleMedium),
+              Text(l.orderItemsSection, style: context.sectionTitle),
               const SizedBox(height: AppSpacing.md),
               for (final line in item.order.items)
                 Padding(

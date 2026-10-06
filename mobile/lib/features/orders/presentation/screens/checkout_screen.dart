@@ -1,3 +1,4 @@
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -408,7 +409,7 @@ class _SectionTitle extends StatelessWidget {
       start: AppSpacing.xs,
       bottom: AppSpacing.sm,
     ),
-    child: Text(text, style: context.text.titleSmall),
+    child: Text(text, style: context.sectionTitle),
   );
 }
 
@@ -529,6 +530,7 @@ class _CouponSection extends StatelessWidget {
             children: [
               Expanded(
                 child: TextField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   controller: controller,
                   textInputAction: TextInputAction.done,
                   onSubmitted: onApply == null ? null : (_) => onApply!(),
@@ -641,7 +643,10 @@ class _SummaryRow extends StatelessWidget {
       value: Text(
         value,
         style: (emphasize ? context.text.titleMedium : context.text.bodyMedium)
-            ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
+            ?.copyWith(
+              color: valueColor,
+              fontWeight: emphasize ? FontWeight.w700 : FontWeight.w400,
+            ),
       ),
     );
   }

@@ -62,23 +62,16 @@ flutter:
     - assets/images/branding/shubayr-logo.png
 
   # ---------------------------------------------------------------------------
-  # Local UI font — Cairo. Bundled from assets, never fetched over the network.
+  # Local UI font — Zain. Bundled from assets, never fetched over the network.
   # AppTypography.fontFamily is the single place that names the family.
   # Licence: assets/fonts/OFL.txt (SIL Open Font License 1.1).
   # ---------------------------------------------------------------------------
   fonts:
-    - family: Cairo
+    - family: Zain
       fonts:
-        - asset: assets/fonts/Cairo-Regular.ttf
+        - asset: assets/fonts/Zain-Regular.ttf
           weight: 400
-        - asset: assets/fonts/Cairo-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Cairo-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Cairo-Bold.ttf
-          weight: 700
-    # Brand wordmarks only; Cairo remains the app-wide UI family.
-    - family: Zain-Bold
-      fonts:
         - asset: assets/fonts/Zain-Bold.ttf
           weight: 700
+        - asset: assets/fonts/Zain-ExtraBold.ttf
+          weight: 800

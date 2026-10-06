@@ -102,9 +102,10 @@ ProviderContainer _container(_Catalog catalog) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
-    await (FontLoader('Cairo')
-          ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf')))
+    await (FontLoader('Zain')
+          ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf')))
         .load();
   });
   test(

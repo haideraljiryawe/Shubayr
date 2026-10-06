@@ -132,7 +132,7 @@ class _AddressCard extends ConsumerWidget {
                     Flexible(
                       child: Text(
                         title,
-                        style: context.text.titleSmall,
+                        style: context.text.titleMedium,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -145,7 +145,7 @@ class _AddressCard extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   _lines(),
-                  style: context.text.bodySmall?.copyWith(
+                  style: context.text.bodyMedium?.copyWith(
                     color: colors.textSecondary,
                   ),
                 ),
@@ -160,7 +160,7 @@ class _AddressCard extends ConsumerWidget {
                           ? context.l10n.addressContactUnavailable
                           : Validators.foldDigits(phone),
                       textDirection: phone == null ? null : TextDirection.ltr,
-                      style: context.text.bodySmall,
+                      style: context.text.bodyMedium,
                     ),
                     if (isPrimary)
                       DecoratedBox(
@@ -175,7 +175,7 @@ class _AddressCard extends ConsumerWidget {
                           ),
                           child: Text(
                             context.l10n.addressPrimaryPhoneBadge,
-                            style: context.text.labelSmall?.copyWith(
+                            style: context.text.labelMedium?.copyWith(
                               color: colors.textPrimary,
                             ),
                           ),
@@ -211,7 +211,7 @@ class _DefaultBadge extends StatelessWidget {
         ),
         child: Text(
           context.l10n.addressDefault,
-          style: context.text.labelSmall?.copyWith(
+          style: context.text.labelMedium?.copyWith(
             color: colors.primaryDark,
             fontWeight: FontWeight.w700,
           ),

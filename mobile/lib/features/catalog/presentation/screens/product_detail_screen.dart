@@ -251,7 +251,7 @@ class _DetailState extends ConsumerState<_Detail> {
                           const SizedBox(height: AppSpacing.lg),
                           Text(
                             l10n.productVariants,
-                            style: context.text.titleSmall,
+                            style: context.sectionTitle,
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           _VariantSelector(
@@ -285,7 +285,7 @@ class _DetailState extends ConsumerState<_Detail> {
                           const SizedBox(height: AppSpacing.lg),
                           Text(
                             l10n.productDescription,
-                            style: context.text.titleSmall,
+                            style: context.sectionTitle,
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
@@ -361,7 +361,7 @@ class _AvailabilityBadge extends StatelessWidget {
           label,
           style: context.text.labelMedium?.copyWith(
             color: color,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],

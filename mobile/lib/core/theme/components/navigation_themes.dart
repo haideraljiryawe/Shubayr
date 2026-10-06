@@ -88,7 +88,7 @@ abstract final class NavigationThemes {
   static Color bottomBarUnselectedColor(ColorScheme colors) =>
       colors.onSurface.withValues(alpha: bottomBarUnselectedOpacity);
   static const FontWeight bottomBarSelectedLabelWeight = FontWeight.w700;
-  static const FontWeight bottomBarUnselectedLabelWeight = FontWeight.w600;
+  static const FontWeight bottomBarUnselectedLabelWeight = FontWeight.w400;
 
   static TextStyle? bottomBarLabelStyle(
     TextTheme text, {

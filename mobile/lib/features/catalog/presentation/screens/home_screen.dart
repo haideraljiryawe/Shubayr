@@ -43,21 +43,16 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(width: AppSpacing.sm),
             Flexible(
-              // Zain's glyphs sit above the line-box center in both locales.
-              // Paint-only correction preserves all header layout metrics.
-              child: Transform.translate(
-                offset: const Offset(0, AppSpacing.xxs),
-                child: Text(
-                  brand.name ??
-                      StoreIdentity.name(
-                        Localizations.localeOf(context).languageCode,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: AppTypography.homeBrandFontFamily,
-                    fontWeight: FontWeight.w700,
-                  ),
+              child: Text(
+                brand.name ??
+                    StoreIdentity.name(
+                      Localizations.localeOf(context).languageCode,
+                    ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: AppTypography.homeBrandFontFamily,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -136,7 +131,7 @@ class _OffersHeader extends StatelessWidget {
         Expanded(
           child: Text(
             context.l10n.homeOffersTitle,
-            style: context.text.titleMedium,
+            style: context.sectionTitle,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),

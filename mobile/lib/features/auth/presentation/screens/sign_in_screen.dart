@@ -1,3 +1,4 @@
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/utils/numeric_input_formatters.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
@@ -127,6 +128,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     TextFormField(
+                      contextMenuBuilder: appTextSelectionToolbar,
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       inputFormatters: const [PhoneInputFormatter()],

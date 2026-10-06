@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../tokens/app_radii.dart';
 import '../tokens/app_spacing.dart';
+import '../tokens/app_typography.dart';
 
 abstract final class InputTheme {
   static const double productFilterIconSize = 22;
@@ -43,27 +44,31 @@ abstract final class InputTheme {
     return InputDecorationThemeData(
       filled: true,
       fillColor: c.surface,
-      // Vertical padding sets the field height — the single place to retune it
-      // app-wide, kept close to the button height for a consistent control bar.
+      // Natural input metrics and 16px vertical insets keep floating labels
+      // clear of selected text, including at 200% text scaling.
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
+        vertical: AppSpacing.lg,
       ),
       hintStyle: WidgetStateTextStyle.resolveWith(
         (states) => (text.bodyMedium ?? const TextStyle()).copyWith(
+          height: kTextHeightNone,
           color: states.contains(WidgetState.disabled)
               ? c.textDisabled
               : c.textMuted,
         ),
       ),
       labelStyle: WidgetStateTextStyle.resolveWith(
-        (states) => (text.bodyMedium ?? const TextStyle()).copyWith(
+        (states) => AppTypography.formLabel(text).copyWith(
           color: states.contains(WidgetState.disabled)
               ? c.textDisabled
               : c.textSecondary,
         ),
       ),
-      floatingLabelStyle: text.labelMedium?.copyWith(color: c.primaryDark),
+      floatingLabelStyle: AppTypography.floatingFormLabel(
+        text,
+      ).copyWith(color: c.primaryDark),
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
       errorStyle: text.labelSmall?.copyWith(color: c.danger),
       prefixIconColor: WidgetStateColor.resolveWith(
         (states) => states.contains(WidgetState.disabled)

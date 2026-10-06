@@ -274,7 +274,7 @@ class _Counter extends StatelessWidget {
         context.l10n.galleryCounter('$current', '$total'),
         style: context.text.labelLarge?.copyWith(
           color: Colors.white,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
         ),
       ),
     );

@@ -113,9 +113,10 @@ void _size(WidgetTester tester, double width) {
 
 void main() {
   setUpAll(() async {
-    await (FontLoader('Cairo')
-          ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Cairo-SemiBold.ttf')))
+    await (FontLoader('Zain')
+          ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf')))
         .load();
   });
   for (final locale in ['ar', 'en']) {

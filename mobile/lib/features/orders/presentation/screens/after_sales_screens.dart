@@ -1,3 +1,4 @@
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
 import '../../../../core/utils/quantity.dart';
 import '../../../../core/layout/app_layout.dart';
@@ -169,6 +170,7 @@ class _ReviewOrderScreenState extends ConsumerState<_ReviewOrderForm> {
                       ),
                       const SizedBox(height: AppSpacing.md),
                       TextField(
+                        contextMenuBuilder: appTextSelectionToolbar,
                         controller: _comment,
                         enabled: !_busy,
                         minLines: 3,
@@ -425,6 +427,7 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                     ],
                     if (available.isNotEmpty) ...[
                       TextField(
+                        contextMenuBuilder: appTextSelectionToolbar,
                         controller: _reason,
                         maxLength: 1000,
                         enabled: !_busy,

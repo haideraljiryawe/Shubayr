@@ -98,10 +98,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     // Use the bundled Arabic font to exercise real line wrapping and metrics.
-    final font = FontLoader('Cairo')
-      ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/Cairo-SemiBold.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf'));
+    final font = FontLoader('Zain')
+      ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf'));
     await font.load();
   });
 
