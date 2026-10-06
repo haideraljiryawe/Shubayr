@@ -49,6 +49,7 @@ class CustomerBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final colorScheme = Theme.of(context).colorScheme;
     final media = MediaQuery.of(context);
     final reduceMotion = media.disableAnimations || media.accessibleNavigation;
     final gutter = AppLayout.pageHorizontal(context);
@@ -68,106 +69,109 @@ class CustomerBottomNavigation extends StatelessWidget {
         right: right,
         bottom: NavigationThemes.bottomBarBottomOffset(media),
       ),
-      // Uses the same readable-width cap as Account. Parent constraints govern
-      // the width; neither the screen width nor a device/platform is assumed.
-      child: ResponsiveContent(
-        child: SizedBox(
-          width: double.infinity,
-          child: DecoratedBox(
-            key: const ValueKey('bottom-nav-shadow'),
-            decoration: BoxDecoration(
-              borderRadius: NavigationThemes.bottomBarRadius,
-              boxShadow: [
-                NavigationThemes.bottomBarShadow(
-                  Theme.of(context).colorScheme.shadow,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: NavigationThemes.bottomBarRadius,
-              child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: NavigationThemes.bottomBarBlurSigma,
-                  sigmaY: NavigationThemes.bottomBarBlurSigma,
-                ),
-                child: Material(
-                  key: const ValueKey('bottom-nav-surface'),
-                  color: colors.surface.withValues(
-                    alpha: NavigationThemes.bottomBarSurfaceOpacity(
-                      Theme.of(context).brightness,
+      // Narrow the safe parent allocation before applying the existing cap.
+      // Neither a raw screen width nor a device/platform is assumed here.
+      child: FractionallySizedBox(
+        widthFactor: NavigationThemes.bottomBarWidthFactor,
+        child: ResponsiveContent(
+          child: SizedBox(
+            width: double.infinity,
+            child: DecoratedBox(
+              key: const ValueKey('bottom-nav-shadow'),
+              decoration: BoxDecoration(
+                borderRadius: NavigationThemes.bottomBarRadius,
+                boxShadow: [
+                  NavigationThemes.bottomBarShadow(colorScheme),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: NavigationThemes.bottomBarRadius,
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: NavigationThemes.bottomBarBlurSigma,
+                    sigmaY: NavigationThemes.bottomBarBlurSigma,
+                  ),
+                  child: Material(
+                    key: const ValueKey('bottom-nav-surface'),
+                    color: NavigationThemes.bottomBarSurfaceColor(colorScheme),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: NavigationThemes.bottomBarRadius,
+                      side: NavigationThemes.bottomBarBorder(colors),
                     ),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: NavigationThemes.bottomBarRadius,
-                    side: NavigationThemes.bottomBarBorder(colors),
-                  ),
-                  child: SizedBox(
-                    height: NavigationThemes.bottomBarHeight,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        IgnorePointer(
-                          child: AnimatedAlign(
-                            alignment: AlignmentDirectional(
-                              destinations.length == 1
-                                  ? 0
-                                  : -1 +
-                                        2 *
-                                            selectedIndex /
-                                            (destinations.length - 1),
-                              0,
-                            ),
-                            duration: reduceMotion
-                                ? Duration.zero
-                                : NavigationThemes.bottomBarSelectionDuration,
-                            curve: NavigationThemes.bottomBarCurve,
-                            child: FractionallySizedBox(
-                              widthFactor: 1 / destinations.length,
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final size =
-                                      NavigationThemes.bottomBarSelectedSize(
-                                        constraints.maxWidth,
-                                      );
-                                  return Center(
-                                    child: DecoratedBox(
-                                      key: const ValueKey('bottom-nav-capsule'),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            NavigationThemes.bottomBarSelectedSurfaceColor(
-                                              colors,
-                                            ),
-                                        borderRadius: BorderRadius.circular(
-                                          size.height / 2,
-                                        ),
-                                      ),
-                                      child: SizedBox.fromSize(size: size),
-                                    ),
-                                  );
-                                },
+                    child: SizedBox(
+                      height: NavigationThemes.bottomBarHeight,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          IgnorePointer(
+                            child: AnimatedAlign(
+                              alignment: AlignmentDirectional(
+                                destinations.length == 1
+                                    ? 0
+                                    : -1 +
+                                          2 *
+                                              selectedIndex /
+                                              (destinations.length - 1),
+                                0,
                               ),
-                            ),
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            for (var i = 0; i < destinations.length; i++)
-                              Expanded(
-                                key: ValueKey(destinations[i].id),
-                                child: _BottomNavItem(
-                                  destination: destinations[i],
-                                  selected: i == selectedIndex,
-                                  onTap: () {
-                                    if (i != selectedIndex) {
-                                      HapticFeedback.selectionClick();
-                                    }
-                                    onSelected(i);
+                              duration: reduceMotion
+                                  ? Duration.zero
+                                  : NavigationThemes.bottomBarSelectionDuration,
+                              curve: NavigationThemes.bottomBarCurve,
+                              child: FractionallySizedBox(
+                                widthFactor: 1 / destinations.length,
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final size =
+                                        NavigationThemes.bottomBarSelectedSize(
+                                          constraints.maxWidth,
+                                        );
+                                    return Center(
+                                      child: DecoratedBox(
+                                        key: const ValueKey('bottom-nav-capsule'),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              NavigationThemes.bottomBarSelectedSurfaceColor(
+                                                colors,
+                                              ),
+                                          borderRadius: BorderRadius.circular(
+                                            size.height / 2,
+                                          ),
+                                        ),
+                                        child: SizedBox.fromSize(size: size),
+                                      ),
+                                    );
                                   },
                                 ),
                               ),
-                          ],
-                        ),
-                      ],
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              for (var i = 0; i < destinations.length; i++)
+                                Expanded(
+                                  key: ValueKey(destinations[i].id),
+                                  child: Center(
+                                    child: SizedBox(
+                                      height: NavigationThemes
+                                          .bottomBarMinimumInteractiveHeight,
+                                      child: _BottomNavItem(
+                                        destination: destinations[i],
+                                        selected: i == selectedIndex,
+                                        onTap: () {
+                                          if (i != selectedIndex) {
+                                            HapticFeedback.selectionClick();
+                                          }
+                                          onSelected(i);
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -195,8 +199,86 @@ class _BottomNavItem extends StatefulWidget {
   State<_BottomNavItem> createState() => _BottomNavItemState();
 }
 
-class _BottomNavItemState extends State<_BottomNavItem> {
-  bool _pressed = false;
+class _BottomNavItemState extends State<_BottomNavItem>
+    with SingleTickerProviderStateMixin {
+  late final WidgetStatesController _states = WidgetStatesController()
+    ..addListener(_handleStatesChanged);
+  late final AnimationController _expansion;
+  late final Animation<double> _pressedScale;
+  bool _wasPressed = false;
+  int? _activePointer;
+  bool _tooltipPress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _expansion = AnimationController(
+      vsync: this,
+      value: 1,
+      duration: NavigationThemes.bottomBarPressedExpandDuration,
+    );
+    _pressedScale = _expansion.drive(
+      Tween<double>(
+        begin: NavigationThemes.bottomBarPressedInitialScale,
+        end: 1,
+      ).chain(CurveTween(curve: NavigationThemes.bottomBarPressedExpandCurve)),
+    );
+  }
+
+  void _handleStatesChanged() {
+    final pressed = _states.value.contains(WidgetState.pressed);
+    if (pressed && !_wasPressed) {
+      final media = MediaQuery.of(context);
+      if (media.disableAnimations || media.accessibleNavigation) {
+        _expansion.value = 1;
+      } else {
+        _expansion.forward(from: 0);
+      }
+    } else if (!pressed && _wasPressed) {
+      // Even an early release fades at full size, without a reverse animation.
+      _expansion.value = 1;
+    }
+    // Release only fades the surface; expansion never reverses or shrinks.
+    _wasPressed = pressed;
+    setState(() {});
+  }
+
+  void _handleTooltipTriggered() {
+    if (_activePointer == null) return;
+    // Tooltip wins the long-press gesture arena and cancels InkWell's tap.
+    // Keep this same press in the controller until its pointer actually ends;
+    // do not restart expansion when ownership transfers to the tooltip.
+    _tooltipPress = true;
+    _wasPressed = true;
+    _states.update(WidgetState.pressed, true);
+  }
+
+  void _handlePointerEnd(PointerEvent event) {
+    if (event.pointer != _activePointer) return;
+    _activePointer = null;
+    if (_tooltipPress) {
+      _tooltipPress = false;
+      _states.update(WidgetState.pressed, false);
+    }
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (!_tooltipPress || event.pointer != _activePointer) return;
+    final box = context.findRenderObject()! as RenderBox;
+    if (!(Offset.zero & box.size).contains(box.globalToLocal(event.position))) {
+      _tooltipPress = false;
+      _states.update(WidgetState.pressed, false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _states
+      ..removeListener(_handleStatesChanged)
+      ..dispose();
+    _expansion.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -221,40 +303,85 @@ class _BottomNavItemState extends State<_BottomNavItem> {
       child: Tooltip(
         message: destination.label,
         excludeFromSemantics: true,
-        child: InkWell(
-          onTap: widget.onTap,
-          onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
-          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-          splashFactory: NoSplash.splashFactory,
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          child: AnimatedScale(
-            scale: _pressed && !reduceMotion
-                ? NavigationThemes.bottomBarPressedScale
-                : 1,
-            duration: reduceMotion
-                ? Duration.zero
-                : NavigationThemes.bottomBarPressDuration,
-            curve: NavigationThemes.bottomBarPressCurve,
-            child: Center(
-              child: _badged(
-                context,
-                AnimatedScale(
-                  scale: selected && !reduceMotion
-                      ? NavigationThemes.bottomBarSelectedScale
-                      : 1,
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : NavigationThemes.bottomBarSelectionDuration,
-                  curve: NavigationThemes.bottomBarCurve,
-                  child: Icon(
-                    selected ? destination.selectedIcon : destination.icon,
-                    color: iconColor,
-                    size: NavigationThemes.bottomBarIconSize,
-                  ),
-                ),
-                destination.badge,
-              ),
+        onTriggered: _handleTooltipTriggered,
+        child: Listener(
+          onPointerDown: (event) => _activePointer ??= event.pointer,
+          onPointerUp: _handlePointerEnd,
+          onPointerCancel: _handlePointerEnd,
+          onPointerMove: _handlePointerMove,
+          child: InkWell(
+            onTap: widget.onTap,
+            statesController: _states,
+            // InkWell owns gestures, focus and keyboard actions. Paint its state
+            // layer separately so the full safe hit target stays independent of
+            // the narrower (and sometimes taller) decorative capsule bounds.
+            overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+            splashFactory: NoSplash.splashFactory,
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final size = NavigationThemes.bottomBarPressedSize(
+                  constraints.maxWidth,
+                );
+                final opacity = NavigationThemes.bottomBarStateOpacity(
+                  _states.value,
+                  selected: selected,
+                );
+                return Stack(
+                  fit: StackFit.expand,
+                  clipBehavior: Clip.none,
+                  children: [
+                    IgnorePointer(
+                      child: OverflowBox(
+                        minWidth: size.width,
+                        maxWidth: size.width,
+                        minHeight: size.height,
+                        maxHeight: size.height,
+                        child: ScaleTransition(
+                          key: const ValueKey('bottom-nav-press-expansion'),
+                          scale: reduceMotion
+                              ? const AlwaysStoppedAnimation(1)
+                              : _pressedScale,
+                          child: ClipRRect(
+                            key: const ValueKey('bottom-nav-state-layer'),
+                            borderRadius: BorderRadius.circular(size.height / 2),
+                            child: AnimatedOpacity(
+                              opacity: opacity,
+                              duration: reduceMotion
+                                  ? Duration.zero
+                                  : _states.value.contains(WidgetState.pressed)
+                                  ? NavigationThemes.bottomBarPressedExpandDuration
+                                  : NavigationThemes.bottomBarPressedFadeDuration,
+                              child: ColoredBox(color: colors.primary),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Center(
+                      child: _badged(
+                        context,
+                        AnimatedScale(
+                          scale: selected && !reduceMotion
+                              ? NavigationThemes.bottomBarSelectedScale
+                              : 1,
+                          duration: reduceMotion
+                              ? Duration.zero
+                              : NavigationThemes.bottomBarSelectedIconDuration,
+                          curve: NavigationThemes.bottomBarSelectedIconCurve,
+                          child: Icon(
+                            selected ? destination.selectedIcon : destination.icon,
+                            color: iconColor,
+                            size: NavigationThemes.bottomBarIconSize,
+                          ),
+                        ),
+                        destination.badge,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),

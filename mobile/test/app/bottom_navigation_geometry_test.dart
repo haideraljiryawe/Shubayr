@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/app/shell/customer_bottom_navigation.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
-import 'package:shubayr/core/theme/theme_context.dart';
 import 'package:shubayr/core/layout/app_layout.dart';
 
 Rect _paintedRect(WidgetTester tester, Finder finder) {
@@ -33,6 +32,7 @@ void main() {
           320.0,
           360.0,
           390.0,
+          402.0,
           430.0,
           600.0,
           800.0,
@@ -111,14 +111,17 @@ void main() {
                     matching: find.byType(InkWell),
                   );
                   expect(tabs, findsNWidgets(count));
-                  expect(surface.bottom, 844 - inset - 2);
+                  expect(
+                    surface.bottom,
+                    closeTo(844 - math.max(0, inset - 11.8), .01),
+                  );
                   final gutter = width < 600 ? 8.0 : 16.0;
                   expect(
                     surface.width,
-                    closeTo((width - 2 * gutter).clamp(0, 760), .01),
+                    closeTo(((width - 2 * gutter) * .90).clamp(0, 760), .01),
                   );
                   expect(surface.center.dx, closeTo(width / 2, .01));
-                  expect(surface.height, 58);
+                  expect(surface.height, closeTo(67.6, .01));
                   final material = tester.widget<Material>(
                     find.byKey(const ValueKey('bottom-nav-surface')),
                   );
@@ -127,13 +130,18 @@ void main() {
                   );
                   expect(
                     material.color,
-                    context.colors.surface.withValues(alpha: dark ? .84 : .82),
+                    dark
+                        ? Color.alphaBlend(
+                            Colors.white.withValues(alpha: .08),
+                            Theme.of(context).colorScheme.surface,
+                          ).withValues(alpha: .92)
+                        : Colors.white.withValues(alpha: .91),
                   );
                   final outer = (material.shape! as RoundedRectangleBorder)
                       .borderRadius
                       .resolve(TextDirection.ltr)
                       .toRRect(surface);
-                  expect(outer.tlRadiusX, surface.height / 2);
+                  expect(outer.tlRadiusX, closeTo(surface.height / 2, .01));
                   expect(
                     find.descendant(of: tabs, matching: find.byType(Text)),
                     findsNothing,
@@ -146,45 +154,107 @@ void main() {
                       const ValueKey('bottom-nav-capsule'),
                     );
                     final capsule = tester.getRect(capsuleFinder);
+                    final stateLayer = find.descendant(
+                      of: tabs.at(index),
+                      matching: find.byKey(
+                        const ValueKey('bottom-nav-state-layer'),
+                      ),
+                    );
+                    final stateBounds = tester.getRect(stateLayer);
+                    expect(stateBounds.width, greaterThan(capsule.width));
+                    expect(stateBounds.height, greaterThan(capsule.height));
+                    expect(stateBounds.width, lessThanOrEqualTo(slot.width));
+                    expect(stateBounds.height, lessThanOrEqualTo(surface.height));
+                    expect(stateBounds.left - slot.left, closeTo(2.1, .01));
+                    expect(slot.right - stateBounds.right, closeTo(2.1, .01));
+                    expect(
+                      stateBounds.height,
+                      closeTo(math.min(62.6, stateBounds.width), .01),
+                    );
+                    expect(
+                      stateBounds.center.dx,
+                      closeTo(capsule.center.dx, .01),
+                    );
+                    expect(
+                      stateBounds.center.dy,
+                      closeTo(capsule.center.dy, .01),
+                    );
+                    final stateClip = tester.widget<ClipRRect>(stateLayer);
+                    expect(stateClip.clipBehavior, Clip.antiAlias);
+                    expect(
+                      stateClip.borderRadius
+                          .resolve(TextDirection.ltr)
+                          .topLeft
+                          .x,
+                      closeTo(stateBounds.height / 2, .01),
+                    );
+                    final pressedShape = stateClip.borderRadius
+                        .resolve(TextDirection.ltr)
+                        .toRRect(stateBounds);
+                    final pressedPerimeter = (Path()..addRRect(pressedShape))
+                        .computeMetrics()
+                        .single;
+                    for (var sample = 0; sample < 64; sample++) {
+                      final point = pressedPerimeter
+                          .getTangentForOffset(
+                            pressedPerimeter.length * sample / 64,
+                          )!
+                          .position;
+                      expect(
+                        outer.deflate(.8).contains(point),
+                        isTrue,
+                        reason: 'pressed surface touches bar border at $point',
+                      );
+                    }
                     expect(slot.width, closeTo(surface.width / count, .01));
-                    // Hit targets still occupy their complete slot, including
-                    // the dense 280px / 6 layout (44px wide, 58px tall).
-                    expect(slot.width, greaterThanOrEqualTo(44));
-                    expect(slot.height, 58);
+                    // Hit targets retain the full slot width with a centered
+                    // 44px height; the outer 11.8px margins are decoration only.
+                    expect(slot.width, greaterThanOrEqualTo(28 * 1.10));
+                    expect(slot.height, closeTo(44, .01));
+                    expect(slot.top - surface.top, closeTo(11.8, .01));
+                    expect(surface.bottom - slot.bottom, closeTo(11.8, .01));
+                    expect(slot.bottom, lessThanOrEqualTo(844 - inset + .01));
                     expect(
                       capsule.width + .01,
                       greaterThanOrEqualTo(capsule.height),
                     );
-                    expect(capsule.height, lessThanOrEqualTo(44.01));
+                    expect(capsule.height, lessThanOrEqualTo(52.01));
                     expect(capsule.width, lessThanOrEqualTo(slot.width));
-                    if (capsule.width >= 44) {
-                      expect(capsule.height, 44);
+                    if (capsule.width >= 52) {
+                      expect(capsule.height, closeTo(52, .01));
                     } else {
                       expect(capsule.height, closeTo(capsule.width, .01));
                     }
                     // Narrow fallback, intermediate and single-destination
                     // sizes prove that the previous width cap is gone.
                     final expectedSize = {
-                      (280.0, 6): const Size(30, 30),
-                      (320.0, 6): const Size(36.6667, 36.6667),
-                      (390.0, 5): const Size(60.8, 44),
-                      (390.0, 3): const Size(110.6667, 44),
-                      (390.0, 1): const Size(360, 44),
+                      (280.0, 6): const Size(27.6, 27.6),
+                      (320.0, 6): const Size(33.6, 33.6),
+                      (390.0, 5): const Size(55.32, 52),
+                      (390.0, 3): const Size(100.2, 52),
+                      (390.0, 1): const Size(324.6, 52),
                     }[(width, count)];
                     if (expectedSize != null) {
                       expect(capsule.width, closeTo(expectedSize.width, .01));
                       expect(capsule.height, closeTo(expectedSize.height, .01));
                     }
-                    expect(capsule.left - slot.left, closeTo(7, .01));
-                    expect(slot.right - capsule.right, closeTo(7, .01));
+                    expect(capsule.left - slot.left, closeTo(6, .01));
+                    expect(slot.right - capsule.right, closeTo(6, .01));
                     final verticalInset = (surface.height - capsule.height) / 2;
-                    expect(capsule.top - slot.top, closeTo(verticalInset, .01));
                     expect(
-                      slot.bottom - capsule.bottom,
+                      capsule.top - surface.top,
+                      closeTo(verticalInset, .01),
+                    );
+                    expect(
+                      surface.bottom - capsule.bottom,
                       closeTo(verticalInset, .01),
                     );
                     for (var neighbor = 0; neighbor < count; neighbor++) {
                       if (neighbor != index) {
+                        expect(
+                          stateBounds.overlaps(tester.getRect(tabs.at(neighbor))),
+                          isFalse,
+                        );
                         expect(
                           capsule.overlaps(tester.getRect(tabs.at(neighbor))),
                           isFalse,
@@ -229,8 +299,8 @@ void main() {
                       );
                       expect(content.center.dx, closeTo(slot.center.dx, .01));
                       expect(content.center.dy, closeTo(slot.center.dy, .01));
-                      expect(content.width, closeTo(28 * 1.03, .01));
-                      expect(content.height, closeTo(28 * 1.03, .01));
+                      expect(content.width, closeTo(28 * 1.10, .01));
+                      expect(content.height, closeTo(28 * 1.10, .01));
                       for (final point in [
                         content.topLeft,
                         content.topRight,
@@ -238,7 +308,12 @@ void main() {
                         content.bottomRight,
                       ]) {
                         expect(outer.contains(point), isTrue);
-                        expect(capsule.inflate(.01).contains(point), isTrue);
+                        expect(slot.inflate(.01).contains(point), isTrue);
+                        // Dense layouts can have a decorative pill smaller than
+                        // the icon; it must never clip the icon or its hit target.
+                        if (capsule.width >= content.width) {
+                          expect(capsule.inflate(.01).contains(point), isTrue);
+                        }
                       }
                       // The circle fallback is a background, not an icon clip.
                       expect(
@@ -273,6 +348,7 @@ void main() {
           320.0,
           360.0,
           390.0,
+          402.0,
           430.0,
           600.0,
           800.0,
@@ -358,19 +434,20 @@ void main() {
                     : math.max(safeRight, gutter);
                 expect(
                   bar.width,
-                  closeTo(math.min(width - left - right, 760), .01),
+                  closeTo(math.min((width - left - right) * .90, 760), .01),
                 );
                 expect(bar.center.dx, closeTo((left + width - right) / 2, .01));
                 expect(bar.left, greaterThanOrEqualTo(safeLeft));
                 expect(bar.right, lessThanOrEqualTo(width - safeRight));
                 if (consumed) {
                   // The actual app consumes device insets above the Navigator:
-                  // page gutters and the floating bar must then align exactly.
+                  // the narrower bar stays centered inside the same content area.
                   final content = tester.getRect(
                     find.byKey(const ValueKey('reference-content')),
                   );
-                  expect(bar.left, closeTo(content.left, .01));
-                  expect(bar.right, closeTo(content.right, .01));
+                  expect(bar.left, greaterThanOrEqualTo(content.left - .01));
+                  expect(bar.right, lessThanOrEqualTo(content.right + .01));
+                  expect(bar.center.dx, closeTo(content.center.dx, .01));
                 }
                 final tabs = find.descendant(
                   of: find.byType(CustomerBottomNavigation),
@@ -379,12 +456,9 @@ void main() {
                 for (var i = 0; i < count; i++) {
                   expect(
                     tester.getSize(tabs.at(i)).width,
-                    greaterThanOrEqualTo(48),
+                    closeTo(bar.width / count, .01),
                   );
-                  expect(
-                    tester.getSize(tabs.at(i)).height,
-                    greaterThanOrEqualTo(48),
-                  );
+                  expect(tester.getSize(tabs.at(i)).height, closeTo(44, .01));
                   await tester.tap(tabs.at(i));
                   await tester.pumpAndSettle();
                   final capsuleFinder = find.byKey(
@@ -398,8 +472,8 @@ void main() {
                     capsule.width + .01,
                     greaterThanOrEqualTo(capsule.height),
                   );
-                  expect(capsule.left - slot.left, closeTo(7, .01));
-                  expect(slot.right - capsule.right, closeTo(7, .01));
+                  expect(capsule.left - slot.left, closeTo(6, .01));
+                  expect(slot.right - capsule.right, closeTo(6, .01));
                   expect(capsule.width, lessThanOrEqualTo(slot.width));
                 }
                 expect(tester.takeException(), isNull);
@@ -445,7 +519,7 @@ void main() {
       find.byKey(const ValueKey('bottom-nav-surface')),
     );
     // A wide window uses the shared 16px gutter, but width comes from its parent.
-    expect(bar.width, 358);
+    expect(bar.width, closeTo(322.2, .01));
     expect(bar.center.dx, 600);
     expect(tester.takeException(), isNull);
   });

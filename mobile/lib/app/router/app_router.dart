@@ -32,6 +32,7 @@ import '../../features/orders/presentation/screens/orders_screen.dart';
 import '../../features/settings/presentation/screens/account_screen.dart';
 import '../../features/settings/presentation/screens/profile_screen.dart';
 import '../shell/customer_shell.dart';
+import '../shell/customer_branch_transition.dart';
 import '../splash_screen.dart';
 import '../startup_display_controller.dart';
 import 'app_routes.dart';
@@ -182,7 +183,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Orders · Account. A signed-out guest sees only Home · Categories ·
       // Account (Cart and Orders are guarded); CustomerShell hides those two
       // destinations and maps the visible tabs back to these branch indices.
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
+        navigatorContainerBuilder: CustomerBranchTransition.containerBuilder,
         builder: (context, state, navigationShell) =>
             CustomerShell(navigationShell: navigationShell),
         branches: [

@@ -123,6 +123,16 @@ void main() {
           expect(scale.scale, 1);
           expect(scale.duration, Duration.zero);
         }
+        for (final layer in tester.widgetList<AnimatedOpacity>(
+          find.byType(AnimatedOpacity),
+        )) {
+          expect(layer.duration, Duration.zero);
+        }
+        for (final expansion in tester.widgetList<ScaleTransition>(
+          find.byKey(const ValueKey('bottom-nav-press-expansion')),
+        )) {
+          expect(expansion.scale.value, 1);
+        }
         await press.up();
         await tester.pump();
         expect(selected, 4);

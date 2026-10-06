@@ -7,49 +7,82 @@ import '../tokens/app_radii.dart';
 import '../tokens/app_motion.dart';
 
 abstract final class NavigationThemes {
+  static const Duration bottomPageTransitionDuration = AppMotion.medium;
+  static const Curve bottomPageTransitionCurve = AppMotion.standard;
+  static const double bottomPageIncomingOffset = 0.22;
+  static const double bottomPageOutgoingOffset = 0.10;
+  static const double bottomPageIncomingOpacity = 0.96;
+
   // ---------------------------------------------------------------------------
   // Bottom navigation metrics — the single source of truth for the bar's size.
   // Tune the bar here; never hard-code these numbers in CustomerShell.
   // ---------------------------------------------------------------------------
 
-  /// Whole surface and touch-target height; system insets stay outside the bar.
-  /// Each destination still has a touch target taller than 48px.
-  static const double bottomBarHeight = 58;
+  /// Visual bounds are taller than the centered interactive strip. Only the
+  /// decorative margin may overlap a system exclusion; hit targets never do.
+  static const double bottomBarHeight = 67.6;
+  static const double bottomBarWidthFactor = 0.96;
+  // Keep the established minimum hit height centered within the taller glass.
+  static const double bottomBarMinimumInteractiveHeight = 44;
+  static const double bottomBarBottomGap = 0;
+  static double get bottomBarSafeVisualOverlap =>
+      math.max(0.0, (bottomBarHeight - bottomBarMinimumInteractiveHeight) / 2);
 
-  // Icon-only content does not grow with text scaling. Tooltips and semantics
-  // retain the destination names without changing the safe 58px touch height.
-  static const double bottomBarBottomGap = 2;
-
-  /// viewPadding retains system UI clearance even when the keyboard consumes
-  /// padding. Gesture insets can be larger (Android gesture navigation).
-  /// Neither changes internal geometry; the larger exclusion wins, not a sum.
+  /// viewPadding retains system UI clearance when the keyboard consumes
+  /// padding. The larger system exclusion wins on every platform. Clamping
+  /// the offset keeps the visual surface on screen when the inset is small.
   static double bottomBarBottomOffset(MediaQueryData media) =>
-      math.max(media.viewPadding.bottom, media.systemGestureInsets.bottom) +
+      math.max(
+        0.0,
+        math.max(media.viewPadding.bottom, media.systemGestureInsets.bottom) -
+            bottomBarSafeVisualOverlap,
+      ) +
       bottomBarBottomGap;
 
   // Frosted surface, outline and shadow. Lower opacity = more transparent.
-  static const double bottomBarSurfaceOpacityLight = 0.82;
-  static const double bottomBarSurfaceOpacityDark = 0.84;
+  static const double bottomBarSurfaceOpacityLight = 0.91;
+  static const double bottomBarSurfaceOpacityDark = 0.92;
+  static const double bottomBarDarkSurfaceTintOpacity = 0.08;
   static double bottomBarSurfaceOpacity(Brightness brightness) =>
       brightness == Brightness.dark
       ? bottomBarSurfaceOpacityDark
       : bottomBarSurfaceOpacityLight;
-  static const double bottomBarBlurSigma = 18;
-  static const double bottomBarBorderOpacity = 0.10;
-  static const double bottomBarBorderWidth = 0.7;
-  static const double bottomBarShadowOpacity = 0.08;
-  static const double bottomBarShadowBlur = 20;
-  static const double bottomBarShadowSpread = 0;
-  static const Offset bottomBarShadowOffset = Offset(0, 3);
+  static Color bottomBarSurfaceColor(ColorScheme colors) {
+    final base = colors.brightness == Brightness.dark
+        ? Color.alphaBlend(
+            Colors.white.withValues(alpha: bottomBarDarkSurfaceTintOpacity),
+            colors.surface,
+          )
+        : Colors.white;
+    return base.withValues(alpha: bottomBarSurfaceOpacity(colors.brightness));
+  }
 
-  static BoxShadow bottomBarShadow(Color shadow) => BoxShadow(
-    color: shadow.withValues(alpha: bottomBarShadowOpacity),
+  static const double bottomBarBlurSigma = 18;
+  static const double bottomBarBorderOpacityLight = 0.22;
+  static const double bottomBarBorderOpacityDark = 0.22;
+  static const double bottomBarBorderWidth = 0.8;
+  static const double bottomBarShadowOpacityLight = 0.11;
+  static const double bottomBarShadowOpacityDark = 0.12;
+  static const double bottomBarShadowBlur = 24;
+  static const double bottomBarShadowSpread = 0;
+  static const Offset bottomBarShadowOffset = Offset(0, 4);
+
+  static BoxShadow bottomBarShadow(ColorScheme colors) => BoxShadow(
+    color: colors.shadow.withValues(
+      alpha: colors.brightness == Brightness.dark
+          ? bottomBarShadowOpacityDark
+          : bottomBarShadowOpacityLight,
+    ),
     blurRadius: bottomBarShadowBlur,
     spreadRadius: bottomBarShadowSpread,
     offset: bottomBarShadowOffset,
   );
   static BorderSide bottomBarBorder(AppColors colors) => BorderSide(
-    color: colors.textPrimary.withValues(alpha: bottomBarBorderOpacity),
+    color: colors.textPrimary.withValues(
+      alpha: colors.brightness == Brightness.dark
+          ? bottomBarBorderOpacityDark
+          : bottomBarBorderOpacityLight,
+    ),
     width: bottomBarBorderWidth,
   );
 
@@ -84,13 +117,11 @@ abstract final class NavigationThemes {
     top: bottomBarLabelGap,
   );
 
-  /// Inset the moving slot by the same amount as the base pill's vertical
-  /// clearance. There is no internal horizontal bar padding to add here.
-  static const double bottomBarSelectedBaseHeight = 44;
-  static const double bottomBarSelectedSlotInset =
-      (bottomBarHeight - bottomBarSelectedBaseHeight) / 2;
+  static const double bottomBarSelectedBaseHeight = 52;
+  // Keep horizontal geometry independent of the increased vertical clearance.
+  static const double bottomBarSelectedSlotInset = 6;
 
-  /// Dense layouts reduce only the decorative indicator. Icons and full-slot
+  /// Dense layouts reduce only the decorative indicator. Icons and full-width
   /// hit targets keep their existing sizes. Radius follows the resulting height.
   static Size bottomBarSelectedSize(double slotWidth) {
     final width = math.max(0.0, slotWidth - 2 * bottomBarSelectedSlotInset);
@@ -100,12 +131,53 @@ abstract final class NavigationThemes {
   static const double bottomBarSelectedSurfaceOpacity = 0.20;
   static Color bottomBarSelectedSurfaceColor(AppColors colors) =>
       colors.primary.withValues(alpha: bottomBarSelectedSurfaceOpacity);
-  static const double bottomBarSelectedScale = 1.03;
+  static const double bottomBarSelectedScale = 1.10;
+  static const Duration bottomBarSelectedIconDuration = Duration(
+    milliseconds: 200,
+  );
+  static const Curve bottomBarSelectedIconCurve = Curves.easeOutCubic;
   static const Duration bottomBarSelectionDuration = AppMotion.medium;
   static const Curve bottomBarCurve = Curves.easeInOut;
-  static const double bottomBarPressedScale = 0.95;
-  static const Duration bottomBarPressDuration = Duration(milliseconds: 100);
-  static const Curve bottomBarPressCurve = Curves.easeOutCubic;
+  static const double bottomBarPressedOverlayOpacity = 0.10;
+  static const double bottomBarSelectedPressedOverlayOpacity = 0.07;
+  static const double bottomBarHoverOverlayOpacity = 0.05;
+  static const double bottomBarPressedVerticalInset = 2.5;
+  static const double bottomBarPressedSlotInsetRatio = 0.35;
+  static const double bottomBarPressedMinSlotInset = 2;
+  static const double bottomBarPressedInitialScale = 0.50;
+  static const Duration bottomBarPressedExpandDuration = Duration(
+    milliseconds: 130,
+  );
+  static const Duration bottomBarPressedFadeDuration = Duration(
+    milliseconds: 160,
+  );
+  static const Curve bottomBarPressedExpandCurve = Curves.easeOutCubic;
+
+  static Size bottomBarPressedSize(double slotWidth) {
+    final inset = math.max(
+      bottomBarPressedMinSlotInset,
+      bottomBarSelectedSlotInset * bottomBarPressedSlotInsetRatio,
+    );
+    final width = math.max(0.0, slotWidth - 2 * inset);
+    final targetHeight = bottomBarHeight - 2 * bottomBarPressedVerticalInset;
+    return Size(width, math.min(targetHeight, width));
+  }
+
+  static double bottomBarStateOpacity(
+    Set<WidgetState> states, {
+    required bool selected,
+  }) {
+    if (states.contains(WidgetState.pressed) ||
+        states.contains(WidgetState.focused)) {
+      return selected
+          ? bottomBarSelectedPressedOverlayOpacity
+          : bottomBarPressedOverlayOpacity;
+    }
+    if (states.contains(WidgetState.hovered)) {
+      return bottomBarHoverOverlayOpacity;
+    }
+    return 0;
+  }
 
   /// Bottom navigation.
   ///

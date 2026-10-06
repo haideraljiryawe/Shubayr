@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/l10n/l10n_context.dart';
 import '../../core/layout/app_layout.dart';
 import 'customer_bottom_navigation.dart';
+import 'customer_branch_transition.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/cart/presentation/providers/cart_providers.dart';
 
@@ -28,13 +29,21 @@ typedef _Destination = ({
 /// Branch order matches `app_router.dart`: Home · Categories · Cart · Orders ·
 /// Account. A signed-out guest sees only the three public destinations; Cart
 /// and Orders appear once signed in.
-class CustomerShell extends ConsumerWidget {
+class CustomerShell extends ConsumerStatefulWidget {
   const CustomerShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CustomerShell> createState() => _CustomerShellState();
+}
+
+class _CustomerShellState extends ConsumerState<CustomerShell> {
+  final _transition = CustomerBranchTransitionController();
+
+  @override
+  Widget build(BuildContext context) {
+    final navigationShell = widget.navigationShell;
     // An exiting route must release the globally keyed navigation shell before
     // a replacement route mounts it.
     // Keep covered (still active) routes intact, including pushed sign-in.
@@ -42,8 +51,8 @@ class CustomerShell extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final l10n = context.l10n;
-    final isSignedIn =
-        ref.watch(sessionControllerProvider).value?.isSignedIn ?? false;
+    final session = ref.watch(sessionControllerProvider).value;
+    final isSignedIn = session?.isSignedIn ?? false;
 
     // Cart badge counts distinct products (lines), not total units — rebuilds
     // the bar only when a line is added or removed.
@@ -114,6 +123,14 @@ class CustomerShell extends ConsumerWidget {
     // there is no longer a special case that pushes sign-in from the bar.
     void onSelect(int visibleIndex) {
       final branchIndex = visibleBranches[visibleIndex];
+      final direction =
+          (visibleIndex - selectedIndex).sign *
+          (Directionality.of(context) == TextDirection.rtl ? -1.0 : 1.0);
+      _transition.prepare(
+        from: navigationShell.currentIndex,
+        to: branchIndex,
+        direction: direction,
+      );
       navigationShell.goBranch(
         branchIndex,
         initialLocation: branchIndex == navigationShell.currentIndex,
@@ -125,7 +142,11 @@ class CustomerShell extends ConsumerWidget {
       body: Builder(
         builder: (context) => BottomNavigationInset(
           bottom: MediaQuery.paddingOf(context).bottom,
-          child: navigationShell,
+          child: CustomerBranchTransitionScope(
+            controller: _transition,
+            sessionIdentity: (isSignedIn, session?.user?.id, session?.role),
+            child: navigationShell,
+          ),
         ),
       ),
       bottomNavigationBar: CustomerBottomNavigation(

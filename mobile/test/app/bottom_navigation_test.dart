@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shubayr/app/shell/customer_shell.dart';
+import 'package:shubayr/app/shell/customer_branch_transition.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/layout/app_layout.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
@@ -76,7 +77,8 @@ Future<({_Session session, GoRouter router})> _pumpShell(
   final router = GoRouter(
     initialLocation: _paths.first,
     routes: [
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
+        navigatorContainerBuilder: CustomerBranchTransition.containerBuilder,
         builder: (context, state, shell) =>
             CustomerShell(navigationShell: shell),
         branches: [
@@ -201,19 +203,19 @@ void main() {
                 find.byWidget(scaffold.bottomNavigationBar!),
               );
               final expectedHeight = NavigationThemes.bottomBarHeight;
-              expect(bar.height, expectedHeight + 36);
+              expect(bar.height, closeTo(expectedHeight + 22.2, .01));
               expect(bar.bottom, 844);
               final surface = tester.getRect(_surface);
               final gutter = width < 600 ? 8.0 : 16.0;
-              final expectedWidth = math.min(width - 2 * gutter, 760.0);
+              final expectedWidth = math.min((width - 2 * gutter) * .90, 760.0);
               expect(surface.width, closeTo(expectedWidth, .01));
               expect(surface.center.dx, closeTo(width / 2, .01));
-              expect(surface.height, expectedHeight);
-              expect(surface.bottom, 844 - 34 - 2);
+              expect(surface.height, closeTo(expectedHeight, .01));
+              expect(surface.bottom, closeTo(844 - 22.2, .01));
               for (var i = 0; i < count; i++) {
                 final rect = tester.getRect(_tabs.at(i));
                 expect(rect.width, closeTo(surface.width / count, 0.01));
-                expect(rect.height, expectedHeight);
+                expect(rect.height, closeTo(44, .01));
                 final slot = language == 'ar' ? count - i - 1 : i;
                 expect(
                   rect.left,
@@ -234,11 +236,12 @@ void main() {
               final active = tester.getRect(_tabs.first);
               expect(pill.center.dx, closeTo(active.center.dx, 0.01));
               expect(pill.width, lessThan(active.width));
-              expect(pill.width, greaterThan(pill.height));
-              expect(pill.width, closeTo(active.width - 14, .01));
-              expect(pill.height, 44);
-              expect(pill.top, greaterThan(active.top));
-              expect(pill.bottom, lessThan(active.bottom));
+              expect(pill.width + .01, greaterThanOrEqualTo(pill.height));
+              expect(pill.width, closeTo(active.width - 12, .01));
+              expect(pill.height, closeTo(math.min(52, pill.width), .01));
+              expect(pill.top, greaterThan(surface.top));
+              expect(pill.bottom, lessThan(surface.bottom));
+              expect(pill.center.dy, closeTo(active.center.dy, .01));
               final colors = tester.element(_capsule).colors;
               expect(
                 (tester.widget<DecoratedBox>(_capsule).decoration
@@ -311,7 +314,7 @@ void main() {
             '/account',
           );
           expect(haptics, ['HapticFeedbackType.selectionClick']);
-          expect(tester.getSize(_tabs.last).height, 58);
+          expect(tester.getSize(_tabs.last).height, closeTo(44, .01));
           final scale = tester.widget<ScaleTransition>(
             find
                 .descendant(
@@ -320,7 +323,7 @@ void main() {
                 )
                 .last,
           );
-          expect(scale.scale.value, closeTo(1.03, 0.001));
+          expect(scale.scale.value, closeTo(1.10, 0.001));
 
           // Re-selection still resets the active branch, without another haptic.
           harness.router.go('/account/detail');
@@ -356,7 +359,7 @@ void main() {
     for (final signedIn in [false, true]) {
       for (final dark in [false, true]) {
         testWidgets(
-          'press feedback is scale only; release selects and cancel does not: $language signedIn=$signedIn dark=$dark',
+          'press state layer keeps icon scale; release selects and cancel does not: $language signedIn=$signedIn dark=$dark',
           (tester) async {
             await _setSurfaceSize(tester, const Size(320, 844));
             addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -385,6 +388,21 @@ void main() {
             final capsuleBefore = tester.getRect(_capsule);
             final icon = find.descendant(of: tab, matching: find.byType(Icon));
             final iconBefore = _paintedRect(tester, icon);
+            final stateLayer = find.descendant(
+              of: tab,
+              matching: find.byType(AnimatedOpacity),
+            );
+            final expansion = find.descendant(
+              of: tab,
+              matching: find.byKey(
+                const ValueKey('bottom-nav-press-expansion'),
+              ),
+            );
+            final pressClip = find.descendant(
+              of: tab,
+              matching: find.byKey(const ValueKey('bottom-nav-state-layer')),
+            );
+            expect(tester.widget<AnimatedOpacity>(stateLayer).opacity, 0);
             final ink = tester.widget<InkWell>(tab);
             expect(ink.splashFactory, NoSplash.splashFactory);
             expect(ink.splashColor, Colors.transparent);
@@ -396,12 +414,38 @@ void main() {
             ]) {
               expect(ink.overlayColor!.resolve({state}), Colors.transparent);
             }
-            final press = await tester.startGesture(tester.getCenter(tab));
+            // Even an edge tap expands the background around the slot center.
+            final press = await tester.startGesture(
+              Offset(touchBounds.left + 1, touchBounds.center.dy),
+            );
             await tester.pump(const Duration(milliseconds: 120));
-            await tester.pump(const Duration(milliseconds: 100));
+            expect(
+              tester.widget<ScaleTransition>(expansion).scale.value,
+              closeTo(.50, .001),
+            );
+            await tester.pump(const Duration(milliseconds: 65));
+            expect(
+              tester.widget<ScaleTransition>(expansion).scale.value,
+              inExclusiveRange(.50, 1),
+            );
+            expect(
+              _paintedRect(tester, pressClip).center.dx,
+              closeTo(touchBounds.center.dx, .01),
+            );
+            expect(
+              _paintedRect(tester, pressClip).center.dy,
+              closeTo(touchBounds.center.dy, .01),
+            );
+            await tester.pump(const Duration(milliseconds: 65));
+            expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
+            expect(tester.widget<AnimatedOpacity>(stateLayer).opacity, .10);
+            expect(
+              tester.widget<AnimatedOpacity>(stateLayer).duration,
+              const Duration(milliseconds: 130),
+            );
             expect(
               _paintedRect(tester, icon).width,
-              closeTo(iconBefore.width * 0.95, 0.01),
+              closeTo(iconBefore.width, 0.01),
             );
             expect(tester.getRect(tab), touchBounds);
             expect(tester.getRect(_capsule), capsuleBefore);
@@ -412,7 +456,13 @@ void main() {
             );
             await press.up();
             await tester.pump();
+            expect(tester.widget<AnimatedOpacity>(stateLayer).opacity, 0);
+            expect(
+              tester.widget<AnimatedOpacity>(stateLayer).duration,
+              const Duration(milliseconds: 160),
+            );
             await tester.pump(const Duration(milliseconds: 120));
+            expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
             final destinationX = tester.getCenter(tab).dx;
             expect(
               tester.getCenter(_capsule).dx,
@@ -422,15 +472,27 @@ void main() {
             final contentScale = tester.widget<ScaleTransition>(
               find
                   .descendant(of: tab, matching: find.byType(ScaleTransition))
-                  .first,
+                  .last,
             );
-            expect(contentScale.scale.value, 1);
+            expect(contentScale.scale.value, closeTo(1.10, .001));
             expect(tester.getRect(tab), touchBounds);
             expect(haptics, ['HapticFeedbackType.selectionClick']);
             expect(
               harness.router.routeInformationProvider.value.uri.path,
               '/categories',
             );
+            expect(_paintedRect(tester, icon).width, closeTo(28 * 1.10, .01));
+            final selectedPress = await tester.startGesture(
+              tester.getCenter(tab),
+            );
+            await tester.pump(const Duration(milliseconds: 120));
+            await tester.pump(const Duration(milliseconds: 100));
+            expect(_paintedRect(tester, icon).width, closeTo(28 * 1.10, .01));
+            expect(tester.widget<AnimatedOpacity>(stateLayer).opacity, .07);
+            expect(tester.getRect(tab), touchBounds);
+            await selectedPress.cancel();
+            await tester.pumpAndSettle();
+            expect(_paintedRect(tester, icon).width, closeTo(28 * 1.10, .01));
             final cancel = await tester.startGesture(
               tester.getCenter(_tabs.last),
             );
@@ -464,6 +526,168 @@ void main() {
     }
   }
 
+  for (final selected in [false, true]) {
+    for (final cancel in [false, true]) {
+      for (final dark in [false, true]) {
+        testWidgets(
+          'hold feedback stays visible until release selected=$selected cancel=$cancel dark=$dark',
+          (tester) async {
+            final harness = await _pumpShell(tester, dark: dark);
+            final tab = selected ? _tabs.first : _tabs.at(1);
+            final icon = find.descendant(of: tab, matching: find.byType(Icon));
+            final iconBefore = _paintedRect(tester, icon);
+            final expansion = find.descendant(
+              of: tab,
+              matching: find.byKey(
+                const ValueKey('bottom-nav-press-expansion'),
+              ),
+            );
+            final layer = find.descendant(
+              of: tab,
+              matching: find.byType(AnimatedOpacity),
+            );
+            double paintedOpacity() => tester
+                .widget<FadeTransition>(
+                  find.descendant(
+                    of: layer,
+                    matching: find.byType(FadeTransition),
+                  ),
+                )
+                .opacity
+                .value;
+            final opacity = selected ? .07 : .10;
+            final press = await tester.startGesture(tester.getCenter(tab));
+            await tester.pump(const Duration(milliseconds: 120));
+            await tester.pump(const Duration(milliseconds: 130));
+            expect(paintedOpacity(), closeTo(opacity, .001));
+            expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
+            // Cross the Tooltip long-press deadline, then continue holding.
+            for (final duration in [
+              const Duration(seconds: 2),
+              const Duration(seconds: 30),
+            ]) {
+              await tester.pump(duration);
+              await tester.pump(const Duration(milliseconds: 200));
+              expect(
+                tester.widget<InkWell>(tab).statesController!.value,
+                contains(WidgetState.pressed),
+              );
+              expect(paintedOpacity(), closeTo(opacity, .001));
+              expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
+              expect(_paintedRect(tester, icon), iconBefore);
+            }
+            if (cancel) {
+              await press.cancel();
+            } else {
+              await press.up();
+            }
+            await tester.pump();
+            expect(tester.widget<AnimatedOpacity>(layer).opacity, 0);
+            expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
+            await tester.pump(const Duration(milliseconds: 80));
+            expect(paintedOpacity(), inExclusiveRange(0, opacity));
+            await tester.pump(const Duration(milliseconds: 80));
+            expect(paintedOpacity(), 0);
+            expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
+            expect(_paintedRect(tester, icon), iconBefore);
+            // Long press still shows a tooltip, without selecting a new branch.
+            expect(
+              harness.router.routeInformationProvider.value.uri.path,
+              '/home',
+            );
+            Tooltip.dismissAllToolTips();
+            await tester.pumpAndSettle();
+            expect(tester.takeException(), isNull);
+          },
+        );
+      }
+    }
+  }
+
+  for (final selected in [false, true]) {
+    for (final cancel in [false, true]) {
+      testWidgets(
+        'early release fades at full size selected=$selected cancel=$cancel',
+        (tester) async {
+          await _pumpShell(tester);
+          final tab = selected ? _tabs.first : _tabs.at(1);
+          final expansion = find.descendant(
+            of: tab,
+            matching: find.byKey(const ValueKey('bottom-nav-press-expansion')),
+          );
+          final layer = find.descendant(
+            of: tab,
+            matching: find.byType(AnimatedOpacity),
+          );
+          final fade = find.descendant(
+            of: layer,
+            matching: find.byType(FadeTransition),
+          );
+          final press = await tester.startGesture(tester.getCenter(tab));
+          await tester.pump(const Duration(milliseconds: 120));
+          await tester.pump(const Duration(milliseconds: 30));
+          expect(
+            tester.widget<ScaleTransition>(expansion).scale.value,
+            inExclusiveRange(.5, 1),
+          );
+          if (cancel) {
+            await press.cancel();
+          } else {
+            await press.up();
+          }
+          await tester.pump();
+          expect(tester.widget<AnimatedOpacity>(layer).opacity, 0);
+          expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
+          expect(
+            tester.widget<FadeTransition>(fade).opacity.value,
+            greaterThan(0),
+          );
+          await tester.pump(const Duration(milliseconds: 160));
+          expect(tester.widget<FadeTransition>(fade).opacity.value, 0);
+          expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
+          await tester.pumpAndSettle();
+        },
+      );
+    }
+    testWidgets(
+      'leaving a tooltip hold fades without retargeting selected=$selected',
+      (tester) async {
+        final harness = await _pumpShell(tester);
+        final tab = selected ? _tabs.first : _tabs.at(1);
+        final bounds = tester.getRect(tab);
+        final layer = find.descendant(
+          of: tab,
+          matching: find.byType(AnimatedOpacity),
+        );
+        final press = await tester.startGesture(bounds.center);
+        await tester.pump(const Duration(milliseconds: 120));
+        await tester.pump(const Duration(milliseconds: 130));
+        await tester.pump(const Duration(seconds: 2));
+        expect(
+          tester.widget<InkWell>(tab).statesController!.value,
+          contains(WidgetState.pressed),
+        );
+        await press.moveTo(Offset(bounds.center.dx, bounds.top - 10));
+        await tester.pump();
+        expect(tester.widget<AnimatedOpacity>(layer).opacity, 0);
+        await tester.pump(const Duration(milliseconds: 160));
+        final fade = find.descendant(
+          of: layer,
+          matching: find.byType(FadeTransition),
+        );
+        expect(tester.widget<FadeTransition>(fade).opacity.value, 0);
+        await press.moveTo(bounds.center);
+        await tester.pump();
+        expect(tester.widget<AnimatedOpacity>(layer).opacity, 0);
+        await press.up();
+        expect(harness.router.routeInformationProvider.value.uri.path, '/home');
+        Tooltip.dismissAllToolTips();
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   for (final bottomInset in [0.0, 8.0, 21.0, 34.0, 48.0]) {
     testWidgets(
       'floating surface respects safe area $bottomInset and body bounds',
@@ -477,31 +701,37 @@ void main() {
           sideInset: 20,
         );
         final surface = tester.getRect(_surface);
-        expect(surface.left, 20);
-        expect(surface.right, 300);
-        expect(surface.bottom, 844 - bottomInset - 2);
-        expect(surface.height, 58);
-        expect(tester.getRect(_capsule).center.dy, surface.center.dy);
+        expect(surface.left, closeTo(34, .01));
+        expect(surface.right, closeTo(286, .01));
+        expect(
+          surface.bottom,
+          closeTo(844 - math.max(0, bottomInset - 11.8), .01),
+        );
+        expect(surface.height, closeTo(67.6, .01));
+        expect(
+          tester.getRect(_capsule).center.dy,
+          closeTo(surface.center.dy, .01),
+        );
         for (var i = 0; i < 5; i++) {
           final target = tester.getRect(_tabs.at(i));
-          expect(target.height, 58);
-          expect(target.bottom, 844 - bottomInset - 2);
+          expect(target.height, closeTo(44, .01));
+          expect(target.bottom, closeTo(surface.bottom - 11.8, .01));
           expect(target.bottom, lessThan(surface.bottom + 0.01));
         }
         final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
         final body = tester.getRect(find.byWidget(scaffold.body!));
         expect(scaffold.extendBody, isTrue);
         expect(body.bottom, 844);
-        expect(body.bottom, greaterThan(surface.bottom));
+        expect(body.bottom, greaterThanOrEqualTo(surface.bottom));
         final scope = tester.widget<BottomNavigationInset>(
           find.byType(BottomNavigationInset),
         );
-        expect(scope.bottom, bottomInset + 60);
-        final material = tester.widget<Material>(_surface);
         expect(
-          material.color,
-          tester.element(_surface).colors.surface.withValues(alpha: 0.82),
+          scope.bottom,
+          closeTo(67.6 + math.max(0, bottomInset - 11.8), .01),
         );
+        final material = tester.widget<Material>(_surface);
+        expect(material.color, Colors.white.withValues(alpha: 0.91));
         final clip = find
             .ancestor(of: _surface, matching: find.byType(ClipRRect))
             .first;
@@ -511,10 +741,10 @@ void main() {
           tester.widget<ClipRRect>(clip).borderRadius,
           outline.borderRadius,
         );
-        expect(outline.side.width, 0.7);
+        expect(outline.side.width, 0.8);
         expect(
           outline.side.color,
-          tester.element(_surface).colors.textPrimary.withValues(alpha: 0.10),
+          tester.element(_surface).colors.textPrimary.withValues(alpha: 0.22),
         );
         expect(
           find.ancestor(of: _surface, matching: find.byType(BackdropFilter)),
@@ -528,20 +758,23 @@ void main() {
                     .decoration
                 as BoxDecoration;
         expect(shadow.color, isNull);
-        expect(shadow.boxShadow!.single.blurRadius, 20);
+        expect(shadow.boxShadow!.single.blurRadius, 24);
         expect(shadow.boxShadow!.single.spreadRadius, 0);
-        expect(shadow.boxShadow!.single.offset, const Offset(0, 3));
-        expect(shadow.boxShadow!.single.color.a, closeTo(0.08, 0.001));
+        expect(shadow.boxShadow!.single.offset, const Offset(0, 4));
+        expect(shadow.boxShadow!.single.color.a, closeTo(0.11, 0.001));
         final outer = outline.borderRadius.resolve(TextDirection.rtl);
         final capsule =
             tester.widget<DecoratedBox>(_capsule).decoration as BoxDecoration;
         final inner = capsule.borderRadius!.resolve(TextDirection.rtl);
         expect(
           outer.topLeft.x,
-          inner.topLeft.x +
-              (surface.height - tester.getSize(_capsule).height) / 2,
+          closeTo(
+            inner.topLeft.x +
+                (surface.height - tester.getSize(_capsule).height) / 2,
+            .01,
+          ),
         );
-        expect(outer.topLeft.x, surface.height / 2);
+        expect(outer.topLeft.x, closeTo(surface.height / 2, .01));
         // End tabs stay readable inside the rounded surface, even when selected.
         for (var i = 0; i < 5; i++) {
           await tester.tap(_tabs.at(i));
@@ -712,27 +945,26 @@ void main() {
         );
         expect(
           tester
-              .widget<ScaleTransition>(
+              .widget<AnimatedOpacity>(
                 find
                     .descendant(
                       of: _tabs.last,
-                      matching: find.byType(ScaleTransition),
+                      matching: find.byType(AnimatedOpacity),
                     )
                     .first,
               )
-              .scale
-              .value,
-          1,
+              .opacity,
+          0,
         );
       },
     );
   }
 
   for (final metrics in [
-    (padding: 0.0, view: 0.0, gesture: 24.0, keyboard: 0.0, offset: 26.0),
-    (padding: 21.0, view: 21.0, gesture: 32.0, keyboard: 0.0, offset: 34.0),
-    (padding: 48.0, view: 48.0, gesture: 0.0, keyboard: 0.0, offset: 50.0),
-    (padding: 0.0, view: 34.0, gesture: 0.0, keyboard: 300.0, offset: 36.0),
+    (padding: 0.0, view: 0.0, gesture: 24.0, keyboard: 0.0, offset: 12.2),
+    (padding: 21.0, view: 21.0, gesture: 32.0, keyboard: 0.0, offset: 20.2),
+    (padding: 48.0, view: 48.0, gesture: 0.0, keyboard: 0.0, offset: 36.2),
+    (padding: 0.0, view: 34.0, gesture: 0.0, keyboard: 300.0, offset: 22.2),
   ]) {
     testWidgets(
       'system UI and gesture exclusions position the whole bar: $metrics',
@@ -747,11 +979,17 @@ void main() {
           keyboardInset: metrics.keyboard,
         );
         final rect = tester.getRect(_surface);
-        expect(rect.height, 58);
-        expect(rect.bottom, 844 - metrics.offset);
+        expect(rect.height, closeTo(67.6, .01));
+        expect(rect.bottom, closeTo(844 - metrics.offset, .01));
         for (var i = 0; i < 3; i++) {
-          expect(tester.getRect(_tabs.at(i)).top, rect.top);
-          expect(tester.getRect(_tabs.at(i)).bottom, rect.bottom);
+          expect(
+            tester.getRect(_tabs.at(i)).top,
+            closeTo(rect.top + 11.8, .01),
+          );
+          expect(
+            tester.getRect(_tabs.at(i)).bottom,
+            closeTo(rect.bottom - 11.8, .01),
+          );
         }
         expect(tester.takeException(), isNull);
       },

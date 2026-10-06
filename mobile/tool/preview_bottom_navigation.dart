@@ -6,6 +6,7 @@ import 'package:shubayr/app/shell/customer_bottom_navigation.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
+import 'package:shubayr/core/theme/components/navigation_themes.dart';
 import 'package:shubayr/core/theme/theme_context.dart';
 
 void main() {
@@ -88,6 +89,11 @@ class _BottomNavigationPreviewState extends State<BottomNavigationPreview> {
                 ),
                 Text(
                   'Viewport: ${MediaQuery.sizeOf(context).width.toStringAsFixed(0)}px · $_count destinations',
+                ),
+                Text(
+                  'View inset: ${MediaQuery.viewPaddingOf(context).bottom.toStringAsFixed(0)} · '
+                  'Gesture: ${MediaQuery.systemGestureInsetsOf(context).bottom.toStringAsFixed(0)} · '
+                  'Bar offset: ${NavigationThemes.bottomBarBottomOffset(MediaQuery.of(context)).toStringAsFixed(0)}',
                 ),
                 Expanded(
                   child: ListView.builder(
