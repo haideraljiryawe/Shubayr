@@ -27,8 +27,13 @@ test.beforeEach(async ({ request }) => {
 });
 
 /** A sign-in through the admin's own login route, as a browser behind the proxy. */
-async function signIn(request: APIRequestContext, forwardedFor: string, username: string, password = "Wrong-Pass!1x") {
-  const origin = test.info().project.use.baseURL!;
+async function signIn(
+  request: APIRequestContext,
+  forwardedFor: string,
+  username: string,
+  password = "Wrong-Pass!1x",
+  origin = test.info().project.use.baseURL!,
+) {
   const response = await request.post(`${origin}/api/auth/login`, {
     headers: { Origin: origin, "X-Forwarded-For": forwardedFor },
     data: { username, password },
@@ -55,6 +60,25 @@ test("the API records the address the trusted proxy saw, never what the client c
   const relayed = `ghost-b-${run}`;
   expect((await signIn(request, `${real(1)}, ${untrusted(1)}`, relayed)).status).toBe(401);
   await expect.poll(() => recordedAddresses(request, relayed)).toEqual([untrusted(1)]);
+});
+
+test("a client connecting directly can't choose its address: nothing it sends is passed on", async ({ request }) => {
+  // The admin server that trusts no front proxy (playwright.live.config.ts).
+  const origin = process.env.ADMIN_UNTRUSTED_ORIGIN;
+  test.skip(!origin, "Needs the second admin server, started in CI mode (CI=true).");
+  // Before PR S the admin passed this header through and the API, trusting
+  // the admin, recorded (and rate-limited) the made-up address.
+  const direct = `ghost-e-${run}`;
+  expect((await signIn(request, "6.6.6.6", direct, "Wrong-Pass!1x", origin)).status).toBe(401);
+  const chained = `ghost-f-${run}`;
+  expect((await signIn(request, `6.6.6.6, ${real(5)}`, chained, "Wrong-Pass!1x", origin)).status).toBe(401);
+  for (const username of [direct, chained]) {
+    await expect.poll(() => recordedAddresses(request, username)).toHaveLength(1);
+    const [address] = await recordedAddresses(request, username);
+    // The admin server's own address as the API sees it, never the client's claim.
+    expect(address).toMatch(/^[0-9a-f.:]+$/i);
+    expect([`6.6.6.6`, real(5)]).not.toContain(address);
+  }
 });
 
 test("the login limit counts the real address, however the client varies what it claims", async ({ request }) => {
