@@ -234,7 +234,9 @@ void main() {
               final active = tester.getRect(_tabs.first);
               expect(pill.center.dx, closeTo(active.center.dx, 0.01));
               expect(pill.width, lessThan(active.width));
-              expect(pill.width, closeTo(46, 0.01));
+              expect(pill.width, greaterThan(pill.height));
+              expect(pill.width, lessThanOrEqualTo(78.01));
+              expect(pill.height, 44);
               expect(pill.top, greaterThan(active.top));
               expect(pill.bottom, lessThan(active.bottom));
               final colors = tester.element(_capsule).colors;
@@ -498,7 +500,7 @@ void main() {
         final material = tester.widget<Material>(_surface);
         expect(
           material.color,
-          tester.element(_surface).colors.surface.withValues(alpha: 0.58),
+          tester.element(_surface).colors.surface.withValues(alpha: 0.82),
         );
         final clip = find
             .ancestor(of: _surface, matching: find.byType(ClipRRect))
@@ -534,7 +536,7 @@ void main() {
         final capsule =
             tester.widget<DecoratedBox>(_capsule).decoration as BoxDecoration;
         final inner = capsule.borderRadius!.resolve(TextDirection.rtl);
-        expect(outer.topLeft.x, inner.topLeft.x + 6);
+        expect(outer.topLeft.x, inner.topLeft.x + 7);
         expect(outer.topLeft.x, surface.height / 2);
         // End tabs stay readable inside the rounded surface, even when selected.
         for (var i = 0; i < 5; i++) {

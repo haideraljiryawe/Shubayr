@@ -93,7 +93,9 @@ class CustomerBottomNavigation extends StatelessWidget {
                 child: Material(
                   key: const ValueKey('bottom-nav-surface'),
                   color: colors.surface.withValues(
-                    alpha: NavigationThemes.bottomBarSurfaceOpacity,
+                    alpha: NavigationThemes.bottomBarSurfaceOpacity(
+                      Theme.of(context).brightness,
+                    ),
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: NavigationThemes.bottomBarRadius,
@@ -121,20 +123,26 @@ class CustomerBottomNavigation extends StatelessWidget {
                             curve: NavigationThemes.bottomBarCurve,
                             child: FractionallySizedBox(
                               widthFactor: 1 / destinations.length,
-                              child: Center(
-                                child: DecoratedBox(
-                                  key: const ValueKey('bottom-nav-capsule'),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        NavigationThemes.bottomBarSelectedSurfaceColor(
-                                          colors,
-                                        ),
-                                    borderRadius:
-                                        NavigationThemes.bottomBarCapsuleRadius,
-                                  ),
-                                  child: const SizedBox.square(
-                                    dimension:
-                                        NavigationThemes.bottomBarCapsuleSize,
+                              child: LayoutBuilder(
+                                builder: (context, constraints) => Center(
+                                  child: DecoratedBox(
+                                    key: const ValueKey('bottom-nav-capsule'),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          NavigationThemes.bottomBarSelectedSurfaceColor(
+                                            colors,
+                                          ),
+                                      borderRadius: NavigationThemes
+                                          .bottomBarCapsuleRadius,
+                                    ),
+                                    child: SizedBox(
+                                      width:
+                                          NavigationThemes.bottomBarCapsuleWidth(
+                                            constraints.maxWidth,
+                                          ),
+                                      height: NavigationThemes
+                                          .bottomBarCapsuleHeight,
+                                    ),
                                   ),
                                 ),
                               ),

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/app/shell/customer_bottom_navigation.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
+import 'package:shubayr/core/theme/theme_context.dart';
 import 'package:shubayr/core/layout/app_layout.dart';
 
 Rect _paintedRect(WidgetTester tester, Finder finder) {
@@ -118,6 +119,13 @@ void main() {
                   final material = tester.widget<Material>(
                     find.byKey(const ValueKey('bottom-nav-surface')),
                   );
+                  final context = tester.element(
+                    find.byKey(const ValueKey('bottom-nav-surface')),
+                  );
+                  expect(
+                    material.color,
+                    context.colors.surface.withValues(alpha: dark ? .84 : .82),
+                  );
                   final outer = (material.shape! as RoundedRectangleBorder)
                       .borderRadius
                       .resolve(TextDirection.ltr)
@@ -138,8 +146,38 @@ void main() {
                     expect(slot.width, closeTo(surface.width / count, .01));
                     expect(slot.width, greaterThanOrEqualTo(48));
                     expect(slot.height, greaterThanOrEqualTo(48));
-                    expect(capsule.width, closeTo(46, .01));
-                    expect(capsule.height, 46);
+                    expect(capsule.width, greaterThan(capsule.height));
+                    expect(capsule.width, lessThanOrEqualTo(78.01));
+                    expect(capsule.width, greaterThanOrEqualTo(56.79));
+                    expect(capsule.height, 44);
+                    // Representative narrow, intermediate and capped layouts
+                    // catch an indicator accidentally reverting to fixed width.
+                    final expectedWidth = {
+                      (320.0, 5): 56.8,
+                      (390.0, 4): 70.125,
+                      (800.0, 3): 78.0,
+                    }[(width, count)];
+                    if (expectedWidth != null) {
+                      expect(capsule.width, closeTo(expectedWidth, .01));
+                    }
+                    expect(
+                      capsule.left - slot.left,
+                      greaterThanOrEqualTo(1.99),
+                    );
+                    expect(
+                      slot.right - capsule.right,
+                      greaterThanOrEqualTo(1.99),
+                    );
+                    expect(capsule.top - slot.top, closeTo(7, .01));
+                    expect(slot.bottom - capsule.bottom, closeTo(7, .01));
+                    for (var neighbor = 0; neighbor < count; neighbor++) {
+                      if (neighbor != index) {
+                        expect(
+                          capsule.overlaps(tester.getRect(tabs.at(neighbor))),
+                          isFalse,
+                        );
+                      }
+                    }
                     expect(capsule.center.dx, closeTo(slot.center.dx, .01));
                     expect(capsule.center.dy, closeTo(slot.center.dy, .01));
                     final decoration =
@@ -148,7 +186,7 @@ void main() {
                     final shape = decoration.borderRadius!
                         .resolve(TextDirection.ltr)
                         .toRRect(capsule);
-                    expect(shape.tlRadiusX, 23);
+                    expect(shape.tlRadiusX, capsule.height / 2);
                     for (final type in [Icon]) {
                       final content = _paintedRect(
                         tester,
@@ -327,14 +365,20 @@ void main() {
                   );
                   await tester.tap(tabs.at(i));
                   await tester.pumpAndSettle();
-                  expect(
-                    tester
-                        .getCenter(
-                          find.byKey(const ValueKey('bottom-nav-capsule')),
-                        )
-                        .dx,
-                    closeTo(tester.getCenter(tabs.at(i)).dx, .01),
+                  final capsuleFinder = find.byKey(
+                    const ValueKey('bottom-nav-capsule'),
                   );
+                  final capsule = tester.getRect(capsuleFinder);
+                  final slot = tester.getRect(tabs.at(i));
+                  expect(capsule.center.dx, closeTo(slot.center.dx, .01));
+                  expect(capsule.center.dy, closeTo(slot.center.dy, .01));
+                  expect(capsule.width, greaterThan(capsule.height));
+                  expect(capsule.left - slot.left, greaterThanOrEqualTo(1.99));
+                  expect(
+                    slot.right - capsule.right,
+                    greaterThanOrEqualTo(1.99),
+                  );
+                  expect(capsule.width, lessThanOrEqualTo(78.01));
                 }
                 expect(tester.takeException(), isNull);
               }

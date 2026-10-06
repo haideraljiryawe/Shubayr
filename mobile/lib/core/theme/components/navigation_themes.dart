@@ -28,7 +28,12 @@ abstract final class NavigationThemes {
       bottomBarBottomGap;
 
   // Frosted surface, outline and shadow. Lower opacity = more transparent.
-  static const double bottomBarSurfaceOpacity = 0.58;
+  static const double bottomBarSurfaceOpacityLight = 0.82;
+  static const double bottomBarSurfaceOpacityDark = 0.84;
+  static double bottomBarSurfaceOpacity(Brightness brightness) =>
+      brightness == Brightness.dark
+      ? bottomBarSurfaceOpacityDark
+      : bottomBarSurfaceOpacityLight;
   static const double bottomBarBlurSigma = 18;
   static const double bottomBarBorderOpacity = 0.10;
   static const double bottomBarBorderWidth = 0.7;
@@ -79,11 +84,22 @@ abstract final class NavigationThemes {
     top: bottomBarLabelGap,
   );
 
-  /// A compact circle centered within the moving equal-width slot. Its size
-  /// depends on the bar height, never on how many destinations are visible.
-  static const double bottomBarCapsuleSize = bottomBarHeight - 12;
+  /// A short pill centered within the moving equal-width slot. The preferred
+  /// width is capped by the slot itself when horizontal safe insets are large.
+  static const double bottomBarCapsuleHeight = 44;
+  static const double bottomBarCapsuleWidthRatio = 0.75;
+  static const double bottomBarCapsuleMinWidth = 58;
+  static const double bottomBarCapsuleMaxWidth = 78;
+  static const double bottomBarCapsuleSlotInset = 2;
+  static double bottomBarCapsuleWidth(double slotWidth) => math.min(
+    (slotWidth * bottomBarCapsuleWidthRatio).clamp(
+      bottomBarCapsuleMinWidth,
+      bottomBarCapsuleMaxWidth,
+    ),
+    math.max(0, slotWidth - 2 * bottomBarCapsuleSlotInset),
+  );
   static const BorderRadius bottomBarCapsuleRadius = BorderRadius.all(
-    Radius.circular(bottomBarCapsuleSize / 2),
+    Radius.circular(bottomBarCapsuleHeight / 2),
   );
   static const double bottomBarSelectedSurfaceOpacity = 0.20;
   static Color bottomBarSelectedSurfaceColor(AppColors colors) =>
