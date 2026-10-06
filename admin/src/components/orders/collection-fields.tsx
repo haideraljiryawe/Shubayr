@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
-import { previewCollection, type CollectionChoice, type DeliveryCollection } from "@/lib/collection";
+import { previewCollection, RESULT_STATUS, type CollectionChoice, type DeliveryCollection, type OrderCollection } from "@/lib/collection";
 import { formatMoney } from "@/lib/orders";
 
 /**
@@ -130,6 +130,39 @@ export function CollectionSummary({ collection, testId = "collection-summary" }:
             <dt className="text-text-muted">{t("summary.shortfall")}</dt>
             <dd dir="ltr" className="text-end font-bold text-error-dark" data-testid="collection-shortfall">
               {money(collection.shortfall_amount)}
+            </dd>
+          </>
+        ) : null}
+      </dl>
+    </div>
+  );
+}
+
+/**
+ * The collection as the order read gives it (13.1): full, short (by how
+ * much) or not confirmed yet, with what was collected. It is part of the
+ * order, so it is the same after a reload as right after delivering.
+ */
+export function OrderCollectionSummary({ collection }: { collection: OrderCollection }) {
+  const t = useTranslations("collections");
+  const locale = useLocale();
+  const status = RESULT_STATUS[collection.result];
+  const money = (value: number | null) => (value === null ? "—" : formatMoney(value, collection.currency, locale));
+  return (
+    <div className="flex flex-col gap-2 text-sm" data-testid="collection-summary" data-status={status} data-result={collection.result}>
+      <Badge tone={TONES[status]} data-testid="collection-status">
+        {t(`status.${status}`)}
+      </Badge>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-1">
+        <dt className="text-text-muted">{t("summary.collected")}</dt>
+        <dd dir="ltr" className="text-end" data-testid="collection-collected">
+          {money(collection.amount_collected)}
+        </dd>
+        {collection.result === "short" ? (
+          <>
+            <dt className="text-text-muted">{t("summary.shortfall")}</dt>
+            <dd dir="ltr" className="text-end font-bold text-error-dark" data-testid="collection-shortfall">
+              {money(collection.shortfall)}
             </dd>
           </>
         ) : null}

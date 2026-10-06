@@ -9,7 +9,7 @@ import { Alert, Badge, Button, Card } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { FormError } from "@/components/forms/form-error";
-import { CollectionFields, CollectionSummary } from "@/components/orders/collection-fields";
+import { CollectionFields, OrderCollectionSummary } from "@/components/orders/collection-fields";
 import { PartyPicker } from "@/components/orders/party-picker";
 import { AttentionPanel, BelowCostPanel, CancellationRequestPanel, DeliveryAttemptsPanel, RetrievalsPanel } from "@/components/orders/lifecycle-panels";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
@@ -19,7 +19,6 @@ import {
   CollectionOperation,
   staffDeliveryFields,
   type CollectionChoice,
-  type DeliveryCollection,
 } from "@/lib/collection";
 import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
 import {
@@ -93,9 +92,6 @@ export function OrderDetailView({
   const [collectionChoice, setCollectionChoice] = useState<CollectionChoice>("confirmed");
   const [collectionAmount, setCollectionAmount] = useState<string | null>(null);
   const deliveryOperation = useRef(new CollectionOperation("admin-delivery"));
-  // The collection the API answered with. The order read carries none yet
-  // (a contract gap), so it is shown from this answer until the page reloads.
-  const [recorded, setRecorded] = useState<DeliveryCollection | null>(null);
   /** Confirmation refused below cost (API 10.0), until approved or left. */
   const [belowCost, setBelowCost] = useState<BelowCostBreach[] | null>(null);
   const [selfRefused, setSelfRefused] = useState(false);
@@ -226,7 +222,7 @@ export function OrderDetailView({
     if (action === "deliver" && collectionChoice === "confirmed" && collectionAmount === null) {
       throw new ApiError(422, t("collectionInvalid"));
     }
-    const moved = await unwrap(
+    await unwrap(
       browserApi.PATCH("/admin/deliveries/{id}/status", {
         params: { path: { id: deliveryId } },
         body: {
@@ -239,7 +235,6 @@ export function OrderDetailView({
         },
       }),
     );
-    if (moved.collection) setRecorded(moved.collection);
     return unwrap(browserApi.GET("/admin/orders/{id}", { params: { path: { id } } }));
   }
 
@@ -464,10 +459,11 @@ export function OrderDetailView({
         </div>
 
         <div className="flex flex-col gap-5">
-          {recorded && recorded.order_id === order.id ? (
+          {/* Read with the order (13.1), so it survives a reload. */}
+          {order.collection ? (
             <Card className="flex flex-col gap-2 p-5" data-testid="order-collection">
               <h2 className="font-bold">{t("collectionTitle")}</h2>
-              <CollectionSummary collection={recorded} />
+              <OrderCollectionSummary collection={order.collection} />
             </Card>
           ) : null}
           <DeliveryAttemptsPanel order={order} />
