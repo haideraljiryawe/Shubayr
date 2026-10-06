@@ -769,6 +769,23 @@ export class DeliveriesService {
               phone: true,
             },
           },
+          cash_receipt_allocations: {
+            where: { batch: { voucher: { reversal: { is: null } } } },
+            include: {
+              batch: {
+                include: {
+                  voucher: {
+                    select: {
+                      id: true,
+                      document_number: true,
+                      document_date: true,
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
+          },
         },
         orderBy: [{ delivered_at: 'asc' }, { id: 'asc' }],
         skip: (page - 1) * perPage,
@@ -991,7 +1008,39 @@ export class DeliveriesService {
     confirmation_journal_entry_id: string | null;
     order?: unknown;
     party?: unknown;
+    cash_receipt_allocations?: Array<{
+      id: string;
+      amount_iqd: PrismaRuntime.Decimal;
+      created_at: Date;
+      batch: {
+        id: string;
+        document_number: string;
+        voucher: {
+          id: string;
+          document_number: string;
+          document_date: Date;
+        };
+      };
+    }>;
   }) {
+    const allocations = row.cash_receipt_allocations;
+    const allocated = allocations?.reduce(
+      (sum, allocation) => sum.plus(allocation.amount_iqd),
+      new PrismaRuntime.Decimal(0),
+    );
+    const collected = row.collected_amount;
+    const unsettled =
+      allocated === undefined || collected === null
+        ? null
+        : PrismaRuntime.Decimal.max(0, collected.minus(allocated));
+    const settlementStatus =
+      collected === null
+        ? 'unconfirmed'
+        : allocated?.gte(collected)
+          ? 'settled'
+          : allocated?.gt(0)
+            ? 'partially_settled'
+            : 'unsettled';
     return {
       id: row.id,
       delivery_id: row.delivery_id,
@@ -1011,6 +1060,25 @@ export class DeliveriesService {
       confirmation_journal_entry_id: row.confirmation_journal_entry_id,
       ...(row.order === undefined ? {} : { order: row.order }),
       ...(row.party === undefined ? {} : { party: row.party }),
+      ...(allocations === undefined
+        ? {}
+        : {
+            settlement_status: settlementStatus,
+            allocated_amount_iqd: Number(allocated ?? 0),
+            unsettled_amount_iqd: unsettled === null ? null : Number(unsettled),
+            receipt_allocations: allocations.map((allocation) => ({
+              id: allocation.id,
+              batch_id: allocation.batch.id,
+              batch_document_number: allocation.batch.document_number,
+              voucher_id: allocation.batch.voucher.id,
+              voucher_document_number: allocation.batch.voucher.document_number,
+              voucher_document_date: businessDateText(
+                allocation.batch.voucher.document_date,
+              ),
+              amount_iqd: Number(allocation.amount_iqd),
+              created_at: allocation.created_at,
+            })),
+          }),
     };
   }
 

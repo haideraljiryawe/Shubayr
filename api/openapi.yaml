@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 13.1.0
+  version: 13.2.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -2247,7 +2247,7 @@ paths:
     get:
       tags: [Admin, Deliveries]
       summary: Read a party's current goods and cash custody
-      description: Lot cost and IQD value are included only when the caller also has cost.view. Cash is zero until phase 8b.
+      description: Lot cost and IQD value are included only when the caller also has cost.view. Cash equals confirmed collections less active cash receipt vouchers.
       x-permission: deliveries.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
@@ -3721,6 +3721,115 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/ExchangeRateValidation" }
+
+  /admin/cash-receipts:
+    get:
+      tags: [Finance, Deliveries]
+      summary: List delivery-party cash receipt vouchers
+      x-surface: admin
+      x-permission: deliveries.manage
+      parameters:
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: cash_account_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: status, in: query, schema: { type: string, enum: [active, reversed] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Paginated receipt vouchers, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Finance, Deliveries]
+      summary: Receive IQD cash from a delivery party into a cash account
+      description: Posts the phase-3 cash_received map (cash account debit, party cash-custody credit). Optional allocations settle confirmed collections; any remainder remains explicitly unallocated.
+      x-surface: admin
+      x-permission: cash_receipts.receive
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptCreateInput" } } } }
+      responses:
+        "201": { description: Posted cash receipt, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptVoucher" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/unallocated:
+    get:
+      tags: [Finance, Deliveries]
+      summary: List active receipts with an unallocated remainder
+      x-surface: admin
+      x-permission: deliveries.manage
+      parameters:
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: cash_account_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Paginated receipts with remaining allocation capacity, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/allocation-suggestions:
+    get:
+      tags: [Finance, Deliveries]
+      summary: Suggest a party's oldest unsettled confirmed collections
+      x-surface: admin
+      x-permission: cash_receipts.allocate
+      parameters:
+        - { name: party_id, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: amount_iqd, in: query, schema: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 100 } }
+      responses:
+        "200": { description: Oldest-first allocation suggestions, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptSuggestions" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/{id}:
+    get:
+      tags: [Finance, Deliveries]
+      summary: Read one cash receipt with allocations and reversal
+      x-surface: admin
+      x-permission: deliveries.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Cash receipt detail, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptVoucher" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/{id}/allocations:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Allocate an active receipt's remainder to delivered orders
+      description: Partial allocation is allowed. Orders must belong to the receipt party and allocations cannot exceed either the receipt remainder or an order's confirmed collected amount.
+      x-surface: admin
+      x-permission: cash_receipts.allocate
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptAllocateInput" } } } }
+      responses:
+        "201": { description: Receipt with the immutable allocation batch, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptVoucher" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/{id}/reversal:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Reverse an immutable cash receipt voucher
+      description: The reversal restores party cash custody and makes every allocation on the original receipt ineffective; the original rows remain unchanged.
+      x-surface: admin
+      x-permission: cash_receipts.reverse
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptReversalInput" } } } }
+      responses:
+        "201": { description: Reversed receipt with reversal document, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptVoucher" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   /admin/financial-documents/{id}:
     get:
@@ -6300,12 +6409,49 @@ components:
       allOf:
         - $ref: "#/components/schemas/Pagination"
         - type: object
-          required: [party, data]
+          required: [party, data, cash_activity]
           properties:
             party: { $ref: "#/components/schemas/DeliveryParty" }
             data:
               type: array
               items: { $ref: "#/components/schemas/DeliveryPartyStatementEntry" }
+            cash_activity:
+              type: object
+              additionalProperties: false
+              required: [total, data]
+              properties:
+                total: { type: integer, minimum: 0 }
+                data:
+                  type: array
+                  items: { $ref: "#/components/schemas/DeliveryPartyCashStatementEntry" }
+
+    DeliveryPartyCashStatementEntry:
+      type: object
+      additionalProperties: false
+      required: [id, event, occurred_at, business_date, order_id, order_number, voucher_id, voucher_document_number, amount_iqd, allocated_amount_iqd, unsettled_amount_iqd, allocation_orders, running_cash_iqd]
+      properties:
+        id: { type: string, format: uuid }
+        event: { type: string, enum: [collection_confirmed, cash_received, cash_receipt_reversed] }
+        occurred_at: { type: string, format: date-time }
+        business_date: { type: string, format: date }
+        order_id: { type: [string, "null"], format: uuid }
+        order_number: { type: [string, "null"] }
+        voucher_id: { type: [string, "null"], format: uuid }
+        voucher_document_number: { type: [string, "null"] }
+        amount_iqd: { type: number, description: Signed custody movement; collection positive, receipt negative, reversal positive. }
+        allocated_amount_iqd: { type: number, minimum: 0 }
+        unsettled_amount_iqd: { type: number, minimum: 0 }
+        allocation_orders:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [order_id, order_number, amount_iqd]
+            properties:
+              order_id: { type: string, format: uuid }
+              order_number: { type: string }
+              amount_iqd: { type: number, exclusiveMinimum: 0 }
+        running_cash_iqd: { type: number }
 
     DeliveryPartyHeldOrders:
       type: object
@@ -6347,6 +6493,25 @@ components:
         confirmed_at: { type: [string, "null"], format: date-time }
         delivery_journal_entry_id: { type: string, format: uuid }
         confirmation_journal_entry_id: { type: [string, "null"], format: uuid }
+        settlement_status: { type: string, enum: [unconfirmed, unsettled, partially_settled, settled], description: Present on staff collection-list responses. }
+        allocated_amount_iqd: { type: number, minimum: 0, description: Active receipt allocations; present on staff collection-list responses. }
+        unsettled_amount_iqd: { type: [number, "null"], minimum: 0, description: Confirmed collected amount not yet allocated; present on staff collection-list responses. }
+        receipt_allocations:
+          type: array
+          description: Active receipt allocations settling this order; present on staff collection-list responses.
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, batch_id, batch_document_number, voucher_id, voucher_document_number, voucher_document_date, amount_iqd, created_at]
+            properties:
+              id: { type: string, format: uuid }
+              batch_id: { type: string, format: uuid }
+              batch_document_number: { type: string }
+              voucher_id: { type: string, format: uuid }
+              voucher_document_number: { type: string }
+              voucher_document_date: { type: string, format: date }
+              amount_iqd: { type: number, exclusiveMinimum: 0 }
+              created_at: { type: string, format: date-time }
         order:
           type: object
           additionalProperties: false
@@ -7264,6 +7429,203 @@ components:
             to_account_id: { type: string, format: uuid }
             amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
             reason: { type: string, minLength: 3, maxLength: 500 }
+
+    CashReceiptAllocationInput:
+      type: object
+      additionalProperties: false
+      required: [order_id, amount_iqd]
+      properties:
+        order_id: { type: string, format: uuid }
+        amount_iqd: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+
+    CashReceiptCreateInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [party_id, cash_account_id, amount_iqd]
+          properties:
+            party_id: { type: string, format: uuid }
+            cash_account_id: { type: string, format: uuid }
+            amount_iqd: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+            reference: { type: string, maxLength: 160 }
+            notes: { type: string, maxLength: 2000 }
+            allocations:
+              type: array
+              default: []
+              items: { $ref: "#/components/schemas/CashReceiptAllocationInput" }
+
+    CashReceiptAllocateInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [allocations]
+          properties:
+            allocations:
+              type: array
+              minItems: 1
+              items: { $ref: "#/components/schemas/CashReceiptAllocationInput" }
+
+    CashReceiptReversalInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, reason]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    CashReceiptParty:
+      type: object
+      additionalProperties: false
+      required: [id, kind, user_id, name, phone, vehicle_number, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [internal_agent, external_driver] }
+        user_id: { type: [string, "null"], format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        vehicle_number: { type: [string, "null"] }
+        is_active: { type: boolean }
+
+    CashReceiptAccount:
+      type: object
+      additionalProperties: false
+      required: [id, name, kind, currency_code, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [cash, bank] }
+        currency_code: { type: string, const: IQD }
+        is_active: { type: boolean }
+
+    CashReceiptAllocation:
+      type: object
+      additionalProperties: false
+      required: [id, collection_id, order, amount_iqd, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        collection_id: { type: string, format: uuid }
+        order:
+          type: object
+          additionalProperties: false
+          required: [id, order_number]
+          properties:
+            id: { type: string, format: uuid }
+            order_number: { type: string }
+        amount_iqd: { type: number, exclusiveMinimum: 0 }
+        created_at: { type: string, format: date-time }
+
+    CashReceiptAllocationBatch:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, document_date, accounting_date, backdate_reason, created_by, created_at, active, allocations]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        active: { type: boolean, description: False when the parent voucher has been reversed. }
+        allocations:
+          type: array
+          items: { $ref: "#/components/schemas/CashReceiptAllocation" }
+
+    CashReceiptReversal:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, voucher_id, reason, document_date, accounting_date, created_by, journal_entry_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        voucher_id: { type: string, format: uuid }
+        reason: { type: string }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        created_by: { type: string, format: uuid }
+        journal_entry_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    CashReceiptVoucher:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, status, party_id, party, cash_account_id, cash_account, amount_iqd, allocated_amount_iqd, original_allocated_amount_iqd, unallocated_amount_iqd, currency, document_date, accounting_date, backdate_reason, reference, notes, created_by, journal_entry_id, created_at, allocation_batches, reversal]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        status: { type: string, enum: [active, reversed] }
+        party_id: { type: string, format: uuid }
+        party: { $ref: "#/components/schemas/CashReceiptParty" }
+        cash_account_id: { type: string, format: uuid }
+        cash_account: { $ref: "#/components/schemas/CashReceiptAccount" }
+        amount_iqd: { type: number, exclusiveMinimum: 0 }
+        allocated_amount_iqd: { type: number, minimum: 0, description: Effective active allocation; zero after reversal. }
+        original_allocated_amount_iqd: { type: number, minimum: 0, description: Historical allocations retained after reversal. }
+        unallocated_amount_iqd: { type: number, minimum: 0 }
+        currency: { type: string, const: IQD }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: [string, "null"] }
+        reference: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        journal_entry_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        allocation_batches:
+          type: array
+          items: { $ref: "#/components/schemas/CashReceiptAllocationBatch" }
+        reversal:
+          oneOf:
+            - { $ref: "#/components/schemas/CashReceiptReversal" }
+            - { type: "null" }
+
+    CashReceiptPage:
+      allOf:
+        - { $ref: "#/components/schemas/Pagination" }
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/CashReceiptVoucher" }
+
+    CashReceiptSuggestions:
+      type: object
+      additionalProperties: false
+      required: [party, requested_amount_iqd, suggested_amount_iqd, data]
+      properties:
+        party:
+          type: object
+          additionalProperties: false
+          required: [id, name]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+        requested_amount_iqd: { type: [number, "null"], minimum: 0 }
+        suggested_amount_iqd: { type: number, minimum: 0 }
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [collection_id, order, collected_amount_iqd, allocated_amount_iqd, unsettled_amount_iqd, suggested_amount_iqd, collected_at]
+            properties:
+              collection_id: { type: string, format: uuid }
+              order:
+                type: object
+                additionalProperties: false
+                required: [id, order_number]
+                properties:
+                  id: { type: string, format: uuid }
+                  order_number: { type: string }
+              collected_amount_iqd: { type: number, minimum: 0 }
+              allocated_amount_iqd: { type: number, minimum: 0 }
+              unsettled_amount_iqd: { type: number, exclusiveMinimum: 0 }
+              suggested_amount_iqd: { type: number, minimum: 0 }
+              collected_at: { type: string, format: date-time }
 
     FinancialDocumentBase:
       type: object

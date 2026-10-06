@@ -4745,7 +4745,7 @@ export interface paths {
         };
         /**
          * Read a party's current goods and cash custody
-         * @description Lot cost and IQD value are included only when the caller also has cost.view. Cash is zero until phase 8b.
+         * @description Lot cost and IQD value are included only when the caller also has cost.view. Cash equals confirmed collections less active cash receipt vouchers.
          */
         get: {
             parameters: {
@@ -8033,6 +8033,310 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/cash-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List delivery-party cash receipt vouchers */
+        get: {
+            parameters: {
+                query?: {
+                    party_id?: string;
+                    cash_account_id?: string;
+                    date_from?: string;
+                    date_to?: string;
+                    status?: "active" | "reversed";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated receipt vouchers */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReceiptPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        /**
+         * Receive IQD cash from a delivery party into a cash account
+         * @description Posts the phase-3 cash_received map (cash account debit, party cash-custody credit). Optional allocations settle confirmed collections; any remainder remains explicitly unallocated.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CashReceiptCreateInput"];
+                };
+            };
+            responses: {
+                /** @description Posted cash receipt */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReceiptVoucher"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cash-receipts/unallocated": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List active receipts with an unallocated remainder */
+        get: {
+            parameters: {
+                query?: {
+                    party_id?: string;
+                    cash_account_id?: string;
+                    date_from?: string;
+                    date_to?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated receipts with remaining allocation capacity */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReceiptPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cash-receipts/allocation-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Suggest a party's oldest unsettled confirmed collections */
+        get: {
+            parameters: {
+                query: {
+                    party_id: string;
+                    amount_iqd?: string;
+                    per_page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Oldest-first allocation suggestions */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReceiptSuggestions"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cash-receipts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one cash receipt with allocations and reversal */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Cash receipt detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReceiptVoucher"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cash-receipts/{id}/allocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Allocate an active receipt's remainder to delivered orders
+         * @description Partial allocation is allowed. Orders must belong to the receipt party and allocations cannot exceed either the receipt remainder or an order's confirmed collected amount.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CashReceiptAllocateInput"];
+                };
+            };
+            responses: {
+                /** @description Receipt with the immutable allocation batch */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReceiptVoucher"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cash-receipts/{id}/reversal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reverse an immutable cash receipt voucher
+         * @description The reversal restores party cash custody and makes every allocation on the original receipt ineffective; the original rows remain unchanged.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CashReceiptReversalInput"];
+                };
+            };
+            responses: {
+                /** @description Reversed receipt with reversal document */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReceiptVoucher"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/financial-documents/{id}": {
         parameters: {
             query?: never;
@@ -11110,6 +11414,37 @@ export interface components {
         DeliveryPartyStatementPage: components["schemas"]["Pagination"] & {
             party: components["schemas"]["DeliveryParty"];
             data: components["schemas"]["DeliveryPartyStatementEntry"][];
+            cash_activity: {
+                total: number;
+                data: components["schemas"]["DeliveryPartyCashStatementEntry"][];
+            };
+        };
+        DeliveryPartyCashStatementEntry: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            event: "collection_confirmed" | "cash_received" | "cash_receipt_reversed";
+            /** Format: date-time */
+            occurred_at: string;
+            /** Format: date */
+            business_date: string;
+            /** Format: uuid */
+            order_id: string | null;
+            order_number: string | null;
+            /** Format: uuid */
+            voucher_id: string | null;
+            voucher_document_number: string | null;
+            /** @description Signed custody movement; collection positive */
+            amount_iqd: number;
+            allocated_amount_iqd: number;
+            unsettled_amount_iqd: number;
+            allocation_orders: {
+                /** Format: uuid */
+                order_id: string;
+                order_number: string;
+                amount_iqd: number;
+            }[];
+            running_cash_iqd: number;
         };
         DeliveryPartyHeldOrders: {
             party: components["schemas"]["DeliveryParty"];
@@ -11151,6 +11486,31 @@ export interface components {
             delivery_journal_entry_id: string;
             /** Format: uuid */
             confirmation_journal_entry_id: string | null;
+            /**
+             * @description Present on staff collection-list responses.
+             * @enum {string}
+             */
+            settlement_status?: "unconfirmed" | "unsettled" | "partially_settled" | "settled";
+            /** @description Active receipt allocations; present on staff collection-list responses. */
+            allocated_amount_iqd?: number;
+            /** @description Confirmed collected amount not yet allocated; present on staff collection-list responses. */
+            unsettled_amount_iqd?: number | null;
+            /** @description Active receipt allocations settling this order; present on staff collection-list responses. */
+            receipt_allocations?: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                batch_id: string;
+                batch_document_number: string;
+                /** Format: uuid */
+                voucher_id: string;
+                voucher_document_number: string;
+                /** Format: date */
+                voucher_document_date: string;
+                amount_iqd: number;
+                /** Format: date-time */
+                created_at: string;
+            }[];
             order?: {
                 /** Format: uuid */
                 id: string;
@@ -11889,6 +12249,166 @@ export interface components {
             to_account_id: string;
             amount: string;
             reason: string;
+        };
+        CashReceiptAllocationInput: {
+            /** Format: uuid */
+            order_id: string;
+            amount_iqd: string;
+        };
+        CashReceiptCreateInput: components["schemas"]["FinancialDocumentInput"] & {
+            /** Format: uuid */
+            party_id: string;
+            /** Format: uuid */
+            cash_account_id: string;
+            amount_iqd: string;
+            reference?: string;
+            notes?: string;
+            /** @default [] */
+            allocations: components["schemas"]["CashReceiptAllocationInput"][];
+        };
+        CashReceiptAllocateInput: components["schemas"]["FinancialDocumentInput"] & {
+            allocations: components["schemas"]["CashReceiptAllocationInput"][];
+        };
+        CashReceiptReversalInput: {
+            operation_id: string;
+            reason: string;
+        };
+        CashReceiptParty: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "internal_agent" | "external_driver";
+            /** Format: uuid */
+            user_id: string | null;
+            name: string;
+            phone: string;
+            vehicle_number: string | null;
+            is_active: boolean;
+        };
+        CashReceiptAccount: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "cash" | "bank";
+            /** @constant */
+            currency_code: "IQD";
+            is_active: boolean;
+        };
+        CashReceiptAllocation: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            collection_id: string;
+            order: {
+                /** Format: uuid */
+                id: string;
+                order_number: string;
+            };
+            amount_iqd: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CashReceiptAllocationBatch: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            backdate_reason: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @description False when the parent voucher has been reversed. */
+            active: boolean;
+            allocations: components["schemas"]["CashReceiptAllocation"][];
+        };
+        CashReceiptReversal: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            /** Format: uuid */
+            voucher_id: string;
+            reason: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            journal_entry_id: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CashReceiptVoucher: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            /** @enum {string} */
+            status: "active" | "reversed";
+            /** Format: uuid */
+            party_id: string;
+            party: components["schemas"]["CashReceiptParty"];
+            /** Format: uuid */
+            cash_account_id: string;
+            cash_account: components["schemas"]["CashReceiptAccount"];
+            amount_iqd: number;
+            /** @description Effective active allocation; zero after reversal. */
+            allocated_amount_iqd: number;
+            /** @description Historical allocations retained after reversal. */
+            original_allocated_amount_iqd: number;
+            unallocated_amount_iqd: number;
+            /** @constant */
+            currency: "IQD";
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            backdate_reason: string | null;
+            reference: string | null;
+            notes: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            journal_entry_id: string;
+            /** Format: date-time */
+            created_at: string;
+            allocation_batches: components["schemas"]["CashReceiptAllocationBatch"][];
+            reversal: components["schemas"]["CashReceiptReversal"] | null;
+        };
+        CashReceiptPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["CashReceiptVoucher"][];
+        };
+        CashReceiptSuggestions: {
+            party: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            };
+            requested_amount_iqd: number | null;
+            suggested_amount_iqd: number;
+            data: {
+                /** Format: uuid */
+                collection_id: string;
+                order: {
+                    /** Format: uuid */
+                    id: string;
+                    order_number: string;
+                };
+                collected_amount_iqd: number;
+                allocated_amount_iqd: number;
+                unsettled_amount_iqd: number;
+                suggested_amount_iqd: number;
+                /** Format: date-time */
+                collected_at: string;
+            }[];
         };
         FinancialDocumentBase: {
             /** @enum {string} */

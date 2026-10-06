@@ -5,7 +5,8 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import type { DeliveryParty, Prisma } from '../../generated/prisma/client';
+import type { DeliveryParty } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import {
@@ -271,19 +272,25 @@ export class DeliveryPartiesService {
       },
       orderBy: [{ issued_at: 'asc' }, { id: 'asc' }],
     });
-    const cashRows = await this.prisma.deliveryCollection.findMany({
-      where: {
-        party_id: id,
-        status: { in: ['confirmed_full', 'confirmed_short'] },
-        collected_amount: { not: null },
-      },
-      select: {
-        collected_amount: true,
-        confirmed_at: true,
-        delivered_at: true,
-      },
-      orderBy: [{ confirmed_at: 'asc' }, { id: 'asc' }],
-    });
+    const [cashRows, cashReceipts] = await Promise.all([
+      this.prisma.deliveryCollection.findMany({
+        where: {
+          party_id: id,
+          status: { in: ['confirmed_full', 'confirmed_short'] },
+          collected_amount: { not: null },
+        },
+        select: {
+          collected_amount: true,
+          confirmed_at: true,
+          delivered_at: true,
+        },
+        orderBy: [{ confirmed_at: 'asc' }, { id: 'asc' }],
+      }),
+      this.prisma.cashReceiptVoucher.aggregate({
+        where: { party_id: id, reversal: { is: null } },
+        _sum: { amount_iqd: true },
+      }),
+    ]);
     const today = businessDate();
     const goods = rows.map((row) => {
       const quantity = Number(row.remaining_quantity);
@@ -305,6 +312,12 @@ export class DeliveryPartiesService {
           : {}),
       };
     });
+    const cashAmount = cashRows
+      .reduce(
+        (sum, row) => sum.plus(row.collected_amount ?? 0),
+        new Prisma.Decimal(0),
+      )
+      .minus(cashReceipts._sum.amount_iqd ?? 0);
     return {
       party,
       goods: {
@@ -324,20 +337,18 @@ export class DeliveryPartiesService {
       },
       cash: {
         currency: 'IQD',
-        amount: cashRows.reduce(
-          (sum, row) => sum + Number(row.collected_amount ?? 0),
-          0,
-        ),
-        oldest_age_days: cashRows.length
-          ? Math.max(
-              ...cashRows.map((row) =>
-                businessDateDifference(
-                  today,
-                  businessDate(row.confirmed_at ?? row.delivered_at),
+        amount: Number(cashAmount),
+        oldest_age_days:
+          cashAmount.gt(0) && cashRows.length
+            ? Math.max(
+                ...cashRows.map((row) =>
+                  businessDateDifference(
+                    today,
+                    businessDate(row.confirmed_at ?? row.delivered_at),
+                  ),
                 ),
-              ),
-            )
-          : null,
+              )
+            : null,
       },
     };
   }
@@ -360,18 +371,53 @@ export class DeliveryPartiesService {
     if (query.from && query.to && query.from > query.to) {
       throw new BadRequestException('from must be on or before to');
     }
-    const movements = await this.prisma.stockMovement.findMany({
-      where: {
-        custody_party_id: id,
-        type: { in: ['issue_to_custody', 'custody_to_sold', 'return_in'] },
-      },
-      include: {
-        batch: {
-          select: { lot_number: true, variant: { select: { sku: true } } },
+    const [movements, cashCollections, cashReceipts] = await Promise.all([
+      this.prisma.stockMovement.findMany({
+        where: {
+          custody_party_id: id,
+          type: { in: ['issue_to_custody', 'custody_to_sold', 'return_in'] },
         },
-      },
-      orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
-    });
+        include: {
+          batch: {
+            select: { lot_number: true, variant: { select: { sku: true } } },
+          },
+        },
+        orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
+      }),
+      this.prisma.deliveryCollection.findMany({
+        where: {
+          party_id: id,
+          status: { in: ['confirmed_full', 'confirmed_short'] },
+          collected_amount: { not: null },
+        },
+        include: {
+          order: { select: { id: true, order_number: true } },
+          cash_receipt_allocations: {
+            where: { batch: { voucher: { reversal: { is: null } } } },
+            select: { amount_iqd: true },
+          },
+        },
+      }),
+      this.prisma.cashReceiptVoucher.findMany({
+        where: { party_id: id },
+        include: {
+          allocation_batches: {
+            include: {
+              allocations: {
+                include: {
+                  collection: {
+                    include: {
+                      order: { select: { id: true, order_number: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          reversal: true,
+        },
+      }),
+    ]);
     const retrievalIds = movements
       .filter((row) => row.source_type === 'retrieval' && row.source_id)
       .map((row) => row.source_id!);
@@ -445,12 +491,104 @@ export class DeliveryPartiesService {
     );
     const page = query.page ?? 1;
     const perPage = query.per_page ?? 20;
+    const cashEvents = [
+      ...cashCollections.map((collection) => {
+        const allocated = collection.cash_receipt_allocations.reduce(
+          (sum, allocation) => sum.plus(allocation.amount_iqd),
+          new Prisma.Decimal(0),
+        );
+        const collected = collection.collected_amount!;
+        return {
+          id: collection.id,
+          event: 'collection_confirmed' as const,
+          occurred_at: collection.confirmed_at ?? collection.delivered_at,
+          business_date: businessDateText(collection.accounting_date),
+          order_id: collection.order_id,
+          order_number: collection.order.order_number,
+          voucher_id: null,
+          voucher_document_number: null,
+          amount_iqd: Number(collected),
+          allocated_amount_iqd: Number(allocated),
+          unsettled_amount_iqd: Number(
+            Prisma.Decimal.max(0, collected.minus(allocated)),
+          ),
+          allocation_orders: [] as Array<{
+            order_id: string;
+            order_number: string;
+            amount_iqd: number;
+          }>,
+        };
+      }),
+      ...cashReceipts.flatMap((receipt) => {
+        const allocationOrders = receipt.allocation_batches.flatMap((batch) =>
+          batch.allocations.map((allocation) => ({
+            order_id: allocation.collection.order_id,
+            order_number: allocation.collection.order.order_number,
+            amount_iqd: Number(allocation.amount_iqd),
+          })),
+        );
+        const received = {
+          id: receipt.id,
+          event: 'cash_received' as const,
+          occurred_at: receipt.created_at,
+          business_date: businessDateText(receipt.document_date),
+          order_id: null,
+          order_number: null,
+          voucher_id: receipt.id,
+          voucher_document_number: receipt.document_number,
+          amount_iqd: -Number(receipt.amount_iqd),
+          allocated_amount_iqd: allocationOrders.reduce(
+            (sum, allocation) => sum + allocation.amount_iqd,
+            0,
+          ),
+          unsettled_amount_iqd: 0,
+          allocation_orders: allocationOrders,
+        };
+        return receipt.reversal
+          ? [
+              received,
+              {
+                ...received,
+                id: receipt.reversal.id,
+                event: 'cash_receipt_reversed' as const,
+                occurred_at: receipt.reversal.created_at,
+                business_date: businessDateText(receipt.reversal.document_date),
+                amount_iqd: Number(receipt.amount_iqd),
+              },
+            ]
+          : [received];
+      }),
+    ].sort(
+      (left, right) =>
+        left.business_date.localeCompare(right.business_date) ||
+        left.occurred_at.getTime() - right.occurred_at.getTime() ||
+        left.id.localeCompare(right.id),
+    );
+    let runningCash = 0;
+    const cashAll = cashEvents.map((event) => {
+      runningCash += event.amount_iqd;
+      return { ...event, running_cash_iqd: runningCash };
+    });
+    const cashFiltered = cashAll.filter(
+      (row) =>
+        (!query.from || row.business_date >= query.from) &&
+        (!query.to || row.business_date <= query.to) &&
+        (!query.order_id ||
+          row.order_id === query.order_id ||
+          row.allocation_orders.some(
+            (allocation) => allocation.order_id === query.order_id,
+          )),
+    );
     return {
       party,
       page,
       per_page: perPage,
       total: filtered.length,
       data: filtered.slice((page - 1) * perPage, page * perPage),
+      cash_activity: {
+        total: cashFiltered.length,
+        data: cashFiltered.slice((page - 1) * perPage, page * perPage),
+      },
     };
   }
 
@@ -542,7 +680,7 @@ export class DeliveryPartiesService {
       ]),
     );
     if (!ids.length) return summaries;
-    const [holdings, collections] = await Promise.all([
+    const [holdings, collections, receipts] = await Promise.all([
       this.prisma.custodyHolding.findMany({
         where: {
           custody_party_id: { in: ids },
@@ -570,6 +708,14 @@ export class DeliveryPartiesService {
           delivered_at: true,
         },
       }),
+      this.prisma.cashReceiptVoucher.groupBy({
+        by: ['party_id'],
+        where: {
+          party_id: { in: ids },
+          reversal: { is: null },
+        },
+        _sum: { amount_iqd: true },
+      }),
     ]);
     const today = businessDate();
     const orders = new Map<string, Set<string>>();
@@ -596,6 +742,11 @@ export class DeliveryPartiesService {
       const summary = summaries.get(collection.party_id)!;
       summary.cash_held += Number(collection.collected_amount ?? 0);
       recordAge(summary, collection.confirmed_at ?? collection.delivered_at);
+    }
+    for (const receipt of receipts) {
+      summaries.get(receipt.party_id)!.cash_held -= Number(
+        receipt._sum.amount_iqd ?? 0,
+      );
     }
     for (const [id, partyOrders] of orders) {
       summaries.get(id)!.orders_held = partyOrders.size;
