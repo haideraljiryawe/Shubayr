@@ -124,27 +124,27 @@ class CustomerBottomNavigation extends StatelessWidget {
                             child: FractionallySizedBox(
                               widthFactor: 1 / destinations.length,
                               child: LayoutBuilder(
-                                builder: (context, constraints) => Center(
-                                  child: DecoratedBox(
-                                    key: const ValueKey('bottom-nav-capsule'),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          NavigationThemes.bottomBarSelectedSurfaceColor(
-                                            colors,
-                                          ),
-                                      borderRadius: NavigationThemes
-                                          .bottomBarCapsuleRadius,
+                                builder: (context, constraints) {
+                                  final size =
+                                      NavigationThemes.bottomBarSelectedSize(
+                                        constraints.maxWidth,
+                                      );
+                                  return Center(
+                                    child: DecoratedBox(
+                                      key: const ValueKey('bottom-nav-capsule'),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            NavigationThemes.bottomBarSelectedSurfaceColor(
+                                              colors,
+                                            ),
+                                        borderRadius: BorderRadius.circular(
+                                          size.height / 2,
+                                        ),
+                                      ),
+                                      child: SizedBox.fromSize(size: size),
                                     ),
-                                    child: SizedBox(
-                                      width:
-                                          NavigationThemes.bottomBarCapsuleWidth(
-                                            constraints.maxWidth,
-                                          ),
-                                      height: NavigationThemes
-                                          .bottomBarCapsuleHeight,
-                                    ),
-                                  ),
-                                ),
+                                  );
+                                },
                               ),
                             ),
                           ),

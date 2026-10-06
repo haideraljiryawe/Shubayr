@@ -235,7 +235,7 @@ void main() {
               expect(pill.center.dx, closeTo(active.center.dx, 0.01));
               expect(pill.width, lessThan(active.width));
               expect(pill.width, greaterThan(pill.height));
-              expect(pill.width, lessThanOrEqualTo(78.01));
+              expect(pill.width, closeTo(active.width - 14, .01));
               expect(pill.height, 44);
               expect(pill.top, greaterThan(active.top));
               expect(pill.bottom, lessThan(active.bottom));
@@ -536,7 +536,11 @@ void main() {
         final capsule =
             tester.widget<DecoratedBox>(_capsule).decoration as BoxDecoration;
         final inner = capsule.borderRadius!.resolve(TextDirection.rtl);
-        expect(outer.topLeft.x, inner.topLeft.x + 7);
+        expect(
+          outer.topLeft.x,
+          inner.topLeft.x +
+              (surface.height - tester.getSize(_capsule).height) / 2,
+        );
         expect(outer.topLeft.x, surface.height / 2);
         // End tabs stay readable inside the rounded surface, even when selected.
         for (var i = 0; i < 5; i++) {

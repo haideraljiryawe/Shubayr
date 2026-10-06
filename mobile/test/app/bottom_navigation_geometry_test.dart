@@ -25,10 +25,11 @@ void main() {
     }
     await fonts.load();
   });
-  for (final count in [3, 4, 5]) {
+  for (final count in [1, 2, 3, 4, 5, 6]) {
     for (final rtl in [false, true]) {
       for (final dark in [false, true]) {
         for (final width in [
+          280.0,
           320.0,
           360.0,
           390.0,
@@ -78,6 +79,7 @@ void main() {
                                               'السلة',
                                               'طلباتي',
                                               'حسابي',
+                                              'المفضلة',
                                             ][i]
                                           : [
                                               'Home',
@@ -85,6 +87,7 @@ void main() {
                                               'Cart',
                                               'Orders',
                                               'Account',
+                                              'Wishlist',
                                             ][i],
                                       badge: 0,
                                     ),
@@ -144,32 +147,42 @@ void main() {
                     );
                     final capsule = tester.getRect(capsuleFinder);
                     expect(slot.width, closeTo(surface.width / count, .01));
-                    expect(slot.width, greaterThanOrEqualTo(48));
-                    expect(slot.height, greaterThanOrEqualTo(48));
-                    expect(capsule.width, greaterThan(capsule.height));
-                    expect(capsule.width, lessThanOrEqualTo(78.01));
-                    expect(capsule.width, greaterThanOrEqualTo(56.79));
-                    expect(capsule.height, 44);
-                    // Representative narrow, intermediate and capped layouts
-                    // catch an indicator accidentally reverting to fixed width.
-                    final expectedWidth = {
-                      (320.0, 5): 56.8,
-                      (390.0, 4): 70.125,
-                      (800.0, 3): 78.0,
-                    }[(width, count)];
-                    if (expectedWidth != null) {
-                      expect(capsule.width, closeTo(expectedWidth, .01));
+                    // Hit targets still occupy their complete slot, including
+                    // the dense 280px / 6 layout (44px wide, 58px tall).
+                    expect(slot.width, greaterThanOrEqualTo(44));
+                    expect(slot.height, 58);
+                    expect(
+                      capsule.width + .01,
+                      greaterThanOrEqualTo(capsule.height),
+                    );
+                    expect(capsule.height, lessThanOrEqualTo(44.01));
+                    expect(capsule.width, lessThanOrEqualTo(slot.width));
+                    if (capsule.width >= 44) {
+                      expect(capsule.height, 44);
+                    } else {
+                      expect(capsule.height, closeTo(capsule.width, .01));
                     }
+                    // Narrow fallback, intermediate and single-destination
+                    // sizes prove that the previous width cap is gone.
+                    final expectedSize = {
+                      (280.0, 6): const Size(30, 30),
+                      (320.0, 6): const Size(36.6667, 36.6667),
+                      (390.0, 5): const Size(60.8, 44),
+                      (390.0, 3): const Size(110.6667, 44),
+                      (390.0, 1): const Size(360, 44),
+                    }[(width, count)];
+                    if (expectedSize != null) {
+                      expect(capsule.width, closeTo(expectedSize.width, .01));
+                      expect(capsule.height, closeTo(expectedSize.height, .01));
+                    }
+                    expect(capsule.left - slot.left, closeTo(7, .01));
+                    expect(slot.right - capsule.right, closeTo(7, .01));
+                    final verticalInset = (surface.height - capsule.height) / 2;
+                    expect(capsule.top - slot.top, closeTo(verticalInset, .01));
                     expect(
-                      capsule.left - slot.left,
-                      greaterThanOrEqualTo(1.99),
+                      slot.bottom - capsule.bottom,
+                      closeTo(verticalInset, .01),
                     );
-                    expect(
-                      slot.right - capsule.right,
-                      greaterThanOrEqualTo(1.99),
-                    );
-                    expect(capsule.top - slot.top, closeTo(7, .01));
-                    expect(slot.bottom - capsule.bottom, closeTo(7, .01));
                     for (var neighbor = 0; neighbor < count; neighbor++) {
                       if (neighbor != index) {
                         expect(
@@ -186,7 +199,26 @@ void main() {
                     final shape = decoration.borderRadius!
                         .resolve(TextDirection.ltr)
                         .toRRect(capsule);
-                    expect(shape.tlRadiusX, capsule.height / 2);
+                    expect(shape.tlRadiusX, closeTo(capsule.height / 2, .01));
+                    expect(
+                      shape.tlRadiusX,
+                      closeTo(outer.tlRadiusX - verticalInset, .01),
+                    );
+                    // Check the actual curved outline, not its bounding-box
+                    // corners, at the first/last slot as well as in the middle.
+                    final perimeter = (Path()..addRRect(shape))
+                        .computeMetrics()
+                        .single;
+                    for (var sample = 0; sample < 64; sample++) {
+                      final point = perimeter
+                          .getTangentForOffset(perimeter.length * sample / 64)!
+                          .position;
+                      expect(
+                        outer.contains(point),
+                        isTrue,
+                        reason: 'indicator clipped at $point',
+                      );
+                    }
                     for (final type in [Icon]) {
                       final content = _paintedRect(
                         tester,
@@ -197,22 +229,8 @@ void main() {
                       );
                       expect(content.center.dx, closeTo(slot.center.dx, .01));
                       expect(content.center.dy, closeTo(slot.center.dy, .01));
-                      expect(
-                        content.left - capsule.left,
-                        greaterThanOrEqualTo(7.99),
-                      );
-                      expect(
-                        capsule.right - content.right,
-                        greaterThanOrEqualTo(7.99),
-                      );
-                      expect(
-                        content.top - capsule.top,
-                        greaterThanOrEqualTo(5.99),
-                      );
-                      expect(
-                        capsule.bottom - content.bottom,
-                        greaterThanOrEqualTo(5.99),
-                      );
+                      expect(content.width, closeTo(28 * 1.03, .01));
+                      expect(content.height, closeTo(28 * 1.03, .01));
                       for (final point in [
                         content.topLeft,
                         content.topRight,
@@ -220,12 +238,16 @@ void main() {
                         content.bottomRight,
                       ]) {
                         expect(outer.contains(point), isTrue);
-                        expect(
-                          shape.contains(point),
-                          isTrue,
-                          reason: '$type: $content in $shape',
-                        );
+                        expect(capsule.inflate(.01).contains(point), isTrue);
                       }
+                      // The circle fallback is a background, not an icon clip.
+                      expect(
+                        find.descendant(
+                          of: capsuleFinder,
+                          matching: find.byType(Icon),
+                        ),
+                        findsNothing,
+                      );
                     }
                     expect(
                       tester.getRect(
@@ -372,13 +394,13 @@ void main() {
                   final slot = tester.getRect(tabs.at(i));
                   expect(capsule.center.dx, closeTo(slot.center.dx, .01));
                   expect(capsule.center.dy, closeTo(slot.center.dy, .01));
-                  expect(capsule.width, greaterThan(capsule.height));
-                  expect(capsule.left - slot.left, greaterThanOrEqualTo(1.99));
                   expect(
-                    slot.right - capsule.right,
-                    greaterThanOrEqualTo(1.99),
+                    capsule.width + .01,
+                    greaterThanOrEqualTo(capsule.height),
                   );
-                  expect(capsule.width, lessThanOrEqualTo(78.01));
+                  expect(capsule.left - slot.left, closeTo(7, .01));
+                  expect(slot.right - capsule.right, closeTo(7, .01));
+                  expect(capsule.width, lessThanOrEqualTo(slot.width));
                 }
                 expect(tester.takeException(), isNull);
               }

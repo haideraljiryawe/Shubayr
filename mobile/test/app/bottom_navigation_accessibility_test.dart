@@ -5,7 +5,7 @@ import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
 
 void main() {
-  for (final count in [3, 4, 5]) {
+  for (final count in [1, 2, 3, 4, 5, 6]) {
     for (final rtl in [false, true]) {
       testWidgets(
         '$count icon tabs retain accessible names and actions rtl=$rtl',
@@ -13,8 +13,8 @@ void main() {
           final semantics = tester.ensureSemantics();
           var selected = 0;
           final labels = rtl
-              ? ['الرئيسية', 'الأقسام', 'السلة', 'الطلبات', 'الحساب']
-              : ['Home', 'Categories', 'Cart', 'Orders', 'Account'];
+              ? ['الرئيسية', 'الأقسام', 'السلة', 'الطلبات', 'الحساب', 'المفضلة']
+              : ['Home', 'Categories', 'Cart', 'Orders', 'Account', 'Wishlist'];
           await tester.pumpWidget(
             MaterialApp(
               theme: AppTheme.light(const Brand.bundled()),

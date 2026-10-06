@@ -84,23 +84,19 @@ abstract final class NavigationThemes {
     top: bottomBarLabelGap,
   );
 
-  /// A short pill centered within the moving equal-width slot. The preferred
-  /// width is capped by the slot itself when horizontal safe insets are large.
-  static const double bottomBarCapsuleHeight = 44;
-  static const double bottomBarCapsuleWidthRatio = 0.75;
-  static const double bottomBarCapsuleMinWidth = 58;
-  static const double bottomBarCapsuleMaxWidth = 78;
-  static const double bottomBarCapsuleSlotInset = 2;
-  static double bottomBarCapsuleWidth(double slotWidth) => math.min(
-    (slotWidth * bottomBarCapsuleWidthRatio).clamp(
-      bottomBarCapsuleMinWidth,
-      bottomBarCapsuleMaxWidth,
-    ),
-    math.max(0, slotWidth - 2 * bottomBarCapsuleSlotInset),
-  );
-  static const BorderRadius bottomBarCapsuleRadius = BorderRadius.all(
-    Radius.circular(bottomBarCapsuleHeight / 2),
-  );
+  /// Inset the moving slot by the same amount as the base pill's vertical
+  /// clearance. There is no internal horizontal bar padding to add here.
+  static const double bottomBarSelectedBaseHeight = 44;
+  static const double bottomBarSelectedSlotInset =
+      (bottomBarHeight - bottomBarSelectedBaseHeight) / 2;
+
+  /// Dense layouts reduce only the decorative indicator. Icons and full-slot
+  /// hit targets keep their existing sizes. Radius follows the resulting height.
+  static Size bottomBarSelectedSize(double slotWidth) {
+    final width = math.max(0.0, slotWidth - 2 * bottomBarSelectedSlotInset);
+    return Size(width, math.min(bottomBarSelectedBaseHeight, width));
+  }
+
   static const double bottomBarSelectedSurfaceOpacity = 0.20;
   static Color bottomBarSelectedSurfaceColor(AppColors colors) =>
       colors.primary.withValues(alpha: bottomBarSelectedSurfaceOpacity);
