@@ -464,6 +464,19 @@ check(
 await db.query(
   "UPDATE store_settings SET value='strict' WHERE key='separation_of_duties_level'",
 );
+await request('/admin/cash-receipts', {
+  token: adminToken,
+  method: 'POST',
+  expected: 403,
+  body: {
+    operation_id: `c6-strict-initial-${randomUUID()}`,
+    document_date: today,
+    party_id: party.id,
+    cash_account_id: till.id,
+    amount_iqd: '10000',
+    allocations: [{ order_id: orders[2].orderId, amount_iqd: '10000' }],
+  },
+});
 const strictReceipt = await request('/admin/cash-receipts', {
   token: adminToken,
   method: 'POST',

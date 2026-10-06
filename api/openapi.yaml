@@ -3746,6 +3746,7 @@ paths:
       description: Posts the phase-3 cash_received map (cash account debit, party cash-custody credit). Optional allocations settle confirmed collections; any remainder remains explicitly unallocated.
       x-surface: admin
       x-permission: cash_receipts.receive
+      x-conditional-permission: { when: allocations are present, permission: cash_receipts.allocate }
       x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptCreateInput" } } } }
       responses:

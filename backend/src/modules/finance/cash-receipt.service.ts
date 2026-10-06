@@ -82,6 +82,14 @@ export class CashReceiptService {
   ) {}
 
   async create(actor: Actor, input: CreateCashReceiptDto) {
+    if (
+      input.allocations.length &&
+      !actor.permissions.includes('cash_receipts.allocate')
+    ) {
+      throw new ForbiddenException(
+        'Allocating a new receipt requires cash_receipts.allocate',
+      );
+    }
     const dates = await this.dates.validate({
       documentDate: input.document_date,
       accountingDate: input.accounting_date,
@@ -110,6 +118,18 @@ export class CashReceiptService {
         if (!party.is_active)
           throw new ConflictException('Delivery party is inactive');
         this.assertPartyActor(actor.id, party.user_id);
+        if (
+          input.allocations.length &&
+          (await separationOfDutiesLevel(tx)) === 'strict'
+        ) {
+          throw new ForbiddenException({
+            status: 403,
+            code: 'SEPARATION_OF_DUTIES_VIOLATION',
+            message:
+              'Strict separation of duties requires another user to allocate the receipt after it is created',
+            errors: [],
+          });
+        }
         if (!cash) throw new NotFoundException('Cash account not found');
         if (!cash.is_active)
           throw new ConflictException('Cash account is inactive');
@@ -193,7 +213,7 @@ export class CashReceiptService {
           },
         });
         if (input.allocations.length) {
-          await this.createAllocationBatch(tx, {
+          const initialBatch = await this.createAllocationBatch(tx, {
             actorId: actor.id,
             operationId: input.operation_id,
             voucherId,
@@ -201,6 +221,23 @@ export class CashReceiptService {
             receiptAmount: amount,
             dates,
             items: input.allocations,
+          });
+          await this.audit.record(tx, {
+            actorId: actor.id,
+            action: 'cash_receipt.allocate',
+            entityType: 'cash_receipt_allocation_batch',
+            entityId: initialBatch.id,
+            after: {
+              voucher_id: voucherId,
+              allocation_count: input.allocations.length,
+              allocated_amount_iqd: input.allocations
+                .reduce(
+                  (sum, item) => sum.plus(item.amount_iqd),
+                  new Prisma.Decimal(0),
+                )
+                .toString(),
+              source: 'initial_receipt',
+            },
           });
         }
         await this.audit.record(tx, {
@@ -567,7 +604,7 @@ export class CashReceiptService {
         'An order may appear only once in an allocation batch',
       );
     }
-    for (const orderId of orderIds) {
+    for (const orderId of [...orderIds].sort()) {
       await tx.$queryRaw`SELECT id FROM delivery_collections WHERE order_id = ${orderId}::uuid FOR UPDATE`;
     }
     const collections = await tx.deliveryCollection.findMany({
