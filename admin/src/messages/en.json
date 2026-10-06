@@ -2305,6 +2305,19 @@
       "issue_to_custody": "Handed over",
       "custody_to_sold": "Delivered",
       "return_in": "Brought back"
+    },
+    "tabs": {
+      "label": "Party views",
+      "custody": "Custody",
+      "collections": "Collections"
+    },
+    "collections": {
+      "title": "Collections",
+      "description": "Every order this party delivered, and what was collected for it: in full, short, or not confirmed yet.",
+      "empty": "No collections match.",
+      "forOrder": "Showing order {number} only.",
+      "allOrders": "All orders",
+      "toConfirm": "This party's cash to confirm"
     }
   },
   "collections": {
@@ -2347,6 +2360,29 @@
       "confirmTitle": "Confirm the cash for order {number}",
       "confirmBody": "Enter what the party handed in. This posts once; it can't be changed afterwards.",
       "done": "Order {number}: cash confirmed."
+    },
+    "filters": {
+      "status": "Status",
+      "anyStatus": "All statuses",
+      "party": "Delivered by",
+      "anyParty": "All parties",
+      "from": "Delivered from",
+      "to": "Delivered to",
+      "amountMin": "Amount due from",
+      "amountMax": "Amount due to",
+      "note": "Days are Baghdad business days of delivery; amounts are the amount due.",
+      "ignored": {
+        "dates": "The start day is after the end day, so the date filter isn't applied.",
+        "amounts": "The lowest amount is above the highest, so the amount filter isn't applied."
+      }
+    },
+    "settlement": {
+      "title": "Settlement",
+      "unconfirmed": "Awaiting confirmation",
+      "unsettled": "Not settled",
+      "partially_settled": "Partly settled",
+      "settled": "Settled",
+      "unsettled_amount": "Left to settle"
     }
   }
 }

@@ -107,7 +107,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         />
       ) : null}
       <DeliveryCard order={found} />
-      <PaymentCard />
+      <PaymentCard order={found} />
       <TotalsCard order={found} />
 
       <Link
@@ -471,17 +471,60 @@ function DeliveryCard({ order }: { order: Order }) {
   );
 }
 
-function PaymentCard() {
+function PaymentCard({ order }: { order: Order }) {
   const t = useTranslations("orders");
 
   return (
-    <Card padding="md" className="flex items-center gap-3">
-      <Banknote className="size-5 shrink-0 text-primary-dark" aria-hidden />
-      <div className="flex min-w-0 flex-col">
+    <Card padding="md" className="flex items-start gap-3">
+      <Banknote className="mt-0.5 size-5 shrink-0 text-primary-dark" aria-hidden />
+      <div className="flex min-w-0 flex-col gap-1">
         <span className="text-sm font-semibold text-text">{t("payment")}</span>
         <span className="text-xs text-text-muted">{t("cod")}</span>
+        {order.collection ? <PaymentCollected collection={order.collection} /> : null}
       </div>
     </Card>
+  );
+}
+
+/**
+ * What was paid on delivery (API 13.1), read with the order so it is there
+ * after a reload. The API's customer view carries only the result and the
+ * amounts — never who collected it — and the wording stays the shopper's:
+ * what they paid, and what is still to pay.
+ */
+function PaymentCollected({
+  collection,
+}: {
+  collection: NonNullable<Order["collection"]>;
+}) {
+  const t = useTranslations("orders.collection");
+  const locale = useLocale() as Locale;
+  const money = (value: number) => formatPrice(value, collection.currency, locale);
+
+  return (
+    <div
+      className="flex flex-col gap-0.5 text-sm"
+      data-testid="order-collection"
+      data-result={collection.result}
+    >
+      <span className="font-semibold text-text">{t(collection.result)}</span>
+      {collection.amount_collected !== null ? (
+        <span className="text-text-muted">
+          {t("paid")}{" "}
+          <span dir="ltr" className="font-semibold text-text [unicode-bidi:isolate]" data-testid="order-collection-paid">
+            {money(collection.amount_collected)}
+          </span>
+        </span>
+      ) : null}
+      {collection.result === "short" && collection.shortfall !== null ? (
+        <span className="text-text-muted">
+          {t("remaining")}{" "}
+          <span dir="ltr" className="font-semibold text-warning-dark [unicode-bidi:isolate]" data-testid="order-collection-remaining">
+            {money(collection.shortfall)}
+          </span>
+        </span>
+      ) : null}
+    </div>
   );
 }
 

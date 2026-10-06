@@ -77,3 +77,63 @@ export function staffDeliveryFields(operation: CollectionOperation, choice: Coll
     source: "web_admin",
   };
 }
+
+/* ---------------------------------------------------------------------------
+ * Collection lists (contract 13.1): a party's delivered-order collections and
+ * the "cash to confirm" queue, filtered by the server. Dates are Baghdad
+ * business days of delivery; amounts are the amount due.
+ * ------------------------------------------------------------------------- */
+
+/** The customer-safe result the order read carries (13.1). */
+export type OrderCollection = NonNullable<components["schemas"]["AdminOrder"]["collection"]>;
+
+/** The order read's result in the collection list's words, so both read alike. */
+export const RESULT_STATUS = {
+  full: "confirmed_full",
+  short: "confirmed_short",
+  unconfirmed: "unconfirmed",
+} as const satisfies Record<OrderCollection["result"], CollectionStatus>;
+
+export const COLLECTION_STATUSES = ["confirmed_full", "confirmed_short", "unconfirmed"] as const satisfies readonly CollectionStatus[];
+export const PARTY_COLLECTION_FILTER_KEYS = ["status", "order_id", "date_from", "date_to", "amount_min", "amount_max"] as const;
+export const QUEUE_FILTER_KEYS = ["party_id", "date_from", "date_to", "amount_min", "amount_max"] as const;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A typed amount ("25,000" or "25000.5") as a number; anything else is no filter. */
+export function amountFilter(raw: string | undefined): number | undefined {
+  const text = (raw ?? "").replace(/[\s,٬]/g, "");
+  return /^\d+(\.\d{1,6})?$/.test(text) ? Number(text) : undefined;
+}
+
+/**
+ * The URL's filters as API parameters. A malformed value is dropped, and an
+ * inverted range — which the API refuses with a 422 — is not sent but named
+ * in `ignored`, so the page can say why it isn't applied.
+ */
+export function collectionListQuery(filters: Record<string, string | undefined>, page: number, perPage: number) {
+  const ignored: Array<"dates" | "amounts"> = [];
+  const from = filters.date_from && DAY.test(filters.date_from) ? filters.date_from : undefined;
+  const to = filters.date_to && DAY.test(filters.date_to) ? filters.date_to : undefined;
+  const min = amountFilter(filters.amount_min);
+  const max = amountFilter(filters.amount_max);
+  const dates = from && to && from > to ? (ignored.push("dates"), {}) : { ...(from ? { date_from: from } : {}), ...(to ? { date_to: to } : {}) };
+  const amounts =
+    min !== undefined && max !== undefined && min > max
+      ? (ignored.push("amounts"), {})
+      : { ...(min !== undefined ? { amount_min: min } : {}), ...(max !== undefined ? { amount_max: max } : {}) };
+  const status = (COLLECTION_STATUSES as readonly string[]).includes(filters.status ?? "") ? (filters.status as CollectionStatus) : undefined;
+  return {
+    query: {
+      page,
+      per_page: perPage,
+      ...(status ? { status } : {}),
+      ...(filters.order_id && UUID.test(filters.order_id) ? { order_id: filters.order_id } : {}),
+      ...(filters.party_id && UUID.test(filters.party_id) ? { party_id: filters.party_id } : {}),
+      ...dates,
+      ...amounts,
+    },
+    ignored,
+  };
+}

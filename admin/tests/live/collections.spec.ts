@@ -1,4 +1,5 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import {
   API,
   adminApiToken,
@@ -37,6 +38,13 @@ async function api(request: APIRequestContext, method: "GET" | "POST" | "PATCH",
 
 function today(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(new Date());
+}
+
+/** The Baghdad business day after today. */
+function tomorrow(): string {
+  const next = new Date(`${today()}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next.toISOString().slice(0, 10);
 }
 
 let stockedItem: { id: string; variant: string } | null = null;
@@ -132,6 +140,19 @@ test("staff deliver for an external driver: the amount is pre-filled, a shortfal
   const recorded = page.getByTestId("order-collection");
   await expect(recorded.getByTestId("collection-summary")).toHaveAttribute("data-status", "confirmed_short");
   await expect(recorded.getByTestId("collection-shortfall")).toContainText(money(5000));
+  await expect(recorded.getByTestId("collection-collected")).toContainText(money(collected));
+  // It is part of the order read (13.1), so a reload shows the same.
+  await page.reload();
+  await expect(recorded.getByTestId("collection-summary")).toHaveAttribute("data-status", "confirmed_short");
+  await expect(recorded.getByTestId("collection-shortfall")).toContainText(money(5000));
+  await expect(recorded.getByTestId("collection-collected")).toContainText(money(collected));
+  expect((await api(request, "GET", `/admin/orders/${order.id}`)).body.collection).toEqual({
+    result: "short",
+    amount_collected: collected,
+    shortfall: 5000,
+    confirmation_state: "confirmed",
+    currency: "IQD",
+  });
   expect(await cashHeld(request, driverId)).toBe(before + collected);
   // The party page shows the cash now held.
   await page.goto(`/delivery-parties/${driverId}`);
@@ -184,7 +205,33 @@ test("an unconfirmed delivery is confirmed later from the queue, in full and sho
   await expect(row(full.order_number)).toHaveCount(1);
   await expect(row(short.order_number)).toHaveCount(1);
 
+  // The queue's filters (13.1), applied by the server: this driver only…
+  await page.goto(`/deliveries/unconfirmed?party_id=${driverId}`);
+  await expect(page.getByTestId("filter-party_id")).toHaveValue(driverId);
+  const rows = page.getByTestId("unconfirmed-table").getByTestId("table-row");
+  await expect(rows).toHaveCount(2);
+  // …by amount due…
+  await page.getByTestId("filter-amount_min").fill(String(full.total + 1));
+  await expect(page).toHaveURL(/amount_min=/);
+  await expect(rows).toHaveCount(0);
+  await page.getByTestId("filter-amount_min").fill(String(full.total));
+  await page.getByTestId("filter-amount_max").fill(String(full.total));
+  await expect(page).toHaveURL(/amount_max=/);
+  await expect(rows).toHaveCount(2);
+  // …and by delivery day.
+  await page.getByTestId("filter-date_from").fill(tomorrow());
+  await expect(rows).toHaveCount(0);
+  await page.getByTestId("filter-date_from").fill(today());
+  await page.getByTestId("filter-date_to").fill(today());
+  await expect(page).toHaveURL(/date_to=/);
+  await expect(rows).toHaveCount(2);
+  // An inverted range isn't sent (the API refuses it); the page says so.
+  await page.goto(`/deliveries/unconfirmed?party_id=${driverId}&amount_min=10&amount_max=5`);
+  await expect(page.getByTestId("collections-ignored-amounts")).toBeVisible();
+  await expect(rows).toHaveCount(2);
+
   // Later full: the amount due, as pre-filled.
+  await page.goto(queue);
   await row(full.order_number).getByTestId("unconfirmed-confirm").click();
   let dialog = page.locator("dialog[open]");
   await expect(dialog.getByTestId("collection-amount")).toHaveValue(String(full.total));
@@ -204,4 +251,48 @@ test("an unconfirmed delivery is confirmed later from the queue, in full and sho
   await expect(page.getByTestId("unconfirmed-done").getByTestId("collection-shortfall")).toContainText(money(2500));
   await expect(row(short.order_number)).toHaveCount(0);
   expect(await cashHeld(request, driverId)).toBe(cashBefore + full.total + short.total - 2500);
+});
+
+test("a party's collections tab lists each order it delivered and what was collected, filtered and paged by the server", async ({ page }) => {
+  await uiLoginAsAdmin(page);
+  await page.goto(`/delivery-parties/${driverId}`);
+  await page.getByTestId("party-tab-collections").click();
+  await expect(page).toHaveURL(/tab=collections/);
+  // Every delivery this run made for the driver: two short, two in full.
+  const rows = page.getByTestId("party-collections-table").getByTestId("table-row");
+  await expect(rows).toHaveCount(4);
+  await expect(page.getByTestId("party-collection-settlement").first()).toHaveAttribute("data-settlement", "unsettled");
+
+  await page.getByTestId("filter-status").selectOption("confirmed_short");
+  await expect(page).toHaveURL(/status=confirmed_short/);
+  await expect(rows).toHaveCount(2);
+  await expect(page.getByTestId("party-collection-shortfall").filter({ hasText: money(5000) })).toHaveCount(1);
+  await expect(page.getByTestId("party-collection-shortfall").filter({ hasText: money(2500) })).toHaveCount(1);
+
+  await page.getByTestId("filter-date_from").fill(tomorrow());
+  await expect(rows).toHaveCount(0);
+  await page.getByTestId("filter-date_from").fill(today());
+  await expect(rows).toHaveCount(2);
+  await page.getByTestId("filter-amount_min").fill("10000000");
+  await expect(rows).toHaveCount(0);
+
+  // A page past the end shows the last page; the filters survive a reload.
+  await page.goto(`/delivery-parties/${driverId}?tab=collections&status=confirmed_full&page=9`);
+  await expect(rows).toHaveCount(2);
+  await expect(page.getByTestId("filter-status")).toHaveValue("confirmed_full");
+  await page.reload();
+  await expect(rows).toHaveCount(2);
+
+  // One order alone, and from there this party's cash to confirm.
+  await rows.first().getByTestId("party-collection-order").click();
+  await expect(page.getByTestId("order-collection").getByTestId("collection-summary")).toHaveAttribute("data-status", "confirmed_full");
+  await page.goBack();
+  await page.getByTestId("party-collections-to-confirm").click();
+  await expect(page.getByTestId("filter-party_id")).toHaveValue(driverId);
+  await expect(page.getByTestId("unconfirmed-table").getByTestId("table-row")).toHaveCount(0);
+
+  // The custody tab is one click back.
+  await page.goto(`/delivery-parties/${driverId}?tab=collections`);
+  await page.getByTestId("party-tab-custody").click();
+  await expect(page.getByTestId("custody-cash")).toBeVisible();
 });

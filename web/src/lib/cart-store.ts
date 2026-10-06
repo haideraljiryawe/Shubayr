@@ -240,6 +240,16 @@ function rememberLine(input: CartLineInput): CartLine[] {
     : [...state.lines, line];
 }
 
+/**
+ * Server adds, by line and quantity: the one in flight, and the key of the
+ * last one that failed. A second click on the same add while the first is on
+ * its way joins it instead of sending another request (a double click adds
+ * once); an add that failed is retried with its own key, so if the first
+ * actually landed the API replays it rather than adding again. A new key is
+ * minted only once an add has succeeded.
+ */
+const serverAdds = new Map<string, { key: string; inFlight?: Promise<void> }>();
+
 /** Guards the sign-in replay so it can never run twice concurrently. */
 let attaching: Promise<void> | null = null;
 
@@ -436,12 +446,17 @@ export const cartStore = {
     const lines = rememberLine(input);
 
     if (state.server) {
-      await withPending(async () => {
+      const amount = quantity > 0 ? roundQuantity(quantity) : 1;
+      const action = `${lineId(input.product_id, input.variant_id)}|${amount}`;
+      const known = serverAdds.get(action);
+      if (known?.inFlight) return known.inFlight;
+      const key = known?.key ?? idempotencyKey();
+      const inFlight = withPending(async () => {
         const cart = await api.addCartItem({
           product_id: input.product_id,
           variant_id: input.variant_id,
-          quantity: quantity > 0 ? roundQuantity(quantity) : 1,
-          idempotency_key: idempotencyKey(),
+          quantity: amount,
+          idempotency_key: key,
         });
         // The server holds the quantity; the device keeps only presentation
         // detail, at quantity 0 — the marker that stops the next sign-in
@@ -455,6 +470,15 @@ export const cartStore = {
           server: cart,
         });
       });
+      serverAdds.set(action, { key, inFlight });
+      try {
+        await inFlight;
+        serverAdds.delete(action);
+      } catch (error) {
+        // Unknown outcome: keep the key, so trying again can't add twice.
+        serverAdds.set(action, { key });
+        throw error;
+      }
       return;
     }
 

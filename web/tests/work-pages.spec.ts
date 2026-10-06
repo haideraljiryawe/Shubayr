@@ -349,6 +349,8 @@ test.describe("delivery agent", () => {
     agent_id: "u-agent",
     status: "assigned",
     delivery_fee: 5,
+    // API 13.1: what the agent collects (goods plus fee), sent before delivery.
+    amount_due: 25,
     dispatched_at: null as string | null,
     delivered_at: null as string | null,
   };
@@ -366,6 +368,8 @@ test.describe("delivery agent", () => {
     await signInAs(page, "delivery_agent");
     await page.goto("/deliveries");
     await expect(page.getByTestId("delivery-row")).toHaveCount(1);
+    // Each assigned delivery says what to collect.
+    await expect(page.getByTestId("delivery-row-amount-due")).toContainText("25");
     await page.getByTestId("delivery-chip-delivered").click();
     await expect(page.getByText("لا توجد توصيلات")).toBeVisible();
     const last = api.requests("GET", /^\/deliveries\/assigned$/).at(-1)!;
@@ -439,11 +443,20 @@ test.describe("delivery agent", () => {
     await expect(page.getByTestId("delivery-failure-text")).toHaveCount(0);
     await expect(page.getByTestId("delivery-retry-count")).toHaveText("أُعيدت المحاولة مرة");
 
-    // Delivered asks what was collected (API 12.0): 20 of the 25 due.
+    // Delivered asks what was collected (API 12.0), starting from the amount
+    // due (API 13.1): the full 25, so no shortfall yet.
+    await expect(page.getByTestId("delivery-amount-due")).toContainText("25");
     await page.getByTestId("delivery-action-delivered").click();
     await expect(page.getByTestId("delivery-collection-step")).toBeVisible();
+    await expect(page.getByTestId("delivery-collected-amount")).toHaveValue("25");
+    await expect(page.getByTestId("delivery-pending-shortfall")).toHaveCount(0);
+    // Cleared, nothing can be confirmed.
+    await page.getByTestId("delivery-collected-amount").fill("");
     await expect(page.getByTestId("delivery-confirm-yes")).toBeDisabled();
+    // 20 of the 25: the shortfall shows before anything is sent.
     await page.getByTestId("delivery-collected-amount").fill("٢٠");
+    await expect(page.getByTestId("delivery-pending-shortfall")).toContainText("5");
+    expect(api.requests("PATCH", /^\/deliveries\//)).toHaveLength(3);
     await page.getByTestId("delivery-confirm-yes").click();
     await expect(page.getByTestId("delivery-status").first()).toHaveAttribute("data-status", "delivered");
     const delivered = api.requests("PATCH", /^\/deliveries\//).at(-1)!.body as Record<string, unknown>;
@@ -474,7 +487,7 @@ test.describe("delivery agent", () => {
     await signInAs(page, "delivery_agent");
     await page.goto(`/deliveries/${DELIVERY.id}`);
     await page.getByTestId("delivery-action-delivered").click();
-    await page.getByTestId("delivery-collected-amount").fill("25");
+    await page.getByTestId("delivery-collected-amount").fill("20");
     const confirm = page.getByTestId("delivery-confirm-yes");
     await confirm.click();
     // A second tap while the first is on its way does nothing.
@@ -484,12 +497,13 @@ test.describe("delivery agent", () => {
     await expect(page.getByRole("alert").filter({ hasText: /حفظ|save/i })).toBeVisible();
     expect(calls).toBe(1);
 
-    // Try again with the same amount: the same operation id, so the server
-    // replays the first result instead of posting the cash twice.
+    // Try again: the typed 20 is kept (not reset to the 25 due), so it is the
+    // same operation id and the server replays the first result instead of
+    // posting the cash twice.
     await page.getByTestId("delivery-action-delivered").click();
-    await expect(page.getByTestId("delivery-collected-amount")).toHaveValue("25");
+    await expect(page.getByTestId("delivery-collected-amount")).toHaveValue("20");
     await confirm.click();
-    await expect(page.getByTestId("delivery-collection")).toHaveAttribute("data-status", "confirmed_full");
+    await expect(page.getByTestId("delivery-collection")).toHaveAttribute("data-status", "confirmed_short");
     const [first, second] = api.requests("PATCH", /^\/deliveries\//).map((seen) => seen.body as { operation_id: string });
     expect(second.operation_id).toBe(first.operation_id);
   });

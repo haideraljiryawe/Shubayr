@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CollectionOperation, previewCollection, staffDeliveryFields } from "@/lib/collection";
+import { amountFilter, CollectionOperation, collectionListQuery, previewCollection, RESULT_STATUS, staffDeliveryFields } from "@/lib/collection";
 
 describe("previewCollection", () => {
   it("says full, short (by how much) or over before confirming", () => {
@@ -44,5 +44,57 @@ describe("staffDeliveryFields", () => {
       collection_confirmation: "unconfirmed",
       source: "web_admin",
     });
+  });
+});
+
+describe("collection list filters (13.1)", () => {
+  const PARTY = "11111111-1111-4111-8111-111111111111";
+  const ORDER = "22222222-2222-4222-8222-222222222222";
+
+  it("sends every filter it understands, as the API's parameters", () => {
+    expect(
+      collectionListQuery(
+        { status: "confirmed_short", order_id: ORDER, party_id: PARTY, date_from: "2026-10-01", date_to: "2026-10-06", amount_min: "10,000", amount_max: "50000.5" },
+        2,
+        50,
+      ),
+    ).toEqual({
+      query: { page: 2, per_page: 50, status: "confirmed_short", order_id: ORDER, party_id: PARTY, date_from: "2026-10-01", date_to: "2026-10-06", amount_min: 10000, amount_max: 50000.5 },
+      ignored: [],
+    });
+  });
+
+  it("drops malformed values instead of sending them", () => {
+    expect(
+      collectionListQuery({ status: "paid", order_id: "sb-1", party_id: "x", date_from: "06/10/2026", amount_min: "-5", amount_max: "lots" }, 1, 20),
+    ).toEqual({ query: { page: 1, per_page: 20 }, ignored: [] });
+  });
+
+  it("does not send an inverted range (the API refuses it) and says which one", () => {
+    expect(collectionListQuery({ date_from: "2026-10-06", date_to: "2026-10-01", amount_min: "100", amount_max: "50" }, 1, 20)).toEqual({
+      query: { page: 1, per_page: 20 },
+      ignored: ["dates", "amounts"],
+    });
+    // One side alone, or equal ends, is a range.
+    expect(collectionListQuery({ date_from: "2026-10-06", date_to: "2026-10-06", amount_min: "0" }, 1, 20).query).toEqual({
+      page: 1,
+      per_page: 20,
+      date_from: "2026-10-06",
+      date_to: "2026-10-06",
+      amount_min: 0,
+    });
+  });
+
+  it("reads typed amounts with thousands separators", () => {
+    expect(amountFilter("25,000")).toBe(25000);
+    expect(amountFilter("25٬000")).toBe(25000);
+    expect(amountFilter(" 7 ")).toBe(7);
+    expect(amountFilter("1.1234567")).toBeUndefined();
+    expect(amountFilter("")).toBeUndefined();
+    expect(amountFilter(undefined)).toBeUndefined();
+  });
+
+  it("names the order read's result in the collection list's words", () => {
+    expect(RESULT_STATUS).toEqual({ full: "confirmed_full", short: "confirmed_short", unconfirmed: "unconfirmed" });
   });
 });

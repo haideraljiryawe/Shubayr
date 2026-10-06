@@ -69,7 +69,8 @@ export async function requireLiveApi(
  * Start each test with room in the API's rate-limit window.
  *
  * The API limits normal reads to 120 requests a minute per address, and the
- * browser (through the BFF) and this runner share one address. Probe the
+ * browser (through the BFF) and this runner share one address: the test's
+ * own (fixtures.ts), or this runner's in forwarding.spec.ts. Probe the
  * authenticated GET /me route that every admin page actually consumes; the
  * public /settings route belongs to the separate catalog tier and cannot
  * report this bucket's headroom. Waiting only when the window is already
