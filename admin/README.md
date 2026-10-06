@@ -213,6 +213,17 @@ Persian and Latin digits and refuses ambiguous separators, like `NumberInput`.
 ADMIN_LIVE_API=http://localhost:8001/api/v1 npm run test:live
 ```
 
+To keep the API's log next to the report (`test-results/api.log`) when the run
+ends, before you tear the stack down, name its source:
+
+```bash
+LIVE_API_CONTAINER=shubayr_api npm run test:live     # a Docker stack: `docker logs`
+LIVE_API_LOG_FILE=/tmp/api.log npm run test:live     # an API writing to a file (CI does this)
+```
+
+A failed test also keeps its Playwright trace in `test-results/`. CI uploads
+both, with the report, for 14 days whenever a live job fails.
+
 CI (`admin` job) runs lint, typecheck, unit tests, the type-drift check and
 the build, then boots the API from the same commit on a disposable database
 and runs the live suite against it.
@@ -227,8 +238,8 @@ and runs the live suite against it.
   the entry's own page, which has them.
 - Exchange rates record only the setter's id; names come from the audit log
   for staff with `audit.view`.
-- **Client IP behind the BFF:** every admin request reaches the API from this
-  server's address. The BFF forwards `X-Forwarded-For`, but the API does not
-  trust proxy headers yet, so its per-IP rate limits (120 req/min, 30 logins
-  /min) and the IP in its audit log currently apply to all staff together.
-  The backend should trust exactly this hop before production.
+- **Client IP behind the BFF:** every call this server makes to the API
+  carries the staff member's address (`X-Forwarded-For`, `X-Real-IP`), taken
+  only from the admin's `TRUSTED_FRONT_PROXIES` and never what the browser
+  sent; with none configured, nothing is forwarded. The API applies it once its
+  `TRUSTED_PROXIES` lists this server (docs/deploy/web-and-admin.md).

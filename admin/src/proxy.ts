@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { API_URL, ADMIN_ORIGIN, COOKIE_SECURE } from "@/lib/config";
 import { contentSecurityPolicy, newNonce, originOf } from "@/lib/security-headers";
+import { clientForwardHeaders } from "@/lib/session/forwarding";
 import { refreshSession } from "@/lib/session/refresh";
 import {
   ACCESS_COOKIE,
@@ -67,7 +68,7 @@ async function gate(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next({ request: { headers: request.headers } });
   }
 
-  const pair = refresh ? await refreshSession(refresh) : null;
+  const pair = refresh ? await refreshSession(refresh, fetch, clientForwardHeaders(request.headers)) : null;
   if (!pair) return isPublic ? NextResponse.next({ request: { headers: request.headers } }) : toLogin(request);
 
   if (isPublic) {

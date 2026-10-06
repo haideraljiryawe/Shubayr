@@ -56,6 +56,8 @@ export default defineConfig({
     // proxy (TRUSTED_PROXIES=loopback in CI). Otherwise it is ignored and the
     // workers share one budget.
     extraHTTPHeaders: { "X-Forwarded-For": `198.51.100.${10 + slot}` },
+    // A failed test keeps its trace (test-results/), uploaded by CI.
+    trace: "retain-on-failure",
     browserName: "chromium",
     headless: true,
   },
@@ -64,6 +66,8 @@ export default defineConfig({
   // LIVE_WORKERS overrides the count.
   workers: Number(process.env.LIVE_WORKERS ?? 4),
   fullyParallel: true,
+  // Keeps the API's log next to the report (LIVE_API_LOG_FILE / LIVE_API_CONTAINER).
+  globalTeardown: "./tests/save-api-log.ts",
   projects: [
     { name: "parallel", grepInvert: /@global/ },
     // Store-wide state (every monitor sees every order and is notified of

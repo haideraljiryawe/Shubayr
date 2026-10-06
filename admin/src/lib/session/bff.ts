@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ADMIN_ORIGIN, API_URL, COOKIE_SECURE } from "../config";
 import { refreshSession } from "./refresh";
+import { clientForwardHeaders } from "./forwarding";
 import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
@@ -79,13 +80,13 @@ export interface Forwarded {
 async function send(
   init: ForwardInit,
   accessToken: string | undefined,
-  forwardedFor: string | null,
+  forwarded: Record<string, string>,
 ): Promise<Response> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  // Every staff member reaches the API through this one server. Passing the
-  // browser's address on lets the API rate-limit and audit per person once it
-  // trusts the proxy hop (see admin/README.md).
-  if (forwardedFor) headers["X-Forwarded-For"] = forwardedFor;
+  // Every staff member reaches the API through this one server. The staff
+  // member's address — taken only from a trusted front proxy, never from what
+  // the client sent — lets the API rate-limit and audit per person once it
+  // trusts this server (see forwarding.ts and docs/deploy/web-and-admin.md).
+  const headers: Record<string, string> = { Accept: "application/json", ...forwarded };
   if (init.body !== undefined) headers["Content-Type"] = "application/json";
   if (init.authenticated !== false && accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
@@ -108,6 +109,7 @@ export async function forward(
   init: ForwardInit,
 ): Promise<Forwarded> {
   const authenticated = init.authenticated !== false;
+  const forwarded = clientForwardHeaders(request.headers);
   let access = request.cookies.get(ACCESS_COOKIE)?.value;
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
   let refreshed: TokenPair | null = null;
@@ -116,19 +118,18 @@ export async function forward(
   const tryRefresh = async (): Promise<boolean> => {
     if (refreshTried || !refresh) return false;
     refreshTried = true;
-    refreshed = await refreshSession(refresh);
+    refreshed = await refreshSession(refresh, fetch, forwarded);
     if (refreshed) access = refreshed.access_token;
     return refreshed !== null;
   };
 
   if (authenticated && needsRefresh(access)) await tryRefresh();
 
-  const forwardedFor = request.headers.get("x-forwarded-for");
   let response: Response;
   try {
-    response = await send(init, access, forwardedFor);
+    response = await send(init, access, forwarded);
     if (response.status === 401 && authenticated && (await tryRefresh())) {
-      response = await send(init, access, forwardedFor);
+      response = await send(init, access, forwarded);
     }
   } catch {
     // The API is down or unreachable (refused, DNS, timeout): a declared 503
