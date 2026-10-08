@@ -60,7 +60,9 @@ async function login(phone) {
 
 function adminLogin() {
   return request('/admin/auth/login', {
-    method: 'POST', body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' }, expected: 201,
+    method: 'POST',
+    body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' },
+    expected: 201,
   });
 }
 
@@ -166,19 +168,27 @@ await request('/coupons/validate', {
 const couponCart = await request('/cart', { token: customer.access_token });
 check(couponCart.coupon_code, 'SHUBAYR10', 'seeded live coupon must apply');
 check(couponCart.discount, 3015, '10% coupon uses shared half-away rounding');
-check(couponCart.total, 27135, 'checkout preview total includes coupon');
+check(
+  couponCart.total,
+  couponCart.subtotal - couponCart.discount + couponCart.delivery_fee,
+  'checkout preview total includes coupon and configured delivery fee',
+);
 const withoutCoupon = await request('/cart/coupon', {
   method: 'DELETE',
   token: customer.access_token,
 });
 check(withoutCoupon.coupon_code, null, 'remove detaches coupon');
 check(withoutCoupon.discount, 0, 'remove clears coupon discount');
-check(withoutCoupon.total, 30150, 'remove restores undiscounted total');
+check(
+  withoutCoupon.total,
+  30150 + withoutCoupon.delivery_fee,
+  'remove restores undiscounted total while retaining delivery fee',
+);
 const repeatedRemoval = await request('/cart/coupon', {
   method: 'DELETE',
   token: customer.access_token,
 });
-check(repeatedRemoval.total, 30150, 'removing twice is safe');
+check(repeatedRemoval.total, withoutCoupon.total, 'removing twice is safe');
 await request('/coupons/validate', {
   method: 'POST',
   token: customer.access_token,
@@ -221,7 +231,11 @@ const placed = await request('/orders', {
 check(placed.status, 'pending', 'new COD order starts pending');
 check(placed.items[0].unit_price, 15075, 'checkout snaps current server price');
 check(placed.items[0].line_total, 30150, 'checkout snaps line total');
-check(placed.total, 27135, 'checkout recomputes coupon-inclusive total');
+check(
+  placed.total,
+  couponCart.total,
+  'checkout recomputes coupon-inclusive total',
+);
 check(
   placed.delivery_contact_phone,
   '+9647700080006',
@@ -361,7 +375,7 @@ const cancellationRequested = await request(
 const cancelled = await request(
   `/admin/orders/${placed.id}/cancellation-request/resolve`,
   {
-  method: 'POST',
+    method: 'POST',
     token: admin.access_token,
     body: {
       version: cancellationRequested.version,
@@ -370,7 +384,11 @@ const cancelled = await request(
     },
   },
 );
-check(cancelled.status, 'cancelled', 'staff may approve a cancellation request');
+check(
+  cancelled.status,
+  'cancelled',
+  'staff may approve a cancellation request',
+);
 const cancellationNotifications = await request(
   '/me/notifications?type=cancellation_request_approved&per_page=100',
   { token: customer.access_token },

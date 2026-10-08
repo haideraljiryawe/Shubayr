@@ -99,6 +99,7 @@ export function calculateCartTotals(
   lines: ReadonlyArray<{ unit_price: Decimalish; quantity: number }>,
   coupon: CartCoupon | null = null,
   at: Date = new Date(),
+  deliveryFee: Decimalish = CART_DELIVERY_FEE,
 ) {
   const subtotalMinor = lines.reduce(
     (sum, line) =>
@@ -114,11 +115,11 @@ export function calculateCartTotals(
     : 0n;
   const appliedDiscount =
     discountMinor > subtotalMinor ? subtotalMinor : discountMinor;
-  const deliveryMinor = moneyToMinorUnits(CART_DELIVERY_FEE);
+  const deliveryMinor = moneyToMinorUnits(deliveryFee);
   return {
     subtotal,
     discount: minorUnitsToMoney(appliedDiscount),
-    delivery_fee: CART_DELIVERY_FEE,
+    delivery_fee: minorUnitsToMoney(deliveryMinor),
     total: minorUnitsToMoney(subtotalMinor - appliedDiscount + deliveryMinor),
   };
 }

@@ -16,11 +16,14 @@ if (!['postgres:', 'postgresql:'].includes(baseUrl.protocol)) {
   throw new Error('DATABASE_URL must be a PostgreSQL URL');
 }
 const name = `shubayr_${randomBytes(8).toString('hex')}_verify`;
+const closingName = `shubayr_${randomBytes(8).toString('hex')}_verify`;
 const adminUrl = new URL(baseUrl);
 adminUrl.pathname = '/postgres';
 adminUrl.searchParams.delete('schema');
 const testUrl = new URL(baseUrl);
 testUrl.pathname = `/${name}`;
+const closingUrl = new URL(baseUrl);
+closingUrl.pathname = `/${closingName}`;
 const admin = new Client({ connectionString: adminUrl.toString() });
 const environment = {
   ...process.env,
@@ -37,6 +40,7 @@ const tsNode = 'node_modules/ts-node/dist/bin.js';
 const apiEntry = 'dist/src/main.js';
 let api;
 let created = false;
+let closingCreated = false;
 
 function run(script, args = [], env = environment) {
   return new Promise((resolve, reject) => {
@@ -109,6 +113,54 @@ try {
   await run(tsNode, ['--transpile-only', 'prisma/seed.ts']);
   // A second seed run proves idempotency, including the SHUBAYR10 coupon.
   await run(tsNode, ['--transpile-only', 'prisma/seed.ts']);
+
+  // The closing pack owns a complete clean business day. Run it in a second
+  // disposable database so its real USD rate and documents cannot invalidate
+  // older packs that intentionally test an empty accounting precondition.
+  await admin.query(`CREATE DATABASE "${closingName}"`);
+  closingCreated = true;
+  console.log(`Closing acceptance database: ${closingName} (disposable)`);
+  const closingPort = await freePort();
+  const closingApiUrl = `http://127.0.0.1:${closingPort}/api/v1`;
+  const closingEnvironment = {
+    ...environment,
+    DATABASE_URL: closingUrl.toString(),
+    API_PORT: String(closingPort),
+    PUBLIC_API_URL: closingApiUrl,
+  };
+  await run(prisma, ['migrate', 'deploy'], closingEnvironment);
+  await run(
+    prisma,
+    [
+      'migrate',
+      'diff',
+      '--from-config-datasource',
+      '--to-schema',
+      'prisma/schema.prisma',
+      '--script',
+      '--exit-code',
+    ],
+    closingEnvironment,
+  );
+  await run(tsNode, ['--transpile-only', 'prisma/seed.ts'], closingEnvironment);
+  await run(tsNode, ['--transpile-only', 'prisma/seed.ts'], closingEnvironment);
+  api = spawn(node, [apiEntry], {
+    env: closingEnvironment,
+    stdio: 'inherit',
+  });
+  await waitForApi(closingApiUrl);
+  await run('test/phase8-closing.acceptance.mjs', [], {
+    ...closingEnvironment,
+    ACCEPTANCE_API_URL: closingApiUrl,
+    ACCEPTANCE_DATABASE_NAME: closingName,
+    NODE_OPTIONS:
+      `${process.env.NODE_OPTIONS ?? ''} --import=./test/openapi-response-validator.mjs`.trim(),
+  });
+  await stopApi();
+  await admin.query(`DROP DATABASE "${closingName}" WITH (FORCE)`);
+  closingCreated = false;
+  console.log(`Dropped disposable closing database: ${closingName}`);
+
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
   const acceptanceEnv = {
@@ -174,6 +226,10 @@ try {
   await run('test/inventory-lifecycle.acceptance.mjs', [], acceptanceEnv);
 } finally {
   await stopApi();
+  if (closingCreated) {
+    await admin.query(`DROP DATABASE "${closingName}" WITH (FORCE)`);
+    console.log(`Dropped disposable closing database: ${closingName}`);
+  }
   if (created) {
     await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);
     console.log(`Dropped disposable acceptance database: ${name}`);
