@@ -122,7 +122,10 @@ class _RuntimeSettings implements SettingsRepository {
   );
 }
 
-Future<ProviderContainer> _container({SettingsRepository? settings}) async {
+Future<ProviderContainer> _container({
+  SettingsRepository? settings,
+  List<Category>? categories,
+}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = PrefsStore(await SharedPreferences.getInstance());
   return ProviderContainer(
@@ -134,6 +137,8 @@ Future<ProviderContainer> _container({SettingsRepository? settings}) async {
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
       catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
+      if (categories != null)
+        categoriesProvider.overrideWith((ref) async => categories),
       if (settings != null)
         settingsRepositoryProvider.overrideWithValue(settings),
       homeBannersProvider.overrideWith(
@@ -150,6 +155,151 @@ Future<ProviderContainer> _container({SettingsRepository? settings}) async {
 }
 
 void main() {
+  testWidgets(
+    'moving shortcuts load asynchronously and keep category navigation',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 1000);
+      addTearDown(tester.view.reset);
+      final container = await _container(
+        categories: [
+          for (var i = 0; i < 8; i++)
+            Category(id: 'c$i', nameEn: 'Category $i', nameAr: 'قسم $i'),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const ShubayrApp(),
+        ),
+      );
+      // This section intentionally animates forever: advance a controlled clock.
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      final category = find.byKey(const ValueKey('home-category-c1'));
+      final before = tester.getRect(category);
+      await tester.pump(const Duration(seconds: 1));
+      expect(tester.getRect(category).left, closeTo(before.left + 12, .01));
+      await tester.tap(category);
+      await tester.pumpAndSettle();
+      expect(find.byType(ProductListScreen), findsOneWidget);
+      expect(
+        tester
+            .widget<ProductListScreen>(find.byType(ProductListScreen))
+            .parentCategoryId,
+        'c1',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final locale in ['ar', 'en']) {
+    testWidgets(
+      'category circles and two-line names stay separate while scrolling $locale',
+      (tester) async {
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        // The finite screen-reader layout retains the same geometry. The ring
+        // is covered separately with a controlled clock.
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(accessibleNavigation: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+        final container = await _container(
+          categories: [
+            for (var i = 0; i < 8; i++)
+              Category(
+                id: 's$i',
+                nameEn: 'Home\nTools',
+                nameAr: 'لوازم\nالمنزل',
+              ),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container
+            .read(localeControllerProvider.notifier)
+            .setLocale(Locale(locale));
+        for (final width in [320.0, 390.0, 800.0]) {
+          for (final scale in [1.0, 1.5, 2.0]) {
+            tester.view.devicePixelRatio = 1;
+            tester.view.physicalSize = Size(width, 1200);
+            tester.platformDispatcher.textScaleFactorTestValue = scale;
+            await tester.pumpWidget(
+              UncontrolledProviderScope(
+                container: container,
+                child: const ShubayrApp(),
+              ),
+            );
+            await tester.pumpAndSettle();
+            final row = find.byKey(const ValueKey('home-category-shortcuts'));
+            expect(
+              tester.widget<SingleChildScrollView>(row).scrollDirection,
+              Axis.horizontal,
+            );
+            final scroll = tester
+                .state<ScrollableState>(
+                  find.descendant(of: row, matching: find.byType(Scrollable)),
+                )
+                .position;
+            scroll.jumpTo(0);
+            await tester.pumpAndSettle();
+            Rect? previousCircle;
+            Rect? previousLabel;
+            for (var i = 0; i < 8; i++) {
+              final item = find.byKey(ValueKey('home-category-s$i'));
+              final circle = find.descendant(
+                of: item,
+                matching: find.byWidgetPredicate(
+                  (w) =>
+                      w is Container &&
+                      w.decoration is BoxDecoration &&
+                      (w.decoration! as BoxDecoration).shape == BoxShape.circle,
+                ),
+              );
+              final label = find.descendant(
+                of: item,
+                matching: find.byType(Text),
+              );
+              final circleRect = tester.getRect(circle);
+              final labelRect = tester.getRect(label);
+              expect(circleRect.width, closeTo(67.2, .01));
+              expect(circleRect.height, closeTo(67.2, .01));
+              expect(labelRect.top - circleRect.bottom, AppSpacing.sm);
+              expect(tester.widget<Text>(label).maxLines, 2);
+              expect(
+                tester.widget<Text>(label).style,
+                tester.element(item).text.labelMedium,
+              );
+              if (previousCircle != null) {
+                final gap = locale == 'ar'
+                    ? previousCircle.left - circleRect.right
+                    : circleRect.left - previousCircle.right;
+                expect(gap, closeTo(87.2 * scale - 67.2, .01));
+                expect(previousLabel!.overlaps(labelRect), isFalse);
+              }
+              previousCircle = circleRect;
+              previousLabel = labelRect;
+            }
+            await tester.drag(row, Offset(locale == 'ar' ? 3000 : -3000, 0));
+            await tester.pumpAndSettle();
+            expect(scroll.pixels, closeTo(scroll.maxScrollExtent, .01));
+            if (width < 800 || scale > 1) {
+              expect(scroll.pixels, greaterThan(0));
+            }
+            expect(
+              find.byKey(const ValueKey('home-category-s7')).hitTestable(),
+              findsOneWidget,
+            );
+            expect(tester.takeException(), isNull);
+          }
+        }
+      },
+    );
+  }
+
   testWidgets('home and app title update when API branding arrives', (
     tester,
   ) async {
@@ -402,8 +552,32 @@ void main() {
             tester.element(first).colors.categoryShortcutBackground,
           );
           expect(decoration.border, isNull);
-          expect(tester.getSize(circle).width, tester.getSize(circle).height);
+          expect(tester.getSize(circle).width, closeTo(67.2, .01));
+          expect(tester.getSize(circle).height, closeTo(67.2, .01));
+          expect(tester.getSize(first).width, closeTo(87.2, .01));
+          final secondCircle = find.descendant(
+            of: second,
+            matching: find.byWidgetPredicate(
+              (w) =>
+                  w is Container &&
+                  w.decoration is BoxDecoration &&
+                  (w.decoration! as BoxDecoration).shape == BoxShape.circle,
+            ),
+          );
+          final firstBounds = tester.getRect(circle);
+          final secondBounds = tester.getRect(secondCircle);
+          expect(
+            locale == 'ar'
+                ? firstBounds.left - secondBounds.right
+                : secondBounds.left - firstBounds.right,
+            closeTo(20, .01),
+          );
           final label = find.descendant(of: first, matching: find.byType(Text));
+          expect(
+            tester.widget<Text>(label).style,
+            tester.element(first).text.labelMedium,
+          );
+          expect(tester.widget<Text>(label).maxLines, 2);
           expect(
             tester.getRect(label).top,
             greaterThan(tester.getRect(circle).bottom),
@@ -418,6 +592,7 @@ void main() {
             find.descendant(of: first, matching: find.byType(Icon)),
           );
           expect(icon.color, tester.element(first).colors.primary);
+          expect(icon.size, closeTo(38.4, .01));
           await tester.tap(first);
           await tester.pumpAndSettle();
           expect(find.byType(SubcategoriesScreen), findsNothing);

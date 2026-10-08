@@ -93,7 +93,7 @@ class _BottomNavigationPreviewState extends State<BottomNavigationPreview> {
                 Text(
                   'View inset: ${MediaQuery.viewPaddingOf(context).bottom.toStringAsFixed(0)} · '
                   'Gesture: ${MediaQuery.systemGestureInsetsOf(context).bottom.toStringAsFixed(0)} · '
-                  'Bar offset: ${NavigationThemes.bottomBarBottomOffset(MediaQuery.of(context)).toStringAsFixed(0)}',
+                  'Bar offset: ${NavigationThemes.bottomBarBottomOffset(MediaQuery.of(context), platform: Theme.of(context).platform).toStringAsFixed(0)}',
                 ),
                 Expanded(
                   child: ListView.builder(

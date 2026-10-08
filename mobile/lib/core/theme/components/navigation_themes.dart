@@ -19,7 +19,8 @@ abstract final class NavigationThemes {
   // ---------------------------------------------------------------------------
 
   /// Visual bounds are taller than the centered interactive strip. Only the
-  /// decorative margin may overlap a system exclusion; hit targets never do.
+  /// decorative margin may overlap the iOS home-indicator area; hit targets
+  /// never do. Android keeps the entire surface above the system navigation.
   // Preserve vertical clearance around the base pill; visual widths are capped
   // independently so wide slots do not stretch their decorative capsules.
   static const double _bottomBarGeometricHeight =
@@ -34,17 +35,25 @@ abstract final class NavigationThemes {
   static const double bottomBarMaxWidth = 560;
   // Keep the established minimum hit height centered within the taller surface.
   static const double bottomBarMinimumInteractiveHeight = 44;
+  static const double bottomBarAndroidSystemGap = 4;
   static double get bottomBarSafeVisualOverlap =>
       math.max(0.0, (bottomBarHeight - bottomBarMinimumInteractiveHeight) / 2);
 
   /// viewPadding retains system UI clearance when the keyboard consumes
-  /// padding. The larger system exclusion wins on every platform. Clamping
-  /// the offset keeps the visual surface on screen when the inset is small.
-  static double bottomBarBottomOffset(MediaQueryData media) => math.max(
-    0.0,
-    math.max(media.viewPadding.bottom, media.systemGestureInsets.bottom) -
-        bottomBarSafeVisualOverlap,
-  );
+  /// padding. Android edge-to-edge needs the full exclusion for the surface,
+  /// including its decorative margin, plus a small visual gap. Preserve iOS.
+  static double bottomBarBottomOffset(
+    MediaQueryData media, {
+    required TargetPlatform platform,
+  }) {
+    final exclusion = math.max(
+      media.viewPadding.bottom,
+      media.systemGestureInsets.bottom,
+    );
+    return platform == TargetPlatform.android
+        ? exclusion + bottomBarAndroidSystemGap
+        : math.max(0.0, exclusion - bottomBarSafeVisualOverlap);
+  }
 
   /// Blend the established dark tint into the color, not the backdrop.
   static Color bottomBarSurfaceColor(ColorScheme colors) =>
@@ -116,18 +125,21 @@ abstract final class NavigationThemes {
   static const double bottomBarSelectedMaxAspectRatio = 2.2;
   static const double bottomBarPressedMaxAspectRatio = 2.2;
 
-  static EdgeInsets bottomBarPadding(MediaQueryData media, double gutter) =>
-      EdgeInsets.only(
-        left: math.max(
-          gutter,
-          math.max(media.viewPadding.left, media.padding.left),
-        ),
-        right: math.max(
-          gutter,
-          math.max(media.viewPadding.right, media.padding.right),
-        ),
-        bottom: bottomBarBottomOffset(media),
-      );
+  static EdgeInsets bottomBarPadding(
+    MediaQueryData media,
+    double gutter, {
+    required TargetPlatform platform,
+  }) => EdgeInsets.only(
+    left: math.max(
+      gutter,
+      math.max(media.viewPadding.left, media.padding.left),
+    ),
+    right: math.max(
+      gutter,
+      math.max(media.viewPadding.right, media.padding.right),
+    ),
+    bottom: bottomBarBottomOffset(media, platform: platform),
+  );
 
   static bool isBottomBarDestinationCountValid(int count) =>
       count >= bottomBarMinDestinations && count <= bottomBarMaxDestinations;

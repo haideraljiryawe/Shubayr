@@ -108,7 +108,7 @@ class _ReviewOrderScreenState extends ConsumerState<_ReviewOrderForm> {
                   .firstOrNull;
               return ResponsiveContent(
                 child: ListView(
-                  padding: AppLayout.pageInsets(context),
+                  padding: AppLayout.formScrollInsets(context),
                   children: [
                     Text(order.orderNumber, style: context.text.titleMedium),
                     const SizedBox(height: AppSpacing.md),
@@ -330,7 +330,7 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                   .toList();
               return ResponsiveContent(
                 child: ListView(
-                  padding: AppLayout.pageInsets(context),
+                  padding: AppLayout.formScrollInsets(context),
                   children: [
                     Text(order.orderNumber, style: context.text.titleMedium),
                     const SizedBox(height: AppSpacing.md),

@@ -182,9 +182,10 @@ void main() {
                     ? AppTheme.dark(const Brand.bundled())
                     : AppTheme.light(const Brand.bundled()),
                 builder: (context, child) => MediaQuery(
-                  data: MediaQuery.of(
-                    context,
-                  ).copyWith(textScaler: TextScaler.linear(scale)),
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(scale),
+                    disableAnimations: true,
+                  ),
                   child: child!,
                 ),
                 home: screen,

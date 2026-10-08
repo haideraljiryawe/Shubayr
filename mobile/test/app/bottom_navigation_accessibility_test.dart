@@ -70,7 +70,7 @@ void main() {
           expect(traversalLabels, labels.take(count).toList());
           for (var i = 0; i < count; i++) {
             expect(find.text(labels[i]), findsNothing);
-            expect(find.byTooltip(labels[i]), findsOneWidget);
+            expect(find.byTooltip(labels[i]), findsNothing);
             final tab = find.bySemanticsLabel(labels[i]);
             expect(tab, findsOneWidget);
             expect(
@@ -96,11 +96,10 @@ void main() {
               closeTo(tester.getCenter(tab).dx, .01),
             );
           }
-          await tester.longPress(find.byTooltip(labels[count - 1]));
+          await tester.longPress(find.bySemanticsLabel(labels[count - 1]));
           await tester.pumpAndSettle();
-          expect(find.text(labels[count - 1]), findsOneWidget);
-          Tooltip.dismissAllToolTips();
-          await tester.pumpAndSettle();
+          expect(find.text(labels[count - 1]), findsNothing);
+          expect(selected, count - 1);
           semantics.dispose();
           expect(tester.takeException(), isNull);
         },
@@ -142,7 +141,7 @@ void main() {
             ),
           ),
         );
-        final last = find.byTooltip('Tab 4');
+        final last = find.byType(InkWell).last;
         final press = await tester.startGesture(tester.getCenter(last));
         await tester.pump(const Duration(milliseconds: 100));
         for (final scale in tester.widgetList<AnimatedScale>(

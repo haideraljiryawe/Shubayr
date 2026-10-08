@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,6 +86,8 @@ void main() {
                   AuthRepositoryRemote(ApiClient(dio)),
                 ),
                 homeBannersProvider.overrideWith((ref) async => []),
+                // Keep auth/branch transition timing independent of the Home ring.
+                categoriesProvider.overrideWith((ref) async => []),
                 notificationRepositoryProvider.overrideWithValue(
                   _Notifications(),
                 ),

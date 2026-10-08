@@ -138,7 +138,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
-            padding: AppLayout.pageInsets(context),
+            padding: AppLayout.formScrollInsets(context),
             child: ResponsiveFields(
               children: [
                 TextFormField(

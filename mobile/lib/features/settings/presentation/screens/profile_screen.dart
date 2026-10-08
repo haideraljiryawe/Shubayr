@@ -117,7 +117,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Form(
           key: _form,
           child: SingleChildScrollView(
-            padding: AppLayout.pageInsets(context),
+            padding: AppLayout.formScrollInsets(context),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

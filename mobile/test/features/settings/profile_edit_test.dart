@@ -19,15 +19,18 @@ Widget host(
   String locale = 'en',
   bool dark = false,
   double scale = 1,
+  TargetPlatform? platform,
 }) => UncontrolledProviderScope(
   container: container,
   child: MaterialApp(
     locale: Locale(locale),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
-    theme: dark
-        ? AppTheme.dark(const Brand.bundled())
-        : AppTheme.light(const Brand.bundled()),
+    theme:
+        (dark
+                ? AppTheme.dark(const Brand.bundled())
+                : AppTheme.light(const Brand.bundled()))
+            .copyWith(platform: platform),
     builder: (context, child) => MediaQuery(
       data: MediaQuery.of(
         context,
@@ -49,6 +52,57 @@ Future<void> save(WidgetTester tester) async {
 }
 
 void main() {
+  for (final device in [
+    (platform: TargetPlatform.android, bottom: 48.0),
+    (platform: TargetPlatform.android, bottom: 24.0),
+    (platform: TargetPlatform.iOS, bottom: 34.0),
+  ]) {
+    testWidgets('profile save clears system UI and keyboard $device', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.viewPadding = FakeViewPadding(top: 24, bottom: device.bottom);
+      tester.view.padding = FakeViewPadding(top: 24, bottom: device.bottom);
+      addTearDown(tester.view.reset);
+      final repo = RecordingProfile();
+      final container = (await tester.runAsync(() => start(repo)))!;
+      addTearDown(container.dispose);
+      await tester.pumpWidget(host(container, platform: device.platform));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(name);
+      await tester.enterText(name, 'Changed');
+      final action = find.widgetWithText(AppButton, 'Save');
+      for (final keyboard in [0.0, 180.0, 0.0]) {
+        tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+        tester.view.padding = FakeViewPadding(
+          top: 24,
+          bottom: keyboard == 0 ? device.bottom : 0,
+        );
+        await tester.pumpAndSettle();
+        await tester.drag(
+          find.byType(SingleChildScrollView),
+          const Offset(0, -2000),
+        );
+        await tester.pumpAndSettle();
+        final rect = tester.getRect(action);
+        expect(
+          rect.bottom,
+          closeTo(568 - (keyboard > 0 ? keyboard : device.bottom) - 16, .01),
+        );
+        expect(
+          rect.top,
+          greaterThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
+        );
+        expect(action.hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(repo.writes.single, {'name': 'Changed'});
+    });
+  }
+
   setUpAll(() async {
     await (FontLoader('Zain')
           ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))

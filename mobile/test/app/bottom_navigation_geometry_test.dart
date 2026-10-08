@@ -116,17 +116,7 @@ void main() {
                     matching: find.byType(InkWell),
                   );
                   expect(tabs, findsNWidgets(count));
-                  expect(
-                    surface.bottom,
-                    closeTo(
-                      844 -
-                          math.max(
-                            0,
-                            inset - NavigationThemes.bottomBarSafeVisualOverlap,
-                          ),
-                      .01,
-                    ),
-                  );
+                  expect(surface.bottom, closeTo(844 - inset - 4, .01));
                   final gutter = width < 600 ? 8.0 : 16.0;
                   final geometry = NavigationThemes.bottomBarGeometry(
                     width - 2 * gutter,

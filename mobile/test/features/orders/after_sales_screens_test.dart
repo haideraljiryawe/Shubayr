@@ -90,6 +90,7 @@ Widget _host(
   String status = 'delivered',
   String locale = 'en',
   bool dark = false,
+  TargetPlatform? platform,
   List<OrderItem>? items,
   Future<Product> Function(String)? catalogLookup,
 }) => ProviderScope(
@@ -141,9 +142,11 @@ Widget _host(
   ],
   child: MaterialApp(
     locale: Locale(locale),
-    theme: dark
-        ? AppTheme.dark(const Brand.bundled())
-        : AppTheme.light(const Brand.bundled()),
+    theme:
+        (dark
+                ? AppTheme.dark(const Brand.bundled())
+                : AppTheme.light(const Brand.bundled()))
+            .copyWith(platform: platform),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: screen,
@@ -151,6 +154,89 @@ Widget _host(
 );
 
 void main() {
+  for (final device in [
+    (platform: TargetPlatform.android, bottom: 48.0),
+    (platform: TargetPlatform.android, bottom: 24.0),
+    (platform: TargetPlatform.iOS, bottom: 34.0),
+  ]) {
+    for (final review in [false, true]) {
+      testWidgets(
+        'after-sales action clears system UI and keyboard $device review=$review',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = const Size(320, 568);
+          tester.view.viewPadding = FakeViewPadding(
+            top: 24,
+            bottom: device.bottom,
+          );
+          tester.view.padding = FakeViewPadding(top: 24, bottom: device.bottom);
+          addTearDown(tester.view.reset);
+          final repo = _Repository();
+          await tester.pumpWidget(
+            _host(
+              review
+                  ? const ReviewOrderScreen(orderId: 'o1')
+                  : const ReturnOrderScreen(orderId: 'o1'),
+              repo,
+              platform: device.platform,
+            ),
+          );
+          await tester.pumpAndSettle();
+          if (review) {
+            await tester.tap(find.byType(DropdownButtonFormField<String>));
+            await tester.pumpAndSettle();
+            await tester.tap(find.text('Coffee').last);
+            await tester.pumpAndSettle();
+            await tester.ensureVisible(find.byTooltip('4 out of 5 stars'));
+            await tester.tap(find.byTooltip('4 out of 5 stars'));
+          } else {
+            await tester.ensureVisible(
+              find.byTooltip('Increase return quantity').first,
+            );
+            await tester.tap(find.byTooltip('Increase return quantity').first);
+          }
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.byType(TextField).last);
+          await tester.enterText(find.byType(TextField).last, 'A comment');
+          final action = find.widgetWithText(
+            ElevatedButton,
+            review ? 'Submit review' : 'Submit return request',
+          );
+          for (final keyboard in [0.0, 180.0, 0.0, 180.0]) {
+            tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+            tester.view.padding = FakeViewPadding(
+              top: 24,
+              bottom: keyboard == 0 ? device.bottom : 0,
+            );
+            await tester.pumpAndSettle();
+            await tester.drag(
+              find.byType(ListView).first,
+              const Offset(0, -2000),
+            );
+            await tester.pumpAndSettle();
+            final rect = tester.getRect(action);
+            expect(
+              rect.bottom,
+              closeTo(
+                568 - (keyboard > 0 ? keyboard : device.bottom) - 16,
+                .01,
+              ),
+            );
+            expect(
+              rect.top,
+              greaterThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
+            );
+            expect(action.hitTestable(), findsOneWidget);
+            expect(tester.takeException(), isNull);
+          }
+          await tester.tap(action);
+          await tester.pumpAndSettle();
+          expect(review ? repo.reviews : repo.returns, 1);
+        },
+      );
+    }
+  }
+
   OrderItem line({bool? reviewed}) => OrderItem.fromJson({
     'id': 'i1',
     'product_id': 'p1',

@@ -55,17 +55,34 @@ abstract final class AppLayout {
     bottom: AppSpacing.screenH + BottomNavigationInset.of(context),
   );
 
+  /// End clearance for scrollable forms, including inline action buttons.
+  /// Use the remaining padding: SafeArea/Scaffold may already consume it, and
+  /// a resizing Scaffold handles the keyboard through viewInsets. Adding raw
+  /// viewPadding or keyboard height here would reserve the same space twice.
+  /// The floating shell inset already includes its system clearance.
+  static EdgeInsetsDirectional formScrollInsets(BuildContext context) =>
+      pageInsets(
+        context,
+        bottom:
+            AppSpacing.screenH +
+            math.max(
+              MediaQuery.paddingOf(context).bottom,
+              BottomNavigationInset.of(context),
+            ),
+      );
+
   static const productFilterWidth = 520.0;
   static const dateRangeWidth = 520.0;
   static const dateRangeHeight = 640.0;
-  static const categoryShortcutWidth = 96.0;
+  // Home: 67.2px circle + 20px visible gap at the default text scale.
+  static const categoryShortcutWidth = 87.2;
   static const categoryCardHeight = 100.0;
 
   /// Main category artwork's share of the available card width.
   static const categoryCardImageFraction = 0.42;
   static const subcategoryMinWidth = 150.0;
   static const categoryIconSize = 32.0;
-  static const categoryIconTarget = 56.0;
+  static const categoryIconTarget = 67.2;
 
   /// One artwork proportion on all windows, within a readable content width.
   static const homeBannerAspectRatio = 2.0;

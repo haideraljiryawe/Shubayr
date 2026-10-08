@@ -203,7 +203,7 @@ void main() {
                 find.byWidget(scaffold.bottomNavigationBar!),
               );
               final expectedHeight = NavigationThemes.bottomBarHeight;
-              expect(bar.height, closeTo(expectedHeight + 24.0, .01));
+              expect(bar.height, closeTo(expectedHeight + 34.0 + 4, .01));
               expect(bar.bottom, 844);
               final surface = tester.getRect(_surface);
               final gutter = width < 600 ? 8.0 : 16.0;
@@ -215,7 +215,7 @@ void main() {
               expect(surface.width, closeTo(expectedWidth, .01));
               expect(surface.center.dx, closeTo(width / 2, .01));
               expect(surface.height, closeTo(expectedHeight, .01));
-              expect(surface.bottom, closeTo(844 - 24.0, .01));
+              expect(surface.bottom, closeTo(844 - 34.0 - 4, .01));
               for (var i = 0; i < count; i++) {
                 final rect = tester.getRect(_tabs.at(i));
                 expect(rect.width, closeTo(surface.width / count, 0.01));
@@ -565,7 +565,7 @@ void main() {
             await tester.pump(const Duration(milliseconds: 130));
             expect(paintedOpacity(), closeTo(opacity, .001));
             expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
-            // Cross the Tooltip long-press deadline, then continue holding.
+            // Holding past the long-press deadline must not claim the tap.
             for (final duration in [
               const Duration(seconds: 2),
               const Duration(seconds: 30),
@@ -579,6 +579,7 @@ void main() {
               expect(paintedOpacity(), closeTo(opacity, .001));
               expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
               expect(_paintedRect(tester, icon), iconBefore);
+              expect(find.byType(Tooltip), findsNothing);
             }
             if (cancel) {
               await press.cancel();
@@ -593,13 +594,13 @@ void main() {
             await tester.pump(const Duration(milliseconds: 80));
             expect(paintedOpacity(), 0);
             expect(tester.widget<ScaleTransition>(expansion).scale.value, 1);
-            expect(_paintedRect(tester, icon), iconBefore);
-            // Long press still shows a tooltip, without selecting a new branch.
+            if (cancel || selected) {
+              expect(_paintedRect(tester, icon), iconBefore);
+            }
             expect(
               harness.router.routeInformationProvider.value.uri.path,
-              '/home',
+              cancel || selected ? '/home' : _paths[1],
             );
-            Tooltip.dismissAllToolTips();
             await tester.pumpAndSettle();
             expect(tester.takeException(), isNull);
           },
@@ -654,7 +655,7 @@ void main() {
       );
     }
     testWidgets(
-      'leaving a tooltip hold fades without retargeting selected=$selected',
+      'leaving a held press fades without retargeting selected=$selected',
       (tester) async {
         final harness = await _pumpShell(tester);
         final tab = selected ? _tabs.first : _tabs.at(1);
@@ -685,7 +686,6 @@ void main() {
         expect(tester.widget<AnimatedOpacity>(layer).opacity, 0);
         await press.up();
         expect(harness.router.routeInformationProvider.value.uri.path, '/home');
-        Tooltip.dismissAllToolTips();
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       },
@@ -707,10 +707,7 @@ void main() {
         final surface = tester.getRect(_surface);
         expect(surface.left, closeTo(25.6, .01));
         expect(surface.right, closeTo(294.4, .01));
-        expect(
-          surface.bottom,
-          closeTo(844 - math.max(0, bottomInset - 10), .01),
-        );
+        expect(surface.bottom, closeTo(844 - bottomInset - 4, .01));
         expect(surface.height, closeTo(64, .01));
         expect(
           tester.getRect(_capsule).center.dy,
@@ -730,7 +727,7 @@ void main() {
         final scope = tester.widget<BottomNavigationInset>(
           find.byType(BottomNavigationInset),
         );
-        expect(scope.bottom, closeTo(64 + math.max(0, bottomInset - 10), .01));
+        expect(scope.bottom, closeTo(64 + bottomInset + 4, .01));
         final material = tester.widget<Material>(_surface);
         expect(material.color, Colors.white);
         final clip = find
@@ -962,10 +959,10 @@ void main() {
   }
 
   for (final metrics in [
-    (padding: 0.0, view: 0.0, gesture: 24.0, keyboard: 0.0, offset: 14.0),
-    (padding: 21.0, view: 21.0, gesture: 32.0, keyboard: 0.0, offset: 22.0),
-    (padding: 48.0, view: 48.0, gesture: 0.0, keyboard: 0.0, offset: 38.0),
-    (padding: 0.0, view: 34.0, gesture: 0.0, keyboard: 300.0, offset: 24.0),
+    (padding: 0.0, view: 0.0, gesture: 24.0, keyboard: 0.0, offset: 28.0),
+    (padding: 21.0, view: 21.0, gesture: 32.0, keyboard: 0.0, offset: 36.0),
+    (padding: 48.0, view: 48.0, gesture: 0.0, keyboard: 0.0, offset: 52.0),
+    (padding: 0.0, view: 34.0, gesture: 0.0, keyboard: 300.0, offset: 38.0),
   ]) {
     testWidgets(
       'system UI and gesture exclusions position the whole bar: $metrics',

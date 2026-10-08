@@ -59,6 +59,8 @@ Future<ProviderContainer> _guestContainer({_RecordingAuth? auth}) async {
       if (auth != null) authRepositoryProvider.overrideWithValue(auth),
       // Banner networking is covered separately; keep navigation tests deterministic.
       homeBannersProvider.overrideWith((ref) async => []),
+      // Keep auth/snackbar tests independent of continuous Home motion.
+      categoriesProvider.overrideWith((ref) async => []),
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
       productProvider('p5').overrideWith(

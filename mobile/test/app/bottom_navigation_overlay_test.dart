@@ -67,8 +67,10 @@ class _GatedTokenStore extends InMemoryTokenStore {
 Future<({ProviderContainer container, _GatedTokenStore tokens})> _pumpApp(
   WidgetTester tester,
   String language,
-  ThemeMode mode,
-) async {
+  ThemeMode mode, {
+  // Auth animation cases need no moving carousel; layout cases opt into 10.
+  int categoryCount = 1,
+}) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(320, 700);
   tester.view.padding = const FakeViewPadding(bottom: 34);
@@ -93,7 +95,7 @@ Future<({ProviderContainer container, _GatedTokenStore tokens})> _pumpApp(
       ),
       categoriesProvider.overrideWith(
         (ref) async => [
-          for (var i = 0; i < 10; i++)
+          for (var i = 0; i < categoryCount; i++)
             Category(id: 'cat-$i', nameEn: 'Category $i', nameAr: 'قسم $i'),
         ],
       ),
@@ -133,7 +135,18 @@ void main() {
       testWidgets(
         'actual tab lists extend behind the bar and reveal their last content: $language $mode',
         (tester) async {
-          final harness = await _pumpApp(tester, language, mode);
+          // This case checks static insets, retaining all category rows.
+          tester.platformDispatcher.accessibilityFeaturesTestValue =
+              const FakeAccessibilityFeatures(disableAnimations: true);
+          addTearDown(
+            tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+          );
+          final harness = await _pumpApp(
+            tester,
+            language,
+            mode,
+            categoryCount: 10,
+          );
           final container = harness.container;
           final router = container.read(routerProvider);
           for (final path in [

@@ -59,10 +59,13 @@ class CustomerBottomNavigation extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final media = MediaQuery.of(context);
     final reduceMotion = media.disableAnimations || media.accessibleNavigation;
+    // This custom bar owns its bottom clearance. Scaffold passes the inset
+    // through without applying it; adding another SafeArea would count it twice.
     return Padding(
       padding: NavigationThemes.bottomBarPadding(
         media,
         AppLayout.pageHorizontal(context),
+        platform: Theme.of(context).platform,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -199,8 +202,7 @@ class _BottomNavItemState extends State<_BottomNavItem>
   late final AnimationController _expansion;
   late final Animation<double> _pressedScale;
   bool _wasPressed = false;
-  int? _activePointer;
-  bool _tooltipPress = false;
+  bool _tapReleasedOutside = false;
 
   @override
   void initState() {
@@ -236,32 +238,20 @@ class _BottomNavItemState extends State<_BottomNavItem>
     setState(() {});
   }
 
-  void _handleTooltipTriggered() {
-    if (_activePointer == null) return;
-    // Tooltip wins the long-press gesture arena and cancels InkWell's tap.
-    // Keep this same press in the controller until its pointer actually ends;
-    // do not restart expansion when ownership transfers to the tooltip.
-    _tooltipPress = true;
-    _wasPressed = true;
-    _states.update(WidgetState.pressed, true);
-  }
-
-  void _handlePointerEnd(PointerEvent event) {
-    if (event.pointer != _activePointer) return;
-    _activePointer = null;
-    if (_tooltipPress) {
-      _tooltipPress = false;
-      _states.update(WidgetState.pressed, false);
-    }
-  }
-
-  void _handlePointerMove(PointerMoveEvent event) {
-    if (!_tooltipPress || event.pointer != _activePointer) return;
+  void _handleTapUp(TapUpDetails details) {
+    // A small drag can leave the hit target without exceeding tap slop.
     final box = context.findRenderObject()! as RenderBox;
-    if (!(Offset.zero & box.size).contains(box.globalToLocal(event.position))) {
-      _tooltipPress = false;
-      _states.update(WidgetState.pressed, false);
-    }
+    _tapReleasedOutside = !(Offset.zero & box.size).contains(
+      box.globalToLocal(details.globalPosition),
+    );
+  }
+
+  void _handleTap() {
+    final releasedOutside = _tapReleasedOutside;
+    // InkWell calls onTap immediately after onTapUp; keyboard activation skips
+    // onTapUp. Reset before dispatch so both paths select at most once.
+    _tapReleasedOutside = false;
+    if (!releasedOutside) widget.onTap();
   }
 
   @override
@@ -299,79 +289,69 @@ class _BottomNavItemState extends State<_BottomNavItem>
       selected: selected,
       onTap: widget.onTap,
       excludeSemantics: true,
-      child: Tooltip(
-        message: destination.label,
-        excludeFromSemantics: true,
-        onTriggered: _handleTooltipTriggered,
-        child: Listener(
-          onPointerDown: (event) => _activePointer ??= event.pointer,
-          onPointerUp: _handlePointerEnd,
-          onPointerCancel: _handlePointerEnd,
-          onPointerMove: _handlePointerMove,
-          child: InkWell(
-            onTap: widget.onTap,
-            statesController: _states,
-            // InkWell owns gestures, focus and keyboard actions. Paint its state
-            // layer separately so the full safe hit target stays independent of
-            // the narrower (and sometimes taller) decorative capsule bounds.
-            overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-            splashFactory: NoSplash.splashFactory,
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
-            child: Stack(
-              fit: StackFit.expand,
-              clipBehavior: Clip.none,
-              children: [
-                IgnorePointer(
-                  child: OverflowBox(
-                    minWidth: size.width,
-                    maxWidth: size.width,
-                    minHeight: size.height,
-                    maxHeight: size.height,
-                    child: ScaleTransition(
-                      key: const ValueKey('bottom-nav-press-expansion'),
-                      scale: reduceMotion
-                          ? const AlwaysStoppedAnimation(1)
-                          : _pressedScale,
-                      child: ClipRRect(
-                        key: const ValueKey('bottom-nav-state-layer'),
-                        borderRadius: BorderRadius.circular(size.height / 2),
-                        child: AnimatedOpacity(
-                          opacity: opacity,
-                          duration: reduceMotion
-                              ? Duration.zero
-                              : _states.value.contains(WidgetState.pressed)
-                              ? NavigationThemes.bottomBarPressedExpandDuration
-                              : NavigationThemes.bottomBarPressedFadeDuration,
-                          child: ColoredBox(color: colors.primary),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Center(
-                  child: _badged(
-                    context,
-                    AnimatedScale(
-                      scale: selected && !reduceMotion
-                          ? NavigationThemes.bottomBarSelectedScale
-                          : 1,
+      child: InkWell(
+        onTapUp: _handleTapUp,
+        onTap: _handleTap,
+        statesController: _states,
+        // InkWell owns gestures, focus and keyboard actions. Paint its state
+        // layer separately so the full safe hit target stays independent of
+        // the narrower (and sometimes taller) decorative capsule bounds.
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        splashFactory: NoSplash.splashFactory,
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        child: Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.none,
+          children: [
+            IgnorePointer(
+              child: OverflowBox(
+                minWidth: size.width,
+                maxWidth: size.width,
+                minHeight: size.height,
+                maxHeight: size.height,
+                child: ScaleTransition(
+                  key: const ValueKey('bottom-nav-press-expansion'),
+                  scale: reduceMotion
+                      ? const AlwaysStoppedAnimation(1)
+                      : _pressedScale,
+                  child: ClipRRect(
+                    key: const ValueKey('bottom-nav-state-layer'),
+                    borderRadius: BorderRadius.circular(size.height / 2),
+                    child: AnimatedOpacity(
+                      opacity: opacity,
                       duration: reduceMotion
                           ? Duration.zero
-                          : NavigationThemes.bottomBarSelectedIconDuration,
-                      curve: NavigationThemes.bottomBarSelectedIconCurve,
-                      child: Icon(
-                        selected ? destination.selectedIcon : destination.icon,
-                        color: iconColor,
-                        size: NavigationThemes.bottomBarIconSize,
-                      ),
+                          : _states.value.contains(WidgetState.pressed)
+                          ? NavigationThemes.bottomBarPressedExpandDuration
+                          : NavigationThemes.bottomBarPressedFadeDuration,
+                      child: ColoredBox(color: colors.primary),
                     ),
-                    destination.badge,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+            Center(
+              child: _badged(
+                context,
+                AnimatedScale(
+                  scale: selected && !reduceMotion
+                      ? NavigationThemes.bottomBarSelectedScale
+                      : 1,
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : NavigationThemes.bottomBarSelectedIconDuration,
+                  curve: NavigationThemes.bottomBarSelectedIconCurve,
+                  child: Icon(
+                    selected ? destination.selectedIcon : destination.icon,
+                    color: iconColor,
+                    size: NavigationThemes.bottomBarIconSize,
+                  ),
+                ),
+                destination.badge,
+              ),
+            ),
+          ],
         ),
       ),
     );

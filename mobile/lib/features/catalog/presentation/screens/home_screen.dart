@@ -18,7 +18,7 @@ import '../../../../core/widgets/state_views.dart';
 import '../../../banners/presentation/providers/banner_providers.dart';
 import '../../../banners/presentation/widgets/home_banners.dart';
 import '../providers/catalog_providers.dart';
-import '../widgets/category_icon.dart';
+import '../widgets/home_category_carousel.dart';
 import '../widgets/home_offers_list.dart';
 
 /// Customer home: department navigation shortcuts above the store feed.
@@ -154,9 +154,7 @@ class _DepartmentsBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final lang = Localizations.localeOf(context).languageCode;
     final categories = ref.watch(categoriesProvider);
-    final colors = context.colors;
     final width =
         AppLayout.categoryShortcutWidth * AppLayout.textScale(context);
     Widget row(List<Widget> children) => SingleChildScrollView(
@@ -190,57 +188,13 @@ class _DepartmentsBar extends ConsumerWidget {
           ),
       ]),
       error: (_, _) => const SizedBox.shrink(),
-      data: (list) => row([
-        for (final category in list)
-          SizedBox(
-            key: ValueKey('home-category-${category.id}'),
-            width: width,
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                borderRadius: AppRadii.mdAll,
-                onTap: () => context.pushNamed(
-                  AppRoutes.searchName,
-                  queryParameters: {'parent_category_id': category.id},
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      width: AppLayout.categoryIconTarget,
-                      height: AppLayout.categoryIconTarget,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: colors.categoryShortcutBackground,
-                      ),
-                      child: Icon(
-                        categoryShortcutIconFor(
-                          null,
-                          categoryId: category.id,
-                          iconKey: category.iconKey,
-                        ),
-                        size: AppLayout.categoryIconSize,
-                        color: colors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                      ),
-                      child: Text(
-                        category.localizedName(lang),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: context.text.labelMedium,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-      ]),
+      data: (list) => HomeCategoryCarousel(
+        categories: list,
+        onSelected: (category) => context.pushNamed(
+          AppRoutes.searchName,
+          queryParameters: {'parent_category_id': category.id},
+        ),
+      ),
     );
   }
 }

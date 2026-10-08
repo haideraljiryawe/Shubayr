@@ -67,6 +67,16 @@ Finder _horizontalIn(Finder root) =>
 const _offers = ProductQuery(onSale: true);
 
 void main() {
+  setUp(() {
+    // These tests assert settled screens; continuous carousel motion is covered
+    // with a controlled clock in home_category_carousel_test.dart.
+    final platform =
+        TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher;
+    platform.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(
+      accessibleNavigation: true,
+    );
+    addTearDown(platform.clearAccessibilityFeaturesTestValue);
+  });
   test(
     'mock adds two complete departments with mixed prices and offer category discovery',
     () async {
@@ -169,7 +179,7 @@ void main() {
             expect(decoration.color, isNot(colors.primarySoft));
             expect(decoration.border, isNull);
             expect(decoration.shape, BoxShape.circle);
-            expect(circle.constraints!.maxWidth, 56);
+            expect(circle.constraints!.maxWidth, 67.2);
             if (mode == ThemeMode.light) {
               expect(
                 colors.categoryShortcutBackground.computeLuminance(),

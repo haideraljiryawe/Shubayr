@@ -32,6 +32,16 @@ Future<ProviderContainer> _container() async {
 }
 
 void main() {
+  setUp(() {
+    // These tests assert settled screens; continuous carousel motion is covered
+    // with a controlled clock in home_category_carousel_test.dart.
+    final platform =
+        TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher;
+    platform.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(
+      disableAnimations: true,
+    );
+    addTearDown(platform.clearAccessibilityFeaturesTestValue);
+  });
   for (final locale in ['ar', 'en']) {
     for (final mode in [ThemeMode.light, ThemeMode.dark]) {
       testWidgets(
@@ -65,7 +75,7 @@ void main() {
           final categoriesLabel = locale == 'ar' ? 'الأقسام' : 'Categories';
           Finder destinationIcon(String label, IconData icon) =>
               find.descendant(
-                of: find.byTooltip(label),
+                of: find.bySemanticsLabel(label),
                 matching: find.byIcon(icon),
               );
           expect(find.text(homeLabel), findsNothing);
@@ -82,7 +92,7 @@ void main() {
                 .color,
             unselectedColor,
           );
-          await tester.tap(find.byTooltip(categoriesLabel));
+          await tester.tap(find.bySemanticsLabel(categoriesLabel));
           await tester.pumpAndSettle();
           expect(
             tester
@@ -119,9 +129,9 @@ void main() {
     final context = tester.element(find.byType(HomeScreen));
     expect(Directionality.of(context), TextDirection.rtl);
     expect(Localizations.localeOf(context).languageCode, 'ar');
-    expect(find.byTooltip('الرئيسية'), findsOneWidget);
-    expect(find.byTooltip('الأقسام'), findsOneWidget);
-    expect(find.byTooltip('الحساب'), findsOneWidget);
+    expect(find.bySemanticsLabel('الرئيسية'), findsOneWidget);
+    expect(find.bySemanticsLabel('الأقسام'), findsOneWidget);
+    expect(find.bySemanticsLabel('الحساب'), findsOneWidget);
   });
 
   testWidgets('guest bottom navigation has exactly three destinations', (
@@ -138,11 +148,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Guest bar retains localized tooltips; Cart is absent.
-    expect(find.byTooltip('الرئيسية'), findsOneWidget);
-    expect(find.byTooltip('الأقسام'), findsOneWidget);
-    expect(find.byTooltip('الحساب'), findsOneWidget);
-    expect(find.byTooltip('السلة'), findsNothing);
+    // Guest bar retains localized semantic labels; Cart is absent.
+    expect(find.bySemanticsLabel('الرئيسية'), findsOneWidget);
+    expect(find.bySemanticsLabel('الأقسام'), findsOneWidget);
+    expect(find.bySemanticsLabel('الحساب'), findsOneWidget);
+    expect(find.bySemanticsLabel('السلة'), findsNothing);
   });
 
   testWidgets('a guest can reach Categories from the bottom navigation', (
@@ -185,9 +195,9 @@ void main() {
 
     final context = tester.element(find.byType(HomeScreen));
     expect(Directionality.of(context), TextDirection.ltr);
-    expect(find.byTooltip('Home'), findsOneWidget);
-    expect(find.byTooltip('Categories'), findsOneWidget);
-    expect(find.byTooltip('Account'), findsOneWidget);
+    expect(find.bySemanticsLabel('Home'), findsOneWidget);
+    expect(find.bySemanticsLabel('Categories'), findsOneWidget);
+    expect(find.bySemanticsLabel('Account'), findsOneWidget);
   });
 
   testWidgets('paints the bundled green brand on a warm off-white ground', (

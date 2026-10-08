@@ -34,9 +34,10 @@ Widget _host(
     supportedLocales: AppLocalizations.supportedLocales,
     theme: AppTheme.fromColors(AppColors.bundled(brightness)),
     builder: (context, child) => MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(textScaler: TextScaler.linear(scale)),
+      data: MediaQuery.of(context).copyWith(
+        textScaler: TextScaler.linear(scale),
+        accessibleNavigation: home is HomeScreen,
+      ),
       child: child!,
     ),
     home:
