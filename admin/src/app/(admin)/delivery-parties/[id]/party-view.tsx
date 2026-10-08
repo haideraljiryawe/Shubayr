@@ -7,7 +7,8 @@ import { DateFilter } from "@/components/finance/date-filter";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { DataTable, type Column, type TableState } from "@/components/table/data-table";
-import { isIssue, type HeldOrder, type PartyCustody, type StatementEntry } from "@/lib/delivery-parties";
+import { isIssue, type CashActivity, type HeldOrder, type PartyCustody, type StatementEntry } from "@/lib/delivery-parties";
+import { receiptHref } from "@/lib/finance/cash-receipts";
 import { formatCost, formatQuantity } from "@/lib/inventory";
 import { formatMoney } from "@/lib/orders";
 
@@ -15,6 +16,7 @@ export function PartyView({
   custody,
   held,
   statement,
+  cashActivity,
   statementState,
   orderFilter,
   canViewCost,
@@ -22,6 +24,8 @@ export function PartyView({
   custody: PartyCustody;
   held: HeldOrder[];
   statement: StatementEntry[];
+  /** Cash in and out of their custody, on the statement's page and filters (13.2). */
+  cashActivity: { total: number; data: CashActivity[] };
   statementState: TableState;
   orderFilter: string | null;
   canViewCost: boolean;
@@ -279,6 +283,69 @@ export function PartyView({
             </>
           }
         />
+      </section>
+
+      <section className="flex flex-col gap-3" data-testid="party-cash-activity">
+        <h2 className="text-lg font-bold">{t("cash.title")}</h2>
+        <p className="text-sm text-text-muted">{t("cash.hint")}</p>
+        {cashActivity.data.length === 0 ? (
+          <p className="text-sm text-text-muted" data-testid="cash-activity-empty">
+            {t("cash.empty")}
+          </p>
+        ) : (
+          <Card className="overflow-x-auto">
+            <table className="w-full min-w-[48rem] text-sm">
+              <thead className="text-text-muted">
+                <tr>
+                  <th className="px-3 py-2 text-start font-semibold">{t("statement.when")}</th>
+                  <th className="px-3 py-2 text-start font-semibold">{t("statement.event")}</th>
+                  <th className="px-3 py-2 text-start font-semibold">{t("cash.document")}</th>
+                  <th className="px-3 py-2 text-end font-semibold">{t("cash.amount")}</th>
+                  <th className="px-3 py-2 text-end font-semibold">{t("cash.unsettled")}</th>
+                  <th className="px-3 py-2 text-end font-semibold">{t("cash.running")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cashActivity.data.map((entry) => (
+                  <tr key={`${entry.event}-${entry.id}`} className="border-t border-border" data-testid="cash-activity" data-event={entry.event}>
+                    <td className="px-3 py-2">{dateTime(entry.occurred_at)}</td>
+                    <td className="px-3 py-2">{t(`cashEvents.${entry.event}`)}</td>
+                    <td className="px-3 py-2">
+                      {entry.voucher_id ? (
+                        <Link href={receiptHref(entry.voucher_id)} className="font-semibold text-primary-dark hover:underline" dir="ltr" data-testid="cash-activity-voucher">
+                          {entry.voucher_document_number ?? entry.voucher_id.slice(0, 8)}
+                        </Link>
+                      ) : entry.order_id ? (
+                        <Link href={`/orders/${entry.order_id}`} className="hover:underline" dir="ltr">
+                          {entry.order_number ?? entry.order_id.slice(0, 8)}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                      {entry.allocation_orders.length && entry.voucher_id ? (
+                        <span className="block text-xs text-text-muted" dir="ltr">
+                          {entry.allocation_orders.map((allocation) => allocation.order_number).join(", ")}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2 text-end" dir="ltr" data-testid="cash-activity-amount">
+                      {formatMoney(entry.amount_iqd, "IQD", locale)}
+                    </td>
+                    <td className="px-3 py-2 text-end" dir="ltr">
+                      {entry.event === "collection_confirmed" ? formatMoney(entry.unsettled_amount_iqd, "IQD", locale) : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="cash-activity-running">
+                      {formatMoney(entry.running_cash_iqd, "IQD", locale)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {cashActivity.total > cashActivity.data.length ? (
+              <p className="mt-2 text-xs text-text-muted">{t("cash.paged", { shown: cashActivity.data.length, total: cashActivity.total })}</p>
+            ) : null}
+          </Card>
+        )}
       </section>
     </div>
   );

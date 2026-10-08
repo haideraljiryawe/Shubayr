@@ -26,6 +26,7 @@ export type NavKey =
   | "payables"
   | "currencies"
   | "cashAccounts"
+  | "cashReceipts"
   | "periods"
   | "ledger"
   | "settings"
@@ -68,6 +69,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // Financial core (API 7.0).
   { key: "currencies", href: "/finance/currencies", requires: ["fx_rates.view"] },
   { key: "cashAccounts", href: "/finance/cash-accounts", requires: ["cash_accounts.view"] },
+  // Cash handed in by delivery parties (API 13.2).
+  { key: "cashReceipts", href: "/finance/cash-receipts", requires: ["deliveries.manage"] },
   { key: "periods", href: "/finance/periods", requires: ["ledger.view"] },
   { key: "ledger", href: "/finance/ledger", requires: ["ledger.view"] },
   { key: "settings", href: "/settings", requires: ["settings.manage"] },
