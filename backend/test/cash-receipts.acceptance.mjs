@@ -411,11 +411,11 @@ check(
     row.unsettled_amount_iqd,
   ]),
   [
-    [orders[0].orderId, 'settled', 0],
-    [orders[1].orderId, 'settled', 0],
     [orders[2].orderId, 'partially_settled', 40000],
+    [orders[1].orderId, 'settled', 0],
+    [orders[0].orderId, 'settled', 0],
   ],
-  'per-party collection list shows receipt settlement and partial balance',
+  'newest-first collection list shows receipt settlement and partial balance',
 );
 check(
   collections.data
