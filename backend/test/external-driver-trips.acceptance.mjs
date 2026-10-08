@@ -486,8 +486,8 @@ check(
   [
     ['fare_accrual', '2020', 'credit', 3000],
     ['fare_accrual', '5040', 'debit', 3000],
-    ['fare_payment', paidPosting[2][1], 'credit', 3000],
     ['fare_payment', '2020', 'debit', 3000],
+    ['fare_payment', till.ledger_account.code, 'credit', 3000],
   ],
   'store fare uses the phase-3 wage accrual and payment maps exactly once',
 );
