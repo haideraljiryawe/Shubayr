@@ -91,6 +91,57 @@ export function materializeDeliveryPosting(
     .filter((item) => Number(item.amount) !== 0);
 }
 
+export type CustodyExceptionPostingScenario =
+  | 'exception_handover'
+  | 'exception_loss'
+  | 'return_against_uncollected'
+  | 'delivery_fee_refund';
+
+export type CustodyExceptionPostingAmounts = {
+  resolved: string;
+  returnAmount: string;
+  exceptionOffset: string;
+  refundPayable: string;
+  deliveryFee: string;
+};
+
+type CustodyExceptionAmountKey = keyof CustodyExceptionPostingAmounts;
+type CustodyExceptionMapLine = Omit<ScenarioLine, 'amount'> & {
+  amount: CustodyExceptionAmountKey;
+};
+
+/** Phase-3 exception maps shared by executable fixtures and phase 8d. */
+export const CUSTODY_EXCEPTION_POSTING_MAPS: Readonly<
+  Record<CustodyExceptionPostingScenario, readonly CustodyExceptionMapLine[]>
+> = {
+  exception_handover: [
+    { accountCode: '1020', side: 'debit', amount: 'resolved' },
+    { accountCode: '1040', side: 'credit', amount: 'resolved' },
+  ],
+  exception_loss: [
+    { accountCode: '5020', side: 'debit', amount: 'resolved' },
+    { accountCode: '1040', side: 'credit', amount: 'resolved' },
+  ],
+  return_against_uncollected: [
+    { accountCode: '4100', side: 'debit', amount: 'returnAmount' },
+    { accountCode: '1040', side: 'credit', amount: 'exceptionOffset' },
+    { accountCode: '2030', side: 'credit', amount: 'refundPayable' },
+  ],
+  delivery_fee_refund: [
+    { accountCode: '4110', side: 'debit', amount: 'deliveryFee' },
+    { accountCode: '2030', side: 'credit', amount: 'deliveryFee' },
+  ],
+};
+
+export function materializeCustodyExceptionPosting(
+  scenario: CustodyExceptionPostingScenario,
+  amounts: CustodyExceptionPostingAmounts,
+): ScenarioLine[] {
+  return CUSTODY_EXCEPTION_POSTING_MAPS[scenario]
+    .map((item) => line(item.accountCode, item.side, amounts[item.amount]))
+    .filter((item) => Number(item.amount) !== 0);
+}
+
 const workedDeliveryAmounts: DeliveryPostingAmounts = {
   cost: '60000',
   goodsRevenue: '100000',
@@ -153,12 +204,24 @@ export const POSTING_SCENARIOS: readonly PostingScenario[] = [
   {
     key: 'exception_handover',
     event: 'missing collection handed over by the party',
-    lines: [line('1020', 'debit', 10_000), line('1040', 'credit', 10_000)],
+    lines: materializeCustodyExceptionPosting('exception_handover', {
+      resolved: '10000',
+      returnAmount: '0',
+      exceptionOffset: '0',
+      refundPayable: '0',
+      deliveryFee: '0',
+    }),
   },
   {
     key: 'exception_loss',
     event: 'collection exception approved as a loss',
-    lines: [line('5020', 'debit', 10_000), line('1040', 'credit', 10_000)],
+    lines: materializeCustodyExceptionPosting('exception_loss', {
+      resolved: '10000',
+      returnAmount: '0',
+      exceptionOffset: '0',
+      refundPayable: '0',
+      deliveryFee: '0',
+    }),
   },
   {
     key: 'cash_received',
@@ -168,11 +231,13 @@ export const POSTING_SCENARIOS: readonly PostingScenario[] = [
   {
     key: 'return_against_uncollected',
     event: 'return offsets an open exception before creating a refund',
-    lines: [
-      line('4100', 'debit', 20_000),
-      line('1040', 'credit', 10_000),
-      line('2030', 'credit', 10_000),
-    ],
+    lines: materializeCustodyExceptionPosting('return_against_uncollected', {
+      resolved: '0',
+      returnAmount: '20000',
+      exceptionOffset: '10000',
+      refundPayable: '10000',
+      deliveryFee: '0',
+    }),
   },
   {
     key: 'refund_payment',
@@ -187,7 +252,13 @@ export const POSTING_SCENARIOS: readonly PostingScenario[] = [
   {
     key: 'delivery_fee_refund',
     event: 'delivery fee refunded as its own line',
-    lines: [line('4110', 'debit', 5_000), line('2030', 'credit', 5_000)],
+    lines: materializeCustodyExceptionPosting('delivery_fee_refund', {
+      resolved: '0',
+      returnAmount: '0',
+      exceptionOffset: '0',
+      refundPayable: '0',
+      deliveryFee: '5000',
+    }),
   },
   {
     key: 'supplier_fx_loss',

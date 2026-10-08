@@ -14,6 +14,8 @@ import {
 } from './delivery-parties.controller';
 import { DeliveryPartiesService } from './delivery-parties.service';
 import { FinanceModule } from '../finance/finance.module';
+import { CustodyExceptionsController } from './custody-exceptions.controller';
+import { CustodyExceptionsService } from './custody-exceptions.service';
 
 @Module({
   imports: [LoyaltyModule, InventoryModule, FinanceModule],
@@ -24,7 +26,12 @@ import { FinanceModule } from '../finance/finance.module';
     AgentCustodyController,
     DeliveryPartiesController,
     ExternalDriversController,
+    CustodyExceptionsController,
   ],
-  providers: [DeliveriesService, DeliveryPartiesService],
+  providers: [
+    DeliveriesService,
+    DeliveryPartiesService,
+    CustodyExceptionsService,
+  ],
 })
 export class FulfilmentModule {}

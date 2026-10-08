@@ -138,7 +138,7 @@ export class CashReceiptService {
             'Delivery-party cash receipts require an IQD cash account',
           );
         }
-        const [collections, priorReceipts] = await Promise.all([
+        const [collections, liabilities, priorReceipts] = await Promise.all([
           tx.deliveryCollection.aggregate({
             where: {
               party_id: party.id,
@@ -147,6 +147,15 @@ export class CashReceiptService {
             },
             _sum: { collected_amount: true },
           }),
+          tx.custodyException.aggregate({
+            where: {
+              party_id: party.id,
+              type: 'goods_loss',
+              liability_bearer: 'party',
+              reversal: { is: null },
+            },
+            _sum: { amount_iqd: true },
+          }),
           tx.cashReceiptVoucher.aggregate({
             where: { party_id: party.id, reversal: { is: null } },
             _sum: { amount_iqd: true },
@@ -154,7 +163,9 @@ export class CashReceiptService {
         ]);
         const cashCustody = new Prisma.Decimal(
           collections._sum.collected_amount ?? 0,
-        ).minus(priorReceipts._sum.amount_iqd ?? 0);
+        )
+          .plus(liabilities._sum.amount_iqd ?? 0)
+          .minus(priorReceipts._sum.amount_iqd ?? 0);
         if (amount.gt(cashCustody)) {
           throw new ConflictException(
             'Receipt amount exceeds the party’s cash custody balance',

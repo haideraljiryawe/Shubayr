@@ -129,6 +129,13 @@ try {
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
   await run('test/delivery-collection.acceptance.mjs', [], acceptanceEnv);
   await run('test/cash-receipts.acceptance.mjs', [], acceptanceEnv);
+  // C7 adds two staff sessions to a sequence that already approaches the
+  // production admin-login limit. Each acceptance pack models a separate
+  // client, so reset only the in-memory limiter before the new pack.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
+  await run('test/custody-exceptions.acceptance.mjs', [], acceptanceEnv);
   await run('test/admin-orders.acceptance.mjs', [], acceptanceEnv);
   await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
   await run('test/delivery-parties.acceptance.mjs', [], acceptanceEnv);

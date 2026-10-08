@@ -115,35 +115,38 @@ model LedgerAccount {
 }
 
 model JournalEntry {
-  id                               String                  @id(map: "journal_entries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  document_number                  String                  @unique(map: "journal_entries_document_number_key") @db.VarChar(40)
-  source_type                      String                  @db.VarChar(60)
-  source_id                        String                  @db.Uuid
-  event                            String                  @db.VarChar(60)
-  document_date                    DateTime                @db.Date
-  accounting_date                  DateTime                @db.Date
-  description                      String?                 @db.VarChar(500)
-  created_by                       String                  @db.Uuid
-  posted_at                        DateTime                @default(now()) @db.Timestamptz(6)
-  reverses_id                      String?                 @unique(map: "journal_entries_reverses_id_key") @db.Uuid
-  reverses                         JournalEntry?           @relation("JournalReversals", fields: [reverses_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "journal_entries_reverses_id_fkey")
-  reversals                        JournalEntry[]          @relation("JournalReversals")
-  lines                            JournalLine[]
-  cash_transfers                   CashTransfer[]
-  opening_balances                 CashOpeningBalance[]
-  inventory_opening                InventoryOpening?
-  stock_count                      StockCount?
-  write_down                       InventoryWriteDown?
-  purchase_invoice                 PurchaseInvoice?
-  supplier_opening                 SupplierOpeningBalance?
-  supplier_payment                 SupplierPayment?
-  supplier_return                  SupplierReturn?
-  cost_correction                  PurchaseCostCorrection?
-  retrieval                        Retrieval?
-  delivery_collection_initial      DeliveryCollection?     @relation("DeliveryCollectionInitialJournal")
-  delivery_collection_confirmation DeliveryCollection?     @relation("DeliveryCollectionConfirmationJournal")
-  cash_receipt                     CashReceiptVoucher?     @relation("CashReceiptJournal")
-  cash_receipt_reversal            CashReceiptReversal?    @relation("CashReceiptReversalJournal")
+  id                                 String                           @id(map: "journal_entries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number                    String                           @unique(map: "journal_entries_document_number_key") @db.VarChar(40)
+  source_type                        String                           @db.VarChar(60)
+  source_id                          String                           @db.Uuid
+  event                              String                           @db.VarChar(60)
+  document_date                      DateTime                         @db.Date
+  accounting_date                    DateTime                         @db.Date
+  description                        String?                          @db.VarChar(500)
+  created_by                         String                           @db.Uuid
+  posted_at                          DateTime                         @default(now()) @db.Timestamptz(6)
+  reverses_id                        String?                          @unique(map: "journal_entries_reverses_id_key") @db.Uuid
+  reverses                           JournalEntry?                    @relation("JournalReversals", fields: [reverses_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "journal_entries_reverses_id_fkey")
+  reversals                          JournalEntry[]                   @relation("JournalReversals")
+  lines                              JournalLine[]
+  cash_transfers                     CashTransfer[]
+  opening_balances                   CashOpeningBalance[]
+  inventory_opening                  InventoryOpening?
+  stock_count                        StockCount?
+  write_down                         InventoryWriteDown?
+  purchase_invoice                   PurchaseInvoice?
+  supplier_opening                   SupplierOpeningBalance?
+  supplier_payment                   SupplierPayment?
+  supplier_return                    SupplierReturn?
+  cost_correction                    PurchaseCostCorrection?
+  retrieval                          Retrieval?
+  delivery_collection_initial        DeliveryCollection?              @relation("DeliveryCollectionInitialJournal")
+  delivery_collection_confirmation   DeliveryCollection?              @relation("DeliveryCollectionConfirmationJournal")
+  cash_receipt                       CashReceiptVoucher?              @relation("CashReceiptJournal")
+  cash_receipt_reversal              CashReceiptReversal?             @relation("CashReceiptReversalJournal")
+  custody_exception_posting          CustodyExceptionPosting?
+  custody_exception_reversal_posting CustodyExceptionReversalPosting? @relation("CustodyExceptionReversalJournal")
+  reversed_custody_exception_posting CustodyExceptionReversalPosting? @relation("CustodyExceptionOriginalJournal")
 
   @@unique([source_type, source_id, event], map: "journal_entries_source_event_key")
   @@index([accounting_date, id], map: "idx_journal_entries_accounting_date")
@@ -170,21 +173,22 @@ model JournalLine {
 }
 
 model CashAccount {
-  id                String               @id(map: "cash_accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name              String               @db.VarChar(160)
-  kind              String               @db.VarChar(12)
-  currency_code     String               @db.Char(3)
-  ledger_account_id String               @unique(map: "cash_accounts_ledger_account_id_key") @db.Uuid
-  is_active         Boolean              @default(true)
-  created_at        DateTime             @default(now()) @db.Timestamptz(6)
-  updated_at        DateTime             @default(now()) @db.Timestamptz(6)
-  currency          Currency             @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_currency_code_fkey")
-  ledger_account    LedgerAccount        @relation(fields: [ledger_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_ledger_account_id_fkey")
-  transfers_from    CashTransfer[]       @relation("CashTransferFrom")
-  transfers_to      CashTransfer[]       @relation("CashTransferTo")
-  opening_balances  CashOpeningBalance[]
-  supplier_payments SupplierPayment[]
-  cash_receipts     CashReceiptVoucher[]
+  id                        String               @id(map: "cash_accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                      String               @db.VarChar(160)
+  kind                      String               @db.VarChar(12)
+  currency_code             String               @db.Char(3)
+  ledger_account_id         String               @unique(map: "cash_accounts_ledger_account_id_key") @db.Uuid
+  is_active                 Boolean              @default(true)
+  created_at                DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime             @default(now()) @db.Timestamptz(6)
+  currency                  Currency             @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_currency_code_fkey")
+  ledger_account            LedgerAccount        @relation(fields: [ledger_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_ledger_account_id_fkey")
+  transfers_from            CashTransfer[]       @relation("CashTransferFrom")
+  transfers_to              CashTransfer[]       @relation("CashTransferTo")
+  opening_balances          CashOpeningBalance[]
+  supplier_payments         SupplierPayment[]
+  cash_receipts             CashReceiptVoucher[]
+  custody_exception_refunds CustodyException[]
 
   @@map("cash_accounts")
 }
@@ -317,69 +321,71 @@ model RolePermission {
 }
 
 model User {
-  id                          String                          @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  role_id                     String?                         @db.Uuid
-  name                        String?                         @db.VarChar(120)
-  phone                       String?                         @unique(map: "users_phone_key") @db.VarChar(32)
-  username                    String?                         @unique(map: "users_username_key") @db.VarChar(80)
-  email                       String?                         @db.VarChar(160)
-  password_hash               String?                         @db.VarChar(255)
-  must_change_password        Boolean                         @default(false)
-  failed_login_attempts       Int                             @default(0)
-  locked_until                DateTime?                       @db.Timestamptz(6)
-  session_version             Int                             @default(1)
-  permission_version          Int                             @default(1)
-  is_active                   Boolean                         @default(true)
-  created_at                  DateTime                        @default(now()) @db.Timestamptz(6)
-  updated_at                  DateTime                        @default(now()) @db.Timestamptz(6)
-  role                        Role?                           @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
-  work_profile                WorkProfile?
-  delivery_party              DeliveryParty?
-  permission_presets          UserPreset[]                    @relation("UserAccessPresets")
-  assigned_permission_presets UserPreset[]                    @relation("UserAccessPresetActors")
-  permission_grants           UserPermissionGrant[]           @relation("UserAccessGrants")
-  assigned_permission_grants  UserPermissionGrant[]           @relation("UserAccessGrantActors")
-  addresses                   Address[]
-  purchase_invoices           PurchaseInvoice[]               @relation("PurchaseInvoiceCreatedBy")
-  stock_movements             StockMovement[]                 @relation("StockMovementUser")
-  inventory_openings          InventoryOpening[]              @relation("InventoryOpeningCreator")
-  supplier_opening_balances   SupplierOpeningBalance[]        @relation("SupplierOpeningBalanceCreator")
-  supplier_payments           SupplierPayment[]               @relation("SupplierPaymentCreator")
-  supplier_returns            SupplierReturn[]                @relation("SupplierReturnCreator")
-  purchase_cost_corrections   PurchaseCostCorrection[]        @relation("PurchaseCostCorrectionCreator")
-  stock_transfers             StockTransfer[]                 @relation("StockTransferCreator")
-  stock_counts                StockCount[]                    @relation("StockCountCreator")
-  approved_stock_counts       StockCount[]                    @relation("StockCountApprover")
-  inventory_write_downs       InventoryWriteDown[]            @relation("InventoryWriteDownCreator")
-  cart                        Cart?
-  wishlist_items              WishlistItem[]
-  orders                      Order[]
-  assigned_pick_lists         PickList[]                      @relation("PickListAssignee")
-  created_retrievals          Retrieval[]                     @relation("RetrievalCreator")
-  closed_retrievals           Retrieval[]                     @relation("RetrievalCloser")
-  returns                     Return[]
-  reviewed_returns            Return[]                        @relation("ReturnReviewer")
-  refund_ledger_entries       RefundLedgerEntry[]             @relation("RefundCreator")
-  product_reviews             ProductReview[]
-  moderated_product_reviews   ProductReview[]                 @relation("ProductReviewModerator")
-  delivery_ratings_as_agent   DeliveryRating[]                @relation("DeliveryRatingAgent")
-  delivery_ratings_as_user    DeliveryRating[]                @relation("DeliveryRatingUser")
-  loyalty_account             LoyaltyAccount?
-  created_loyalty_entries     LoyaltyLedger[]                 @relation("LoyaltyLedgerCreator")
-  audit_logs                  AuditLog[]                      @relation("AuditActor")
-  device_tokens               DeviceToken[]
-  notification_preferences    NotificationPreference?
-  notification_channels       NotificationChannelPreference[]
-  notification_events         NotificationEvent[]
-  notification_logs           NotificationLog[]
-  notification_stream_events  NotificationStreamEvent[]
-  refresh_tokens              RefreshToken[]
-  uploaded_media              MediaObject[]                   @relation("MediaUploadedBy")
-  proposed_price_publishes    PricePublishApproval[]          @relation("PricePublishApprovalProposer")
-  decided_price_publishes     PricePublishApproval[]          @relation("PricePublishApprovalDecider")
-  created_cash_receipts       CashReceiptVoucher[]            @relation("CashReceiptCreator")
-  created_cash_allocations    CashReceiptAllocationBatch[]    @relation("CashReceiptAllocationCreator")
-  created_cash_reversals      CashReceiptReversal[]           @relation("CashReceiptReversalCreator")
+  id                                  String                          @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role_id                             String?                         @db.Uuid
+  name                                String?                         @db.VarChar(120)
+  phone                               String?                         @unique(map: "users_phone_key") @db.VarChar(32)
+  username                            String?                         @unique(map: "users_username_key") @db.VarChar(80)
+  email                               String?                         @db.VarChar(160)
+  password_hash                       String?                         @db.VarChar(255)
+  must_change_password                Boolean                         @default(false)
+  failed_login_attempts               Int                             @default(0)
+  locked_until                        DateTime?                       @db.Timestamptz(6)
+  session_version                     Int                             @default(1)
+  permission_version                  Int                             @default(1)
+  is_active                           Boolean                         @default(true)
+  created_at                          DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                          DateTime                        @default(now()) @db.Timestamptz(6)
+  role                                Role?                           @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
+  work_profile                        WorkProfile?
+  delivery_party                      DeliveryParty?
+  permission_presets                  UserPreset[]                    @relation("UserAccessPresets")
+  assigned_permission_presets         UserPreset[]                    @relation("UserAccessPresetActors")
+  permission_grants                   UserPermissionGrant[]           @relation("UserAccessGrants")
+  assigned_permission_grants          UserPermissionGrant[]           @relation("UserAccessGrantActors")
+  addresses                           Address[]
+  purchase_invoices                   PurchaseInvoice[]               @relation("PurchaseInvoiceCreatedBy")
+  stock_movements                     StockMovement[]                 @relation("StockMovementUser")
+  inventory_openings                  InventoryOpening[]              @relation("InventoryOpeningCreator")
+  supplier_opening_balances           SupplierOpeningBalance[]        @relation("SupplierOpeningBalanceCreator")
+  supplier_payments                   SupplierPayment[]               @relation("SupplierPaymentCreator")
+  supplier_returns                    SupplierReturn[]                @relation("SupplierReturnCreator")
+  purchase_cost_corrections           PurchaseCostCorrection[]        @relation("PurchaseCostCorrectionCreator")
+  stock_transfers                     StockTransfer[]                 @relation("StockTransferCreator")
+  stock_counts                        StockCount[]                    @relation("StockCountCreator")
+  approved_stock_counts               StockCount[]                    @relation("StockCountApprover")
+  inventory_write_downs               InventoryWriteDown[]            @relation("InventoryWriteDownCreator")
+  cart                                Cart?
+  wishlist_items                      WishlistItem[]
+  orders                              Order[]
+  assigned_pick_lists                 PickList[]                      @relation("PickListAssignee")
+  created_retrievals                  Retrieval[]                     @relation("RetrievalCreator")
+  closed_retrievals                   Retrieval[]                     @relation("RetrievalCloser")
+  returns                             Return[]
+  reviewed_returns                    Return[]                        @relation("ReturnReviewer")
+  refund_ledger_entries               RefundLedgerEntry[]             @relation("RefundCreator")
+  product_reviews                     ProductReview[]
+  moderated_product_reviews           ProductReview[]                 @relation("ProductReviewModerator")
+  delivery_ratings_as_agent           DeliveryRating[]                @relation("DeliveryRatingAgent")
+  delivery_ratings_as_user            DeliveryRating[]                @relation("DeliveryRatingUser")
+  loyalty_account                     LoyaltyAccount?
+  created_loyalty_entries             LoyaltyLedger[]                 @relation("LoyaltyLedgerCreator")
+  audit_logs                          AuditLog[]                      @relation("AuditActor")
+  device_tokens                       DeviceToken[]
+  notification_preferences            NotificationPreference?
+  notification_channels               NotificationChannelPreference[]
+  notification_events                 NotificationEvent[]
+  notification_logs                   NotificationLog[]
+  notification_stream_events          NotificationStreamEvent[]
+  refresh_tokens                      RefreshToken[]
+  uploaded_media                      MediaObject[]                   @relation("MediaUploadedBy")
+  proposed_price_publishes            PricePublishApproval[]          @relation("PricePublishApprovalProposer")
+  decided_price_publishes             PricePublishApproval[]          @relation("PricePublishApprovalDecider")
+  created_cash_receipts               CashReceiptVoucher[]            @relation("CashReceiptCreator")
+  created_cash_allocations            CashReceiptAllocationBatch[]    @relation("CashReceiptAllocationCreator")
+  created_cash_reversals              CashReceiptReversal[]           @relation("CashReceiptReversalCreator")
+  created_custody_exceptions          CustodyException[]              @relation("CustodyExceptionCreator")
+  created_custody_exception_reversals CustodyExceptionReversal[]      @relation("CustodyExceptionReversalCreator")
 
   @@map("users")
 }
@@ -497,6 +503,7 @@ model DeliveryParty {
   retrievals              Retrieval[]          @relation("RetrievalCustodyParty")
   collections             DeliveryCollection[]
   cash_receipts           CashReceiptVoucher[]
+  custody_exceptions      CustodyException[]
 
   @@index([kind, is_active, name], map: "idx_delivery_parties_kind_active_name")
   @@index([phone], map: "idx_delivery_parties_phone")
@@ -1249,6 +1256,7 @@ model WarehouseLocation {
   supplier_return_lines SupplierReturnLine[]
   retrieval_lines       RetrievalLine[]
   scoped_counts         StockCount[]
+  custodyExceptionLines CustodyExceptionLine[]
 
   @@unique([warehouse_id, zone, aisle, shelf, bin], map: "warehouse_locations_warehouse_id_zone_aisle_shelf_bin_key")
   @@unique([warehouse_id, code], map: "warehouse_locations_warehouse_id_code_key")
@@ -1287,6 +1295,7 @@ model InventoryBatch {
   custody_holdings      CustodyHolding[]
   supplier_return_lines SupplierReturnLine[]
   retrieval_lines       RetrievalLine[]
+  custodyExceptionLines CustodyExceptionLine[]
 
   @@index([product_id], map: "idx_batches_product")
   @@index([expiry_date], map: "idx_batches_expiry")
@@ -1311,7 +1320,7 @@ model BatchStock {
 model StockMovement {
   id               String             @id(map: "stock_movements_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   batch_id         String             @db.Uuid
-  type             String             @db.VarChar(20)
+  type             String             @db.VarChar(40)
   from_location    String?            @db.Uuid
   to_location      String?            @db.Uuid
   quantity         Decimal            @db.Decimal(20, 3)
@@ -1465,6 +1474,7 @@ model Order {
   status_events                OrderStatusEvent[]
   custody_holdings             CustodyHolding[]
   retrievals                   Retrieval[]
+  custody_exceptions           CustodyException[]
 
   @@unique([user_id, idempotency_key], map: "orders_user_id_idempotency_key_key")
   @@index([user_id], map: "idx_orders_user")
@@ -1478,28 +1488,29 @@ model Order {
 }
 
 model OrderItem {
-  id                 String             @id(map: "order_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id           String             @db.Uuid
-  product_id         String             @db.Uuid
-  variant_id         String             @db.Uuid
-  product_name_ar    String             @db.VarChar(200)
-  product_name_en    String             @db.VarChar(200)
-  image_url          String?            @db.VarChar(400)
-  quantity           Decimal            @db.Decimal(20, 3)
-  unit_price         Decimal            @db.Decimal(20, 6)
-  line_total         Decimal            @db.Decimal(20, 6)
-  currency_code      String             @default("IQD") @db.Char(3)
-  price_version      String             @default("") @db.VarChar(64)
-  reviewed           Boolean            @default(false)
-  order              Order              @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "order_items_order_id_fkey")
-  product            Product            @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "order_items_product_id_fkey")
-  variant            ProductVariant     @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "order_items_variant_id_fkey")
-  stock_reservations StockReservation[]
-  pick_list_items    PickListItem[]
-  return_items       ReturnItem[]
-  product_reviews    ProductReview[]
-  custody_holdings   CustodyHolding[]
-  retrieval_lines    RetrievalLine[]
+  id                      String                 @id(map: "order_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id                String                 @db.Uuid
+  product_id              String                 @db.Uuid
+  variant_id              String                 @db.Uuid
+  product_name_ar         String                 @db.VarChar(200)
+  product_name_en         String                 @db.VarChar(200)
+  image_url               String?                @db.VarChar(400)
+  quantity                Decimal                @db.Decimal(20, 3)
+  unit_price              Decimal                @db.Decimal(20, 6)
+  line_total              Decimal                @db.Decimal(20, 6)
+  currency_code           String                 @default("IQD") @db.Char(3)
+  price_version           String                 @default("") @db.VarChar(64)
+  reviewed                Boolean                @default(false)
+  order                   Order                  @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "order_items_order_id_fkey")
+  product                 Product                @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "order_items_product_id_fkey")
+  variant                 ProductVariant         @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "order_items_variant_id_fkey")
+  stock_reservations      StockReservation[]
+  pick_list_items         PickListItem[]
+  return_items            ReturnItem[]
+  product_reviews         ProductReview[]
+  custody_holdings        CustodyHolding[]
+  retrieval_lines         RetrievalLine[]
+  custody_exception_lines CustodyExceptionLine[]
 
   @@index([order_id], map: "idx_order_items_order")
   @@map("order_items")
@@ -1560,6 +1571,7 @@ model DeliveryCollection {
   delivery_journal              JournalEntry            @relation("DeliveryCollectionInitialJournal", fields: [delivery_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_delivery_journal_fkey")
   confirmation_journal          JournalEntry?           @relation("DeliveryCollectionConfirmationJournal", fields: [confirmation_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_confirmation_journal_fkey")
   cash_receipt_allocations      CashReceiptAllocation[]
+  custody_exceptions            CustodyException[]
 
   @@index([status, delivered_at(sort: Desc), id], map: "idx_delivery_collections_status_time")
   @@index([party_id, status, delivered_at], map: "idx_delivery_collections_party_status_time")
@@ -1644,6 +1656,107 @@ model CashReceiptReversal {
   @@map("cash_receipt_reversals")
 }
 
+model CustodyException {
+  id                   String                    @id(map: "custody_exceptions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number      String                    @unique(map: "custody_exceptions_document_number_key") @db.VarChar(40)
+  operation_id         String                    @unique(map: "custody_exceptions_operation_id_key") @db.VarChar(128)
+  type                 String                    @db.VarChar(40)
+  party_id             String                    @db.Uuid
+  order_id             String                    @db.Uuid
+  collection_id        String?                   @db.Uuid
+  liability_bearer     String?                   @db.VarChar(16)
+  settlement_method    String?                   @db.VarChar(24)
+  cash_account_id      String?                   @db.Uuid
+  amount_iqd           Decimal                   @default(0) @db.Decimal(20, 6)
+  goods_cost_iqd       Decimal                   @default(0) @db.Decimal(30, 12)
+  exception_offset_iqd Decimal                   @default(0) @db.Decimal(20, 6)
+  refund_payable_iqd   Decimal                   @default(0) @db.Decimal(20, 6)
+  reason               String                    @db.VarChar(500)
+  document_date        DateTime                  @db.Date
+  accounting_date      DateTime                  @db.Date
+  backdate_reason      String?                   @db.VarChar(500)
+  created_by           String                    @db.Uuid
+  created_at           DateTime                  @default(now()) @db.Timestamptz(6)
+  party                DeliveryParty             @relation(fields: [party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exceptions_party_id_fkey")
+  order                Order                     @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exceptions_order_id_fkey")
+  collection           DeliveryCollection?       @relation(fields: [collection_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exceptions_collection_id_fkey")
+  cash_account         CashAccount?              @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exceptions_cash_account_id_fkey")
+  creator              User                      @relation("CustodyExceptionCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exceptions_created_by_fkey")
+  lines                CustodyExceptionLine[]
+  postings             CustodyExceptionPosting[]
+  reversal             CustodyExceptionReversal?
+
+  @@index([type, document_date(sort: Desc), id], map: "idx_custody_exceptions_type_date")
+  @@index([party_id, document_date(sort: Desc), id], map: "idx_custody_exceptions_party_date")
+  @@index([order_id, document_date(sort: Desc), id], map: "idx_custody_exceptions_order_date")
+  @@map("custody_exceptions")
+}
+
+model CustodyExceptionLine {
+  id                 String             @id(map: "custody_exception_lines_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  exception_id       String             @db.Uuid
+  custody_holding_id String             @db.Uuid
+  order_item_id      String             @db.Uuid
+  batch_id           String             @db.Uuid
+  location_id        String?            @db.Uuid
+  quantity           Decimal            @db.Decimal(20, 3)
+  unit_cost_iqd      Decimal            @db.Decimal(30, 12)
+  return_amount_iqd  Decimal            @default(0) @db.Decimal(20, 6)
+  exception          CustodyException   @relation(fields: [exception_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_lines_exception_id_fkey")
+  custody_holding    CustodyHolding     @relation(fields: [custody_holding_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_lines_holding_id_fkey")
+  order_item         OrderItem          @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_lines_order_item_id_fkey")
+  batch              InventoryBatch     @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_lines_batch_id_fkey")
+  location           WarehouseLocation? @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_lines_location_id_fkey")
+
+  @@unique([exception_id, custody_holding_id], map: "custody_exception_lines_exception_holding_key")
+  @@index([custody_holding_id], map: "idx_custody_exception_lines_holding")
+  @@map("custody_exception_lines")
+}
+
+model CustodyExceptionPosting {
+  id               String           @id(map: "custody_exception_postings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  exception_id     String           @db.Uuid
+  role             String           @db.VarChar(40)
+  journal_entry_id String           @unique(map: "custody_exception_postings_journal_key") @db.Uuid
+  exception        CustodyException @relation(fields: [exception_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_postings_exception_id_fkey")
+  journal_entry    JournalEntry     @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_postings_journal_id_fkey")
+
+  @@unique([exception_id, role], map: "custody_exception_postings_exception_role_key")
+  @@map("custody_exception_postings")
+}
+
+model CustodyExceptionReversal {
+  id              String                            @id(map: "custody_exception_reversals_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number String                            @unique(map: "custody_exception_reversals_document_number_key") @db.VarChar(40)
+  operation_id    String                            @unique(map: "custody_exception_reversals_operation_id_key") @db.VarChar(128)
+  exception_id    String                            @unique(map: "custody_exception_reversals_exception_id_key") @db.Uuid
+  reason          String                            @db.VarChar(500)
+  document_date   DateTime                          @db.Date
+  accounting_date DateTime                          @db.Date
+  created_by      String                            @db.Uuid
+  created_at      DateTime                          @default(now()) @db.Timestamptz(6)
+  exception       CustodyException                  @relation(fields: [exception_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_reversals_exception_id_fkey")
+  creator         User                              @relation("CustodyExceptionReversalCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_reversals_created_by_fkey")
+  postings        CustodyExceptionReversalPosting[]
+
+  @@index([document_date(sort: Desc), id], map: "idx_custody_exception_reversals_date")
+  @@map("custody_exception_reversals")
+}
+
+model CustodyExceptionReversalPosting {
+  id                        String                   @id(map: "custody_exception_reversal_postings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reversal_id               String                   @db.Uuid
+  role                      String                   @db.VarChar(40)
+  journal_entry_id          String                   @unique(map: "custody_exception_reversal_postings_journal_key") @db.Uuid
+  original_journal_entry_id String                   @unique(map: "custody_exception_reversal_postings_original_key") @db.Uuid
+  reversal                  CustodyExceptionReversal @relation(fields: [reversal_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_reversal_postings_reversal_id_fkey")
+  journal_entry             JournalEntry             @relation("CustodyExceptionReversalJournal", fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_reversal_postings_journal_id_fkey")
+  original_journal_entry    JournalEntry             @relation("CustodyExceptionOriginalJournal", fields: [original_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_exception_reversal_postings_original_id_fkey")
+
+  @@unique([reversal_id, role], map: "custody_exception_reversal_postings_reversal_role_key")
+  @@map("custody_exception_reversal_postings")
+}
+
 model StockReservation {
   id             String            @id(map: "stock_reservations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   order_id       String            @db.Uuid
@@ -1679,24 +1792,25 @@ model SkuCost {
 }
 
 model CustodyHolding {
-  id                 String          @id(map: "custody_holdings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id           String          @db.Uuid
-  order_item_id      String          @db.Uuid
-  delivery_id        String          @db.Uuid
-  custody_party_id   String          @db.Uuid
-  batch_id           String          @db.Uuid
-  quantity           Decimal         @db.Decimal(20, 3)
-  remaining_quantity Decimal         @db.Decimal(20, 3)
-  unit_cost_iqd      Decimal         @db.Decimal(30, 12)
-  status             String          @default("in_custody") @db.VarChar(20)
-  issued_at          DateTime        @default(now()) @db.Timestamptz(6)
-  settled_at         DateTime?       @db.Timestamptz(6)
-  order              Order           @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_order_id_fkey")
-  order_item         OrderItem       @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_order_item_id_fkey")
-  delivery           Delivery        @relation(fields: [delivery_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_delivery_id_fkey")
-  custody_party      DeliveryParty   @relation("CustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_custody_party_id_fkey")
-  batch              InventoryBatch  @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_batch_id_fkey")
-  retrieval_lines    RetrievalLine[]
+  id                      String                 @id(map: "custody_holdings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id                String                 @db.Uuid
+  order_item_id           String                 @db.Uuid
+  delivery_id             String                 @db.Uuid
+  custody_party_id        String                 @db.Uuid
+  batch_id                String                 @db.Uuid
+  quantity                Decimal                @db.Decimal(20, 3)
+  remaining_quantity      Decimal                @db.Decimal(20, 3)
+  unit_cost_iqd           Decimal                @db.Decimal(30, 12)
+  status                  String                 @default("in_custody") @db.VarChar(20)
+  issued_at               DateTime               @default(now()) @db.Timestamptz(6)
+  settled_at              DateTime?              @db.Timestamptz(6)
+  order                   Order                  @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_order_id_fkey")
+  order_item              OrderItem              @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_order_item_id_fkey")
+  delivery                Delivery               @relation(fields: [delivery_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_delivery_id_fkey")
+  custody_party           DeliveryParty          @relation("CustodyParty", fields: [custody_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_custody_party_id_fkey")
+  batch                   InventoryBatch         @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "custody_holdings_batch_id_fkey")
+  retrieval_lines         RetrievalLine[]
+  custody_exception_lines CustodyExceptionLine[]
 
   @@unique([order_item_id, batch_id, custody_party_id], map: "custody_holdings_order_item_batch_party_key")
   @@index([custody_party_id, status], map: "idx_custody_holdings_party_status")

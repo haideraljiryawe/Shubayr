@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 13.2.0
+  version: 13.3.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -3832,6 +3832,106 @@ paths:
         "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  /admin/custody-exceptions:
+    get:
+      tags: [Finance, Deliveries]
+      summary: List custody exception documents
+      x-surface: admin
+      x-permission: custody_exceptions.view
+      parameters:
+        - { name: type, in: query, schema: { type: string, enum: [goods_loss, return_against_uncollected, delivery_fee_refund] } }
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: status, in: query, schema: { type: string, enum: [active, reversed] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Paginated custody exceptions, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyExceptionPage" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/custody-exceptions/goods-loss:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Record goods lost or damaged in a delivery party's custody
+      description: Records selected custody holdings at original issue cost, reduces goods custody once, and applies the phase-3 exception_handover or exception_loss map according to liability bearer.
+      x-surface: admin
+      x-permission: custody_exceptions.loss
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GoodsCustodyExceptionInput" } } } }
+      responses:
+        "201": { description: Immutable goods custody exception, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/custody-exceptions/return-against-uncollected:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Return goods at the door against an uncollected order
+      description: Restocks goods at original issue cost and applies return value to the open uncollected amount before creating any refund payable. Existing receipt allocations are unchanged because only the uncollected shortfall is reduced.
+      x-surface: admin
+      x-permission: custody_exceptions.return_uncollected
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ReturnAgainstUncollectedInput" } } } }
+      responses:
+        "201": { description: Immutable return-against-uncollected exception, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/custody-exceptions/delivery-fee-refund:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Refund an order's delivery fee
+      description: Creates the phase-3 delivery_fee_refund liability and settles it from an IQD cash account or against the order's still-uncollected amount. The cumulative active refund cannot exceed the charged delivery fee.
+      x-surface: admin
+      x-permission: custody_exceptions.refund_delivery_fee
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/DeliveryFeeRefundInput" } } } }
+      responses:
+        "201": { description: Immutable delivery-fee refund, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/custody-exceptions/{id}:
+    get:
+      tags: [Finance, Deliveries]
+      summary: Read one custody exception document
+      description: Original issue-cost fields are present only for callers holding cost.view.
+      x-surface: admin
+      x-permission: custody_exceptions.view
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Custody exception detail, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/custody-exceptions/{id}/reversal:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Reverse an immutable custody exception
+      description: Reverses every posting and stock effect. A party-liability loss cannot be reversed after a cash receipt has consumed that liability; reverse that receipt first.
+      x-surface: admin
+      x-permission: custody_exceptions.reverse
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyExceptionReversalInput" } } } }
+      responses:
+        "201": { description: Custody exception with its immutable reversal, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
   /admin/financial-documents/{id}:
     get:
       tags: [Finance]
@@ -6393,7 +6493,7 @@ components:
       required: [id, event, occurred_at, business_date, order_id, order_number, batch_id, lot_number, sku, quantity, running_quantity]
       properties:
         id: { type: string, format: uuid }
-        event: { type: string, enum: [issue_to_custody, custody_to_sold, return_in] }
+        event: { type: string, enum: [issue_to_custody, custody_to_sold, return_in, custody_exception, custody_exception_reversal] }
         occurred_at: { type: string, format: date-time }
         business_date: { type: string, format: date }
         order_id: { type: [string, "null"], format: uuid }
@@ -6432,14 +6532,14 @@ components:
       required: [id, event, occurred_at, business_date, order_id, order_number, voucher_id, voucher_document_number, amount_iqd, allocated_amount_iqd, unsettled_amount_iqd, allocation_orders, running_cash_iqd]
       properties:
         id: { type: string, format: uuid }
-        event: { type: string, enum: [collection_confirmed, cash_received, cash_receipt_reversed] }
+        event: { type: string, enum: [collection_confirmed, cash_received, cash_receipt_reversed, custody_exception, custody_exception_party_liability, custody_exception_reversed] }
         occurred_at: { type: string, format: date-time }
         business_date: { type: string, format: date }
         order_id: { type: [string, "null"], format: uuid }
         order_number: { type: [string, "null"] }
         voucher_id: { type: [string, "null"], format: uuid }
         voucher_document_number: { type: [string, "null"] }
-        amount_iqd: { type: number, description: Signed custody movement; collection positive, receipt negative, reversal positive. }
+        amount_iqd: { type: number, description: Signed custody movement; collections and party liabilities are positive, receipts negative, and reversals undo the original movement. }
         allocated_amount_iqd: { type: number, minimum: 0 }
         unsettled_amount_iqd: { type: number, minimum: 0 }
         allocation_orders:
@@ -6497,6 +6597,23 @@ components:
         settlement_status: { type: string, enum: [unconfirmed, unsettled, partially_settled, settled], description: Present on staff collection-list responses. }
         allocated_amount_iqd: { type: number, minimum: 0, description: Active receipt allocations; present on staff collection-list responses. }
         unsettled_amount_iqd: { type: [number, "null"], minimum: 0, description: Confirmed collected amount not yet allocated; present on staff collection-list responses. }
+        exception_offset_iqd: { type: number, minimum: 0, description: Active return/refund amount netted against the collection shortfall; present on staff collection-list responses. }
+        uncollected_amount_iqd: { type: [number, "null"], minimum: 0, description: Remaining shortfall after active custody exceptions; present on staff collection-list responses. }
+        exceptions:
+          type: array
+          description: Active custody exceptions affecting this collection; present on staff collection-list responses.
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, document_number, type, amount_iqd, exception_offset_iqd, settlement_method, document_date]
+            properties:
+              id: { type: string, format: uuid }
+              document_number: { type: string }
+              type: { type: string, enum: [return_against_uncollected, delivery_fee_refund] }
+              amount_iqd: { type: number, minimum: 0 }
+              exception_offset_iqd: { type: number, minimum: 0 }
+              settlement_method: { type: [string, "null"], enum: [cash_account, uncollected, null] }
+              document_date: { type: string, format: date }
         receipt_allocations:
           type: array
           description: Active receipt allocations settling this order; present on staff collection-list responses.
@@ -7627,6 +7744,224 @@ components:
               unsettled_amount_iqd: { type: number, exclusiveMinimum: 0 }
               suggested_amount_iqd: { type: number, minimum: 0 }
               collected_at: { type: string, format: date-time }
+
+    CustodyExceptionQuantityInput:
+      type: object
+      additionalProperties: false
+      required: [custody_holding_id, quantity]
+      properties:
+        custody_holding_id: { type: string, format: uuid }
+        quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+
+    CustodyExceptionReturnLineInput:
+      allOf:
+        - { $ref: "#/components/schemas/CustodyExceptionQuantityInput" }
+        - type: object
+          required: [location_id]
+          properties:
+            location_id: { type: string, format: uuid }
+
+    GoodsCustodyExceptionInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [order_id, liability_bearer, reason, lines]
+          properties:
+            order_id: { type: string, format: uuid }
+            liability_bearer: { type: string, enum: [store, party] }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+            lines:
+              type: array
+              minItems: 1
+              items: { $ref: "#/components/schemas/CustodyExceptionQuantityInput" }
+
+    ReturnAgainstUncollectedInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [order_id, reason, lines]
+          properties:
+            order_id: { type: string, format: uuid }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+            lines:
+              type: array
+              minItems: 1
+              items: { $ref: "#/components/schemas/CustodyExceptionReturnLineInput" }
+
+    DeliveryFeeRefundInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [order_id, amount_iqd, settlement_method, reason]
+          properties:
+            order_id: { type: string, format: uuid }
+            amount_iqd: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+            settlement_method: { type: string, enum: [cash_account, uncollected] }
+            cash_account_id: { type: string, format: uuid }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+
+    CustodyExceptionReversalInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, reason]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    CustodyExceptionLine:
+      type: object
+      additionalProperties: false
+      required: [id, custody_holding_id, order_item_id, batch_id, location_id, quantity, return_amount_iqd, order_item, batch, location]
+      properties:
+        id: { type: string, format: uuid }
+        custody_holding_id: { type: string, format: uuid }
+        order_item_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        location_id: { type: [string, "null"], format: uuid }
+        quantity: { type: number, exclusiveMinimum: 0, multipleOf: 0.001 }
+        return_amount_iqd: { type: number, minimum: 0 }
+        unit_cost_iqd: { type: number, minimum: 0, description: Present only with cost.view. }
+        order_item:
+          type: object
+          additionalProperties: false
+          required: [id, product_name_ar, product_name_en]
+          properties:
+            id: { type: string, format: uuid }
+            product_name_ar: { type: string }
+            product_name_en: { type: string }
+        batch:
+          type: object
+          additionalProperties: false
+          required: [id, lot_number, variant_id]
+          properties:
+            id: { type: string, format: uuid }
+            lot_number: { type: [string, "null"] }
+            variant_id: { type: string, format: uuid }
+        location:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, code, warehouse_id]
+              properties:
+                id: { type: string, format: uuid }
+                code: { type: string }
+                warehouse_id: { type: string, format: uuid }
+            - { type: "null" }
+
+    CustodyExceptionPosting:
+      type: object
+      additionalProperties: false
+      required: [role, journal_entry_id, event]
+      properties:
+        role: { type: string }
+        journal_entry_id: { type: string, format: uuid }
+        event: { type: string }
+
+    CustodyExceptionReversalPosting:
+      type: object
+      additionalProperties: false
+      required: [role, journal_entry_id, original_journal_entry_id, event]
+      properties:
+        role: { type: string }
+        journal_entry_id: { type: string, format: uuid }
+        original_journal_entry_id: { type: string, format: uuid }
+        event: { type: string }
+
+    CustodyExceptionReversal:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, reason, document_date, accounting_date, created_by, created_at, postings]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        reason: { type: string }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        postings:
+          type: array
+          items: { $ref: "#/components/schemas/CustodyExceptionReversalPosting" }
+
+    CustodyException:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, type, status, party_id, order_id, collection_id, liability_bearer, settlement_method, cash_account_id, amount_iqd, exception_offset_iqd, refund_payable_iqd, reason, document_date, accounting_date, backdate_reason, created_by, created_at, party, order, collection, cash_account, lines, postings, reversal]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        type: { type: string, enum: [goods_loss, return_against_uncollected, delivery_fee_refund] }
+        status: { type: string, enum: [active, reversed] }
+        party_id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        collection_id: { type: [string, "null"], format: uuid }
+        liability_bearer: { type: [string, "null"], enum: [store, party, null] }
+        settlement_method: { type: [string, "null"], enum: [cash_account, uncollected, null] }
+        cash_account_id: { type: [string, "null"], format: uuid }
+        amount_iqd: { type: number, minimum: 0 }
+        goods_cost_iqd: { type: number, minimum: 0, description: Present only with cost.view. }
+        exception_offset_iqd: { type: number, minimum: 0 }
+        refund_payable_iqd: { type: number, minimum: 0 }
+        reason: { type: string }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        party: { $ref: "#/components/schemas/DeliveryPartySummary" }
+        order:
+          type: object
+          additionalProperties: false
+          required: [id, order_number, status]
+          properties:
+            id: { type: string, format: uuid }
+            order_number: { type: string }
+            status: { $ref: "#/components/schemas/OrderStatus" }
+        collection:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, status, due_amount, collected_amount, shortfall_amount]
+              properties:
+                id: { type: string, format: uuid }
+                status: { type: string, enum: [confirmed_full, confirmed_short, unconfirmed] }
+                due_amount: { type: number, minimum: 0 }
+                collected_amount: { type: [number, "null"], minimum: 0 }
+                shortfall_amount: { type: [number, "null"], minimum: 0 }
+            - { type: "null" }
+        cash_account:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, name, kind, currency_code]
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: string }
+                kind: { type: string, enum: [cash, bank] }
+                currency_code: { type: string, const: IQD }
+            - { type: "null" }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/CustodyExceptionLine" }
+        postings:
+          type: array
+          items: { $ref: "#/components/schemas/CustodyExceptionPosting" }
+        reversal:
+          oneOf:
+            - { $ref: "#/components/schemas/CustodyExceptionReversal" }
+            - { type: "null" }
+
+    CustodyExceptionPage:
+      allOf:
+        - { $ref: "#/components/schemas/Pagination" }
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/CustodyException" }
 
     FinancialDocumentBase:
       type: object
