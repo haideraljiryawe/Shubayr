@@ -157,6 +157,7 @@ describe('CartService', () => {
 
   it('keeps the seen price while exposing the current price for explicit acceptance', async () => {
     const prisma = {
+      storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
       cart: {
         upsert: jest.fn().mockResolvedValue({ id: 'cart-1' }),
         findUnique: jest.fn().mockResolvedValue({
@@ -275,6 +276,7 @@ describe('CartService', () => {
     };
     let applied = false;
     const prisma = {
+      storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
       coupon: { findFirst: jest.fn().mockResolvedValue(coupon) },
       cart: {
         upsert: jest.fn().mockResolvedValue({ id: 'cart-1' }),

@@ -275,49 +275,52 @@ export class CartService {
 
   private async toResponse(cart: CartRow) {
     const at = new Date();
-    const items = await Promise.all(
-      cart.items.map(async (item) => {
-        const currentUnitPrice = skuUnitPrice(item.product, item.variant, at);
-        const currentPriceVersion = skuPriceVersion(
-          item.product,
-          item.variant,
-          currentUnitPrice,
-        );
-        let available_qty = 0;
-        try {
-          const availability = await this.products.availability(
-            item.product_id,
-            true,
+    const [items, deliveryFeeSetting] = await Promise.all([
+      Promise.all(
+        cart.items.map(async (item) => {
+          const currentUnitPrice = skuUnitPrice(item.product, item.variant, at);
+          const currentPriceVersion = skuPriceVersion(
+            item.product,
+            item.variant,
+            currentUnitPrice,
           );
-          available_qty =
-            availability.variants.find(
-              (variant) => variant.variant_id === item.variant_id,
-            )?.available_qty ?? 0;
-        } catch (error) {
-          if (!(error instanceof NotFoundException)) throw error;
-        }
-        return {
-          id: item.id,
-          product_id: item.product_id,
-          variant_id: item.variant_id,
-          quantity: Number(item.quantity),
-          unit_price: Number(item.unit_price),
-          price_version: item.price_version,
-          current_unit_price: currentUnitPrice,
-          current_price_version: currentPriceVersion,
-          price_changed:
-            Number(item.unit_price) !== currentUnitPrice ||
-            item.price_version !== currentPriceVersion,
-          line_total: calculateLineTotal(
-            Number(item.unit_price),
-            Number(item.quantity),
-          ),
-          currency: item.currency_code,
-          available_qty,
-          available: available_qty >= Number(item.quantity),
-        };
-      }),
-    );
+          let available_qty = 0;
+          try {
+            const availability = await this.products.availability(
+              item.product_id,
+              true,
+            );
+            available_qty =
+              availability.variants.find(
+                (variant) => variant.variant_id === item.variant_id,
+              )?.available_qty ?? 0;
+          } catch (error) {
+            if (!(error instanceof NotFoundException)) throw error;
+          }
+          return {
+            id: item.id,
+            product_id: item.product_id,
+            variant_id: item.variant_id,
+            quantity: Number(item.quantity),
+            unit_price: Number(item.unit_price),
+            price_version: item.price_version,
+            current_unit_price: currentUnitPrice,
+            current_price_version: currentPriceVersion,
+            price_changed:
+              Number(item.unit_price) !== currentUnitPrice ||
+              item.price_version !== currentPriceVersion,
+            line_total: calculateLineTotal(
+              Number(item.unit_price),
+              Number(item.quantity),
+            ),
+            currency: item.currency_code,
+            available_qty,
+            available: available_qty >= Number(item.quantity),
+          };
+        }),
+      ),
+      this.prisma.storeSetting.findUnique({ where: { key: 'delivery_fee' } }),
+    ]);
     const coupon = activeCoupon(cart.coupon, at) ? cart.coupon : null;
     return {
       id: cart.id,
@@ -331,6 +334,7 @@ export class CartService {
         })),
         coupon,
         at,
+        deliveryFeeSetting?.value ?? 0,
       ),
     };
   }

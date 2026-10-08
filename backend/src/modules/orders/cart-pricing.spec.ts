@@ -66,6 +66,22 @@ describe('server cart pricing', () => {
     ).toBe(0);
   });
 
+  it('adds the configured delivery fee after discounts', () => {
+    expect(
+      calculateCartTotals(
+        [{ unit_price: 20000, quantity: 1 }],
+        null,
+        now,
+        '5000',
+      ),
+    ).toEqual({
+      subtotal: 20000,
+      discount: 0,
+      delivery_fee: 5000,
+      total: 25000,
+    });
+  });
+
   it('does not apply expired or exhausted coupons', () => {
     const coupon = {
       code: 'OLD',

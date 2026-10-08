@@ -290,7 +290,15 @@ export class OrdersService {
         if (!activeCoupon(fresh, at))
           throw new ConflictException('Coupon is no longer valid');
       }
-      const totals = calculateCartTotals(lines, coupon, at);
+      const deliveryFeeSetting = await tx.storeSetting.findUnique({
+        where: { key: 'delivery_fee' },
+      });
+      const totals = calculateCartTotals(
+        lines,
+        coupon,
+        at,
+        deliveryFeeSetting?.value ?? 0,
+      );
       const deadlines = await this.acceptanceDeadlines(tx, at);
       const order = await tx.order.create({
         data: {
