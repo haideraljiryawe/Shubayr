@@ -429,9 +429,13 @@ export class ExternalDriverTripsService {
         );
         const unresolved = trip.orders.filter(
           (row) =>
-            !['delivered', 'returned', 'cancelled'].includes(
-              row.order.status,
-            ) || row.order.delivery_collection?.status === 'unconfirmed',
+            ![
+              'ready_for_dispatch',
+              'delivered',
+              'returned',
+              'cancelled',
+            ].includes(row.order.status) ||
+            row.order.delivery_collection?.status === 'unconfirmed',
         );
         if (unresolved.length) {
           throw new ConflictException({

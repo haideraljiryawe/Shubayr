@@ -582,7 +582,7 @@ const retrieval = await request(
     expected: 201,
     body: {
       operation_id: `c8-retrieval-${randomUUID()}`,
-      outcome: 'cancel',
+      outcome: 'retry',
       reason: 'Failed external-driver order returned to store',
     },
   },
@@ -625,7 +625,7 @@ await request('/admin/custody-exceptions/return-against-uncollected', {
 const exceptionClosed = (await closeTrip(exceptionTrip)).result;
 check(
   exceptionClosed.orders.map((row) => row.status).sort(),
-  ['cancelled', 'returned'],
+  ['ready_for_dispatch', 'returned'],
   'failed retrieval and return-at-door outcomes remain visible inside the closed trip',
 );
 
