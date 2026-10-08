@@ -577,9 +577,9 @@ check(
     row.unsettled_amount_iqd,
   ]),
   [
-    ['unsettled', 0, 100000],
-    ['unsettled', 0, 50000],
     ['unsettled', 0, 80000],
+    ['unsettled', 0, 50000],
+    ['unsettled', 0, 100000],
   ],
   'reversal un-settles every allocated order',
 );
