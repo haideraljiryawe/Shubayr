@@ -293,13 +293,14 @@ export class DeliveriesService {
     return this.transitionStatus(actorId, id, input, false, true);
   }
 
-  private async transitionStatus(
+  async transitionStatus(
     actorId: string,
     id: string,
     input: UpdateDeliveryStatusDto | UpdateStaffDeliveryStatusDto,
     assignedAgentOnly: boolean,
     retryOnlyForDispatch = false,
     transaction?: Prisma.TransactionClient,
+    recordedAt?: Date,
   ) {
     const work = async (tx: Prisma.TransactionClient) => {
       const initial = await tx.delivery.findUnique({ where: { id } });
@@ -372,9 +373,10 @@ export class DeliveriesService {
       }
 
       const now =
-        input.status === 'delivered' && 'event_at' in input && input.event_at
+        recordedAt ??
+        (input.status === 'delivered' && 'event_at' in input && input.event_at
           ? new Date(input.event_at)
-          : new Date();
+          : new Date());
       for (const [index, status] of orderSteps.entries()) {
         const priorStatus = index === 0 ? orderStatus : orderSteps[index - 1];
         assertOrderTransition(
@@ -432,6 +434,7 @@ export class DeliveriesService {
           id,
           delivery.agent_id!,
           actorId,
+          now,
         );
       }
       if (input.status === 'delivered') {
@@ -746,6 +749,11 @@ export class DeliveriesService {
           }
         : {}),
     };
+    const direction = query.sort_direction ?? 'desc';
+    const orderBy: Prisma.DeliveryCollectionOrderByWithRelationInput[] =
+      query.sort_by === 'amount'
+        ? [{ due_amount: direction }, { delivered_at: 'desc' }, { id: 'desc' }]
+        : [{ delivered_at: direction }, { id: direction }];
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.deliveryCollection.count({ where }),
       this.prisma.deliveryCollection.findMany({
@@ -786,6 +794,12 @@ export class DeliveriesService {
             },
             orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
           },
+          trip_settlement_allocations: {
+            include: {
+              trip: { select: { id: true, document_number: true } },
+            },
+            orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
+          },
           custody_exceptions: {
             where: { reversal: { is: null } },
             select: {
@@ -800,7 +814,7 @@ export class DeliveriesService {
             orderBy: [{ document_date: 'asc' }, { id: 'asc' }],
           },
         },
-        orderBy: [{ delivered_at: 'asc' }, { id: 'asc' }],
+        orderBy,
         skip: (page - 1) * perPage,
         take: perPage,
       }),
@@ -1035,6 +1049,12 @@ export class DeliveriesService {
         };
       };
     }>;
+    trip_settlement_allocations?: Array<{
+      id: string;
+      amount_iqd: PrismaRuntime.Decimal;
+      created_at: Date;
+      trip: { id: string; document_number: string };
+    }>;
     custody_exceptions?: Array<{
       id: string;
       document_number: string;
@@ -1050,17 +1070,26 @@ export class DeliveriesService {
       (sum, allocation) => sum.plus(allocation.amount_iqd),
       new PrismaRuntime.Decimal(0),
     );
+    const tripNettings = row.trip_settlement_allocations;
+    const netted = tripNettings?.reduce(
+      (sum, allocation) => sum.plus(allocation.amount_iqd),
+      new PrismaRuntime.Decimal(0),
+    );
+    const settledAmount =
+      allocated === undefined || netted === undefined
+        ? allocated
+        : allocated.plus(netted);
     const collected = row.collected_amount;
     const unsettled =
-      allocated === undefined || collected === null
+      settledAmount === undefined || collected === null
         ? null
-        : PrismaRuntime.Decimal.max(0, collected.minus(allocated));
+        : PrismaRuntime.Decimal.max(0, collected.minus(settledAmount));
     const settlementStatus =
       collected === null
         ? 'unconfirmed'
-        : allocated?.gte(collected)
+        : settledAmount?.gte(collected)
           ? 'settled'
-          : allocated?.gt(0)
+          : settledAmount?.gt(0)
             ? 'partially_settled'
             : 'unsettled';
     const exceptions = row.custody_exceptions;
@@ -1098,7 +1127,9 @@ export class DeliveriesService {
         ? {}
         : {
             settlement_status: settlementStatus,
-            allocated_amount_iqd: Number(allocated ?? 0),
+            allocated_amount_iqd: Number(settledAmount ?? 0),
+            receipt_allocated_amount_iqd: Number(allocated ?? 0),
+            fare_netted_amount_iqd: Number(netted ?? 0),
             unsettled_amount_iqd: unsettled === null ? null : Number(unsettled),
             receipt_allocations: allocations.map((allocation) => ({
               id: allocation.id,
@@ -1109,6 +1140,13 @@ export class DeliveriesService {
               voucher_document_date: businessDateText(
                 allocation.batch.voucher.document_date,
               ),
+              amount_iqd: Number(allocation.amount_iqd),
+              created_at: allocation.created_at,
+            })),
+            fare_nettings: tripNettings?.map((allocation) => ({
+              id: allocation.id,
+              trip_id: allocation.trip.id,
+              trip_document_number: allocation.trip.document_number,
               amount_iqd: Number(allocation.amount_iqd),
               created_at: allocation.created_at,
             })),

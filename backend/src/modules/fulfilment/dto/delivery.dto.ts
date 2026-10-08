@@ -121,6 +121,14 @@ export class ConfirmDeliveryCollectionDto {
 
 export class UnconfirmedDeliveriesQueryDto {
   @IsOptional()
+  @IsIn(['date', 'amount'])
+  sort_by: 'date' | 'amount' = 'date';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sort_direction: 'asc' | 'desc' = 'desc';
+
+  @IsOptional()
   @IsUUID()
   party_id?: string;
 
@@ -159,6 +167,14 @@ export class UnconfirmedDeliveriesQueryDto {
 }
 
 export class PartyCollectionsQueryDto {
+  @IsOptional()
+  @IsIn(['date', 'amount'])
+  sort_by: 'date' | 'amount' = 'date';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sort_direction: 'asc' | 'desc' = 'desc';
+
   @IsOptional()
   @IsIn(['confirmed_full', 'confirmed_short', 'unconfirmed'])
   status?: 'confirmed_full' | 'confirmed_short' | 'unconfirmed';

@@ -551,6 +551,7 @@ export class CashReceiptService {
           where: { batch: { voucher: { reversal: { is: null } } } },
           select: { amount_iqd: true },
         },
+        trip_settlement_allocations: { select: { amount_iqd: true } },
       },
       orderBy: [
         { confirmed_at: 'asc' },
@@ -567,7 +568,11 @@ export class CashReceiptService {
           (sum, allocation) => sum.plus(allocation.amount_iqd),
           new Prisma.Decimal(0),
         );
-        const remaining = collected.minus(allocated);
+        const netted = row.trip_settlement_allocations.reduce(
+          (sum, allocation) => sum.plus(allocation.amount_iqd),
+          new Prisma.Decimal(0),
+        );
+        const remaining = collected.minus(allocated).minus(netted);
         if (!remaining.gt(0)) return [];
         const suggested = left
           ? Prisma.Decimal.min(remaining, left)
@@ -578,7 +583,7 @@ export class CashReceiptService {
             collection_id: row.id,
             order: row.order,
             collected_amount_iqd: Number(collected),
-            allocated_amount_iqd: Number(allocated),
+            allocated_amount_iqd: Number(allocated.plus(netted)),
             unsettled_amount_iqd: Number(remaining),
             suggested_amount_iqd: Number(suggested),
             collected_at: row.confirmed_at ?? row.delivered_at,
@@ -629,6 +634,7 @@ export class CashReceiptService {
           where: { batch: { voucher: { reversal: { is: null } } } },
           select: { amount_iqd: true },
         },
+        trip_settlement_allocations: { select: { amount_iqd: true } },
       },
     });
     const byOrder = new Map(collections.map((row) => [row.order_id, row]));
@@ -665,7 +671,17 @@ export class CashReceiptService {
         (sum, row) => sum.plus(row.amount_iqd),
         new Prisma.Decimal(0),
       );
-      if (amount.gt(collection.collected_amount.minus(alreadyAllocated))) {
+      const alreadyNetted = collection.trip_settlement_allocations.reduce(
+        (sum, row) => sum.plus(row.amount_iqd),
+        new Prisma.Decimal(0),
+      );
+      if (
+        amount.gt(
+          collection.collected_amount
+            .minus(alreadyAllocated)
+            .minus(alreadyNetted),
+        )
+      ) {
         throw new ConflictException(
           'Allocation exceeds the order’s unsettled collected amount',
         );

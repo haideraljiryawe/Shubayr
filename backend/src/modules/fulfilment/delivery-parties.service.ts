@@ -218,16 +218,17 @@ export class DeliveryPartiesService {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.deliveryParty.findUnique({ where: { id } });
       this.assertExternal(existing);
-      const [deliveries, movements, holdings, attempts, retrievals] =
+      const [deliveries, movements, holdings, attempts, retrievals, trips] =
         await Promise.all([
           tx.delivery.count({ where: { agent_id: id } }),
           tx.stockMovement.count({ where: { custody_party_id: id } }),
           tx.custodyHolding.count({ where: { custody_party_id: id } }),
           tx.deliveryAttempt.count({ where: { party_id: id } }),
           tx.retrieval.count({ where: { custody_party_id: id } }),
+          tx.externalDriverTrip.count({ where: { driver_party_id: id } }),
         ]);
       const used =
-        deliveries + movements + holdings + attempts + retrievals > 0;
+        deliveries + movements + holdings + attempts + retrievals + trips > 0;
       if (used) {
         await tx.deliveryParty.update({
           where: { id },
@@ -337,7 +338,7 @@ export class DeliveryPartiesService {
     if (query.from && query.to && query.from > query.to) {
       throw new BadRequestException('from must be on or before to');
     }
-    const [movements, cashCollections, cashReceipts, exceptions] =
+    const [movements, cashCollections, cashReceipts, exceptions, trips] =
       await Promise.all([
         this.prisma.stockMovement.findMany({
           where: {
@@ -378,6 +379,13 @@ export class DeliveryPartiesService {
               where: { batch: { voucher: { reversal: { is: null } } } },
               select: { amount_iqd: true },
             },
+            trip_settlement_allocations: {
+              include: {
+                trip: {
+                  select: { id: true, document_number: true, closed_at: true },
+                },
+              },
+            },
           },
         }),
         this.prisma.cashReceiptVoucher.findMany({
@@ -405,6 +413,27 @@ export class DeliveryPartiesService {
             order: { select: { id: true, order_number: true } },
             reversal: true,
           },
+        }),
+        this.prisma.externalDriverTrip.findMany({
+          where: { driver_party_id: id },
+          select: {
+            id: true,
+            document_number: true,
+            status: true,
+            fare_bearer: true,
+            fare_amount_iqd: true,
+            fare_settlement_method: true,
+            expected_cash_iqd: true,
+            received_cash_iqd: true,
+            netted_fare_iqd: true,
+            outstanding_cash_iqd: true,
+            settlement_result: true,
+            document_date: true,
+            started_at: true,
+            closed_at: true,
+            _count: { select: { orders: true } },
+          },
+          orderBy: [{ document_date: 'desc' }, { created_at: 'desc' }],
         }),
       ]);
     const retrievalIds = movements
@@ -505,6 +534,10 @@ export class DeliveryPartiesService {
           (sum, allocation) => sum.plus(allocation.amount_iqd),
           new Prisma.Decimal(0),
         );
+        const netted = collection.trip_settlement_allocations.reduce(
+          (sum, allocation) => sum.plus(allocation.amount_iqd),
+          new Prisma.Decimal(0),
+        );
         const collected = collection.collected_amount!;
         return {
           id: collection.id,
@@ -516,9 +549,9 @@ export class DeliveryPartiesService {
           voucher_id: null,
           voucher_document_number: null,
           amount_iqd: Number(collected),
-          allocated_amount_iqd: Number(allocated),
+          allocated_amount_iqd: Number(allocated.plus(netted)),
           unsettled_amount_iqd: Number(
-            Prisma.Decimal.max(0, collected.minus(allocated)),
+            Prisma.Decimal.max(0, collected.minus(allocated).minus(netted)),
           ),
           allocation_orders: [] as Array<{
             order_id: string;
@@ -566,6 +599,30 @@ export class DeliveryPartiesService {
             ]
           : [received];
       }),
+      ...cashCollections.flatMap((collection) =>
+        collection.trip_settlement_allocations.map((allocation) => ({
+          id: allocation.id,
+          event: 'trip_fare_netted' as const,
+          occurred_at: allocation.trip.closed_at ?? collection.delivered_at,
+          business_date: businessDateText(
+            allocation.trip.closed_at ?? collection.accounting_date,
+          ),
+          order_id: collection.order_id,
+          order_number: collection.order.order_number,
+          voucher_id: allocation.trip.id,
+          voucher_document_number: allocation.trip.document_number,
+          amount_iqd: -Number(allocation.amount_iqd),
+          allocated_amount_iqd: Number(allocation.amount_iqd),
+          unsettled_amount_iqd: 0,
+          allocation_orders: [
+            {
+              order_id: collection.order_id,
+              order_number: collection.order.order_number,
+              amount_iqd: Number(allocation.amount_iqd),
+            },
+          ],
+        })),
+      ),
       ...exceptions.flatMap((exception) => {
         const base = {
           id: exception.id,
@@ -640,6 +697,33 @@ export class DeliveryPartiesService {
         total: cashFiltered.length,
         data: cashFiltered.slice((page - 1) * perPage, page * perPage),
       },
+      trips: trips.map((trip) => ({
+        id: trip.id,
+        document_number: trip.document_number,
+        status: trip.status,
+        fare_bearer: trip.fare_bearer,
+        fare_amount_iqd: Number(trip.fare_amount_iqd),
+        fare_settlement_method: trip.fare_settlement_method,
+        expected_cash_iqd:
+          trip.expected_cash_iqd === null
+            ? null
+            : Number(trip.expected_cash_iqd),
+        received_cash_iqd:
+          trip.received_cash_iqd === null
+            ? null
+            : Number(trip.received_cash_iqd),
+        netted_fare_iqd:
+          trip.netted_fare_iqd === null ? null : Number(trip.netted_fare_iqd),
+        outstanding_cash_iqd:
+          trip.outstanding_cash_iqd === null
+            ? null
+            : Number(trip.outstanding_cash_iqd),
+        settlement_result: trip.settlement_result,
+        order_count: trip._count.orders,
+        document_date: businessDateText(trip.document_date),
+        started_at: trip.started_at,
+        closed_at: trip.closed_at,
+      })),
     };
   }
 
@@ -819,6 +903,7 @@ export class DeliveryPartiesService {
             where: { batch: { voucher: { reversal: { is: null } } } },
             select: { amount_iqd: true },
           },
+          trip_settlement_allocations: { select: { amount_iqd: true } },
         },
       }),
       this.prisma.cashReceiptVoucher.findMany({
@@ -874,12 +959,19 @@ export class DeliveryPartiesService {
         occurred_at: collection.confirmed_at ?? collection.delivered_at,
         amount: Prisma.Decimal.max(
           0,
-          collection.collected_amount!.minus(
-            collection.cash_receipt_allocations.reduce(
-              (sum, allocation) => sum.plus(allocation.amount_iqd),
-              new Prisma.Decimal(0),
+          collection
+            .collected_amount!.minus(
+              collection.cash_receipt_allocations.reduce(
+                (sum, allocation) => sum.plus(allocation.amount_iqd),
+                new Prisma.Decimal(0),
+              ),
+            )
+            .minus(
+              collection.trip_settlement_allocations.reduce(
+                (sum, allocation) => sum.plus(allocation.amount_iqd),
+                new Prisma.Decimal(0),
+              ),
             ),
-          ),
         ),
       })),
       ...liabilities.map((exception) => ({
