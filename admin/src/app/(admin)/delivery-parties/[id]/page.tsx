@@ -86,7 +86,8 @@ export default async function DeliveryPartyPage({
             <Link href={`/finance/cash-receipts?party_id=${id}`} className={buttonClasses({ variant: "secondary" })} data-testid="party-receipts">
               {t("cash.receipts")}
             </Link>
-            {permissions.includes("cash_receipts.receive") && party.is_active ? (
+            {/* Only when there is cash to hand in: no dead buttons. */}
+            {permissions.includes("cash_receipts.receive") && party.is_active && custody.data.cash.amount > 0 ? (
               <Link href={`/finance/cash-receipts/new?party_id=${id}`} className={buttonClasses()} data-testid="party-receive">
                 {t("cash.receive")}
               </Link>

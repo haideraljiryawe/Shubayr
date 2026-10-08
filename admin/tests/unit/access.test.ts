@@ -89,6 +89,8 @@ describe("visibleNav", () => {
     expect(visibleNav(["deliveries.manage"]).map((item) => item.key)).toEqual([
       "dashboard",
       "deliveryParties",
+      // Cash handed in by delivery parties is read with deliveries.manage (API 13.2).
+      "cashReceipts",
     ]);
   });
 
