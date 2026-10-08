@@ -17,6 +17,9 @@ export type PartyKind = DeliveryParty["kind"];
 export const PARTY_KINDS = ["internal_agent", "external_driver"] as const satisfies readonly PartyKind[];
 export const PARTY_FILTER_KEYS = ["kind", "status"] as const;
 export const STATEMENT_FILTER_KEYS = ["from", "to", "order_id"] as const;
+export type CashActivity = components["schemas"]["DeliveryPartyCashStatementEntry"];
+/** The custody overview's server sorts; goods value needs cost.view. */
+export const CUSTODY_SORT_KEYS = ["name", "cash_held", "orders_held", "oldest_item_age_days", "goods_value_iqd"] as const;
 
 /** Any of these lists parties (the picker, the list page). */
 export const PARTY_LIST_PERMISSIONS = ["deliveries.manage", "orders.assign_agent", "drivers.manage"] as const;

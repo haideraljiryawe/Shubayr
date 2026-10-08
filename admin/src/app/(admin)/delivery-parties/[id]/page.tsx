@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
-import { PageHeader } from "@/components/ui";
+import { buttonClasses, PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { loadPermissions } from "@/lib/api/inventory-server";
 import { load, serverApi } from "@/lib/api/server";
@@ -78,12 +78,29 @@ export default async function DeliveryPartyPage({
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("backToList")}
       </Link>
-      <PageHeader title={<span data-testid="party-name">{party.name}</span>} description={t("detail.description")} />
+      <PageHeader
+        title={<span data-testid="party-name">{party.name}</span>}
+        description={t("detail.description")}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/finance/cash-receipts?party_id=${id}`} className={buttonClasses({ variant: "secondary" })} data-testid="party-receipts">
+              {t("cash.receipts")}
+            </Link>
+            {/* Only when there is cash to hand in: no dead buttons. */}
+            {permissions.includes("cash_receipts.receive") && party.is_active && custody.data.cash.amount > 0 ? (
+              <Link href={`/finance/cash-receipts/new?party_id=${id}`} className={buttonClasses()} data-testid="party-receive">
+                {t("cash.receive")}
+              </Link>
+            ) : null}
+          </div>
+        }
+      />
       <PartyTabs partyId={id} active="custody" />
       <PartyView
         custody={custody.data}
         held={held.data.data}
         statement={statement.data.data}
+        cashActivity={statement.data.cash_activity}
         statementState={{ page: statement.data.page, perPage: statement.data.per_page, total: statement.data.total, sort: "occurred_at", dir: "asc" }}
         orderFilter={orderId}
         canViewCost={permissions.includes("cost.view")}

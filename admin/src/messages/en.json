@@ -33,7 +33,8 @@
     "suppliers": "Suppliers",
     "supplierPayments": "Supplier payments",
     "payables": "Payables & aging",
-    "deliveryParties": "Delivery parties"
+    "deliveryParties": "Delivery parties",
+    "cashReceipts": "Cash receipts"
   },
   "auth": {
     "signIn": "Sign in",
@@ -2304,7 +2305,9 @@
     "events": {
       "issue_to_custody": "Handed over",
       "custody_to_sold": "Delivered",
-      "return_in": "Brought back"
+      "return_in": "Brought back",
+      "custody_exception": "Custody exception",
+      "custody_exception_reversal": "Exception reversed"
     },
     "tabs": {
       "label": "Party views",
@@ -2318,6 +2321,39 @@
       "forOrder": "Showing order {number} only.",
       "allOrders": "All orders",
       "toConfirm": "This party's cash to confirm"
+    },
+    "listTabs": {
+      "label": "Delivery party views",
+      "parties": "All parties",
+      "custody": "Custody overview"
+    },
+    "custodyOverview": {
+      "title": "Custody overview",
+      "description": "What each delivery party holds right now: cash for the store, orders whose goods they carry, and the oldest item's age.",
+      "cashHeld": "Cash held",
+      "ordersHeld": "Orders held",
+      "receive": "Receive cash"
+    },
+    "cash": {
+      "receipts": "Cash receipts",
+      "receive": "Receive cash",
+      "title": "Cash activity",
+      "hint": "Cash collected for the store, handed in, and reversed, with the running balance — for the same dates and order as the statement above.",
+      "empty": "No cash activity.",
+      "document": "Order / voucher",
+      "amount": "Amount",
+      "unsettled": "Unsettled",
+      "running": "Cash held",
+      "paged": "Showing {shown} of {total}; page through the statement above for more."
+    },
+    "cashEvents": {
+      "collection_confirmed": "Collection confirmed",
+      "cash_received": "Cash handed in",
+      "cash_receipt_reversed": "Receipt reversed",
+      "custody_exception": "Custody exception",
+      "custody_exception_party_liability": "Charged to the party",
+      "custody_exception_reversed": "Exception reversed",
+      "trip_fare_netted": "Trip fare netted"
     }
   },
   "collections": {
@@ -2383,6 +2419,163 @@
       "partially_settled": "Partly settled",
       "settled": "Settled",
       "unsettled_amount": "Left to settle"
+    }
+  },
+  "cashReceipts": {
+    "receive": {
+      "title": "Receive cash",
+      "description": "Cash a delivery party hands in, into a cash account, and the orders it settles. Whatever isn't allocated now stays unallocated, to allocate later.",
+      "back": "All cash receipts",
+      "party": "Delivery party",
+      "pickParty": "Choose a party…",
+      "pickPartyHint": "Choose who is handing cash in to see what they hold and which orders aren't settled yet.",
+      "cashHeld": "Cash held for the store",
+      "partyPage": "Open {name}'s page",
+      "needsCashAccounts": "Receiving cash needs permission to view cash accounts.",
+      "noAccounts": "There is no active IQD cash account to receive into.",
+      "noAccountsLink": "Cash & bank accounts",
+      "amount": "Amount received (IQD)",
+      "amountHint": "At most the cash the party holds.",
+      "allHeld": "All held",
+      "cashAccount": "Into cash account",
+      "pickCash": "Choose an account…",
+      "reference": "Reference (optional)",
+      "notes": "Notes (optional)",
+      "allocationsTitle": "Orders this cash settles",
+      "allocationsBody": "Unsettled collections, oldest first. Allocate oldest first automatically, or type an amount per order. Whatever you don't allocate stays unallocated on the receipt.",
+      "noAllocatePermission": "Allocating to orders needs the cash_receipts.allocate permission; the whole amount will stay unallocated.",
+      "reviewBody": "Receive {amount} from {party}: {allocated} allocated to orders, {unallocated} unallocated. This posts once and can only be undone by a reversal.",
+      "openVoucher": "Open voucher {number}",
+      "another": "Receive more",
+      "edit": "Edit",
+      "confirm": "Confirm receipt",
+      "review": "Review",
+      "errors": {
+        "party": "Choose the party handing cash in.",
+        "cash": "Choose the cash account."
+      }
+    },
+    "allocation": {
+      "none": "No confirmed collections are waiting to be settled.",
+      "auto": "Auto-allocate oldest first",
+      "clear": "Clear",
+      "order": "Order",
+      "collectedAt": "Collected",
+      "collected": "Collected amount",
+      "settled": "Already settled",
+      "unsettled": "Unsettled",
+      "allocate": "Allocate",
+      "allocateTo": "Amount for order {order}",
+      "amount": "Amount",
+      "allocated": "Allocated",
+      "unallocated": "Unallocated"
+    },
+    "problems": {
+      "amount": "Enter the amount received, in whole dinars.",
+      "overCustody": "That is more than the cash this party holds.",
+      "overRow": "Order {order}: more than is unsettled on it.",
+      "overAmount": "The allocations add up to more than the amount.",
+      "invalidRow": "Order {order}: enter the amount in numbers."
+    },
+    "refusals": {
+      "overAllocation": "Refused: the allocations add up to more than what is still unallocated on this receipt. Someone may have allocated part of it meanwhile — reload and check.",
+      "wrongParty": "Refused: one of the orders was delivered by another party. A receipt can only settle the orders of the party who handed the cash in.",
+      "moreThanCollected": "Refused: an allocation is more than is still unsettled on that order. It may have been settled meanwhile — reload and check.",
+      "notConfirmed": "Refused: only orders whose collected cash is confirmed can be settled.",
+      "duplicateOrder": "Refused: an order appears twice in the allocations.",
+      "overCustody": "Refused: the amount is more than the cash this party holds now. Reload to see what they hold.",
+      "ownReceipt": "You posted this receipt, so you cannot reverse it. Another user must reverse it (separation of duties).",
+      "ownCustody": "You can't receive or settle cash from your own custody (separation of duties).",
+      "strictAllocation": "Under strict separation of duties another user must allocate this receipt. Receive it without allocations, then ask a colleague to allocate it.",
+      "alreadyReversed": "This receipt has already been reversed.",
+      "reversedReceipt": "A reversed receipt cannot be allocated.",
+      "inactiveParty": "This delivery party is inactive.",
+      "inactiveAccount": "This cash account is inactive.",
+      "collectionNotFound": "Refused: one of the orders has no delivered collection."
+    },
+    "detail": {
+      "title": "Cash receipt",
+      "description": "Cash handed in by a delivery party, the orders it settles, and its reversal if any.",
+      "back": "All cash receipts",
+      "status": "Status",
+      "statuses": {
+        "active": "Active",
+        "reversed": "Reversed"
+      },
+      "party": "Delivery party",
+      "cashAccount": "Cash account",
+      "documentDate": "Document date",
+      "amount": "Amount received",
+      "allocated": "Allocated",
+      "originalAllocated": "{amount} was allocated before the reversal",
+      "unallocated": "Unallocated",
+      "posted": "Posted",
+      "viewEntry": "Journal entry",
+      "reference": "Reference",
+      "notes": "Notes",
+      "backdateReason": "Back-dating reason",
+      "reversedBy": "Reversed by {number} on {date}",
+      "reversedNote": "The cash went back into the party's custody and the orders it settled are unsettled again. The original documents are kept as they were.",
+      "allocationsTitle": "Allocations",
+      "noAllocations": "Nothing has been allocated from this receipt.",
+      "batchInactive": "No longer in effect",
+      "allocateTitle": "Allocate the remainder",
+      "allocateBody": "Settle the party's unsettled orders from what is still unallocated on this receipt.",
+      "allocateEmpty": "Enter at least one amount to allocate.",
+      "allocateSubmit": "Allocate",
+      "reverse": "Reverse receipt",
+      "reverseTitle": "Reverse this receipt",
+      "reverseBody": "The cash goes back into the party's custody and every allocation from this receipt stops counting. The receipt itself is kept, marked reversed. The person who posted it cannot reverse it.",
+      "reverseReason": "Reason",
+      "reverseReasonRequired": "Give a reason (at least 3 characters).",
+      "cancel": "Cancel",
+      "reverseConfirm": "Reverse",
+      "notice": {
+        "allocated": "Allocated ({number}).",
+        "reversed": "Reversed ({number})."
+      }
+    },
+    "tabs": {
+      "label": "Cash receipt views",
+      "vouchers": "Vouchers",
+      "unallocated": "Unallocated"
+    },
+    "list": {
+      "title": "Cash receipts",
+      "description": "Cash handed in by delivery parties, newest first.",
+      "unallocatedDescription": "Active receipts with cash not yet allocated to orders, oldest first.",
+      "receive": "Receive cash",
+      "allocate": "Allocate",
+      "ignoredDates": "The start date is after the end date, so the date filter isn't applied.",
+      "caption": {
+        "vouchers": "Cash receipt vouchers",
+        "unallocated": "Receipts with an unallocated remainder"
+      },
+      "empty": {
+        "vouchers": "No cash receipts match.",
+        "unallocated": "Every receipt is fully allocated."
+      },
+      "columns": {
+        "number": "Voucher",
+        "date": "Date",
+        "party": "Delivery party",
+        "account": "Cash account",
+        "amount": "Amount",
+        "allocated": "Allocated",
+        "unallocated": "Unallocated",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "filters": {
+        "party": "Delivery party",
+        "anyParty": "All parties",
+        "account": "Cash account",
+        "anyAccount": "All accounts",
+        "from": "From",
+        "to": "To",
+        "status": "Status",
+        "anyStatus": "All"
+      }
     }
   }
 }
