@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 13.3.0
+  version: 13.4.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1836,11 +1836,13 @@ paths:
         - { name: date_to, in: query, description: Baghdad business date, schema: { type: string, format: date } }
         - { name: amount_min, in: query, description: Minimum amount due, schema: { type: number, minimum: 0 } }
         - { name: amount_max, in: query, description: Maximum amount due, schema: { type: number, minimum: 0 } }
+        - { name: sort_by, in: query, schema: { type: string, enum: [date, amount], default: date } }
+        - { name: sort_direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
         "200":
-          description: Oldest unconfirmed collection first
+          description: Paginated unconfirmed collections, newest first by default
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DeliveryCollectionPage" }
@@ -2310,6 +2312,8 @@ paths:
         - { name: date_to, in: query, schema: { type: string, format: date } }
         - { name: amount_min, in: query, description: Minimum amount due, schema: { type: number, minimum: 0 } }
         - { name: amount_max, in: query, description: Maximum amount due, schema: { type: number, minimum: 0 } }
+        - { name: sort_by, in: query, schema: { type: string, enum: [date, amount], default: date } }
+        - { name: sort_direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -2379,7 +2383,7 @@ paths:
     delete:
       tags: [Admin, Deliveries]
       summary: Delete an unused external driver or deactivate one with history
-      description: Once any assignment, custody, attempt, movement, or retrieval exists, the record is retained and made inactive.
+      description: Once any assignment, custody, attempt, movement, retrieval, or trip exists, the record is retained and made inactive.
       x-permission: drivers.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
@@ -2390,6 +2394,129 @@ paths:
               schema: { $ref: "#/components/schemas/ExternalDriverRemoval" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List external-driver trips
+      x-permission: trips.view
+      parameters:
+        - { name: driver_party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [open, in_progress, closed] } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated external-driver trips with orders and settlement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTripPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Admin, Deliveries]
+      summary: Create a numbered external-driver trip and fare agreement
+      description: Records exactly one store-paid or customer-direct fare before handover. A customer-direct fare never enters store revenue, expense, payable, collection, or netting.
+      x-permission: trips.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripCreate" }
+      responses:
+        "201":
+          description: Open trip
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTrip" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Get an external-driver trip with orders, events, fare and settlement
+      x-permission: trips.view
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: External-driver trip
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTrip" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/orders:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Add and hand over one ready order to the trip driver
+      description: Atomically reuses the delivery handover and goods-custody posting. For customer-direct fares the store delivery fee must be zero and documented customer acceptance is required.
+      x-permission: trips.manage
+      x-error-codes: [DOUBLE_DELIVERY_CHARGE, STALE_ORDER_STATE]
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripOrderAdd" }
+      responses:
+        "201":
+          description: Trip after handover
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTrip" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/start:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Start a prepared external-driver trip
+      description: Fare shares must sum to the trip's one fare before it starts.
+      x-permission: trips.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripEventInput" }
+      responses:
+        "200":
+          description: In-progress trip
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTrip" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/close:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Operationally close and settle an external-driver trip
+      description: Accrues one store-paid fare and optionally pays or nets it. Short cash remains open custody and excess receipts remain unallocated; neither becomes income, pay or loss automatically.
+      x-permission: trips.settle
+      x-error-codes: [TRIP_ORDERS_UNRESOLVED, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripClose" }
+      responses:
+        "200":
+          description: Closed trip; settlement may remain open as allowed by the spec
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTrip" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/orders/{id}:
     get:
@@ -6427,6 +6554,259 @@ components:
         id: { type: string, format: uuid }
         disposition: { type: string, enum: [deleted, deactivated] }
 
+    ExternalDriverTripCreate:
+      type: object
+      additionalProperties: false
+      required: [operation_id, driver_party_id, fare_bearer, fare_amount_iqd, fare_settlement_method, document_date]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        driver_party_id: { type: string, format: uuid }
+        fare_bearer: { type: string, enum: [store, customer_direct] }
+        fare_amount_iqd: { type: string, pattern: '^\d+(\.\d{1,6})?$' }
+        fare_settlement_method: { type: string, enum: [payable, cash_account, driver_keeps, customer_direct] }
+        fare_cash_account_id: { type: string, format: uuid }
+        failure_cancellation_agreement: { type: string, maxLength: 500 }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, maxLength: 500 }
+
+    ExternalDriverTripOrderAdd:
+      type: object
+      additionalProperties: false
+      required: [operation_id, order_id, order_version, fare_share_iqd, source, event_at]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        order_id: { type: string, format: uuid }
+        order_version: { type: integer, minimum: 1 }
+        fare_share_iqd: { type: string, pattern: '^\d+(\.\d{1,6})?$' }
+        source: { type: string, minLength: 1, maxLength: 120 }
+        event_at: { type: string, format: date-time }
+        customer_acceptance_note: { type: string, maxLength: 500, description: Required for a customer-direct fare. }
+
+    ExternalDriverTripEventInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, source, event_at]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        source: { type: string, minLength: 1, maxLength: 120 }
+        event_at: { type: string, format: date-time }
+
+    ExternalDriverTripClose:
+      type: object
+      additionalProperties: false
+      required: [operation_id, document_date, source, event_at]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, maxLength: 500 }
+        source: { type: string, minLength: 1, maxLength: 120 }
+        event_at: { type: string, format: date-time }
+
+    ExternalDriverTrip:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, status, driver, fare, settlement, orders, events, document_date, accounting_date, backdate_reason, created_by, created_at, started_by, started_at, closed_by, closed_at]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        status: { type: string, enum: [open, in_progress, closed] }
+        driver:
+          type: object
+          additionalProperties: false
+          required: [id, kind, name, phone, vehicle_number, is_active]
+          properties:
+            id: { type: string, format: uuid }
+            kind: { type: string, const: external_driver }
+            name: { type: string }
+            phone: { type: string }
+            vehicle_number: { type: [string, "null"] }
+            is_active: { type: boolean }
+        fare:
+          type: object
+          additionalProperties: false
+          required: [bearer, amount_iqd, settlement_method, cash_account, failure_cancellation_agreement, accrual_journal_entry_id, payment_journal_entry_id, netting_journal_entry_id]
+          properties:
+            bearer: { type: string, enum: [store, customer_direct] }
+            amount_iqd: { type: number, minimum: 0 }
+            settlement_method: { type: string, enum: [payable, cash_account, driver_keeps, customer_direct] }
+            cash_account:
+              oneOf:
+                - { $ref: "#/components/schemas/CashReceiptAccount" }
+                - { type: "null" }
+            failure_cancellation_agreement: { type: [string, "null"] }
+            accrual_journal_entry_id: { type: [string, "null"], format: uuid }
+            payment_journal_entry_id: { type: [string, "null"], format: uuid }
+            netting_journal_entry_id: { type: [string, "null"], format: uuid }
+        settlement:
+          type: object
+          additionalProperties: false
+          required: [expected_cash_iqd, received_cash_iqd, netted_fare_iqd, outstanding_cash_iqd, result, allocations]
+          properties:
+            expected_cash_iqd: { type: number, minimum: 0 }
+            received_cash_iqd: { type: number, minimum: 0 }
+            netted_fare_iqd: { type: number, minimum: 0 }
+            outstanding_cash_iqd: { type: number }
+            result: { type: string, enum: [settled, settlement_open] }
+            allocations:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [collection_id, order_id, order_number, amount_iqd]
+                properties:
+                  collection_id: { type: string, format: uuid }
+                  order_id: { type: string, format: uuid }
+                  order_number: { type: string }
+                  amount_iqd: { type: number, exclusiveMinimum: 0 }
+        orders:
+          type: array
+          items: { $ref: "#/components/schemas/ExternalDriverTripOrder" }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/ExternalDriverTripEvent" }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        started_by: { type: [string, "null"], format: uuid }
+        started_at: { type: [string, "null"], format: date-time }
+        closed_by: { type: [string, "null"], format: uuid }
+        closed_at: { type: [string, "null"], format: date-time }
+
+    ExternalDriverTripOrder:
+      type: object
+      additionalProperties: false
+      required: [id, order_number, status, version, amount_to_collect_iqd, store_delivery_fee_iqd, fare_share_iqd, customer_acceptance_note, handover_time, destination, items, delivery, collection, exceptions]
+      properties:
+        id: { type: string, format: uuid }
+        order_number: { type: string }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        version: { type: integer, minimum: 1 }
+        amount_to_collect_iqd: { type: number, minimum: 0 }
+        store_delivery_fee_iqd: { type: number, minimum: 0 }
+        fare_share_iqd: { type: number, minimum: 0 }
+        customer_acceptance_note: { type: [string, "null"] }
+        handover_time: { type: string, format: date-time }
+        destination:
+          type: object
+          additionalProperties: false
+          required: [city, area, street, details]
+          properties:
+            city: { type: string }
+            area: { type: [string, "null"] }
+            street: { type: [string, "null"] }
+            details: { type: [string, "null"] }
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, product_name_ar, product_name_en, quantity]
+            properties:
+              id: { type: string, format: uuid }
+              product_name_ar: { type: string }
+              product_name_en: { type: string }
+              quantity: { type: number, exclusiveMinimum: 0 }
+        delivery:
+          type: object
+          additionalProperties: false
+          required: [id, status, dispatched_at, delivered_at, failure_reason, attempts]
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
+            dispatched_at: { type: [string, "null"], format: date-time }
+            delivered_at: { type: [string, "null"], format: date-time }
+            failure_reason: { type: [string, "null"] }
+            attempts:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [attempt_number, status, reason, started_at, completed_at]
+                properties:
+                  attempt_number: { type: integer, minimum: 1 }
+                  status: { type: string }
+                  reason: { type: [string, "null"] }
+                  started_at: { type: string, format: date-time }
+                  completed_at: { type: [string, "null"], format: date-time }
+        collection:
+          oneOf:
+            - $ref: "#/components/schemas/ExternalDriverTripCollection"
+            - { type: "null" }
+        exceptions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, document_number, type, amount_iqd, liability_bearer]
+            properties:
+              id: { type: string, format: uuid }
+              document_number: { type: string }
+              type: { type: string, enum: [goods_loss, return_against_uncollected, delivery_fee_refund] }
+              amount_iqd: { type: number, minimum: 0 }
+              liability_bearer: { type: [string, "null"], enum: [store, party, null] }
+
+    ExternalDriverTripCollection:
+      type: object
+      additionalProperties: false
+      required: [id, status, due_amount_iqd, collected_amount_iqd, shortfall_amount_iqd]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [confirmed_full, confirmed_short, unconfirmed] }
+        due_amount_iqd: { type: number, minimum: 0 }
+        collected_amount_iqd: { type: [number, "null"], minimum: 0 }
+        shortfall_amount_iqd: { type: [number, "null"], minimum: 0 }
+
+    ExternalDriverTripEvent:
+      type: object
+      additionalProperties: false
+      required: [id, trip_id, order_id, operation_id, type, source, note, event_at, recorded_by, recorded_at]
+      properties:
+        id: { type: string, format: uuid }
+        trip_id: { type: string, format: uuid }
+        order_id: { type: [string, "null"], format: uuid }
+        operation_id: { type: string }
+        type: { type: string, enum: [handover, started, closed] }
+        source: { type: string }
+        note: { type: [string, "null"] }
+        event_at: { type: string, format: date-time }
+        recorded_by: { type: string, format: uuid }
+        recorded_at: { type: string, format: date-time }
+
+    ExternalDriverTripStatement:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, status, fare_bearer, fare_amount_iqd, fare_settlement_method, expected_cash_iqd, received_cash_iqd, netted_fare_iqd, outstanding_cash_iqd, settlement_result, order_count, document_date, started_at, closed_at]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        status: { type: string, enum: [open, in_progress, closed] }
+        fare_bearer: { type: string, enum: [store, customer_direct] }
+        fare_amount_iqd: { type: number, minimum: 0 }
+        fare_settlement_method: { type: string, enum: [payable, cash_account, driver_keeps, customer_direct] }
+        expected_cash_iqd: { type: [number, "null"], minimum: 0 }
+        received_cash_iqd: { type: [number, "null"], minimum: 0 }
+        netted_fare_iqd: { type: [number, "null"], minimum: 0 }
+        outstanding_cash_iqd: { type: [number, "null"] }
+        settlement_result: { type: [string, "null"], enum: [settled, settlement_open, null] }
+        order_count: { type: integer, minimum: 0 }
+        document_date: { type: string, format: date }
+        started_at: { type: [string, "null"], format: date-time }
+        closed_at: { type: [string, "null"], format: date-time }
+
+    ExternalDriverTripPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/ExternalDriverTrip" }
+
     CustodyProduct:
       type: object
       additionalProperties: false
@@ -6510,7 +6890,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/Pagination"
         - type: object
-          required: [party, data, cash_activity]
+          required: [party, data, cash_activity, trips]
           properties:
             party: { $ref: "#/components/schemas/DeliveryParty" }
             data:
@@ -6525,6 +6905,9 @@ components:
                 data:
                   type: array
                   items: { $ref: "#/components/schemas/DeliveryPartyCashStatementEntry" }
+            trips:
+              type: array
+              items: { $ref: "#/components/schemas/ExternalDriverTripStatement" }
 
     DeliveryPartyCashStatementEntry:
       type: object
@@ -6532,7 +6915,7 @@ components:
       required: [id, event, occurred_at, business_date, order_id, order_number, voucher_id, voucher_document_number, amount_iqd, allocated_amount_iqd, unsettled_amount_iqd, allocation_orders, running_cash_iqd]
       properties:
         id: { type: string, format: uuid }
-        event: { type: string, enum: [collection_confirmed, cash_received, cash_receipt_reversed, custody_exception, custody_exception_party_liability, custody_exception_reversed] }
+        event: { type: string, enum: [collection_confirmed, cash_received, cash_receipt_reversed, custody_exception, custody_exception_party_liability, custody_exception_reversed, trip_fare_netted] }
         occurred_at: { type: string, format: date-time }
         business_date: { type: string, format: date }
         order_id: { type: [string, "null"], format: uuid }
@@ -6596,6 +6979,8 @@ components:
         confirmation_journal_entry_id: { type: [string, "null"], format: uuid }
         settlement_status: { type: string, enum: [unconfirmed, unsettled, partially_settled, settled], description: Present on staff collection-list responses. }
         allocated_amount_iqd: { type: number, minimum: 0, description: Active receipt allocations; present on staff collection-list responses. }
+        receipt_allocated_amount_iqd: { type: number, minimum: 0, description: Cash receipt allocations only; present on staff collection-list responses. }
+        fare_netted_amount_iqd: { type: number, minimum: 0, description: Approved trip fare netted against this collection; present on staff collection-list responses. }
         unsettled_amount_iqd: { type: [number, "null"], minimum: 0, description: Confirmed collected amount not yet allocated; present on staff collection-list responses. }
         exception_offset_iqd: { type: number, minimum: 0, description: Active return/refund amount netted against the collection shortfall; present on staff collection-list responses. }
         uncollected_amount_iqd: { type: [number, "null"], minimum: 0, description: Remaining shortfall after active custody exceptions; present on staff collection-list responses. }
@@ -6628,6 +7013,19 @@ components:
               voucher_id: { type: string, format: uuid }
               voucher_document_number: { type: string }
               voucher_document_date: { type: string, format: date }
+              amount_iqd: { type: number, exclusiveMinimum: 0 }
+              created_at: { type: string, format: date-time }
+        fare_nettings:
+          type: array
+          description: Approved store-paid trip fare amounts settling this collection; present on staff collection-list responses.
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, trip_id, trip_document_number, amount_iqd, created_at]
+            properties:
+              id: { type: string, format: uuid }
+              trip_id: { type: string, format: uuid }
+              trip_document_number: { type: string }
               amount_iqd: { type: number, exclusiveMinimum: 0 }
               created_at: { type: string, format: date-time }
         order:

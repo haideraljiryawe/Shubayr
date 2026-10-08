@@ -3803,6 +3803,8 @@ export interface paths {
                     amount_min?: number;
                     /** @description Maximum amount due */
                     amount_max?: number;
+                    sort_by?: "date" | "amount";
+                    sort_direction?: "asc" | "desc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -3812,7 +3814,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Oldest unconfirmed collection first */
+                /** @description Paginated unconfirmed collections, newest first by default */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -4891,6 +4893,8 @@ export interface paths {
                     amount_min?: number;
                     /** @description Maximum amount due */
                     amount_max?: number;
+                    sort_by?: "date" | "amount";
+                    sort_direction?: "asc" | "desc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -5005,7 +5009,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an unused external driver or deactivate one with history
-         * @description Once any assignment, custody, attempt, movement, or retrieval exists, the record is retained and made inactive.
+         * @description Once any assignment, custody, attempt, movement, retrieval, or trip exists, the record is retained and made inactive.
          */
         delete: {
             parameters: {
@@ -5064,6 +5068,270 @@ export interface paths {
                 422: components["responses"]["Validation"];
             };
         };
+        trace?: never;
+    };
+    "/admin/external-driver-trips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List external-driver trips */
+        get: {
+            parameters: {
+                query?: {
+                    driver_party_id?: string;
+                    status?: "open" | "in_progress" | "closed";
+                    date_from?: string;
+                    date_to?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated external-driver trips with orders and settlement */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverTripPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        /**
+         * Create a numbered external-driver trip and fare agreement
+         * @description Records exactly one store-paid or customer-direct fare before handover. A customer-direct fare never enters store revenue, expense, payable, collection, or netting.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalDriverTripCreate"];
+                };
+            };
+            responses: {
+                /** @description Open trip */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverTrip"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/external-driver-trips/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an external-driver trip with orders, events, fare and settlement */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description External-driver trip */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverTrip"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/external-driver-trips/{id}/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add and hand over one ready order to the trip driver
+         * @description Atomically reuses the delivery handover and goods-custody posting. For customer-direct fares the store delivery fee must be zero and documented customer acceptance is required.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalDriverTripOrderAdd"];
+                };
+            };
+            responses: {
+                /** @description Trip after handover */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverTrip"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/external-driver-trips/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a prepared external-driver trip
+         * @description Fare shares must sum to the trip's one fare before it starts.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalDriverTripEventInput"];
+                };
+            };
+            responses: {
+                /** @description In-progress trip */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverTrip"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/external-driver-trips/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Operationally close and settle an external-driver trip
+         * @description Accrues one store-paid fare and optionally pays or nets it. Short cash remains open custody and excess receipts remain unallocated; neither becomes income, pay or loss automatically.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalDriverTripClose"];
+                };
+            };
+            responses: {
+                /** @description Closed trip; settlement may remain open as allowed by the spec */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverTrip"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/admin/orders/{id}": {
@@ -11627,6 +11895,233 @@ export interface components {
             /** @enum {string} */
             disposition: "deleted" | "deactivated";
         };
+        ExternalDriverTripCreate: {
+            operation_id: string;
+            /** Format: uuid */
+            driver_party_id: string;
+            /** @enum {string} */
+            fare_bearer: "store" | "customer_direct";
+            fare_amount_iqd: string;
+            /** @enum {string} */
+            fare_settlement_method: "payable" | "cash_account" | "driver_keeps" | "customer_direct";
+            /** Format: uuid */
+            fare_cash_account_id?: string;
+            failure_cancellation_agreement?: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+        };
+        ExternalDriverTripOrderAdd: {
+            operation_id: string;
+            /** Format: uuid */
+            order_id: string;
+            order_version: number;
+            fare_share_iqd: string;
+            source: string;
+            /** Format: date-time */
+            event_at: string;
+            /** @description Required for a customer-direct fare. */
+            customer_acceptance_note?: string;
+        };
+        ExternalDriverTripEventInput: {
+            operation_id: string;
+            source: string;
+            /** Format: date-time */
+            event_at: string;
+        };
+        ExternalDriverTripClose: {
+            operation_id: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+            source: string;
+            /** Format: date-time */
+            event_at: string;
+        };
+        ExternalDriverTrip: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            /** @enum {string} */
+            status: "open" | "in_progress" | "closed";
+            driver: {
+                /** Format: uuid */
+                id: string;
+                /** @constant */
+                kind: "external_driver";
+                name: string;
+                phone: string;
+                vehicle_number: string | null;
+                is_active: boolean;
+            };
+            fare: {
+                /** @enum {string} */
+                bearer: "store" | "customer_direct";
+                amount_iqd: number;
+                /** @enum {string} */
+                settlement_method: "payable" | "cash_account" | "driver_keeps" | "customer_direct";
+                cash_account: components["schemas"]["CashReceiptAccount"] | null;
+                failure_cancellation_agreement: string | null;
+                /** Format: uuid */
+                accrual_journal_entry_id: string | null;
+                /** Format: uuid */
+                payment_journal_entry_id: string | null;
+                /** Format: uuid */
+                netting_journal_entry_id: string | null;
+            };
+            settlement: {
+                expected_cash_iqd: number;
+                received_cash_iqd: number;
+                netted_fare_iqd: number;
+                outstanding_cash_iqd: number;
+                /** @enum {string} */
+                result: "settled" | "settlement_open";
+                allocations: {
+                    /** Format: uuid */
+                    collection_id: string;
+                    /** Format: uuid */
+                    order_id: string;
+                    order_number: string;
+                    amount_iqd: number;
+                }[];
+            };
+            orders: components["schemas"]["ExternalDriverTripOrder"][];
+            events: components["schemas"]["ExternalDriverTripEvent"][];
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            backdate_reason: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: uuid */
+            started_by: string | null;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: uuid */
+            closed_by: string | null;
+            /** Format: date-time */
+            closed_at: string | null;
+        };
+        ExternalDriverTripOrder: {
+            /** Format: uuid */
+            id: string;
+            order_number: string;
+            status: components["schemas"]["OrderStatus"];
+            version: number;
+            amount_to_collect_iqd: number;
+            store_delivery_fee_iqd: number;
+            fare_share_iqd: number;
+            customer_acceptance_note: string | null;
+            /** Format: date-time */
+            handover_time: string;
+            destination: {
+                city: string;
+                area: string | null;
+                street: string | null;
+                details: string | null;
+            };
+            items: {
+                /** Format: uuid */
+                id: string;
+                product_name_ar: string;
+                product_name_en: string;
+                quantity: number;
+            }[];
+            delivery: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                status: "assigned" | "out_for_delivery" | "delivered" | "failed" | "returned";
+                /** Format: date-time */
+                dispatched_at: string | null;
+                /** Format: date-time */
+                delivered_at: string | null;
+                failure_reason: string | null;
+                attempts: {
+                    attempt_number: number;
+                    status: string;
+                    reason: string | null;
+                    /** Format: date-time */
+                    started_at: string;
+                    /** Format: date-time */
+                    completed_at: string | null;
+                }[];
+            };
+            collection: components["schemas"]["ExternalDriverTripCollection"] | null;
+            exceptions: {
+                /** Format: uuid */
+                id: string;
+                document_number: string;
+                /** @enum {string} */
+                type: "goods_loss" | "return_against_uncollected" | "delivery_fee_refund";
+                amount_iqd: number;
+                /** @enum {string|null} */
+                liability_bearer: "store" | "party" | null;
+            }[];
+        };
+        ExternalDriverTripCollection: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "confirmed_full" | "confirmed_short" | "unconfirmed";
+            due_amount_iqd: number;
+            collected_amount_iqd: number | null;
+            shortfall_amount_iqd: number | null;
+        };
+        ExternalDriverTripEvent: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            trip_id: string;
+            /** Format: uuid */
+            order_id: string | null;
+            operation_id: string;
+            /** @enum {string} */
+            type: "handover" | "started" | "closed";
+            source: string;
+            note: string | null;
+            /** Format: date-time */
+            event_at: string;
+            /** Format: uuid */
+            recorded_by: string;
+            /** Format: date-time */
+            recorded_at: string;
+        };
+        ExternalDriverTripStatement: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            /** @enum {string} */
+            status: "open" | "in_progress" | "closed";
+            /** @enum {string} */
+            fare_bearer: "store" | "customer_direct";
+            fare_amount_iqd: number;
+            /** @enum {string} */
+            fare_settlement_method: "payable" | "cash_account" | "driver_keeps" | "customer_direct";
+            expected_cash_iqd: number | null;
+            received_cash_iqd: number | null;
+            netted_fare_iqd: number | null;
+            outstanding_cash_iqd: number | null;
+            /** @enum {string|null} */
+            settlement_result: "settled" | "settlement_open" | null;
+            order_count: number;
+            /** Format: date */
+            document_date: string;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            closed_at: string | null;
+        };
+        ExternalDriverTripPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["ExternalDriverTrip"][];
+        };
         CustodyProduct: {
             /** Format: uuid */
             id: string;
@@ -11705,12 +12200,13 @@ export interface components {
                 total: number;
                 data: components["schemas"]["DeliveryPartyCashStatementEntry"][];
             };
+            trips: components["schemas"]["ExternalDriverTripStatement"][];
         };
         DeliveryPartyCashStatementEntry: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            event: "collection_confirmed" | "cash_received" | "cash_receipt_reversed" | "custody_exception" | "custody_exception_party_liability" | "custody_exception_reversed";
+            event: "collection_confirmed" | "cash_received" | "cash_receipt_reversed" | "custody_exception" | "custody_exception_party_liability" | "custody_exception_reversed" | "trip_fare_netted";
             /** Format: date-time */
             occurred_at: string;
             /** Format: date */
@@ -11780,6 +12276,10 @@ export interface components {
             settlement_status?: "unconfirmed" | "unsettled" | "partially_settled" | "settled";
             /** @description Active receipt allocations; present on staff collection-list responses. */
             allocated_amount_iqd?: number;
+            /** @description Cash receipt allocations only; present on staff collection-list responses. */
+            receipt_allocated_amount_iqd?: number;
+            /** @description Approved trip fare netted against this collection; present on staff collection-list responses. */
+            fare_netted_amount_iqd?: number;
             /** @description Confirmed collected amount not yet allocated; present on staff collection-list responses. */
             unsettled_amount_iqd?: number | null;
             /** @description Active return/refund amount netted against the collection shortfall; present on staff collection-list responses. */
@@ -11812,6 +12312,17 @@ export interface components {
                 voucher_document_number: string;
                 /** Format: date */
                 voucher_document_date: string;
+                amount_iqd: number;
+                /** Format: date-time */
+                created_at: string;
+            }[];
+            /** @description Approved store-paid trip fare amounts settling this collection; present on staff collection-list responses. */
+            fare_nettings?: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                trip_id: string;
+                trip_document_number: string;
                 amount_iqd: number;
                 /** Format: date-time */
                 created_at: string;

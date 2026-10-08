@@ -147,6 +147,9 @@ model JournalEntry {
   custody_exception_posting          CustodyExceptionPosting?
   custody_exception_reversal_posting CustodyExceptionReversalPosting? @relation("CustodyExceptionReversalJournal")
   reversed_custody_exception_posting CustodyExceptionReversalPosting? @relation("CustodyExceptionOriginalJournal")
+  trip_fare_accrual                  ExternalDriverTrip?              @relation("ExternalDriverTripFareAccrual")
+  trip_fare_payment                  ExternalDriverTrip?              @relation("ExternalDriverTripFarePayment")
+  trip_fare_netting                  ExternalDriverTrip?              @relation("ExternalDriverTripFareNetting")
 
   @@unique([source_type, source_id, event], map: "journal_entries_source_event_key")
   @@index([accounting_date, id], map: "idx_journal_entries_accounting_date")
@@ -173,22 +176,23 @@ model JournalLine {
 }
 
 model CashAccount {
-  id                        String               @id(map: "cash_accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                      String               @db.VarChar(160)
-  kind                      String               @db.VarChar(12)
-  currency_code             String               @db.Char(3)
-  ledger_account_id         String               @unique(map: "cash_accounts_ledger_account_id_key") @db.Uuid
-  is_active                 Boolean              @default(true)
-  created_at                DateTime             @default(now()) @db.Timestamptz(6)
-  updated_at                DateTime             @default(now()) @db.Timestamptz(6)
-  currency                  Currency             @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_currency_code_fkey")
-  ledger_account            LedgerAccount        @relation(fields: [ledger_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_ledger_account_id_fkey")
-  transfers_from            CashTransfer[]       @relation("CashTransferFrom")
-  transfers_to              CashTransfer[]       @relation("CashTransferTo")
-  opening_balances          CashOpeningBalance[]
-  supplier_payments         SupplierPayment[]
-  cash_receipts             CashReceiptVoucher[]
-  custody_exception_refunds CustodyException[]
+  id                         String               @id(map: "cash_accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                       String               @db.VarChar(160)
+  kind                       String               @db.VarChar(12)
+  currency_code              String               @db.Char(3)
+  ledger_account_id          String               @unique(map: "cash_accounts_ledger_account_id_key") @db.Uuid
+  is_active                  Boolean              @default(true)
+  created_at                 DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime             @default(now()) @db.Timestamptz(6)
+  currency                   Currency             @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_currency_code_fkey")
+  ledger_account             LedgerAccount        @relation(fields: [ledger_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_ledger_account_id_fkey")
+  transfers_from             CashTransfer[]       @relation("CashTransferFrom")
+  transfers_to               CashTransfer[]       @relation("CashTransferTo")
+  opening_balances           CashOpeningBalance[]
+  supplier_payments          SupplierPayment[]
+  cash_receipts              CashReceiptVoucher[]
+  custody_exception_refunds  CustodyException[]
+  external_driver_trip_fares ExternalDriverTrip[]
 
   @@map("cash_accounts")
 }
@@ -321,71 +325,76 @@ model RolePermission {
 }
 
 model User {
-  id                                  String                          @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  role_id                             String?                         @db.Uuid
-  name                                String?                         @db.VarChar(120)
-  phone                               String?                         @unique(map: "users_phone_key") @db.VarChar(32)
-  username                            String?                         @unique(map: "users_username_key") @db.VarChar(80)
-  email                               String?                         @db.VarChar(160)
-  password_hash                       String?                         @db.VarChar(255)
-  must_change_password                Boolean                         @default(false)
-  failed_login_attempts               Int                             @default(0)
-  locked_until                        DateTime?                       @db.Timestamptz(6)
-  session_version                     Int                             @default(1)
-  permission_version                  Int                             @default(1)
-  is_active                           Boolean                         @default(true)
-  created_at                          DateTime                        @default(now()) @db.Timestamptz(6)
-  updated_at                          DateTime                        @default(now()) @db.Timestamptz(6)
-  role                                Role?                           @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
-  work_profile                        WorkProfile?
-  delivery_party                      DeliveryParty?
-  permission_presets                  UserPreset[]                    @relation("UserAccessPresets")
-  assigned_permission_presets         UserPreset[]                    @relation("UserAccessPresetActors")
-  permission_grants                   UserPermissionGrant[]           @relation("UserAccessGrants")
-  assigned_permission_grants          UserPermissionGrant[]           @relation("UserAccessGrantActors")
-  addresses                           Address[]
-  purchase_invoices                   PurchaseInvoice[]               @relation("PurchaseInvoiceCreatedBy")
-  stock_movements                     StockMovement[]                 @relation("StockMovementUser")
-  inventory_openings                  InventoryOpening[]              @relation("InventoryOpeningCreator")
-  supplier_opening_balances           SupplierOpeningBalance[]        @relation("SupplierOpeningBalanceCreator")
-  supplier_payments                   SupplierPayment[]               @relation("SupplierPaymentCreator")
-  supplier_returns                    SupplierReturn[]                @relation("SupplierReturnCreator")
-  purchase_cost_corrections           PurchaseCostCorrection[]        @relation("PurchaseCostCorrectionCreator")
-  stock_transfers                     StockTransfer[]                 @relation("StockTransferCreator")
-  stock_counts                        StockCount[]                    @relation("StockCountCreator")
-  approved_stock_counts               StockCount[]                    @relation("StockCountApprover")
-  inventory_write_downs               InventoryWriteDown[]            @relation("InventoryWriteDownCreator")
-  cart                                Cart?
-  wishlist_items                      WishlistItem[]
-  orders                              Order[]
-  assigned_pick_lists                 PickList[]                      @relation("PickListAssignee")
-  created_retrievals                  Retrieval[]                     @relation("RetrievalCreator")
-  closed_retrievals                   Retrieval[]                     @relation("RetrievalCloser")
-  returns                             Return[]
-  reviewed_returns                    Return[]                        @relation("ReturnReviewer")
-  refund_ledger_entries               RefundLedgerEntry[]             @relation("RefundCreator")
-  product_reviews                     ProductReview[]
-  moderated_product_reviews           ProductReview[]                 @relation("ProductReviewModerator")
-  delivery_ratings_as_agent           DeliveryRating[]                @relation("DeliveryRatingAgent")
-  delivery_ratings_as_user            DeliveryRating[]                @relation("DeliveryRatingUser")
-  loyalty_account                     LoyaltyAccount?
-  created_loyalty_entries             LoyaltyLedger[]                 @relation("LoyaltyLedgerCreator")
-  audit_logs                          AuditLog[]                      @relation("AuditActor")
-  device_tokens                       DeviceToken[]
-  notification_preferences            NotificationPreference?
-  notification_channels               NotificationChannelPreference[]
-  notification_events                 NotificationEvent[]
-  notification_logs                   NotificationLog[]
-  notification_stream_events          NotificationStreamEvent[]
-  refresh_tokens                      RefreshToken[]
-  uploaded_media                      MediaObject[]                   @relation("MediaUploadedBy")
-  proposed_price_publishes            PricePublishApproval[]          @relation("PricePublishApprovalProposer")
-  decided_price_publishes             PricePublishApproval[]          @relation("PricePublishApprovalDecider")
-  created_cash_receipts               CashReceiptVoucher[]            @relation("CashReceiptCreator")
-  created_cash_allocations            CashReceiptAllocationBatch[]    @relation("CashReceiptAllocationCreator")
-  created_cash_reversals              CashReceiptReversal[]           @relation("CashReceiptReversalCreator")
-  created_custody_exceptions          CustodyException[]              @relation("CustodyExceptionCreator")
-  created_custody_exception_reversals CustodyExceptionReversal[]      @relation("CustodyExceptionReversalCreator")
+  id                                   String                          @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role_id                              String?                         @db.Uuid
+  name                                 String?                         @db.VarChar(120)
+  phone                                String?                         @unique(map: "users_phone_key") @db.VarChar(32)
+  username                             String?                         @unique(map: "users_username_key") @db.VarChar(80)
+  email                                String?                         @db.VarChar(160)
+  password_hash                        String?                         @db.VarChar(255)
+  must_change_password                 Boolean                         @default(false)
+  failed_login_attempts                Int                             @default(0)
+  locked_until                         DateTime?                       @db.Timestamptz(6)
+  session_version                      Int                             @default(1)
+  permission_version                   Int                             @default(1)
+  is_active                            Boolean                         @default(true)
+  created_at                           DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                           DateTime                        @default(now()) @db.Timestamptz(6)
+  role                                 Role?                           @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_role_id_fkey")
+  work_profile                         WorkProfile?
+  delivery_party                       DeliveryParty?
+  permission_presets                   UserPreset[]                    @relation("UserAccessPresets")
+  assigned_permission_presets          UserPreset[]                    @relation("UserAccessPresetActors")
+  permission_grants                    UserPermissionGrant[]           @relation("UserAccessGrants")
+  assigned_permission_grants           UserPermissionGrant[]           @relation("UserAccessGrantActors")
+  addresses                            Address[]
+  purchase_invoices                    PurchaseInvoice[]               @relation("PurchaseInvoiceCreatedBy")
+  stock_movements                      StockMovement[]                 @relation("StockMovementUser")
+  inventory_openings                   InventoryOpening[]              @relation("InventoryOpeningCreator")
+  supplier_opening_balances            SupplierOpeningBalance[]        @relation("SupplierOpeningBalanceCreator")
+  supplier_payments                    SupplierPayment[]               @relation("SupplierPaymentCreator")
+  supplier_returns                     SupplierReturn[]                @relation("SupplierReturnCreator")
+  purchase_cost_corrections            PurchaseCostCorrection[]        @relation("PurchaseCostCorrectionCreator")
+  stock_transfers                      StockTransfer[]                 @relation("StockTransferCreator")
+  stock_counts                         StockCount[]                    @relation("StockCountCreator")
+  approved_stock_counts                StockCount[]                    @relation("StockCountApprover")
+  inventory_write_downs                InventoryWriteDown[]            @relation("InventoryWriteDownCreator")
+  cart                                 Cart?
+  wishlist_items                       WishlistItem[]
+  orders                               Order[]
+  assigned_pick_lists                  PickList[]                      @relation("PickListAssignee")
+  created_retrievals                   Retrieval[]                     @relation("RetrievalCreator")
+  closed_retrievals                    Retrieval[]                     @relation("RetrievalCloser")
+  returns                              Return[]
+  reviewed_returns                     Return[]                        @relation("ReturnReviewer")
+  refund_ledger_entries                RefundLedgerEntry[]             @relation("RefundCreator")
+  product_reviews                      ProductReview[]
+  moderated_product_reviews            ProductReview[]                 @relation("ProductReviewModerator")
+  delivery_ratings_as_agent            DeliveryRating[]                @relation("DeliveryRatingAgent")
+  delivery_ratings_as_user             DeliveryRating[]                @relation("DeliveryRatingUser")
+  loyalty_account                      LoyaltyAccount?
+  created_loyalty_entries              LoyaltyLedger[]                 @relation("LoyaltyLedgerCreator")
+  audit_logs                           AuditLog[]                      @relation("AuditActor")
+  device_tokens                        DeviceToken[]
+  notification_preferences             NotificationPreference?
+  notification_channels                NotificationChannelPreference[]
+  notification_events                  NotificationEvent[]
+  notification_logs                    NotificationLog[]
+  notification_stream_events           NotificationStreamEvent[]
+  refresh_tokens                       RefreshToken[]
+  uploaded_media                       MediaObject[]                   @relation("MediaUploadedBy")
+  proposed_price_publishes             PricePublishApproval[]          @relation("PricePublishApprovalProposer")
+  decided_price_publishes              PricePublishApproval[]          @relation("PricePublishApprovalDecider")
+  created_cash_receipts                CashReceiptVoucher[]            @relation("CashReceiptCreator")
+  created_cash_allocations             CashReceiptAllocationBatch[]    @relation("CashReceiptAllocationCreator")
+  created_cash_reversals               CashReceiptReversal[]           @relation("CashReceiptReversalCreator")
+  created_custody_exceptions           CustodyException[]              @relation("CustodyExceptionCreator")
+  created_custody_exception_reversals  CustodyExceptionReversal[]      @relation("CustodyExceptionReversalCreator")
+  created_external_driver_trips        ExternalDriverTrip[]            @relation("ExternalDriverTripCreator")
+  started_external_driver_trips        ExternalDriverTrip[]            @relation("ExternalDriverTripStarter")
+  closed_external_driver_trips         ExternalDriverTrip[]            @relation("ExternalDriverTripCloser")
+  handed_over_external_trip_orders     ExternalDriverTripOrder[]
+  recorded_external_driver_trip_events ExternalDriverTripEvent[]       @relation("ExternalDriverTripEventRecorder")
 
   @@map("users")
 }
@@ -504,6 +513,7 @@ model DeliveryParty {
   collections             DeliveryCollection[]
   cash_receipts           CashReceiptVoucher[]
   custody_exceptions      CustodyException[]
+  external_driver_trips   ExternalDriverTrip[] @relation("ExternalDriverTripParty")
 
   @@index([kind, is_active, name], map: "idx_delivery_parties_kind_active_name")
   @@index([phone], map: "idx_delivery_parties_phone")
@@ -1418,55 +1428,55 @@ model Coupon {
 }
 
 model Order {
-  id                           String              @id(map: "orders_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                      String              @db.Uuid
-  address_id                   String?             @db.Uuid
-  delivery_id                  String?             @unique(map: "orders_delivery_id_key") @db.Uuid
-  coupon_id                    String?             @db.Uuid
-  order_number                 String              @unique(map: "orders_order_number_key") @db.VarChar(40)
-  idempotency_key              String?             @db.VarChar(128)
-  idempotency_fingerprint      String?             @db.VarChar(64)
-  status                       String              @default("pending") @db.VarChar(30)
-  version                      Int                 @default(1)
-  payment_method               String              @default("cod") @db.VarChar(20)
-  subtotal                     Decimal             @default(0) @db.Decimal(20, 6)
-  delivery_fee                 Decimal             @default(0) @db.Decimal(20, 6)
-  discount                     Decimal             @default(0) @db.Decimal(20, 6)
-  total                        Decimal             @default(0) @db.Decimal(20, 6)
-  currency_code                String              @default("IQD") @db.Char(3)
-  document_date                DateTime            @db.Date
-  accounting_date              DateTime            @db.Date
-  delivery_contact_phone       String              @db.VarChar(32)
-  delivery_address_label       String?             @db.VarChar(80)
-  delivery_city                String              @db.VarChar(80)
-  delivery_area                String?             @db.VarChar(120)
-  delivery_street              String?             @db.VarChar(160)
-  delivery_details             String?             @db.Text
-  delivery_lat                 Float?              @db.DoublePrecision
-  delivery_lng                 Float?              @db.DoublePrecision
-  placed_at                    DateTime            @default(now()) @db.Timestamptz(6)
-  acceptance_deadline          DateTime?           @db.Timestamptz(6)
-  auto_cancel_deadline         DateTime?           @db.Timestamptz(6)
-  late_for_acceptance          Boolean             @default(false)
-  acceptance_alerted_at        DateTime?           @db.Timestamptz(6)
-  cancellation_request_status  String?             @db.VarChar(20)
-  cancellation_request_reason  String?             @db.VarChar(500)
-  cancellation_requested_at    DateTime?           @db.Timestamptz(6)
-  cancellation_resolved_at     DateTime?           @db.Timestamptz(6)
-  cancellation_resolved_by     String?             @db.Uuid
-  cancellation_resolution_note String?             @db.VarChar(500)
-  price_change_info            Json?               @db.JsonB
-  attention_details            Json?               @db.JsonB
-  inventory_attention_required Boolean             @default(false)
-  user                         User                @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_user_id_fkey")
-  address                      Address?            @relation(fields: [address_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_address_id_fkey")
-  delivery                     Delivery?           @relation("OrderCurrentDelivery", fields: [delivery_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_delivery_id_fkey")
-  coupon                       Coupon?             @relation(fields: [coupon_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_coupon_id_fkey")
+  id                           String                    @id(map: "orders_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                      String                    @db.Uuid
+  address_id                   String?                   @db.Uuid
+  delivery_id                  String?                   @unique(map: "orders_delivery_id_key") @db.Uuid
+  coupon_id                    String?                   @db.Uuid
+  order_number                 String                    @unique(map: "orders_order_number_key") @db.VarChar(40)
+  idempotency_key              String?                   @db.VarChar(128)
+  idempotency_fingerprint      String?                   @db.VarChar(64)
+  status                       String                    @default("pending") @db.VarChar(30)
+  version                      Int                       @default(1)
+  payment_method               String                    @default("cod") @db.VarChar(20)
+  subtotal                     Decimal                   @default(0) @db.Decimal(20, 6)
+  delivery_fee                 Decimal                   @default(0) @db.Decimal(20, 6)
+  discount                     Decimal                   @default(0) @db.Decimal(20, 6)
+  total                        Decimal                   @default(0) @db.Decimal(20, 6)
+  currency_code                String                    @default("IQD") @db.Char(3)
+  document_date                DateTime                  @db.Date
+  accounting_date              DateTime                  @db.Date
+  delivery_contact_phone       String                    @db.VarChar(32)
+  delivery_address_label       String?                   @db.VarChar(80)
+  delivery_city                String                    @db.VarChar(80)
+  delivery_area                String?                   @db.VarChar(120)
+  delivery_street              String?                   @db.VarChar(160)
+  delivery_details             String?                   @db.Text
+  delivery_lat                 Float?                    @db.DoublePrecision
+  delivery_lng                 Float?                    @db.DoublePrecision
+  placed_at                    DateTime                  @default(now()) @db.Timestamptz(6)
+  acceptance_deadline          DateTime?                 @db.Timestamptz(6)
+  auto_cancel_deadline         DateTime?                 @db.Timestamptz(6)
+  late_for_acceptance          Boolean                   @default(false)
+  acceptance_alerted_at        DateTime?                 @db.Timestamptz(6)
+  cancellation_request_status  String?                   @db.VarChar(20)
+  cancellation_request_reason  String?                   @db.VarChar(500)
+  cancellation_requested_at    DateTime?                 @db.Timestamptz(6)
+  cancellation_resolved_at     DateTime?                 @db.Timestamptz(6)
+  cancellation_resolved_by     String?                   @db.Uuid
+  cancellation_resolution_note String?                   @db.VarChar(500)
+  price_change_info            Json?                     @db.JsonB
+  attention_details            Json?                     @db.JsonB
+  inventory_attention_required Boolean                   @default(false)
+  user                         User                      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_user_id_fkey")
+  address                      Address?                  @relation(fields: [address_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_address_id_fkey")
+  delivery                     Delivery?                 @relation("OrderCurrentDelivery", fields: [delivery_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_delivery_id_fkey")
+  coupon                       Coupon?                   @relation(fields: [coupon_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_coupon_id_fkey")
   items                        OrderItem[]
   payments                     Payment[]
   stock_reservations           StockReservation[]
   pick_lists                   PickList[]
-  deliveries                   Delivery[]          @relation("OrderDeliveryHistory")
+  deliveries                   Delivery[]                @relation("OrderDeliveryHistory")
   delivery_collection          DeliveryCollection?
   returns                      Return[]
   refund_ledger_entries        RefundLedgerEntry[]
@@ -1475,6 +1485,8 @@ model Order {
   custody_holdings             CustodyHolding[]
   retrievals                   Retrieval[]
   custody_exceptions           CustodyException[]
+  external_driver_trip_order   ExternalDriverTripOrder?
+  external_driver_trip_events  ExternalDriverTripEvent[]
 
   @@unique([user_id, idempotency_key], map: "orders_user_id_idempotency_key_key")
   @@index([user_id], map: "idx_orders_user")
@@ -1545,33 +1557,34 @@ model Payment {
 }
 
 model DeliveryCollection {
-  id                            String                  @id(map: "delivery_collections_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  delivery_id                   String                  @unique(map: "delivery_collections_delivery_id_key") @db.Uuid
-  order_id                      String                  @unique(map: "delivery_collections_order_id_key") @db.Uuid
-  party_id                      String                  @db.Uuid
-  status                        String                  @db.VarChar(24)
-  due_amount                    Decimal                 @db.Decimal(20, 6)
-  collected_amount              Decimal?                @db.Decimal(20, 6)
-  shortfall_amount              Decimal?                @db.Decimal(20, 6)
-  currency_code                 String                  @default("IQD") @db.Char(3)
-  delivered_operation_id        String                  @db.VarChar(128)
-  delivered_by                  String                  @db.Uuid
-  delivered_at                  DateTime                @db.Timestamptz(6)
-  accounting_date               DateTime                @db.Date
-  delivery_journal_entry_id     String                  @unique(map: "delivery_collections_delivery_journal_key") @db.Uuid
-  confirmed_operation_id        String?                 @db.VarChar(128)
-  confirmed_by                  String?                 @db.Uuid
-  confirmed_at                  DateTime?               @db.Timestamptz(6)
-  confirmation_journal_entry_id String?                 @unique(map: "delivery_collections_confirmation_journal_key") @db.Uuid
-  created_at                    DateTime                @default(now()) @db.Timestamptz(6)
-  updated_at                    DateTime                @default(now()) @db.Timestamptz(6)
-  delivery                      Delivery                @relation(fields: [delivery_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_delivery_id_fkey")
-  order                         Order                   @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_order_id_fkey")
-  party                         DeliveryParty           @relation(fields: [party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_party_id_fkey")
-  delivery_journal              JournalEntry            @relation("DeliveryCollectionInitialJournal", fields: [delivery_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_delivery_journal_fkey")
-  confirmation_journal          JournalEntry?           @relation("DeliveryCollectionConfirmationJournal", fields: [confirmation_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_confirmation_journal_fkey")
+  id                            String                                   @id(map: "delivery_collections_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  delivery_id                   String                                   @unique(map: "delivery_collections_delivery_id_key") @db.Uuid
+  order_id                      String                                   @unique(map: "delivery_collections_order_id_key") @db.Uuid
+  party_id                      String                                   @db.Uuid
+  status                        String                                   @db.VarChar(24)
+  due_amount                    Decimal                                  @db.Decimal(20, 6)
+  collected_amount              Decimal?                                 @db.Decimal(20, 6)
+  shortfall_amount              Decimal?                                 @db.Decimal(20, 6)
+  currency_code                 String                                   @default("IQD") @db.Char(3)
+  delivered_operation_id        String                                   @db.VarChar(128)
+  delivered_by                  String                                   @db.Uuid
+  delivered_at                  DateTime                                 @db.Timestamptz(6)
+  accounting_date               DateTime                                 @db.Date
+  delivery_journal_entry_id     String                                   @unique(map: "delivery_collections_delivery_journal_key") @db.Uuid
+  confirmed_operation_id        String?                                  @db.VarChar(128)
+  confirmed_by                  String?                                  @db.Uuid
+  confirmed_at                  DateTime?                                @db.Timestamptz(6)
+  confirmation_journal_entry_id String?                                  @unique(map: "delivery_collections_confirmation_journal_key") @db.Uuid
+  created_at                    DateTime                                 @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime                                 @default(now()) @db.Timestamptz(6)
+  delivery                      Delivery                                 @relation(fields: [delivery_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_delivery_id_fkey")
+  order                         Order                                    @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_order_id_fkey")
+  party                         DeliveryParty                            @relation(fields: [party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_party_id_fkey")
+  delivery_journal              JournalEntry                             @relation("DeliveryCollectionInitialJournal", fields: [delivery_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_delivery_journal_fkey")
+  confirmation_journal          JournalEntry?                            @relation("DeliveryCollectionConfirmationJournal", fields: [confirmation_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "delivery_collections_confirmation_journal_fkey")
   cash_receipt_allocations      CashReceiptAllocation[]
   custody_exceptions            CustodyException[]
+  trip_settlement_allocations   ExternalDriverTripSettlementAllocation[]
 
   @@index([status, delivered_at(sort: Desc), id], map: "idx_delivery_collections_status_time")
   @@index([party_id, status, delivered_at], map: "idx_delivery_collections_party_status_time")
@@ -1755,6 +1768,101 @@ model CustodyExceptionReversalPosting {
 
   @@unique([reversal_id, role], map: "custody_exception_reversal_postings_reversal_role_key")
   @@map("custody_exception_reversal_postings")
+}
+
+model ExternalDriverTrip {
+  id                             String                                   @id(map: "external_driver_trips_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number                String                                   @unique(map: "external_driver_trips_document_number_key") @db.VarChar(40)
+  create_operation_id            String                                   @unique(map: "external_driver_trips_create_operation_id_key") @db.VarChar(128)
+  close_operation_id             String?                                  @unique(map: "external_driver_trips_close_operation_id_key") @db.VarChar(128)
+  driver_party_id                String                                   @db.Uuid
+  status                         String                                   @default("open") @db.VarChar(20)
+  fare_bearer                    String                                   @db.VarChar(24)
+  fare_amount_iqd                Decimal                                  @db.Decimal(20, 6)
+  fare_settlement_method         String                                   @db.VarChar(24)
+  fare_cash_account_id           String?                                  @db.Uuid
+  failure_cancellation_agreement String?                                  @db.VarChar(500)
+  document_date                  DateTime                                 @db.Date
+  accounting_date                DateTime                                 @db.Date
+  backdate_reason                String?                                  @db.VarChar(500)
+  created_by                     String                                   @db.Uuid
+  created_at                     DateTime                                 @default(now()) @db.Timestamptz(6)
+  started_by                     String?                                  @db.Uuid
+  started_at                     DateTime?                                @db.Timestamptz(6)
+  closed_by                      String?                                  @db.Uuid
+  closed_at                      DateTime?                                @db.Timestamptz(6)
+  expected_cash_iqd              Decimal?                                 @db.Decimal(20, 6)
+  received_cash_iqd              Decimal?                                 @db.Decimal(20, 6)
+  netted_fare_iqd                Decimal?                                 @db.Decimal(20, 6)
+  outstanding_cash_iqd           Decimal?                                 @db.Decimal(20, 6)
+  settlement_result              String?                                  @db.VarChar(24)
+  fare_accrual_journal_entry_id  String?                                  @unique(map: "external_driver_trips_fare_accrual_journal_key") @db.Uuid
+  fare_payment_journal_entry_id  String?                                  @unique(map: "external_driver_trips_fare_payment_journal_key") @db.Uuid
+  fare_netting_journal_entry_id  String?                                  @unique(map: "external_driver_trips_fare_netting_journal_key") @db.Uuid
+  driver_party                   DeliveryParty                            @relation("ExternalDriverTripParty", fields: [driver_party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trips_driver_party_id_fkey")
+  fare_cash_account              CashAccount?                             @relation(fields: [fare_cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trips_fare_cash_account_id_fkey")
+  creator                        User                                     @relation("ExternalDriverTripCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trips_created_by_fkey")
+  starter                        User?                                    @relation("ExternalDriverTripStarter", fields: [started_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trips_started_by_fkey")
+  closer                         User?                                    @relation("ExternalDriverTripCloser", fields: [closed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trips_closed_by_fkey")
+  fare_accrual_journal_entry     JournalEntry?                            @relation("ExternalDriverTripFareAccrual", fields: [fare_accrual_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trips_fare_accrual_journal_id_fkey")
+  fare_payment_journal_entry     JournalEntry?                            @relation("ExternalDriverTripFarePayment", fields: [fare_payment_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trips_fare_payment_journal_id_fkey")
+  fare_netting_journal_entry     JournalEntry?                            @relation("ExternalDriverTripFareNetting", fields: [fare_netting_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trips_fare_netting_journal_id_fkey")
+  orders                         ExternalDriverTripOrder[]
+  events                         ExternalDriverTripEvent[]
+  settlement_allocations         ExternalDriverTripSettlementAllocation[]
+
+  @@index([driver_party_id, document_date(sort: Desc), id], map: "idx_external_driver_trips_driver_date")
+  @@index([status, document_date(sort: Desc), id], map: "idx_external_driver_trips_status_date")
+  @@map("external_driver_trips")
+}
+
+model ExternalDriverTripOrder {
+  id                       String             @id(map: "external_driver_trip_orders_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trip_id                  String             @db.Uuid
+  order_id                 String             @unique(map: "external_driver_trip_orders_order_id_key") @db.Uuid
+  fare_share_iqd           Decimal            @db.Decimal(20, 6)
+  customer_acceptance_note String?            @db.VarChar(500)
+  handed_over_by           String             @db.Uuid
+  handed_over_at           DateTime           @db.Timestamptz(6)
+  trip                     ExternalDriverTrip @relation(fields: [trip_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trip_orders_trip_id_fkey")
+  order                    Order              @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trip_orders_order_id_fkey")
+  handover_recorder        User               @relation(fields: [handed_over_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trip_orders_handed_over_by_fkey")
+
+  @@index([trip_id, handed_over_at, id], map: "idx_external_driver_trip_orders_trip")
+  @@map("external_driver_trip_orders")
+}
+
+model ExternalDriverTripEvent {
+  id           String             @id(map: "external_driver_trip_events_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trip_id      String             @db.Uuid
+  order_id     String?            @db.Uuid
+  operation_id String             @unique(map: "external_driver_trip_events_operation_id_key") @db.VarChar(128)
+  type         String             @db.VarChar(32)
+  source       String             @db.VarChar(120)
+  note         String?            @db.VarChar(500)
+  event_at     DateTime           @db.Timestamptz(6)
+  recorded_by  String             @db.Uuid
+  recorded_at  DateTime           @default(now()) @db.Timestamptz(6)
+  trip         ExternalDriverTrip @relation(fields: [trip_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trip_events_trip_id_fkey")
+  order        Order?             @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trip_events_order_id_fkey")
+  recorder     User               @relation("ExternalDriverTripEventRecorder", fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trip_events_recorded_by_fkey")
+
+  @@index([trip_id, event_at, id], map: "idx_external_driver_trip_events_trip")
+  @@map("external_driver_trip_events")
+}
+
+model ExternalDriverTripSettlementAllocation {
+  id            String             @id(map: "external_driver_trip_settlement_allocations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trip_id       String             @db.Uuid
+  collection_id String             @db.Uuid
+  amount_iqd    Decimal            @db.Decimal(20, 6)
+  created_at    DateTime           @default(now()) @db.Timestamptz(6)
+  trip          ExternalDriverTrip @relation(fields: [trip_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trip_settlement_allocations_trip_id_fkey")
+  collection    DeliveryCollection @relation(fields: [collection_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "external_driver_trip_settlement_allocations_collection_id_fkey")
+
+  @@unique([trip_id, collection_id], map: "external_driver_trip_settlement_allocations_trip_collection_key")
+  @@index([collection_id], map: "idx_external_driver_trip_settlement_allocations_collection")
+  @@map("external_driver_trip_settlement_allocations")
 }
 
 model StockReservation {

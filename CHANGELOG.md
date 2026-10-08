@@ -1,5 +1,26 @@
 # Changelog
 
+## 13.4.0 - 2026-10-08
+
+### Added
+
+- Numbered external-driver trips with one fare agreement, atomic multi-order
+  handover, staff-recorded event provenance, open/in-progress/closed lifecycle,
+  and filtered list/detail reads.
+- Store-paid fare accrual with payable, cash-account payment, or one-time
+  collection netting; customer-direct fare tracking stays outside store money.
+- Trip settlement totals and driver-statement links, including cash received,
+  approved fare netting, and a visible remaining custody balance.
+
+### Changed
+
+- Delivery-party collection and unconfirmed-collection lists support date or
+  amount sorting in both directions and default to newest first.
+- Delivery-party search covers name, phone, and vehicle number, and trip use
+  now makes an external driver ineligible for deletion.
+- The API contract is version 13.4.0. This release is additive and does not
+  break existing web, admin, or mobile callers.
+
 ## 13.3.0 - 2026-10-08
 
 ### Added

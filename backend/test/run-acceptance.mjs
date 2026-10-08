@@ -136,6 +136,10 @@ try {
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
   await run('test/custody-exceptions.acceptance.mjs', [], acceptanceEnv);
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
+  await run('test/external-driver-trips.acceptance.mjs', [], acceptanceEnv);
   await run('test/admin-orders.acceptance.mjs', [], acceptanceEnv);
   await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
   await run('test/delivery-parties.acceptance.mjs', [], acceptanceEnv);

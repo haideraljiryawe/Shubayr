@@ -1424,8 +1424,9 @@ export class InventoryService {
     deliveryId: string,
     partyId: string,
     actorId: string,
+    occurredAt?: Date,
   ) {
-    const postingDate = businessDate();
+    const postingDate = businessDate(occurredAt);
     const reservations = await tx.stockReservation.findMany({
       where: { order_id: orderId, status: 'reserved' },
       include: { batch: true },
