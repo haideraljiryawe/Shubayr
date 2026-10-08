@@ -325,6 +325,7 @@ export class ExternalDriverTripsService {
       operationId: input.operation_id,
       endpoint: `POST /admin/external-driver-trips/${tripId}/start`,
       payload: input,
+      responseStatus: 200,
       work: async (tx) => {
         await tx.$queryRaw`SELECT id FROM external_driver_trips WHERE id=${tripId}::uuid FOR UPDATE`;
         const trip = await tx.externalDriverTrip.findUnique({
@@ -390,6 +391,7 @@ export class ExternalDriverTripsService {
       operationId: input.operation_id,
       endpoint: `POST /admin/external-driver-trips/${tripId}/close`,
       payload: input,
+      responseStatus: 200,
       work: async (tx) => {
         await tx.$queryRaw`SELECT id FROM external_driver_trips WHERE id=${tripId}::uuid FOR UPDATE`;
         const trip = await tx.externalDriverTrip.findUnique({

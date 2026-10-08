@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
@@ -59,6 +61,7 @@ export class ExternalDriverTripsController {
   }
 
   @Post(':id/start')
+  @HttpCode(HttpStatus.OK)
   @AdminPolicy('trips.manage')
   start(
     @Req() request: AdminRequest,
@@ -69,6 +72,7 @@ export class ExternalDriverTripsController {
   }
 
   @Post(':id/close')
+  @HttpCode(HttpStatus.OK)
   @AdminPolicy('trips.settle')
   close(
     @Req() request: AdminRequest,
