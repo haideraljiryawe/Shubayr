@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -63,6 +64,7 @@ export function ProductEditor({
   const api = useApiForm();
   /** A price the server refused as below the protected cost (API 10.0). */
   const [belowCost, setBelowCost] = useState<BelowCostBreach[] | null>(null);
+  const [pendingApprovalId, setPendingApprovalId] = useState<string | null>(null);
   const groups = subcategories(tree);
   const nameOf = (item: { name_ar?: string; name_en?: string }) =>
     (locale === "ar" ? item.name_ar : item.name_en) || item.name_en || item.name_ar || "";
@@ -140,6 +142,7 @@ export function ProductEditor({
       variants,
     };
     setBelowCost(null);
+    setPendingApprovalId(null);
     const saved = await api.run(async () => {
       try {
         // An edit leaves the stored discount and expiry tracking alone; a new
@@ -168,6 +171,11 @@ export function ProductEditor({
       }
     });
     if (!saved) return;
+    if (saved.price_update_status === "pending_approval" && saved.price_approval_request_id) {
+      setPendingApprovalId(saved.price_approval_request_id);
+      toast(t("approvalPendingToast"));
+      return;
+    }
     if (product?.id) {
       toast(t("saved"));
       router.refresh();
@@ -277,7 +285,15 @@ export function ProductEditor({
         ))}
       </Card>
 
-      {belowCost ? (
+      {pendingApprovalId ? (
+        <Alert tone="info" data-testid="fixed-price-approval-pending" data-request={pendingApprovalId}>
+          <p className="font-semibold">{t("approvalPendingTitle")}</p>
+          <p className="mt-1 text-sm">{t("approvalPendingBody")}</p>
+          <Link href={`/finance/price-approvals/${pendingApprovalId}`} className="mt-2 inline-block text-sm font-semibold underline" data-testid="fixed-price-approval-link">
+            {t("openApproval")}
+          </Link>
+        </Alert>
+      ) : belowCost ? (
         <BelowCostPanel
           breaches={belowCost}
           currency={product?.currency ?? "IQD"}

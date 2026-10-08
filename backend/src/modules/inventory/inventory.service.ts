@@ -35,6 +35,7 @@ import {
   UpdateLocationDto,
   UpdateWarehouseDto,
   CreateRetrievalDto,
+  RetrievalQueryDto,
   ReceiveRetrievalDto,
 } from './dto/inventory.dto';
 
@@ -1423,8 +1424,9 @@ export class InventoryService {
     deliveryId: string,
     partyId: string,
     actorId: string,
+    occurredAt?: Date,
   ) {
-    const postingDate = businessDate();
+    const postingDate = businessDate(occurredAt);
     const reservations = await tx.stockReservation.findMany({
       where: { order_id: orderId, status: 'reserved' },
       include: { batch: true },
@@ -1504,7 +1506,6 @@ export class InventoryService {
   }
 
   async settleCustodyToSold(tx: Tx, orderId: string, actorId: string) {
-    const postingDate = businessDate();
     const holdings = await tx.custodyHolding.findMany({
       where: {
         order_id: orderId,
@@ -1513,7 +1514,7 @@ export class InventoryService {
       },
       orderBy: { id: 'asc' },
     });
-    if (!holdings.length) return;
+    if (!holdings.length) return D(0);
     let total = D(0);
     for (const row of holdings) {
       await tx.custodyHolding.update({
@@ -1539,17 +1540,310 @@ export class InventoryService {
       });
       total = total.plus(row.quantity.times(row.unit_cost_iqd));
     }
-    if (total.gt(0))
-      await this.ledger.post(tx, {
-        sourceType: 'order',
-        sourceId: orderId,
-        event: 'custody_to_sold',
-        documentDate: postingDate,
-        accountingDate: postingDate,
-        createdBy: actorId,
-        description: 'Delivered inventory cost of goods sold',
-        lines: this.posting('5000', '1010', total),
+    return total;
+  }
+
+  async recordCustodyExceptionLoss(
+    tx: Tx,
+    input: {
+      exceptionId: string;
+      orderId: string;
+      partyId: string;
+      actorId: string;
+      lines: Array<{ custody_holding_id: string; quantity: string }>;
+    },
+  ) {
+    const results: Array<{
+      custody_holding_id: string;
+      order_item_id: string;
+      batch_id: string;
+      quantity: Prisma.Decimal;
+      unit_cost_iqd: Prisma.Decimal;
+    }> = [];
+    let total = D(0);
+    for (const supplied of input.lines) {
+      await tx.$queryRaw`SELECT id FROM custody_holdings WHERE id = ${supplied.custody_holding_id}::uuid FOR UPDATE`;
+      const holding = await tx.custodyHolding.findUnique({
+        where: { id: supplied.custody_holding_id },
       });
+      if (!holding) throw new NotFoundException('Custody holding not found');
+      if (
+        holding.order_id !== input.orderId ||
+        holding.custody_party_id !== input.partyId
+      ) {
+        throw new ConflictException(
+          'Custody holding does not belong to this order and party',
+        );
+      }
+      if (holding.status !== 'in_custody') {
+        throw new ConflictException('Goods are no longer in custody');
+      }
+      const quantity = this.positive(supplied.quantity, 'quantity');
+      if (quantity.gt(holding.remaining_quantity)) {
+        throw new ConflictException('Exception quantity exceeds goods custody');
+      }
+      const remaining = holding.remaining_quantity.minus(quantity);
+      await tx.custodyHolding.update({
+        where: { id: holding.id },
+        data: {
+          remaining_quantity: remaining,
+          ...(remaining.isZero()
+            ? { status: 'exception', settled_at: new Date() }
+            : {}),
+        },
+      });
+      await tx.stockMovement.create({
+        data: {
+          batch_id: holding.batch_id,
+          type: 'custody_exception',
+          quantity,
+          unit_cost_iqd: holding.unit_cost_iqd,
+          reference: `custody-exception:${input.exceptionId}`,
+          source_type: 'custody_exception',
+          source_id: input.exceptionId,
+          custody_party_id: input.partyId,
+          user_id: input.actorId,
+        },
+      });
+      total = total.plus(quantity.times(holding.unit_cost_iqd));
+      results.push({
+        custody_holding_id: holding.id,
+        order_item_id: holding.order_item_id,
+        batch_id: holding.batch_id,
+        quantity,
+        unit_cost_iqd: holding.unit_cost_iqd,
+      });
+    }
+    return { total, lines: results };
+  }
+
+  async returnUncollectedGoods(
+    tx: Tx,
+    input: {
+      exceptionId: string;
+      orderId: string;
+      partyId: string;
+      actorId: string;
+      lines: Array<{
+        custody_holding_id: string;
+        location_id: string;
+        quantity: string;
+      }>;
+    },
+  ) {
+    const results: Array<{
+      custody_holding_id: string;
+      order_item_id: string;
+      batch_id: string;
+      location_id: string;
+      quantity: Prisma.Decimal;
+      unit_cost_iqd: Prisma.Decimal;
+    }> = [];
+    let total = D(0);
+    for (const supplied of input.lines) {
+      await tx.$queryRaw`SELECT id FROM custody_holdings WHERE id = ${supplied.custody_holding_id}::uuid FOR UPDATE`;
+      const holding = await tx.custodyHolding.findUnique({
+        where: { id: supplied.custody_holding_id },
+        include: { batch: true },
+      });
+      if (!holding) throw new NotFoundException('Custody holding not found');
+      if (
+        holding.order_id !== input.orderId ||
+        holding.custody_party_id !== input.partyId
+      ) {
+        throw new ConflictException(
+          'Custody holding does not belong to this order and party',
+        );
+      }
+      if (holding.status !== 'sold') {
+        throw new ConflictException(
+          'Only goods previously settled from custody can be returned',
+        );
+      }
+      const quantity = this.positive(supplied.quantity, 'quantity');
+      const priorReturns = await tx.stockMovement.aggregate({
+        where: {
+          batch_id: holding.batch_id,
+          type: 'return_in',
+          return_item: { order_item_id: holding.order_item_id },
+        },
+        _sum: { quantity: true },
+      });
+      const priorExceptions = await tx.custodyExceptionLine.aggregate({
+        where: {
+          custody_holding_id: holding.id,
+          exception: {
+            type: 'return_against_uncollected',
+            reversal: { is: null },
+            id: { not: input.exceptionId },
+          },
+        },
+        _sum: { quantity: true },
+      });
+      const available = holding.quantity
+        .minus(priorReturns._sum.quantity ?? 0)
+        .minus(priorExceptions._sum.quantity ?? 0);
+      if (quantity.gt(available)) {
+        throw new ConflictException(
+          'Return quantity exceeds the original issued quantity',
+        );
+      }
+      const location = await tx.warehouseLocation.findUnique({
+        where: { id: supplied.location_id },
+        include: { warehouse: true },
+      });
+      if (!location?.is_active || !location.warehouse.is_active) {
+        throw new ConflictException('Chosen return location is inactive');
+      }
+      await this.lockBalance(tx, holding.batch_id, supplied.location_id);
+      await tx.batchStock.upsert({
+        where: {
+          batch_id_location_id: {
+            batch_id: holding.batch_id,
+            location_id: supplied.location_id,
+          },
+        },
+        create: {
+          batch_id: holding.batch_id,
+          location_id: supplied.location_id,
+          quantity,
+        },
+        update: { quantity: { increment: quantity } },
+      });
+      await tx.stockMovement.create({
+        data: {
+          batch_id: holding.batch_id,
+          type: 'return_in',
+          to_location: supplied.location_id,
+          quantity,
+          unit_cost_iqd: holding.unit_cost_iqd,
+          reference: `custody-exception:${input.exceptionId}`,
+          source_type: 'custody_exception',
+          source_id: input.exceptionId,
+          custody_party_id: input.partyId,
+          user_id: input.actorId,
+        },
+      });
+      await this.addValue(
+        tx,
+        holding.batch.variant_id,
+        quantity,
+        holding.unit_cost_iqd,
+      );
+      total = total.plus(quantity.times(holding.unit_cost_iqd));
+      results.push({
+        custody_holding_id: holding.id,
+        order_item_id: holding.order_item_id,
+        batch_id: holding.batch_id,
+        location_id: supplied.location_id,
+        quantity,
+        unit_cost_iqd: holding.unit_cost_iqd,
+      });
+    }
+    return { total, lines: results };
+  }
+
+  async reverseCustodyExceptionStock(
+    tx: Tx,
+    input: {
+      exceptionId: string;
+      reversalId: string;
+      type: string;
+      partyId: string;
+      actorId: string;
+      lines: Array<{
+        custody_holding_id: string;
+        batch_id: string;
+        location_id: string | null;
+        quantity: Prisma.Decimal;
+        unit_cost_iqd: Prisma.Decimal;
+      }>;
+    },
+  ) {
+    for (const line of input.lines) {
+      if (input.type === 'goods_loss') {
+        await tx.$queryRaw`SELECT id FROM custody_holdings WHERE id = ${line.custody_holding_id}::uuid FOR UPDATE`;
+        const holding = await tx.custodyHolding.findUniqueOrThrow({
+          where: { id: line.custody_holding_id },
+        });
+        if (
+          holding.remaining_quantity.plus(line.quantity).gt(holding.quantity)
+        ) {
+          throw new ConflictException(
+            'Custody exception can no longer be reversed safely',
+          );
+        }
+        await tx.custodyHolding.update({
+          where: { id: holding.id },
+          data: {
+            remaining_quantity: { increment: line.quantity },
+            status: 'in_custody',
+            settled_at: null,
+          },
+        });
+        await tx.stockMovement.create({
+          data: {
+            batch_id: line.batch_id,
+            type: 'custody_exception_reversal',
+            quantity: line.quantity,
+            unit_cost_iqd: line.unit_cost_iqd,
+            reference: `reverse:${input.exceptionId}`,
+            source_type: 'custody_exception_reversal',
+            source_id: input.reversalId,
+            custody_party_id: input.partyId,
+            user_id: input.actorId,
+          },
+        });
+        continue;
+      }
+      if (input.type === 'return_against_uncollected') {
+        if (!line.location_id) {
+          throw new ConflictException('Return exception location is missing');
+        }
+        await this.lockBalance(tx, line.batch_id, line.location_id);
+        const balance = await tx.batchStock.findUnique({
+          where: {
+            batch_id_location_id: {
+              batch_id: line.batch_id,
+              location_id: line.location_id,
+            },
+          },
+          include: { batch: true },
+        });
+        if (
+          !balance ||
+          balance.quantity.minus(balance.reserved).lt(line.quantity)
+        ) {
+          throw new ConflictException(
+            'Returned stock is no longer available for reversal',
+          );
+        }
+        await tx.batchStock.update({
+          where: { id: balance.id },
+          data: { quantity: { decrement: line.quantity } },
+        });
+        await this.addValue(
+          tx,
+          balance.batch.variant_id,
+          line.quantity.negated(),
+          line.unit_cost_iqd,
+        );
+        await tx.stockMovement.create({
+          data: {
+            batch_id: line.batch_id,
+            type: 'return_reversal',
+            from_location: line.location_id,
+            quantity: line.quantity,
+            unit_cost_iqd: line.unit_cost_iqd,
+            reference: `reverse:${input.exceptionId}`,
+            source_type: 'custody_exception_reversal',
+            source_id: input.reversalId,
+            custody_party_id: input.partyId,
+            user_id: input.actorId,
+          },
+        });
+      }
+    }
   }
 
   createRetrieval(
@@ -1576,6 +1870,66 @@ export class InventoryService {
         return this.getRetrievalTx(tx, row.id, canViewCost);
       },
     });
+  }
+
+  async listRetrievals(query: RetrievalQueryDto) {
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    if (query.from && query.to && query.from > query.to) {
+      throw new UnprocessableEntityException('from must be on or before to');
+    }
+    const where: Prisma.RetrievalWhereInput = {
+      ...(query.party_id ? { custody_party_id: query.party_id } : {}),
+      ...(query.order_id ? { order_id: query.order_id } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.from || query.to
+        ? {
+            document_date: {
+              ...(query.from ? { gte: parseBusinessDate(query.from) } : {}),
+              ...(query.to ? { lte: parseBusinessDate(query.to) } : {}),
+            },
+          }
+        : {}),
+    };
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.retrieval.count({ where }),
+      this.prisma.retrieval.findMany({
+        where,
+        include: {
+          order: { select: { id: true, order_number: true } },
+          custody_party: { select: { id: true, name: true, phone: true } },
+          _count: { select: { lines: true } },
+        },
+        orderBy: [
+          { document_date: 'desc' },
+          { created_at: 'desc' },
+          { id: 'desc' },
+        ],
+        skip: (page - 1) * perPage,
+        take: perPage,
+      }),
+    ]);
+    return {
+      page,
+      per_page: perPage,
+      total,
+      data: rows.map((row) => ({
+        id: row.id,
+        document_number: row.document_number,
+        order_id: row.order_id,
+        delivery_id: row.delivery_id,
+        custody_party_id: row.custody_party_id,
+        status: row.status,
+        outcome: row.outcome,
+        reason: row.reason,
+        document_date: businessDateText(row.document_date),
+        created_at: row.created_at,
+        closed_at: row.closed_at,
+        order: row.order,
+        custody_party: row.custody_party,
+        line_count: row._count.lines,
+      })),
+    };
   }
 
   async openRetrieval(

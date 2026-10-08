@@ -15,6 +15,12 @@ export const notificationTypes = [
   'delivery_assigned',
   'order_acceptance_late',
   'retrieval_update',
+  'quantity_reduction_proposed',
+  'cancellation_request_approved',
+  'cancellation_request_denied',
+  'price_approval_requested',
+  'price_approval_approved',
+  'price_approval_rejected',
 ] as const;
 export type NotificationType = (typeof notificationTypes)[number];
 export const notificationChannels = ['push', 'sms'] as const;
@@ -70,13 +76,31 @@ export function bilingualMessage(type: NotificationType) {
     order_rejected: ['تم رفض الطلب', 'تم رفض الطلب وإطلاق حجز المخزون.'],
     delivery_assigned: ['مهمة توصيل جديدة', 'تم إسناد طلب جديد إليك.'],
     order_acceptance_late: [
-      'Order acceptance late',
-      'A pending order needs staff acceptance.',
+      'تأخر قبول الطلب',
+      'يوجد طلب معلق يحتاج إلى قبول الموظف.',
     ],
-    retrieval_update: [
-      'Retrieval update',
-      'A goods retrieval document was updated.',
+    retrieval_update: ['تحديث الاسترجاع', 'تم تحديث مستند استرجاع البضائع.'],
+    quantity_reduction_proposed: [
+      'اقتراح تعديل الكمية',
+      'اقترح المتجر كمية أقل لطلبك وتحتاج إلى ردك.',
     ],
+    cancellation_request_approved: [
+      'تمت الموافقة على طلب الإلغاء',
+      'وافق المتجر على طلب إلغاء طلبك.',
+    ],
+    cancellation_request_denied: [
+      'تم رفض طلب الإلغاء',
+      'لم يوافق المتجر على طلب إلغاء طلبك.',
+    ],
+    price_approval_requested: [
+      'طلب موافقة على سعر',
+      'يوجد نشر سعر أقل من الكلفة يحتاج إلى قرارك.',
+    ],
+    price_approval_approved: [
+      'تمت الموافقة على السعر',
+      'وافق موظف آخر على طلب نشر السعر.',
+    ],
+    price_approval_rejected: ['تم رفض السعر', 'رفض موظف آخر طلب نشر السعر.'],
   };
   const english: Record<NotificationType, [string, string]> = {
     order_placed: ['Order placed', 'We received your order.'],
@@ -112,6 +136,30 @@ export function bilingualMessage(type: NotificationType) {
     retrieval_update: [
       'Retrieval update',
       'A goods retrieval document was updated.',
+    ],
+    quantity_reduction_proposed: [
+      'Quantity change proposed',
+      'The store proposed a lower quantity and needs your answer.',
+    ],
+    cancellation_request_approved: [
+      'Cancellation approved',
+      'The store approved your cancellation request.',
+    ],
+    cancellation_request_denied: [
+      'Cancellation denied',
+      'The store denied your cancellation request.',
+    ],
+    price_approval_requested: [
+      'Price approval requested',
+      'A below-cost price publish needs your decision.',
+    ],
+    price_approval_approved: [
+      'Price approved',
+      'Another staff member approved your price publish request.',
+    ],
+    price_approval_rejected: [
+      'Price rejected',
+      'Another staff member rejected your price publish request.',
     ],
   };
   return {

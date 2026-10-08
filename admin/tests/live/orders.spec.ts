@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import {
   activateStaff,
   advanceOrder,
@@ -54,7 +55,8 @@ test("the list filters and pages on the server", async ({ page, request }) => {
   }
 
   // Combined: status + search + today's date range still finds it…
-  const today = new Date().toISOString().slice(0, 10);
+  // The store's date (Asia/Baghdad), not UTC: they differ from 21:00 UTC.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(new Date());
   await page.goto(
     `/orders?status=pending&q=${order.order_number}&from=${today}&to=${today}`,
   );
@@ -99,7 +101,8 @@ test("every transition path, with the timeline", async ({ page, request }) => {
   // Handover needs an agent: the button explains, then assignment unblocks it.
   await expect(page.getByTestId("order-action-dispatch")).toBeDisabled();
   await expect(page.getByTestId("order-dispatch-blocked")).toBeVisible();
-  await page.getByTestId("agent-option").first().click();
+  // An internal agent (the picker also lists external drivers, 11.2).
+  await page.locator('[data-testid="party-option"][data-kind="internal_agent"]').first().click();
   await page.getByTestId("assign-submit").click();
   await expect(page.getByTestId("delivery-agent")).not.toHaveText(/بلا مندوب|No agent/);
   await expect(page.getByTestId("order-action-dispatch")).toBeEnabled();
@@ -164,12 +167,12 @@ test("a permission-limited user sees only allowed actions; a refusal is handled"
   await expect(page.getByTestId("order-action-accept")).toBeVisible();
   await expect(page.getByTestId("order-action-reject")).toBeVisible();
   await expect(page.getByTestId("order-action-cancel")).toHaveCount(0);
-  // Assigning needs orders.assign_agent only: the lookup works without
-  // users.manage (#65), searched on the server.
-  await expect(page.getByTestId("agent-option").first()).toBeVisible();
-  await page.getByTestId("agent-search").fill("Delivery B");
-  await expect(page.getByTestId("agent-option")).toHaveCount(1);
-  await page.getByTestId("agent-option").first().click();
+  // Assigning needs orders.assign_agent only: the party lookup works
+  // without users.manage (#65), searched on the server.
+  await expect(page.getByTestId("party-option").first()).toBeVisible();
+  await page.getByTestId("party-search").fill("Delivery B");
+  await expect(page.getByTestId("party-option")).toHaveCount(1);
+  await page.getByTestId("party-option").first().click();
   await page.getByTestId("assign-submit").click();
   await expect(page.getByTestId("delivery-agent")).toContainText("Delivery B");
 

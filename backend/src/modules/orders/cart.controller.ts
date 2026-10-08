@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -16,9 +17,14 @@ import { AppPolicy } from '../../common/decorators/access-policy.decorator';
 import { CartService } from './cart.service';
 import {
   AddCartItemDto,
+  MergeCartDto,
   UpdateCartItemDto,
   ValidateCouponDto,
 } from './dto/cart.dto';
+import {
+  RateLimitRisk,
+  RateLimitTier,
+} from '../../common/rate-limit/rate-limit-tier';
 
 type AuthenticatedRequest = Request & { user: AuthenticatedRequestUser };
 
@@ -34,11 +40,28 @@ export class CartController {
 
   @Post('items')
   @HttpCode(200)
-  add(@Req() request: AuthenticatedRequest, @Body() input: AddCartItemDto) {
-    return this.cart.add(request.user.id, input);
+  @RateLimitTier(RateLimitRisk.Strict)
+  add(
+    @Req() request: AuthenticatedRequest,
+    @Body() input: AddCartItemDto,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.cart.add(request.user.id, input, key);
+  }
+
+  @Post('merge')
+  @HttpCode(200)
+  @RateLimitTier(RateLimitRisk.Strict)
+  merge(
+    @Req() request: AuthenticatedRequest,
+    @Body() input: MergeCartDto,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.cart.merge(request.user.id, input, key);
   }
 
   @Patch('items/:id')
+  @RateLimitTier(RateLimitRisk.Strict)
   update(
     @Req() request: AuthenticatedRequest,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -49,6 +72,7 @@ export class CartController {
 
   @Delete('items/:id')
   @HttpCode(204)
+  @RateLimitTier(RateLimitRisk.Strict)
   remove(
     @Req() request: AuthenticatedRequest,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -57,6 +81,7 @@ export class CartController {
   }
 
   @Delete('coupon')
+  @RateLimitTier(RateLimitRisk.Strict)
   removeCoupon(@Req() request: AuthenticatedRequest) {
     return this.cart.removeCoupon(request.user.id);
   }
@@ -69,6 +94,7 @@ export class CouponController {
 
   @Post('validate')
   @HttpCode(200)
+  @RateLimitTier(RateLimitRisk.Strict)
   validate(
     @Req() request: AuthenticatedRequest,
     @Body() input: ValidateCouponDto,

@@ -27,6 +27,9 @@ const environment = {
   DATABASE_URL: testUrl.toString(),
   APP_ENV: 'development',
   TRUSTED_PROXIES: process.env.TRUSTED_PROXIES ?? '127.0.0.1/32',
+  RATE_LIMIT_CATALOG_PER_MINUTE: '600',
+  RATE_LIMIT_NORMAL_PER_MINUTE: '120',
+  RATE_LIMIT_STRICT_PER_MINUTE: '30',
 };
 const node = process.execPath;
 const prisma = 'node_modules/prisma/build/index.js';
@@ -59,7 +62,7 @@ async function freePort() {
 }
 
 async function waitForApi(url) {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
     if (api.exitCode !== null)
       throw new Error('Acceptance API stopped before it became ready');
     try {
@@ -72,7 +75,14 @@ async function waitForApi(url) {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error('Acceptance API did not become ready within 30 seconds');
+  throw new Error('Acceptance API did not become ready within 60 seconds');
+}
+
+async function stopApi() {
+  if (api && api.exitCode === null) {
+    api.kill();
+    await new Promise((resolve) => api.once('exit', resolve));
+  }
 }
 
 try {
@@ -117,22 +127,53 @@ try {
   await run('test/backend-followups.acceptance.mjs', [], acceptanceEnv);
   await run('test/wishlist.acceptance.mjs', [], acceptanceEnv);
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
+  await run('test/delivery-collection.acceptance.mjs', [], acceptanceEnv);
+  await run('test/cash-receipts.acceptance.mjs', [], acceptanceEnv);
+  // C7 adds two staff sessions to a sequence that already approaches the
+  // production admin-login limit. Each acceptance pack models a separate
+  // client, so reset only the in-memory limiter before the new pack.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
+  await run('test/custody-exceptions.acceptance.mjs', [], acceptanceEnv);
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
+  await run('test/external-driver-trips.acceptance.mjs', [], acceptanceEnv);
   await run('test/admin-orders.acceptance.mjs', [], acceptanceEnv);
   await run('test/deliveries.acceptance.mjs', [], acceptanceEnv);
+  await run('test/delivery-parties.acceptance.mjs', [], acceptanceEnv);
   await run('test/returns.acceptance.mjs', [], acceptanceEnv);
+  // Each pack models a separate client, but packs without an explicit
+  // forwarded address otherwise share the runner's loopback OTP bucket.
+  // Reset only the in-memory limiter before the remaining app-client packs;
+  // the disposable database and all durable state stay in place.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
   await run('test/loyalty.acceptance.mjs', [], acceptanceEnv);
   await run('test/reviews.acceptance.mjs', [], acceptanceEnv);
   await run('test/notifications.acceptance.mjs', [], acceptanceEnv);
   await run('test/phase2-monitoring.acceptance.mjs', [], acceptanceEnv);
+  // Reset the in-memory admin-login throttle before the final packs. The C5
+  // delivery collection pack adds another staff session to the combined run.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
+  await run('test/c5c-cart-rate-limits.acceptance.mjs', [], acceptanceEnv);
+  await run('test/c5b-gaps.acceptance.mjs', [], acceptanceEnv);
   await run('test/qa-fixes.acceptance.mjs', [], acceptanceEnv);
   // Keep inventory lifecycle last: delivered/returned rows are intentionally
   // immutable and cannot be removed without defeating the database guards.
+  // Restart against the same disposable database first: the combined packs
+  // intentionally exceed the production admin-login throttle, whose store is
+  // in memory. This also proves that all prior state survives an API restart.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
   await run('test/inventory-lifecycle.acceptance.mjs', [], acceptanceEnv);
 } finally {
-  if (api && api.exitCode === null) {
-    api.kill();
-    await new Promise((resolve) => api.once('exit', resolve));
-  }
+  await stopApi();
   if (created) {
     await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);
     console.log(`Dropped disposable acceptance database: ${name}`);

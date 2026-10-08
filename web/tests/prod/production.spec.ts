@@ -53,6 +53,34 @@ test.describe("security headers", () => {
     }
   });
 
+  test("personal pages are never cacheable: cart, checkout, account, agent and monitor pages are no-store", async ({ request }) => {
+    // The session lives in the browser and these pages read the shopper's
+    // data from there; the HTML itself must still never be kept by a proxy
+    // or the browser, so one person's page is never shown to another.
+    const personal = [
+      "/cart",
+      "/checkout",
+      "/account",
+      "/account/orders",
+      "/account/addresses",
+      "/account/points",
+      "/account/wishlist",
+      "/account/profile",
+      "/account/returns",
+      "/notifications",
+      "/deliveries",
+      "/deliveries/custody",
+      "/monitor/orders",
+      "/en/account",
+    ];
+    for (const path of personal) {
+      const response = await request.get(path);
+      expect(response.status(), path).toBe(200);
+      expect(response.headers()["cache-control"] ?? "", path).toMatch(/no-store/);
+      expect(response.headers()["cache-control"] ?? "", path).not.toMatch(/\bpublic\b|s-maxage/);
+    }
+  });
+
   test("each response has its own nonce, and every script in the page carries it", async ({ request }) => {
     const first = await request.get("/");
     const second = await request.get("/");
@@ -74,6 +102,23 @@ test.describe("security headers", () => {
     await visit(page, `/product/${PRODUCT}`);
     await page.locator('[data-testid="pdp-add-to-cart"]:visible').click();
     await expect(page.getByTestId("cart-badge")).toHaveText("1");
+  });
+
+  test("Cairo is self-hosted: the fonts load from this origin, never from Google", async ({ page }) => {
+    const external: string[] = [];
+    page.on("request", (sent) => {
+      if (/fonts\.(googleapis|gstatic)\.com/.test(sent.url())) external.push(sent.url());
+    });
+    const { violations } = await visit(page, "/");
+    const loaded = await page.evaluate(async () => {
+      await document.fonts.ready;
+      return [...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family.replace(/["']/g, ""));
+    });
+    // The Arabic page uses the Arabic and Latin subsets (numbers, prices).
+    expect(loaded).toContain("cairoArabic");
+    expect(loaded).toContain("cairoLatin");
+    expect(external).toEqual([]);
+    expect(violations).toEqual([]);
   });
 
   test("no source maps are served", async ({ request }) => {

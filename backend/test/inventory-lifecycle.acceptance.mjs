@@ -221,7 +221,13 @@ try {
   await request(`/deliveries/${costFlow.deliveryId}`, {
     token: agent.access_token,
     method: 'PATCH',
-    body: { status: 'delivered', order_version: costFlow.order.version },
+    body: {
+      status: 'delivered',
+      order_version: costFlow.order.version,
+      operation_id: 'inventory-cost-delivery-full',
+      collection_confirmation: 'confirmed',
+      collected_amount: String(costFlow.order.total),
+    },
   });
   check(
     Number(
@@ -246,7 +252,7 @@ try {
   check(
     Number(
       await scalar(
-        "SELECT sum(line.debit_base) AS value FROM journal_entries entry JOIN journal_lines line ON line.entry_id=entry.id JOIN ledger_accounts account ON account.id=line.account_id WHERE entry.source_type='order' AND entry.source_id=$1 AND entry.event='custody_to_sold' AND account.code='5000'",
+        "SELECT sum(line.debit_base) AS value FROM delivery_collections collection JOIN journal_entries entry ON entry.id=collection.delivery_journal_entry_id JOIN journal_lines line ON line.entry_id=entry.id JOIN ledger_accounts account ON account.id=line.account_id WHERE collection.order_id=$1 AND entry.event='delivered_full' AND account.code='5000'",
         [costFlow.order.id],
       ),
     ),
@@ -265,7 +271,13 @@ try {
   await request(`/deliveries/${weightFlow.deliveryId}`, {
     token: agent.access_token,
     method: 'PATCH',
-    body: { status: 'delivered', order_version: weightFlow.order.version },
+    body: {
+      status: 'delivered',
+      order_version: weightFlow.order.version,
+      operation_id: 'inventory-weight-delivery-full',
+      collection_confirmation: 'confirmed',
+      collected_amount: String(weightFlow.order.total),
+    },
   });
   check(
     Number(
@@ -408,15 +420,12 @@ try {
      VALUES (date_trunc('month', now() AT TIME ZONE 'Asia/Baghdad')::date, 'closed', now())
      ON CONFLICT (month) DO UPDATE SET status='closed', closed_at=now()`,
   );
-  const closedError = await request(
-    `/admin/orders/${closedOrder.id}/status`,
-    {
-      token: admin,
-      method: 'PATCH',
-      expected: 409,
-      body: { status: 'dispatched', version: closedCurrent.version },
-    },
-  );
+  const closedError = await request(`/admin/orders/${closedOrder.id}/status`, {
+    token: admin,
+    method: 'PATCH',
+    expected: 409,
+    body: { status: 'dispatched', version: closedCurrent.version },
+  });
   check(closedError.code, 'PERIOD_CLOSED', 'dispatch declares PERIOD_CLOSED');
   check(
     closedError.period,
@@ -445,7 +454,7 @@ try {
   );
 
   const reversibleEntry = await scalar(
-    "SELECT id::text AS value FROM journal_entries WHERE reverses_id IS NULL ORDER BY posted_at LIMIT 1",
+    'SELECT id::text AS value FROM journal_entries WHERE reverses_id IS NULL ORDER BY posted_at LIMIT 1',
   );
   const reversalsBefore = Number(
     await scalar(

@@ -31,11 +31,12 @@ function prune(now: number): void {
 async function callRefresh(
   refreshToken: string,
   fetcher: typeof fetch,
+  forwarded: Record<string, string>,
 ): Promise<TokenPair | null> {
   try {
     const response = await fetcher(`${API_URL}/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...forwarded },
       body: JSON.stringify({ refresh_token: refreshToken }),
       cache: "no-store",
     });
@@ -52,12 +53,14 @@ async function callRefresh(
 export function refreshSession(
   refreshToken: string,
   fetcher: typeof fetch = fetch,
+  /** The client's forwarded-address headers (clientForwardHeaders). */
+  forwarded: Record<string, string> = {},
 ): Promise<TokenPair | null> {
   const now = Date.now();
   prune(now);
   const existing = inflight.get(refreshToken);
   if (existing) return existing.promise;
-  const promise = callRefresh(refreshToken, fetcher);
+  const promise = callRefresh(refreshToken, fetcher, forwarded);
   inflight.set(refreshToken, { promise, at: now });
   // A failed refresh is not worth remembering: let the next caller retry.
   void promise.then((pair) => {

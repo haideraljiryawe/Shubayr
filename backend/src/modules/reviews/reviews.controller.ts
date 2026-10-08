@@ -24,6 +24,10 @@ import {
   ReviewQueryDto,
 } from './dto/review.dto';
 import { ReviewsService } from './reviews.service';
+import {
+  RateLimitRisk,
+  RateLimitTier,
+} from '../../common/rate-limit/rate-limit-tier';
 
 type UserRequest = Request & { user: AuthenticatedRequestUser };
 const uuid = new ParseUUIDPipe({ errorHttpStatusCode: 422 });
@@ -33,6 +37,7 @@ export class ReviewsController {
   constructor(private readonly reviews: ReviewsService) {}
 
   @Public()
+  @RateLimitTier(RateLimitRisk.Catalog)
   @Get('products/:id/reviews')
   list(@Param('id', uuid) id: string, @Query() query: ReviewQueryDto) {
     return this.reviews.publicList(id, query);

@@ -208,7 +208,7 @@ try {
   const enabled = (prefs, type, channel) =>
     prefs.preferences.find((p) => p.type === type && p.channel === channel)
       ?.enabled;
-  check(defaults.preferences.length, 32, 'all type/channel pairs returned');
+  check(defaults.preferences.length, 44, 'all type/channel pairs returned');
   check(
     enabled(defaults, 'delivered', 'push'),
     true,
@@ -361,7 +361,13 @@ try {
     await request(`/deliveries/${deliveryId}`, {
       token: agent,
       method: 'PATCH',
-      body: { status: 'delivered', order_version: 2 },
+      body: {
+        status: 'delivered',
+        order_version: 2,
+        operation_id: `notify-delivery-${deliveryId}`,
+        collection_confirmation: 'confirmed',
+        collected_amount: '10',
+      },
     });
   }
   const aPush = await waitFor(
@@ -462,6 +468,20 @@ try {
     ),
     true,
     'own inbox includes confirmation event',
+  );
+  const deliveredOnly = await request(
+    '/me/notifications?type=delivered&per_page=100',
+    { token: b },
+  );
+  check(
+    deliveredOnly.data.every((item) => item.type === 'delivered'),
+    true,
+    'notification type filter applies server-side',
+  );
+  check(
+    deliveredOnly.total,
+    historyB.data.filter((item) => item.type === 'delivered').length,
+    'notification type filter returns the filtered total',
   );
   const unreadBefore = await request('/me/notifications/unread-count', {
     token: b,

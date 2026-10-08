@@ -261,7 +261,15 @@ function buildOrder(
   status: OrderStatus,
   placedDaysAgo: number,
   items: Order["items"],
-  { discount = 0, address_id = "addr-1" } = {},
+  {
+    discount = 0,
+    address_id = "addr-1",
+    collected,
+  }: {
+    discount?: number;
+    address_id?: string;
+    collected?: "full" | "short";
+  } = {},
 ): Order {
   const subtotal = (items ?? []).reduce(
     (sum, item) => sum + (item.line_total ?? 0),
@@ -274,6 +282,18 @@ function buildOrder(
   // including for `addr-2`, which a later test may well edit or delete.
   const source = addresses.find((entry) => entry.id === address_id);
 
+  const total = subtotal + delivery_fee - discount;
+  // API 13.1: what was paid on delivery, as the customer's own read gives it.
+  const collection: Order["collection"] = collected
+    ? {
+        result: collected,
+        amount_collected: collected === "short" ? total - 5 : total,
+        shortfall: collected === "short" ? 5 : 0,
+        confirmation_state: "confirmed",
+        currency: "IQD",
+      }
+    : null;
+
   return {
     id: order_number.toLowerCase(),
     order_number,
@@ -284,7 +304,8 @@ function buildOrder(
     subtotal,
     delivery_fee,
     discount,
-    total: subtotal + delivery_fee - discount,
+    total,
+    collection,
     delivery_contact_phone: source?.contact_phone ?? "+9647701234567",
     delivery_address_label: source?.label ?? null,
     delivery_city: source?.city ?? "",
@@ -294,6 +315,7 @@ function buildOrder(
     delivery_lat: source?.lat ?? null,
     delivery_lng: source?.lng ?? null,
     placed_at: isoAgo(placedDaysAgo),
+    delivery_attempts: [],
     items,
   };
 }
@@ -310,9 +332,12 @@ let orders: Order[] = [
     // Two lines, one of them ×3, so a partial return and several reviewable
     // items are both exercisable against this fixture.
     [orderItem("p4", 1), orderItem("p10", 3)],
-    { discount: 20 },
+    // Paid 5 short on delivery, so the page has a balance to show.
+    { discount: 20, collected: "short" },
   ),
-  buildOrder("SB-1028", "delivered", 30, [orderItem("p7", 1)]),
+  buildOrder("SB-1028", "delivered", 30, [orderItem("p7", 1)], {
+    collected: "full",
+  }),
   buildOrder("SB-1031", "cancelled", 21, [orderItem("p14", 1)], {
     address_id: "addr-2",
   }),
@@ -779,6 +804,10 @@ const NOTIFICATION_TYPES: NotificationPreferenceEntry["type"][] = [
   "return_update",
   "loyalty_points_earned",
   "review_moderated",
+  // API 11.1: customer answers and decisions on their own orders.
+  "quantity_reduction_proposed",
+  "cancellation_request_approved",
+  "cancellation_request_denied",
   "promo",
 ];
 

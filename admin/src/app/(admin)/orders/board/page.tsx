@@ -6,6 +6,8 @@ import { PageError } from "@/components/shell/page-error";
 import { OrderFlags } from "@/components/orders/order-flags";
 import { OrdersTabs } from "@/components/orders/orders-tabs";
 import { load, serverApi } from "@/lib/api/server";
+import { loadPermissions } from "@/lib/api/inventory-server";
+import { queueCounts } from "@/lib/api/orders-server";
 import { formatMoney, type OrderStatus } from "@/lib/orders";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -27,7 +29,8 @@ export default async function OrdersBoardPage() {
   const t = await getTranslations("orders");
   const locale = await getLocale();
   const api = await serverApi();
-  const [settings, ...columns] = await Promise.all([
+  const [permissions, settings, ...columns] = await Promise.all([
+    loadPermissions(api),
     load(api.GET("/settings")),
     ...COLUMNS.map((status) => load(api.GET("/admin/orders", { params: { query: { status, page: 1, per_page: PER_COLUMN } } }))),
   ]);
@@ -38,7 +41,7 @@ export default async function OrdersBoardPage() {
   return (
     <>
       <PageHeader title={t("title")} description={t("boardDescription")} />
-      <OrdersTabs active="board" />
+      <OrdersTabs active="board" counts={columns[0]?.ok ? queueCounts(columns[0].data.badge_counts) : undefined} canViewRetrievals={permissions.includes("retrieval.view")} canViewCollections={permissions.includes("deliveries.manage")} />
       <div className="grid gap-4 overflow-x-auto pb-2 md:grid-cols-3 xl:grid-cols-6" data-testid="orders-board">
         {COLUMNS.map((status, index) => {
           const column = columns[index]!;

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, DiscoveryModule } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -26,6 +26,7 @@ import { ReturnsModule } from './modules/returns/returns.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
+import { TieredThrottlerGuard } from './common/guards/tiered-throttler.guard';
 
 @Module({
   imports: [
@@ -65,7 +66,7 @@ import { WishlistModule } from './modules/wishlist/wishlist.module';
     HealthModule,
   ],
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: TieredThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     RoutePolicyCoverageService,

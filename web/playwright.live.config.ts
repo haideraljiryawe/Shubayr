@@ -11,6 +11,10 @@ import { defineConfig } from "@playwright/test";
  *   docker compose --profile full up -d        # then seed it
  *   npm run test:live
  *
+ * In CI (CI=true) it serves the production build (`npm run build` first, with
+ * the same NEXT_PUBLIC_* values) instead of the dev server: faster pages, and
+ * the code that ships.
+ *
  * Point PLAYWRIGHT_LIVE_API elsewhere to run against another stack. Nothing
  * answering there FAILS the run: this config exists to exercise a real API, and
  * a live run that skipped because it reached none would report green having
@@ -26,6 +30,9 @@ process.env.NEXT_PUBLIC_API_URL = api;
 // Read by requireLiveApi in the workers, which inherit this process's env.
 process.env.PLAYWRIGHT_LIVE_REQUIRED ??= "1";
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
+const ci = process.env.CI === "true";
+// The worker's slot (set in each worker process, which loads this config too).
+const slot = Number(process.env.TEST_PARALLEL_INDEX ?? "0");
 
 export default defineConfig({
   testDir: "./tests",
@@ -38,18 +45,37 @@ export default defineConfig({
     "**/live-work-account.spec.ts",
     "**/live-work-pages.spec.ts",
     "**/live-lifecycle.spec.ts",
+    "**/live-privacy.spec.ts",
   ],
   timeout: 90000,
   use: {
     baseURL: `http://localhost:${port}`,
+    // Each worker is a separate client to the API's per-address rate limit,
+    // as separate shoppers would be: a documentation-range address per
+    // worker, which the API honours only when it trusts this runner as a
+    // proxy (TRUSTED_PROXIES=loopback in CI). Otherwise it is ignored and the
+    // workers share one budget.
+    extraHTTPHeaders: { "X-Forwarded-For": `198.51.100.${10 + slot}` },
+    // A failed test keeps its trace (test-results/), uploaded by CI.
+    trace: "retain-on-failure",
     browserName: "chromium",
     headless: true,
   },
-  // The funnel mutates one seeded customer's cart and orders, so the specs
-  // must not race each other over it.
-  workers: 1,
+  // Each worker signs in as its own customer, agent and monitor (see
+  // tests/live-api.ts), so tests run in parallel, any test on any worker.
+  // LIVE_WORKERS overrides the count.
+  workers: Number(process.env.LIVE_WORKERS ?? 4),
+  fullyParallel: true,
+  // Keeps the API's log next to the report (LIVE_API_LOG_FILE / LIVE_API_CONTAINER).
+  globalTeardown: "./tests/save-api-log.ts",
+  projects: [
+    { name: "parallel", grepInvert: /@global/ },
+    // Store-wide state (every monitor sees every order and is notified of
+    // it): these run after the rest, with nothing else running.
+    { name: "global", grep: /@global/, dependencies: ["parallel"], fullyParallel: false },
+  ],
   webServer: {
-    command: `npm run dev -- --port ${port}`,
+    command: ci ? `npx next start --port ${port}` : `npm run dev -- --port ${port}`,
     url: `http://localhost:${port}`,
     reuseExistingServer: false,
     timeout: 120000,
@@ -62,6 +88,10 @@ export default defineConfig({
         "auth,profile,catalog,banners,cart,checkout,orders,addresses," +
         "returns,loyalty,reviews,notifications,wishlist,monitor,deliveries,inbox",
       NEXT_PUBLIC_API_URL: api,
+      // next start re-reads next.config: the production build's guard and its
+      // image host need these at start as well as at build.
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? `http://localhost:${port}`,
+      IMAGES_ALLOW_LOCAL_IP: "true",
     },
   },
 });

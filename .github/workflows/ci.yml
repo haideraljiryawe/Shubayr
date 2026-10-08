@@ -169,7 +169,18 @@ jobs:
           npm run build
       - name: Prove catalog and COD order real-data acceptance on a disposable database
         working-directory: backend
-        run: npm run test:acceptance
+        # The runner's API writes to the same output, so the file keeps the
+        # API's log with the test steps around it.
+        run: |
+          set -o pipefail
+          npm run test:acceptance 2>&1 | tee "$RUNNER_TEMP/acceptance.log"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: acceptance-diagnostics
+          path: ${{ runner.temp }}/acceptance.log
+          retention-days: 14
+          if-no-files-found: ignore
 
   web:
     name: Web (Next.js)
@@ -291,6 +302,9 @@ jobs:
           MEILI_HOST: http://localhost:7700
           MEILI_MASTER_KEY: masterKey_admin_ci
           JWT_SECRET: admin_ci_access_secret_at_least_32_chars
+          # The admin server runs on this runner: the API believes the staff
+          # address it forwards (admin/tests/live/forwarding.spec.ts).
+          TRUSTED_PROXIES: loopback
           JWT_REFRESH_SECRET: admin_ci_refresh_secret_at_least_32_chars
           DEV_OTP: "000000"
           PUBLIC_API_URL: http://localhost:8000/api/v1
@@ -320,6 +334,8 @@ jobs:
         working-directory: admin
         env:
           ADMIN_LIVE_API: http://localhost:8000/api/v1
+          # Copied next to the report (test-results/api.log) when the run ends.
+          LIVE_API_LOG_FILE: ${{ runner.temp }}/api.log
         run: npm run test:live
       - name: API log
         if: failure()
@@ -327,8 +343,146 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: admin-playwright
-          path: admin/test-results
+          name: admin-live-diagnostics
+          # Traces of the failed tests, the report, and the API's log.
+          path: |
+            admin/test-results
+            ${{ runner.temp }}/api.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  web-live:
+    name: Web store live (browser → real API)
+    runs-on: ubuntu-latest
+    needs: detect
+    if: ${{ needs.detect.outputs.web == 'true' && needs.detect.outputs.backend == 'true' }}
+    # The store's live suite against an API built from this same commit, so a
+    # contract change that breaks the store can't merge green.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: shubayr_web_ci
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=10s
+          --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports: [ "6379:6379" ]
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=10s
+          --health-timeout=5s --health-retries=5
+      search:
+        image: getmeili/meilisearch:v1.9
+        env:
+          MEILI_MASTER_KEY: masterKey_web_ci
+          MEILI_ENV: development
+        ports: [ "7700:7700" ]
+    env:
+      LIVE_API: http://localhost:8000/api/v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            backend/package-lock.json
+      - name: Start S3-compatible object storage
+        run: |
+          docker run --detach --name shubayr_web_s3 --publish 9000:9000 \
+            --env AWS_ACCESS_KEY_ID=shubayr \
+            --env AWS_SECRET_ACCESS_KEY=shubayr_minio_secret \
+            --env S3_BUCKET=shubayr-media \
+            chrislusf/seaweedfs:4.47 mini -dir=/data -s3.port=9000 \
+              -master.telemetry=false
+          for attempt in $(seq 1 30); do
+            status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              http://localhost:9000/ || true)"
+            [ "$status" = "403" ] && exit 0
+            sleep 1
+          done
+          docker logs shubayr_web_s3
+          exit 1
+      - name: Build, migrate, seed and start the API
+        working-directory: backend
+        env:
+          APP_ENV: development
+          NODE_ENV: test
+          API_PORT: 8000
+          DATABASE_URL: postgresql://postgres:test@localhost:5432/shubayr_web_ci?schema=public
+          REDIS_URL: redis://localhost:6379
+          MEILI_HOST: http://localhost:7700
+          MEILI_MASTER_KEY: masterKey_web_ci
+          JWT_SECRET: web_ci_access_secret_at_least_32_chars_
+          # The workers present themselves as separate clients (X-Forwarded-For,
+          # see web/playwright.live.config.ts); trusting this runner lets the
+          # per-address rate limit treat them as such.
+          TRUSTED_PROXIES: loopback
+          JWT_REFRESH_SECRET: web_ci_refresh_secret_at_least_32_chars
+          DEV_OTP: "000000"
+          PUBLIC_API_URL: http://localhost:8000/api/v1
+          CORS_ORIGINS: http://localhost:3100
+          S3_ENDPOINT: http://localhost:9000
+          S3_REGION: us-east-1
+          S3_BUCKET: shubayr-media
+          S3_ACCESS_KEY: shubayr
+          S3_SECRET_KEY: shubayr_minio_secret
+        run: |
+          npm ci
+          npm run prisma:generate
+          npm run build
+          npm run prisma:migrate:deploy
+          npm run seed
+          nohup node dist/src/main.js > "$RUNNER_TEMP/api.log" 2>&1 &
+          for attempt in $(seq 1 60); do
+            curl --silent --fail http://localhost:8000/api/v1/settings > /dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/api.log"
+          exit 1
+      - name: Build the store against the live API
+        working-directory: web
+        env:
+          NEXT_PUBLIC_API_URL: ${{ env.LIVE_API }}
+          NEXT_PUBLIC_SITE_URL: http://localhost:3100
+          NEXT_PUBLIC_USE_MOCKS: "false"
+          NEXT_PUBLIC_LIVE_DOMAINS: auth,profile,catalog,banners,cart,checkout,orders,addresses,returns,loyalty,reviews,notifications,wishlist,monitor,deliveries,inbox
+          IMAGES_ALLOW_LOCAL_IP: "true"
+        run: |
+          npm ci
+          npm run build
+      - name: Install Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Live tests (browser → store → real API)
+        working-directory: web
+        env:
+          PLAYWRIGHT_LIVE_API: ${{ env.LIVE_API }}
+          # The test runner stands in for the store's front proxy: the store
+          # forwards each worker's address (X-Forwarded-For) on its own API
+          # calls, so server renders count against that worker, not the store.
+          TRUSTED_FRONT_PROXIES: loopback
+          # Copied next to the report (test-results/api.log) when the run ends.
+          LIVE_API_LOG_FILE: ${{ runner.temp }}/api.log
+        # Four workers, each with its own customer, agent and monitor
+        # (web/tests/live-api.ts); store-wide checks run last, alone.
+        run: npm run test:live
+      - name: API log
+        if: failure()
+        run: cat "$RUNNER_TEMP/api.log" || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: web-live-diagnostics
+          # Traces of the failed tests, the report, and the API's log.
+          path: |
+            web/test-results
+            ${{ runner.temp }}/api.log
+          retention-days: 14
           if-no-files-found: ignore
 
   images:
@@ -338,14 +492,19 @@ jobs:
     if: ${{ needs.detect.outputs.web == 'true' && needs.detect.outputs.admin == 'true' }}
     steps:
       - uses: actions/checkout@v4
+      # Google Fonts is unreachable during these builds (both apps self-host
+      # Cairo): a build that tried to download a font would fail here.
       - name: Build the web store image
         run: |
           docker build --tag shubayr-web:ci \
+            --add-host fonts.googleapis.com:127.0.0.1 --add-host fonts.gstatic.com:127.0.0.1 \
             --build-arg NEXT_PUBLIC_API_URL=https://api.example.test/api/v1 \
             --build-arg NEXT_PUBLIC_SITE_URL=https://shop.example.test \
             web
       - name: Build the Web Admin image
-        run: docker build --file admin/Dockerfile --target production --tag shubayr-admin:ci .
+        run: |
+          docker build --file admin/Dockerfile --target production --tag shubayr-admin:ci \
+            --add-host fonts.googleapis.com:127.0.0.1 --add-host fonts.gstatic.com:127.0.0.1 .
       - name: The web image refuses a build without its public URLs
         run: |
           if docker build --target build web > /tmp/refused.log 2>&1; then

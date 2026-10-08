@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsIn,
+  IsBoolean,
   IsDateString,
   IsInt,
   IsNotEmpty,
@@ -134,6 +135,24 @@ export class AdminOrderQueryDto extends OrderQueryDto {
   @IsDateString({ strict: true })
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   to?: string;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === 'true' ? true : value === 'false' ? false : value,
+  )
+  @IsBoolean()
+  late?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === 'true' ? true : value === 'false' ? false : value,
+  )
+  @IsBoolean()
+  needs_attention?: boolean;
+
+  @IsOptional()
+  @IsIn(['pending'])
+  cancellation_request?: 'pending';
 }
 
 export class MonitorOrderQueryDto {

@@ -187,13 +187,13 @@ export class NotificationsService
     const staff = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
       SELECT DISTINCT u.id
       FROM users u
-      JOIN work_profiles wp ON wp.user_id = u.id AND wp.is_active
       LEFT JOIN user_permission_grants ug ON ug.user_id = u.id
       LEFT JOIN permissions gp ON gp.id = ug.permission_id
       LEFT JOIN user_presets up ON up.user_id = u.id
       LEFT JOIN preset_permissions pp ON pp.preset_id = up.preset_id
       LEFT JOIN permissions ppn ON ppn.id = pp.permission_id
-      WHERE u.is_active AND (${permission} = gp.key OR ${permission} = ppn.key)
+      WHERE u.is_active AND u.username IS NOT NULL
+        AND (${permission} = gp.key OR ${permission} = ppn.key)
       ORDER BY u.id
     `);
     for (const user of staff) {
@@ -216,6 +216,8 @@ export class NotificationsService
       return `/orders/${entityId}`;
     }
     if (entityType === 'delivery') return `/deliveries/${entityId}`;
+    if (entityType === 'price_publish_approval')
+      return `/admin/finance/price-approvals/${entityId}`;
     return '/notifications';
   }
 
@@ -411,12 +413,17 @@ export class NotificationsService
   async history(userId: string, query: NotificationHistoryQueryDto) {
     const page = query.page ?? 1;
     const per_page = query.per_page ?? 20;
+    const where: Prisma.NotificationEventWhereInput = {
+      user_id: userId,
+      ...(query.unread ? { read_at: null } : {}),
+      ...(query.type ? { type: query.type } : {}),
+    };
     const [total, data] = await this.prisma.$transaction([
       this.prisma.notificationEvent.count({
-        where: { user_id: userId, ...(query.unread ? { read_at: null } : {}) },
+        where,
       }),
       this.prisma.notificationEvent.findMany({
-        where: { user_id: userId, ...(query.unread ? { read_at: null } : {}) },
+        where,
         orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * per_page,
         take: per_page,

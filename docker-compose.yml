@@ -160,6 +160,8 @@ services:
     volumes:
       - ./admin:/repo/admin
       - ./web/src/app/tokens.css:/repo/web/src/app/tokens.css:ro
+      - ./web/src/fonts:/repo/web/src/fonts:ro
+      - ./web/src/lib/forwarding.ts:/repo/web/src/lib/forwarding.ts:ro
       - /repo/admin/node_modules
       - /repo/admin/.next
     ports:

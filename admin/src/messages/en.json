@@ -32,7 +32,8 @@
     "purchasing": "Purchase invoices",
     "suppliers": "Suppliers",
     "supplierPayments": "Supplier payments",
-    "payables": "Payables & aging"
+    "payables": "Payables & aging",
+    "deliveryParties": "Delivery parties"
   },
   "auth": {
     "signIn": "Sign in",
@@ -173,7 +174,8 @@
       "purchasing": "Receive purchase invoices into stock with pack sizes, landed costs and lots.",
       "suppliers": "Suppliers, their opening balances, statements and credits.",
       "supplierPayments": "Pay suppliers, allocate to invoices and see the FX gain or loss.",
-      "payables": "What is owed to each supplier, and accounts-payable aging."
+      "payables": "What is owed to each supplier, and accounts-payable aging.",
+      "deliveryParties": "Internal agents and external drivers, with the goods, cash and orders in their custody."
     },
     "comingTitle": "Coming next",
     "comingBody": "Orders, catalog, stock and accounting arrive with the next backend phases.",
@@ -305,7 +307,7 @@
       "openingBody": "What was already owed to this supplier when you started using the system. Posts Dr Owner equity / Cr Supplier payable.",
       "rate": "Exchange rate to IQD",
       "rateCentral": "Central rate on the document date: {rate}.",
-      "rateHidden": "The central rate needs ledger.view to read; enter the rate.",
+      "rateHidden": "Reading the central rate needs the exchange-rate view permission (fx_rates.view); enter the rate.",
       "rateMissing": "No central rate on this date; enter the rate.",
       "dueDate": "Due date",
       "dueDateHint": "Optional.",
@@ -333,7 +335,7 @@
       "rate": "Rate ({currency} → IQD)",
       "rateCentral": "Central rate on the document date: {rate}. Changing it needs purchases.override_rate.",
       "rateCentralEditable": "Central rate on the document date: {rate}. You may override it.",
-      "rateHidden": "The central rate on the document date is applied when posting (reading it needs ledger.view).",
+      "rateHidden": "The central rate on the document date is applied when posting (reading it needs fx_rates.view).",
       "rateMissing": "No central rate is recorded for this date — the invoice can't be posted until one is.",
       "defaultLocation": "Receiving location",
       "dueDate": "Due date",
@@ -535,7 +537,7 @@
       "amountIn": "Amount ({currency})",
       "rate": "Payment-date rate ({currency} → IQD)",
       "rateCentral": "The rate on the payment date: {rate}. Changing it needs purchases.override_rate.",
-      "rateHidden": "The rate can't be read without ledger.view; the server applies the payment-date rate when posting.",
+      "rateHidden": "The rate can't be read without the exchange-rate view permission (fx_rates.view); the server applies the payment-date rate when posting.",
       "rateMissing": "No rate is recorded for this date, so the payment can't be posted until one is.",
       "reference": "Reference",
       "allocations": "Allocate to invoices",
@@ -581,14 +583,15 @@
         "missingRate": "Record the {currency} rate for this date first."
       },
       "rateCentralEditable": "The rate on the payment date: {rate}. You may enter another rate (purchases.override_rate).",
-      "rateHiddenEditable": "The rate can't be read without ledger.view. Leave it empty for the payment-date rate, or enter one (purchases.override_rate).",
+      "rateHiddenEditable": "The rate can't be read without fx_rates.view. Leave it empty for the payment-date rate, or enter one (purchases.override_rate).",
       "rateMissingEditable": "No rate is recorded for this date. Enter one (purchases.override_rate) or record it first.",
       "settle": "Settle",
       "settleHint": "Fill in what settles this invoice at the rate shown.",
       "rateUnknown": "payment-date",
       "missingRateBody": "No {currency} exchange rate is recorded for {date}. The payment can't be posted until a rate on or before that date exists.",
       "missingRateLink": "Open Currencies & rates",
-      "reviewBodyServerRate": "Pay {amount}. The server applies the payment-date rate and posts the FX difference."
+      "reviewBodyServerRate": "Pay {amount}. The server applies the payment-date rate and posts the FX difference.",
+      "serverRate": "The server will apply the payment-date {currency} rate when posting, so the converted amounts and the FX difference can't be previewed here."
     },
     "payments": {
       "title": "Supplier payments",
@@ -917,15 +920,19 @@
       "deliveryNotAssigned": "The delivery is not in the “assigned” state, so it can't be handed over."
     },
     "assign": {
-      "title": "Assign agent",
-      "reassign": "Change agent",
-      "pick": "Choose an agent",
+      "title": "Assign who delivers",
+      "reassign": "Change who delivers",
+      "pick": "Choose an agent or driver",
       "submit": "Assign",
-      "done": "Agent assigned",
-      "noAgents": "No active delivery agents are registered.",
-      "search": "Search agents by name or phone",
-      "noMatch": "No agent matches.",
-      "refine": "Showing {shown} of {total} — narrow the search to reach the rest."
+      "done": "Delivery assigned",
+      "search": "Search agents and drivers by name, phone or vehicle",
+      "noMatch": "No agent or driver matches.",
+      "refine": "Showing {shown} of {total} — narrow the search to reach the rest.",
+      "noParties": "No active agents or external drivers.",
+      "kinds": {
+        "internal_agent": "Agent",
+        "external_driver": "External driver"
+      }
     },
     "done": "Order updated",
     "conflict": "This order changed before your action was saved — it is now “{status}”. The page has been refreshed to show what you can do now.",
@@ -946,8 +953,15 @@
     },
     "views": {
       "label": "Order views",
-      "list": "List",
-      "board": "Board"
+      "list": "All orders",
+      "board": "Board",
+      "queues": {
+        "late": "Late",
+        "attention": "Needs attention",
+        "cancellation": "Cancellation requests"
+      },
+      "retrievals": "Retrievals",
+      "collections": "Cash to confirm"
     },
     "pickList": {
       "open": "Pick list",
@@ -1061,7 +1075,23 @@
         "title": "Approve selling below cost",
         "body": "The order is confirmed at these prices. Your reason is recorded in the audit log."
       }
-    }
+    },
+    "attempts": {
+      "title": "Delivery attempts",
+      "number": "Attempt {number}",
+      "party": "Carried by {name}",
+      "unnamedParty": "an unnamed party",
+      "started": "Out {at}",
+      "ended": "ended {at}",
+      "reason": "Why it failed: {reason}",
+      "status": {
+        "out_for_delivery": "Out for delivery",
+        "delivered": "Delivered",
+        "failed": "Failed"
+      }
+    },
+    "collectionInvalid": "Enter the amount collected in numbers, e.g. 25000.",
+    "collectionTitle": "Cash collected"
   },
   "inbox": {
     "title": "Notifications",
@@ -1159,7 +1189,11 @@
     "separationOfDuties": {
       "hint": "Standard lets a purchase creator record its payment or return. Strict requires another user for those actions. Nobody may approve their own request in either mode.",
       "standard": "Standard",
-      "strict": "Strict"
+      "strict": "Strict",
+      "explain": {
+        "standard": "Standard: the person who records a purchase may also record its payment or return. Nobody may approve their own request.",
+        "strict": "Strict: a purchase's payment, return and corrections must be done by someone other than the person who recorded it. Nobody may approve their own request."
+      }
     },
     "history": {
       "title": "Change history",
@@ -1707,7 +1741,11 @@
       "synchronized": "Search is up to date: every product was indexed.",
       "queued": "{count, plural, one {# product is} other {# products are}} still queued; the automatic catch-up will retry."
     },
-    "belowCostNote": "Raise the price, or ask an approver: approving a below-cost price needs the API to record who proposed it (reported to the backend)."
+    "belowCostNote": "Raise the price or submit it for approval by another user.",
+    "approvalPendingTitle": "Price change waiting for approval",
+    "approvalPendingBody": "The live price was not changed. Another user with below-cost approval permission must approve or reject this request.",
+    "approvalPendingToast": "The below-cost price change is pending approval.",
+    "openApproval": "Open approval request"
   },
   "linkedPrices": {
     "preview": "Preview the price effect",
@@ -1726,6 +1764,7 @@
       "change": "Change"
     },
     "firstPrice": "First price",
+    "belowCostApproval": "Approval required",
     "saveRateOnly": "Save rate only",
     "saveAndPublish": "Save rate and publish linked prices",
     "discard": "Edit the entry",
@@ -1735,7 +1774,12 @@
     "refresh": "Refresh preview",
     "publishedToast": "Saved {rate} and published {count, plural, =0 {no prices} one {# price} other {# prices}}",
     "rateOnlyToast": "Saved {rate} only; {count, plural, =0 {no linked prices} one {# price awaits it} other {# prices await it}}",
-    "approvalPendingToast": "The below-cost publish is pending approval; no rate or price was saved yet."
+    "approvalPendingToast": "The below-cost publish is pending approval; no rate or price was saved yet.",
+    "waiting": {
+      "title": "Waiting for another approver: {rate}",
+      "body": "Some new prices fall below the protected threshold, so nothing was saved yet. Another person with the below-cost approval permission must approve it — you can't approve your own change.",
+      "share": "Send this link to an approver:"
+    }
   },
   "inventory": {
     "skuPicker": {
@@ -2101,6 +2145,244 @@
       "noLines": "Enter a quantity to receive.",
       "overOutstanding": "More than what is still expected ({left}).",
       "location": "Choose where to put it back."
+    },
+    "receiveMore": "Receive more",
+    "list": {
+      "title": "Retrievals",
+      "description": "Goods coming back from delivery parties, across all orders. Filter by party, order, date or status.",
+      "columns": {
+        "document": "Document",
+        "order": "Order",
+        "party": "Party",
+        "date": "Date",
+        "outcome": "Purpose",
+        "lines": "Lines",
+        "status": "Status"
+      },
+      "allStatuses": "All statuses",
+      "allParties": "All parties",
+      "from": "From",
+      "to": "To",
+      "empty": "No retrievals match these filters.",
+      "forOrder": "Showing the retrievals for order {number}.",
+      "allOrders": "Show all orders",
+      "viewAllForOrder": "All retrievals for this order"
+    }
+  },
+  "priceApprovals": {
+    "title": "Below-cost price approval",
+    "description": "Approve or reject a linked-price publish that puts some prices below the protected threshold.",
+    "body": "Approving publishes the new rate and prices; rejecting discards them. Either way, give a reason — it is kept in the audit log.",
+    "reason": "Reason",
+    "reasonRequired": "Give a reason of at least 3 characters.",
+    "approve": "Approve and publish",
+    "reject": "Reject",
+    "ownRequest": "You proposed this change, so you can't decide it. Another approver must approve or reject it.",
+    "readOnly": "You can inspect this request, but deciding it requires the below-cost approval permission.",
+    "proposedBy": "Proposed by {name}",
+    "kind": {
+      "fixed": "Fixed-price change",
+      "linked": "Linked-price publish"
+    },
+    "approvedBody": "Approved: the rate and the linked prices are published.",
+    "rejectedBody": "Rejected: nothing was published.",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "columns": {
+      "sku": "SKU",
+      "price": "New price",
+      "threshold": "Threshold",
+      "cost": "Cost"
+    }
+  },
+  "parties": {
+    "title": "Delivery parties",
+    "description": "Everyone who carries orders: the store's agents (with the app) and external drivers (no account). Open a party to see the goods they hold.",
+    "columns": {
+      "name": "Name",
+      "kind": "Type",
+      "phone": "Phone",
+      "vehicle": "Vehicle",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "kinds": {
+      "internal_agent": "Agent",
+      "external_driver": "External driver"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "allKinds": "All types",
+    "allStatuses": "All",
+    "search": "Search by name, phone or vehicle",
+    "empty": "No delivery parties match.",
+    "viewCustody": "Custody",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "remove": "Remove",
+    "created": "External driver added.",
+    "updated": "External driver updated.",
+    "activated": "Driver activated.",
+    "deactivated": "Driver deactivated.",
+    "notice": {
+      "duplicatePhone": "{name} was saved, but another delivery party already uses this phone number. Check it isn't the same person.",
+      "deleted": "{name} was deleted: nobody had used this driver yet.",
+      "deactivated": "{name} has deliveries, custody or retrievals on record, so the driver was kept and made inactive instead of deleted."
+    },
+    "confirm": {
+      "deactivateTitle": "Deactivate {name}?",
+      "deactivateBody": "The driver can no longer be chosen for new deliveries. Their history and any goods they hold stay as they are.",
+      "activateTitle": "Activate {name}?",
+      "activateBody": "The driver can be chosen for deliveries again.",
+      "removeTitle": "Remove {name}?",
+      "removeBody": "A driver nobody has used yet is deleted. A driver with any delivery, custody or retrieval is kept for the records and made inactive instead."
+    },
+    "form": {
+      "createTitle": "Add an external driver",
+      "editTitle": "Edit {name}",
+      "hint": "A driver without an account. Staff assign them to orders and record their deliveries.",
+      "name": "Name",
+      "nameRequired": "Enter the driver's name.",
+      "phone": "Phone number",
+      "phoneHint": "Local 07XXXXXXXXX or international +964…",
+      "phoneInvalid": "Enter a valid phone number, e.g. 07701234567.",
+      "vehicle": "Vehicle (optional)",
+      "description": "Description (optional)",
+      "notes": "Notes (optional)",
+      "create": "Add driver",
+      "save": "Save changes"
+    },
+    "backToList": "All delivery parties",
+    "detail": {
+      "title": "Delivery party",
+      "description": "What this party holds right now, the orders it belongs to, and every movement in and out of their custody."
+    },
+    "days": "{count, plural, =0 {today} one {# day} other {# days}}",
+    "custody": {
+      "goods": "Goods held",
+      "cash": "Cash held",
+      "quantity": "Quantity",
+      "value": "Value",
+      "oldest": "Oldest item",
+      "amount": "Amount",
+      "lines": "Goods in custody",
+      "none": "This party holds no goods.",
+      "product": "Product",
+      "age": "Held for",
+      "unitCost": "Unit cost"
+    },
+    "held": {
+      "title": "Orders held",
+      "none": "No orders are in this party's hands.",
+      "status": "Order status",
+      "since": "Held since"
+    },
+    "statement": {
+      "title": "Custody statement",
+      "hint": "Goods issued to this party (+) and delivered or brought back (−), with the balance after each movement. Click an order to see only its movements.",
+      "when": "When",
+      "event": "Movement",
+      "order": "Order",
+      "sku": "SKU",
+      "lot": "Lot",
+      "quantity": "Quantity",
+      "running": "Balance",
+      "value": "Value",
+      "runningValue": "Balance value",
+      "forOrder": "Showing the movements of order {number}.",
+      "allOrders": "Show all orders",
+      "empty": "No movements match these filters.",
+      "from": "From",
+      "to": "To"
+    },
+    "events": {
+      "issue_to_custody": "Handed over",
+      "custody_to_sold": "Delivered",
+      "return_in": "Brought back"
+    },
+    "tabs": {
+      "label": "Party views",
+      "custody": "Custody",
+      "collections": "Collections"
+    },
+    "collections": {
+      "title": "Collections",
+      "description": "Every order this party delivered, and what was collected for it: in full, short, or not confirmed yet.",
+      "empty": "No collections match.",
+      "forOrder": "Showing order {number} only.",
+      "allOrders": "All orders",
+      "toConfirm": "This party's cash to confirm"
+    }
+  },
+  "collections": {
+    "fields": {
+      "title": "Cash collected",
+      "due": "Amount due",
+      "collected": "The party collected",
+      "amount": "Amount collected",
+      "amountInvalid": "Enter the amount collected in numbers, e.g. 25000.",
+      "notConfirmed": "Amount not confirmed yet",
+      "notConfirmedHint": "The order is delivered now; the amount is confirmed later from the Cash to confirm list."
+    },
+    "preview": {
+      "full": "The full amount: nothing is short.",
+      "short": "Short by {shortfall}. The shortfall is recorded against the party.",
+      "over": "More than is due. Enter at most the amount due.",
+      "unconfirmed": "Revenue is recorded now; no cash is counted until the amount is confirmed.",
+      "invalid": "Enter the amount in numbers."
+    },
+    "status": {
+      "confirmed_full": "Collected in full",
+      "confirmed_short": "Collected short",
+      "unconfirmed": "Not confirmed yet"
+    },
+    "summary": {
+      "collected": "Collected",
+      "shortfall": "Shortfall"
+    },
+    "queue": {
+      "title": "Cash to confirm",
+      "description": "Delivered orders whose amount collected isn't confirmed yet, oldest first. Confirm what the party handed in: the full amount, or less (a shortfall).",
+      "columns": {
+        "order": "Order",
+        "party": "Delivered by",
+        "delivered": "Delivered",
+        "actions": "Actions"
+      },
+      "empty": "Every delivered order's cash is confirmed.",
+      "confirm": "Confirm amount",
+      "confirmTitle": "Confirm the cash for order {number}",
+      "confirmBody": "Enter what the party handed in. This posts once; it can't be changed afterwards.",
+      "done": "Order {number}: cash confirmed."
+    },
+    "filters": {
+      "status": "Status",
+      "anyStatus": "All statuses",
+      "party": "Delivered by",
+      "anyParty": "All parties",
+      "from": "Delivered from",
+      "to": "Delivered to",
+      "amountMin": "Amount due from",
+      "amountMax": "Amount due to",
+      "note": "Days are Baghdad business days of delivery; amounts are the amount due.",
+      "ignored": {
+        "dates": "The start day is after the end day, so the date filter isn't applied.",
+        "amounts": "The lowest amount is above the highest, so the amount filter isn't applied."
+      }
+    },
+    "settlement": {
+      "title": "Settlement",
+      "unconfirmed": "Awaiting confirmation",
+      "unsettled": "Not settled",
+      "partially_settled": "Partly settled",
+      "settled": "Settled",
+      "unsettled_amount": "Left to settle"
     }
   }
 }

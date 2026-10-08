@@ -68,11 +68,13 @@ export async function requireLiveApi(
 /**
  * Start each test with room in the API's rate-limit window.
  *
- * The API limits 120 requests a minute per address, and the browser (through
- * the BFF) and this runner share one address, so a test that starts with a
- * nearly spent window fails halfway — as a 429 on GET /me, which the layout
- * shows as "server unreachable". Waiting only when the window is already
- * empty is not enough; this waits until `min` requests remain, and extends
+ * The API limits normal reads to 120 requests a minute per address, and the
+ * browser (through the BFF) and this runner share one address: the test's
+ * own (fixtures.ts), or this runner's in forwarding.spec.ts. Probe the
+ * authenticated GET /me route that every admin page actually consumes; the
+ * public /settings route belongs to the separate catalog tier and cannot
+ * report this bucket's headroom. Waiting only when the window is already
+ * empty is not enough, so this waits until `min` requests remain and extends
  * the test's timeout by the time spent waiting.
  */
 export async function awaitHeadroom(
@@ -82,7 +84,10 @@ export async function awaitHeadroom(
   min = 100,
 ): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const response = await request.get(`${API}/settings`, { timeout: 5_000 });
+    const response = await request.get(`${API}/me`, {
+      headers: bearer(await adminApiToken(request)),
+      timeout: 5_000,
+    });
     const headers = response.headers();
     const remaining = Number(headers["x-ratelimit-remaining"] ?? "999");
     if (response.status() !== 429 && remaining >= min) return;

@@ -4,7 +4,7 @@
  * refuses to start without them rather than falling back to localhost.
  * Every variable is documented in docs/deploy/web-and-admin.md.
  */
-export function register() {
+export async function register() {
   if (process.env.NODE_ENV !== "production" || process.env.NEXT_RUNTIME !== "nodejs") return;
   // `next build` loads this too; only a running server needs the settings.
   if (process.env.NEXT_PHASE === "phase-production-build") return;
@@ -18,6 +18,14 @@ export function register() {
       return [`${name} is not a URL`];
     }
   });
+  // A malformed TRUSTED_FRONT_PROXIES must stop the server, not quietly
+  // trust nothing (or the wrong thing).
+  const { checkTrustedFrontProxies } = await import("./lib/session/forwarding");
+  try {
+    checkTrustedFrontProxies(process.env.TRUSTED_FRONT_PROXIES);
+  } catch (error) {
+    problems.push(error instanceof Error ? error.message : "TRUSTED_FRONT_PROXIES is invalid");
+  }
   if (problems.length) {
     // Next.js logs a thrown error here but keeps the process alive, serving
     // nothing; exit so the container restarts visibly instead.

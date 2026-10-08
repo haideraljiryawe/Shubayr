@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
-import { Alert, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
@@ -72,6 +73,12 @@ export function RateForm({
   const [preview, setPreview] = useState<{ request: Request; data: Preview } | null>(null);
   const [stale, setStale] = useState(false);
   const [applying, setApplying] = useState<"rate_only" | "published" | null>(null);
+  /**
+   * A below-cost publish the proposer has sent for approval: it stays on
+   * screen as "waiting for another approver" (never with an approve button —
+   * the server also refuses the proposer's own decision).
+   */
+  const [waiting, setWaiting] = useState<{ id: string; items: Preview["items"]; rate: string } | null>(null);
 
   const perOne = rate && isPositive(rate) ? (basis === 100 ? per100ToPer1(rate) : rate) : null;
   const notToday = effective.slice(0, 10) !== storeDay();
@@ -127,6 +134,9 @@ export function RateForm({
     setApplying(null);
     if (!result) return;
     const rateLabel = rateText(code, baseCode, String(preview.data.new_rate), locale);
+    if (result.mode === "pending_approval" && result.approval_request_id) {
+      setWaiting({ id: result.approval_request_id, items: preview.data.items, rate: rateLabel });
+    }
     toast(
       result.mode === "pending_approval"
         ? tl("approvalPendingToast")
@@ -146,6 +156,25 @@ export function RateForm({
 
   return (
     <Card className="p-5">
+      {waiting ? (
+        <Alert tone="info" data-testid="price-approval-waiting" data-request={waiting.id}>
+          <p className="font-semibold">{tl("waiting.title", { rate: waiting.rate })}</p>
+          <p className="mt-1 text-sm">{tl("waiting.body")}</p>
+          <p className="mt-2 text-sm">
+            {tl("waiting.share")}{" "}
+            <Link href={`/finance/price-approvals/${waiting.id}`} className="font-semibold underline" dir="ltr" data-testid="price-approval-link">
+              /finance/price-approvals/{waiting.id}
+            </Link>
+          </p>
+          <ul className="mt-2 list-inside list-disc text-sm" data-testid="price-approval-waiting-items">
+            {waiting.items.map((item) => (
+              <li key={item.variant_id} dir="ltr">
+                {item.sku}: {money(item.old_price)} → {money(item.new_price)}
+              </li>
+            ))}
+          </ul>
+        </Alert>
+      ) : null}
       <form
         className="flex flex-col gap-4"
         data-testid="rate-form"
@@ -400,9 +429,15 @@ function LinkedPreviewPanel({
                     data-testid="preview-row"
                     data-sku={item.sku}
                     data-direction={direction}
+                    data-requires-approval={item.requires_below_cost_approval}
                   >
                     <td className="py-1.5">
                       <code dir="ltr">{item.sku}</code>
+                      {item.requires_below_cost_approval ? (
+                        <Badge tone="warning" className="ms-2" data-testid="preview-below-cost">
+                          {tl("belowCostApproval")}
+                        </Badge>
+                      ) : null}
                     </td>
                     <td className="py-1.5" dir="ltr" data-testid="preview-old">
                       {money(item.old_price)}

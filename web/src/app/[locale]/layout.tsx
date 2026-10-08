@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { Cairo } from "next/font/google";
+import { cairoVariables } from "@/fonts/cairo";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { AppShell } from "@/components/layout/app-shell";
@@ -16,13 +16,7 @@ import { api } from "@/lib/api";
 import { SITE_URL, openGraphFor } from "@/lib/site";
 import { OfflineNotice } from "@/components/layout/offline-notice";
 import "../globals.css";
-
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-cairo",
-  display: "swap",
-});
+import { getSettingsOnce } from "@/lib/server-data";
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -37,7 +31,7 @@ export async function generateMetadata({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "brand" });
   const seo = await getTranslations({ locale, namespace: "seo" });
-  const settings = await api.getSettings().catch(() => null);
+  const settings = await getSettingsOnce().catch(() => null);
   const storeName = settings?.store_name || t("name");
   const description = seo("homeDescription", { store: storeName });
 
@@ -76,13 +70,13 @@ export default async function LocaleLayout({
 
   // White-label identity (rule #1). Fetched on the server so the brand is in
   // the first byte of HTML — no flash of the default green.
-  const settings = await api.getSettings().catch(() => null);
+  const settings = await getSettingsOnce().catch(() => null);
 
   return (
     <html
       lang={locale}
       dir={localeDirection[locale as Locale]}
-      className={cairo.variable}
+      className={cairoVariables}
       suppressHydrationWarning
     >
       <body>

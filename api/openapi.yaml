@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 11.0.0
+  version: 13.4.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -510,9 +510,8 @@ paths:
       tags: [Cart]
       summary: Get the authenticated caller's repriced cart
       description: >
-        Guest carts remain client-side. After login, clients replay guest lines
-        through POST /cart/items; identical product/variant lines are merged by
-        incrementing quantity. Every response reprices from current server-time
+        Guest carts remain client-side. After login, clients atomically attach
+        them through POST /cart/merge. Every response reprices from current server-time
         effective_price. Subtotal is the sum of effective-price line totals;
         discount is the coupon amount only, and delivery_fee is zero until a
         delivery-fee policy is configured at checkout.
@@ -527,6 +526,13 @@ paths:
     post:
       tags: [Cart]
       summary: Add an item to the cart
+      x-error-codes: [IDEMPOTENCY_KEY_REUSED]
+      description: An optional Idempotency-Key makes retries repeat-safe. Reusing the key with the same body returns the cart without adding again; a different body returns 409.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string, minLength: 8, maxLength: 128 }
       requestBody:
         required: true
         content:
@@ -545,6 +551,48 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /cart/merge:
+    post:
+      tags: [Cart]
+      summary: Atomically merge a guest basket into the authenticated cart
+      x-error-codes: [IDEMPOTENCY_KEY_REUSED]
+      description: The entire guest basket is merged under the cart lock. Replaying the same key and body is a no-op; a simultaneous add is serialized and retained exactly once.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [product_id, quantity]
+                    properties:
+                      product_id: { type: string, format: uuid }
+                      variant_id: { type: [string, "null"], format: uuid }
+                      quantity: { type: number, multipleOf: 0.001, minimum: 0.001, maximum: 99 }
+      responses:
+        "200":
+          description: Merged cart
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Cart" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /cart/coupon:
     delete:
@@ -670,12 +718,13 @@ paths:
     post:
       tags: [Orders]
       summary: Place a Cash-on-Delivery order
+      x-error-codes: [PRICE_CHANGED]
       description: >
         Atomically reprices and consumes the caller's server cart using server-time
         effective prices, creates status=pending, a pending COD payment and a
-        minimal delivery record. Sellable stock is reduced by a product/variant
-        hold; FEFO batch assignment and picking are reserved for the inventory
-        slice. A repeated Idempotency-Key with the same checkout request returns
+        minimal delivery record. Sellable stock is reserved against concrete
+        batches and locations using FEFO allocation in the same transaction. A
+        repeated Idempotency-Key with the same checkout request returns
         the original order, even after the cart is cleared; a different request
         with that key returns 409. Without a key, retries can create a new order.
         The selected owned address and contact_phone are copied into immutable
@@ -748,7 +797,8 @@ paths:
   /orders/{id}/cancel:
     post:
       tags: [Orders]
-      summary: Cancel a pending or confirmed order (releases its simple stock holds)
+      summary: Cancel a pending order and release its inventory reservations
+      x-error-codes: [STALE_ORDER_STATE]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -780,6 +830,7 @@ paths:
         preparing: orders.prepare
         ready_for_dispatch: orders.mark_ready
         dispatched: orders.handover
+      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, ORDER_NEEDS_ATTENTION]
       description: >
         Supports the same pre-dispatch transitions as
         PATCH /admin/orders/{id}/status. Use the dedicated admin endpoint for
@@ -812,6 +863,7 @@ paths:
     post:
       tags: [Orders]
       summary: Request cancellation after the pending state
+      x-error-codes: [STALE_ORDER_STATE]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -839,6 +891,7 @@ paths:
     post:
       tags: [Orders]
       summary: Accept or deny a proposed preparation quantity reduction
+      x-error-codes: [STALE_ORDER_STATE]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -1673,10 +1726,25 @@ paths:
                     total: 0
                     data: []
         "403": { $ref: "#/components/responses/Forbidden" }
+  /deliveries/custody:
+    get:
+      tags: [Deliveries]
+      summary: Current agent's own goods and cash custody
+      description: The party is resolved from the authenticated delivery-agent session; no party id is accepted. Cost fields are never returned to an agent. Cash equals confirmed COD held in the party's account 1020 custody balance.
+      x-app-role: delivery_agent
+      responses:
+        "200":
+          description: Own custody summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyCustody" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /deliveries/{id}:
     patch:
       tags: [Deliveries]
       summary: Update delivery status (agent)
+      x-error-codes: [STALE_ORDER_STATE]
       description: >
         Only the assigned agent may act. An assigned delivery may start only
         when its order is ready_for_dispatch. Legal transitions are assigned to
@@ -1684,8 +1752,11 @@ paths:
         to out_for_delivery for a custody-preserving retry; and delivered to
         returned. Returned is terminal. Dispatch and delivery
         timestamps are recorded, and the order advances atomically through its
-        corresponding status events. Successful delivery reconciles a pending
-        COD payment to paid in the same transaction.
+        corresponding status events. For status=delivered, operation_id and
+        collection_confirmation are required. A confirmed collection also
+        requires collected_amount. Revenue, cost of goods sold, and cash
+        custody or collection exception are posted atomically. An unconfirmed
+        collection recognizes revenue without inventing cash received.
       x-app-role: delivery_agent
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1699,6 +1770,9 @@ paths:
                 status: { type: string, enum: [out_for_delivery, delivered, failed, returned] }
                 order_version: { type: integer, minimum: 1 }
                 reason: { type: string, minLength: 1, maxLength: 500, description: Required when status=failed. }
+                operation_id: { type: string, minLength: 8, maxLength: 128, description: Required when status=delivered. }
+                collection_confirmation: { type: string, enum: [confirmed, unconfirmed], description: Required when status=delivered. }
+                collected_amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$', description: Required only for a confirmed collection; must be at most the amount due. }
       responses:
         "200":
           description: Updated delivery
@@ -1713,6 +1787,7 @@ paths:
     patch:
       tags: [Deliveries]
       summary: Complete, fail, or retry a delivery as authorized staff
+      x-error-codes: [STALE_ORDER_STATE]
       description: >
         Uses the same concurrency-safe order/delivery transition as the assigned
         agent route. Staff may mark dispatched deliveries delivered or failed,
@@ -1735,6 +1810,11 @@ paths:
                 status: { type: string, enum: [out_for_delivery, delivered, failed] }
                 order_version: { type: integer, minimum: 1 }
                 reason: { type: string, minLength: 1, maxLength: 500, description: Required when status=failed. }
+                operation_id: { type: string, minLength: 8, maxLength: 128, description: Required when status=delivered. }
+                collection_confirmation: { type: string, enum: [confirmed, unconfirmed], description: Required when status=delivered. }
+                collected_amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$', description: Required only for a confirmed collection; must be at most the amount due. }
+                event_at: { type: string, format: date-time, description: Optional delivery event time reported by staff; posting uses its Baghdad business date. }
+                source: { type: string, minLength: 1, maxLength: 120, description: Required when staff records a delivery on behalf of a party. }
       responses:
         "200":
           description: Updated delivery
@@ -1745,11 +1825,61 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/deliveries/unconfirmed:
+    get:
+      tags: [Deliveries]
+      summary: List delivered orders whose collection awaits confirmation
+      x-permission: deliveries.manage
+      parameters:
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, description: Baghdad business date, schema: { type: string, format: date } }
+        - { name: date_to, in: query, description: Baghdad business date, schema: { type: string, format: date } }
+        - { name: amount_min, in: query, description: Minimum amount due, schema: { type: number, minimum: 0 } }
+        - { name: amount_max, in: query, description: Maximum amount due, schema: { type: number, minimum: 0 } }
+        - { name: sort_by, in: query, schema: { type: string, enum: [date, amount], default: date } }
+        - { name: sort_direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated unconfirmed collections, newest first by default
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryCollectionPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/deliveries/{id}/collection-confirmation:
+    post:
+      tags: [Deliveries]
+      summary: Confirm the amount collected for an unconfirmed delivery
+      description: Posts only the later full or later short confirmation map; sale revenue and COGS are never repeated.
+      x-permission: orders.deliver
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [operation_id, collected_amount]
+              properties:
+                operation_id: { type: string, minLength: 8, maxLength: 128 }
+                collected_amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$' }
+      responses:
+        "200":
+          description: Confirmed collection
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryCollection" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
   /deliveries/{id}/assign:
     patch:
       tags: [Deliveries]
-      summary: Assign or reassign an active delivery to a delivery agent
-      description: Staff may assign only an active delivery to an active user with the delivery role.
+      summary: Assign or reassign an active delivery to a delivery party
+      description: Staff may assign an active internal agent or external driver. agent_id remains accepted for backward compatibility and identifies an internal party; new clients use party_id.
       x-permission: orders.assign_agent
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -1758,9 +1888,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [agent_id]
+              additionalProperties: false
+              oneOf:
+                - required: [agent_id]
+                - required: [party_id]
               properties:
                 agent_id: { type: string, format: uuid }
+                party_id: { type: string, format: uuid }
       responses:
         "200":
           description: Updated delivery assignment
@@ -1852,6 +1986,10 @@ paths:
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
         - { name: unread, in: query, schema: { type: boolean, default: false } }
+        - name: type
+          in: query
+          description: Return only notifications of this exact type.
+          schema: { $ref: "#/components/schemas/NotificationPreferenceEntry/properties/type" }
       responses:
         "200":
           description: Own saved notifications, newest first
@@ -2019,6 +2157,9 @@ paths:
         - { name: to, in: query, schema: { type: string, format: date } }
         - { name: q, in: query, schema: { type: string, maxLength: 40 }, description: "case-insensitive order_number search" }
         - { name: customer_id, in: query, schema: { type: string, format: uuid } }
+        - { name: late, in: query, schema: { type: boolean }, description: Filter by the server-computed acceptance-late flag. }
+        - { name: needs_attention, in: query, schema: { type: boolean }, description: Filter by inventory attention requirement. }
+        - { name: cancellation_request, in: query, schema: { type: string, enum: [pending] }, description: Filter orders with a pending customer cancellation request. }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -2047,6 +2188,336 @@ paths:
               schema: { $ref: "#/components/schemas/DeliveryAgentPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List internal agents and external drivers
+      x-any-permissions: [deliveries.manage, orders.assign_agent, drivers.manage]
+      parameters:
+        - { name: kind, in: query, schema: { type: string, enum: [internal_agent, external_driver] } }
+        - { name: active, in: query, schema: { type: boolean } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated delivery parties
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/custody-overview:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Paginated custody totals across all delivery parties
+      description: Goods value is omitted unless the caller has cost.view; sorting by goods value also requires cost.view.
+      x-permission: deliveries.manage
+      x-error-codes: [COST_VIEW_REQUIRED]
+      parameters:
+        - { name: kind, in: query, schema: { type: string, enum: [internal_agent, external_driver] } }
+        - { name: active, in: query, schema: { type: boolean } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: sort_by, in: query, schema: { type: string, enum: [name, goods_value_iqd, cash_held, oldest_item_age_days, orders_held], default: name } }
+        - { name: sort_direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Delivery parties with ledger-reconciling custody totals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Get a delivery party
+      x-permission: deliveries.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Delivery party
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryParty" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}/custody:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Read a party's current goods and cash custody
+      description: Lot cost and IQD value are included only when the caller also has cost.view. Cash equals confirmed collections less active cash receipt vouchers.
+      x-permission: deliveries.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Current custody with Baghdad business-day ages
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyCustody" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}/statement:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Read a party's goods-custody statement with running balances
+      x-permission: deliveries.manage
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Party statement; value fields require cost.view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyStatementPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}/orders:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List orders with goods currently held by a party
+      x-permission: deliveries.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Orders currently represented by open custody holdings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyHeldOrders" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}/collections:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List delivered-order collections for one delivery party
+      description: Date filters use complete Asia/Baghdad business days; amount filters apply to amount due.
+      x-permission: deliveries.manage
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: status, in: query, schema: { type: string, enum: [confirmed_full, confirmed_short, unconfirmed] } }
+        - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: amount_min, in: query, description: Minimum amount due, schema: { type: number, minimum: 0 } }
+        - { name: amount_max, in: query, description: Maximum amount due, schema: { type: number, minimum: 0 } }
+        - { name: sort_by, in: query, schema: { type: string, enum: [date, amount], default: date } }
+        - { name: sort_direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated collection history for the party
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryCollectionPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-drivers:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List external drivers without accounts
+      x-permission: drivers.manage
+      parameters:
+        - { name: active, in: query, schema: { type: boolean } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated external drivers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Admin, Deliveries]
+      summary: Create an external driver without an account
+      x-permission: drivers.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverCreate" }
+      responses:
+        "201":
+          description: Created external driver, including a non-blocking repeated-phone warning
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverMutation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-drivers/{id}:
+    patch:
+      tags: [Admin, Deliveries]
+      summary: Update or activate/deactivate an external driver
+      x-permission: drivers.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverUpdate" }
+      responses:
+        "200":
+          description: Updated external driver
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverMutation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Admin, Deliveries]
+      summary: Delete an unused external driver or deactivate one with history
+      description: Once any assignment, custody, attempt, movement, retrieval, or trip exists, the record is retained and made inactive.
+      x-permission: drivers.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Whether the driver was deleted or retained as inactive
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverRemoval" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List external-driver trips
+      x-permission: trips.view
+      parameters:
+        - { name: driver_party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [open, in_progress, closed] } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated external-driver trips with orders and settlement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTripPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Admin, Deliveries]
+      summary: Create a numbered external-driver trip and fare agreement
+      description: Records exactly one store-paid or customer-direct fare before handover. A customer-direct fare never enters store revenue, expense, payable, collection, or netting.
+      x-permission: trips.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripCreate" }
+      responses:
+        "201":
+          description: Open trip
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTrip" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Get an external-driver trip with orders, events, fare and settlement
+      x-permission: trips.view
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: External-driver trip
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTrip" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/orders:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Add and hand over one ready order to the trip driver
+      description: Atomically reuses the delivery handover and goods-custody posting. For customer-direct fares the store delivery fee must be zero and documented customer acceptance is required.
+      x-permission: trips.manage
+      x-error-codes: [DOUBLE_DELIVERY_CHARGE, STALE_ORDER_STATE]
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripOrderAdd" }
+      responses:
+        "201":
+          description: Trip after handover
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTrip" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/start:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Start a prepared external-driver trip
+      description: Fare shares must sum to the trip's one fare before it starts.
+      x-permission: trips.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripEventInput" }
+      responses:
+        "200":
+          description: In-progress trip
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTrip" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/close:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Operationally close and settle an external-driver trip
+      description: Accrues one store-paid fare and optionally pays or nets it. Short cash remains open custody and excess receipts remain unallocated; neither becomes income, pay or loss automatically.
+      x-permission: trips.settle
+      x-error-codes: [TRIP_ORDERS_UNRESOLVED, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripClose" }
+      responses:
+        "200":
+          description: Closed trip; settlement may remain open as allowed by the spec
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTrip" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/orders/{id}:
     get:
       tags: [Admin]
@@ -2066,6 +2537,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Advance an order through its pre-dispatch lifecycle
+      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, ORDER_NEEDS_ATTENTION]
       x-surface: admin
       x-permission-by-status:
         confirmed: orders.accept
@@ -2076,8 +2548,9 @@ paths:
         Legal path: pending to confirmed to preparing to ready_for_dispatch to
         dispatched. Dispatch requires the existing current delivery to have an
         agent assigned through PATCH /deliveries/{id}/assign; it moves that same
-        delivery to out_for_delivery and converts checkout stock holds from held
-        to deducted. Delivery agent transitions own delivered, failed and returned.
+        delivery to out_for_delivery and transfers reserved stock into the agent's
+        custody. Delivery agents and authorized staff can record delivery outcomes;
+        staff own cancellation and shortage-resolution transitions.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -2108,6 +2581,7 @@ paths:
     post:
       tags: [Admin]
       summary: Cancel a pre-dispatch order and release its stock holds
+      x-error-codes: [STALE_ORDER_STATE]
       x-permission: orders.cancel
       description: >
         Allowed only from pending, confirmed, preparing, or ready_for_dispatch.
@@ -2139,6 +2613,7 @@ paths:
     post:
       tags: [Admin]
       summary: Reject a pending order and release its stock holds
+      x-error-codes: [STALE_ORDER_STATE]
       x-permission: orders.reject
       description: >
         Rejection is distinct from cancellation and is allowed only while the
@@ -2173,6 +2648,7 @@ paths:
     post:
       tags: [Admin]
       summary: Approve or deny a customer cancellation request
+      x-error-codes: [STALE_ORDER_STATE]
       x-permission: orders.cancel_request.resolve
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2202,6 +2678,7 @@ paths:
     post:
       tags: [Admin]
       summary: Propose a reduction or cancel a short line/order
+      x-error-codes: [STALE_ORDER_STATE]
       x-permission: orders.shortage.resolve
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2280,7 +2757,7 @@ paths:
   /admin/orders/{id}/retrievals:
     post:
       tags: [Fulfilment]
-      summary: Open a retrieval for a failed order returning to the store
+      summary: Open a retrieval for a failed or cancelled order returning to the store
       x-permission: retrieval.open
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2293,7 +2770,7 @@ paths:
               required: [operation_id, outcome, reason]
               properties:
                 operation_id: { type: string, minLength: 8, maxLength: 128 }
-                outcome: { type: string, enum: [retry] }
+                outcome: { type: string, enum: [cancel, retry] }
                 reason: { type: string, minLength: 3, maxLength: 500 }
       responses:
         "201":
@@ -2304,6 +2781,29 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/retrievals:
+    get:
+      tags: [Fulfilment]
+      summary: List retrievals across all orders
+      description: Filters are applied server-side before stable pagination.
+      x-permission: retrieval.view
+      parameters:
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: status, in: query, schema: { type: string, enum: [open, partially_received, received, closed] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated retrievals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RetrievalPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
 
   /admin/retrievals/{id}:
@@ -2386,6 +2886,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create a product
+      x-error-codes: [BELOW_COST_BLOCKED]
       description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
       x-permissions: [catalog.products, prices.change]
       requestBody:
@@ -2419,10 +2920,13 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a product
+      x-error-codes: [BELOW_COST_BLOCKED]
       description: >
         Omitted fields are preserved. Explicit null clears only nullable fields;
         `discount_type: null` clears the complete stored discount definition.
-        Updating unrelated fields never changes a scheduled discount.
+        Updating unrelated fields never changes a scheduled discount. A fixed
+        price below protected cost is not applied: the response retains the
+        live price and identifies the pending request for another user.
       x-permissions: [catalog.products, prices.change]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -3070,14 +3574,48 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  /admin/price-publish-approvals:
+    get:
+      tags: [Finance]
+      summary: List below-cost price-publish approval requests
+      description: Approvers can discover all requests; price proposers can read only their own requests. Cost fields require cost.view.
+      x-surface: admin
+      x-any-permissions: [sell_below_cost.approve, prices.change, prices.publish_linked]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected] } }
+        - { name: proposer_id, in: query, schema: { type: string, format: uuid } }
+        - { name: sku, in: query, schema: { type: string, maxLength: 80 } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Paginated approval requests, content: { application/json: { schema: { $ref: "#/components/schemas/PricePublishApprovalPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/price-publish-approvals/{id}:
+    get:
+      tags: [Finance]
+      summary: Get one below-cost price-publish approval request
+      description: Approvers can read any request; a proposer can read their own request. Cost fields require cost.view.
+      x-surface: admin
+      x-any-permissions: [sell_below_cost.approve, prices.change, prices.publish_linked]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Approval request, content: { application/json: { schema: { $ref: "#/components/schemas/PricePublishApproval" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+
   /admin/price-publish-approvals/{id}/decision:
     post:
       tags: [Finance]
-      summary: Approve or reject a pending below-cost linked-price publish
+      summary: Approve or reject a pending below-cost fixed or linked-price publish
       description: The authenticated proposer is stored server-side and can never decide their own request.
       x-surface: admin
       x-permission: sell_below_cost.approve
-      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION]
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, STALE_PRICE_APPROVAL]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody:
         required: true
@@ -3310,6 +3848,216 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/ExchangeRateValidation" }
+
+  /admin/cash-receipts:
+    get:
+      tags: [Finance, Deliveries]
+      summary: List delivery-party cash receipt vouchers
+      x-surface: admin
+      x-permission: deliveries.manage
+      parameters:
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: cash_account_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: status, in: query, schema: { type: string, enum: [active, reversed] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Paginated receipt vouchers, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Finance, Deliveries]
+      summary: Receive IQD cash from a delivery party into a cash account
+      description: Posts the phase-3 cash_received map (cash account debit, party cash-custody credit). Optional allocations settle confirmed collections; any remainder remains explicitly unallocated.
+      x-surface: admin
+      x-permission: cash_receipts.receive
+      x-conditional-permission: { when: allocations are present, permission: cash_receipts.allocate }
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptCreateInput" } } } }
+      responses:
+        "201": { description: Posted cash receipt, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptVoucher" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/unallocated:
+    get:
+      tags: [Finance, Deliveries]
+      summary: List active receipts with an unallocated remainder
+      x-surface: admin
+      x-permission: deliveries.manage
+      parameters:
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: cash_account_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Paginated receipts with remaining allocation capacity, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/allocation-suggestions:
+    get:
+      tags: [Finance, Deliveries]
+      summary: Suggest a party's oldest unsettled confirmed collections
+      x-surface: admin
+      x-permission: cash_receipts.allocate
+      parameters:
+        - { name: party_id, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: amount_iqd, in: query, schema: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 100 } }
+      responses:
+        "200": { description: Oldest-first allocation suggestions, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptSuggestions" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/{id}:
+    get:
+      tags: [Finance, Deliveries]
+      summary: Read one cash receipt with allocations and reversal
+      x-surface: admin
+      x-permission: deliveries.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Cash receipt detail, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptVoucher" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/{id}/allocations:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Allocate an active receipt's remainder to delivered orders
+      description: Partial allocation is allowed. Orders must belong to the receipt party and allocations cannot exceed either the receipt remainder or an order's confirmed collected amount.
+      x-surface: admin
+      x-permission: cash_receipts.allocate
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptAllocateInput" } } } }
+      responses:
+        "201": { description: Receipt with the immutable allocation batch, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptVoucher" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/{id}/reversal:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Reverse an immutable cash receipt voucher
+      description: The reversal restores party cash custody and makes every allocation on the original receipt ineffective; the original rows remain unchanged.
+      x-surface: admin
+      x-permission: cash_receipts.reverse
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptReversalInput" } } } }
+      responses:
+        "201": { description: Reversed receipt with reversal document, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptVoucher" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/custody-exceptions:
+    get:
+      tags: [Finance, Deliveries]
+      summary: List custody exception documents
+      x-surface: admin
+      x-permission: custody_exceptions.view
+      parameters:
+        - { name: type, in: query, schema: { type: string, enum: [goods_loss, return_against_uncollected, delivery_fee_refund] } }
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+        - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: status, in: query, schema: { type: string, enum: [active, reversed] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Paginated custody exceptions, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyExceptionPage" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/custody-exceptions/goods-loss:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Record goods lost or damaged in a delivery party's custody
+      description: Records selected custody holdings at original issue cost, reduces goods custody once, and applies the phase-3 exception_handover or exception_loss map according to liability bearer.
+      x-surface: admin
+      x-permission: custody_exceptions.loss
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GoodsCustodyExceptionInput" } } } }
+      responses:
+        "201": { description: Immutable goods custody exception, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/custody-exceptions/return-against-uncollected:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Return goods at the door against an uncollected order
+      description: Restocks goods at original issue cost and applies return value to the open uncollected amount before creating any refund payable. Existing receipt allocations are unchanged because only the uncollected shortfall is reduced.
+      x-surface: admin
+      x-permission: custody_exceptions.return_uncollected
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ReturnAgainstUncollectedInput" } } } }
+      responses:
+        "201": { description: Immutable return-against-uncollected exception, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/custody-exceptions/delivery-fee-refund:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Refund an order's delivery fee
+      description: Creates the phase-3 delivery_fee_refund liability and settles it from an IQD cash account or against the order's still-uncollected amount. The cumulative active refund cannot exceed the charged delivery fee.
+      x-surface: admin
+      x-permission: custody_exceptions.refund_delivery_fee
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/DeliveryFeeRefundInput" } } } }
+      responses:
+        "201": { description: Immutable delivery-fee refund, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/custody-exceptions/{id}:
+    get:
+      tags: [Finance, Deliveries]
+      summary: Read one custody exception document
+      description: Original issue-cost fields are present only for callers holding cost.view.
+      x-surface: admin
+      x-permission: custody_exceptions.view
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Custody exception detail, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/custody-exceptions/{id}/reversal:
+    post:
+      tags: [Finance, Deliveries]
+      summary: Reverse an immutable custody exception
+      description: Reverses every posting and stock effect. A party-liability loss cannot be reversed after a cash receipt has consumed that liability; reverse that receipt first.
+      x-surface: admin
+      x-permission: custody_exceptions.reverse
+      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyExceptionReversalInput" } } } }
+      responses:
+        "201": { description: Custody exception with its immutable reversal, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   /admin/financial-documents/{id}:
     get:
@@ -3662,6 +4410,7 @@ components:
       required: true
       schema: { type: string, minLength: 3, maxLength: 500 }
   responses:
+    BadRequest: { description: Invalid filter range (`BAD_REQUEST`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Unauthorized: { description: Missing/invalid token (`UNAUTHORIZED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     NotFound: { description: Not found (`NOT_FOUND`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Conflict: { description: State conflict (`CONFLICT`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
@@ -4029,6 +4778,8 @@ components:
         published_at: { type: [string, "null"], format: date-time }
         price_approved_at: { type: [string, "null"], format: date-time }
         price_proposed_by: { type: [string, "null"], format: uuid }
+        price_update_status: { type: string, enum: [pending_approval], description: Present when this save created a below-cost fixed-price approval request and left the live price unchanged. }
+        price_approval_request_id: { type: string, format: uuid, description: Present with price_update_status. }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         images:
@@ -4410,7 +5161,55 @@ components:
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         reviewed: { type: boolean, readOnly: true, description: True when the caller already has a product review for this order item. }
 
-    Order:
+    OrderPriceChangeInfo:
+      type: object
+      additionalProperties: false
+      required: [accepted_at, lines]
+      properties:
+        accepted_at: { type: string, format: date-time }
+        lines:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [variant_id, unit_price, price_version]
+            properties:
+              variant_id: { type: string, format: uuid }
+              unit_price: { $ref: "#/components/schemas/Money" }
+              price_version: { type: string, minLength: 1, maxLength: 64 }
+
+    OrderAttentionDetails:
+      type: object
+      additionalProperties: false
+      required: [short_lines]
+      properties:
+        short_lines:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [order_item_id, variant_id, requested, allocated, short]
+            properties:
+              order_item_id: { type: string, format: uuid }
+              variant_id: { type: string, format: uuid }
+              requested: { type: string }
+              allocated: { type: string }
+              short: { type: string }
+        reduction_proposal:
+          type: object
+          additionalProperties: false
+          required: [order_item_id, old_quantity, new_quantity, reason, status, requested_by, requested_at]
+          properties:
+            order_item_id: { type: string, format: uuid }
+            old_quantity: { type: number, multipleOf: 0.001 }
+            new_quantity: { type: number, multipleOf: 0.001 }
+            reason: { type: string }
+            status: { type: string, enum: [pending, accepted, denied] }
+            requested_by: { type: string, format: uuid }
+            requested_at: { type: string, format: date-time }
+            resolved_at: { type: string, format: date-time }
+
+    OrderBase:
       type: object
       properties:
         id: { type: string, format: uuid }
@@ -4447,9 +5246,19 @@ components:
                 requested_at: { type: [string, "null"], format: date-time }
                 resolved_at: { type: [string, "null"], format: date-time }
                 resolution_note: { type: [string, "null"] }
-        price_change_info: { type: [object, "null"], additionalProperties: true }
+        price_change_info:
+          oneOf:
+            - { type: "null" }
+            - { $ref: "#/components/schemas/OrderPriceChangeInfo" }
         inventory_attention_required: { type: boolean }
-        attention_details: { type: [object, "null"], additionalProperties: true }
+        attention_details:
+          oneOf:
+            - { type: "null" }
+            - { $ref: "#/components/schemas/OrderAttentionDetails" }
+        collection:
+          oneOf:
+            - { $ref: "#/components/schemas/OrderCollectionResult" }
+            - { type: "null" }
         timeline:
           type: array
           items:
@@ -4471,6 +5280,17 @@ components:
           type: array
           items: { $ref: "#/components/schemas/OrderItem" }
 
+    Order:
+      allOf:
+        - $ref: "#/components/schemas/OrderBase"
+        - type: object
+          required: [delivery_attempts]
+          properties:
+            delivery_attempts:
+              type: array
+              description: Immutable chronological history without courier or delivery-party identity.
+              items: { $ref: "#/components/schemas/CustomerDeliveryAttempt" }
+
     OrderPage:
       allOf:
         - $ref: "#/components/schemas/Pagination"
@@ -4483,10 +5303,14 @@ components:
 
     AdminOrder:
       allOf:
-        - $ref: "#/components/schemas/Order"
+        - $ref: "#/components/schemas/OrderBase"
         - type: object
-          required: [customer, shipping_snapshot, payments, delivery, status_events]
+          required: [customer, shipping_snapshot, payments, delivery, delivery_attempts, status_events]
           properties:
+            delivery_attempts:
+              type: array
+              description: Staff history retains the assigned internal agent or external driver's identity.
+              items: { $ref: "#/components/schemas/DeliveryAttempt" }
             customer:
               type: object
               required: [id, name, phone, email]
@@ -4537,6 +5361,17 @@ components:
                     name: { type: [string, "null"] }
                     phone: { type: string }
                     email: { type: [string, "null"] }
+                party:
+                  oneOf:
+                    - type: object
+                      additionalProperties: false
+                      required: [id, kind, name, phone]
+                      properties:
+                        id: { type: string, format: uuid }
+                        kind: { type: string, enum: [internal_agent, external_driver] }
+                        name: { type: string }
+                        phone: { type: string }
+                    - { type: "null" }
             status_events:
               type: array
               items:
@@ -4550,8 +5385,16 @@ components:
       allOf:
         - $ref: "#/components/schemas/Pagination"
         - type: object
-          required: [data]
+          required: [badge_counts, data]
           properties:
+            badge_counts:
+              type: object
+              additionalProperties: false
+              required: [late, needs_attention, pending_cancellation]
+              properties:
+                late: { type: integer, minimum: 0 }
+                needs_attention: { type: integer, minimum: 0 }
+                pending_cancellation: { type: integer, minimum: 0 }
             data:
               type: array
               items: { $ref: "#/components/schemas/AdminOrder" }
@@ -4782,6 +5625,16 @@ components:
         is_active: { type: boolean }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    DeliveryPartyCustodySummary:
+      type: object
+      additionalProperties: false
+      required: [cash_held, oldest_item_age_days, orders_held]
+      properties:
+        goods_value_iqd: { type: number, minimum: 0, description: Present only with cost.view; sums open goods-custody holdings at fixed issue cost. }
+        cash_held: { type: number, minimum: 0, description: Confirmed COD cash currently held for the store. }
+        oldest_item_age_days: { type: [integer, "null"], minimum: 0, description: Oldest open goods or cash custody item in Baghdad business days. }
+        orders_held: { type: integer, minimum: 0, description: Distinct orders with goods currently in this party's custody. }
 
     SupplierInput:
       type: object
@@ -5607,14 +6460,622 @@ components:
               type: array
               items: { $ref: "#/components/schemas/Return" }
 
+    DeliveryParty:
+      type: object
+      additionalProperties: false
+      required: [id, kind, user_id, name, phone, vehicle_number, description, notes, is_active, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [internal_agent, external_driver] }
+        user_id: { type: [string, "null"], format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        vehicle_number: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        custody_summary: { $ref: "#/components/schemas/DeliveryPartyCustodySummary" }
+
+    DeliveryPartyPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                allOf:
+                  - { $ref: "#/components/schemas/DeliveryParty" }
+                  - type: object
+                    required: [custody_summary]
+                    properties:
+                      custody_summary: { $ref: "#/components/schemas/DeliveryPartyCustodySummary" }
+
+    ExternalDriverCreate:
+      type: object
+      additionalProperties: false
+      required: [name, phone]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        phone: { type: string, minLength: 3, maxLength: 32 }
+        vehicle_number: { type: string, maxLength: 80 }
+        description: { type: string, maxLength: 2000 }
+        notes: { type: string, maxLength: 2000 }
+
+    ExternalDriverUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        phone: { type: string, minLength: 3, maxLength: 32 }
+        vehicle_number: { type: string, maxLength: 80 }
+        description: { type: string, maxLength: 2000 }
+        notes: { type: string, maxLength: 2000 }
+        is_active: { type: boolean }
+
+    ExternalDriverMutation:
+      type: object
+      additionalProperties: false
+      required: [id, kind, user_id, name, phone, vehicle_number, description, notes, is_active, created_at, updated_at, duplicate_phone_warning]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [external_driver] }
+        user_id: { type: "null" }
+        name: { type: string }
+        phone: { type: string }
+        vehicle_number: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        duplicate_phone_warning: { type: boolean }
+
+    DeliveryPartySummary:
+      type: object
+      additionalProperties: false
+      required: [id, kind, user_id, name, phone]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [internal_agent, external_driver] }
+        user_id: { type: [string, "null"], format: uuid }
+        name: { type: string }
+        phone: { type: string }
+
+    ExternalDriverRemoval:
+      type: object
+      additionalProperties: false
+      required: [id, disposition]
+      properties:
+        id: { type: string, format: uuid }
+        disposition: { type: string, enum: [deleted, deactivated] }
+
+    ExternalDriverTripCreate:
+      type: object
+      additionalProperties: false
+      required: [operation_id, driver_party_id, fare_bearer, fare_amount_iqd, fare_settlement_method, document_date]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        driver_party_id: { type: string, format: uuid }
+        fare_bearer: { type: string, enum: [store, customer_direct] }
+        fare_amount_iqd: { type: string, pattern: '^\d+(\.\d{1,6})?$' }
+        fare_settlement_method: { type: string, enum: [payable, cash_account, driver_keeps, customer_direct] }
+        fare_cash_account_id: { type: string, format: uuid }
+        failure_cancellation_agreement: { type: string, maxLength: 500 }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, maxLength: 500 }
+
+    ExternalDriverTripOrderAdd:
+      type: object
+      additionalProperties: false
+      required: [operation_id, order_id, order_version, fare_share_iqd, source, event_at]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        order_id: { type: string, format: uuid }
+        order_version: { type: integer, minimum: 1 }
+        fare_share_iqd: { type: string, pattern: '^\d+(\.\d{1,6})?$' }
+        source: { type: string, minLength: 1, maxLength: 120 }
+        event_at: { type: string, format: date-time }
+        customer_acceptance_note: { type: string, maxLength: 500, description: Required for a customer-direct fare. }
+
+    ExternalDriverTripEventInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, source, event_at]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        source: { type: string, minLength: 1, maxLength: 120 }
+        event_at: { type: string, format: date-time }
+
+    ExternalDriverTripClose:
+      type: object
+      additionalProperties: false
+      required: [operation_id, document_date, source, event_at]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, maxLength: 500 }
+        source: { type: string, minLength: 1, maxLength: 120 }
+        event_at: { type: string, format: date-time }
+
+    ExternalDriverTrip:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, status, driver, fare, settlement, orders, events, document_date, accounting_date, backdate_reason, created_by, created_at, started_by, started_at, closed_by, closed_at]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        status: { type: string, enum: [open, in_progress, closed] }
+        driver:
+          type: object
+          additionalProperties: false
+          required: [id, kind, name, phone, vehicle_number, is_active]
+          properties:
+            id: { type: string, format: uuid }
+            kind: { type: string, const: external_driver }
+            name: { type: string }
+            phone: { type: string }
+            vehicle_number: { type: [string, "null"] }
+            is_active: { type: boolean }
+        fare:
+          type: object
+          additionalProperties: false
+          required: [bearer, amount_iqd, settlement_method, cash_account, failure_cancellation_agreement, accrual_journal_entry_id, payment_journal_entry_id, netting_journal_entry_id]
+          properties:
+            bearer: { type: string, enum: [store, customer_direct] }
+            amount_iqd: { type: number, minimum: 0 }
+            settlement_method: { type: string, enum: [payable, cash_account, driver_keeps, customer_direct] }
+            cash_account:
+              oneOf:
+                - { $ref: "#/components/schemas/CashReceiptAccount" }
+                - { type: "null" }
+            failure_cancellation_agreement: { type: [string, "null"] }
+            accrual_journal_entry_id: { type: [string, "null"], format: uuid }
+            payment_journal_entry_id: { type: [string, "null"], format: uuid }
+            netting_journal_entry_id: { type: [string, "null"], format: uuid }
+        settlement:
+          type: object
+          additionalProperties: false
+          required: [expected_cash_iqd, received_cash_iqd, netted_fare_iqd, outstanding_cash_iqd, result, allocations]
+          properties:
+            expected_cash_iqd: { type: number, minimum: 0 }
+            received_cash_iqd: { type: number, minimum: 0 }
+            netted_fare_iqd: { type: number, minimum: 0 }
+            outstanding_cash_iqd: { type: number }
+            result: { type: string, enum: [settled, settlement_open] }
+            allocations:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [collection_id, order_id, order_number, amount_iqd]
+                properties:
+                  collection_id: { type: string, format: uuid }
+                  order_id: { type: string, format: uuid }
+                  order_number: { type: string }
+                  amount_iqd: { type: number, exclusiveMinimum: 0 }
+        orders:
+          type: array
+          items: { $ref: "#/components/schemas/ExternalDriverTripOrder" }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/ExternalDriverTripEvent" }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        started_by: { type: [string, "null"], format: uuid }
+        started_at: { type: [string, "null"], format: date-time }
+        closed_by: { type: [string, "null"], format: uuid }
+        closed_at: { type: [string, "null"], format: date-time }
+
+    ExternalDriverTripOrder:
+      type: object
+      additionalProperties: false
+      required: [id, order_number, status, version, amount_to_collect_iqd, store_delivery_fee_iqd, fare_share_iqd, customer_acceptance_note, handover_time, destination, items, delivery, collection, exceptions]
+      properties:
+        id: { type: string, format: uuid }
+        order_number: { type: string }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        version: { type: integer, minimum: 1 }
+        amount_to_collect_iqd: { type: number, minimum: 0 }
+        store_delivery_fee_iqd: { type: number, minimum: 0 }
+        fare_share_iqd: { type: number, minimum: 0 }
+        customer_acceptance_note: { type: [string, "null"] }
+        handover_time: { type: string, format: date-time }
+        destination:
+          type: object
+          additionalProperties: false
+          required: [city, area, street, details]
+          properties:
+            city: { type: string }
+            area: { type: [string, "null"] }
+            street: { type: [string, "null"] }
+            details: { type: [string, "null"] }
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, product_name_ar, product_name_en, quantity]
+            properties:
+              id: { type: string, format: uuid }
+              product_name_ar: { type: string }
+              product_name_en: { type: string }
+              quantity: { type: number, exclusiveMinimum: 0 }
+        delivery:
+          type: object
+          additionalProperties: false
+          required: [id, status, dispatched_at, delivered_at, failure_reason, attempts]
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
+            dispatched_at: { type: [string, "null"], format: date-time }
+            delivered_at: { type: [string, "null"], format: date-time }
+            failure_reason: { type: [string, "null"] }
+            attempts:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [attempt_number, status, reason, started_at, completed_at]
+                properties:
+                  attempt_number: { type: integer, minimum: 1 }
+                  status: { type: string }
+                  reason: { type: [string, "null"] }
+                  started_at: { type: string, format: date-time }
+                  completed_at: { type: [string, "null"], format: date-time }
+        collection:
+          oneOf:
+            - $ref: "#/components/schemas/ExternalDriverTripCollection"
+            - { type: "null" }
+        exceptions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, document_number, type, amount_iqd, liability_bearer]
+            properties:
+              id: { type: string, format: uuid }
+              document_number: { type: string }
+              type: { type: string, enum: [goods_loss, return_against_uncollected, delivery_fee_refund] }
+              amount_iqd: { type: number, minimum: 0 }
+              liability_bearer: { type: [string, "null"], enum: [store, party, null] }
+
+    ExternalDriverTripCollection:
+      type: object
+      additionalProperties: false
+      required: [id, status, due_amount_iqd, collected_amount_iqd, shortfall_amount_iqd]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [confirmed_full, confirmed_short, unconfirmed] }
+        due_amount_iqd: { type: number, minimum: 0 }
+        collected_amount_iqd: { type: [number, "null"], minimum: 0 }
+        shortfall_amount_iqd: { type: [number, "null"], minimum: 0 }
+
+    ExternalDriverTripEvent:
+      type: object
+      additionalProperties: false
+      required: [id, trip_id, order_id, operation_id, type, source, note, event_at, recorded_by, recorded_at]
+      properties:
+        id: { type: string, format: uuid }
+        trip_id: { type: string, format: uuid }
+        order_id: { type: [string, "null"], format: uuid }
+        operation_id: { type: string }
+        type: { type: string, enum: [handover, started, closed] }
+        source: { type: string }
+        note: { type: [string, "null"] }
+        event_at: { type: string, format: date-time }
+        recorded_by: { type: string, format: uuid }
+        recorded_at: { type: string, format: date-time }
+
+    ExternalDriverTripStatement:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, status, fare_bearer, fare_amount_iqd, fare_settlement_method, expected_cash_iqd, received_cash_iqd, netted_fare_iqd, outstanding_cash_iqd, settlement_result, order_count, document_date, started_at, closed_at]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        status: { type: string, enum: [open, in_progress, closed] }
+        fare_bearer: { type: string, enum: [store, customer_direct] }
+        fare_amount_iqd: { type: number, minimum: 0 }
+        fare_settlement_method: { type: string, enum: [payable, cash_account, driver_keeps, customer_direct] }
+        expected_cash_iqd: { type: [number, "null"], minimum: 0 }
+        received_cash_iqd: { type: [number, "null"], minimum: 0 }
+        netted_fare_iqd: { type: [number, "null"], minimum: 0 }
+        outstanding_cash_iqd: { type: [number, "null"] }
+        settlement_result: { type: [string, "null"], enum: [settled, settlement_open, null] }
+        order_count: { type: integer, minimum: 0 }
+        document_date: { type: string, format: date }
+        started_at: { type: [string, "null"], format: date-time }
+        closed_at: { type: [string, "null"], format: date-time }
+
+    ExternalDriverTripPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/ExternalDriverTrip" }
+
+    CustodyProduct:
+      type: object
+      additionalProperties: false
+      required: [id, name_en, name_ar]
+      properties:
+        id: { type: string, format: uuid }
+        name_en: { type: string }
+        name_ar: { type: string }
+
+    DeliveryPartyCustodyLine:
+      type: object
+      additionalProperties: false
+      required: [holding_id, order, delivery_id, batch_id, lot_number, variant_id, sku, product, quantity, issued_at, age_days]
+      properties:
+        holding_id: { type: string, format: uuid }
+        order:
+          type: object
+          additionalProperties: false
+          required: [id, order_number]
+          properties:
+            id: { type: string, format: uuid }
+            order_number: { type: string }
+        delivery_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        lot_number: { type: [string, "null"] }
+        variant_id: { type: string, format: uuid }
+        sku: { type: string }
+        product: { $ref: "#/components/schemas/CustodyProduct" }
+        quantity: { type: number, multipleOf: 0.001 }
+        issued_at: { type: string, format: date-time }
+        age_days: { type: integer, minimum: 0 }
+        unit_cost_iqd: { type: number, description: Present only with cost.view. }
+        value_iqd: { type: number, description: Present only with cost.view. }
+
+    DeliveryPartyCustody:
+      type: object
+      additionalProperties: false
+      required: [party, goods, cash]
+      properties:
+        party: { $ref: "#/components/schemas/DeliveryParty" }
+        goods:
+          type: object
+          additionalProperties: false
+          required: [quantity, oldest_age_days, lines]
+          properties:
+            quantity: { type: number, multipleOf: 0.001 }
+            value_iqd: { type: number, description: Present only with cost.view. }
+            oldest_age_days: { type: [integer, "null"], minimum: 0 }
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/DeliveryPartyCustodyLine" }
+        cash:
+          type: object
+          additionalProperties: false
+          required: [currency, amount, oldest_age_days]
+          properties:
+            currency: { type: string, const: IQD }
+            amount: { type: number, minimum: 0 }
+            oldest_age_days: { type: [integer, "null"], minimum: 0 }
+
+    DeliveryPartyStatementEntry:
+      type: object
+      additionalProperties: false
+      required: [id, event, occurred_at, business_date, order_id, order_number, batch_id, lot_number, sku, quantity, running_quantity]
+      properties:
+        id: { type: string, format: uuid }
+        event: { type: string, enum: [issue_to_custody, custody_to_sold, return_in, custody_exception, custody_exception_reversal] }
+        occurred_at: { type: string, format: date-time }
+        business_date: { type: string, format: date }
+        order_id: { type: [string, "null"], format: uuid }
+        order_number: { type: [string, "null"] }
+        batch_id: { type: string, format: uuid }
+        lot_number: { type: [string, "null"] }
+        sku: { type: string }
+        quantity: { type: number, multipleOf: 0.001 }
+        running_quantity: { type: number, multipleOf: 0.001 }
+        value_iqd: { type: number, description: Present only with cost.view. }
+        running_value_iqd: { type: number, description: Present only with cost.view. }
+
+    DeliveryPartyStatementPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [party, data, cash_activity, trips]
+          properties:
+            party: { $ref: "#/components/schemas/DeliveryParty" }
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/DeliveryPartyStatementEntry" }
+            cash_activity:
+              type: object
+              additionalProperties: false
+              required: [total, data]
+              properties:
+                total: { type: integer, minimum: 0 }
+                data:
+                  type: array
+                  items: { $ref: "#/components/schemas/DeliveryPartyCashStatementEntry" }
+            trips:
+              type: array
+              items: { $ref: "#/components/schemas/ExternalDriverTripStatement" }
+
+    DeliveryPartyCashStatementEntry:
+      type: object
+      additionalProperties: false
+      required: [id, event, occurred_at, business_date, order_id, order_number, voucher_id, voucher_document_number, amount_iqd, allocated_amount_iqd, unsettled_amount_iqd, allocation_orders, running_cash_iqd]
+      properties:
+        id: { type: string, format: uuid }
+        event: { type: string, enum: [collection_confirmed, cash_received, cash_receipt_reversed, custody_exception, custody_exception_party_liability, custody_exception_reversed, trip_fare_netted] }
+        occurred_at: { type: string, format: date-time }
+        business_date: { type: string, format: date }
+        order_id: { type: [string, "null"], format: uuid }
+        order_number: { type: [string, "null"] }
+        voucher_id: { type: [string, "null"], format: uuid }
+        voucher_document_number: { type: [string, "null"] }
+        amount_iqd: { type: number, description: Signed custody movement; collections and party liabilities are positive, receipts negative, and reversals undo the original movement. }
+        allocated_amount_iqd: { type: number, minimum: 0 }
+        unsettled_amount_iqd: { type: number, minimum: 0 }
+        allocation_orders:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [order_id, order_number, amount_iqd]
+            properties:
+              order_id: { type: string, format: uuid }
+              order_number: { type: string }
+              amount_iqd: { type: number, exclusiveMinimum: 0 }
+        running_cash_iqd: { type: number }
+
+    DeliveryPartyHeldOrders:
+      type: object
+      additionalProperties: false
+      required: [party, data]
+      properties:
+        party: { $ref: "#/components/schemas/DeliveryParty" }
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, order_number, status, delivery_id, quantity, held_since, age_days]
+            properties:
+              id: { type: string, format: uuid }
+              order_number: { type: string }
+              status: { $ref: "#/components/schemas/OrderStatus" }
+              delivery_id: { type: string, format: uuid }
+              quantity: { type: number, multipleOf: 0.001 }
+              held_since: { type: string, format: date-time }
+              age_days: { type: integer, minimum: 0 }
+
+    DeliveryCollection:
+      type: object
+      additionalProperties: false
+      required: [id, delivery_id, order_id, party_id, status, due_amount, collected_amount, shortfall_amount, currency, delivered_at, accounting_date, confirmed_at, delivery_journal_entry_id, confirmation_journal_entry_id]
+      properties:
+        id: { type: string, format: uuid }
+        delivery_id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        party_id: { type: string, format: uuid }
+        status: { type: string, enum: [confirmed_full, confirmed_short, unconfirmed] }
+        due_amount: { type: number, minimum: 0 }
+        collected_amount: { type: [number, "null"], minimum: 0 }
+        shortfall_amount: { type: [number, "null"], minimum: 0 }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        delivered_at: { type: string, format: date-time }
+        accounting_date: { type: string, format: date }
+        confirmed_at: { type: [string, "null"], format: date-time }
+        delivery_journal_entry_id: { type: string, format: uuid }
+        confirmation_journal_entry_id: { type: [string, "null"], format: uuid }
+        settlement_status: { type: string, enum: [unconfirmed, unsettled, partially_settled, settled], description: Present on staff collection-list responses. }
+        allocated_amount_iqd: { type: number, minimum: 0, description: Active receipt allocations; present on staff collection-list responses. }
+        receipt_allocated_amount_iqd: { type: number, minimum: 0, description: Cash receipt allocations only; present on staff collection-list responses. }
+        fare_netted_amount_iqd: { type: number, minimum: 0, description: Approved trip fare netted against this collection; present on staff collection-list responses. }
+        unsettled_amount_iqd: { type: [number, "null"], minimum: 0, description: Confirmed collected amount not yet allocated; present on staff collection-list responses. }
+        exception_offset_iqd: { type: number, minimum: 0, description: Active return/refund amount netted against the collection shortfall; present on staff collection-list responses. }
+        uncollected_amount_iqd: { type: [number, "null"], minimum: 0, description: Remaining shortfall after active custody exceptions; present on staff collection-list responses. }
+        exceptions:
+          type: array
+          description: Active custody exceptions affecting this collection; present on staff collection-list responses.
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, document_number, type, amount_iqd, exception_offset_iqd, settlement_method, document_date]
+            properties:
+              id: { type: string, format: uuid }
+              document_number: { type: string }
+              type: { type: string, enum: [return_against_uncollected, delivery_fee_refund] }
+              amount_iqd: { type: number, minimum: 0 }
+              exception_offset_iqd: { type: number, minimum: 0 }
+              settlement_method: { type: [string, "null"], enum: [cash_account, uncollected, null] }
+              document_date: { type: string, format: date }
+        receipt_allocations:
+          type: array
+          description: Active receipt allocations settling this order; present on staff collection-list responses.
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, batch_id, batch_document_number, voucher_id, voucher_document_number, voucher_document_date, amount_iqd, created_at]
+            properties:
+              id: { type: string, format: uuid }
+              batch_id: { type: string, format: uuid }
+              batch_document_number: { type: string }
+              voucher_id: { type: string, format: uuid }
+              voucher_document_number: { type: string }
+              voucher_document_date: { type: string, format: date }
+              amount_iqd: { type: number, exclusiveMinimum: 0 }
+              created_at: { type: string, format: date-time }
+        fare_nettings:
+          type: array
+          description: Approved store-paid trip fare amounts settling this collection; present on staff collection-list responses.
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, trip_id, trip_document_number, amount_iqd, created_at]
+            properties:
+              id: { type: string, format: uuid }
+              trip_id: { type: string, format: uuid }
+              trip_document_number: { type: string }
+              amount_iqd: { type: number, exclusiveMinimum: 0 }
+              created_at: { type: string, format: date-time }
+        order:
+          type: object
+          additionalProperties: false
+          required: [id, order_number, user_id, total, delivery_fee]
+          properties:
+            id: { type: string, format: uuid }
+            order_number: { type: string }
+            user_id: { type: string, format: uuid }
+            total: { type: number }
+            delivery_fee: { type: number }
+        party: { $ref: "#/components/schemas/DeliveryPartySummary" }
+
+    DeliveryCollectionPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/DeliveryCollection" }
+
+    OrderCollectionResult:
+      type: object
+      additionalProperties: false
+      required: [result, amount_collected, shortfall, confirmation_state, currency]
+      description: Customer-safe collection result for the caller's own order; it never contains a delivery party, courier, user id, phone, or journal reference.
+      properties:
+        result: { type: string, enum: [full, short, unconfirmed] }
+        amount_collected: { type: [number, "null"], minimum: 0 }
+        shortfall: { type: [number, "null"], minimum: 0 }
+        confirmation_state: { type: string, enum: [confirmed, unconfirmed] }
+        currency: { type: string, const: IQD }
+
     Delivery:
       type: object
-      required: [order_version]
+      required: [order_version, amount_due]
       properties:
         id: { type: string, format: uuid }
         order_id: { type: string, format: uuid }
         order_version: { type: integer, minimum: 1 }
+        amount_due: { type: number, minimum: 0, description: Goods plus delivery fee payable in IQD, available before confirmation. }
         agent_id: { type: [string, "null"], format: uuid }
+        party_id: { type: [string, "null"], format: uuid }
+        party:
+          oneOf:
+            - { $ref: "#/components/schemas/DeliveryPartySummary" }
+            - { type: "null" }
         status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
         delivery_fee: { type: number }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
@@ -5623,9 +7084,51 @@ components:
         failure_reason: { type: [string, "null"], maxLength: 500 }
         failed_at: { type: [string, "null"], format: date-time }
         retry_count: { type: integer, minimum: 0 }
+        attempts:
+          type: array
+          items: { $ref: "#/components/schemas/DeliveryAttempt" }
+        collection:
+          oneOf:
+            - { $ref: "#/components/schemas/DeliveryCollection" }
+            - { type: "null" }
+
+    CustomerDeliveryAttempt:
+      type: object
+      additionalProperties: false
+      required: [id, delivery_id, attempt_number, status, reason, started_at, completed_at]
+      properties:
+        id: { type: string, format: uuid }
+        delivery_id: { type: string, format: uuid }
+        attempt_number: { type: integer, minimum: 1 }
+        status: { type: string, enum: [out_for_delivery, delivered, failed] }
+        reason: { type: [string, "null"], maxLength: 500 }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+
+    DeliveryAttempt:
+      type: object
+      additionalProperties: false
+      required: [id, delivery_id, attempt_number, status, reason, started_at, completed_at, party]
+      properties:
+        id: { type: string, format: uuid }
+        delivery_id: { type: string, format: uuid }
+        attempt_number: { type: integer, minimum: 1 }
+        party_id: { type: string, format: uuid }
+        status: { type: string, enum: [out_for_delivery, delivered, failed] }
+        reason: { type: [string, "null"], maxLength: 500 }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+        party:
+          type: object
+          additionalProperties: false
+          required: [id, name]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: [string, "null"] }
 
     RetrievalLine:
       type: object
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         custody_holding_id: { type: string, format: uuid }
@@ -5637,9 +7140,28 @@ components:
         unit_cost_iqd: { type: number }
         location_id: { type: [string, "null"], format: uuid }
         received_at: { type: [string, "null"], format: date-time }
-        order_item: { type: object, additionalProperties: true }
-        batch: { type: object, additionalProperties: true }
-        location: { type: [object, "null"], additionalProperties: true }
+        order_item:
+          type: object
+          additionalProperties: false
+          required: [product_name_en, product_name_ar]
+          properties:
+            product_name_en: { type: string }
+            product_name_ar: { type: string }
+        batch:
+          type: object
+          additionalProperties: false
+          required: [lot_number]
+          properties:
+            lot_number: { type: string }
+        location:
+          oneOf:
+            - { type: "null" }
+            - type: object
+              additionalProperties: false
+              required: [code, warehouse_id]
+              properties:
+                code: { type: string }
+                warehouse_id: { type: string, format: uuid }
 
     Retrieval:
       type: object
@@ -5663,6 +7185,49 @@ components:
         lines:
           type: array
           items: { $ref: "#/components/schemas/RetrievalLine" }
+
+    RetrievalListItem:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, order_id, delivery_id, custody_party_id, status, outcome, reason, document_date, created_at, closed_at, order, custody_party, line_count]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        order_id: { type: string, format: uuid }
+        delivery_id: { type: string, format: uuid }
+        custody_party_id: { type: string, format: uuid }
+        status: { type: string, enum: [open, partially_received, received, closed] }
+        outcome: { type: string, enum: [cancel, retry] }
+        reason: { type: string }
+        document_date: { type: string, format: date }
+        created_at: { type: string, format: date-time }
+        closed_at: { type: [string, "null"], format: date-time }
+        order:
+          type: object
+          additionalProperties: false
+          required: [id, order_number]
+          properties:
+            id: { type: string, format: uuid }
+            order_number: { type: string }
+        custody_party:
+          type: object
+          additionalProperties: false
+          required: [id, name, phone]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: [string, "null"] }
+            phone: { type: string }
+        line_count: { type: integer, minimum: 0 }
+
+    RetrievalPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/RetrievalListItem" }
 
     DeliveryPage:
       allOf:
@@ -5711,7 +7276,7 @@ components:
       additionalProperties: false
       required: [type, channel, enabled]
       properties:
-        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, order_rejected, delivery_assigned, order_acceptance_late, retrieval_update] }
+        type: { type: string, enum: [order_placed, order_confirmed, order_status_changed, out_for_delivery, delivered, delivery_failed, return_update, loyalty_points_earned, review_moderated, promo, new_order, order_cancelled, order_rejected, delivery_assigned, order_acceptance_late, retrieval_update, quantity_reduction_proposed, cancellation_request_approved, cancellation_request_denied, price_approval_requested, price_approval_approved, price_approval_rejected] }
         channel: { type: string, enum: [push, sms] }
         enabled: { type: boolean }
 
@@ -6095,13 +7660,14 @@ components:
     LinkedPricePreviewItem:
       type: object
       additionalProperties: false
-      required: [variant_id, sku, old_price, new_price, percent_change]
+      required: [variant_id, sku, old_price, new_price, percent_change, requires_below_cost_approval]
       properties:
         variant_id: { type: string, format: uuid }
         sku: { type: string }
         old_price: { type: [number, "null"] }
         new_price: { type: number }
         percent_change: { type: [number, "null"], description: "Signed percentage; decreases are negative." }
+        requires_below_cost_approval: { type: boolean, description: True when publishing this previewed SKU price requires a second user's below-cost approval. }
 
     LinkedPricePreview:
       type: object
@@ -6147,19 +7713,77 @@ components:
     PricePublishApproval:
       type: object
       additionalProperties: false
-      required: [id, preview_id, price_version_id, status, proposed_by, decided_by, proposal_reason, decision_reason, breaches, created_at, decided_at]
+      required: [id, kind, preview_id, product_id, price_version_id, status, proposed_by, proposer, decided_by, decider, proposal_reason, decision_reason, sku_list, breaches, fixed_proposal, created_at, decided_at]
       properties:
         id: { type: string, format: uuid }
+        kind: { type: string, enum: [linked, fixed] }
         preview_id: { type: [string, "null"], format: uuid }
+        product_id: { type: [string, "null"], format: uuid }
         price_version_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [pending, approved, rejected] }
         proposed_by: { type: string, format: uuid }
+        proposer:
+          type: object
+          additionalProperties: false
+          required: [id, name]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: [string, "null"] }
         decided_by: { type: [string, "null"], format: uuid }
+        decider:
+          oneOf:
+            - { type: "null" }
+            - type: object
+              additionalProperties: false
+              required: [id, name]
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: [string, "null"] }
         proposal_reason: { type: string }
         decision_reason: { type: [string, "null"] }
-        breaches: { type: array, items: { type: object, additionalProperties: true } }
+        sku_list: { type: array, items: { type: string } }
+        breaches:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [variant_id, sku, price, threshold_percent]
+            properties:
+              variant_id: { type: string, format: uuid }
+              sku: { type: string }
+              price: { type: number }
+              threshold_percent: { type: number }
+              cost: { type: number, description: Present only with cost.view. }
+              minimum_price: { type: number, description: Present only with cost.view. }
+        fixed_proposal:
+          oneOf:
+            - { type: "null" }
+            - type: object
+              additionalProperties: false
+              required: [product_id, proposed_product_price, variants]
+              properties:
+                product_id: { type: string, format: uuid }
+                proposed_product_price: { type: number }
+                variants:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [variant_id, sku, proposed_selling_price]
+                    properties:
+                      variant_id: { type: string, format: uuid }
+                      sku: { type: string }
+                      proposed_selling_price: { type: [number, "null"] }
         created_at: { type: string, format: date-time }
         decided_at: { type: [string, "null"], format: date-time }
+
+    PricePublishApprovalPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/PricePublishApproval" } }
 
     OperationOutcome:
       type: object
@@ -6321,6 +7945,421 @@ components:
             to_account_id: { type: string, format: uuid }
             amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
             reason: { type: string, minLength: 3, maxLength: 500 }
+
+    CashReceiptAllocationInput:
+      type: object
+      additionalProperties: false
+      required: [order_id, amount_iqd]
+      properties:
+        order_id: { type: string, format: uuid }
+        amount_iqd: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+
+    CashReceiptCreateInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [party_id, cash_account_id, amount_iqd]
+          properties:
+            party_id: { type: string, format: uuid }
+            cash_account_id: { type: string, format: uuid }
+            amount_iqd: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+            reference: { type: string, maxLength: 160 }
+            notes: { type: string, maxLength: 2000 }
+            allocations:
+              type: array
+              default: []
+              items: { $ref: "#/components/schemas/CashReceiptAllocationInput" }
+
+    CashReceiptAllocateInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [allocations]
+          properties:
+            allocations:
+              type: array
+              minItems: 1
+              items: { $ref: "#/components/schemas/CashReceiptAllocationInput" }
+
+    CashReceiptReversalInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, reason]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    CashReceiptParty:
+      type: object
+      additionalProperties: false
+      required: [id, kind, user_id, name, phone, vehicle_number, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [internal_agent, external_driver] }
+        user_id: { type: [string, "null"], format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        vehicle_number: { type: [string, "null"] }
+        is_active: { type: boolean }
+
+    CashReceiptAccount:
+      type: object
+      additionalProperties: false
+      required: [id, name, kind, currency_code, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [cash, bank] }
+        currency_code: { type: string, const: IQD }
+        is_active: { type: boolean }
+
+    CashReceiptAllocation:
+      type: object
+      additionalProperties: false
+      required: [id, collection_id, order, amount_iqd, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        collection_id: { type: string, format: uuid }
+        order:
+          type: object
+          additionalProperties: false
+          required: [id, order_number]
+          properties:
+            id: { type: string, format: uuid }
+            order_number: { type: string }
+        amount_iqd: { type: number, exclusiveMinimum: 0 }
+        created_at: { type: string, format: date-time }
+
+    CashReceiptAllocationBatch:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, document_date, accounting_date, backdate_reason, created_by, created_at, active, allocations]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        active: { type: boolean, description: False when the parent voucher has been reversed. }
+        allocations:
+          type: array
+          items: { $ref: "#/components/schemas/CashReceiptAllocation" }
+
+    CashReceiptReversal:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, voucher_id, reason, document_date, accounting_date, created_by, journal_entry_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        voucher_id: { type: string, format: uuid }
+        reason: { type: string }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        created_by: { type: string, format: uuid }
+        journal_entry_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    CashReceiptVoucher:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, status, party_id, party, cash_account_id, cash_account, amount_iqd, allocated_amount_iqd, original_allocated_amount_iqd, unallocated_amount_iqd, currency, document_date, accounting_date, backdate_reason, reference, notes, created_by, journal_entry_id, created_at, allocation_batches, reversal]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        status: { type: string, enum: [active, reversed] }
+        party_id: { type: string, format: uuid }
+        party: { $ref: "#/components/schemas/CashReceiptParty" }
+        cash_account_id: { type: string, format: uuid }
+        cash_account: { $ref: "#/components/schemas/CashReceiptAccount" }
+        amount_iqd: { type: number, exclusiveMinimum: 0 }
+        allocated_amount_iqd: { type: number, minimum: 0, description: Effective active allocation; zero after reversal. }
+        original_allocated_amount_iqd: { type: number, minimum: 0, description: Historical allocations retained after reversal. }
+        unallocated_amount_iqd: { type: number, minimum: 0 }
+        currency: { type: string, const: IQD }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: [string, "null"] }
+        reference: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        journal_entry_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        allocation_batches:
+          type: array
+          items: { $ref: "#/components/schemas/CashReceiptAllocationBatch" }
+        reversal:
+          oneOf:
+            - { $ref: "#/components/schemas/CashReceiptReversal" }
+            - { type: "null" }
+
+    CashReceiptPage:
+      allOf:
+        - { $ref: "#/components/schemas/Pagination" }
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/CashReceiptVoucher" }
+
+    CashReceiptSuggestions:
+      type: object
+      additionalProperties: false
+      required: [party, requested_amount_iqd, suggested_amount_iqd, data]
+      properties:
+        party:
+          type: object
+          additionalProperties: false
+          required: [id, name]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+        requested_amount_iqd: { type: [number, "null"], minimum: 0 }
+        suggested_amount_iqd: { type: number, minimum: 0 }
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [collection_id, order, collected_amount_iqd, allocated_amount_iqd, unsettled_amount_iqd, suggested_amount_iqd, collected_at]
+            properties:
+              collection_id: { type: string, format: uuid }
+              order:
+                type: object
+                additionalProperties: false
+                required: [id, order_number]
+                properties:
+                  id: { type: string, format: uuid }
+                  order_number: { type: string }
+              collected_amount_iqd: { type: number, minimum: 0 }
+              allocated_amount_iqd: { type: number, minimum: 0 }
+              unsettled_amount_iqd: { type: number, exclusiveMinimum: 0 }
+              suggested_amount_iqd: { type: number, minimum: 0 }
+              collected_at: { type: string, format: date-time }
+
+    CustodyExceptionQuantityInput:
+      type: object
+      additionalProperties: false
+      required: [custody_holding_id, quantity]
+      properties:
+        custody_holding_id: { type: string, format: uuid }
+        quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+
+    CustodyExceptionReturnLineInput:
+      allOf:
+        - { $ref: "#/components/schemas/CustodyExceptionQuantityInput" }
+        - type: object
+          required: [location_id]
+          properties:
+            location_id: { type: string, format: uuid }
+
+    GoodsCustodyExceptionInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [order_id, liability_bearer, reason, lines]
+          properties:
+            order_id: { type: string, format: uuid }
+            liability_bearer: { type: string, enum: [store, party] }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+            lines:
+              type: array
+              minItems: 1
+              items: { $ref: "#/components/schemas/CustodyExceptionQuantityInput" }
+
+    ReturnAgainstUncollectedInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [order_id, reason, lines]
+          properties:
+            order_id: { type: string, format: uuid }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+            lines:
+              type: array
+              minItems: 1
+              items: { $ref: "#/components/schemas/CustodyExceptionReturnLineInput" }
+
+    DeliveryFeeRefundInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [order_id, amount_iqd, settlement_method, reason]
+          properties:
+            order_id: { type: string, format: uuid }
+            amount_iqd: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+            settlement_method: { type: string, enum: [cash_account, uncollected] }
+            cash_account_id: { type: string, format: uuid }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+
+    CustodyExceptionReversalInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, reason]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    CustodyExceptionLine:
+      type: object
+      additionalProperties: false
+      required: [id, custody_holding_id, order_item_id, batch_id, location_id, quantity, return_amount_iqd, order_item, batch, location]
+      properties:
+        id: { type: string, format: uuid }
+        custody_holding_id: { type: string, format: uuid }
+        order_item_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        location_id: { type: [string, "null"], format: uuid }
+        quantity: { type: number, exclusiveMinimum: 0, multipleOf: 0.001 }
+        return_amount_iqd: { type: number, minimum: 0 }
+        unit_cost_iqd: { type: number, minimum: 0, description: Present only with cost.view. }
+        order_item:
+          type: object
+          additionalProperties: false
+          required: [id, product_name_ar, product_name_en]
+          properties:
+            id: { type: string, format: uuid }
+            product_name_ar: { type: string }
+            product_name_en: { type: string }
+        batch:
+          type: object
+          additionalProperties: false
+          required: [id, lot_number, variant_id]
+          properties:
+            id: { type: string, format: uuid }
+            lot_number: { type: [string, "null"] }
+            variant_id: { type: string, format: uuid }
+        location:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, code, warehouse_id]
+              properties:
+                id: { type: string, format: uuid }
+                code: { type: string }
+                warehouse_id: { type: string, format: uuid }
+            - { type: "null" }
+
+    CustodyExceptionPosting:
+      type: object
+      additionalProperties: false
+      required: [role, journal_entry_id, event]
+      properties:
+        role: { type: string }
+        journal_entry_id: { type: string, format: uuid }
+        event: { type: string }
+
+    CustodyExceptionReversalPosting:
+      type: object
+      additionalProperties: false
+      required: [role, journal_entry_id, original_journal_entry_id, event]
+      properties:
+        role: { type: string }
+        journal_entry_id: { type: string, format: uuid }
+        original_journal_entry_id: { type: string, format: uuid }
+        event: { type: string }
+
+    CustodyExceptionReversal:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, reason, document_date, accounting_date, created_by, created_at, postings]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        reason: { type: string }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        postings:
+          type: array
+          items: { $ref: "#/components/schemas/CustodyExceptionReversalPosting" }
+
+    CustodyException:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, operation_id, type, status, party_id, order_id, collection_id, liability_bearer, settlement_method, cash_account_id, amount_iqd, exception_offset_iqd, refund_payable_iqd, reason, document_date, accounting_date, backdate_reason, created_by, created_at, party, order, collection, cash_account, lines, postings, reversal]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        operation_id: { type: string }
+        type: { type: string, enum: [goods_loss, return_against_uncollected, delivery_fee_refund] }
+        status: { type: string, enum: [active, reversed] }
+        party_id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        collection_id: { type: [string, "null"], format: uuid }
+        liability_bearer: { type: [string, "null"], enum: [store, party, null] }
+        settlement_method: { type: [string, "null"], enum: [cash_account, uncollected, null] }
+        cash_account_id: { type: [string, "null"], format: uuid }
+        amount_iqd: { type: number, minimum: 0 }
+        goods_cost_iqd: { type: number, minimum: 0, description: Present only with cost.view. }
+        exception_offset_iqd: { type: number, minimum: 0 }
+        refund_payable_iqd: { type: number, minimum: 0 }
+        reason: { type: string }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        party: { $ref: "#/components/schemas/DeliveryPartySummary" }
+        order:
+          type: object
+          additionalProperties: false
+          required: [id, order_number, status]
+          properties:
+            id: { type: string, format: uuid }
+            order_number: { type: string }
+            status: { $ref: "#/components/schemas/OrderStatus" }
+        collection:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, status, due_amount, collected_amount, shortfall_amount]
+              properties:
+                id: { type: string, format: uuid }
+                status: { type: string, enum: [confirmed_full, confirmed_short, unconfirmed] }
+                due_amount: { type: number, minimum: 0 }
+                collected_amount: { type: [number, "null"], minimum: 0 }
+                shortfall_amount: { type: [number, "null"], minimum: 0 }
+            - { type: "null" }
+        cash_account:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, name, kind, currency_code]
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: string }
+                kind: { type: string, enum: [cash, bank] }
+                currency_code: { type: string, const: IQD }
+            - { type: "null" }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/CustodyExceptionLine" }
+        postings:
+          type: array
+          items: { $ref: "#/components/schemas/CustodyExceptionPosting" }
+        reversal:
+          oneOf:
+            - { $ref: "#/components/schemas/CustodyExceptionReversal" }
+            - { type: "null" }
+
+    CustodyExceptionPage:
+      allOf:
+        - { $ref: "#/components/schemas/Pagination" }
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/CustodyException" }
 
     FinancialDocumentBase:
       type: object

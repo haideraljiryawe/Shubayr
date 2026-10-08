@@ -16,10 +16,15 @@ import {
   CUSTOMER_E164,
   CUSTOMER_LOCAL as PHONE_LOCAL,
   awaitQuota,
+  advanceOrder,
+  assignToAgent,
+  bearer,
   customerToken as token,
+  placeOrder,
   requireLiveApi,
   signIn,
   staffToken,
+  stockedProduct,
 } from "./live-api";
 
 /**
@@ -62,9 +67,20 @@ async function emptyServerCart(request: APIRequestContext): Promise<void> {
   if (cart.coupon_code) await request.delete(`${API}/cart/coupon`, { headers });
 }
 
+/** The quantity of `productId` in this worker's customer's server cart. */
+async function serverQuantity(request: APIRequestContext, productId: string): Promise<number> {
+  const access = await token(request);
+  const cart = await (
+    await request.get(`${API}/cart`, { headers: { Authorization: `Bearer ${access}` } })
+  ).json();
+  return (cart.items as Array<{ product_id: string; quantity: number }>)
+    .filter((item) => item.product_id === productId)
+    .reduce((sum, item) => sum + item.quantity, 0);
+}
+
 /** Put one earbuds line in the guest basket, choosing the in-stock variant. */
-async function addEarbudsAsGuest(page: Page): Promise<void> {
-  await page.goto(`/product/${EARBUDS}`);
+async function addEarbudsAsGuest(page: Page, productId = EARBUDS): Promise<void> {
+  await page.goto(`/product/${productId}`);
 
   // Stock is on the VARIANTS: the seed leaves the variantless SKU at zero, so
   // the CTA only becomes live once one is chosen. Pick the first in-stock
@@ -109,6 +125,9 @@ test.describe("live purchase funnel", () => {
     await expect(page.getByTestId("cart-items").locator("> li")).toHaveCount(1);
 
     await signIn(page, "/cart");
+    // Straight on, without waiting for the guest basket to reach the server:
+    // the merge (POST /cart/merge, API 13.1) carries one key kept with the
+    // basket, so leaving mid-merge replays it instead of adding twice.
 
     // Back on the cart the server is now the authority — and the single guest
     // line must have become a single server line. Two would mean the replay
@@ -135,6 +154,46 @@ test.describe("live purchase funnel", () => {
     ).json();
     expect(cart.items).toHaveLength(1);
     expect(cart.items[0].quantity).toBe(1);
+  });
+
+  test("a double click on Add to cart adds once", async ({ page, request }) => {
+    // Signed in, so every add is a server add with its idempotency key.
+    await signIn(page, `/product/${EARBUDS}`);
+    const swatches = page.locator("fieldset button[aria-pressed]");
+    for (let index = 0; index < (await swatches.count()); index += 1) {
+      await swatches.nth(index).click();
+      if (await page.locator('[data-testid="pdp-add-to-cart"]:visible').isEnabled()) break;
+    }
+    const add = page.locator('[data-testid="pdp-add-to-cart"]:visible');
+    await expect(add).toBeEnabled();
+    await add.dblclick();
+    await expect.poll(() => serverQuantity(request, EARBUDS)).toBe(1);
+    // A deliberate second add later is a new action, and adds again.
+    await add.click();
+    await expect.poll(() => serverQuantity(request, EARBUDS)).toBe(2);
+  });
+
+  test("leaving right after sign-in never duplicates a guest line", async ({ page, request }) => {
+    for (let round = 1; round <= 3; round += 1) {
+      await emptyServerCart(request);
+      await page.evaluate(() => window.localStorage.clear());
+      await addEarbudsAsGuest(page);
+      await signIn(page, "/cart");
+      // Away at once, while the basket may still be on its way to the server,
+      // and back: the merge's kept key makes the next page's attempt a replay.
+      await page.goto("/");
+      await page.goto("/cart");
+      await page.goto("/categories");
+      await page.goto("/cart");
+      await expect(page.getByTestId("cart-summary")).toHaveAttribute("data-server-priced", "true");
+      await expect.poll(() => serverQuantity(request, EARBUDS), { message: `round ${round}` }).toBe(1);
+      // Signed out again for the next round's guest basket.
+      await page.context().clearCookies();
+      await page.evaluate(() => {
+        window.localStorage.clear();
+        window.sessionStorage.clear();
+      });
+    }
   });
 
   test("a coupon is applied and removed server-side, repricing both ways", async ({
@@ -334,7 +393,10 @@ test.describe("live purchase funnel", () => {
     page,
     request,
   }) => {
-    await addEarbudsAsGuest(page);
+    // A product of its own: hiding the seeded earbuds would fail every other
+    // worker's earbuds order while it is off sale.
+    const own = await stockedProduct(request, "UNAVAILABLE");
+    await addEarbudsAsGuest(page, own.id);
     await signIn(page, "/cart");
     await expect(page.getByTestId("cart-summary")).toHaveAttribute(
       "data-server-priced",
@@ -344,7 +406,7 @@ test.describe("live purchase funnel", () => {
 
     try {
       // The product goes off sale while the basket already holds it.
-      await setProductStatus(request, EARBUDS, "hidden");
+      await setProductStatus(request, own.id, "hidden");
       await page.reload();
 
       // The row says which line is the problem, and the CTA is not a link any
@@ -354,7 +416,7 @@ test.describe("live purchase funnel", () => {
       await expect(page.getByTestId("cart-checkout")).toHaveCount(0);
       await expect(page.getByTestId("cart-checkout-blocked")).toBeDisabled();
     } finally {
-      await setProductStatus(request, EARBUDS, "active");
+      await setProductStatus(request, own.id, "active");
     }
 
     // Put back on sale, the cart is buyable again without any other action.
@@ -367,7 +429,8 @@ test.describe("live purchase funnel", () => {
     page,
     request,
   }) => {
-    await addEarbudsAsGuest(page);
+    const own = await stockedProduct(request, "SELLOUT");
+    await addEarbudsAsGuest(page, own.id);
     await signIn(page, "/checkout");
     await expect(page.getByTestId("saved-addresses")).toBeVisible();
     await page.getByTestId("address-submit").click();
@@ -376,7 +439,7 @@ test.describe("live purchase funnel", () => {
     try {
       // Sold out between reaching review and pressing the button — the race
       // POST /orders answers 409 for.
-      await setProductStatus(request, EARBUDS, "hidden");
+      await setProductStatus(request, own.id, "hidden");
       await page.getByTestId("place-order").click();
 
       // Not an error beside a dead button: the shopper is returned to the one
@@ -385,14 +448,43 @@ test.describe("live purchase funnel", () => {
       await expect(page.getByTestId("cart-unavailable-banner")).toBeVisible();
       await expect(page.getByTestId("cart-line-unavailable")).toHaveCount(1);
     } finally {
-      await setProductStatus(request, EARBUDS, "active");
+      await setProductStatus(request, own.id, "active");
     }
   });
 
-  test("tracking shows the delivery's own stage for every seeded order", async ({
+  test("tracking shows the delivery's own stage for orders in every stage", async ({
     page,
     request,
   }) => {
+    test.setTimeout(150_000);
+    // Orders of this worker's customer's own, one per stage: pending,
+    // out for delivery, delivered.
+    await placeOrder(request);
+    const dispatched = await placeOrder(request);
+    await advanceOrder(request, dispatched.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+    await assignToAgent(request, dispatched.delivery_id);
+    await advanceOrder(request, dispatched.id, ["dispatched"]);
+    const delivered = await placeOrder(request);
+    await advanceOrder(request, delivered.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+    await assignToAgent(request, delivered.delivery_id);
+    await advanceOrder(request, delivered.id, ["dispatched"]);
+    const admin = await staffToken(request);
+    const current = await (
+      await request.get(`${API}/admin/orders/${delivered.id}`, { headers: bearer(admin) })
+    ).json();
+    const done = await request.patch(`${API}/admin/deliveries/${delivered.delivery_id}/status`, {
+      headers: bearer(admin),
+      data: {
+        status: "delivered",
+        order_version: current.version,
+        operation_id: `web-live-track-${delivered.delivery_id}`,
+        collection_confirmation: "confirmed",
+        collected_amount: String(delivered.total),
+        source: "web live test",
+      },
+    });
+    expect(done.ok(), await done.text()).toBe(true);
+
     const access = await token(request);
     const orders = await (
       await request.get(`${API}/orders?per_page=50`, {
@@ -413,8 +505,8 @@ test.describe("live purchase funnel", () => {
 
     await signIn(page, "/account/orders");
 
-    // The seed carries an order in each stage, so this walks them all rather
-    // than asserting one and hoping the mapping holds for the rest.
+    // An order in each stage, so this walks them all rather than asserting
+    // one and hoping the mapping holds for the rest.
     const seen = new Set<string>();
     for (const order of orders.data ?? []) {
       const stage = expected[order.status as string];

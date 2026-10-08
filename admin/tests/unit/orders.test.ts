@@ -16,7 +16,9 @@ import {
   type PickList,
   canAssignAgent,
   dispatchBlocker,
+  isOrderQueue,
   orderListQuery,
+  queueQuery,
   type AdminOrder,
 } from "@/lib/orders";
 
@@ -117,6 +119,21 @@ describe("dispatchBlocker", () => {
       ),
     ).toBe("deliveryNotAssigned");
   });
+
+  it("accepts an external driver, which has a party but no agent (11.2)", () => {
+    expect(
+      dispatchBlocker(
+        order("ready_for_dispatch", {
+          delivery: {
+            id: "d",
+            status: "assigned",
+            agent: null,
+            party: { id: "p", kind: "external_driver", name: "Driver", phone: "+9647700000099" },
+          },
+        }),
+      ),
+    ).toBeNull();
+  });
 });
 
 describe("canAssignAgent", () => {
@@ -157,6 +174,19 @@ describe("orderListQuery", () => {
     expect(result.invalidRange).toBe(true);
     expect(orderListQuery({ ...base, from: "01/09/2026" }).query.from).toBeUndefined();
   });
+
+  it("turns a work queue into the API's own filter (contract 11.0)", () => {
+    expect(orderListQuery({ ...base, queue: "late" }).query).toMatchObject({ late: true });
+    expect(orderListQuery({ ...base, queue: "attention" }).query).toMatchObject({ needs_attention: true });
+    expect(orderListQuery({ ...base, queue: "cancellation" }).query).toMatchObject({ cancellation_request: "pending" });
+    const unknown = orderListQuery({ ...base, queue: "everything" }).query;
+    expect(unknown).not.toHaveProperty("late");
+    expect(unknown).not.toHaveProperty("needs_attention");
+    expect(unknown).not.toHaveProperty("cancellation_request");
+    expect(isOrderQueue("late")).toBe(true);
+    expect(isOrderQueue(["late"])).toBe(false);
+    expect(queueQuery("cancellation")).toEqual({ cancellation_request: "pending" });
+  });
 });
 
 describe("adminInboxHref", () => {
@@ -164,6 +194,7 @@ describe("adminInboxHref", () => {
   it("opens orders in the admin and everything else in the inbox", () => {
     expect(adminInboxHref(`/admin/orders/${id}`)).toBe(`/orders/${id}`);
     expect(adminInboxHref(`/orders/${id}`)).toBe(`/orders/${id}`);
+    expect(adminInboxHref(`/admin/finance/price-approvals/${id}`)).toBe(`/finance/price-approvals/${id}`);
     expect(adminInboxHref(`/monitor/orders/${id}`)).toBe("/notifications");
     expect(adminInboxHref("https://evil.example/orders/x")).toBe("/notifications");
     expect(adminInboxHref(`/admin/orders/${id}/../../x`)).toBe("/notifications");

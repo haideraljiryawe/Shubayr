@@ -16,6 +16,145 @@ const product = {
 };
 
 describe('CartService', () => {
+  function repeatSafeCartService() {
+    let line:
+      | {
+          id: string;
+          quantity: number;
+        }
+      | undefined;
+    const mutations = new Map<string, { kind: string; fingerprint: string }>();
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      cart: { update: jest.fn().mockResolvedValue({}) },
+      cartItem: {
+        findFirst: jest.fn(() => Promise.resolve(line)),
+        create: jest.fn(({ data }: { data: { quantity: number } }) =>
+          Promise.resolve((line = { id: 'item-1', quantity: data.quantity })),
+        ),
+        update: jest.fn(({ data }: { data: { quantity: number } }) =>
+          Promise.resolve((line = { id: 'item-1', quantity: data.quantity })),
+        ),
+      },
+      cartMutation: {
+        findUnique: jest.fn(
+          ({
+            where,
+          }: {
+            where: {
+              cart_id_idempotency_key: { idempotency_key: string };
+            };
+          }) =>
+            Promise.resolve(
+              mutations.get(where.cart_id_idempotency_key.idempotency_key) ??
+                null,
+            ),
+        ),
+        create: jest.fn(
+          ({
+            data,
+          }: {
+            data: {
+              idempotency_key: string;
+              kind: string;
+              fingerprint: string;
+            };
+          }) => {
+            mutations.set(data.idempotency_key, data);
+            return Promise.resolve(data);
+          },
+        ),
+      },
+    };
+    const prisma = {
+      cart: { upsert: jest.fn().mockResolvedValue({ id: 'cart-1' }) },
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+    const products = {
+      getPublic: jest.fn().mockResolvedValue(product),
+      availability: jest.fn().mockResolvedValue({
+        variants: [{ variant_id: 'variant-1', available_qty: 20 }],
+      }),
+    };
+    const service = new CartService(prisma as never, products as never);
+    jest
+      .spyOn(
+        service as unknown as {
+          response: (id: string) => Promise<{ quantity: number | undefined }>;
+        },
+        'response',
+      )
+      .mockImplementation(() => Promise.resolve({ quantity: line?.quantity }));
+    return { service, tx, line: () => line };
+  }
+
+  it('does not add a line twice when an add idempotency key is replayed', async () => {
+    const { service, tx, line } = repeatSafeCartService();
+    const input = {
+      product_id: 'product-1',
+      variant_id: 'variant-1',
+      quantity: 2,
+    };
+
+    await service.add('user-1', input, 'add-key-0001');
+    await service.add('user-1', input, 'add-key-0001');
+
+    expect(line()?.quantity).toBe(2);
+    expect(tx.cartItem.create).toHaveBeenCalledTimes(1);
+    expect(tx.cartItem.update).not.toHaveBeenCalled();
+    expect(tx.cartMutation.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes a replayed guest-basket merge a no-op', async () => {
+    const { service, tx, line } = repeatSafeCartService();
+    const input = {
+      items: [
+        {
+          product_id: 'product-1',
+          variant_id: 'variant-1',
+          quantity: 3,
+        },
+      ],
+    };
+
+    await service.merge('user-1', input, 'merge-key-0001');
+    await service.merge('user-1', input, 'merge-key-0001');
+
+    expect(line()?.quantity).toBe(3);
+    expect(tx.cartItem.create).toHaveBeenCalledTimes(1);
+    expect(tx.cartItem.update).not.toHaveBeenCalled();
+    expect(tx.cartMutation.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects reusing a cart idempotency key for a different change', async () => {
+    const { service } = repeatSafeCartService();
+    await service.add(
+      'user-1',
+      {
+        product_id: 'product-1',
+        variant_id: 'variant-1',
+        quantity: 1,
+      },
+      'shared-key-0001',
+    );
+
+    await expect(
+      service.add(
+        'user-1',
+        {
+          product_id: 'product-1',
+          variant_id: 'variant-1',
+          quantity: 2,
+        },
+        'shared-key-0001',
+      ),
+    ).rejects.toMatchObject({
+      response: { code: 'IDEMPOTENCY_KEY_REUSED' },
+    });
+  });
+
   it('keeps the seen price while exposing the current price for explicit acceptance', async () => {
     const prisma = {
       cart: {

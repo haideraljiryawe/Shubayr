@@ -16,8 +16,13 @@ import { BannersService } from './banners.service';
 import { BannerQueryDto } from './dto/banner-query.dto';
 import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
+import {
+  RateLimitRisk,
+  RateLimitTier,
+} from '../../common/rate-limit/rate-limit-tier';
 
 @Public()
+@RateLimitTier(RateLimitRisk.Catalog)
 @Controller('banners')
 export class PublicBannersController {
   constructor(private readonly banners: BannersService) {}

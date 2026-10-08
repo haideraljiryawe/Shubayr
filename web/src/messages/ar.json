@@ -476,7 +476,24 @@
       "conflict": "تغيّر الطلب في هذه الأثناء؛ حُدّثت الصفحة.",
       "failed": "تعذّر إرسال ردك. حاول مرة أخرى."
     },
-    "status_rejected": "رفضه المتجر"
+    "status_rejected": "رفضه المتجر",
+    "attempts": {
+      "title": "محاولات التوصيل",
+      "attempt": "المحاولة {number}",
+      "status": {
+        "out_for_delivery": "في الطريق إليك",
+        "delivered": "تم التسليم",
+        "failed": "تعذّر التسليم"
+      },
+      "note": "ملاحظة المندوب: {note}"
+    },
+    "collection": {
+      "full": "تم الدفع كاملًا عند الاستلام",
+      "short": "دُفع جزء من المبلغ عند الاستلام",
+      "unconfirmed": "يتحقق المتجر من دفعتك",
+      "paid": "المدفوع:",
+      "remaining": "المتبقي للدفع:"
+    }
   },
   "addresses": {
     "title": "عناويني",
@@ -690,7 +707,10 @@
     "notifyType_return_update": "تحديث طلب الإرجاع",
     "notifyType_loyalty_points_earned": "نقاط جديدة",
     "notifyType_review_moderated": "مراجعة تقييمك",
-    "notifyType_promo": "العروض والتخفيضات"
+    "notifyType_promo": "العروض والتخفيضات",
+    "notifyType_quantity_reduction_proposed": "كمية أقل بانتظار موافقتك",
+    "notifyType_cancellation_request_approved": "قبول طلب الإلغاء",
+    "notifyType_cancellation_request_denied": "رفض طلب الإلغاء"
   },
   "workAccount": {
     "title": "حساب عمل",
@@ -788,7 +808,7 @@
     "notFoundBody": "قد تكون أُسندت إلى مندوب آخر.",
     "actions": "الإجراءات",
     "noActions": "لا توجد إجراءات متاحة لهذه التوصيلة الآن.",
-    "detailsNote": "تفاصيل الزبون والعنوان والمبلغ المُحصَّل ستتوفر في مرحلة قادمة.",
+    "detailsNote": "تأكيد التسليم يسجل تحصيل المبلغ كغير مؤكد لمتابعته من الموظفين.",
     "action": {
       "out_for_delivery": "بدء التوصيل",
       "delivered": "تأكيد التسليم",
@@ -817,6 +837,24 @@
       "next": "أعد المحاولة عندما تكون جاهزاً: البضاعة ما زالت في عهدتك.",
       "retryTitle": "إعادة محاولة التوصيل",
       "lastAt": "آخر تعذّر في {at}"
+    },
+    "collection": {
+      "title": "المبلغ المستلم",
+      "collected": "استلمت المبلغ",
+      "amount": "المبلغ المستلم",
+      "notConfirmed": "المبلغ غير مؤكد بعد",
+      "notConfirmedHint": "يُسجَّل الطلب مُسلَّماً الآن، ويؤكد المتجر المبلغ لاحقاً.",
+      "checkedNote": "أدخل ما دفعه الزبون بالضبط. يطابقه المتجر مع الطلب، وأي نقص يُسجَّل عجزاً.",
+      "amountInvalid": "أدخل المبلغ بالأرقام، مثل 25000.",
+      "due": "المبلغ المستحق",
+      "collectedAmount": "المستلم",
+      "shortfall": "العجز",
+      "result": {
+        "confirmed_full": "استُلم المبلغ كاملاً",
+        "confirmed_short": "استُلم أقل من المستحق",
+        "unconfirmed": "المبلغ غير مؤكد بعد"
+      },
+      "unconfirmedNext": "سيؤكد المتجر المبلغ الذي تسلّمه."
     }
   },
   "inbox": {
@@ -834,7 +872,10 @@
     "live": "تحديث مباشر",
     "reconnecting": "جارٍ إعادة الاتصال…",
     "new": "جديد",
-    "failed": "تعذّر تحديث الإشعار. حاول مرة أخرى."
+    "failed": "تعذّر تحديث الإشعار. حاول مرة أخرى.",
+    "needsAnswer": "بانتظار ردّك",
+    "cancellationApproved": "قُبل الإلغاء",
+    "cancellationDenied": "رُفض الإلغاء"
   },
   "seo": {
     "homeDescription": "تسوّق كل ما تحتاجه من {store}: منتجات أصلية، أسعار بالدينار العراقي وتوصيل سريع في كل العراق.",
@@ -853,5 +894,26 @@
     "offlineBody": "تحقّق من اتصالك بالإنترنت ثم حاول مرة أخرى.",
     "offlineBanner": "لا يوجد اتصال بالإنترنت. بعض الإجراءات لن تعمل حتى يعود الاتصال.",
     "retry": "إعادة المحاولة"
+  },
+  "custody": {
+    "title": "عهدتي",
+    "tabs": {
+      "label": "صفحات التوصيل",
+      "deliveries": "توصيلاتي",
+      "custody": "عهدتي"
+    },
+    "goodsQuantity": "البضاعة في عهدتك",
+    "oldest": "أطول مدة احتفاظ",
+    "cash": "النقد في عهدتك",
+    "goodsTitle": "البضاعة في عهدتك",
+    "noGoods": "لا توجد بضاعة في عهدتك.",
+    "orderNumber": "الطلب {number}",
+    "lot": "الدفعة",
+    "since": "في عهدتك منذ {at}",
+    "days": "{count, plural, =0 {اليوم} one {يوم واحد} two {يومان} few {# أيام} many {# يوماً} other {# يوم}}",
+    "assignedTitle": "المسند إليك",
+    "noAssigned": "لا يوجد شيء مسند إليك الآن",
+    "noParty": "حسابك غير مهيأ للتوصيل",
+    "noPartyBody": "اطلب من المتجر تسجيل هاتفك كمندوب توصيل."
   }
 }

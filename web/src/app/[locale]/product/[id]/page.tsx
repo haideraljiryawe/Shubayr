@@ -16,7 +16,7 @@ import {
 } from "@/components/product/skeletons";
 import { ProductCard } from "@/components/ui/product-card";
 import { SectionHeader } from "@/components/ui/section-header";
-import { api, ApiError, type Product } from "@/lib/api";
+import { ApiError, type Product } from "@/lib/api";
 import {
   hasPriceRange,
   pricingForVariant,
@@ -26,6 +26,7 @@ import {
 import type { Locale } from "@/i18n/routing";
 import { jsonLdText, productJsonLd } from "@/lib/seo";
 import { SITE_URL, alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
+import { getCategoriesOnce, getProductAvailabilityOnce, getProductOnce, getProductReviewCountOnce, getSettingsOnce, listProductsOnce, listReviewsOnce } from "@/lib/server-data";
 
 type Props = {
   params: Promise<{ locale: string; id: string }>;
@@ -35,7 +36,7 @@ type Props = {
 /** Fetches the product, turning a contract 404 into a Next notFound(). */
 async function loadProduct(id: string): Promise<Product | null> {
   try {
-    return await api.getProduct(id);
+    return await getProductOnce(id);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
@@ -65,7 +66,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: alternatesFor(locale, path),
     openGraph: openGraphFor({
       locale,
-      siteName: await storeNameFor(locale, (await api.getSettings().catch(() => null))?.store_name),
+      siteName: await storeNameFor(
+        locale,
+        (await getSettingsOnce().catch(() => null))?.store_name,
+      ),
       title: name,
       description,
       path,
@@ -97,8 +101,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
   // Availability gates the CTA, so it is awaited with the product. A failure
   // degrades that piece rather than blanking a page that already has the item.
   const [availability, categories] = await Promise.all([
-    api.getProductAvailability(id).catch(() => null),
-    api.getCategories().catch(() => null),
+    getProductAvailabilityOnce(id).catch(() => null),
+    getCategoriesOnce().catch(() => null),
   ]);
 
   const name = (typedLocale === "ar" ? product.name_ar : product.name_en) ?? "";
@@ -116,9 +120,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
   // Only the count is needed up front (it sits beside the title); the review
   // bodies stream in below.
-  const reviewCount = await api.getProductReviewCount(id).catch(() => 0);
+  const reviewCount = await getProductReviewCountOnce(id).catch(() => 0);
   const [settings, nonce] = await Promise.all([
-    api.getSettings().catch(() => null),
+    getSettingsOnce().catch(() => null),
     headers().then((list) => list.get("x-nonce") ?? undefined),
   ]);
 
@@ -217,9 +221,7 @@ async function ReviewsSection({
   id: string;
   ratingAvg: number;
 }) {
-  const page = await api
-    .listReviews(id, { page: 1, per_page: 50 })
-    .catch(() => null);
+  const page = await listReviewsOnce(id, { page: 1, per_page: 50 }).catch(() => null);
 
   return (
     <ProductReviews
@@ -243,8 +245,7 @@ async function RelatedSection({
   const t = await getTranslations("product");
   if (!categoryId) return null;
 
-  const related = await api
-    .listProducts({ category_id: categoryId, per_page: 6 })
+  const related = await listProductsOnce({ category_id: categoryId, per_page: 6 })
     .then((page) => page.data.filter((item) => item.id !== excludeId))
     .catch(() => []);
 

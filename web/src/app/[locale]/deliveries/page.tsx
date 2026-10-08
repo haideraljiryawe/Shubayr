@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { AgentTabs } from "@/components/work/agent-tabs";
 import { DeliveryList } from "@/components/work/delivery-list";
 import { RequireRole } from "@/components/work/require-role";
 import { WorkPage } from "@/components/work/work-page";
@@ -21,6 +22,7 @@ export default async function DeliveriesPage({ params }: PageProps) {
   return (
     <RequireRole role="delivery_agent">
       <WorkPage title={t("title")}>
+        <AgentTabs active="deliveries" />
         <DeliveryList />
       </WorkPage>
     </RequireRole>

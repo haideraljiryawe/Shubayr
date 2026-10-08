@@ -74,12 +74,12 @@ export function SupplierDetail({
             </Button>
           ) : null}
           {can("purchases.create") && supplier.is_active ? (
-            <Link href={`/purchasing/invoices/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md bg-primary-dark px-5 text-sm font-semibold text-on-primary">
+            <Link href={`/purchasing/invoices/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md bg-primary-dark px-5 text-sm font-semibold text-on-primary" data-testid="supplier-new-invoice">
               {t("newInvoice")}
             </Link>
           ) : null}
           {can("supplier_payments.record") ? (
-            <Link href={`/purchasing/payments/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md border border-primary px-5 text-sm font-semibold text-primary-dark">
+            <Link href={`/purchasing/payments/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md border border-primary px-5 text-sm font-semibold text-primary-dark" data-testid="supplier-pay">
               {t("pay")}
             </Link>
           ) : null}
@@ -503,13 +503,12 @@ function OpeningBalanceCard({
             </Field>
             {currency === "USD" ? (
               <Field
-                key={`rate-${central.status}`}
                 label={t("rate")}
                 name="exchange_rate"
                 error={errors.exchange_rate}
                 hint={central.status === "ready" ? t("rateCentral", { rate: central.rate }) : central.status === "hidden" ? t("rateHidden") : central.status === "missing" ? t("rateMissing") : undefined}
               >
-                <DecimalInput value={central.status === "ready" ? central.rate : ""} parse={{ maxDecimals: 10 }} onValueChange={setRate} data-testid="opening-rate" />
+                <DecimalInput value="" prefill={central.status === "ready" ? central.rate : ""} parse={{ maxDecimals: 10 }} onValueChange={setRate} data-testid="opening-rate" />
               </Field>
             ) : null}
             <DocumentDateFields value={date} onChange={setDate} today={today} windowDays={windowDays} canBackdate={canBackdate} showErrors={showErrors} testId="opening" />

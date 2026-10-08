@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -9,11 +9,17 @@ import { Alert, Badge, Button, Card } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { FormError } from "@/components/forms/form-error";
-import { AgentPicker } from "@/components/orders/agent-picker";
-import { AttentionPanel, BelowCostPanel, CancellationRequestPanel, RetrievalsPanel } from "@/components/orders/lifecycle-panels";
+import { CollectionFields, OrderCollectionSummary } from "@/components/orders/collection-fields";
+import { PartyPicker } from "@/components/orders/party-picker";
+import { AttentionPanel, BelowCostPanel, CancellationRequestPanel, DeliveryAttemptsPanel, RetrievalsPanel } from "@/components/orders/lifecycle-panels";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { browserApi, unwrap } from "@/lib/api/client";
+import {
+  CollectionOperation,
+  staffDeliveryFields,
+  type CollectionChoice,
+} from "@/lib/collection";
 import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
 import {
   DELIVERY_MOVES,
@@ -79,9 +85,13 @@ export function OrderDetailView({
     formatMoney(amount, order.currency ?? currency, locale);
   const [pending, setPending] = useState<OrderAction | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const [agentId, setAgentId] = useState("");
+  const [partyId, setPartyId] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<ErrorKind | null>(null);
+  // Delivering on a party's behalf says what was collected (API 12.0).
+  const [collectionChoice, setCollectionChoice] = useState<CollectionChoice>("confirmed");
+  const [collectionAmount, setCollectionAmount] = useState<string | null>(null);
+  const deliveryOperation = useRef(new CollectionOperation("admin-delivery"));
   /** Confirmation refused below cost (API 10.0), until approved or left. */
   const [belowCost, setBelowCost] = useState<BelowCostBreach[] | null>(null);
   const [selfRefused, setSelfRefused] = useState(false);
@@ -209,6 +219,9 @@ export function OrderDetailView({
   async function moveDelivery(action: keyof typeof DELIVERY_MOVES, reason: string): Promise<AdminOrder> {
     const deliveryId = order.delivery?.id;
     if (!deliveryId) throw new ApiError(409, "Order has no current delivery");
+    if (action === "deliver" && collectionChoice === "confirmed" && collectionAmount === null) {
+      throw new ApiError(422, t("collectionInvalid"));
+    }
     await unwrap(
       browserApi.PATCH("/admin/deliveries/{id}/status", {
         params: { path: { id: deliveryId } },
@@ -216,6 +229,9 @@ export function OrderDetailView({
           status: DELIVERY_MOVES[action],
           order_version: order.version!,
           ...(action === "fail" ? { reason } : {}),
+          ...(action === "deliver"
+            ? staffDeliveryFields(deliveryOperation.current, collectionChoice, collectionAmount)
+            : {}),
         },
       }),
     );
@@ -223,7 +239,7 @@ export function OrderDetailView({
   }
 
   async function assign() {
-    if (!agentId || !order.delivery?.id) return;
+    if (!partyId || !order.delivery?.id) return;
     setAssigning(true);
     setAssignError(null);
     setNotice(null);
@@ -231,14 +247,15 @@ export function OrderDetailView({
       await unwrap(
         browserApi.PATCH("/deliveries/{id}/assign", {
           params: { path: { id: order.delivery.id } },
-          body: { agent_id: agentId },
+          // An internal agent or an external driver (contract 11.2).
+          body: { party_id: partyId },
         }),
       );
       const fresh = await unwrap(
         browserApi.GET("/admin/orders/{id}", { params: { path: { id } } }),
       );
       setOrder(fresh);
-      setAgentId("");
+      setPartyId("");
       toast(t("assign.done"));
       router.refresh();
     } catch (cause) {
@@ -256,7 +273,8 @@ export function OrderDetailView({
   const events = [...(order.status_events ?? [])].sort((a, b) =>
     (a.at ?? "").localeCompare(b.at ?? ""),
   );
-  const agent = order.delivery?.agent;
+  // Who carries it: a party (11.2), or the agent an older API names.
+  const carrier = order.delivery?.party ?? order.delivery?.agent ?? null;
 
   return (
     <div className="flex flex-col gap-5" data-testid="order-detail" data-status={order.status}>
@@ -332,7 +350,13 @@ export function OrderDetailView({
                   key={action}
                   variant={REASON_ACTIONS.has(action) ? "danger" : action === "retry" ? "secondary" : "primary"}
                   disabled={blocked}
-                  onClick={() => setPending(action)}
+                  onClick={() => {
+                    if (action === "deliver") {
+                      setCollectionChoice("confirmed");
+                      setCollectionAmount(String(order.total ?? 0));
+                    }
+                    setPending(action);
+                  }}
                   data-testid={`order-action-${action}`}
                 >
                   {t(`action.${action}`)}
@@ -435,6 +459,14 @@ export function OrderDetailView({
         </div>
 
         <div className="flex flex-col gap-5">
+          {/* Read with the order (13.1), so it survives a reload. */}
+          {order.collection ? (
+            <Card className="flex flex-col gap-2 p-5" data-testid="order-collection">
+              <h2 className="font-bold">{t("collectionTitle")}</h2>
+              <OrderCollectionSummary collection={order.collection} />
+            </Card>
+          ) : null}
+          <DeliveryAttemptsPanel order={order} />
           <RetrievalsPanel order={order} permissions={permissions} onRefused={handleRefusal} />
 
           <Card className="flex flex-col gap-1 p-5">
@@ -479,8 +511,8 @@ export function OrderDetailView({
                       {t(`deliveryStatus.${order.delivery.status}`)}
                     </Badge>
                   ) : null}
-                  <span data-testid="delivery-agent">
-                    {agent ? agent.name || agent.phone : t("noAgent")}
+                  <span data-testid="delivery-agent" data-kind={order.delivery.party?.kind ?? undefined}>
+                    {carrier ? carrier.name || carrier.phone : t("noAgent")}
                   </span>
                 </div>
                 {assignable ? (
@@ -492,14 +524,14 @@ export function OrderDetailView({
                     }}
                   >
                     <span className="text-sm font-semibold">
-                      {agent ? t("assign.reassign") : t("assign.title")}
+                      {carrier ? t("assign.reassign") : t("assign.title")}
                     </span>
-                    <AgentPicker value={agentId} onChange={(picked) => setAgentId(picked?.id ?? "")} />
+                    <PartyPicker value={partyId} onChange={(picked) => setPartyId(picked?.id ?? "")} />
                     <FormError kind={assignError} />
                     <Button
                       type="submit"
                       variant="secondary"
-                      disabled={!agentId}
+                      disabled={!partyId}
                       pending={assigning}
                       data-testid="assign-submit"
                     >
@@ -532,7 +564,19 @@ export function OrderDetailView({
         requireReason={pending !== null && REASON_ACTIONS.has(pending)}
         onConfirm={(reason) => perform(pending!, reason)}
         onClose={() => setPending(null)}
-      />
+      >
+        {pending === "deliver" ? (
+          <CollectionFields
+            due={Number(order.total ?? 0)}
+            currency={order.currency ?? currency}
+            choice={collectionChoice}
+            onChoice={setCollectionChoice}
+            amount={collectionAmount}
+            onAmount={setCollectionAmount}
+            allowUnconfirmed
+          />
+        ) : null}
+      </ConfirmDialog>
     </div>
   );
 }

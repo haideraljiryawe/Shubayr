@@ -113,12 +113,15 @@ export function OrdersTable({
     {
       key: "agent",
       header: t("columns.agent"),
-      cell: (order) =>
-        order.delivery?.agent ? (
-          order.delivery.agent.name || order.delivery.agent.phone
+      cell: (order) => {
+        // A party (internal agent or external driver, 11.2), or an older API's agent.
+        const carrier = order.delivery?.party ?? order.delivery?.agent;
+        return carrier ? (
+          carrier.name || carrier.phone
         ) : (
           <span className="text-text-muted">{t("noAgent")}</span>
-        ),
+        );
+      },
     },
   ];
 

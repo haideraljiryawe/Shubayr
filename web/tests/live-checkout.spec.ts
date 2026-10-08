@@ -16,7 +16,9 @@ import {
   API,
   awaitQuota,
   bearer as auth,
+  customerAddress,
   customerToken as signIn,
+  placeOrder,
   requireLiveApi,
 } from "./live-api";
 
@@ -133,11 +135,8 @@ test.describe("live cart and COD checkout", () => {
       data: { product_id: EARBUDS, variant_id: EARBUDS_VARIANT, quantity: 1 },
     });
 
-    const addresses = await (
-      await request.get(`${API}/addresses`, { headers: auth(token) })
-    ).json();
-    const addressId = addresses.data?.[0]?.id;
-    expect(addressId, "the seed should carry a saved address").toBeTruthy();
+    // This worker's customer's saved address.
+    const addressId = await customerAddress(request);
 
     const key = `web-test-${Date.now()}`;
     const body = { address_id: addressId, payment_method: "cod" };
@@ -221,10 +220,11 @@ test.describe("live cart and COD checkout", () => {
     request,
   }) => {
     const token = await signIn(request);
+    // An order of this worker's customer's own, rather than whatever the seed left.
+    await placeOrder(request);
     const list = await (
       await request.get(`${API}/orders?per_page=1`, { headers: auth(token) })
     ).json();
-    test.skip(list.total === 0, "No orders for the seeded customer yet.");
 
     const detail = await (
       await request.get(`${API}/orders/${list.data[0].id}`, {

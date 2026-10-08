@@ -109,7 +109,7 @@ test("a reduction proposal reads from attention_details", () => {
     reductionProposal({
       attention_details: {
         short_lines: [],
-        reduction_proposal: { order_item_id: "oi-1", old_quantity: 3, new_quantity: 1, reason: "Only one left", status: "pending" },
+        reduction_proposal: { order_item_id: "oi-1", old_quantity: 3, new_quantity: 1, reason: "Only one left", status: "pending", requested_by: "11111111-1111-4111-8111-111111111111", requested_at: "2026-10-01T10:00:00Z" },
       },
     }),
   ).toEqual({ orderItemId: "oi-1", oldQuantity: 3, newQuantity: 1, reason: "Only one left", status: "pending" });
@@ -132,4 +132,24 @@ test("an order past pending offers a cancellation request and shows its status",
   await expect(status).toContainText("Ordered the wrong size");
   // A request is already waiting: nothing to ask again.
   await expect(page.getByTestId("order-request-cancel")).toHaveCount(0);
+});
+
+test("the order says what was paid on delivery, and still does after a reload", async ({ page }) => {
+  await signIn(page);
+  // SB-1035 was paid 5 short (the fixture), SB-1028 in full, SB-1039 is on its way.
+  await page.goto("/account/orders/sb-1035");
+  const collection = page.getByTestId("order-collection");
+  await expect(collection).toHaveAttribute("data-result", "short");
+  await expect(page.getByTestId("order-collection-remaining")).toContainText("5");
+  // The shopper's words only: nothing about couriers, custody or shortfalls.
+  await expect(collection).not.toContainText(/مندوب|عهدة|عجز|courier|agent|custody|shortfall/i);
+  await page.reload();
+  await expect(page.getByTestId("order-collection")).toHaveAttribute("data-result", "short");
+
+  await page.goto("/account/orders/sb-1028");
+  await expect(page.getByTestId("order-collection")).toHaveAttribute("data-result", "full");
+  await expect(page.getByTestId("order-collection-remaining")).toHaveCount(0);
+
+  await page.goto("/account/orders/sb-1039");
+  await expect(page.getByTestId("order-collection")).toHaveCount(0);
 });

@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api";
+import { getCategoriesOnce } from "@/lib/server-data";
 
 type CategoriesPageProps = {
   params: Promise<{ locale: string }>;
@@ -37,7 +38,7 @@ export default async function CategoriesPage({ params }: CategoriesPageProps) {
     getTranslations("catalog"),
     getTranslations("header"),
   ]);
-  const categories = await api.getCategories().catch(() => null);
+  const categories = await getCategoriesOnce().catch(() => null);
   const departments = categories
     ?.filter(
       (category) =>

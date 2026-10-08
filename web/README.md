@@ -333,6 +333,17 @@ Point it at another stack with `PLAYWRIGHT_LIVE_API`:
 PLAYWRIGHT_LIVE_API=http://localhost:8001/api/v1 npm run test:live
 ```
 
+To keep the API's log next to the report (`test-results/api.log`) when the run
+ends, before you tear the stack down, name its source:
+
+```bash
+LIVE_API_CONTAINER=shubayr_api npm run test:live     # a Docker stack: `docker logs`
+LIVE_API_LOG_FILE=/tmp/api.log npm run test:live     # an API writing to a file (CI does this)
+```
+
+A failed test also keeps its Playwright trace in `test-results/`. CI uploads
+both, with the report, for 14 days whenever a live job fails.
+
 Every live spec skips itself when nothing answers, so running it without a
 backend is a skip rather than a wall of failures. "Nothing answers" means
 exactly that: `tests/live-api.ts` treats any HTTP status as present, because an

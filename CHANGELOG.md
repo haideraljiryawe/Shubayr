@@ -1,5 +1,156 @@
 # Changelog
 
+## 13.4.0 - 2026-10-08
+
+### Added
+
+- Numbered external-driver trips with one fare agreement, atomic multi-order
+  handover, staff-recorded event provenance, open/in-progress/closed lifecycle,
+  and filtered list/detail reads.
+- Store-paid fare accrual with payable, cash-account payment, or one-time
+  collection netting; customer-direct fare tracking stays outside store money.
+- Trip settlement totals and driver-statement links, including cash received,
+  approved fare netting, and a visible remaining custody balance.
+
+### Changed
+
+- Delivery-party collection and unconfirmed-collection lists support date or
+  amount sorting in both directions and default to newest first.
+- Delivery-party search covers name, phone, and vehicle number, and trip use
+  now makes an external driver ineligible for deletion.
+- The API contract is version 13.4.0. This release is additive and does not
+  break existing web, admin, or mobile callers.
+
+## 13.3.0 - 2026-10-08
+
+### Added
+
+- Immutable, numbered custody-exception documents for goods lost or damaged
+  in delivery custody, returns against uncollected orders, and delivery-fee
+  refunds, with operation-id replay protection and reversal documents.
+- Filtered, paginated exception list/detail APIs and exception activity in
+  delivery-party statements, collection reads, and custody totals.
+- Separate view, loss, uncollected-return, fee-refund and reversal permissions
+  with declared dependencies, seeded cashier/accountant grants, audit events,
+  closed-period checks and standard/strict separation of duties.
+
+### Changed
+
+- Party-borne loss amounts enter party cash custody and may be handed in with a
+  C6 cash receipt. Returns and fee refunds net only the still-uncollected
+  shortfall, so existing receipt allocations remain valid; a party-liability
+  reversal is refused if a receipt has already consumed that liability.
+- The API contract is version 13.3.0. This release is additive and does not
+  break existing web, admin, or mobile callers.
+
+## 13.2.0 - 2026-10-06
+
+### Added
+
+- Immutable, numbered cash receipt vouchers for handing delivery-party cash
+  into an IQD cash account using the phase-3 `cash_received` posting map.
+- Partial, replay-safe allocation batches, oldest-collection suggestions,
+  unallocated receipt discovery, and reversal documents that restore custody
+  and order settlement without editing posted records.
+- Voucher list/detail filters, settlement links in per-party collection reads,
+  and cash receipt/reversal activity in party statements.
+- Separate receive, allocate, and reverse permissions in the cashier and
+  accountant presets, including declared read dependencies and standard/strict
+  separation-of-duties enforcement.
+
+### Changed
+
+- Delivery-party custody cash now subtracts active receipt vouchers and returns
+  to custody when a voucher is reversed. The total continues to reconcile to
+  ledger account 1020.
+- The API contract is version 13.2.0. This release is additive and does not
+  break existing web, admin, or mobile callers.
+
+## 13.1.0 - 2026-10-05
+
+### Added
+
+- Optional idempotency keys for cart adds and an atomic, idempotent guest-cart
+  merge endpoint that serializes safely with signed-in cart writes.
+- Delivery amount due on agent reads, customer-safe collection summaries on
+  order reads, filtered per-party collection history, and additional filters
+  for the unconfirmed-collection queue.
+- Configurable catalog, normal and strict risk-tier rate limits. Trusted web
+  and admin proxies share the real forwarded shopper/staff address; untrusted
+  forwarded headers remain ignored.
+
+### Changed
+
+- The API contract is version 13.1.0. This release is additive and does not
+  break existing web or admin callers.
+
+## 13.0.0 - 2026-10-04
+
+### Breaking
+
+- Customer order delivery-attempt history no longer exposes the assigned
+  internal agent or external driver. Customer callers must treat attempts as
+  status, reason and time history only; staff order responses are unchanged.
+
+### Added
+
+- Paginated price-publish approval discovery and detail endpoints, pending
+  approval for below-cost fixed prices, approval inbox notifications, and
+  per-SKU below-cost flags in linked-price previews.
+- Per-party custody totals and a sortable, paginated custody overview. Goods
+  value remains conditional on `cost.view`.
+
+## 12.0.0 - 2026-10-04
+
+### Breaking
+
+- Marking a delivery delivered now requires `operation_id` and
+  `collection_confirmation`; confirmed collections require
+  `collected_amount`, and staff acting for a party must also send `source`.
+
+### Added
+
+- Delivery-time goods and fee revenue recognition, COD cash custody,
+  unconfirmed collection queues, and later full or short confirmation.
+
+## 11.2.0 - 2026-10-03
+
+### Added
+
+- A unified delivery-party abstraction, external-driver administration,
+  party custody, statement and held-order reads, and agent self-service
+  custody APIs.
+
+### Changed
+
+- Assignment accepts `party_id` while retaining the legacy internal-agent
+  `agent_id` path. This release is not breaking.
+
+## 11.1.0 - 2026-10-03
+
+### Added
+
+- Admin order attention filters and badge counts, paginated retrieval search,
+  customer quantity and cancellation notifications, immutable delivery-attempt
+  history, and notification-type filtering.
+
+### Changed
+
+- Phase-7 attention, price-change and retrieval response/error schemas are
+  strict and complete. This release is not breaking.
+
+## 11.0.0 - 2026-10-03
+
+### Breaking
+
+- Client-supplied approval initiators were removed. Every proposer is derived
+  from authenticated or persisted server state.
+
+### Added
+
+- Permission dependency validation, audited separation-of-duties settings,
+  and pending below-cost linked-price approvals with approve/reject decisions.
+
 ## 10.0.2 - 2026-10-03
 
 ### Fixed

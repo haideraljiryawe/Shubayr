@@ -43,7 +43,9 @@ export default async function RetrievalPage({ params }: { params: Promise<{ id: 
       </Link>
       <PageHeader title={<span dir="ltr" data-testid="retrieval-number">{retrieval.data.document_number}</span>} description={t("description")} />
       <RetrievalView
-        key={`${retrieval.data.id}:${retrieval.data.status}`}
+        // Keyed by the document only: a refresh after a receipt must update
+        // the data in place, not remount the view and lose its confirmation.
+        key={retrieval.data.id}
         retrieval={retrieval.data}
         locations={[...locations.values()].filter((info) => info.active)}
         canReceive={permissions.includes("retrieval.receive")}

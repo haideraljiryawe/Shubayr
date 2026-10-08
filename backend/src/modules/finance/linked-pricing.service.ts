@@ -11,10 +11,14 @@ import { AuditService } from '../audit/audit.service';
 import {
   LinkedPriceApplyDto,
   LinkedPricePreviewDto,
+  PricePublishApprovalQueryDto,
   PricePublishDecisionDto,
 } from './dto/linked-price.dto';
 import { BelowCostService } from '../catalog/below-cost.service';
+import { ProductsService } from '../catalog/products.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { assertDifferentActor } from '../../common/access/separation-of-duties';
+import { businessDayEnd, businessDayStart } from './business-date';
 
 type Db = PrismaService | Prisma.TransactionClient;
 
@@ -24,6 +28,8 @@ export class LinkedPricingService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly belowCost: BelowCostService,
+    private readonly products?: ProductsService,
+    private readonly notifications?: NotificationsService,
   ) {}
 
   async preview(actorId: string, input: LinkedPricePreviewDto) {
@@ -55,7 +61,7 @@ export class LinkedPricingService {
         expires_at: expiresAt,
       },
     });
-    const items = state.variants.map((variant) => {
+    const proposedItems = state.variants.map((variant) => {
       const oldPrice =
         variant.published_price === null
           ? null
@@ -76,6 +82,19 @@ export class LinkedPricingService {
             : null,
       };
     });
+    const breaches = await this.belowCost.breaches(
+      this.prisma,
+      proposedItems.map((item) => ({
+        variant_id: item.variant_id,
+        sku: item.sku,
+        price: item.new_price,
+      })),
+    );
+    const belowCostIds = new Set(breaches.map((breach) => breach.variant_id));
+    const items = proposedItems.map((item) => ({
+      ...item,
+      requires_below_cost_approval: belowCostIds.has(item.variant_id),
+    }));
     return {
       preview_token: record.id,
       expires_at: expiresAt,
@@ -96,7 +115,78 @@ export class LinkedPricingService {
     return this.apply(actorId, input, true);
   }
 
-  async decide(actorId: string, id: string, input: PricePublishDecisionDto) {
+  async listApprovals(
+    actorId: string,
+    permissions: readonly string[],
+    query: PricePublishApprovalQueryDto,
+  ) {
+    if (query.from && query.to && query.from > query.to) {
+      throw new UnprocessableEntityException('from must be on or before to');
+    }
+    const canApprove = permissions.includes('sell_below_cost.approve');
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    const where: Prisma.PricePublishApprovalWhereInput = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.proposer_id ? { proposed_by: query.proposer_id } : {}),
+      ...(query.sku ? { sku_list: { has: query.sku } } : {}),
+      ...(query.from || query.to
+        ? {
+            created_at: {
+              ...(query.from ? { gte: businessDayStart(query.from) } : {}),
+              ...(query.to ? { lte: businessDayEnd(query.to) } : {}),
+            },
+          }
+        : {}),
+      ...(!canApprove ? { proposed_by: actorId } : {}),
+    };
+    const include = {
+      proposer: { select: { id: true, name: true } },
+      decider: { select: { id: true, name: true } },
+    } satisfies Prisma.PricePublishApprovalInclude;
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.pricePublishApproval.count({ where }),
+      this.prisma.pricePublishApproval.findMany({
+        where,
+        include,
+        orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * perPage,
+        take: perPage,
+      }),
+    ]);
+    return {
+      page,
+      per_page: perPage,
+      total,
+      data: rows.map((row) =>
+        this.approvalResponse(row, permissions.includes('cost.view')),
+      ),
+    };
+  }
+
+  async getApproval(
+    actorId: string,
+    permissions: readonly string[],
+    id: string,
+  ) {
+    const canApprove = permissions.includes('sell_below_cost.approve');
+    const row = await this.prisma.pricePublishApproval.findFirst({
+      where: { id, ...(!canApprove ? { proposed_by: actorId } : {}) },
+      include: {
+        proposer: { select: { id: true, name: true } },
+        decider: { select: { id: true, name: true } },
+      },
+    });
+    if (!row) throw new NotFoundException('Price publish approval not found');
+    return this.approvalResponse(row, permissions.includes('cost.view'));
+  }
+
+  async decide(
+    actorId: string,
+    id: string,
+    input: PricePublishDecisionDto,
+    permissions: readonly string[] = [],
+  ) {
     const pending = await this.prisma.pricePublishApproval.findUnique({
       where: { id },
     });
@@ -111,18 +201,74 @@ export class LinkedPricingService {
       'The price proposer cannot approve or reject their own request',
     );
     if (input.decision === 'approve') {
-      if (!pending.preview_id) {
-        throw new ConflictException(
-          'Price publish preview is no longer available',
+      if (pending.kind === 'fixed') {
+        if (!this.products) {
+          throw new ConflictException('Fixed-price approvals are unavailable');
+        }
+        await this.prisma.$transaction(async (tx) => {
+          await tx.$queryRaw`SELECT id FROM price_publish_approvals WHERE id = ${id}::uuid FOR UPDATE`;
+          const fresh = await tx.pricePublishApproval.findUnique({
+            where: { id },
+          });
+          if (!fresh || fresh.status !== 'pending') {
+            throw new ConflictException(
+              'Price publish approval is already decided',
+            );
+          }
+          const payload = await this.products!.applyApprovedFixedPrice(
+            tx,
+            fresh,
+          );
+          await tx.pricePublishApproval.update({
+            where: { id },
+            data: {
+              status: 'approved',
+              decided_by: actorId,
+              decided_at: new Date(),
+              decision_reason: input.reason.trim(),
+            },
+          });
+          await this.audit.record(tx, {
+            actorId,
+            action: 'prices.fixed.approval_approved',
+            entityType: 'price_publish_approval',
+            entityId: id,
+            before: { status: 'pending', proposed_by: fresh.proposed_by },
+            after: {
+              status: 'approved',
+              product_id: fresh.product_id,
+              variants: payload.variants.map(({ variant_id, sku }) => ({
+                variant_id,
+                sku,
+              })),
+            },
+            reason: input.reason.trim(),
+          });
+          await this.notifications?.record(
+            tx,
+            fresh.proposed_by,
+            'price_approval_approved',
+            'price_publish_approval',
+            id,
+            'approved',
+            'staff',
+          );
+        });
+        await this.products.refreshSearch(pending.product_id!);
+      } else {
+        if (!pending.preview_id) {
+          throw new ConflictException(
+            'Price publish preview is no longer available',
+          );
+        }
+        await this.apply(
+          actorId,
+          { preview_token: pending.preview_id },
+          true,
+          pending.id,
+          input.reason,
         );
       }
-      await this.apply(
-        actorId,
-        { preview_token: pending.preview_id },
-        true,
-        pending.id,
-        input.reason,
-      );
     } else {
       await this.prisma.$transaction(async (tx) => {
         const updated = await tx.pricePublishApproval.updateMany({
@@ -141,7 +287,7 @@ export class LinkedPricingService {
         }
         await this.audit.record(tx, {
           actorId,
-          action: 'prices.linked.approval_rejected',
+          action: `prices.${pending.kind}.approval_rejected`,
           entityType: 'price_publish_approval',
           entityId: id,
           before: { status: 'pending', proposed_by: pending.proposed_by },
@@ -153,11 +299,22 @@ export class LinkedPricingService {
             where: { id: pending.preview_id },
           });
         }
+        await this.notifications?.record(
+          tx,
+          pending.proposed_by,
+          'price_approval_rejected',
+          'price_publish_approval',
+          id,
+          'rejected',
+          'staff',
+        );
       });
     }
-    return this.prisma.pricePublishApproval.findUniqueOrThrow({
-      where: { id },
-    });
+    return this.getApproval(
+      actorId,
+      [...permissions, 'sell_below_cost.approve'],
+      id,
+    );
   }
 
   private async apply(
@@ -236,10 +393,12 @@ export class LinkedPricingService {
             input.below_cost_override_reason?.trim() || preview.reason.trim();
           const request = await tx.pricePublishApproval.create({
             data: {
+              kind: 'linked',
               preview_id: preview.id,
               proposed_by: preview.actor_id,
               proposal_reason: proposalReason,
               breaches: belowCostBreaches,
+              sku_list: belowCostBreaches.map((breach) => breach.sku),
             },
           });
           await this.audit.record(tx, {
@@ -254,6 +413,14 @@ export class LinkedPricingService {
             },
             reason: request.proposal_reason,
           });
+          await this.notifications?.recordStaffWithPermission(
+            tx,
+            'sell_below_cost.approve',
+            'price_approval_requested',
+            'price_publish_approval',
+            request.id,
+            'created',
+          );
           return {
             mode: 'pending_approval' as const,
             exchange_rate_id: null,
@@ -354,6 +521,15 @@ export class LinkedPricingService {
           },
           reason: decisionReason,
         });
+        await this.notifications?.record(
+          tx,
+          approval.proposed_by,
+          'price_approval_approved',
+          'price_publish_approval',
+          approval.id,
+          'approved',
+          'staff',
+        );
       }
       await tx.linkedPricePreview.delete({ where: { id: preview.id } });
       return {
@@ -364,6 +540,70 @@ export class LinkedPricingService {
         linked_sku_count: state.variants.length,
       };
     });
+  }
+
+  private approvalResponse(
+    row: Prisma.PricePublishApprovalGetPayload<{
+      include: {
+        proposer: { select: { id: true; name: true } };
+        decider: { select: { id: true; name: true } };
+      };
+    }>,
+    canViewCost: boolean,
+  ) {
+    const breaches = Array.isArray(row.breaches)
+      ? row.breaches.map((entry) => {
+          const breach = entry as Prisma.JsonObject;
+          if (canViewCost) return breach;
+          const {
+            cost: _cost,
+            minimum_price: _minimumPrice,
+            ...publicBreach
+          } = breach;
+          void _cost;
+          void _minimumPrice;
+          return publicBreach;
+        })
+      : [];
+    const payload = row.fixed_payload as {
+      product_id: string;
+      proposed_product_price: number;
+      variants: Array<{
+        variant_id: string;
+        sku: string;
+        proposed_selling_price: number | null;
+      }>;
+    } | null;
+    return {
+      id: row.id,
+      kind: row.kind,
+      status: row.status,
+      preview_id: row.preview_id,
+      product_id: row.product_id,
+      price_version_id: row.price_version_id,
+      proposed_by: row.proposed_by,
+      proposer: row.proposer,
+      decided_by: row.decided_by,
+      decider: row.decider,
+      proposal_reason: row.proposal_reason,
+      decision_reason: row.decision_reason,
+      sku_list: row.sku_list,
+      breaches,
+      fixed_proposal:
+        row.kind === 'fixed' && payload
+          ? {
+              product_id: payload.product_id,
+              proposed_product_price: payload.proposed_product_price,
+              variants: payload.variants.map((variant) => ({
+                variant_id: variant.variant_id,
+                sku: variant.sku,
+                proposed_selling_price: variant.proposed_selling_price,
+              })),
+            }
+          : null,
+      created_at: row.created_at,
+      decided_at: row.decided_at,
+    };
   }
 
   private async fingerprint(db: Db, currencyCode: string) {

@@ -476,7 +476,24 @@
       "conflict": "The order changed meanwhile; the page has been refreshed.",
       "failed": "Your answer could not be sent. Please try again."
     },
-    "status_rejected": "Declined by the store"
+    "status_rejected": "Declined by the store",
+    "attempts": {
+      "title": "Delivery attempts",
+      "attempt": "Attempt {number}",
+      "status": {
+        "out_for_delivery": "On its way",
+        "delivered": "Delivered",
+        "failed": "We couldn't deliver"
+      },
+      "note": "Courier's note: {note}"
+    },
+    "collection": {
+      "full": "Paid in full on delivery",
+      "short": "Part of the amount was paid on delivery",
+      "unconfirmed": "The store is confirming your payment",
+      "paid": "Paid:",
+      "remaining": "Still to pay:"
+    }
   },
   "addresses": {
     "title": "My addresses",
@@ -690,7 +707,10 @@
     "notifyType_return_update": "Return update",
     "notifyType_loyalty_points_earned": "Points earned",
     "notifyType_review_moderated": "Review moderated",
-    "notifyType_promo": "Offers and promotions"
+    "notifyType_promo": "Offers and promotions",
+    "notifyType_quantity_reduction_proposed": "A smaller quantity to approve",
+    "notifyType_cancellation_request_approved": "Cancellation request approved",
+    "notifyType_cancellation_request_denied": "Cancellation request declined"
   },
   "workAccount": {
     "title": "Work account",
@@ -788,7 +808,7 @@
     "notFoundBody": "It may have been reassigned to another agent.",
     "actions": "Actions",
     "noActions": "There is nothing to do on this delivery right now.",
-    "detailsNote": "Customer, address and collected-amount details arrive in a later phase.",
+    "detailsNote": "Confirming delivery records the cash collection as unconfirmed for staff follow-up.",
     "action": {
       "out_for_delivery": "Start delivery",
       "delivered": "Confirm delivered",
@@ -817,6 +837,24 @@
       "next": "Retry when ready: the goods are still in your custody.",
       "retryTitle": "Delivery retry",
       "lastAt": "Last failed {at}"
+    },
+    "collection": {
+      "title": "Payment collected",
+      "collected": "I collected the payment",
+      "amount": "Amount collected",
+      "notConfirmed": "Amount not confirmed yet",
+      "notConfirmedHint": "The order is delivered now; the store confirms the amount later.",
+      "checkedNote": "Enter exactly what the customer paid. The store checks it against the order: anything less is recorded as a shortfall.",
+      "amountInvalid": "Enter the amount in numbers, e.g. 25000.",
+      "due": "Amount due",
+      "collectedAmount": "Collected",
+      "shortfall": "Shortfall",
+      "result": {
+        "confirmed_full": "Collected in full",
+        "confirmed_short": "Collected less than due",
+        "unconfirmed": "Amount not confirmed yet"
+      },
+      "unconfirmedNext": "The store will confirm the amount you hand in."
     }
   },
   "inbox": {
@@ -834,7 +872,10 @@
     "live": "Live",
     "reconnecting": "Reconnecting…",
     "new": "New",
-    "failed": "Couldn't update the notification. Please try again."
+    "failed": "Couldn't update the notification. Please try again.",
+    "needsAnswer": "Needs your answer",
+    "cancellationApproved": "Cancellation approved",
+    "cancellationDenied": "Cancellation declined"
   },
   "seo": {
     "homeDescription": "Shop everything you need at {store}: genuine products, prices in Iraqi dinars and fast delivery across Iraq.",
@@ -853,5 +894,26 @@
     "offlineBody": "Check your internet connection, then try again.",
     "offlineBanner": "No internet connection. Some actions won't work until you're back online.",
     "retry": "Try again"
+  },
+  "custody": {
+    "title": "My custody",
+    "tabs": {
+      "label": "Delivery pages",
+      "deliveries": "My deliveries",
+      "custody": "My custody"
+    },
+    "goodsQuantity": "Goods you hold",
+    "oldest": "Held longest",
+    "cash": "Cash you hold",
+    "goodsTitle": "Goods in your custody",
+    "noGoods": "You aren't holding any goods.",
+    "orderNumber": "Order {number}",
+    "lot": "Lot",
+    "since": "With you since {at}",
+    "days": "{count, plural, =0 {Today} one {# day} other {# days}}",
+    "assignedTitle": "Assigned to you",
+    "noAssigned": "Nothing assigned to you right now",
+    "noParty": "Your account isn't set up for deliveries",
+    "noPartyBody": "Ask the store to register your phone as a delivery agent."
   }
 }
