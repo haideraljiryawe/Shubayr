@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shubayr/app/startup_display_controller.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
@@ -24,6 +26,7 @@ Widget _app({
   ScrollController? vertical,
   GlobalKey<NavigatorState>? navigatorKey,
   Widget? sibling,
+  bool Function()? claimStartupDelay,
 }) => MaterialApp(
   navigatorKey: navigatorKey,
   // Isolate carousel scheduling from MaterialApp theme transitions.
@@ -53,6 +56,7 @@ Widget _app({
                     child: HomeCategoryCarousel(
                       categories: categories ?? _categories,
                       onSelected: onSelected ?? (_) {},
+                      claimStartupDelay: claimStartupDelay,
                     ),
                   ),
                   sibling ?? const SizedBox(height: 2000),
@@ -105,6 +109,191 @@ class _RenderWorkBox extends RenderProxyBox {
 }
 
 void main() {
+  bool Function() startupClaim() {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    return container
+        .read(startupDisplayReadyProvider.notifier)
+        .claimHomeCarouselStartupDelay;
+  }
+
+  for (final language in ['ar', 'en']) {
+    testWidgets('cold start waits one visible second in $language', (
+      tester,
+    ) async {
+      final claim = startupClaim();
+      Widget app({bool enabled = true, List<Category>? categories}) => _app(
+        language: language,
+        enabled: enabled,
+        categories: categories,
+        claimStartupDelay: claim,
+      );
+      // Loading and a hidden branch do not spend the visible startup window.
+      await _start(tester, app(categories: []));
+      await tester.pump(const Duration(seconds: 2));
+      await _start(tester, app(enabled: false));
+      await tester.pump(const Duration(seconds: 2));
+      await _start(tester, app());
+      final start = tester.getTopLeft(_item(1)).dx;
+      expect(_item(1).hitTestable(), findsOneWidget);
+      for (var i = 0; i < 9; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        // Rebuilding must neither duplicate nor restart the timer.
+        await _start(tester, app());
+        expect(_position(tester).pixels, 0);
+        expect(tester.binding.transientCallbackCount, 0);
+      }
+      await tester.pump(const Duration(milliseconds: 99));
+      expect(_position(tester).pixels, 0);
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(_position(tester).pixels, 0);
+      expect(tester.binding.transientCallbackCount, 1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(_position(tester).pixels, closeTo(3, .001));
+      expect(
+        tester.getTopLeft(_item(1)).dx - start,
+        closeTo(language == 'ar' ? 3 : -3, .001),
+      );
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  for (final drag in [false, true]) {
+    testWidgets('startup ${drag ? 'drag' : 'tap'} uses only the resume delay', (
+      tester,
+    ) async {
+      var taps = 0;
+      await _start(
+        tester,
+        _app(claimStartupDelay: startupClaim(), onSelected: (_) => taps++),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      final gesture = await tester.startGesture(tester.getCenter(_item(1)));
+      if (drag) {
+        await gesture.moveBy(const Offset(-60, 0));
+        await tester.pump();
+        await gesture.moveBy(const Offset(-30, 0));
+        await tester.pump();
+        expect(_position(tester).pixels, greaterThan(0));
+      }
+      await tester.pump(const Duration(seconds: 2));
+      final held = _position(tester).pixels;
+      await tester.pump(const Duration(seconds: 1));
+      expect(_position(tester).pixels, held);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(taps, drag ? 0 : 1);
+      final stopped = _position(tester).pixels;
+      await tester.pump(const Duration(seconds: 2));
+      expect(_position(tester).pixels, stopped);
+      expect(tester.binding.transientCallbackCount, 0);
+      // A new interaction cancels the previous resume timer as well.
+      await tester.tap(_item(1));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 2999));
+      expect(_position(tester).pixels, stopped);
+      expect(tester.binding.transientCallbackCount, 0);
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+      expect(_position(tester).pixels, closeTo(stopped + 12, .001));
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  for (final hide in ['branch', 'background', 'offscreen', 'route']) {
+    testWidgets('startup delay cancels on $hide and is not reapplied', (
+      tester,
+    ) async {
+      final claim = startupClaim();
+      final vertical = ScrollController();
+      addTearDown(vertical.dispose);
+      final navigator = GlobalKey<NavigatorState>();
+      Widget app({bool enabled = true}) => _app(
+        enabled: enabled,
+        vertical: vertical,
+        navigatorKey: navigator,
+        claimStartupDelay: claim,
+      );
+      await _start(tester, app());
+      await tester.pump(const Duration(milliseconds: 400));
+      switch (hide) {
+        case 'branch':
+          await _start(tester, app(enabled: false));
+        case 'background':
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.paused,
+          );
+        case 'offscreen':
+          vertical.jumpTo(700);
+        case 'route':
+          navigator.currentState!.push(
+            MaterialPageRoute<void>(
+              builder: (_) => const Scaffold(body: Text('Other')),
+            ),
+          );
+      }
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 2));
+      expect(tester.binding.transientCallbackCount, 0);
+      switch (hide) {
+        case 'branch':
+          await _start(tester, app());
+        case 'background':
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.resumed,
+          );
+        case 'offscreen':
+          vertical.jumpTo(0);
+        case 'route':
+          navigator.currentState!.pop();
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
+      }
+      await tester.pump();
+      await tester.pump();
+      final returned = _position(tester).pixels;
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(_position(tester).pixels, closeTo(returned + 3, .001));
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  testWidgets('dispose cancels startup; only a new app repeats the delay', (
+    tester,
+  ) async {
+    final claim = startupClaim();
+    await _start(tester, _app(claimStartupDelay: claim));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+    expect(tester.binding.transientCallbackCount, 0);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(tester.takeException(), isNull);
+    await _start(tester, _app(claimStartupDelay: claim));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(_position(tester).pixels, closeTo(3, .001));
+    await tester.pumpWidget(const SizedBox());
+    await _start(tester, _app(claimStartupDelay: startupClaim()));
+    await tester.pump(const Duration(milliseconds: 999));
+    expect(_position(tester).pixels, 0);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('reduced motion consumes startup without scheduling movement', (
+    tester,
+  ) async {
+    final claim = startupClaim();
+    await _start(tester, _app(claimStartupDelay: claim, reduced: true));
+    await tester.pump(const Duration(seconds: 2));
+    expect(_position(tester).pixels, 0);
+    expect(tester.binding.transientCallbackCount, 0);
+    await _start(tester, _app(claimStartupDelay: claim));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(_position(tester).pixels, closeTo(3, .001));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   for (final hz in [60, 90, 120]) {
     testWidgets(
       'time-based movement at simulated $hz Hz isolates sibling work',
@@ -208,7 +397,7 @@ void main() {
         final position = controller.position;
         await tester.tap(_item(1));
         await tester.pump();
-        // Replace the controller while a five-second resume timer is pending.
+        // Replace the controller while a three-second resume timer is pending.
         await _start(
           tester,
           _app(scale: 1.5, categories: _categories.reversed.toList()),
@@ -304,7 +493,7 @@ void main() {
     });
   }
   testWidgets(
-    'touch freezes immediately, taps once, resets five-second delay',
+    'touch freezes immediately, taps once, resets three-second delay',
     (tester) async {
       final selected = <String>[];
       await _start(
@@ -319,12 +508,12 @@ void main() {
       await gesture.up();
       await tester.pump();
       expect(selected, ['1']);
-      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(seconds: 2));
       expect(_position(tester).pixels, stopped);
       await tester.tap(_item(1));
       await tester.pump();
       expect(selected, ['1', '1']);
-      await tester.pump(const Duration(milliseconds: 4999));
+      await tester.pump(const Duration(milliseconds: 2999));
       expect(_position(tester).pixels, stopped);
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump(const Duration(seconds: 1));
@@ -357,9 +546,9 @@ void main() {
               .hitTestable(),
           findsWidgets,
         );
-        await tester.pump(const Duration(seconds: 4));
+        await tester.pump(const Duration(milliseconds: 2999));
         expect(_position(tester).pixels, stopped);
-        await tester.pump(const Duration(seconds: 1));
+        await tester.pump(const Duration(milliseconds: 1));
         await tester.pump(const Duration(seconds: 1));
         expect(_position(tester).pixels, closeTo((stopped + 12) % 697.6, .001));
       }

@@ -7,6 +7,8 @@ import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/network/api_client.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
+import 'package:shubayr/core/theme/theme_context.dart';
+import 'package:shubayr/core/widgets/app_card.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/features/notifications/data/notification_repository.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
@@ -24,7 +26,10 @@ class _Inbox extends NotificationRepository {
     return InboxPage.fromJson({
       'page': page,
       'total': 2,
-      'data': [notification('1', read: reads.contains('1')), notification('2')],
+      'data': [
+        notification('1', read: reads.contains('1')),
+        notification('2', read: reads.contains('2')),
+      ],
     });
   }
 
@@ -38,6 +43,87 @@ class _Inbox extends NotificationRepository {
 }
 
 void main() {
+  for (final language in ['ar', 'en']) {
+    for (final dark in [false, true]) {
+      testWidgets('read-state colors update in place $language dark=$dark', (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(390, 1000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final repo = _Inbox()..reads.add('2');
+        final container = ProviderContainer(
+          overrides: [
+            sessionControllerProvider.overrideWith(
+              () => TestSession(initial: monitorSession),
+            ),
+            notificationRepositoryProvider.overrideWithValue(repo),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container.read(sessionControllerProvider.future);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: Locale(language),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              theme: dark
+                  ? AppTheme.dark(const Brand.bundled())
+                  : AppTheme.light(const Brand.bundled()),
+              home: const NotificationsScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final screen = tester.state(find.byType(NotificationsScreen));
+        final colors = tester.element(find.byType(NotificationsScreen)).colors;
+        final unread = find.byIcon(Icons.mark_email_unread_outlined);
+        final read = find.byIcon(Icons.drafts_outlined);
+        expect(unread, findsOneWidget);
+        expect(read, findsOneWidget);
+        final unreadColor = tester.widget<Icon>(unread).color!;
+        final readColor = tester.widget<Icon>(read).color!;
+        expect(unreadColor, dark ? colors.success : const Color(0xFF376E4B));
+        expect(readColor, dark ? colors.textMuted : const Color(0xFF8A938D));
+        expect(unreadColor, isNot(readColor));
+        // Both state icons remain distinguishable against the card surface.
+        for (final color in [unreadColor, readColor]) {
+          final a = color.computeLuminance();
+          final b = colors.surface.computeLuminance();
+          final contrast = a > b
+              ? (a + .05) / (b + .05)
+              : (b + .05) / (a + .05);
+          expect(contrast, greaterThanOrEqualTo(3));
+        }
+        final iconBounds = tester.getRect(unread);
+        final cardBounds = tester.getRect(find.byType(AppCard).first);
+        final item = container.read(inboxProvider).requireValue.items.first;
+        expect(item.readAt, isNull);
+        // Exercise the same action used by tapping a notification, keeping the
+        // route visible to verify its rebuild without reopening the screen.
+        final reading = container.read(inboxProvider.notifier).markRead(item);
+        await tester.pumpAndSettle();
+        expect(await reading, isTrue);
+        expect(
+          container.read(inboxProvider).requireValue.items.first.readAt,
+          isNotNull,
+        );
+        expect(find.byIcon(Icons.mark_email_unread_outlined), findsNothing);
+        expect(read, findsNWidgets(2));
+        for (final icon in tester.widgetList<Icon>(read)) {
+          expect(icon.color, readColor);
+        }
+        expect(tester.getRect(read.first), iconBounds);
+        expect(tester.getRect(find.byType(AppCard).first), cardBounds);
+        expect(tester.state(find.byType(NotificationsScreen)), same(screen));
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
+  }
+
   for (final (width, language) in [
     (390.0, 'ar'),
     (600.0, 'en'),

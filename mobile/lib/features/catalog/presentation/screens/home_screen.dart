@@ -17,13 +17,16 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../banners/presentation/providers/banner_providers.dart';
 import '../../../banners/presentation/widgets/home_banners.dart';
+import '../../../notifications/presentation/notification_button.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/home_category_carousel.dart';
 import '../widgets/home_offers_list.dart';
 
 /// Customer home: department navigation shortcuts above the store feed.
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.claimCarouselStartupDelay});
+
+  final bool Function()? claimCarouselStartupDelay;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -65,6 +68,7 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.search),
             tooltip: l10n.searchHint,
           ),
+          const NotificationButton(iconSize: AppSpacing.xl + AppSpacing.xs),
         ],
       ),
       body: RefreshIndicator(
@@ -96,7 +100,7 @@ class HomeScreen extends ConsumerWidget {
           children: [
             const HomeBanners(),
             const SizedBox(height: AppSpacing.homeBannerToCategories),
-            const _DepartmentsBar(),
+            _DepartmentsBar(claimStartupDelay: claimCarouselStartupDelay),
             const _OffersHeader(),
             AsyncValueView(
               value: offers,
@@ -150,7 +154,9 @@ class _OffersHeader extends StatelessWidget {
 
 /// Shortcuts navigate; they never select or filter the Home feed.
 class _DepartmentsBar extends ConsumerWidget {
-  const _DepartmentsBar();
+  const _DepartmentsBar({this.claimStartupDelay});
+
+  final bool Function()? claimStartupDelay;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -190,6 +196,7 @@ class _DepartmentsBar extends ConsumerWidget {
       error: (_, _) => const SizedBox.shrink(),
       data: (list) => HomeCategoryCarousel(
         categories: list,
+        claimStartupDelay: claimStartupDelay,
         onSelected: (category) => context.pushNamed(
           AppRoutes.searchName,
           queryParameters: {'parent_category_id': category.id},

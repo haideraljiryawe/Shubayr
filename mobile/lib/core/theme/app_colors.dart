@@ -208,6 +208,15 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color danger;
   final Color info;
 
+  /// Inbox state keeps its green/grey meaning independently of brand overrides.
+  Color get notificationUnread => brightness == Brightness.dark
+      ? success
+      : ColorPrimitives.notificationUnread;
+
+  Color get notificationRead => brightness == Brightness.dark
+      ? textMuted
+      : ColorPrimitives.notificationRead;
+
   static Color _readableOn(Color color) => color.computeLuminance() > 0.55
       ? ColorPrimitives.ink900
       : ColorPrimitives.white;

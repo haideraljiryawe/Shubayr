@@ -98,6 +98,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                                 item.readAt == null
                                     ? Icons.mark_email_unread_outlined
                                     : Icons.drafts_outlined,
+                                color: item.readAt == null
+                                    ? context.colors.notificationUnread
+                                    : context.colors.notificationRead,
                               ),
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(

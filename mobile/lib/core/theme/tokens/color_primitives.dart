@@ -24,6 +24,10 @@ abstract final class ColorPrimitives {
   static const Color ink500 = Color(0xFF6B716D);
   static const Color ink400 = Color(0xFF8A918B);
 
+  // Inbox read-state icons on light surfaces.
+  static const Color notificationUnread = Color(0xFF376E4B);
+  static const Color notificationRead = Color(0xFF8A938D);
+
   // Accent — warm amber, pairs with the green without reading "botanical".
   static const Color amber500 = Color(0xFFC98A3C);
 

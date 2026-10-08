@@ -174,12 +174,26 @@ void main() {
           child: const ShubayrApp(),
         ),
       );
-      // This section intentionally animates forever: advance a controlled clock.
-      for (var i = 0; i < 30; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
       final category = find.byKey(const ValueKey('home-category-c1'));
+      // Start the clock when real categories first appear, after async loading
+      // and the splash. No pumpAndSettle: this section animates continuously.
+      for (var i = 0; i < 400 && category.evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      expect(category, findsOneWidget);
+      final position = tester
+          .state<ScrollableState>(
+            find.descendant(
+              of: find.byType(CustomScrollView),
+              matching: find.byType(Scrollable),
+            ),
+          )
+          .position;
+      await tester.pump(const Duration(milliseconds: 999));
+      expect(position.pixels, 0);
       final before = tester.getRect(category);
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       expect(tester.getRect(category).left, closeTo(before.left + 12, .01));
       await tester.tap(category);

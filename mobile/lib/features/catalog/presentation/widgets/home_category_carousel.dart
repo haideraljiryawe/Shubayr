@@ -19,10 +19,14 @@ class HomeCategoryCarousel extends StatefulWidget {
     super.key,
     required this.categories,
     required this.onSelected,
+    this.claimStartupDelay,
   });
 
   final List<Category> categories;
   final ValueChanged<Category> onSelected;
+
+  /// Claims the one-time app startup wait after the categories are visible.
+  final bool Function()? claimStartupDelay;
 
   @override
   State<HomeCategoryCarousel> createState() => _HomeCategoryCarouselState();
@@ -31,14 +35,16 @@ class HomeCategoryCarousel extends StatefulWidget {
 class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const _speed = 12.0;
-  static const _resumeDelay = Duration(seconds: 5);
+  static const _startupDelay = Duration(seconds: 1);
+  static const _resumeDelay = Duration(seconds: 3);
   static const _center = ValueKey('category-ring-center');
 
   late final Ticker _ticker;
   ScrollController _controller = ScrollController(keepScrollOffset: false);
   ScrollPosition? _verticalPosition;
   ScrollableState? _verticalScrollable;
-  Timer? _resumeTimer;
+  Timer? _delayTimer;
+  Duration _delay = Duration.zero;
   Duration _lastTick = Duration.zero;
   final Set<int> _pointers = {};
   List<String> _ids = const [];
@@ -47,10 +53,11 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
   bool _loop = false;
   bool _visible = false;
   bool _enabled = false;
+  bool _pageActive = false;
   bool _resumed = true;
   bool _scrolling = false;
   bool _programmatic = false;
-  bool _waiting = false;
+  bool _startupChecked = false;
   bool _visibilityScheduled = false;
 
   double get _period => _extent * _ids.length;
@@ -75,9 +82,11 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _enabled =
+    _pageActive =
         TickerMode.valuesOf(context).enabled &&
-        (ModalRoute.of(context)?.isCurrent ?? true) &&
+        (ModalRoute.of(context)?.isCurrent ?? true);
+    _enabled =
+        _pageActive &&
         !MediaQuery.disableAnimationsOf(context) &&
         !MediaQuery.accessibleNavigationOf(context);
     final scrollable = Scrollable.maybeOf(context, axis: Axis.vertical);
@@ -127,15 +136,27 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
   }
 
   void _syncMotion() {
+    if (!_startupChecked &&
+        _visible &&
+        _pageActive &&
+        _resumed &&
+        _ids.isNotEmpty) {
+      _startupChecked = true;
+      final firstDisplay = widget.claimStartupDelay?.call() ?? false;
+      if (firstDisplay && _delay == Duration.zero) _delay = _startupDelay;
+    }
     if (!_canMove) {
       _stopTicker();
-      _resumeTimer?.cancel();
-      _resumeTimer = null;
-    } else if (_waiting) {
+      _delayTimer?.cancel();
+      _delayTimer = null;
+      // A hidden/disabled first display consumes the startup wait. Returning
+      // must not restart it; the interaction delay retains its existing rules.
+      if (_delay == _startupDelay) _delay = Duration.zero;
+    } else if (_delay != Duration.zero) {
       _stopTicker();
-      _resumeTimer ??= Timer(_resumeDelay, () {
-        _resumeTimer = null;
-        _waiting = false;
+      _delayTimer ??= Timer(_delay, () {
+        _delayTimer = null;
+        _delay = Duration.zero;
         if (mounted) _syncMotion();
       });
     } else if (!_ticker.isActive) {
@@ -163,9 +184,9 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
   }
 
   void _interact() {
-    _waiting = true;
-    _resumeTimer?.cancel();
-    _resumeTimer = null;
+    _delay = _resumeDelay;
+    _delayTimer?.cancel();
+    _delayTimer = null;
     _stopTicker();
   }
 
@@ -234,7 +255,7 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _verticalPosition?.removeListener(_scheduleVisibility);
-    _resumeTimer?.cancel();
+    _delayTimer?.cancel();
     _ticker.dispose();
     _controller.dispose();
     super.dispose();

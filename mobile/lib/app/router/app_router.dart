@@ -194,7 +194,11 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.home,
                 name: AppRoutes.homeName,
-                builder: (context, state) => const HomeScreen(),
+                builder: (context, state) => HomeScreen(
+                  claimCarouselStartupDelay: ref
+                      .read(startupDisplayReadyProvider.notifier)
+                      .claimHomeCarouselStartupDelay,
+                ),
               ),
             ],
           ),
