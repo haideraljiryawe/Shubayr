@@ -786,6 +786,19 @@ export class DeliveriesService {
             },
             orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
           },
+          custody_exceptions: {
+            where: { reversal: { is: null } },
+            select: {
+              id: true,
+              document_number: true,
+              type: true,
+              amount_iqd: true,
+              exception_offset_iqd: true,
+              settlement_method: true,
+              document_date: true,
+            },
+            orderBy: [{ document_date: 'asc' }, { id: 'asc' }],
+          },
         },
         orderBy: [{ delivered_at: 'asc' }, { id: 'asc' }],
         skip: (page - 1) * perPage,
@@ -1022,6 +1035,15 @@ export class DeliveriesService {
         };
       };
     }>;
+    custody_exceptions?: Array<{
+      id: string;
+      document_number: string;
+      type: string;
+      amount_iqd: PrismaRuntime.Decimal;
+      exception_offset_iqd: PrismaRuntime.Decimal;
+      settlement_method: string | null;
+      document_date: Date;
+    }>;
   }) {
     const allocations = row.cash_receipt_allocations;
     const allocated = allocations?.reduce(
@@ -1041,6 +1063,18 @@ export class DeliveriesService {
           : allocated?.gt(0)
             ? 'partially_settled'
             : 'unsettled';
+    const exceptions = row.custody_exceptions;
+    const exceptionOffset = exceptions?.reduce(
+      (sum, exception) => sum.plus(exception.exception_offset_iqd),
+      new PrismaRuntime.Decimal(0),
+    );
+    const openException =
+      row.shortfall_amount === null || exceptionOffset === undefined
+        ? null
+        : PrismaRuntime.Decimal.max(
+            0,
+            row.shortfall_amount.minus(exceptionOffset),
+          );
     return {
       id: row.id,
       delivery_id: row.delivery_id,
@@ -1077,6 +1111,22 @@ export class DeliveriesService {
               ),
               amount_iqd: Number(allocation.amount_iqd),
               created_at: allocation.created_at,
+            })),
+          }),
+      ...(exceptions === undefined
+        ? {}
+        : {
+            exception_offset_iqd: Number(exceptionOffset ?? 0),
+            uncollected_amount_iqd:
+              openException === null ? null : Number(openException),
+            exceptions: exceptions.map((exception) => ({
+              id: exception.id,
+              document_number: exception.document_number,
+              type: exception.type,
+              amount_iqd: Number(exception.amount_iqd),
+              exception_offset_iqd: Number(exception.exception_offset_iqd),
+              settlement_method: exception.settlement_method,
+              document_date: businessDateText(exception.document_date),
             })),
           }),
     };

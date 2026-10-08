@@ -1,5 +1,27 @@
 # Changelog
 
+## 13.3.0 - 2026-10-08
+
+### Added
+
+- Immutable, numbered custody-exception documents for goods lost or damaged
+  in delivery custody, returns against uncollected orders, and delivery-fee
+  refunds, with operation-id replay protection and reversal documents.
+- Filtered, paginated exception list/detail APIs and exception activity in
+  delivery-party statements, collection reads, and custody totals.
+- Separate view, loss, uncollected-return, fee-refund and reversal permissions
+  with declared dependencies, seeded cashier/accountant grants, audit events,
+  closed-period checks and standard/strict separation of duties.
+
+### Changed
+
+- Party-borne loss amounts enter party cash custody and may be handed in with a
+  C6 cash receipt. Returns and fee refunds net only the still-uncollected
+  shortfall, so existing receipt allocations remain valid; a party-liability
+  reversal is refused if a receipt has already consumed that liability.
+- The API contract is version 13.3.0. This release is additive and does not
+  break existing web, admin, or mobile callers.
+
 ## 13.2.0 - 2026-10-06
 
 ### Added

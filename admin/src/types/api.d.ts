@@ -8337,6 +8337,293 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/custody-exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List custody exception documents */
+        get: {
+            parameters: {
+                query?: {
+                    type?: "goods_loss" | "return_against_uncollected" | "delivery_fee_refund";
+                    party_id?: string;
+                    order_id?: string;
+                    date_from?: string;
+                    date_to?: string;
+                    status?: "active" | "reversed";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated custody exceptions */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustodyExceptionPage"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/custody-exceptions/goods-loss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record goods lost or damaged in a delivery party's custody
+         * @description Records selected custody holdings at original issue cost, reduces goods custody once, and applies the phase-3 exception_handover or exception_loss map according to liability bearer.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GoodsCustodyExceptionInput"];
+                };
+            };
+            responses: {
+                /** @description Immutable goods custody exception */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustodyException"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/custody-exceptions/return-against-uncollected": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return goods at the door against an uncollected order
+         * @description Restocks goods at original issue cost and applies return value to the open uncollected amount before creating any refund payable. Existing receipt allocations are unchanged because only the uncollected shortfall is reduced.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReturnAgainstUncollectedInput"];
+                };
+            };
+            responses: {
+                /** @description Immutable return-against-uncollected exception */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustodyException"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/custody-exceptions/delivery-fee-refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refund an order's delivery fee
+         * @description Creates the phase-3 delivery_fee_refund liability and settles it from an IQD cash account or against the order's still-uncollected amount. The cumulative active refund cannot exceed the charged delivery fee.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeliveryFeeRefundInput"];
+                };
+            };
+            responses: {
+                /** @description Immutable delivery-fee refund */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustodyException"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/custody-exceptions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one custody exception document
+         * @description Original issue-cost fields are present only for callers holding cost.view.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Custody exception detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustodyException"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/custody-exceptions/{id}/reversal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reverse an immutable custody exception
+         * @description Reverses every posting and stock effect. A party-liability loss cannot be reversed after a cash receipt has consumed that liability; reverse that receipt first.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CustodyExceptionReversalInput"];
+                };
+            };
+            responses: {
+                /** @description Custody exception with its immutable reversal */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustodyException"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/financial-documents/{id}": {
         parameters: {
             query?: never;
@@ -11392,7 +11679,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            event: "issue_to_custody" | "custody_to_sold" | "return_in";
+            event: "issue_to_custody" | "custody_to_sold" | "return_in" | "custody_exception" | "custody_exception_reversal";
             /** Format: date-time */
             occurred_at: string;
             /** Format: date */
@@ -11423,7 +11710,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            event: "collection_confirmed" | "cash_received" | "cash_receipt_reversed";
+            event: "collection_confirmed" | "cash_received" | "cash_receipt_reversed" | "custody_exception" | "custody_exception_party_liability" | "custody_exception_reversed";
             /** Format: date-time */
             occurred_at: string;
             /** Format: date */
@@ -11434,7 +11721,7 @@ export interface components {
             /** Format: uuid */
             voucher_id: string | null;
             voucher_document_number: string | null;
-            /** @description Signed custody movement; collection positive */
+            /** @description Signed custody movement; collections and party liabilities are positive */
             amount_iqd: number;
             allocated_amount_iqd: number;
             unsettled_amount_iqd: number;
@@ -11495,6 +11782,24 @@ export interface components {
             allocated_amount_iqd?: number;
             /** @description Confirmed collected amount not yet allocated; present on staff collection-list responses. */
             unsettled_amount_iqd?: number | null;
+            /** @description Active return/refund amount netted against the collection shortfall; present on staff collection-list responses. */
+            exception_offset_iqd?: number;
+            /** @description Remaining shortfall after active custody exceptions; present on staff collection-list responses. */
+            uncollected_amount_iqd?: number | null;
+            /** @description Active custody exceptions affecting this collection; present on staff collection-list responses. */
+            exceptions?: {
+                /** Format: uuid */
+                id: string;
+                document_number: string;
+                /** @enum {string} */
+                type: "return_against_uncollected" | "delivery_fee_refund";
+                amount_iqd: number;
+                exception_offset_iqd: number;
+                /** @enum {string|null} */
+                settlement_method: "cash_account" | "uncollected" | null;
+                /** Format: date */
+                document_date: string;
+            }[];
             /** @description Active receipt allocations settling this order; present on staff collection-list responses. */
             receipt_allocations?: {
                 /** Format: uuid */
@@ -12409,6 +12714,177 @@ export interface components {
                 /** Format: date-time */
                 collected_at: string;
             }[];
+        };
+        CustodyExceptionQuantityInput: {
+            /** Format: uuid */
+            custody_holding_id: string;
+            quantity: string;
+        };
+        CustodyExceptionReturnLineInput: components["schemas"]["CustodyExceptionQuantityInput"] & {
+            /** Format: uuid */
+            location_id: string;
+        };
+        GoodsCustodyExceptionInput: components["schemas"]["FinancialDocumentInput"] & {
+            /** Format: uuid */
+            order_id: string;
+            /** @enum {string} */
+            liability_bearer: "store" | "party";
+            reason: string;
+            lines: components["schemas"]["CustodyExceptionQuantityInput"][];
+        };
+        ReturnAgainstUncollectedInput: components["schemas"]["FinancialDocumentInput"] & {
+            /** Format: uuid */
+            order_id: string;
+            reason: string;
+            lines: components["schemas"]["CustodyExceptionReturnLineInput"][];
+        };
+        DeliveryFeeRefundInput: components["schemas"]["FinancialDocumentInput"] & {
+            /** Format: uuid */
+            order_id: string;
+            amount_iqd: string;
+            /** @enum {string} */
+            settlement_method: "cash_account" | "uncollected";
+            /** Format: uuid */
+            cash_account_id?: string;
+            reason: string;
+        };
+        CustodyExceptionReversalInput: {
+            operation_id: string;
+            reason: string;
+        };
+        CustodyExceptionLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            custody_holding_id: string;
+            /** Format: uuid */
+            order_item_id: string;
+            /** Format: uuid */
+            batch_id: string;
+            /** Format: uuid */
+            location_id: string | null;
+            quantity: number;
+            return_amount_iqd: number;
+            /** @description Present only with cost.view. */
+            unit_cost_iqd?: number;
+            order_item: {
+                /** Format: uuid */
+                id: string;
+                product_name_ar: string;
+                product_name_en: string;
+            };
+            batch: {
+                /** Format: uuid */
+                id: string;
+                lot_number: string | null;
+                /** Format: uuid */
+                variant_id: string;
+            };
+            location: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                /** Format: uuid */
+                warehouse_id: string;
+            } | null;
+        };
+        CustodyExceptionPosting: {
+            role: string;
+            /** Format: uuid */
+            journal_entry_id: string;
+            event: string;
+        };
+        CustodyExceptionReversalPosting: {
+            role: string;
+            /** Format: uuid */
+            journal_entry_id: string;
+            /** Format: uuid */
+            original_journal_entry_id: string;
+            event: string;
+        };
+        CustodyExceptionReversal: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            reason: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            postings: components["schemas"]["CustodyExceptionReversalPosting"][];
+        };
+        CustodyException: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            operation_id: string;
+            /** @enum {string} */
+            type: "goods_loss" | "return_against_uncollected" | "delivery_fee_refund";
+            /** @enum {string} */
+            status: "active" | "reversed";
+            /** Format: uuid */
+            party_id: string;
+            /** Format: uuid */
+            order_id: string;
+            /** Format: uuid */
+            collection_id: string | null;
+            /** @enum {string|null} */
+            liability_bearer: "store" | "party" | null;
+            /** @enum {string|null} */
+            settlement_method: "cash_account" | "uncollected" | null;
+            /** Format: uuid */
+            cash_account_id: string | null;
+            amount_iqd: number;
+            /** @description Present only with cost.view. */
+            goods_cost_iqd?: number;
+            exception_offset_iqd: number;
+            refund_payable_iqd: number;
+            reason: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            backdate_reason: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            party: components["schemas"]["DeliveryPartySummary"];
+            order: {
+                /** Format: uuid */
+                id: string;
+                order_number: string;
+                status: components["schemas"]["OrderStatus"];
+            };
+            collection: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                status: "confirmed_full" | "confirmed_short" | "unconfirmed";
+                due_amount: number;
+                collected_amount: number | null;
+                shortfall_amount: number | null;
+            } | null;
+            cash_account: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                /** @enum {string} */
+                kind: "cash" | "bank";
+                /** @constant */
+                currency_code: "IQD";
+            } | null;
+            lines: components["schemas"]["CustodyExceptionLine"][];
+            postings: components["schemas"]["CustodyExceptionPosting"][];
+            reversal: components["schemas"]["CustodyExceptionReversal"] | null;
+        };
+        CustodyExceptionPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["CustodyException"][];
         };
         FinancialDocumentBase: {
             /** @enum {string} */

@@ -337,53 +337,76 @@ export class DeliveryPartiesService {
     if (query.from && query.to && query.from > query.to) {
       throw new BadRequestException('from must be on or before to');
     }
-    const [movements, cashCollections, cashReceipts] = await Promise.all([
-      this.prisma.stockMovement.findMany({
-        where: {
-          custody_party_id: id,
-          type: { in: ['issue_to_custody', 'custody_to_sold', 'return_in'] },
-        },
-        include: {
-          batch: {
-            select: { lot_number: true, variant: { select: { sku: true } } },
+    const [movements, cashCollections, cashReceipts, exceptions] =
+      await Promise.all([
+        this.prisma.stockMovement.findMany({
+          where: {
+            custody_party_id: id,
+            OR: [
+              {
+                type: {
+                  in: [
+                    'issue_to_custody',
+                    'custody_to_sold',
+                    'custody_exception',
+                    'custody_exception_reversal',
+                  ],
+                },
+              },
+              {
+                type: 'return_in',
+                NOT: { source_type: 'custody_exception' },
+              },
+            ],
           },
-        },
-        orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
-      }),
-      this.prisma.deliveryCollection.findMany({
-        where: {
-          party_id: id,
-          status: { in: ['confirmed_full', 'confirmed_short'] },
-          collected_amount: { not: null },
-        },
-        include: {
-          order: { select: { id: true, order_number: true } },
-          cash_receipt_allocations: {
-            where: { batch: { voucher: { reversal: { is: null } } } },
-            select: { amount_iqd: true },
+          include: {
+            batch: {
+              select: { lot_number: true, variant: { select: { sku: true } } },
+            },
           },
-        },
-      }),
-      this.prisma.cashReceiptVoucher.findMany({
-        where: { party_id: id },
-        include: {
-          allocation_batches: {
-            include: {
-              allocations: {
-                include: {
-                  collection: {
-                    include: {
-                      order: { select: { id: true, order_number: true } },
+          orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
+        }),
+        this.prisma.deliveryCollection.findMany({
+          where: {
+            party_id: id,
+            status: { in: ['confirmed_full', 'confirmed_short'] },
+            collected_amount: { not: null },
+          },
+          include: {
+            order: { select: { id: true, order_number: true } },
+            cash_receipt_allocations: {
+              where: { batch: { voucher: { reversal: { is: null } } } },
+              select: { amount_iqd: true },
+            },
+          },
+        }),
+        this.prisma.cashReceiptVoucher.findMany({
+          where: { party_id: id },
+          include: {
+            allocation_batches: {
+              include: {
+                allocations: {
+                  include: {
+                    collection: {
+                      include: {
+                        order: { select: { id: true, order_number: true } },
+                      },
                     },
                   },
                 },
               },
             },
+            reversal: true,
           },
-          reversal: true,
-        },
-      }),
-    ]);
+        }),
+        this.prisma.custodyException.findMany({
+          where: { party_id: id },
+          include: {
+            order: { select: { id: true, order_number: true } },
+            reversal: true,
+          },
+        }),
+      ]);
     const retrievalIds = movements
       .filter((row) => row.source_type === 'retrieval' && row.source_id)
       .map((row) => row.source_id!);
@@ -402,9 +425,16 @@ export class DeliveryPartiesService {
           .map((row) =>
             row.source_type === 'order'
               ? row.source_id
-              : row.source_id
-                ? retrievalOrders.get(row.source_id)
-                : undefined,
+              : row.source_type === 'custody_exception' ||
+                  row.source_type === 'custody_exception_reversal'
+                ? exceptions.find(
+                    (exception) =>
+                      exception.id === row.source_id ||
+                      exception.reversal?.id === row.source_id,
+                  )?.order_id
+                : row.source_id
+                  ? retrievalOrders.get(row.source_id)
+                  : undefined,
           )
           .filter((value): value is string => Boolean(value)),
       ),
@@ -421,7 +451,12 @@ export class DeliveryPartiesService {
     let runningQuantity = 0;
     let runningValue = 0;
     const all = movements.map((row) => {
-      const direction = row.type === 'issue_to_custody' ? 1 : -1;
+      const direction = [
+        'issue_to_custody',
+        'custody_exception_reversal',
+      ].includes(row.type)
+        ? 1
+        : -1;
       const quantity = direction * Number(row.quantity);
       const value = quantity * Number(row.unit_cost_iqd);
       runningQuantity += quantity;
@@ -429,9 +464,16 @@ export class DeliveryPartiesService {
       const orderId =
         row.source_type === 'order'
           ? row.source_id
-          : row.source_id
-            ? (retrievalOrders.get(row.source_id) ?? null)
-            : null;
+          : row.source_type === 'custody_exception' ||
+              row.source_type === 'custody_exception_reversal'
+            ? (exceptions.find(
+                (exception) =>
+                  exception.id === row.source_id ||
+                  exception.reversal?.id === row.source_id,
+              )?.order_id ?? null)
+            : row.source_id
+              ? (retrievalOrders.get(row.source_id) ?? null)
+              : null;
       return {
         id: row.id,
         event: row.type,
@@ -523,6 +565,49 @@ export class DeliveryPartiesService {
               },
             ]
           : [received];
+      }),
+      ...exceptions.flatMap((exception) => {
+        const base = {
+          id: exception.id,
+          event:
+            exception.type === 'goods_loss' &&
+            exception.liability_bearer === 'party'
+              ? ('custody_exception_party_liability' as const)
+              : ('custody_exception' as const),
+          occurred_at: exception.created_at,
+          business_date: businessDateText(exception.document_date),
+          order_id: exception.order_id,
+          order_number: exception.order.order_number,
+          voucher_id: null,
+          voucher_document_number: exception.document_number,
+          amount_iqd:
+            exception.type === 'goods_loss' &&
+            exception.liability_bearer === 'party'
+              ? Number(exception.amount_iqd)
+              : 0,
+          allocated_amount_iqd: 0,
+          unsettled_amount_iqd: 0,
+          allocation_orders: [] as Array<{
+            order_id: string;
+            order_number: string;
+            amount_iqd: number;
+          }>,
+        };
+        return exception.reversal
+          ? [
+              base,
+              {
+                ...base,
+                id: exception.reversal.id,
+                event: 'custody_exception_reversed' as const,
+                occurred_at: exception.reversal.created_at,
+                business_date: businessDateText(
+                  exception.reversal.document_date,
+                ),
+                amount_iqd: -base.amount_iqd,
+              },
+            ]
+          : [base];
       }),
     ].sort(
       (left, right) =>
@@ -717,7 +802,7 @@ export class DeliveryPartiesService {
       ]),
     );
     if (!ids.length) return result;
-    const [collections, receipts] = await Promise.all([
+    const [collections, receipts, liabilities] = await Promise.all([
       this.prisma.deliveryCollection.findMany({
         where: {
           party_id: { in: ids },
@@ -748,6 +833,20 @@ export class DeliveryPartiesService {
           },
         },
       }),
+      this.prisma.custodyException.findMany({
+        where: {
+          party_id: { in: ids },
+          type: 'goods_loss',
+          liability_bearer: 'party',
+          reversal: { is: null },
+        },
+        select: {
+          id: true,
+          party_id: true,
+          amount_iqd: true,
+          created_at: true,
+        },
+      }),
     ]);
     const unallocated = new Map<string, Prisma.Decimal>(
       ids.map((id) => [id, new Prisma.Decimal(0)]),
@@ -768,34 +867,47 @@ export class DeliveryPartiesService {
           .plus(receipt.amount_iqd.minus(allocated)),
       );
     }
-    collections.sort(
+    const sources = [
+      ...collections.map((collection) => ({
+        id: collection.id,
+        party_id: collection.party_id,
+        occurred_at: collection.confirmed_at ?? collection.delivered_at,
+        amount: Prisma.Decimal.max(
+          0,
+          collection.collected_amount!.minus(
+            collection.cash_receipt_allocations.reduce(
+              (sum, allocation) => sum.plus(allocation.amount_iqd),
+              new Prisma.Decimal(0),
+            ),
+          ),
+        ),
+      })),
+      ...liabilities.map((exception) => ({
+        id: exception.id,
+        party_id: exception.party_id,
+        occurred_at: exception.created_at,
+        amount: exception.amount_iqd,
+      })),
+    ].sort(
       (left, right) =>
-        (left.confirmed_at ?? left.delivered_at).getTime() -
-          (right.confirmed_at ?? right.delivered_at).getTime() ||
+        left.occurred_at.getTime() - right.occurred_at.getTime() ||
         left.id.localeCompare(right.id),
     );
     const today = businessDate();
-    for (const collection of collections) {
-      const allocated = collection.cash_receipt_allocations.reduce(
-        (sum, allocation) => sum.plus(allocation.amount_iqd),
-        new Prisma.Decimal(0),
-      );
-      let remaining = Prisma.Decimal.max(
-        0,
-        collection.collected_amount!.minus(allocated),
-      );
-      const unapplied = unallocated.get(collection.party_id)!;
+    for (const source of sources) {
+      let remaining = source.amount;
+      const unapplied = unallocated.get(source.party_id)!;
       if (remaining.gt(0) && unapplied.gt(0)) {
         const consumed = Prisma.Decimal.min(remaining, unapplied);
         remaining = remaining.minus(consumed);
-        unallocated.set(collection.party_id, unapplied.minus(consumed));
+        unallocated.set(source.party_id, unapplied.minus(consumed));
       }
       if (!remaining.gt(0)) continue;
-      const balance = result.get(collection.party_id)!;
+      const balance = result.get(source.party_id)!;
       balance.amount = balance.amount.plus(remaining);
       const age = businessDateDifference(
         today,
-        businessDate(collection.confirmed_at ?? collection.delivered_at),
+        businessDate(source.occurred_at),
       );
       balance.oldestAgeDays = Math.max(balance.oldestAgeDays ?? 0, age);
     }
