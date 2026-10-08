@@ -439,7 +439,11 @@ export class ExternalDriverTripsService {
             code: 'TRIP_ORDERS_UNRESOLVED',
             message:
               'Every trip order must be delivered with a confirmed collection, returned, or fully resolved before close',
-            errors: unresolved.map((row) => ({ order_id: row.order_id })),
+            errors: unresolved.map((row) => ({
+              field: `orders.${row.order_id}`,
+              code: 'unresolved',
+              message: 'Order is not ready for trip close',
+            })),
           });
         }
         const collections = trip.orders.flatMap((row) =>
