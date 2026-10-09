@@ -398,25 +398,26 @@ test("a double click records one custody exception", async ({ page, request }) =
 
 test("a driver is found by search beyond the first hundred parties", async ({ page, request }) => {
   test.setTimeout(240_000);
-  // More than 100 parties, and one whose name sorts after all of them.
+  // More than 100 parties, and one whose name sorts after all of them (the
+  // filler sorts last too, so other specs' first pages stay as they were).
   let { body } = await api(request, "GET", "/admin/delivery-parties?per_page=1");
   for (let index = body.total as number; index <= 101; index += 1) {
-    const created = await api(request, "POST", "/admin/external-drivers", { name: `Bulk ${run} ${String(index).padStart(3, "0")}`, phone: randomWorkPhone() }, { "X-Forwarded-For": `198.19.${(index % 250) + 1}.${(index % 200) + 1}` });
+    const created = await api(request, "POST", "/admin/external-drivers", { name: `ZZ Bulk ${run} ${String(index).padStart(3, "0")}`, phone: randomWorkPhone() }, { "X-Forwarded-For": `198.19.${(index % 250) + 1}.${(index % 200) + 1}` });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
   }
-  const far = await createDriver(request, `ZZZ Far ${run}`);
+  const far = await createDriver(request, `ZZZZ Far ${run}`);
   ({ body } = await api(request, "GET", "/admin/delivery-parties?per_page=100"));
   expect(body.total).toBeGreaterThan(100);
   expect((body.data as Array<{ id: string }>).some((party) => party.id === far.id)).toBe(false);
 
   await uiLoginAsAdmin(page);
   await page.goto("/deliveries/trips");
-  await pickParty(page, "filter-driver_party_id", `ZZZ Far ${run}`, far.id);
+  await pickParty(page, "filter-driver_party_id", `ZZZZ Far ${run}`, far.id);
   await expect(page).toHaveURL(new RegExp(`driver_party_id=${far.id}`));
-  await expect(page.getByTestId("filter-driver_party_id-chosen")).toContainText(`ZZZ Far ${run}`);
+  await expect(page.getByTestId("filter-driver_party_id-chosen")).toContainText(`ZZZZ Far ${run}`);
   // The same search on the receive screen.
   await page.goto("/finance/cash-receipts/new");
-  await page.getByTestId("receive-party-input").fill(`ZZZ Far ${run}`);
+  await page.getByTestId("receive-party-input").fill(`ZZZZ Far ${run}`);
   await expect(page.locator(`[data-testid="receive-party-option"][data-party="${far.id}"]`)).toHaveCount(1);
 });
 

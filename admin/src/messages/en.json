@@ -178,7 +178,10 @@
       "suppliers": "Suppliers, their opening balances, statements and credits.",
       "supplierPayments": "Pay suppliers, allocate to invoices and see the FX gain or loss.",
       "payables": "What is owed to each supplier, and accounts-payable aging.",
-      "deliveryParties": "Internal agents and external drivers, with the goods, cash and orders in their custody."
+      "deliveryParties": "Internal agents and external drivers, with the goods, cash and orders in their custody.",
+      "cashReceipts": "Cash handed in by delivery parties, and the orders it settles.",
+      "custodyExceptions": "Goods lost or damaged in custody, returns at the door and delivery-fee refunds.",
+      "trips": "External drivers' trips: handover, outcomes, fare and the cash to settle."
     },
     "comingTitle": "Coming next",
     "comingBody": "Orders, catalog, stock and accounting arrive with the next backend phases.",

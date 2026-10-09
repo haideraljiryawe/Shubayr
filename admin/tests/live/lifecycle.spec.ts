@@ -195,6 +195,8 @@ test("happy path through the admin UI: accept → prepare → ready → assign �
   await act(page, "markReady");
   await expectStatus(page, "ready_for_dispatch");
   // An internal agent (the picker also lists external drivers, 11.2).
+  // Searched, as staff would: other specs add many external drivers.
+  await page.getByTestId("party-search").fill("Development Delivery");
   await page.locator('[data-testid="party-option"][data-kind="internal_agent"]').first().click();
   await page.getByTestId("assign-submit").click();
   await expect(page.getByTestId("order-action-dispatch")).toBeEnabled();
