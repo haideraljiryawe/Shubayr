@@ -44,8 +44,11 @@ class AppFailure implements Exception {
   bool hasFieldError(String field) =>
       errors.any((error) => error.field == field);
 
-  String localizedMessage(AppLocalizations l10n) =>
-      code == 'INVALID_API_CONFIGURATION'
+  String localizedMessage(AppLocalizations l10n) => code == 'PENDING_REQUEST'
+      ? l10n.pendingRequestMessage
+      : code == 'INVALID_COLLECTION_AMOUNT'
+      ? l10n.deliveryInvalidAmount
+      : code == 'INVALID_API_CONFIGURATION'
       ? l10n.startupConfigurationError
       : switch (kind) {
           FailureKind.network => l10n.errorNetwork,

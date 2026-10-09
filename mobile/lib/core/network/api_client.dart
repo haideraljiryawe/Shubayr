@@ -22,8 +22,17 @@ class ApiClient {
   Future<T> get<T>(String path, {Map<String, dynamic>? query}) =>
       _guard(() => dio.get<T>(path, queryParameters: query));
 
-  Future<T> post<T>(String path, {Object? body}) =>
-      _guard(() => dio.post<T>(path, data: body));
+  Future<T> post<T>(
+    String path, {
+    Object? body,
+    Map<String, dynamic>? headers,
+  }) => _guard(
+    () => dio.post<T>(
+      path,
+      data: body,
+      options: Options(headers: headers),
+    ),
+  );
 
   Future<T> patch<T>(String path, {Object? body}) =>
       _guard(() => dio.patch<T>(path, data: body));

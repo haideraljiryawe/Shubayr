@@ -1806,4 +1806,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get startupConfigurationError =>
       'This build has an invalid production API configuration. Contact support for a corrected build.';
+
+  @override
+  String get deliveryAmountDue => 'Amount due';
+
+  @override
+  String get deliveryCollectionConfirmation => 'Payment collection';
+
+  @override
+  String get deliveryCollectionConfirmed => 'Payment collected';
+
+  @override
+  String get deliveryCollectionUnconfirmed => 'Amount not confirmed';
+
+  @override
+  String get deliveryCollectionUnconfirmedHint =>
+      'The order is delivered now; the store confirms the amount later.';
+
+  @override
+  String get deliveryCollectedAmount => 'Amount collected';
+
+  @override
+  String get deliveryInvalidAmount =>
+      'Enter an amount from zero up to the amount due (at most 6 decimal places).';
+
+  @override
+  String get pendingDeliveryRetry =>
+      'The previous result is unknown. Retry the same collection; its amount cannot be changed until the result is known.';
+
+  @override
+  String get pendingRequestMessage =>
+      'A previous request is unresolved. Retry with the same selection and amount or quantity.';
 }

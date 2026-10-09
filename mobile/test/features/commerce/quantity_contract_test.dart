@@ -90,7 +90,11 @@ void main() {
     final cart = CartRepositoryRemote(ApiClient(dio));
     for (final q in [0, 0.0001, 99.001, double.nan]) {
       await expectLater(
-        cart.addItem(productId: 'p', quantity: q),
+        cart.addItem(
+          idempotencyKey: 'test-add-key-0',
+          productId: 'p',
+          quantity: q,
+        ),
         throwsA(isA<AppFailure>()),
       );
       await expectLater(cart.updateItem('i', q), throwsA(isA<AppFailure>()));
@@ -246,6 +250,7 @@ void main() {
       });
       expect(
         (await cart.addItem(
+          idempotencyKey: 'test-add-key-1',
           productId: 'p',
           quantity: item.quantity,
         )).items.single.quantity,

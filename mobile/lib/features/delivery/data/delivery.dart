@@ -9,6 +9,7 @@ class Delivery {
   const Delivery({
     required this.id,
     required this.orderId,
+    required this.amountDue,
     this.agentId,
     required this.status,
     this.orderVersion,
@@ -24,6 +25,8 @@ class Delivery {
   final String id;
   @JsonKey(name: 'order_id')
   final String orderId;
+  @JsonKey(name: 'amount_due')
+  final num amountDue;
   @JsonKey(name: 'agent_id')
   final String? agentId;
   final String status;
@@ -69,6 +72,11 @@ class Delivery {
   };
 
   factory Delivery.fromJson(Map<String, dynamic> json) {
+    if (json['amount_due'] is! num ||
+        !(json['amount_due'] as num).isFinite ||
+        (json['amount_due'] as num) < 0) {
+      throw const FormatException('Invalid delivery amount due');
+    }
     if (json['order_version'] is! int || (json['order_version'] as int) < 1) {
       throw const AppFailure(FailureKind.server);
     }

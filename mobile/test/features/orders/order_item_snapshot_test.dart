@@ -191,7 +191,11 @@ void main() {
         for (final p in original)
           if (p.id == 'p1') atPurchase else p,
       ]);
-      await cart.addItem(productId: 'p1', quantity: 2);
+      await cart.addItem(
+        idempotencyKey: 'test-add-key-0',
+        productId: 'p1',
+        quantity: 2,
+      );
       final placed = await repo.placeOrder(addressId: 'a1');
       expect(placed.items.single.productNameEn, 'At purchase');
       expect(placed.items.single.imageUrl, 'https://example.com/purchase.jpg');
@@ -207,7 +211,11 @@ void main() {
         for (final p in original)
           if (p.id == 'p1') renamed else p,
       ]);
-      await cart.addItem(productId: 'p1', quantity: 1);
+      await cart.addItem(
+        idempotencyKey: 'test-add-key-1',
+        productId: 'p1',
+        quantity: 1,
+      );
       final next = await repo.placeOrder(addressId: 'a1');
       expect(next.items.single.productNameEn, 'Renamed after purchase');
       expect(next.items.single.unitPrice, 99000);

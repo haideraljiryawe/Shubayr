@@ -1,3 +1,5 @@
+import '../../../../core/storage/pending_request_store.dart';
+import '../../domain/delivery_collection_input.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
@@ -15,6 +17,7 @@ final _agentProvider = Provider((ref) {
   final session = ref.watch(sessionControllerProvider).value;
   return (
     id: session?.user?.id,
+    revision: ref.watch(sessionCredentialsProvider).revision,
     allowed: session?.isSignedIn == true && session?.role == UserRole.delivery,
   );
 });
@@ -172,9 +175,38 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
     });
   }
 
-  /// Reads and writes share a queue: refresh/append cannot overwrite a saved
-  /// status. A new account/filter gets its own queue and ignores old results.
-  Future<bool> updateStatus(String id, String status, {String? reason}) async {
+  String _collectionSlot(String id) => PendingRequestStore.slot(
+    ref.read(appConfigProvider).apiBaseUrl,
+    ref.read(_agentProvider).id!,
+    'delivery',
+    id,
+  );
+
+  Future<DeliveryCollectionInput?> pendingCollection(String id) async {
+    final owner = ref.read(_agentProvider);
+    if (!owner.allowed) throw const AppFailure.unauthorized();
+    final request = await ref
+        .read(pendingRequestStoreProvider)
+        .read(_collectionSlot(id));
+    if (!ref.mounted || ref.read(_agentProvider) != owner) {
+      throw const AppFailure.unauthorized();
+    }
+    if (request == null) return null;
+    return request.body['collection_confirmation'] == 'unconfirmed'
+        ? const DeliveryCollectionInput.unconfirmed()
+        : DeliveryCollectionInput.confirmed(
+            request.body['collected_amount'] as String,
+          );
+  }
+
+  /// Reads and writes share a queue. Durable collection intent survives filter
+  /// refreshes; session/generation checks prevent publishing stale responses.
+  Future<bool> updateStatus(
+    String id,
+    String status, {
+    String? reason,
+    DeliveryCollectionInput? collection,
+  }) async {
     final generationAtStart = _generation;
     final key = (
       ref.read(_agentProvider),
@@ -191,16 +223,45 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
         final current = state.requireValue;
         final item = current.items.where((item) => item.id == id).firstOrNull;
         if (item == null) throw const AppFailure(FailureKind.notFound);
-        if (item.status == status) return;
-        if (item.orderVersion == null ||
-            item.orderVersion! < 1 ||
-            (status == 'failed' &&
-                (reason == null ||
-                    reason.trim().isEmpty ||
-                    reason.trim().length > 500)) ||
-            !item.nextStatuses.contains(status)) {
-          throw const AppFailure(FailureKind.validation);
+        final store = ref.read(pendingRequestStoreProvider);
+        final slot = _collectionSlot(id);
+        final previous = await store.read(slot);
+        if (generation != _generation) return;
+        if (previous != null &&
+            (status != 'delivered' ||
+                collection == null ||
+                collection.confirmation !=
+                    previous.body['collection_confirmation'] ||
+                collection.amount != previous.body['collected_amount'])) {
+          throw const AppFailure(FailureKind.conflict, code: 'PENDING_REQUEST');
         }
+        if (previous == null) {
+          if (item.status == status) return;
+          if (item.orderVersion == null ||
+              item.orderVersion! < 1 ||
+              (status == 'failed' &&
+                  (reason == null ||
+                      reason.trim().isEmpty ||
+                      reason.trim().length > 500)) ||
+              !item.nextStatuses.contains(status) ||
+              (status == 'delivered' && collection == null)) {
+            throw const AppFailure(FailureKind.validation);
+          }
+          if (status == 'delivered') collection!.validate(item.amountDue);
+        }
+        final request = status == 'delivered'
+            ? await store.prepare(
+                slot,
+                previous?.body ??
+                    {
+                      'status': status,
+                      'order_version': item.orderVersion!,
+                      'collection_confirmation': collection!.confirmation,
+                      'collected_amount': ?collection.amount,
+                    },
+              )
+            : null;
+        if (generation != _generation) return;
         state = AsyncData(
           DeliveryListState(
             page: current.page,
@@ -215,11 +276,18 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
               .updateStatus(
                 id,
                 status,
-                orderVersion: item.orderVersion!,
+                orderVersion:
+                    (request?.body['order_version'] as int?) ??
+                    item.orderVersion!,
+                operationId: request?.id,
+                collectionConfirmation:
+                    request?.body['collection_confirmation'] as String?,
+                collectedAmount: request?.body['collected_amount'] as String?,
                 reason: status == 'failed' ? reason?.trim() : null,
               );
-          if (generation != _generation) return;
           if (updated.id != id) throw const AppFailure(FailureKind.server);
+          if (request != null) await store.complete(slot, request.id);
+          if (generation != _generation) return;
           state = AsyncData(
             DeliveryListState(
               page: current.page,
@@ -233,17 +301,26 @@ class DeliveriesController extends AsyncNotifier<DeliveryListState> {
           saved = true;
           // A status change alters membership and page boundaries of a filtered
           // query. Reload from page one rather than guessing the new total.
-          if (ref.read(deliveryStatusFilterProvider) != null) {
+          if (previous != null ||
+              ref.read(deliveryStatusFilterProvider) != null) {
             await _reload(generation);
           }
         } catch (error) {
-          if (generation != _generation) return;
-          state = AsyncData(current);
-          if (error is AppFailure && error.statusCode == 409) {
-            // A stale order or delivery state is authoritative on the server.
-            // Do not enqueue refresh here: this write already owns the queue.
-            await _reload(generation);
+          // Release visible busy state even when secure-storage cleanup fails.
+          if (generation == _generation) state = AsyncData(current);
+          try {
+            if (request != null && isDefinitiveWriteRejection(error)) {
+              await store.complete(slot, request.id);
+            }
+          } finally {
+            if (generation == _generation &&
+                error is AppFailure &&
+                error.statusCode == 409) {
+              // The server owns conflicts; refresh, never repeat automatically.
+              await _reload(generation);
+            }
           }
+          if (generation != _generation) return;
           rethrow;
         }
       });

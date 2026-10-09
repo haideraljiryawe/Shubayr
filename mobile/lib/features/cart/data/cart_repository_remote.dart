@@ -45,6 +45,7 @@ class CartRepositoryRemote implements CartRepository {
 
   @override
   Future<Cart> addItem({
+    required String idempotencyKey,
     required String productId,
     String? variantId,
     num quantity = 1,
@@ -52,6 +53,7 @@ class CartRepositoryRemote implements CartRepository {
     () async => Cart.fromJson(
       await _api.post<Map<String, dynamic>>(
         '/cart/items',
+        headers: {'Idempotency-Key': idempotencyKey},
         body: {
           'product_id': productId,
           'variant_id': ?variantId,

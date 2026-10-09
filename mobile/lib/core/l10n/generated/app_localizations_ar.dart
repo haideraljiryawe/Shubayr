@@ -1791,4 +1791,35 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get startupConfigurationError =>
       'إعداد اتصال هذه النسخة بالخادم غير صالح للإنتاج. تواصل مع الدعم للحصول على نسخة مصحّحة.';
+
+  @override
+  String get deliveryAmountDue => 'المبلغ المستحق';
+
+  @override
+  String get deliveryCollectionConfirmation => 'تحصيل المبلغ';
+
+  @override
+  String get deliveryCollectionConfirmed => 'تم تحصيل المبلغ';
+
+  @override
+  String get deliveryCollectionUnconfirmed => 'المبلغ غير مؤكد';
+
+  @override
+  String get deliveryCollectionUnconfirmedHint =>
+      'يُسجّل الطلب كمُسلّم الآن، ويؤكد المتجر المبلغ لاحقاً.';
+
+  @override
+  String get deliveryCollectedAmount => 'المبلغ المحصل';
+
+  @override
+  String get deliveryInvalidAmount =>
+      'أدخل مبلغاً من صفر إلى المبلغ المستحق (بحد أقصى 6 منازل عشرية).';
+
+  @override
+  String get pendingDeliveryRetry =>
+      'نتيجة المحاولة السابقة غير معروفة. أعد محاولة التحصيل نفسه؛ لا يمكن تغيير المبلغ حتى تتضح النتيجة.';
+
+  @override
+  String get pendingRequestMessage =>
+      'نتيجة الطلب السابق لم تُحسم. أعد المحاولة بنفس الاختيار والمبلغ أو الكمية.';
 }

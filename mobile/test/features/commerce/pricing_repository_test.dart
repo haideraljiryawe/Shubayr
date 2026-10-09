@@ -55,6 +55,7 @@ void main() {
       expect(removed.couponCode, isNull);
       expect(removed.total, 5071);
       final added = await repository.addItem(
+        idempotencyKey: 'test-add-key-0',
         productId: 'p',
         variantId: 'v',
         quantity: .125,

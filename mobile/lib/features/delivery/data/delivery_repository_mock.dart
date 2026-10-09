@@ -1,9 +1,9 @@
+import '../domain/delivery_collection_input.dart';
 import '../../../core/error/failure.dart';
 import '../domain/delivery_repository.dart';
 import 'delivery.dart';
 
-/// Session-scoped deliveries. Status updates intentionally do not mutate
-/// customer orders, payments, stock or loyalty while those links are deferred.
+/// Test-only deliveries with version checks and repeat-safe collection writes.
 class DeliveryRepositoryMock implements DeliveryRepository {
   DeliveryRepositoryMock({
     required String agentId,
@@ -13,6 +13,7 @@ class DeliveryRepositoryMock implements DeliveryRepository {
     _items = List.generate(45, (index) {
       final status = Delivery.statuses[index % Delivery.statuses.length];
       return Delivery(
+        amountDue: 25000,
         id: '10000000-0000-4000-8000-${(index + 1).toString().padLeft(12, '0')}',
         orderId:
             '20000000-0000-4000-8000-${(index + 1).toString().padLeft(12, '0')}',
@@ -32,6 +33,7 @@ class DeliveryRepositoryMock implements DeliveryRepository {
 
   final Duration delay;
   late final List<Delivery> _items;
+  final _collections = <String, ({Object payload, Delivery result})>{};
 
   @override
   Future<DeliveryPage> fetchAssigned({
@@ -59,10 +61,27 @@ class DeliveryRepositoryMock implements DeliveryRepository {
     String status, {
     required int orderVersion,
     String? reason,
+    String? operationId,
+    String? collectionConfirmation,
+    String? collectedAmount,
   }) async {
     await Future<void>.delayed(delay);
     if (!Delivery.updateStatuses.contains(status)) {
       throw const AppFailure(FailureKind.validation);
+    }
+    final payload = (
+      id,
+      status,
+      orderVersion,
+      collectionConfirmation,
+      collectedAmount,
+    );
+    final previous = _collections[operationId];
+    if (previous != null) {
+      if (previous.payload != payload) {
+        throw const AppFailure(FailureKind.conflict, statusCode: 409);
+      }
+      return previous.result;
     }
     final index = _items.indexWhere((item) => item.id == id);
     if (index < 0) throw const AppFailure(FailureKind.notFound);
@@ -80,8 +99,25 @@ class DeliveryRepositoryMock implements DeliveryRepository {
     if (!item.nextStatuses.contains(status)) {
       throw const AppFailure(FailureKind.validation, statusCode: 409);
     }
+    if (status == 'delivered') {
+      if (operationId == null ||
+          operationId.length < 8 ||
+          operationId.length > 128 ||
+          !['confirmed', 'unconfirmed'].contains(collectionConfirmation) ||
+          (collectionConfirmation == 'confirmed' && collectedAmount == null) ||
+          (collectionConfirmation == 'unconfirmed' &&
+              collectedAmount != null)) {
+        throw const AppFailure(FailureKind.validation, statusCode: 422);
+      }
+      if (collectedAmount != null) {
+        DeliveryCollectionInput.confirmed(
+          collectedAmount,
+        ).validate(item.amountDue);
+      }
+    }
     final now = DateTime.now();
-    return _items[index] = Delivery(
+    final result = _items[index] = Delivery(
+      amountDue: item.amountDue,
       id: item.id,
       orderId: item.orderId,
       orderVersion: orderVersion + 1,
@@ -97,5 +133,9 @@ class DeliveryRepositoryMock implements DeliveryRepository {
       dispatchedAt: item.dispatchedAt ?? now,
       deliveredAt: status == 'delivered' ? now : item.deliveredAt,
     );
+    if (status == 'delivered') {
+      _collections[operationId!] = (payload: payload, result: result);
+    }
+    return result;
   }
 }

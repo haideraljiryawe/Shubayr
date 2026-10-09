@@ -27,6 +27,9 @@ class DeliveryRepositoryRemote implements DeliveryRepository {
     String status, {
     required int orderVersion,
     String? reason,
+    String? operationId,
+    String? collectionConfirmation,
+    String? collectedAmount,
   }) => decodeResponse(
     () async => Delivery.fromJson(
       await _api.patch<Map<String, dynamic>>(
@@ -35,6 +38,9 @@ class DeliveryRepositoryRemote implements DeliveryRepository {
           'status': status,
           'order_version': orderVersion,
           'reason': ?reason,
+          'operation_id': ?operationId,
+          'collection_confirmation': ?collectionConfirmation,
+          'collected_amount': ?collectedAmount,
         },
       ),
     ),

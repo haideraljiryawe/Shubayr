@@ -42,6 +42,8 @@ void main() {
       final delivered = await repo.updateStatus(
         original.id,
         'delivered',
+        operationId: 'test-delivery-key',
+        collectionConfirmation: 'unconfirmed',
         orderVersion: dispatched.orderVersion!,
       );
       expect(delivered.deliveredAt, isNotNull);
@@ -81,6 +83,7 @@ void main() {
     () async {
       final requests = <RequestOptions>[];
       final delivery = Delivery(
+        amountDue: 25000,
         orderVersion: 1,
         id: 'delivery-id',
         orderId: 'order-id',

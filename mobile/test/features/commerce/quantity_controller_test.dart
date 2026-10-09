@@ -1,3 +1,4 @@
+import 'package:shubayr/core/storage/pending_request_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
@@ -11,6 +12,9 @@ void main() {
     () async {
       final container = ProviderContainer(
         overrides: [
+          pendingRequestStoreProvider.overrideWith(
+            (ref) => PendingRequestStore.memory(),
+          ),
           sessionControllerProvider.overrideWith(TestSession.new),
           cartRepositoryProvider.overrideWithValue(
             CartRepositoryMock(delay: Duration.zero),

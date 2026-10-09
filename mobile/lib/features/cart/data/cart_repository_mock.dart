@@ -14,6 +14,7 @@ class CartRepositoryMock implements CartRepository {
   final Duration delay;
   final List<CartItem> _items = [];
   var _seq = 0;
+  final _adds = <String, (String, String?, num)>{};
   Coupon? _coupon;
 
   Cart _cart() {
@@ -55,11 +56,23 @@ class CartRepositoryMock implements CartRepository {
 
   @override
   Future<Cart> addItem({
+    required String idempotencyKey,
     required String productId,
     String? variantId,
     num quantity = 1,
   }) async {
     await Future<void>.delayed(delay);
+    final intent = (productId, variantId, quantity);
+    if (_adds.containsKey(idempotencyKey)) {
+      if (_adds[idempotencyKey] != intent) {
+        throw const AppFailure(
+          FailureKind.conflict,
+          statusCode: 409,
+          code: 'IDEMPOTENCY_KEY_REUSED',
+        );
+      }
+      return _cart();
+    }
     final i = _items.indexWhere(
       (it) => it.productId == productId && it.variantId == variantId,
     );
@@ -91,6 +104,7 @@ class CartRepositoryMock implements CartRepository {
         ),
       );
     }
+    _adds[idempotencyKey] = intent;
     return _cart();
   }
 

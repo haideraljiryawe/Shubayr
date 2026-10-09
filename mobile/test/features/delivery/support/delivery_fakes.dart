@@ -23,6 +23,8 @@ class RecordingDeliveries extends DeliveryRepositoryMock {
   RecordingDeliveries() : super(agentId: 'agent', delay: Duration.zero);
   final requests = <DeliveryRequest>[];
   final versions = <int>[];
+  final collections =
+      <({String? operationId, String? confirmation, String? amount})>[];
   final reasons = <String?>[];
   final updates = <({String id, String status})>[];
   Future<DeliveryPage> Function(DeliveryRequest)? onFetch;
@@ -45,8 +47,16 @@ class RecordingDeliveries extends DeliveryRepositoryMock {
     String status, {
     required int orderVersion,
     String? reason,
+    String? operationId,
+    String? collectionConfirmation,
+    String? collectedAmount,
   }) {
     versions.add(orderVersion);
+    collections.add((
+      operationId: operationId,
+      confirmation: collectionConfirmation,
+      amount: collectedAmount,
+    ));
     reasons.add(reason);
     updates.add((id: id, status: status));
     return onUpdate?.call(id, status) ??
@@ -55,6 +65,9 @@ class RecordingDeliveries extends DeliveryRepositoryMock {
           status,
           orderVersion: orderVersion,
           reason: reason,
+          operationId: operationId,
+          collectionConfirmation: collectionConfirmation,
+          collectedAmount: collectedAmount,
         );
   }
 }
@@ -71,6 +84,7 @@ DeliveryPage deliveryPage(DeliveryRequest request, {int total = 45}) =>
           i++
         )
           Delivery(
+            amountDue: 25000,
             orderVersion: 1,
             id: 'd$i',
             orderId: 'order-$i',

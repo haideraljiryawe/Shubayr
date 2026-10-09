@@ -9,6 +9,7 @@ part of 'delivery.dart';
 Delivery _$DeliveryFromJson(Map<String, dynamic> json) => Delivery(
   id: json['id'] as String,
   orderId: json['order_id'] as String,
+  amountDue: json['amount_due'] as num,
   agentId: json['agent_id'] as String?,
   status: json['status'] as String,
   orderVersion: (json['order_version'] as num?)?.toInt(),
@@ -30,6 +31,7 @@ Delivery _$DeliveryFromJson(Map<String, dynamic> json) => Delivery(
 Map<String, dynamic> _$DeliveryToJson(Delivery instance) => <String, dynamic>{
   'id': instance.id,
   'order_id': instance.orderId,
+  'amount_due': instance.amountDue,
   'agent_id': instance.agentId,
   'status': instance.status,
   'order_version': instance.orderVersion,

@@ -1,4 +1,4 @@
-import '../../../../core/widgets/app_text_selection_toolbar.dart';
+import 'delivery_status_dialog.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -235,82 +235,25 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
   Future<void> _update() async {
     if (_dialogOpen) return;
     setState(() => _dialogOpen = true);
-    final l10n = context.l10n;
     final id = widget.delivery.id;
-    final nextStatuses = widget.delivery.nextStatuses;
     final onUpdated = widget.onUpdated;
     final onFailed = widget.onFailed;
-    String? selection;
-    var reason = "";
     try {
-      final status = await showDialog<String>(
+      final controller = ref.read(deliveriesProvider.notifier);
+      final pending = await controller.pendingCollection(id);
+      if (!mounted) return;
+      final choice = await showDialog<DeliveryStatusChoice>(
         context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: Text(l10n.deliveryUpdateStatus),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: l10n.deliverySelectStatus,
-                    ),
-                    items: [
-                      for (final status in nextStatuses)
-                        DropdownMenuItem(
-                          value: status,
-                          child: Text(deliveryStatusLabel(l10n, status)),
-                        ),
-                    ],
-                    onChanged: (value) =>
-                        setDialogState(() => selection = value),
-                  ),
-                  if (selection == 'failed') ...[
-                    const SizedBox(height: AppSpacing.md),
-                    TextField(
-                      contextMenuBuilder: appTextSelectionToolbar,
-                      maxLength: 500,
-                      minLines: 2,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        labelText: l10n.deliveryFailureReason,
-                      ),
-                      onChanged: (value) =>
-                          setDialogState(() => reason = value),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(l10n.actionCancel),
-              ),
-              TextButton(
-                onPressed:
-                    selection == null ||
-                        (selection == 'failed' &&
-                            (reason.trim().isEmpty ||
-                                reason.trim().length > 500))
-                    ? null
-                    : () => Navigator.pop(context, selection),
-                child: Text(l10n.actionSave),
-              ),
-            ],
-          ),
-        ),
+        builder: (_) =>
+            DeliveryStatusDialog(delivery: widget.delivery, pending: pending),
       );
-      if (status == null || !mounted) return;
-      final saved = await ref
-          .read(deliveriesProvider.notifier)
-          .updateStatus(
-            id,
-            status,
-            reason: status == 'failed' ? reason.trim() : null,
-          );
+      if (choice == null || !mounted) return;
+      final saved = await controller.updateStatus(
+        id,
+        choice.status,
+        reason: choice.reason,
+        collection: choice.collection,
+      );
       if (saved) onUpdated();
     } catch (error, stack) {
       final failure = actionFailure(error, stack);
@@ -368,6 +311,11 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
           Text(
             '${l10n.deliveryFee}: $fee',
             style: context.text.titleSmall?.copyWith(color: colors.primaryDark),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            '${l10n.deliveryAmountDue}: ${formatMoney(delivery.amountDue, currencyCode: 'IQD', localeCode: Localizations.localeOf(context).languageCode)}',
+            style: context.text.titleSmall,
           ),
           if (delivery.dispatchedAt != null) ...[
             const SizedBox(height: AppSpacing.sm),

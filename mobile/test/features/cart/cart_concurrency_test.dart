@@ -56,6 +56,7 @@ class _CartRepository implements CartRepository {
 
   @override
   Future<Cart> addItem({
+    required String idempotencyKey,
     required String productId,
     String? variantId,
     num quantity = 1,

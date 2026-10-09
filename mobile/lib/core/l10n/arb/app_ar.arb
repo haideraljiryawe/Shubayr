@@ -623,5 +623,14 @@
   "deliveryRetryCount": "عدد محاولات الإعادة",
   "orderStateConflict": "تغيّر الطلب أو لم يعد إلغاؤه متاحًا. راجع حالته الحالية.",
   "errorConflict": "تتعارض هذه العملية مع الحالة الحالية. حدّث البيانات وراجعها قبل المحاولة مجددًا.",
-  "startupConfigurationError": "إعداد اتصال هذه النسخة بالخادم غير صالح للإنتاج. تواصل مع الدعم للحصول على نسخة مصحّحة."
+  "startupConfigurationError": "إعداد اتصال هذه النسخة بالخادم غير صالح للإنتاج. تواصل مع الدعم للحصول على نسخة مصحّحة.",
+  "deliveryAmountDue": "المبلغ المستحق",
+  "deliveryCollectionConfirmation": "تحصيل المبلغ",
+  "deliveryCollectionConfirmed": "تم تحصيل المبلغ",
+  "deliveryCollectionUnconfirmed": "المبلغ غير مؤكد",
+  "deliveryCollectionUnconfirmedHint": "يُسجّل الطلب كمُسلّم الآن، ويؤكد المتجر المبلغ لاحقاً.",
+  "deliveryCollectedAmount": "المبلغ المحصل",
+  "deliveryInvalidAmount": "أدخل مبلغاً من صفر إلى المبلغ المستحق (بحد أقصى 6 منازل عشرية).",
+  "pendingDeliveryRetry": "نتيجة المحاولة السابقة غير معروفة. أعد محاولة التحصيل نفسه؛ لا يمكن تغيير المبلغ حتى تتضح النتيجة.",
+  "pendingRequestMessage": "نتيجة الطلب السابق لم تُحسم. أعد المحاولة بنفس الاختيار والمبلغ أو الكمية."
 }

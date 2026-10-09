@@ -3511,6 +3511,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This build has an invalid production API configuration. Contact support for a corrected build.'**
   String get startupConfigurationError;
+
+  /// No description provided for @deliveryAmountDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount due'**
+  String get deliveryAmountDue;
+
+  /// No description provided for @deliveryCollectionConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment collection'**
+  String get deliveryCollectionConfirmation;
+
+  /// No description provided for @deliveryCollectionConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment collected'**
+  String get deliveryCollectionConfirmed;
+
+  /// No description provided for @deliveryCollectionUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount not confirmed'**
+  String get deliveryCollectionUnconfirmed;
+
+  /// No description provided for @deliveryCollectionUnconfirmedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The order is delivered now; the store confirms the amount later.'**
+  String get deliveryCollectionUnconfirmedHint;
+
+  /// No description provided for @deliveryCollectedAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount collected'**
+  String get deliveryCollectedAmount;
+
+  /// No description provided for @deliveryInvalidAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount from zero up to the amount due (at most 6 decimal places).'**
+  String get deliveryInvalidAmount;
+
+  /// No description provided for @pendingDeliveryRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'The previous result is unknown. Retry the same collection; its amount cannot be changed until the result is known.'**
+  String get pendingDeliveryRetry;
+
+  /// No description provided for @pendingRequestMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'A previous request is unresolved. Retry with the same selection and amount or quantity.'**
+  String get pendingRequestMessage;
 }
 
 class _AppLocalizationsDelegate

@@ -1,3 +1,4 @@
+import 'package:shubayr/features/delivery/domain/delivery_collection_input.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
@@ -44,16 +45,34 @@ void main() {
       );
       final gate = Completer<Delivery>();
       repo.onUpdate = (_, _) => gate.future;
-      final first = controller().updateStatus(item.id, 'delivered');
+      final first = controller().updateStatus(
+        item.id,
+        'delivered',
+        collection: const DeliveryCollectionInput.unconfirmed(),
+      );
       final failure = expectLater(first, throwsA(isA<StateError>()));
-      expect(await controller().updateStatus(item.id, 'delivered'), isFalse);
+      expect(
+        await controller().updateStatus(
+          item.id,
+          'delivered',
+          collection: const DeliveryCollectionInput.unconfirmed(),
+        ),
+        isFalse,
+      );
       await Future<void>.delayed(Duration.zero);
       gate.completeError(StateError('unexpected'));
       await failure;
       expect(repo.updates, hasLength(1));
       expect(list().updatingId, isNull);
       repo.onUpdate = null;
-      expect(await controller().updateStatus(item.id, 'delivered'), isTrue);
+      expect(
+        await controller().updateStatus(
+          item.id,
+          'delivered',
+          collection: const DeliveryCollectionInput.unconfirmed(),
+        ),
+        isTrue,
+      );
     },
   );
 
@@ -197,7 +216,11 @@ void main() {
       expect(list().updatingId, isNull);
       expect(repo.requests, hasLength(2));
       await expectLater(
-        controller().updateStatus(previous.id, 'delivered'),
+        controller().updateStatus(
+          previous.id,
+          'delivered',
+          collection: const DeliveryCollectionInput.unconfirmed(),
+        ),
         throwsA(isA<AppFailure>()),
       );
       expect(repo.updates, hasLength(1));

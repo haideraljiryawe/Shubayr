@@ -1,3 +1,4 @@
+import '../../../../core/error/failure.dart';
 import '../../../../core/utils/quantity.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
@@ -471,7 +472,14 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     setState(() => _busy = false);
 
     if (result.status == CartMutationStatus.failed) {
-      showAppSnackBarMessage(context, message: l10n.stateErrorTitle);
+      showAppSnackBarMessage(
+        context,
+        message:
+            result.error is AppFailure &&
+                (result.error as AppFailure).code == 'PENDING_REQUEST'
+            ? l10n.pendingRequestMessage
+            : l10n.stateErrorTitle,
+      );
       return;
     }
     if (result.status != CartMutationStatus.succeeded) return;

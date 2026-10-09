@@ -1,3 +1,5 @@
+import 'dart:convert';
+import '../../../../core/storage/pending_request_store.dart';
 import '../../../../core/utils/quantity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -78,15 +80,43 @@ class CartController extends AsyncNotifier<Cart> {
     required String productId,
     String? variantId,
     num quantity = 1,
-  }) => _run((r) {
+  }) => _run((r) async {
     if (!isValidQuantity(quantity, max: 99)) {
       throw const AppFailure(FailureKind.validation);
     }
-    return r.addItem(
-      productId: productId,
-      variantId: variantId,
-      quantity: quantity,
+    final owner = _owner!;
+    final store = ref.read(pendingRequestStoreProvider);
+    final slot = PendingRequestStore.slot(
+      ref.read(appConfigProvider).apiBaseUrl,
+      ref.read(sessionControllerProvider).requireValue.user!.id!,
+      'cart-add',
+      jsonEncode([productId, variantId]),
     );
+    final existing = await store.read(slot);
+    if (!_owns(owner)) throw const AppFailure.unauthorized();
+    final request = await store.prepare(slot, {
+      'product_id': productId,
+      'variant_id': ?variantId,
+      'quantity': quantity,
+    });
+    if (!_owns(owner)) throw const AppFailure.unauthorized();
+    try {
+      final result = await r.addItem(
+        productId: request.body['product_id'] as String,
+        variantId: request.body['variant_id'] as String?,
+        quantity: request.body['quantity'] as num,
+        idempotencyKey: request.id,
+      );
+      await store.complete(slot, request.id);
+      return result;
+    } catch (error) {
+      // An earlier uncertain add may already have committed, even when replay
+      // now fails availability validation. Never discard that original key.
+      if (existing == null && isDefinitiveWriteRejection(error)) {
+        await store.complete(slot, request.id);
+      }
+      rethrow;
+    }
   }, duplicateKey: ('add', productId, variantId, quantity));
 
   Future<CartMutationResult> setQuantity(String itemId, num quantity) =>

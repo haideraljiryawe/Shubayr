@@ -5,7 +5,99 @@ It records contract readiness separately from Flutter implementation and accepta
 Earlier feature progress records describe their own dated implementation snapshots;
 this log and the roadmap record later changes to their dependencies.
 
-## Latest reviewed baseline
+## SYNC-2026-10-09 — delivery collection and repeat-safe cart adds
+
+Implemented against the unchanged root OpenAPI **13.4.0** (blob
+`ed412ff5362b24e67046e8b48bda5f43323a63f0`), following the v11→v12 and
+v13→v13.1 mobile handoffs. Implemented on `mobile`.
+
+- Delivered requires an explicit confirmed/unconfirmed choice. Confirmed amounts
+  use normalized decimal strings; unconfirmed requests omit the amount.
+- Required `Delivery.amount_due` is decoded without a fallback and displayed in
+  IQD, independently of delivery fee. Flutter does not recompute the due amount.
+- Controllers persist immutable pending requests in the existing secure-storage
+  platform, scoped by API URL, account and delivery/SKU. A timeout, malformed
+  success or unknown result retains the key and exact body across navigation and
+  app restart. An unresolved delivery cannot change amount/choice/version; retry
+  uses the original request. Stale-state 409 still reloads, without auto-retry.
+- Each successful cart add ends its intent; the next add gets a fresh key.
+  Repeating an unresolved add requires its original SKU/quantity. If an uncertain
+  add is subsequently rejected (for example, changed availability), its original
+  intent is retained rather than risking a second add. Such a persistent refusal
+  needs reconciliation; no unsafe discard/re-key control is offered.
+- Local storage failure prevents sending a new write. Clearing app data or losing
+  secure storage also loses pending recovery data; it is not a backup service.
+- No Backend, OpenAPI or Admin source changes. Collection-history/custody UI,
+  Retry-After support and optional guest-cart merge remain outside this change.
+
+Verification: Flutter controller/repository/widget tests cover full, partial and
+unconfirmed collection, excess amounts, lost responses, immutable replay and stale
+versions. `node mobile/tool/verify_api134.mjs` provisions isolated Docker services
+(Postgres on loopback 55432), copies Backend into a temporary verification folder,
+installs its locked dependencies there, seeds a unique `shubayr_*_verify` database,
+and runs the opt-in Flutter live test. Real API verification passed, including
+cart `IDEMPOTENCY_KEY_REUSED`; the database confirmed exactly three collections
+for three delivered fixtures after replay. The database and containers were
+removed. No simulator was used. This is targeted compatibility verification,
+not PR CI or approval to merge.
+
+Final local checks: `flutter analyze --no-pub` passed with no issues;
+`flutter test --no-pub` passed **1824 tests**, with five opt-in live tests skipped
+in the default run. The new API 13.4 live test was run separately and passed.
+`git diff --check` passed.
+
+<details>
+<summary>Files changed for this compatibility update</summary>
+
+- [docs/contract-sync-log.md](../docs/contract-sync-log.md)
+- [lib/core/error/failure.dart](../lib/core/error/failure.dart)
+- [lib/core/l10n/arb/app_ar.arb](../lib/core/l10n/arb/app_ar.arb)
+- [lib/core/l10n/arb/app_en.arb](../lib/core/l10n/arb/app_en.arb)
+- [lib/core/l10n/generated/app_localizations.dart](../lib/core/l10n/generated/app_localizations.dart)
+- [lib/core/l10n/generated/app_localizations_ar.dart](../lib/core/l10n/generated/app_localizations_ar.dart)
+- [lib/core/l10n/generated/app_localizations_en.dart](../lib/core/l10n/generated/app_localizations_en.dart)
+- [lib/core/network/api_client.dart](../lib/core/network/api_client.dart)
+- [lib/core/storage/pending_request_store.dart](../lib/core/storage/pending_request_store.dart)
+- [lib/features/cart/data/cart_repository_mock.dart](../lib/features/cart/data/cart_repository_mock.dart)
+- [lib/features/cart/data/cart_repository_remote.dart](../lib/features/cart/data/cart_repository_remote.dart)
+- [lib/features/cart/domain/cart_repository.dart](../lib/features/cart/domain/cart_repository.dart)
+- [lib/features/cart/presentation/providers/cart_providers.dart](../lib/features/cart/presentation/providers/cart_providers.dart)
+- [lib/features/catalog/presentation/screens/product_detail_screen.dart](../lib/features/catalog/presentation/screens/product_detail_screen.dart)
+- [lib/features/delivery/data/delivery.dart](../lib/features/delivery/data/delivery.dart)
+- [lib/features/delivery/data/delivery.g.dart](../lib/features/delivery/data/delivery.g.dart)
+- [lib/features/delivery/data/delivery_repository_mock.dart](../lib/features/delivery/data/delivery_repository_mock.dart)
+- [lib/features/delivery/data/delivery_repository_remote.dart](../lib/features/delivery/data/delivery_repository_remote.dart)
+- [lib/features/delivery/domain/delivery_collection_input.dart](../lib/features/delivery/domain/delivery_collection_input.dart)
+- [lib/features/delivery/domain/delivery_repository.dart](../lib/features/delivery/domain/delivery_repository.dart)
+- [lib/features/delivery/presentation/providers/delivery_providers.dart](../lib/features/delivery/presentation/providers/delivery_providers.dart)
+- [lib/features/delivery/presentation/screens/delivery_home_screen.dart](../lib/features/delivery/presentation/screens/delivery_home_screen.dart)
+- [lib/features/delivery/presentation/screens/delivery_status_dialog.dart](../lib/features/delivery/presentation/screens/delivery_status_dialog.dart)
+- [test/api134_live_test.dart](../test/api134_live_test.dart)
+- [test/core/storage/pending_request_store_test.dart](../test/core/storage/pending_request_store_test.dart)
+- [test/features/cart/cart_add_idempotency_test.dart](../test/features/cart/cart_add_idempotency_test.dart)
+- [test/features/cart/cart_concurrency_test.dart](../test/features/cart/cart_concurrency_test.dart)
+- [test/features/cart/cart_controller_test.dart](../test/features/cart/cart_controller_test.dart)
+- [test/features/cart/cart_repository_test.dart](../test/features/cart/cart_repository_test.dart)
+- [test/features/catalog/product_detail_test.dart](../test/features/catalog/product_detail_test.dart)
+- [test/features/commerce/api11_contract_test.dart](../test/features/commerce/api11_contract_test.dart)
+- [test/features/commerce/pricing_repository_test.dart](../test/features/commerce/pricing_repository_test.dart)
+- [test/features/commerce/quantity_contract_test.dart](../test/features/commerce/quantity_contract_test.dart)
+- [test/features/commerce/quantity_controller_test.dart](../test/features/commerce/quantity_controller_test.dart)
+- [test/features/delivery/api134_delivery_test.dart](../test/features/delivery/api134_delivery_test.dart)
+- [test/features/delivery/deliveries_controller_test.dart](../test/features/delivery/deliveries_controller_test.dart)
+- [test/features/delivery/delivery_collection_dialog_test.dart](../test/features/delivery/delivery_collection_dialog_test.dart)
+- [test/features/delivery/delivery_home_screen_test.dart](../test/features/delivery/delivery_home_screen_test.dart)
+- [test/features/delivery/delivery_repository_test.dart](../test/features/delivery/delivery_repository_test.dart)
+- [test/features/delivery/support/delivery_fakes.dart](../test/features/delivery/support/delivery_fakes.dart)
+- [test/features/orders/commerce_currency_test.dart](../test/features/orders/commerce_currency_test.dart)
+- [test/features/orders/order_item_snapshot_test.dart](../test/features/orders/order_item_snapshot_test.dart)
+- [test/features/orders/order_repository_test.dart](../test/features/orders/order_repository_test.dart)
+- [test/responsive_screens_test.dart](../test/responsive_screens_test.dart)
+- [tool/verify_api134.mjs](../tool/verify_api134.mjs)
+
+</details>
+
+## Previous reviewed baseline
 
 | Item | Value |
 |---|---|

@@ -80,6 +80,7 @@ void main() {
           total: 1,
           data: [
             Delivery(
+              amountDue: 25000,
               id: 'd',
               orderId: 'o',
               status: 'delivered',
@@ -175,6 +176,7 @@ void main() {
       total: 1,
       data: [
         Delivery(
+          amountDue: 25000,
           orderVersion: 1,
           id: 'd0',
           orderId: 'order-0',
@@ -211,6 +213,7 @@ void main() {
           total: 1,
           data: [
             Delivery(
+              amountDue: 25000,
               orderVersion: 1,
               id: 'd0',
               orderId: 'order-0',
@@ -266,6 +269,7 @@ void main() {
             total: 1,
             data: [
               Delivery(
+                amountDue: 25000,
                 orderVersion: 1,
                 id: 'd0',
                 orderId: 'order-0',
@@ -378,6 +382,10 @@ void main() {
       await tester.tap(find.byType(DropdownButtonFormField<String>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delivered').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<bool>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Amount not confirmed').last);
       await tester.pumpAndSettle();
       await tester.binding.setSurfaceSize(const Size(1200, 1200));
       await tester.pumpAndSettle();

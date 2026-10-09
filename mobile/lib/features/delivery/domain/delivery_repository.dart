@@ -8,11 +8,14 @@ abstract interface class DeliveryRepository {
     int perPage = 20,
   });
 
-  /// PATCH /deliveries/{id} — only a delivery status, no payment operation.
+  /// PATCH /deliveries/{id} — versioned status and conditional delivered collection.
   Future<Delivery> updateStatus(
     String id,
     String status, {
     required int orderVersion,
     String? reason,
+    String? operationId,
+    String? collectionConfirmation,
+    String? collectedAmount,
   });
 }

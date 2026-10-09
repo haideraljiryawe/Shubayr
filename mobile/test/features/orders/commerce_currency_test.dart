@@ -75,6 +75,7 @@ void main() {
     final delivery = Delivery.fromJson({
       'id': 'd1',
       'order_id': 'o1',
+      'amount_due': 25000,
       'order_version': 1,
       'status': 'assigned',
       'currency': 'USD',

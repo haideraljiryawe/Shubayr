@@ -114,7 +114,13 @@ void main() {
         await tester.binding.setSurfaceSize(Size(width, 1000));
         addTearDown(() => tester.binding.setSurfaceSize(null));
         final cart = CartRepositoryMock(delay: Duration.zero);
-        await tester.runAsync(() => cart.addItem(productId: 'p1', quantity: 2));
+        await tester.runAsync(
+          () => cart.addItem(
+            idempotencyKey: 'test-add-key-0',
+            productId: 'p1',
+            quantity: 2,
+          ),
+        );
         for (final screen in <Widget>[
           const AddressFormScreen(),
           const AddressesScreen(),

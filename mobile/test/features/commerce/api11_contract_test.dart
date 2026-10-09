@@ -30,6 +30,7 @@ void main() {
                         'id': 'd',
                         'order_id': 'o',
                         'status': 'failed',
+                        'amount_due': 25000,
                         'order_version': 9,
                       }
                     : {'id': 'o', 'version': 8},
@@ -120,6 +121,7 @@ void main() {
             'id': 'd',
             'order_id': 'o',
             'status': 'assigned',
+            'amount_due': 25000,
             'order_version': invalid,
           }),
           throwsA(isA<AppFailure>()),
@@ -130,6 +132,7 @@ void main() {
           'id': 'd',
           'order_id': 'o',
           'status': 'assigned',
+          'amount_due': 25000,
         }),
         throwsA(isA<AppFailure>()),
       );
@@ -143,6 +146,7 @@ void main() {
       'id': 'd',
       'order_id': 'o',
       'status': 'failed',
+      'amount_due': 25000,
       'order_version': 12,
       'failure_reason': 'No answer',
       'retry_count': 2,
