@@ -2708,7 +2708,8 @@
         "return_against_uncollected": "A return at the door is recorded while the order is out for delivery with a delivery party.",
         "returnAfterDelivery": "This order is already delivered short. Its delivered goods can't be listed here (the API offers no read of them), so record a return at the door while the order is still out for delivery.",
         "returnNeedsDeliver": "Recording a return at the door also marks the order delivered, which needs the orders.deliver permission.",
-        "delivery_fee_refund": "Nothing to refund: the order has no delivery fee, or isn't delivered yet."
+        "delivery_fee_refund": "Nothing to refund: the order has no delivery fee, or isn't delivered yet.",
+        "fullyRefunded": "The delivery fee is already fully refunded."
       }
     },
     "list": {

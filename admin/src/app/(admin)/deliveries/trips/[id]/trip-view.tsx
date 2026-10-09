@@ -230,15 +230,15 @@ function TripOrderRow({ trip, order, permissions, onDone }: { trip: Trip; order:
           </dd>
           <dd dir="ltr">{money(order.store_delivery_fee_iqd)}</dd>
           <dd dir="ltr">{money(order.fare_share_iqd)}</dd>
-          {order.collection?.collected_amount_iqd !== null && order.collection ? (
-            <>
-              <dt className="col-span-2 text-text-muted">{t("detail.collected")}</dt>
-              <dd dir="ltr" data-testid="trip-order-collected">
-                {money(order.collection.collected_amount_iqd ?? 0)}
-              </dd>
-            </>
-          ) : null}
         </dl>
+        {order.collection && order.collection.collected_amount_iqd !== null ? (
+          <p className="w-full text-end text-xs">
+            <span className="text-text-muted">{t("detail.collected")}: </span>
+            <span dir="ltr" className="font-semibold" data-testid="trip-order-collected">
+              {money(order.collection.collected_amount_iqd)}
+            </span>
+          </p>
+        ) : null}
       </div>
       {order.exceptions.length ? (
         <p className="mt-2 flex flex-wrap gap-2 text-xs">
@@ -265,7 +265,7 @@ function TripOrderRow({ trip, order, permissions, onDone }: { trip: Trip; order:
             {t("actions.returned")}
           </Link>
         ) : null}
-        {trip.status !== "open" && ["out_for_delivery", "failed"].includes(order.delivery.status) && can("custody_exceptions.loss") ? (
+        {trip.status === "in_progress" && ["out_for_delivery", "failed"].includes(order.delivery.status) && can("custody_exceptions.loss") ? (
           <Link href={`/finance/custody-exceptions/new?order_id=${order.id}&type=goods_loss`} className="inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-primary-dark hover:bg-card" data-testid="trip-order-lost">
             {t("actions.lost")}
           </Link>

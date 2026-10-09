@@ -63,6 +63,7 @@ export function ExceptionForm({
   windowDays: number;
 }) {
   const t = useTranslations("custodyExceptions.create");
+  const tTrips = useTranslations("trips");
   const [type, setType] = useState<ExceptionType>(initialType);
 
   return (
@@ -85,7 +86,9 @@ export function ExceptionForm({
           )}
         </span>
         <span>
-          {t("deliveryStatus")}: <span data-testid="exception-delivery-status">{order.delivery?.status ?? "—"}</span>
+          {t("deliveryStatus")}: <span data-testid="exception-delivery-status" data-status={order.delivery?.status ?? ""}>
+            {order.delivery?.status ? tTrips(`deliveryStatuses.${order.delivery.status}`) : "—"}
+          </span>
         </span>
       </Card>
 
@@ -261,6 +264,8 @@ function LossForm({
   const router = useRouter();
   const posting = usePosting<CustodyException>();
   const operation = useRef(new OperationKey());
+  // Read once: recording the loss empties the order's custody and refreshes the page.
+  const [kept] = useState(() => ({ holdings, status: order.status ?? "" }));
   const [typed, setTyped] = useState<Record<string, string>>(() => Object.fromEntries(holdings.map((holding) => [holding.holding_id, String(holding.quantity)])));
   const [bearer, setBearer] = useState<"store" | "party" | "">("");
   const [reason, setReason] = useState("");
@@ -269,9 +274,9 @@ function LossForm({
   const [operationId, setOperationId] = useState<string | null>(null);
   const busy = posting.state.phase === "posting" || posting.state.phase === "checking";
   const posted = posting.state.phase === "posted";
-  const plan = holdingLines(holdings, typed);
+  const plan = holdingLines(kept.holdings, typed);
 
-  if (!partyId || holdings.length === 0 || !["dispatched", "failed", "cancelled"].includes(order.status ?? "")) {
+  if (!partyId || kept.holdings.length === 0 || !["dispatched", "failed", "cancelled"].includes(kept.status)) {
     return <Unavailable text={t("unavailable.goods_loss")} />;
   }
 
@@ -295,7 +300,7 @@ function LossForm({
   return (
     <Card className="flex flex-col gap-4" data-testid="exception-loss">
       <p className="text-sm text-text-muted">{t("lossBody")}</p>
-      <HoldingsTable holdings={holdings} typed={typed} generation={0} onTyped={setTyped} locked={busy || posted} label={t("lostQuantity")} />
+      <HoldingsTable holdings={kept.holdings} typed={typed} generation={0} onTyped={setTyped} locked={busy || posted} label={t("lostQuantity")} />
       <fieldset className="flex flex-col gap-2 text-sm" disabled={busy || posted}>
         <legend className="mb-1 font-semibold">{t("bearer")}</legend>
         {(["store", "party"] as const).map((value) => (
@@ -307,7 +312,7 @@ function LossForm({
             </span>
           </label>
         ))}
-        {attempted && !bearer ? <p className="text-xs font-semibold text-error-dark">{t("errors.bearer")}</p> : null}
+        {attempted && !bearer ? <p className="text-xs font-semibold text-error-dark" data-testid="exception-bearer-error">{t("errors.bearer")}</p> : null}
       </fieldset>
       <CommonFields reason={reason} onReason={setReason} date={date} onDate={setDate} attempted={attempted} locked={busy || posted} canBackdate={canBackdate} today={today} windowDays={windowDays} />
       {attempted && (plan.lines.length === 0 || plan.problems.length) ? <p className="text-sm font-semibold text-error-dark" role="alert">{t("errors.quantities")}</p> : null}
@@ -535,6 +540,9 @@ function RefundForm({
   const typed = /^\d+$/.test(amount.trim()) ? toFixed(amount.trim()) : null;
 
   if (!collection || fee <= 0) return <Unavailable text={t("unavailable.delivery_fee_refund")} />;
+  // Fully refunded already (and not just now): nothing left to offer.
+  const left = refundCap({ fee, refunded: refunds, uncollected: null, method: "cash_account" });
+  if (left === 0n && !posted && posting.state.phase !== "error") return <Unavailable text={t("unavailable.fullyRefunded")} />;
 
   const problems = [
     ...(typed === null || typed <= 0n ? [t("errors.amount")] : typed > cap ? [t("errors.overCap", { cap: money(cap) })] : []),
