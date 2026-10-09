@@ -158,3 +158,5 @@ export class PartyStatementQueryDto {
   @Max(100)
   per_page = 20;
 }
+
+export class PartyCashActivityQueryDto extends PartyStatementQueryDto {}

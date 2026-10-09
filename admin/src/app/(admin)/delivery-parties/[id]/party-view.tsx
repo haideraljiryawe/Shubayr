@@ -24,7 +24,7 @@ export function PartyView({
   custody: PartyCustody;
   held: HeldOrder[];
   statement: StatementEntry[];
-  /** Cash in and out of their custody, on the statement's page and filters (13.2). */
+  /** Independently paged cash in and out of the party's custody (14.0). */
   cashActivity: { total: number; data: CashActivity[] };
   statementState: TableState;
   orderFilter: string | null;

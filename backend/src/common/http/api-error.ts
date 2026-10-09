@@ -1,5 +1,9 @@
 import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
   HttpStatus,
+  NotFoundException,
   UnprocessableEntityException,
   ValidationError,
 } from '@nestjs/common';
@@ -31,6 +35,44 @@ const statusCodes: Record<number, string> = {
 
 export function codeForStatus(status: number): string {
   return statusCodes[status] ?? 'INTERNAL_ERROR';
+}
+
+export function codedError(
+  status: number,
+  code: string,
+  message: string,
+  errors: ApiFieldError[] = [],
+): ApiError {
+  return { status, code, message, errors };
+}
+
+export function conflict(code: string, message: string): ConflictException {
+  return new ConflictException(codedError(HttpStatus.CONFLICT, code, message));
+}
+
+export function forbidden(code: string, message: string): ForbiddenException {
+  return new ForbiddenException(
+    codedError(HttpStatus.FORBIDDEN, code, message),
+  );
+}
+
+export function invalid(
+  code: string,
+  message: string,
+): UnprocessableEntityException {
+  return new UnprocessableEntityException(
+    codedError(HttpStatus.UNPROCESSABLE_ENTITY, code, message),
+  );
+}
+
+export function badRequest(code: string, message: string): BadRequestException {
+  return new BadRequestException(
+    codedError(HttpStatus.BAD_REQUEST, code, message),
+  );
+}
+
+export function notFound(code: string, message: string): NotFoundException {
+  return new NotFoundException(codedError(HttpStatus.NOT_FOUND, code, message));
 }
 
 export function flattenValidationErrors(

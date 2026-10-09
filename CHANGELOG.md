@@ -1,5 +1,28 @@
 # Changelog
 
+## 14.0.0 - 2026-10-09
+
+### Added
+
+- Stable, route-declared refusal codes for cash receipts, allocations,
+  reversals, custody exceptions, trips, and audited order, purchasing,
+  inventory, product, and approval workflows.
+- Independent paginated party cash activity and an overall/per-party
+  unallocated-receipt subledger reconciliation.
+- Actor display names beside actor IDs on staff financial and operational
+  documents.
+
+### Changed
+
+- Voucher and unallocated-receipt lists sort by date or amount in either
+  direction and default to newest first.
+- Party goods statements no longer embed cash activity; staff use the separate
+  cash-activity endpoint. Admin callers and generated web/admin types are
+  updated together.
+- The API contract is version 14.0.0. The major bump covers the removed
+  embedded staff field and clients switching from generic/message-matched
+  refusals to stable codes. Successful mobile workflow shapes are unchanged.
+
 ## 13.4.0 - 2026-10-08
 
 ### Added

@@ -2,13 +2,14 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { assertDifferentActor } from '../../common/access/separation-of-duties';
 import { PrismaService } from '../../database/prisma.service';
+import { conflict, invalid } from '../../common/http/api-error';
+import { actorDisplayName, actorSelect } from '../../common/users/actor-name';
 import { AuditService } from '../audit/audit.service';
 import { businessDateText, parseBusinessDate } from '../finance/business-date';
 import { DateRulesService } from '../finance/date-rules.service';
@@ -28,6 +29,9 @@ type Tx = Prisma.TransactionClient;
 type Actor = Pick<AuthenticatedRequestUser, 'id' | 'permissions'>;
 
 const tripInclude = {
+  creator: { select: actorSelect },
+  starter: { select: actorSelect },
+  closer: { select: actorSelect },
   driver_party: {
     select: {
       id: true,
@@ -116,6 +120,7 @@ const tripInclude = {
     orderBy: [{ handed_over_at: 'asc' as const }, { id: 'asc' as const }],
   },
   events: {
+    include: { recorder: { select: actorSelect } },
     orderBy: [{ event_at: 'asc' as const }, { id: 'asc' as const }],
   },
   settlement_allocations: {
@@ -229,7 +234,8 @@ export class ExternalDriverTripsService {
         if (!trip)
           throw new NotFoundException('External driver trip not found');
         if (trip.status !== 'open') {
-          throw new ConflictException(
+          throw conflict(
+            'TRIP_NOT_OPEN_FOR_ORDER',
             'Orders can be added only to an open trip',
           );
         }
@@ -239,7 +245,8 @@ export class ExternalDriverTripsService {
         });
         if (!order) throw new NotFoundException('Order not found');
         if (!order.delivery || order.delivery.status !== 'assigned') {
-          throw new ConflictException(
+          throw conflict(
+            'TRIP_ORDER_NOT_ASSIGNED',
             'Trip handover requires the current assigned delivery',
           );
         }
@@ -254,7 +261,8 @@ export class ExternalDriverTripsService {
             });
           }
           if (!input.customer_acceptance_note?.trim()) {
-            throw new UnprocessableEntityException(
+            throw invalid(
+              'CUSTOMER_ACCEPTANCE_NOTE_REQUIRED',
               'customer_acceptance_note is required for a customer-direct fare',
             );
           }
@@ -335,17 +343,24 @@ export class ExternalDriverTripsService {
         if (!trip)
           throw new NotFoundException('External driver trip not found');
         if (trip.status !== 'open') {
-          throw new ConflictException('Only an open trip can be started');
+          throw conflict(
+            'TRIP_NOT_OPEN_FOR_START',
+            'Only an open trip can be started',
+          );
         }
         if (!trip.orders.length) {
-          throw new ConflictException('A trip requires at least one order');
+          throw conflict(
+            'TRIP_HAS_NO_ORDERS',
+            'A trip requires at least one order',
+          );
         }
         const shares = trip.orders.reduce(
           (sum, row) => sum.plus(row.fare_share_iqd),
           new Prisma.Decimal(0),
         );
         if (!shares.equals(trip.fare_amount_iqd)) {
-          throw new ConflictException(
+          throw conflict(
+            'TRIP_FARE_SHARES_MISMATCH',
             'Trip order fare shares must equal the one trip fare',
           );
         }
@@ -420,12 +435,16 @@ export class ExternalDriverTripsService {
         if (!trip)
           throw new NotFoundException('External driver trip not found');
         if (trip.status !== 'in_progress') {
-          throw new ConflictException('Only an in-progress trip can be closed');
+          throw conflict(
+            'TRIP_NOT_IN_PROGRESS',
+            'Only an in-progress trip can be closed',
+          );
         }
         assertDifferentActor(
           actor.id,
           trip.created_by,
           'A user cannot approve and close their own trip',
+          'SELF_TRIP_CLOSE_FORBIDDEN',
         );
         const unresolved = trip.orders.filter(
           (row) =>
@@ -502,7 +521,8 @@ export class ExternalDriverTripsService {
           } else if (trip.fare_settlement_method === 'driver_keeps') {
             const available = expected.minus(received);
             if (trip.fare_amount_iqd.gt(available)) {
-              throw new ConflictException(
+              throw conflict(
+                'TRIP_FARE_EXCEEDS_UNSETTLED_CASH',
                 'The driver cannot keep more fare than unsettled collected cash',
               );
             }
@@ -538,7 +558,8 @@ export class ExternalDriverTripsService {
               }
             }
             if (left.gt(0)) {
-              throw new ConflictException(
+              throw conflict(
+                'TRIP_FARE_NETTING_INCOMPLETE',
                 'Trip fare netting could not be fully allocated',
               );
             }
@@ -606,7 +627,8 @@ export class ExternalDriverTripsService {
 
   async list(query: ExternalDriverTripQueryDto) {
     if (query.date_from && query.date_to && query.date_from > query.date_to) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'DATE_RANGE_INVALID',
         'date_from must be on or before date_to',
       );
     }
@@ -769,15 +791,21 @@ export class ExternalDriverTripsService {
           amount_iqd: Number(exception.amount_iqd),
         })),
       })),
-      events: row.events,
+      events: row.events.map(({ recorder, ...event }) => ({
+        ...event,
+        recorded_by_name: actorDisplayName(recorder),
+      })),
       document_date: businessDateText(row.document_date),
       accounting_date: businessDateText(row.accounting_date),
       backdate_reason: row.backdate_reason,
       created_by: row.created_by,
+      created_by_name: actorDisplayName(row.creator),
       created_at: row.created_at,
       started_by: row.started_by,
+      started_by_name: row.starter ? actorDisplayName(row.starter) : null,
       started_at: row.started_at,
       closed_by: row.closed_by,
+      closed_by_name: row.closer ? actorDisplayName(row.closer) : null,
       closed_at: row.closed_at,
     };
   }
@@ -787,7 +815,8 @@ export class ExternalDriverTripsService {
       input.fare_bearer === 'customer_direct' &&
       input.fare_settlement_method !== 'customer_direct'
     ) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'CUSTOMER_DIRECT_SETTLEMENT_REQUIRED',
         'A customer-direct fare must use customer_direct settlement',
       );
     }
@@ -795,7 +824,8 @@ export class ExternalDriverTripsService {
       input.fare_bearer === 'store' &&
       input.fare_settlement_method === 'customer_direct'
     ) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'STORE_FARE_CUSTOMER_DIRECT_FORBIDDEN',
         'A store-paid fare cannot use customer_direct settlement',
       );
     }
@@ -803,7 +833,8 @@ export class ExternalDriverTripsService {
       input.fare_settlement_method !== 'cash_account' &&
       input.fare_cash_account_id
     ) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'TRIP_CASH_ACCOUNT_NOT_ALLOWED',
         'fare_cash_account_id is only valid for cash-account settlement',
       );
     }
@@ -816,7 +847,8 @@ export class ExternalDriverTripsService {
     });
     if (!row) throw new NotFoundException('Cash account not found');
     if (!row.is_active || row.currency_code !== 'IQD') {
-      throw new ConflictException(
+      throw conflict(
+        'TRIP_FARE_ACCOUNT_INVALID',
         'Trip fare requires an active IQD cash account',
       );
     }
@@ -853,7 +885,7 @@ export class ExternalDriverTripsService {
   private nonNegative(value: string, field: string) {
     const amount = new Prisma.Decimal(value);
     if (!amount.isFinite() || amount.lt(0)) {
-      throw new UnprocessableEntityException(`${field} must be non-negative`);
+      throw invalid('AMOUNT_NEGATIVE', `${field} must be non-negative`);
     }
     return amount;
   }

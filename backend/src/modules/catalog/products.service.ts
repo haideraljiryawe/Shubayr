@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { conflict } from '../../common/http/api-error';
 import { AuditService } from '../audit/audit.service';
 import { MediaService } from '../media/media.service';
 import { ProductQueryDto } from './dto/catalog-query.dto';
@@ -459,7 +460,8 @@ export class ProductsService {
       !payload ||
       payload.product_id !== approval.product_id
     ) {
-      throw new ConflictException(
+      throw conflict(
+        'FIXED_PRICE_PROPOSAL_UNAVAILABLE',
         'Fixed-price proposal is no longer available',
       );
     }
@@ -893,7 +895,7 @@ export class ProductsService {
     }
     const skus = variants.map(({ sku }) => sku);
     if (new Set(skus).size !== skus.length) {
-      throw new ConflictException('Variant SKUs must be unique');
+      throw conflict('VARIANT_SKUS_DUPLICATED', 'Variant SKUs must be unique');
     }
     if (!skus.length) return;
     const match = await this.prisma.productVariant.findFirst({
@@ -904,7 +906,10 @@ export class ProductsService {
       select: { sku: true },
     });
     if (match)
-      throw new ConflictException(`Variant SKU already exists: ${match.sku}`);
+      throw conflict(
+        'VARIANT_SKU_DUPLICATE',
+        `Variant SKU already exists: ${match.sku}`,
+      );
   }
 
   private async prepareVariants(
@@ -918,7 +923,10 @@ export class ProductsService {
       this.prisma.currency.findFirst({ where: { is_base: true } }),
     ]);
     if (!baseCurrency)
-      throw new ConflictException('No base currency is configured');
+      throw conflict(
+        'BASE_CURRENCY_NOT_CONFIGURED',
+        'No base currency is configured',
+      );
     const result: PreparedVariant[] = [];
     for (const variant of variants) {
       const mode = variant.pricing_mode ?? 'fixed';

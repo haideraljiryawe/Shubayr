@@ -227,7 +227,7 @@ describe("lifecycle v2 (API 10.0)", () => {
       { variantId: "v2", sku: "S-2", price: 50, thresholdPercent: 100, cost: 80, minimumPrice: 80 },
     ]);
     expect(belowCostBreaches(new ApiError(403, "Forbidden", "PERMISSION_DENIED"))).toBeNull();
-    expect(isSelfApprovalRefused(new ApiError(403, "The price or order originator cannot approve their own below-cost exception"))).toBe(true);
+    expect(isSelfApprovalRefused(new ApiError(403, "Translated", "SEPARATION_OF_DUTIES_VIOLATION"))).toBe(true);
     expect(needsAttentionRefusal(new ApiError(409, "Resolve preparation shortages", "ORDER_NEEDS_ATTENTION"))).toBe(true);
   });
 

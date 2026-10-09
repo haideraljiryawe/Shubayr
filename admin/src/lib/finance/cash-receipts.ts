@@ -110,8 +110,8 @@ export function allocationPlan(input: {
 
 /**
  * The API's refusals of a receipt, an allocation or a reversal, by kind.
- * They share HTTP codes (409 CONFLICT, 403, 404), so the kind is read from
- * the code where the API gives one and otherwise from its message.
+ * Contract 14 gives every refusal a stable code, so localized clients never
+ * need to inspect English server messages.
  */
 export type ReceiptRefusal =
   | "overAllocation"
@@ -129,27 +129,27 @@ export type ReceiptRefusal =
   | "inactiveAccount"
   | "collectionNotFound";
 
-const MESSAGES: Array<[RegExp, ReceiptRefusal]> = [
-  [/exceed the receipt.s unallocated amount/i, "overAllocation"],
-  [/another party.s order/i, "wrongParty"],
-  [/exceeds the order.s unsettled collected amount/i, "moreThanCollected"],
-  [/only confirmed collected amounts/i, "notConfirmed"],
-  [/may appear only once/i, "duplicateOrder"],
-  [/exceeds the party.s cash custody/i, "overCustody"],
-  [/cannot reverse their own cash receipt/i, "ownReceipt"],
-  [/from their own custody/i, "ownCustody"],
-  [/strict separation of duties requires another user to allocate/i, "strictAllocation"],
-  [/is already reversed/i, "alreadyReversed"],
-  [/reversed cash receipt cannot be allocated/i, "reversedReceipt"],
-  [/delivery party is inactive/i, "inactiveParty"],
-  [/cash account is inactive/i, "inactiveAccount"],
-  [/delivered order collection not found/i, "collectionNotFound"],
-];
+const REFUSALS: Record<string, ReceiptRefusal> = {
+  ALLOCATION_EXCEEDS_RECEIPT: "overAllocation",
+  ALLOCATION_WRONG_PARTY: "wrongParty",
+  ALLOCATION_EXCEEDS_COLLECTED: "moreThanCollected",
+  ORDER_ALREADY_RECEIPTED: "moreThanCollected",
+  ALLOCATION_COLLECTION_UNCONFIRMED: "notConfirmed",
+  ALLOCATION_ORDER_DUPLICATED: "duplicateOrder",
+  RECEIPT_EXCEEDS_CASH_CUSTODY: "overCustody",
+  SELF_REVERSAL_FORBIDDEN: "ownReceipt",
+  SELF_CUSTODY_CASH_ACTION_FORBIDDEN: "ownCustody",
+  SEPARATION_OF_DUTIES_VIOLATION: "strictAllocation",
+  RECEIPT_REVERSAL_ALREADY_REVERSED: "alreadyReversed",
+  RECEIPT_ALLOCATION_REVERSED: "reversedReceipt",
+  DELIVERY_PARTY_INACTIVE: "inactiveParty",
+  CASH_ACCOUNT_INACTIVE: "inactiveAccount",
+  ALLOCATION_COLLECTION_NOT_FOUND: "collectionNotFound",
+};
 
 export function receiptRefusal(error: unknown): ReceiptRefusal | null {
   if (!(error instanceof ApiError)) return null;
-  for (const [pattern, kind] of MESSAGES) if (pattern.test(error.message)) return kind;
-  return null;
+  return error.code ? (REFUSALS[error.code] ?? null) : null;
 }
 
 /**

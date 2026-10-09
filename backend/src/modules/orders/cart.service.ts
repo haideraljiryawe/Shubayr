@@ -7,6 +7,7 @@ import {
 import { createHash } from 'node:crypto';
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { conflict } from '../../common/http/api-error';
 import { ProductsService } from '../catalog/products.service';
 import { calculateLineTotal } from '../catalog/pricing';
 import {
@@ -376,7 +377,10 @@ export class CartService {
       );
     }
     if (quantity > availableQty) {
-      throw new ConflictException('Requested quantity exceeds available stock');
+      throw conflict(
+        'REQUESTED_QUANTITY_UNAVAILABLE',
+        'Requested quantity exceeds available stock',
+      );
     }
   }
 

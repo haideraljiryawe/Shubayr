@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { conflict } from '../../common/http/api-error';
 import { assertDifferentActor } from '../../common/access/separation-of-duties';
 import {
   businessDate,
@@ -109,7 +110,8 @@ export class InventoryService {
         where: { location: { warehouse_id: id }, quantity: { gt: 0 } },
       });
       if (used)
-        throw new ConflictException(
+        throw conflict(
+          'WAREHOUSE_HAS_STOCK',
           'A warehouse with stock cannot be deactivated',
         );
     }
@@ -131,7 +133,8 @@ export class InventoryService {
       await this.prisma.warehouse.delete({ where: { id } });
     } catch (error) {
       if (this.isForeignKeyConflict(error))
-        throw new ConflictException(
+        throw conflict(
+          'WAREHOUSE_IN_USE',
           'A used warehouse cannot be deleted; deactivate it instead',
         );
       throw error;
@@ -141,7 +144,7 @@ export class InventoryService {
   async createLocation(warehouseId: string, input: CreateLocationDto) {
     const warehouse = await this.requireWarehouse(warehouseId);
     if (!warehouse.is_active)
-      throw new ConflictException('Warehouse is inactive');
+      throw conflict('WAREHOUSE_INACTIVE', 'Warehouse is inactive');
     return this.prisma.warehouseLocation.create({
       data: {
         warehouse_id: warehouseId,
@@ -162,7 +165,8 @@ export class InventoryService {
         where: { location_id: id, quantity: { gt: 0 } },
       });
       if (used)
-        throw new ConflictException(
+        throw conflict(
+          'LOCATION_HAS_STOCK',
           'A location with stock cannot be deactivated',
         );
     }
@@ -186,7 +190,8 @@ export class InventoryService {
       await this.prisma.warehouseLocation.delete({ where: { id } });
     } catch (error) {
       if (this.isForeignKeyConflict(error))
-        throw new ConflictException(
+        throw conflict(
+          'LOCATION_IN_USE',
           'A used location cannot be deleted; deactivate it instead',
         );
       throw error;
@@ -412,7 +417,10 @@ export class InventoryService {
             where: { id: line.variant_id },
           });
           if (!location?.is_active || !location.warehouse.is_active)
-            throw new ConflictException('Opening location is inactive');
+            throw conflict(
+              'OPENING_LOCATION_INACTIVE',
+              'Opening location is inactive',
+            );
           if (!variant)
             throw new NotFoundException('Product variant not found');
           this.requireQuantityUnit(quantity, variant.whole_units_only);
@@ -527,7 +535,10 @@ export class InventoryService {
           if (!batch) throw new NotFoundException('Inventory lot not found');
           this.requireQuantityUnit(quantity, batch.variant.whole_units_only);
           if (!destination?.is_active || !destination.warehouse.is_active)
-            throw new ConflictException('Destination is inactive');
+            throw conflict(
+              'TRANSFER_DESTINATION_INACTIVE',
+              'Destination is inactive',
+            );
           await this.lockBalance(tx, line.batch_id, line.from_location_id);
           const source = await tx.batchStock.findUnique({
             where: {
@@ -538,7 +549,8 @@ export class InventoryService {
             },
           });
           if (!source || source.quantity.minus(source.reserved).lt(quantity))
-            throw new ConflictException(
+            throw conflict(
+              'TRANSFER_EXCEEDS_AVAILABLE_STOCK',
               'Transfer quantity exceeds unreserved stock',
             );
           await tx.batchStock.update({
@@ -678,7 +690,10 @@ export class InventoryService {
         });
         if (!count) throw new NotFoundException('Stock count not found');
         if (count.status !== 'draft')
-          throw new ConflictException('Stock count is already approved');
+          throw conflict(
+            'STOCK_COUNT_ALREADY_APPROVED',
+            'Stock count is already approved',
+          );
         assertDifferentActor(
           actorId,
           count.created_by,
@@ -709,7 +724,8 @@ export class InventoryService {
           },
         });
         if (changed)
-          throw new ConflictException(
+          throw conflict(
+            'STOCK_COUNT_SNAPSHOT_STALE',
             'Stock moved within the count scope after the snapshot',
           );
         const supplied = new Map(
@@ -875,7 +891,8 @@ export class InventoryService {
           if (!balance)
             throw new NotFoundException('Inventory balance not found');
           if (balance.location.is_sellable)
-            throw new ConflictException(
+            throw conflict(
+              'WRITE_DOWN_LOCATION_SELLABLE',
               'Write-down stock must first be moved to a non-sellable location',
             );
           this.requireQuantityUnit(
@@ -883,7 +900,10 @@ export class InventoryService {
             balance.batch.variant.whole_units_only,
           );
           if (balance.quantity.lt(quantity))
-            throw new ConflictException('Write-down quantity exceeds stock');
+            throw conflict(
+              'WRITE_DOWN_EXCEEDS_STOCK',
+              'Write-down quantity exceeds stock',
+            );
           const reservationReduction = balance.reserved.minus(
             balance.quantity.minus(quantity),
           );
@@ -909,7 +929,10 @@ export class InventoryService {
           });
         }
         if (!total.gt(0))
-          throw new ConflictException('Write-down has no book value');
+          throw conflict(
+            'WRITE_DOWN_HAS_NO_BOOK_VALUE',
+            'Write-down has no book value',
+          );
         const entry = await this.ledger.post(tx, {
           sourceType: 'inventory_write_down',
           sourceId: id,
@@ -1433,7 +1456,10 @@ export class InventoryService {
       orderBy: { id: 'asc' },
     });
     if (!reservations.length)
-      throw new ConflictException('Order has no active stock reservations');
+      throw conflict(
+        'ORDER_HAS_NO_STOCK_RESERVATIONS',
+        'Order has no active stock reservations',
+      );
     let total = D(0);
     for (const row of reservations) {
       await this.lockBalance(tx, row.batch_id, row.location_id);
@@ -1571,16 +1597,23 @@ export class InventoryService {
         holding.order_id !== input.orderId ||
         holding.custody_party_id !== input.partyId
       ) {
-        throw new ConflictException(
+        throw conflict(
+          'CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY',
           'Custody holding does not belong to this order and party',
         );
       }
       if (holding.status !== 'in_custody') {
-        throw new ConflictException('Goods are no longer in custody');
+        throw conflict(
+          'GOODS_NOT_IN_CUSTODY',
+          'Goods are no longer in custody',
+        );
       }
       const quantity = this.positive(supplied.quantity, 'quantity');
       if (quantity.gt(holding.remaining_quantity)) {
-        throw new ConflictException('Exception quantity exceeds goods custody');
+        throw conflict(
+          'CUSTODY_EXCEPTION_EXCEEDS_GOODS',
+          'Exception quantity exceeds goods custody',
+        );
       }
       const remaining = holding.remaining_quantity.minus(quantity);
       await tx.custodyHolding.update({
@@ -1651,12 +1684,14 @@ export class InventoryService {
         holding.order_id !== input.orderId ||
         holding.custody_party_id !== input.partyId
       ) {
-        throw new ConflictException(
+        throw conflict(
+          'CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY',
           'Custody holding does not belong to this order and party',
         );
       }
       if (holding.status !== 'sold') {
-        throw new ConflictException(
+        throw conflict(
+          'RETURN_REQUIRES_SOLD_CUSTODY',
           'Only goods previously settled from custody can be returned',
         );
       }
@@ -1684,7 +1719,8 @@ export class InventoryService {
         .minus(priorReturns._sum.quantity ?? 0)
         .minus(priorExceptions._sum.quantity ?? 0);
       if (quantity.gt(available)) {
-        throw new ConflictException(
+        throw conflict(
+          'RETURN_EXCEEDS_ISSUED_QUANTITY',
           'Return quantity exceeds the original issued quantity',
         );
       }
@@ -1693,7 +1729,10 @@ export class InventoryService {
         include: { warehouse: true },
       });
       if (!location?.is_active || !location.warehouse.is_active) {
-        throw new ConflictException('Chosen return location is inactive');
+        throw conflict(
+          'RETURN_LOCATION_INACTIVE',
+          'Chosen return location is inactive',
+        );
       }
       await this.lockBalance(tx, holding.batch_id, supplied.location_id);
       await tx.batchStock.upsert({
@@ -1769,7 +1808,8 @@ export class InventoryService {
         if (
           holding.remaining_quantity.plus(line.quantity).gt(holding.quantity)
         ) {
-          throw new ConflictException(
+          throw conflict(
+            'CUSTODY_EXCEPTION_REVERSAL_UNSAFE',
             'Custody exception can no longer be reversed safely',
           );
         }
@@ -1798,7 +1838,10 @@ export class InventoryService {
       }
       if (input.type === 'return_against_uncollected') {
         if (!line.location_id) {
-          throw new ConflictException('Return exception location is missing');
+          throw conflict(
+            'RETURN_EXCEPTION_LOCATION_MISSING',
+            'Return exception location is missing',
+          );
         }
         await this.lockBalance(tx, line.batch_id, line.location_id);
         const balance = await tx.batchStock.findUnique({
@@ -1814,7 +1857,8 @@ export class InventoryService {
           !balance ||
           balance.quantity.minus(balance.reserved).lt(line.quantity)
         ) {
-          throw new ConflictException(
+          throw conflict(
+            'RETURNED_STOCK_UNAVAILABLE',
             'Returned stock is no longer available for reversal',
           );
         }
@@ -1947,20 +1991,28 @@ export class InventoryService {
     });
     if (!order) throw new NotFoundException('Order not found');
     if (outcome === 'retry' && order.status !== 'failed')
-      throw new ConflictException(
+      throw conflict(
+        'RETRIEVAL_RETRY_REQUIRES_FAILED_ORDER',
         'Only a failed order can be retrieved for retry',
       );
     if (outcome === 'cancel' && order.status !== 'cancelled')
-      throw new ConflictException(
+      throw conflict(
+        'RETRIEVAL_CANCEL_REQUIRES_CANCELLED_ORDER',
         'Cancellation retrieval requires a cancelled order',
       );
     if (!order.delivery || !order.delivery.agent_id)
-      throw new ConflictException('Order has no delivery custody party');
+      throw conflict(
+        'ORDER_HAS_NO_CUSTODY_PARTY',
+        'Order has no delivery custody party',
+      );
     const existing = await tx.retrieval.findFirst({
       where: { order_id: orderId, status: { not: 'closed' } },
     });
     if (existing)
-      throw new ConflictException('An open retrieval already exists');
+      throw conflict(
+        'RETRIEVAL_ALREADY_OPEN',
+        'An open retrieval already exists',
+      );
     const holdings = await tx.custodyHolding.findMany({
       where: {
         order_id: orderId,
@@ -1971,7 +2023,10 @@ export class InventoryService {
       orderBy: { id: 'asc' },
     });
     if (!holdings.length)
-      throw new ConflictException('Order has no goods remaining in custody');
+      throw conflict(
+        'ORDER_HAS_NO_CUSTODY_GOODS',
+        'Order has no goods remaining in custody',
+      );
     const date = businessDate();
     const number = await this.numbers.issue(tx, 'retrieval', 'RET', date);
     const retrieval = await tx.retrieval.create({
@@ -2046,7 +2101,10 @@ export class InventoryService {
         });
         if (!retrieval) throw new NotFoundException('Retrieval not found');
         if (retrieval.status === 'closed')
-          throw new ConflictException('Retrieval is already closed');
+          throw conflict(
+            'RETRIEVAL_ALREADY_CLOSED',
+            'Retrieval is already closed',
+          );
         let total = D(0);
         for (const supplied of input.lines) {
           const line = retrieval.lines.find(
@@ -2058,7 +2116,8 @@ export class InventoryService {
             line.received_quantity,
           );
           if (quantity.gt(outstanding))
-            throw new ConflictException(
+            throw conflict(
+              'RETRIEVAL_EXCEEDS_BALANCE',
               'Received quantity exceeds retrieval balance',
             );
           const location = await tx.warehouseLocation.findUnique({
@@ -2066,7 +2125,8 @@ export class InventoryService {
             include: { warehouse: true },
           });
           if (!location?.is_active || !location.warehouse.is_active)
-            throw new ConflictException(
+            throw conflict(
+              'RETRIEVAL_LOCATION_INACTIVE',
               'Chosen retrieval location is inactive',
             );
           await tx.$queryRaw`SELECT id FROM custody_holdings WHERE id = ${line.custody_holding_id}::uuid FOR UPDATE`;
@@ -2074,7 +2134,10 @@ export class InventoryService {
             where: { id: line.custody_holding_id },
           });
           if (quantity.gt(holding.remaining_quantity))
-            throw new ConflictException('Retrieval exceeds goods in custody');
+            throw conflict(
+              'RETRIEVAL_EXCEEDS_CUSTODY',
+              'Retrieval exceeds goods in custody',
+            );
           await this.lockBalance(tx, line.batch_id, supplied.location_id);
           await tx.batchStock.upsert({
             where: {
@@ -2301,7 +2364,10 @@ export class InventoryService {
         },
       });
       if (!reservation)
-        throw new ConflictException('Original issue location is unavailable');
+        throw conflict(
+          'ORIGINAL_ISSUE_LOCATION_UNAVAILABLE',
+          'Original issue location is unavailable',
+        );
       first ||= origin.batch_id;
       await tx.batchStock.upsert({
         where: {
@@ -2341,7 +2407,8 @@ export class InventoryService {
       remaining = remaining.minus(amount);
     }
     if (remaining.gt(0))
-      throw new ConflictException(
+      throw conflict(
+        'RETURN_EXCEEDS_ISSUED_QUANTITY',
         'Return exceeds the quantity issued from inventory',
       );
     if (returnedValue.gt(0))
@@ -2376,7 +2443,8 @@ export class InventoryService {
     const nextQuantity = current.book_quantity.plus(quantity);
     const nextValue = current.book_value_iqd.plus(quantity.times(unitCost));
     if (nextQuantity.lt(0) || nextValue.lt(0))
-      throw new ConflictException(
+      throw conflict(
+        'INVENTORY_COST_NEGATIVE',
         'Inventory cost balance would become negative',
       );
     await tx.skuCost.update({
@@ -2398,7 +2466,8 @@ export class InventoryService {
     const row = await tx.skuCost.findUnique({
       where: { variant_id: variantId },
     });
-    if (!row) throw new ConflictException('SKU has no inventory cost record');
+    if (!row)
+      throw conflict('SKU_COST_NOT_FOUND', 'SKU has no inventory cost record');
     return row.average_cost_iqd;
   }
 

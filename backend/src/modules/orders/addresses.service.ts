@@ -1,10 +1,10 @@
 import {
-  ConflictException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { conflict } from '../../common/http/api-error';
 import {
   AddressCreateDto,
   AddressPatchDto,
@@ -64,7 +64,8 @@ export class AddressesService {
       });
       if (!current) throw new NotFoundException('Address not found');
       if (input.is_default === false && current.is_default)
-        throw new ConflictException(
+        throw conflict(
+          'ONLY_DEFAULT_ADDRESS_REQUIRED',
           'The only default cannot be cleared; set another address as default',
         );
       if (input.is_default === true)

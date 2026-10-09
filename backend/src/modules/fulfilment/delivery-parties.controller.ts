@@ -25,6 +25,7 @@ import {
   CustodyOverviewQueryDto,
   DeliveryPartyKind,
   DeliveryPartyQueryDto,
+  PartyCashActivityQueryDto,
   PartyStatementQueryDto,
   UpdateExternalDriverDto,
 } from './dto/delivery-party.dto';
@@ -102,6 +103,15 @@ export class DeliveryPartiesController {
       query,
       request.user.permissions.includes('cost.view'),
     );
+  }
+
+  @Get(':id/cash-activity')
+  @AdminPolicy('deliveries.manage')
+  cashActivity(
+    @Param('id', uuid) id: string,
+    @Query() query: PartyCashActivityQueryDto,
+  ) {
+    return this.parties.cashActivity(id, query);
   }
 
   @Get(':id/orders')

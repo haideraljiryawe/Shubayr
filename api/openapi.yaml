@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 13.4.0
+  version: 14.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -348,6 +348,7 @@ paths:
     patch:
       tags: [Addresses]
       summary: Update an address
+      x-error-codes: [ONLY_DEFAULT_ADDRESS_REQUIRED]
       description: Only the owner may update it. Setting is_default=true atomically clears the prior default. Clearing the only default while addresses remain returns 409.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -526,7 +527,7 @@ paths:
     post:
       tags: [Cart]
       summary: Add an item to the cart
-      x-error-codes: [IDEMPOTENCY_KEY_REUSED]
+      x-error-codes: [IDEMPOTENCY_KEY_REUSED, REQUESTED_QUANTITY_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY]
       description: An optional Idempotency-Key makes retries repeat-safe. Reusing the key with the same body returns the cart without adding again; a different body returns 409.
       parameters:
         - name: Idempotency-Key
@@ -557,7 +558,7 @@ paths:
     post:
       tags: [Cart]
       summary: Atomically merge a guest basket into the authenticated cart
-      x-error-codes: [IDEMPOTENCY_KEY_REUSED]
+      x-error-codes: [IDEMPOTENCY_KEY_REUSED, REQUESTED_QUANTITY_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY]
       description: The entire guest basket is merged under the cart lock. Replaying the same key and body is a no-op; a simultaneous add is serialized and retained exactly once.
       parameters:
         - name: Idempotency-Key
@@ -609,6 +610,7 @@ paths:
     patch:
       tags: [Cart]
       summary: Update a cart item quantity
+      x-error-codes: [REQUESTED_QUANTITY_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -718,7 +720,7 @@ paths:
     post:
       tags: [Orders]
       summary: Place a Cash-on-Delivery order
-      x-error-codes: [PRICE_CHANGED]
+      x-error-codes: [PRICE_CHANGED, IDEMPOTENCY_KEY_REUSED, CART_EMPTY, CART_QUANTITY_INVALID, CART_PRODUCT_UNAVAILABLE, CART_VARIANT_UNAVAILABLE, CART_SKU_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY, COUPON_INVALID]
       description: >
         Atomically reprices and consumes the caller's server cart using server-time
         effective prices, creates status=pending, a pending COD payment and a
@@ -772,6 +774,7 @@ paths:
     get:
       tags: [Orders]
       summary: Order detail
+      x-error-codes: [ORDER_ACCESS_FORBIDDEN]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "200":
@@ -785,6 +788,7 @@ paths:
     get:
       tags: [Orders]
       summary: Order status timeline
+      x-error-codes: [ORDER_ACCESS_FORBIDDEN]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "200":
@@ -798,7 +802,7 @@ paths:
     post:
       tags: [Orders]
       summary: Cancel a pending order and release its inventory reservations
-      x-error-codes: [STALE_ORDER_STATE]
+      x-error-codes: [ORDER_ACCESS_FORBIDDEN, STALE_ORDER_STATE, PAID_COD_CANCELLATION_FORBIDDEN, ORDER_TRANSITION_NOT_ALLOWED]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -830,7 +834,7 @@ paths:
         preparing: orders.prepare
         ready_for_dispatch: orders.mark_ready
         dispatched: orders.handover
-      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, ORDER_NEEDS_ATTENTION]
+      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, ORDER_NEEDS_ATTENTION, ORDER_DELIVERY_MISSING, DELIVERY_AGENT_NOT_ASSIGNED, ORDER_TRANSITION_NOT_ALLOWED, ORDER_HAS_NO_STOCK_RESERVATIONS, SKU_COST_NOT_FOUND, INVENTORY_COST_NEGATIVE]
       description: >
         Supports the same pre-dispatch transitions as
         PATCH /admin/orders/{id}/status. Use the dedicated admin endpoint for
@@ -863,7 +867,7 @@ paths:
     post:
       tags: [Orders]
       summary: Request cancellation after the pending state
-      x-error-codes: [STALE_ORDER_STATE]
+      x-error-codes: [ORDER_ACCESS_FORBIDDEN, STALE_ORDER_STATE, CANCELLATION_REQUEST_NOT_ALLOWED, CANCELLATION_REQUEST_ALREADY_PENDING]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -891,7 +895,7 @@ paths:
     post:
       tags: [Orders]
       summary: Accept or deny a proposed preparation quantity reduction
-      x-error-codes: [STALE_ORDER_STATE]
+      x-error-codes: [ORDER_ACCESS_FORBIDDEN, STALE_ORDER_STATE, QUANTITY_REDUCTION_NOT_PENDING]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -1212,6 +1216,7 @@ paths:
     post:
       tags: [Purchasing]
       summary: Create a purchase invoice (draft)
+      x-error-codes: [RECEIVING_LOCATION_INACTIVE, SUPPLIER_INVOICE_NUMBER_DUPLICATE, PURCHASE_RATE_OVERRIDE_REQUIRED, SUPPLIER_INACTIVE, INVENTORY_COST_NEGATIVE, PERIOD_CLOSED]
       x-permission: purchases.create
       requestBody:
         required: true
@@ -1278,6 +1283,7 @@ paths:
     post:
       tags: [Purchasing]
       summary: Post a supplier opening balance against owner equity
+      x-error-codes: [PURCHASE_RATE_OVERRIDE_REQUIRED, SUPPLIER_INACTIVE, PERIOD_CLOSED]
       x-permission: supplier_openings.record
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierOpeningInput" } } } }
@@ -1322,6 +1328,7 @@ paths:
     post:
       tags: [Purchasing]
       summary: Pay and explicitly allocate supplier invoices
+      x-error-codes: [CASH_ACCOUNT_INACTIVE, PAYMENT_ALLOCATION_EXCEEDS_AMOUNT, PAYMENT_ALLOCATION_EXCEEDS_INVOICE, PURCHASE_RATE_OVERRIDE_REQUIRED, SUPPLIER_INACTIVE, PERIOD_CLOSED]
       description: >
         The payment and every allocation amount use the cash account currency.
         Each allocation is converted to its invoice currency at the applicable
@@ -1349,6 +1356,7 @@ paths:
     post:
       tags: [Purchasing]
       summary: Allocate an existing supplier credit to an invoice
+      x-error-codes: [CREDIT_ALLOCATION_EXCEEDS_INVOICE, CREDIT_ALLOCATION_EXCEEDS_CREDIT, PERIOD_CLOSED]
       x-permission: supplier_credits.allocate
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierCreditAllocationInput" } } } }
@@ -1362,6 +1370,7 @@ paths:
     post:
       tags: [Purchasing]
       summary: Return unreserved quantity from specific purchased lots
+      x-error-codes: [RETURN_WRONG_INVOICE, RETURN_TERMS_MISMATCH, SUPPLIER_RETURN_EXCEEDS_STOCK, PURCHASE_RATE_OVERRIDE_REQUIRED, SUPPLIER_INACTIVE, INVENTORY_COST_NEGATIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       x-permission: supplier_returns.create
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierReturnInput" } } } }
       responses:
@@ -1374,6 +1383,7 @@ paths:
     post:
       tags: [Purchasing]
       summary: Split a late cost or correction across stock, custody and COGS
+      x-error-codes: [LOT_QUANTITY_INCONSISTENT, INVENTORY_COST_NEGATIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       x-permission: purchases.correct
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseCostCorrectionInput" } } } }
       responses:
@@ -2265,6 +2275,7 @@ paths:
     get:
       tags: [Admin, Deliveries]
       summary: Read a party's goods-custody statement with running balances
+      x-error-codes: [DATE_RANGE_INVALID]
       x-permission: deliveries.manage
       parameters:
         - { $ref: "#/components/parameters/PathId" }
@@ -2279,6 +2290,30 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DeliveryPartyStatementPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/delivery-parties/{id}/cash-activity:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Read a party's separately paginated cash-custody activity
+      description: Cash collections, receipts, receipt reversals, party liabilities, liability reversals, and trip-fare netting are paginated independently from the goods statement.
+      x-permission: deliveries.manage
+      x-error-codes: [DATE_RANGE_INVALID]
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Paginated cash-custody activity with a running balance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryPartyCashActivityPage" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -2399,6 +2434,7 @@ paths:
     get:
       tags: [Admin, Deliveries]
       summary: List external-driver trips
+      x-error-codes: [DATE_RANGE_INVALID]
       x-permission: trips.view
       parameters:
         - { name: driver_party_id, in: query, schema: { type: string, format: uuid } }
@@ -2418,6 +2454,7 @@ paths:
     post:
       tags: [Admin, Deliveries]
       summary: Create a numbered external-driver trip and fare agreement
+      x-error-codes: [CUSTOMER_DIRECT_SETTLEMENT_REQUIRED, STORE_FARE_CUSTOMER_DIRECT_FORBIDDEN, TRIP_CASH_ACCOUNT_NOT_ALLOWED, TRIP_FARE_ACCOUNT_INVALID, AMOUNT_NEGATIVE, PERIOD_CLOSED]
       description: Records exactly one store-paid or customer-direct fare before handover. A customer-direct fare never enters store revenue, expense, payable, collection, or netting.
       x-permission: trips.manage
       requestBody:
@@ -2456,7 +2493,7 @@ paths:
       summary: Add and hand over one ready order to the trip driver
       description: Atomically reuses the delivery handover and goods-custody posting. For customer-direct fares the store delivery fee must be zero and documented customer acceptance is required.
       x-permission: trips.manage
-      x-error-codes: [DOUBLE_DELIVERY_CHARGE, STALE_ORDER_STATE]
+      x-error-codes: [TRIP_NOT_OPEN_FOR_ORDER, TRIP_ORDER_NOT_ASSIGNED, DOUBLE_DELIVERY_CHARGE, CUSTOMER_ACCEPTANCE_NOTE_REQUIRED, STALE_ORDER_STATE]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -2477,6 +2514,7 @@ paths:
     post:
       tags: [Admin, Deliveries]
       summary: Start a prepared external-driver trip
+      x-error-codes: [TRIP_NOT_OPEN_FOR_START, TRIP_HAS_NO_ORDERS, TRIP_FARE_SHARES_MISMATCH]
       description: Fare shares must sum to the trip's one fare before it starts.
       x-permission: trips.manage
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
@@ -2501,7 +2539,7 @@ paths:
       summary: Operationally close and settle an external-driver trip
       description: Accrues one store-paid fare and optionally pays or nets it. Short cash remains open custody and excess receipts remain unallocated; neither becomes income, pay or loss automatically.
       x-permission: trips.settle
-      x-error-codes: [TRIP_ORDERS_UNRESOLVED, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [TRIP_NOT_IN_PROGRESS, SELF_TRIP_CLOSE_FORBIDDEN, TRIP_ORDERS_UNRESOLVED, TRIP_FARE_EXCEEDS_UNSETTLED_CASH, TRIP_FARE_NETTING_INCOMPLETE, TRIP_FARE_ACCOUNT_INVALID, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -2537,7 +2575,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Advance an order through its pre-dispatch lifecycle
-      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, ORDER_NEEDS_ATTENTION]
+      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, ORDER_NEEDS_ATTENTION, ORDER_DELIVERY_MISSING, DELIVERY_AGENT_NOT_ASSIGNED, ORDER_TRANSITION_NOT_ALLOWED, ORDER_HAS_NO_STOCK_RESERVATIONS, SKU_COST_NOT_FOUND, INVENTORY_COST_NEGATIVE]
       x-surface: admin
       x-permission-by-status:
         confirmed: orders.accept
@@ -2581,7 +2619,7 @@ paths:
     post:
       tags: [Admin]
       summary: Cancel a pre-dispatch order and release its stock holds
-      x-error-codes: [STALE_ORDER_STATE]
+      x-error-codes: [STALE_ORDER_STATE, PAID_COD_CANCELLATION_FORBIDDEN, ORDER_TRANSITION_NOT_ALLOWED]
       x-permission: orders.cancel
       description: >
         Allowed only from pending, confirmed, preparing, or ready_for_dispatch.
@@ -2613,7 +2651,7 @@ paths:
     post:
       tags: [Admin]
       summary: Reject a pending order and release its stock holds
-      x-error-codes: [STALE_ORDER_STATE]
+      x-error-codes: [STALE_ORDER_STATE, ORDER_NOT_PENDING]
       x-permission: orders.reject
       description: >
         Rejection is distinct from cancellation and is allowed only while the
@@ -2648,7 +2686,7 @@ paths:
     post:
       tags: [Admin]
       summary: Approve or deny a customer cancellation request
-      x-error-codes: [STALE_ORDER_STATE]
+      x-error-codes: [STALE_ORDER_STATE, CANCELLATION_REQUEST_NOT_PENDING, ORDERS_CANCEL_AFTER_DISPATCH_REQUIRED, ORDER_CANCELLATION_NOT_ALLOWED, PAID_COD_CANCELLATION_FORBIDDEN, ORDER_TRANSITION_NOT_ALLOWED, SEPARATION_OF_DUTIES_VIOLATION]
       x-permission: orders.cancel_request.resolve
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2678,7 +2716,7 @@ paths:
     post:
       tags: [Admin]
       summary: Propose a reduction or cancel a short line/order
-      x-error-codes: [STALE_ORDER_STATE]
+      x-error-codes: [STALE_ORDER_STATE, ORDER_SHORTAGE_NOT_FOUND, PAID_COD_CANCELLATION_FORBIDDEN, ORDER_TRANSITION_NOT_ALLOWED]
       x-permission: orders.shortage.resolve
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2758,6 +2796,7 @@ paths:
     post:
       tags: [Fulfilment]
       summary: Open a retrieval for a failed or cancelled order returning to the store
+      x-error-codes: [RETRIEVAL_RETRY_REQUIRES_FAILED_ORDER, RETRIEVAL_CANCEL_REQUIRES_CANCELLED_ORDER, ORDER_HAS_NO_CUSTODY_PARTY, RETRIEVAL_ALREADY_OPEN, ORDER_HAS_NO_CUSTODY_GOODS]
       x-permission: retrieval.open
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2825,6 +2864,7 @@ paths:
     post:
       tags: [Fulfilment]
       summary: Receive a full or partial retrieval at original issue cost
+      x-error-codes: [RETRIEVAL_ALREADY_CLOSED, RETRIEVAL_EXCEEDS_BALANCE, RETRIEVAL_LOCATION_INACTIVE, RETRIEVAL_EXCEEDS_CUSTODY, INVENTORY_COST_NEGATIVE]
       x-permission: retrieval.receive
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2886,7 +2926,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create a product
-      x-error-codes: [BELOW_COST_BLOCKED]
+      x-error-codes: [BELOW_COST_BLOCKED, VARIANT_SKUS_DUPLICATED, VARIANT_SKU_DUPLICATE, BASE_CURRENCY_NOT_CONFIGURED]
       description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
       x-permissions: [catalog.products, prices.change]
       requestBody:
@@ -2920,7 +2960,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a product
-      x-error-codes: [BELOW_COST_BLOCKED]
+      x-error-codes: [BELOW_COST_BLOCKED, VARIANT_SKUS_DUPLICATED, VARIANT_SKU_DUPLICATE, BASE_CURRENCY_NOT_CONFIGURED]
       description: >
         Omitted fields are preserved. Explicit null clears only nullable fields;
         `discount_type: null` clears the complete stored discount definition.
@@ -3528,6 +3568,7 @@ paths:
     post:
       tags: [Finance]
       summary: Preview a pricing rate across every linked SKU
+      x-error-codes: [FOREIGN_CURRENCY_REQUIRED, BASE_CURRENCY_NOT_CONFIGURED]
       description: Returns old/new prices and signed percentage changes plus a short-lived, actor-bound token. No rate or product price is changed.
       x-surface: admin
       x-permission: fx_rates.update
@@ -3544,6 +3585,7 @@ paths:
     post:
       tags: [Finance]
       summary: Save the previewed rate without publishing linked prices
+      x-error-codes: [STALE_PRICE_PREVIEW]
       description: Linked SKUs keep their published price and are marked as awaiting this new rate.
       x-surface: admin
       x-permission: fx_rates.update
@@ -3561,6 +3603,7 @@ paths:
     post:
       tags: [Finance]
       summary: Atomically save a rate and publish one linked-price version
+      x-error-codes: [STALE_PRICE_PREVIEW, BASE_CURRENCY_NOT_CONFIGURED]
       description: Refuses an expired or stale preview. Conversion and configured upward rounding occur before product discounts. If a resulting price is below protected cost, no rate or price is saved; a pending approval request is created for a different user to approve or reject.
       x-surface: admin
       x-permissions: [fx_rates.update, prices.publish_linked]
@@ -3578,6 +3621,7 @@ paths:
     get:
       tags: [Finance]
       summary: List below-cost price-publish approval requests
+      x-error-codes: [DATE_RANGE_INVALID]
       description: Approvers can discover all requests; price proposers can read only their own requests. Cost fields require cost.view.
       x-surface: admin
       x-any-permissions: [sell_below_cost.approve, prices.change, prices.publish_linked]
@@ -3615,7 +3659,7 @@ paths:
       description: The authenticated proposer is stored server-side and can never decide their own request.
       x-surface: admin
       x-permission: sell_below_cost.approve
-      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, STALE_PRICE_APPROVAL]
+      x-error-codes: [APPROVAL_ALREADY_DECIDED, SELF_APPROVAL_FORBIDDEN, FIXED_PRICE_APPROVALS_UNAVAILABLE, FIXED_PRICE_PROPOSAL_UNAVAILABLE, PRICE_PREVIEW_UNAVAILABLE, STALE_PRICE_APPROVAL, STALE_PRICE_PREVIEW, BASE_CURRENCY_NOT_CONFIGURED]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody:
         required: true
@@ -3853,6 +3897,7 @@ paths:
     get:
       tags: [Finance, Deliveries]
       summary: List delivery-party cash receipt vouchers
+      x-error-codes: [DATE_RANGE_INVALID]
       x-surface: admin
       x-permission: deliveries.manage
       parameters:
@@ -3861,6 +3906,8 @@ paths:
         - { name: date_from, in: query, schema: { type: string, format: date } }
         - { name: date_to, in: query, schema: { type: string, format: date } }
         - { name: status, in: query, schema: { type: string, enum: [active, reversed] } }
+        - { name: sort_by, in: query, schema: { type: string, enum: [date, amount], default: date } }
+        - { name: sort_direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -3874,7 +3921,7 @@ paths:
       x-surface: admin
       x-permission: cash_receipts.receive
       x-conditional-permission: { when: allocations are present, permission: cash_receipts.allocate }
-      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [RECEIPT_ALLOCATION_PERMISSION_REQUIRED, DELIVERY_PARTY_INACTIVE, CASH_ACCOUNT_INACTIVE, CASH_RECEIPT_REQUIRES_IQD_ACCOUNT, RECEIPT_EXCEEDS_CASH_CUSTODY, ALLOCATION_ORDER_DUPLICATED, ALLOCATION_COLLECTION_NOT_FOUND, ALLOCATION_WRONG_PARTY, ALLOCATION_COLLECTION_UNCONFIRMED, ORDER_ALREADY_RECEIPTED, ALLOCATION_EXCEEDS_COLLECTED, ALLOCATION_EXCEEDS_RECEIPT, AMOUNT_NOT_NUMERIC, AMOUNT_NOT_POSITIVE, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptCreateInput" } } } }
       responses:
         "201": { description: Posted cash receipt, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptVoucher" } } } }
@@ -3886,6 +3933,7 @@ paths:
     get:
       tags: [Finance, Deliveries]
       summary: List active receipts with an unallocated remainder
+      x-error-codes: [DATE_RANGE_INVALID]
       x-surface: admin
       x-permission: deliveries.manage
       parameters:
@@ -3893,6 +3941,8 @@ paths:
         - { name: cash_account_id, in: query, schema: { type: string, format: uuid } }
         - { name: date_from, in: query, schema: { type: string, format: date } }
         - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: sort_by, in: query, schema: { type: string, enum: [date, amount], default: date } }
+        - { name: sort_direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -3914,6 +3964,19 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/cash-receipts/reconciliation:
+    get:
+      tags: [Finance, Deliveries]
+      summary: Reconcile the unallocated-receipt subledger
+      description: Proves total receipts minus active allocations minus full reversed receipts equals total unallocated, overall and per delivery party. No separate GL account is introduced.
+      x-surface: admin
+      x-permission: deliveries.manage
+      parameters:
+        - { name: party_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Overall and per-party receipt subledger reconciliation, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptReconciliation" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/cash-receipts/{id}:
     get:
       tags: [Finance, Deliveries]
@@ -3933,7 +3996,7 @@ paths:
       description: Partial allocation is allowed. Orders must belong to the receipt party and allocations cannot exceed either the receipt remainder or an order's confirmed collected amount.
       x-surface: admin
       x-permission: cash_receipts.allocate
-      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [RECEIPT_ALLOCATION_REVERSED, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, ALLOCATION_ORDER_DUPLICATED, ALLOCATION_COLLECTION_NOT_FOUND, ALLOCATION_WRONG_PARTY, ALLOCATION_COLLECTION_UNCONFIRMED, ORDER_ALREADY_RECEIPTED, ALLOCATION_EXCEEDS_COLLECTED, ALLOCATION_EXCEEDS_RECEIPT, AMOUNT_NOT_NUMERIC, AMOUNT_NOT_POSITIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptAllocateInput" } } } }
       responses:
@@ -3949,7 +4012,7 @@ paths:
       description: The reversal restores party cash custody and makes every allocation on the original receipt ineffective; the original rows remain unchanged.
       x-surface: admin
       x-permission: cash_receipts.reverse
-      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [RECEIPT_REVERSAL_ALREADY_REVERSED, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, SELF_REVERSAL_FORBIDDEN, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptReversalInput" } } } }
       responses:
@@ -3963,6 +4026,7 @@ paths:
     get:
       tags: [Finance, Deliveries]
       summary: List custody exception documents
+      x-error-codes: [DATE_RANGE_INVALID]
       x-surface: admin
       x-permission: custody_exceptions.view
       parameters:
@@ -3986,7 +4050,7 @@ paths:
       description: Records selected custody holdings at original issue cost, reduces goods custody once, and applies the phase-3 exception_handover or exception_loss map according to liability bearer.
       x-surface: admin
       x-permission: custody_exceptions.loss
-      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [ORDER_HAS_NO_CUSTODY_PARTY, GOODS_LOSS_STATUS_INVALID, CUSTODY_COST_UNAVAILABLE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, GOODS_NOT_IN_CUSTODY, CUSTODY_EXCEPTION_EXCEEDS_GOODS, CUSTODY_HOLDING_DUPLICATED, AMOUNT_NOT_POSITIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GoodsCustodyExceptionInput" } } } }
       responses:
         "201": { description: Immutable goods custody exception, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
@@ -4002,7 +4066,7 @@ paths:
       description: Restocks goods at original issue cost and applies return value to the open uncollected amount before creating any refund payable. Existing receipt allocations are unchanged because only the uncollected shortfall is reduced.
       x-surface: admin
       x-permission: custody_exceptions.return_uncollected
-      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [RETURN_REQUIRES_CONFIRMED_SHORTFALL, RETURN_SHORTFALL_RESOLVED, ORDER_ITEM_UNAVAILABLE, RETURN_HAS_NO_REFUNDABLE_VALUE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, RETURN_REQUIRES_SOLD_CUSTODY, RETURN_EXCEEDS_ISSUED_QUANTITY, RETURN_LOCATION_INACTIVE, CUSTODY_HOLDING_DUPLICATED, INVENTORY_COST_NEGATIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ReturnAgainstUncollectedInput" } } } }
       responses:
         "201": { description: Immutable return-against-uncollected exception, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
@@ -4018,7 +4082,7 @@ paths:
       description: Creates the phase-3 delivery_fee_refund liability and settles it from an IQD cash account or against the order's still-uncollected amount. The cumulative active refund cannot exceed the charged delivery fee.
       x-surface: admin
       x-permission: custody_exceptions.refund_delivery_fee
-      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [REFUND_CASH_ACCOUNT_REQUIRED, REFUND_CASH_ACCOUNT_NOT_ALLOWED, DELIVERY_REVENUE_NOT_POSTED, DELIVERY_FEE_REFUND_EXCEEDS_CHARGE, REFUND_REQUIRES_ACTIVE_IQD_ACCOUNT, DELIVERY_FEE_REFUND_EXCEEDS_UNCOLLECTED, AMOUNT_NOT_POSITIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/DeliveryFeeRefundInput" } } } }
       responses:
         "201": { description: Immutable delivery-fee refund, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
@@ -4048,7 +4112,7 @@ paths:
       description: Reverses every posting and stock effect. A party-liability loss cannot be reversed after a cash receipt has consumed that liability; reverse that receipt first.
       x-surface: admin
       x-permission: custody_exceptions.reverse
-      x-error-codes: [SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [CUSTODY_EXCEPTION_ALREADY_REVERSED, SELF_REVERSAL_FORBIDDEN, RECEIPT_REVERSAL_REQUIRED, CUSTODY_EXCEPTION_REVERSAL_UNSAFE, RETURN_EXCEPTION_LOCATION_MISSING, RETURNED_STOCK_UNAVAILABLE, INVENTORY_COST_NEGATIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyExceptionReversalInput" } } } }
       responses:
@@ -4138,6 +4202,7 @@ paths:
     patch:
       tags: [Inventory]
       summary: Rename or deactivate an unused warehouse
+      x-error-codes: [WAREHOUSE_HAS_STOCK]
       x-permission: inventory.manage
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehousePatch" } } } }
@@ -4150,6 +4215,7 @@ paths:
     delete:
       tags: [Inventory]
       summary: Delete a warehouse that has never been used
+      x-error-codes: [WAREHOUSE_IN_USE]
       x-permission: inventory.manage
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       responses:
@@ -4161,6 +4227,7 @@ paths:
     post:
       tags: [Inventory]
       summary: Create a warehouse location without requiring a fixed hierarchy
+      x-error-codes: [WAREHOUSE_INACTIVE]
       x-permission: inventory.manage
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseLocationInput" } } } }
@@ -4174,6 +4241,7 @@ paths:
     patch:
       tags: [Inventory]
       summary: Update or deactivate an unused location
+      x-error-codes: [LOCATION_HAS_STOCK]
       x-permission: inventory.manage
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WarehouseLocationPatch" } } } }
@@ -4186,6 +4254,7 @@ paths:
     delete:
       tags: [Inventory]
       summary: Delete a location that has never been used
+      x-error-codes: [LOCATION_IN_USE]
       x-permission: inventory.manage
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       responses:
@@ -4259,6 +4328,7 @@ paths:
     post:
       tags: [Inventory]
       summary: Post opening inventory and its balanced ledger entry
+      x-error-codes: [OPENING_LOCATION_INACTIVE, INVENTORY_COST_NEGATIVE, PERIOD_CLOSED]
       x-permission: inventory.manage
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryOpeningInput" } } } }
       responses:
@@ -4278,6 +4348,7 @@ paths:
     post:
       tags: [Inventory]
       summary: Transfer unreserved stock between locations without changing SKU value
+      x-error-codes: [TRANSFER_DESTINATION_INACTIVE, TRANSFER_EXCEEDS_AVAILABLE_STOCK]
       x-permission: inventory.transfer
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StockTransferInput" } } } }
       responses:
@@ -4307,6 +4378,7 @@ paths:
     post:
       tags: [Inventory]
       summary: Approve a count only if its scope has not moved since snapshot
+      x-error-codes: [STOCK_COUNT_ALREADY_APPROVED, STOCK_COUNT_SNAPSHOT_STALE, INVENTORY_COST_NEGATIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
       x-permission: inventory.adjust
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StockCountApproval" } } } }
@@ -4328,6 +4400,7 @@ paths:
     post:
       tags: [Inventory]
       summary: Write down non-sellable stock to inventory loss
+      x-error-codes: [WRITE_DOWN_LOCATION_SELLABLE, WRITE_DOWN_EXCEEDS_STOCK, WRITE_DOWN_HAS_NO_BOOK_VALUE, INVENTORY_COST_NEGATIVE, PERIOD_CLOSED]
       x-permission: inventory.write_down
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryWriteDownInput" } } } }
       responses:
@@ -5678,6 +5751,8 @@ components:
       additionalProperties: true
       properties:
         id: { type: string, format: uuid }
+        created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
         supplier_id: { type: string, format: uuid }
         invoice_number: { type: [string, "null"] }
         total_cost: { type: number }
@@ -5862,6 +5937,9 @@ components:
     PurchasingDocument:
       type: object
       additionalProperties: true
+      properties:
+        created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
 
     SupplierBalance:
       type: object
@@ -6607,7 +6685,7 @@ components:
     ExternalDriverTrip:
       type: object
       additionalProperties: false
-      required: [id, document_number, status, driver, fare, settlement, orders, events, document_date, accounting_date, backdate_reason, created_by, created_at, started_by, started_at, closed_by, closed_at]
+      required: [id, document_number, status, driver, fare, settlement, orders, events, document_date, accounting_date, backdate_reason, created_by, created_by_name, created_at, started_by, started_by_name, started_at, closed_by, closed_by_name, closed_at]
       properties:
         id: { type: string, format: uuid }
         document_number: { type: string }
@@ -6670,10 +6748,13 @@ components:
         accounting_date: { type: string, format: date }
         backdate_reason: { type: [string, "null"] }
         created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
         created_at: { type: string, format: date-time }
         started_by: { type: [string, "null"], format: uuid }
+        started_by_name: { type: [string, "null"] }
         started_at: { type: [string, "null"], format: date-time }
         closed_by: { type: [string, "null"], format: uuid }
+        closed_by_name: { type: [string, "null"] }
         closed_at: { type: [string, "null"], format: date-time }
 
     ExternalDriverTripOrder:
@@ -6763,7 +6844,7 @@ components:
     ExternalDriverTripEvent:
       type: object
       additionalProperties: false
-      required: [id, trip_id, order_id, operation_id, type, source, note, event_at, recorded_by, recorded_at]
+      required: [id, trip_id, order_id, operation_id, type, source, note, event_at, recorded_by, recorded_by_name, recorded_at]
       properties:
         id: { type: string, format: uuid }
         trip_id: { type: string, format: uuid }
@@ -6774,12 +6855,13 @@ components:
         note: { type: [string, "null"] }
         event_at: { type: string, format: date-time }
         recorded_by: { type: string, format: uuid }
+        recorded_by_name: { type: string }
         recorded_at: { type: string, format: date-time }
 
     ExternalDriverTripStatement:
       type: object
       additionalProperties: false
-      required: [id, document_number, status, fare_bearer, fare_amount_iqd, fare_settlement_method, expected_cash_iqd, received_cash_iqd, netted_fare_iqd, outstanding_cash_iqd, settlement_result, order_count, document_date, started_at, closed_at]
+      required: [id, document_number, status, fare_bearer, fare_amount_iqd, fare_settlement_method, expected_cash_iqd, received_cash_iqd, netted_fare_iqd, outstanding_cash_iqd, settlement_result, order_count, document_date, created_by, created_by_name, started_by, started_by_name, started_at, closed_by, closed_by_name, closed_at]
       properties:
         id: { type: string, format: uuid }
         document_number: { type: string }
@@ -6794,7 +6876,13 @@ components:
         settlement_result: { type: [string, "null"], enum: [settled, settlement_open, null] }
         order_count: { type: integer, minimum: 0 }
         document_date: { type: string, format: date }
+        created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
+        started_by: { type: [string, "null"], format: uuid }
+        started_by_name: { type: [string, "null"] }
         started_at: { type: [string, "null"], format: date-time }
+        closed_by: { type: [string, "null"], format: uuid }
+        closed_by_name: { type: [string, "null"] }
         closed_at: { type: [string, "null"], format: date-time }
 
     ExternalDriverTripPage:
@@ -6890,21 +6978,12 @@ components:
       allOf:
         - $ref: "#/components/schemas/Pagination"
         - type: object
-          required: [party, data, cash_activity, trips]
+          required: [party, data, trips]
           properties:
             party: { $ref: "#/components/schemas/DeliveryParty" }
             data:
               type: array
               items: { $ref: "#/components/schemas/DeliveryPartyStatementEntry" }
-            cash_activity:
-              type: object
-              additionalProperties: false
-              required: [total, data]
-              properties:
-                total: { type: integer, minimum: 0 }
-                data:
-                  type: array
-                  items: { $ref: "#/components/schemas/DeliveryPartyCashStatementEntry" }
             trips:
               type: array
               items: { $ref: "#/components/schemas/ExternalDriverTripStatement" }
@@ -6936,6 +7015,17 @@ components:
               order_number: { type: string }
               amount_iqd: { type: number, exclusiveMinimum: 0 }
         running_cash_iqd: { type: number }
+
+    DeliveryPartyCashActivityPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [party, data]
+          properties:
+            party: { $ref: "#/components/schemas/DeliveryParty" }
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/DeliveryPartyCashStatementEntry" }
 
     DeliveryPartyHeldOrders:
       type: object
@@ -7713,7 +7803,7 @@ components:
     PricePublishApproval:
       type: object
       additionalProperties: false
-      required: [id, kind, preview_id, product_id, price_version_id, status, proposed_by, proposer, decided_by, decider, proposal_reason, decision_reason, sku_list, breaches, fixed_proposal, created_at, decided_at]
+      required: [id, kind, preview_id, product_id, price_version_id, status, proposed_by, proposed_by_name, proposer, decided_by, decided_by_name, decider, proposal_reason, decision_reason, sku_list, breaches, fixed_proposal, created_at, decided_at]
       properties:
         id: { type: string, format: uuid }
         kind: { type: string, enum: [linked, fixed] }
@@ -7722,6 +7812,7 @@ components:
         price_version_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [pending, approved, rejected] }
         proposed_by: { type: string, format: uuid }
+        proposed_by_name: { type: string }
         proposer:
           type: object
           additionalProperties: false
@@ -7730,6 +7821,7 @@ components:
             id: { type: string, format: uuid }
             name: { type: [string, "null"] }
         decided_by: { type: [string, "null"], format: uuid }
+        decided_by_name: { type: [string, "null"] }
         decider:
           oneOf:
             - { type: "null" }
@@ -8033,7 +8125,7 @@ components:
     CashReceiptAllocationBatch:
       type: object
       additionalProperties: false
-      required: [id, document_number, operation_id, document_date, accounting_date, backdate_reason, created_by, created_at, active, allocations]
+      required: [id, document_number, operation_id, document_date, accounting_date, backdate_reason, created_by, created_by_name, created_at, active, allocations]
       properties:
         id: { type: string, format: uuid }
         document_number: { type: string }
@@ -8042,6 +8134,7 @@ components:
         accounting_date: { type: string, format: date }
         backdate_reason: { type: [string, "null"] }
         created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
         created_at: { type: string, format: date-time }
         active: { type: boolean, description: False when the parent voucher has been reversed. }
         allocations:
@@ -8051,7 +8144,7 @@ components:
     CashReceiptReversal:
       type: object
       additionalProperties: false
-      required: [id, document_number, operation_id, voucher_id, reason, document_date, accounting_date, created_by, journal_entry_id, created_at]
+      required: [id, document_number, operation_id, voucher_id, reason, document_date, accounting_date, created_by, created_by_name, journal_entry_id, created_at]
       properties:
         id: { type: string, format: uuid }
         document_number: { type: string }
@@ -8061,13 +8154,14 @@ components:
         document_date: { type: string, format: date }
         accounting_date: { type: string, format: date }
         created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
         journal_entry_id: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
 
     CashReceiptVoucher:
       type: object
       additionalProperties: false
-      required: [id, document_number, operation_id, status, party_id, party, cash_account_id, cash_account, amount_iqd, allocated_amount_iqd, original_allocated_amount_iqd, unallocated_amount_iqd, currency, document_date, accounting_date, backdate_reason, reference, notes, created_by, journal_entry_id, created_at, allocation_batches, reversal]
+      required: [id, document_number, operation_id, status, party_id, party, cash_account_id, cash_account, amount_iqd, allocated_amount_iqd, original_allocated_amount_iqd, unallocated_amount_iqd, currency, document_date, accounting_date, backdate_reason, reference, notes, created_by, created_by_name, journal_entry_id, created_at, allocation_batches, reversal]
       properties:
         id: { type: string, format: uuid }
         document_number: { type: string }
@@ -8088,6 +8182,7 @@ components:
         reference: { type: [string, "null"] }
         notes: { type: [string, "null"] }
         created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
         journal_entry_id: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
         allocation_batches:
@@ -8107,6 +8202,42 @@ components:
             data:
               type: array
               items: { $ref: "#/components/schemas/CashReceiptVoucher" }
+
+    CashReceiptReconciliationTotals:
+      type: object
+      additionalProperties: false
+      required: [total_receipts_iqd, total_allocations_iqd, total_reversals_iqd, total_unallocated_iqd]
+      properties:
+        total_receipts_iqd: { type: number, minimum: 0 }
+        total_allocations_iqd: { type: number, minimum: 0 }
+        total_reversals_iqd: { type: number, minimum: 0 }
+        total_unallocated_iqd: { type: number, minimum: 0 }
+
+    CashReceiptPartyReconciliation:
+      allOf:
+        - { $ref: "#/components/schemas/CashReceiptReconciliationTotals" }
+        - type: object
+          required: [party]
+          properties:
+            party:
+              type: object
+              additionalProperties: false
+              required: [id, kind, name]
+              properties:
+                id: { type: string, format: uuid }
+                kind: { type: string, enum: [internal_agent, external_driver] }
+                name: { type: string }
+
+    CashReceiptReconciliation:
+      type: object
+      additionalProperties: false
+      required: [currency, overall, parties]
+      properties:
+        currency: { type: string, const: IQD }
+        overall: { $ref: "#/components/schemas/CashReceiptReconciliationTotals" }
+        parties:
+          type: array
+          items: { $ref: "#/components/schemas/CashReceiptPartyReconciliation" }
 
     CashReceiptSuggestions:
       type: object
@@ -8268,7 +8399,7 @@ components:
     CustodyExceptionReversal:
       type: object
       additionalProperties: false
-      required: [id, document_number, operation_id, reason, document_date, accounting_date, created_by, created_at, postings]
+      required: [id, document_number, operation_id, reason, document_date, accounting_date, created_by, created_by_name, created_at, postings]
       properties:
         id: { type: string, format: uuid }
         document_number: { type: string }
@@ -8277,6 +8408,7 @@ components:
         document_date: { type: string, format: date }
         accounting_date: { type: string, format: date }
         created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
         created_at: { type: string, format: date-time }
         postings:
           type: array
@@ -8285,7 +8417,7 @@ components:
     CustodyException:
       type: object
       additionalProperties: false
-      required: [id, document_number, operation_id, type, status, party_id, order_id, collection_id, liability_bearer, settlement_method, cash_account_id, amount_iqd, exception_offset_iqd, refund_payable_iqd, reason, document_date, accounting_date, backdate_reason, created_by, created_at, party, order, collection, cash_account, lines, postings, reversal]
+      required: [id, document_number, operation_id, type, status, party_id, order_id, collection_id, liability_bearer, settlement_method, cash_account_id, amount_iqd, exception_offset_iqd, refund_payable_iqd, reason, document_date, accounting_date, backdate_reason, created_by, created_by_name, created_at, party, order, collection, cash_account, lines, postings, reversal]
       properties:
         id: { type: string, format: uuid }
         document_number: { type: string }
@@ -8307,6 +8439,7 @@ components:
         accounting_date: { type: string, format: date }
         backdate_reason: { type: [string, "null"] }
         created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
         created_at: { type: string, format: date-time }
         party: { $ref: "#/components/schemas/DeliveryPartySummary" }
         order:

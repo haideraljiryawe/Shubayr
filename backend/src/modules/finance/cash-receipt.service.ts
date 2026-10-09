@@ -1,13 +1,14 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import {
+  conflict,
+  forbidden,
+  invalid,
+  notFound,
+} from '../../common/http/api-error';
+import { actorDisplayName, actorSelect } from '../../common/users/actor-name';
 import {
   assertDifferentActor,
   separationOfDutiesLevel,
@@ -17,6 +18,9 @@ import {
   AllocateCashReceiptDto,
   CashReceiptAllocationItemDto,
   CashReceiptQueryDto,
+  CashReceiptReconciliationQueryDto,
+  CashReceiptSortBy,
+  CashReceiptSortDirection,
   CashReceiptSuggestionQueryDto,
   CreateCashReceiptDto,
   ReverseCashReceiptDto,
@@ -31,6 +35,7 @@ type Actor = { id: string; permissions: readonly string[] };
 type Tx = Prisma.TransactionClient;
 
 const receiptInclude = {
+  creator: { select: actorSelect },
   party: {
     select: {
       id: true,
@@ -54,6 +59,7 @@ const receiptInclude = {
   },
   allocation_batches: {
     include: {
+      creator: { select: actorSelect },
       allocations: {
         include: {
           collection: {
@@ -67,7 +73,7 @@ const receiptInclude = {
     },
     orderBy: [{ created_at: 'asc' as const }, { id: 'asc' as const }],
   },
-  reversal: true,
+  reversal: { include: { creator: { select: actorSelect } } },
 } satisfies Prisma.CashReceiptVoucherInclude;
 
 @Injectable()
@@ -86,7 +92,8 @@ export class CashReceiptService {
       input.allocations.length &&
       !actor.permissions.includes('cash_receipts.allocate')
     ) {
-      throw new ForbiddenException(
+      throw forbidden(
+        'RECEIPT_ALLOCATION_PERMISSION_REQUIRED',
         'Allocating a new receipt requires cash_receipts.allocate',
       );
     }
@@ -116,25 +123,26 @@ export class CashReceiptService {
         ]);
         if (!party) throw new NotFoundException('Delivery party not found');
         if (!party.is_active)
-          throw new ConflictException('Delivery party is inactive');
+          throw conflict(
+            'DELIVERY_PARTY_INACTIVE',
+            'Delivery party is inactive',
+          );
         this.assertPartyActor(actor.id, party.user_id);
         if (
           input.allocations.length &&
           (await separationOfDutiesLevel(tx)) === 'strict'
         ) {
-          throw new ForbiddenException({
-            status: 403,
-            code: 'SEPARATION_OF_DUTIES_VIOLATION',
-            message:
-              'Strict separation of duties requires another user to allocate the receipt after it is created',
-            errors: [],
-          });
+          throw forbidden(
+            'SEPARATION_OF_DUTIES_VIOLATION',
+            'Strict separation of duties requires another user to allocate the receipt after it is created',
+          );
         }
         if (!cash) throw new NotFoundException('Cash account not found');
         if (!cash.is_active)
-          throw new ConflictException('Cash account is inactive');
+          throw conflict('CASH_ACCOUNT_INACTIVE', 'Cash account is inactive');
         if (cash.currency_code !== 'IQD') {
-          throw new UnprocessableEntityException(
+          throw invalid(
+            'CASH_RECEIPT_REQUIRES_IQD_ACCOUNT',
             'Delivery-party cash receipts require an IQD cash account',
           );
         }
@@ -167,7 +175,8 @@ export class CashReceiptService {
           .plus(liabilities._sum.amount_iqd ?? 0)
           .minus(priorReceipts._sum.amount_iqd ?? 0);
         if (amount.gt(cashCustody)) {
-          throw new ConflictException(
+          throw conflict(
+            'RECEIPT_EXCEEDS_CASH_CUSTODY',
             'Receipt amount exceeds the party’s cash custody balance',
           );
         }
@@ -294,7 +303,8 @@ export class CashReceiptService {
         });
         if (!voucher) throw new NotFoundException('Cash receipt not found');
         if (voucher.reversal)
-          throw new ConflictException(
+          throw conflict(
+            'RECEIPT_ALLOCATION_REVERSED',
             'A reversed cash receipt cannot be allocated',
           );
         this.assertPartyActor(actor.id, voucher.party.user_id);
@@ -302,13 +312,10 @@ export class CashReceiptService {
           actor.id === voucher.created_by &&
           (await separationOfDutiesLevel(tx)) === 'strict'
         ) {
-          throw new ForbiddenException({
-            status: 403,
-            code: 'SEPARATION_OF_DUTIES_VIOLATION',
-            message:
-              'Strict separation of duties requires another user to allocate the receipt',
-            errors: [],
-          });
+          throw forbidden(
+            'SEPARATION_OF_DUTIES_VIOLATION',
+            'Strict separation of duties requires another user to allocate the receipt',
+          );
         }
         const batch = await this.createAllocationBatch(tx, {
           actorId: actor.id,
@@ -367,12 +374,16 @@ export class CashReceiptService {
         });
         if (!voucher) throw new NotFoundException('Cash receipt not found');
         if (voucher.reversal)
-          throw new ConflictException('Cash receipt is already reversed');
+          throw conflict(
+            'RECEIPT_REVERSAL_ALREADY_REVERSED',
+            'Cash receipt is already reversed',
+          );
         this.assertPartyActor(actor.id, voucher.party.user_id);
         assertDifferentActor(
           actor.id,
           voucher.created_by,
           'A user cannot reverse their own cash receipt voucher',
+          'SELF_REVERSAL_FORBIDDEN',
         );
 
         const reversalId = randomUUID();
@@ -466,11 +477,7 @@ export class CashReceiptService {
       this.prisma.cashReceiptVoucher.findMany({
         where,
         include: receiptInclude,
-        orderBy: [
-          { document_date: 'desc' },
-          { created_at: 'desc' },
-          { id: 'desc' },
-        ],
+        orderBy: this.receiptOrder(query),
         skip: (page - 1) * perPage,
         take: perPage,
       }),
@@ -506,11 +513,29 @@ export class CashReceiptService {
         reversal: { is: null },
       },
       include: receiptInclude,
-      orderBy: [{ document_date: 'asc' }, { created_at: 'asc' }, { id: 'asc' }],
+      orderBy: [
+        { document_date: 'desc' },
+        { created_at: 'desc' },
+        { id: 'desc' },
+      ],
     });
+    const direction =
+      query.sort_direction === CashReceiptSortDirection.Asc ? 1 : -1;
     const open = rows
       .map((row) => this.present(row))
-      .filter((row) => row.unallocated_amount_iqd > 0);
+      .filter((row) => row.unallocated_amount_iqd > 0)
+      .sort((left, right) => {
+        const primary =
+          query.sort_by === CashReceiptSortBy.Amount
+            ? left.unallocated_amount_iqd - right.unallocated_amount_iqd
+            : left.document_date.localeCompare(right.document_date);
+        return (
+          direction * primary ||
+          direction * left.created_at.getTime() -
+            direction * right.created_at.getTime() ||
+          direction * left.id.localeCompare(right.id)
+        );
+      });
     const page = query.page ?? 1;
     const perPage = query.per_page ?? 20;
     return {
@@ -519,6 +544,72 @@ export class CashReceiptService {
       total: open.length,
       data: open.slice((page - 1) * perPage, page * perPage),
     };
+  }
+
+  async reconciliation(query: CashReceiptReconciliationQueryDto) {
+    const rows = await this.prisma.cashReceiptVoucher.findMany({
+      where: query.party_id ? { party_id: query.party_id } : undefined,
+      include: {
+        party: { select: { id: true, kind: true, name: true } },
+        allocation_batches: {
+          include: { allocations: { select: { amount_iqd: true } } },
+        },
+        reversal: { select: { id: true } },
+      },
+      orderBy: [{ party_id: 'asc' }, { document_date: 'asc' }, { id: 'asc' }],
+    });
+    const byParty = new Map<
+      string,
+      {
+        party: (typeof rows)[number]['party'];
+        receipts: Prisma.Decimal;
+        allocations: Prisma.Decimal;
+        reversals: Prisma.Decimal;
+      }
+    >();
+    for (const row of rows) {
+      const totals = byParty.get(row.party_id) ?? {
+        party: row.party,
+        receipts: new Prisma.Decimal(0),
+        allocations: new Prisma.Decimal(0),
+        reversals: new Prisma.Decimal(0),
+      };
+      totals.receipts = totals.receipts.plus(row.amount_iqd);
+      if (row.reversal) {
+        totals.reversals = totals.reversals.plus(row.amount_iqd);
+      } else {
+        totals.allocations = row.allocation_batches.reduce(
+          (batchSum, batch) =>
+            batch.allocations.reduce(
+              (allocationSum, allocation) =>
+                allocationSum.plus(allocation.amount_iqd),
+              batchSum,
+            ),
+          totals.allocations,
+        );
+      }
+      byParty.set(row.party_id, totals);
+    }
+    const parties = [...byParty.values()].map((row) =>
+      this.presentReconciliation(row.party, row),
+    );
+    const overall = parties.reduce(
+      (sum, row) => ({
+        total_receipts_iqd: sum.total_receipts_iqd + row.total_receipts_iqd,
+        total_allocations_iqd:
+          sum.total_allocations_iqd + row.total_allocations_iqd,
+        total_reversals_iqd: sum.total_reversals_iqd + row.total_reversals_iqd,
+        total_unallocated_iqd:
+          sum.total_unallocated_iqd + row.total_unallocated_iqd,
+      }),
+      {
+        total_receipts_iqd: 0,
+        total_allocations_iqd: 0,
+        total_reversals_iqd: 0,
+        total_unallocated_iqd: 0,
+      },
+    );
+    return { currency: 'IQD' as const, overall, parties };
   }
 
   async get(id: string) {
@@ -620,7 +711,8 @@ export class CashReceiptService {
   ) {
     const orderIds = input.items.map((item) => item.order_id);
     if (new Set(orderIds).size !== orderIds.length) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'ALLOCATION_ORDER_DUPLICATED',
         'An order may appear only once in an allocation batch',
       );
     }
@@ -653,9 +745,13 @@ export class CashReceiptService {
       batchTotal = batchTotal.plus(amount);
       const collection = byOrder.get(item.order_id);
       if (!collection)
-        throw new NotFoundException('Delivered order collection not found');
+        throw notFound(
+          'ALLOCATION_COLLECTION_NOT_FOUND',
+          'Delivered order collection not found',
+        );
       if (collection.party_id !== input.partyId) {
-        throw new ConflictException(
+        throw conflict(
+          'ALLOCATION_WRONG_PARTY',
           'A receipt cannot be allocated to another party’s order',
         );
       }
@@ -663,7 +759,8 @@ export class CashReceiptService {
         !['confirmed_full', 'confirmed_short'].includes(collection.status) ||
         collection.collected_amount === null
       ) {
-        throw new ConflictException(
+        throw conflict(
+          'ALLOCATION_COLLECTION_UNCONFIRMED',
           'Only confirmed collected amounts can be allocated',
         );
       }
@@ -675,21 +772,22 @@ export class CashReceiptService {
         (sum, row) => sum.plus(row.amount_iqd),
         new Prisma.Decimal(0),
       );
-      if (
-        amount.gt(
-          collection.collected_amount
-            .minus(alreadyAllocated)
-            .minus(alreadyNetted),
-        )
-      ) {
-        throw new ConflictException(
+      const remainingCollected = collection.collected_amount
+        .minus(alreadyAllocated)
+        .minus(alreadyNetted);
+      if (amount.gt(remainingCollected)) {
+        throw conflict(
+          remainingCollected.lte(0)
+            ? 'ORDER_ALREADY_RECEIPTED'
+            : 'ALLOCATION_EXCEEDS_COLLECTED',
           'Allocation exceeds the order’s unsettled collected amount',
         );
       }
       return { collectionId: collection.id, amount };
     });
     if (batchTotal.gt(receiptRemaining)) {
-      throw new ConflictException(
+      throw conflict(
+        'ALLOCATION_EXCEEDS_RECEIPT',
         'Allocations exceed the receipt’s unallocated amount',
       );
     }
@@ -770,6 +868,7 @@ export class CashReceiptService {
       reference: row.reference,
       notes: row.notes,
       created_by: row.created_by,
+      created_by_name: actorDisplayName(row.creator),
       journal_entry_id: row.journal_entry_id,
       created_at: row.created_at,
       allocation_batches: row.allocation_batches.map((batch) => ({
@@ -780,6 +879,7 @@ export class CashReceiptService {
         accounting_date: businessDateText(batch.accounting_date),
         backdate_reason: batch.backdate_reason,
         created_by: batch.created_by,
+        created_by_name: actorDisplayName(batch.creator),
         created_at: batch.created_at,
         active,
         allocations: batch.allocations.map((allocation) => ({
@@ -792,9 +892,17 @@ export class CashReceiptService {
       })),
       reversal: row.reversal
         ? {
-            ...row.reversal,
+            id: row.reversal.id,
+            document_number: row.reversal.document_number,
+            operation_id: row.reversal.operation_id,
+            voucher_id: row.reversal.voucher_id,
+            reason: row.reversal.reason,
             document_date: businessDateText(row.reversal.document_date),
             accounting_date: businessDateText(row.reversal.accounting_date),
+            created_by: row.reversal.created_by,
+            created_by_name: actorDisplayName(row.reversal.creator),
+            journal_entry_id: row.reversal.journal_entry_id,
+            created_at: row.reversal.created_at,
           }
         : null,
     };
@@ -805,10 +913,10 @@ export class CashReceiptService {
     try {
       amount = new Prisma.Decimal(value);
     } catch {
-      throw new UnprocessableEntityException(`${field} must be a number`);
+      throw invalid('AMOUNT_NOT_NUMERIC', `${field} must be a number`);
     }
     if (!amount.gt(0))
-      throw new UnprocessableEntityException(`${field} must be positive`);
+      throw invalid('AMOUNT_NOT_POSITIVE', `${field} must be positive`);
     return amount;
   }
 
@@ -818,15 +926,54 @@ export class CashReceiptService {
         actorId,
         partyUserId,
         'A delivery party cannot receive or approve cash from their own custody',
+        'SELF_CUSTODY_CASH_ACTION_FORBIDDEN',
       );
     }
   }
 
   private assertDateRange(from?: string, to?: string) {
     if (from && to && from > to) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'DATE_RANGE_INVALID',
         'date_from must be on or before date_to',
       );
     }
+  }
+
+  private receiptOrder(
+    query: CashReceiptQueryDto,
+  ): Prisma.CashReceiptVoucherOrderByWithRelationInput[] {
+    const direction = query.sort_direction ?? CashReceiptSortDirection.Desc;
+    return query.sort_by === CashReceiptSortBy.Amount
+      ? [
+          { amount_iqd: direction },
+          { document_date: direction },
+          { created_at: direction },
+          { id: direction },
+        ]
+      : [
+          { document_date: direction },
+          { created_at: direction },
+          { id: direction },
+        ];
+  }
+
+  private presentReconciliation(
+    party: { id: string; kind: string; name: string },
+    totals: {
+      receipts: Prisma.Decimal;
+      allocations: Prisma.Decimal;
+      reversals: Prisma.Decimal;
+    },
+  ) {
+    return {
+      party,
+      total_receipts_iqd: Number(totals.receipts),
+      total_allocations_iqd: Number(totals.allocations),
+      total_reversals_iqd: Number(totals.reversals),
+      total_unallocated_iqd: Number(
+        totals.receipts.minus(totals.allocations).minus(totals.reversals),
+      ),
+    };
   }
 }

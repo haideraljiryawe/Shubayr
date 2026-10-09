@@ -49,10 +49,13 @@ export default async function DeliveryPartyPage({
   });
   const api = await serverApi();
   const query = (page: number) => statementQuery(table.filters, page, table.perPage);
-  const [custody, held, first, permissions] = await Promise.all([
+  const [custody, held, first, cashActivity, permissions] = await Promise.all([
     load(api.GET("/admin/delivery-parties/{id}/custody", { params: { path: { id } } })),
     load(api.GET("/admin/delivery-parties/{id}/orders", { params: { path: { id } } })),
     load(api.GET("/admin/delivery-parties/{id}/statement", { params: { path: { id }, query: query(table.page) } })),
+    load(api.GET("/admin/delivery-parties/{id}/cash-activity", {
+      params: { path: { id }, query: statementQuery(table.filters, 1, 100) },
+    })),
     loadPermissions(api),
   ]);
   if (!custody.ok) {
@@ -60,6 +63,7 @@ export default async function DeliveryPartyPage({
     return <PageError error={custody.error} />;
   }
   if (!held.ok) return <PageError error={held.error} />;
+  if (!cashActivity.ok) return <PageError error={cashActivity.error} />;
   let statement = first;
   if (statement.ok && statement.data.data.length === 0 && statement.data.total > 0 && table.page > 1) {
     statement = await load(
@@ -100,7 +104,7 @@ export default async function DeliveryPartyPage({
         custody={custody.data}
         held={held.data.data}
         statement={statement.data.data}
-        cashActivity={statement.data.cash_activity}
+        cashActivity={{ total: cashActivity.data.total, data: cashActivity.data.data }}
         statementState={{ page: statement.data.page, perPage: statement.data.per_page, total: statement.data.total, sort: "occurred_at", dir: "asc" }}
         orderFilter={orderId}
         canViewCost={permissions.includes("cost.view")}

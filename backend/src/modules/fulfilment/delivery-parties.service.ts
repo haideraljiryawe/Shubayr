@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,6 +7,8 @@ import {
 import type { DeliveryParty } from '../../generated/prisma/client';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { badRequest } from '../../common/http/api-error';
+import { actorDisplayName, actorSelect } from '../../common/users/actor-name';
 import { AuditService } from '../audit/audit.service';
 import {
   businessDate,
@@ -20,6 +21,7 @@ import {
   CustodyOverviewSort,
   DeliveryPartyKind,
   DeliveryPartyQueryDto,
+  PartyCashActivityQueryDto,
   PartyStatementQueryDto,
   SortDirection,
   UpdateExternalDriverDto,
@@ -334,9 +336,31 @@ export class DeliveryPartiesService {
     query: PartyStatementQueryDto,
     canViewCost: boolean,
   ) {
+    const result = await this.combinedStatement(id, query, canViewCost);
+    const { cash_activity: cashActivity, ...statement } = result;
+    void cashActivity;
+    return statement;
+  }
+
+  async cashActivity(id: string, query: PartyCashActivityQueryDto) {
+    const result = await this.combinedStatement(id, query, false);
+    return {
+      party: result.party,
+      page: result.page,
+      per_page: result.per_page,
+      total: result.cash_activity.total,
+      data: result.cash_activity.data,
+    };
+  }
+
+  private async combinedStatement(
+    id: string,
+    query: PartyStatementQueryDto,
+    canViewCost: boolean,
+  ) {
     const party = await this.get(id);
     if (query.from && query.to && query.from > query.to) {
-      throw new BadRequestException('from must be on or before to');
+      throw badRequest('DATE_RANGE_INVALID', 'from must be on or before to');
     }
     const [movements, cashCollections, cashReceipts, exceptions, trips] =
       await Promise.all([
@@ -429,7 +453,13 @@ export class DeliveryPartiesService {
             outstanding_cash_iqd: true,
             settlement_result: true,
             document_date: true,
+            created_by: true,
+            creator: { select: actorSelect },
+            started_by: true,
+            starter: { select: actorSelect },
             started_at: true,
+            closed_by: true,
+            closer: { select: actorSelect },
             closed_at: true,
             _count: { select: { orders: true } },
           },
@@ -721,7 +751,13 @@ export class DeliveryPartiesService {
         settlement_result: trip.settlement_result,
         order_count: trip._count.orders,
         document_date: businessDateText(trip.document_date),
+        created_by: trip.created_by,
+        created_by_name: actorDisplayName(trip.creator),
+        started_by: trip.started_by,
+        started_by_name: actorDisplayName(trip.starter),
         started_at: trip.started_at,
+        closed_by: trip.closed_by,
+        closed_by_name: actorDisplayName(trip.closer),
         closed_at: trip.closed_at,
       })),
     };
