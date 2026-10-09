@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -168,6 +169,27 @@ void main() {
           expect(inbox.countRequests, 1);
           expect(inbox.pageRequests, 0);
 
+          // Taps one pixel either side of the shared edge stay independent.
+          final searchBounds = tester.getRect(find.byTooltip(l10n.searchHint));
+          final sharedEdge = language == 'ar'
+              ? searchBounds.left
+              : searchBounds.right;
+          final towardBell = language == 'ar' ? -1.0 : 1.0;
+          await tester.tapAt(
+            Offset(sharedEdge - towardBell, searchBounds.center.dy),
+          );
+          await tester.pumpAndSettle();
+          expect(router.state.uri.path, AppRoutes.search);
+          await tester.tap(find.byType(BackButton));
+          await tester.pumpAndSettle();
+          await tester.tapAt(
+            Offset(sharedEdge + towardBell, searchBounds.center.dy),
+          );
+          await tester.pumpAndSettle();
+          expect(router.state.uri.path, AppRoutes.notifications);
+          await tester.tap(find.byType(BackButton));
+          await tester.pumpAndSettle();
+
           await tester.tap(find.byIcon(Icons.person_outline));
           await tester.pumpAndSettle();
           _expectCount(tester, AccountView, 2);
@@ -309,17 +331,101 @@ void main() {
               expect(tester.getSize(bellIcon), const Size(28, 28));
               expect(searchRect.center.dy, bellRect.center.dy);
               expect(searchRect.overlaps(bellRect), isFalse);
+              final searchIconRect = tester.getRect(searchIcon);
+              final bellIconRect = tester.getRect(bellIcon);
+              expect(searchIconRect.center, searchRect.center);
+              expect(bellIconRect.center, bellRect.center);
+              expect(
+                (searchIconRect.center.dx - bellIconRect.center.dx).abs(),
+                48,
+              );
+              expect(
+                language == 'ar'
+                    ? searchIconRect.left - bellIconRect.right
+                    : bellIconRect.left - searchIconRect.right,
+                20,
+              );
               expect(barRect.height, kToolbarHeight);
               for (final rect in [searchRect, bellRect]) {
-                expect(rect.width, greaterThanOrEqualTo(48));
-                expect(rect.height, greaterThanOrEqualTo(48));
+                expect(rect.size, const Size(48, 48));
                 expect(barRect.contains(rect.topLeft), isTrue);
                 expect(rect.right, lessThanOrEqualTo(barRect.right));
               }
               expect(
-                language == 'ar' ? bellRect.right : searchRect.right,
-                language == 'ar' ? searchRect.left : bellRect.left,
+                language == 'ar'
+                    ? searchRect.left - bellRect.right
+                    : bellRect.left - searchRect.right,
+                0,
               );
+              for (final button in [search, bell]) {
+                final surface = find.descendant(
+                  of: button,
+                  matching: find.byType(Material),
+                );
+                final ink = find.descendant(
+                  of: button,
+                  matching: find.byType(InkWell),
+                );
+                final bounds = tester.getRect(button);
+                expect(tester.getRect(surface), bounds);
+                expect(tester.getRect(ink), bounds);
+                expect(
+                  tester.widget<Material>(surface).shape,
+                  isA<CircleBorder>(),
+                );
+                expect(
+                  tester.widget<InkWell>(ink).customBorder,
+                  isA<CircleBorder>(),
+                );
+                // The splash is clipped to this button's circular border,
+                // whose bounds cannot enter the neighboring touch target.
+                expect(tester.widget<InkWell>(ink).containedInkWell, isTrue);
+                if (width == 320 && scale == 1) {
+                  final otherInk = find.descendant(
+                    of: button == search ? bell : search,
+                    matching: find.byType(InkWell),
+                  );
+                  final press = await tester.startGesture(bounds.center);
+                  await tester.pump(kPressTimeout);
+                  final pressedInk = tester.widget<InkWell>(ink);
+                  expect(
+                    pressedInk.statesController!.value,
+                    contains(WidgetState.pressed),
+                  );
+                  expect(
+                    pressedInk.overlayColor!.resolve({WidgetState.pressed})!.a,
+                    greaterThan(0),
+                  );
+                  expect(tester.getRect(surface).center, bounds.center);
+                  expect(
+                    tester.widget<InkWell>(otherInk).statesController!.value,
+                    isNot(contains(WidgetState.pressed)),
+                  );
+                  await press.cancel();
+                  await tester.pumpAndSettle();
+                  final mouse = await tester.createGesture(
+                    kind: PointerDeviceKind.mouse,
+                  );
+                  await mouse.addPointer(location: bounds.center);
+                  await tester.pump();
+                  final hoveredInk = tester.widget<InkWell>(ink);
+                  expect(
+                    hoveredInk.statesController!.value,
+                    contains(WidgetState.hovered),
+                  );
+                  expect(
+                    hoveredInk.overlayColor!.resolve({WidgetState.hovered})!.a,
+                    greaterThan(0),
+                  );
+                  expect(tester.getRect(surface).center, bounds.center);
+                  expect(
+                    tester.widget<InkWell>(otherInk).statesController!.value,
+                    isNot(contains(WidgetState.hovered)),
+                  );
+                  await mouse.removePointer();
+                  await tester.pumpAndSettle();
+                }
+              }
               final badgeRect = tester.getRect(find.byType(Badge));
               expect(badgeRect.overlaps(searchRect), isFalse);
               expect(badgeRect.left, greaterThanOrEqualTo(bellRect.left));
@@ -418,6 +524,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.notifications_outlined), findsNothing);
       expect(find.byIcon(Icons.search), findsOneWidget);
+      expect(
+        tester.getCenter(find.byIcon(Icons.search)),
+        tester.getCenter(find.widgetWithIcon(IconButton, Icons.search)),
+      );
       expect(inbox.countRequests, 0);
       expect(inbox.pageRequests, 0);
       await tester.pumpWidget(const SizedBox.shrink());

@@ -210,7 +210,7 @@ abstract final class NavigationThemes {
   static const double bottomBarSelectedSurfaceOpacity = 0.20;
   static Color bottomBarSelectedSurfaceColor(AppColors colors) =>
       colors.primary.withValues(alpha: bottomBarSelectedSurfaceOpacity);
-  static const double bottomBarSelectedScale = 1.10;
+  static const double bottomBarSelectedScale = 1.11;
   static const Duration bottomBarSelectedIconDuration = Duration(
     milliseconds: 200,
   );

@@ -355,8 +355,8 @@ void main() {
                     );
                     expect(content.center.dx, closeTo(slot.center.dx, .01));
                     expect(content.center.dy, closeTo(slot.center.dy, .01));
-                    expect(content.width, closeTo(28 * 1.10, .01));
-                    expect(content.height, closeTo(28 * 1.10, .01));
+                    expect(content.width, closeTo(28 * 1.11, .01));
+                    expect(content.height, closeTo(28 * 1.11, .01));
                     for (final point in [
                       content.topLeft,
                       content.topRight,

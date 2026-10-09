@@ -18,6 +18,7 @@ import '../../../../core/widgets/state_views.dart';
 import '../../../banners/presentation/providers/banner_providers.dart';
 import '../../../banners/presentation/widgets/home_banners.dart';
 import '../../../notifications/presentation/notification_button.dart';
+import '../../../notifications/presentation/notification_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/home_category_carousel.dart';
 import '../widgets/home_offers_list.dart';
@@ -33,6 +34,7 @@ class HomeScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final brand = ref.watch(brandProvider);
     final offers = ref.watch(homeOffersProvider);
+    final showNotifications = ref.watch(notificationIdentityProvider).signedIn;
 
     return Scaffold(
       appBar: AppBar(
@@ -62,13 +64,32 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton(
-            onPressed: () => context.pushNamed(AppRoutes.searchName),
-            iconSize: AppSpacing.xl + AppSpacing.xs,
-            icon: const Icon(Icons.search),
-            tooltip: l10n.searchHint,
+          IconButtonTheme(
+            data: IconButtonThemeData(
+              style: IconButton.styleFrom(
+                fixedSize: const Size.square(kMinInteractiveDimension),
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                visualDensity: VisualDensity.standard,
+                shape: const CircleBorder(),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () => context.pushNamed(AppRoutes.searchName),
+                  iconSize: AppSpacing.xl + AppSpacing.xs,
+                  icon: const Icon(Icons.search),
+                  tooltip: l10n.searchHint,
+                ),
+                if (showNotifications) ...[
+                  const NotificationButton(
+                    iconSize: AppSpacing.xl + AppSpacing.xs,
+                  ),
+                ],
+              ],
+            ),
           ),
-          const NotificationButton(iconSize: AppSpacing.xl + AppSpacing.xs),
         ],
       ),
       body: RefreshIndicator(

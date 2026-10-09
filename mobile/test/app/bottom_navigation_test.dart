@@ -302,11 +302,35 @@ void main() {
           );
           expect(haptics, isEmpty);
           final start = tester.getRect(_capsule);
+          final touchBounds = tester.getRect(_tabs.last);
+          final icon = find.descendant(
+            of: _tabs.last,
+            matching: find.byType(Icon),
+          );
+          expect(_paintedRect(tester, icon).width, closeTo(28, .01));
+          expect(_paintedRect(tester, icon).height, closeTo(28, .01));
           final endX = tester.getCenter(_tabs.last).dx;
           await tester.tap(_tabs.last);
           await tester.pump();
           expect(tester.getRect(_capsule), start);
+          final animation = tester.widget<AnimatedScale>(
+            find.descendant(
+              of: _tabs.last,
+              matching: find.byType(AnimatedScale),
+            ),
+          );
+          expect(animation.duration, const Duration(milliseconds: 200));
+          expect(animation.curve, Curves.easeOutCubic);
           await tester.pump(const Duration(milliseconds: 120));
+          final painted = _paintedRect(tester, icon);
+          final expectedScale = 1 + .11 * Curves.easeOutCubic.transform(.6);
+          expect(painted.width, closeTo(28 * expectedScale, .01));
+          expect(painted.height, closeTo(28 * expectedScale, .01));
+          expect(painted.center.dx, closeTo(touchBounds.center.dx, .01));
+          expect(painted.center.dy, closeTo(touchBounds.center.dy, .01));
+          expect(touchBounds.contains(painted.topLeft), isTrue);
+          expect(touchBounds.contains(painted.bottomRight), isTrue);
+          expect(tester.getRect(_tabs.last), touchBounds);
           expect(
             tester.getCenter(_capsule).dx,
             closeTo((start.center.dx + endX) / 2, 1),
@@ -327,7 +351,7 @@ void main() {
                 )
                 .last,
           );
-          expect(scale.scale.value, closeTo(1.10, 0.001));
+          expect(scale.scale.value, closeTo(1.11, 0.001));
 
           // Re-selection still resets the active branch, without another haptic.
           harness.router.go('/account/detail');
@@ -478,25 +502,25 @@ void main() {
                   .descendant(of: tab, matching: find.byType(ScaleTransition))
                   .last,
             );
-            expect(contentScale.scale.value, closeTo(1.10, .001));
+            expect(contentScale.scale.value, closeTo(1.11, .001));
             expect(tester.getRect(tab), touchBounds);
             expect(haptics, ['HapticFeedbackType.selectionClick']);
             expect(
               harness.router.routeInformationProvider.value.uri.path,
               '/categories',
             );
-            expect(_paintedRect(tester, icon).width, closeTo(28 * 1.10, .01));
+            expect(_paintedRect(tester, icon).width, closeTo(28 * 1.11, .01));
             final selectedPress = await tester.startGesture(
               tester.getCenter(tab),
             );
             await tester.pump(const Duration(milliseconds: 120));
             await tester.pump(const Duration(milliseconds: 100));
-            expect(_paintedRect(tester, icon).width, closeTo(28 * 1.10, .01));
+            expect(_paintedRect(tester, icon).width, closeTo(28 * 1.11, .01));
             expect(tester.widget<AnimatedOpacity>(stateLayer).opacity, .07);
             expect(tester.getRect(tab), touchBounds);
             await selectedPress.cancel();
             await tester.pumpAndSettle();
-            expect(_paintedRect(tester, icon).width, closeTo(28 * 1.10, .01));
+            expect(_paintedRect(tester, icon).width, closeTo(28 * 1.11, .01));
             final cancel = await tester.startGesture(
               tester.getCenter(_tabs.last),
             );

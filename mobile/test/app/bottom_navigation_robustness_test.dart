@@ -30,7 +30,7 @@ void main() {
     expect(NavigationThemes.bottomBarMaxWidth, 560);
     expect(NavigationThemes.bottomBarMinimumInteractiveHeight, 44);
     expect(NavigationThemes.bottomBarIconSize, 28);
-    expect(NavigationThemes.bottomBarSelectedScale, 1.10);
+    expect(NavigationThemes.bottomBarSelectedScale, 1.11);
     expect(NavigationThemes.bottomBarSelectedMaxAspectRatio, 2.2);
     expect(NavigationThemes.bottomBarPressedMaxAspectRatio, 2.2);
     for (final count in [2, 3, 4, 5]) {
