@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Alert, Badge } from "@/components/ui";
 import { DateFilter } from "@/components/finance/date-filter";
+import { PartySearchFilter, type PartyChoice } from "@/components/parties/party-search";
 import { DataTable, TableFilter, useTableUrl, type Column, type TableState } from "@/components/table/data-table";
 import { cn } from "@/lib/cn";
 import { receiptHref, RECEIPT_STATUSES, type CashReceipt } from "@/lib/finance/cash-receipts";
@@ -44,7 +45,7 @@ export function ReceiptsView({
   mode,
   rows,
   state,
-  parties,
+  party,
   accounts,
   ignoredDates,
   canAllocate,
@@ -52,7 +53,8 @@ export function ReceiptsView({
   mode: "vouchers" | "unallocated";
   rows: CashReceipt[];
   state: TableState;
-  parties: Option[];
+  /** The party the URL filters on, by name. */
+  party: PartyChoice | null;
   /** The cash-account filter's choices; null without cash_accounts.view. */
   accounts: Option[] | null;
   ignoredDates: boolean;
@@ -155,11 +157,7 @@ export function ReceiptsView({
         emptyLabel={t(`empty.${mode}`)}
         toolbar={
           <>
-            <TableFilter
-              name="party_id"
-              label={t("filters.party")}
-              options={[{ value: "", label: t("filters.anyParty") }, ...withCurrent(parties, "party_id", (row) => row.party.name)]}
-            />
+            <PartySearchFilter name="party_id" label={t("filters.party")} current={party} />
             {accounts ? (
               <TableFilter
                 name="cash_account_id"

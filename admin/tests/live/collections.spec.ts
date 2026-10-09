@@ -207,7 +207,7 @@ test("an unconfirmed delivery is confirmed later from the queue, in full and sho
 
   // The queue's filters (13.1), applied by the server: this driver only…
   await page.goto(`/deliveries/unconfirmed?party_id=${driverId}`);
-  await expect(page.getByTestId("filter-party_id")).toHaveValue(driverId);
+  await expect(page.getByTestId("filter-party_id")).toHaveAttribute("data-party", driverId);
   const rows = page.getByTestId("unconfirmed-table").getByTestId("table-row");
   await expect(rows).toHaveCount(2);
   // …by amount due…
@@ -288,7 +288,7 @@ test("a party's collections tab lists each order it delivered and what was colle
   await expect(page.getByTestId("order-collection").getByTestId("collection-summary")).toHaveAttribute("data-status", "confirmed_full");
   await page.goBack();
   await page.getByTestId("party-collections-to-confirm").click();
-  await expect(page.getByTestId("filter-party_id")).toHaveValue(driverId);
+  await expect(page.getByTestId("filter-party_id")).toHaveAttribute("data-party", driverId);
   await expect(page.getByTestId("unconfirmed-table").getByTestId("table-row")).toHaveCount(0);
 
   // The custody tab is one click back.

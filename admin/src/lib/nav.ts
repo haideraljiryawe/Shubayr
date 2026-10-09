@@ -10,6 +10,7 @@ export type NavKey =
   | "dashboard"
   | "orders"
   | "deliveryParties"
+  | "trips"
   | "products"
   | "categories"
   | "brands"
@@ -27,6 +28,7 @@ export type NavKey =
   | "currencies"
   | "cashAccounts"
   | "cashReceipts"
+  | "custodyExceptions"
   | "periods"
   | "ledger"
   | "settings"
@@ -47,6 +49,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "orders", href: "/orders", requires: ["orders.view"] },
   // Delivery parties and their custody (API 11.2).
   { key: "deliveryParties", href: "/delivery-parties", requires: ["deliveries.manage"] },
+  // External-driver trips (API 13.4).
+  { key: "trips", href: "/deliveries/trips", requires: ["trips.view"] },
   // Catalog v2 (API 8.0).
   { key: "products", href: "/catalog/products", requires: ["catalog.products"] },
   { key: "categories", href: "/catalog/categories", requires: ["catalog.categories"] },
@@ -71,6 +75,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "cashAccounts", href: "/finance/cash-accounts", requires: ["cash_accounts.view"] },
   // Cash handed in by delivery parties (API 13.2).
   { key: "cashReceipts", href: "/finance/cash-receipts", requires: ["deliveries.manage"] },
+  // Lost goods, returns at the door and fee refunds (API 13.3).
+  { key: "custodyExceptions", href: "/finance/custody-exceptions", requires: ["custody_exceptions.view"] },
   { key: "periods", href: "/finance/periods", requires: ["ledger.view"] },
   { key: "ledger", href: "/finance/ledger", requires: ["ledger.view"] },
   { key: "settings", href: "/settings", requires: ["settings.manage"] },

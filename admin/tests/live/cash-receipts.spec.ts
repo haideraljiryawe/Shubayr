@@ -187,7 +187,7 @@ test("receive cash and auto-allocate across 3 orders with a remainder, then allo
   await page.goto(`/delivery-parties/${driverA.id}`);
   await page.getByTestId("party-receive").click();
   await expect(page).toHaveURL(new RegExp(`/finance/cash-receipts/new\\?party_id=${driverA.id}`));
-  await expect(page.getByTestId("receive-party")).toHaveValue(driverA.id);
+  await expect(page.getByTestId("receive-party")).toHaveAttribute("data-party", driverA.id);
   expect(digits(await page.getByTestId("receive-cash-held").textContent())).toBe(String(total));
   // Its unsettled collections, oldest first.
   const rows = page.getByTestId("allocation-row");

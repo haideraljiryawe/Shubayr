@@ -25,7 +25,7 @@ export default async function UnallocatedReceiptsPage({ searchParams }: { search
   const api = await serverApi();
   const [{ result, ignoredDates }, options, permissions] = await Promise.all([
     loadReceiptPage(api, "unallocated", params),
-    loadReceiptFilterOptions(api),
+    loadReceiptFilterOptions(api, params.filters.party_id),
     loadPermissions(api),
   ]);
   if (!result.ok) return <PageError error={result.error} />;
@@ -38,7 +38,7 @@ export default async function UnallocatedReceiptsPage({ searchParams }: { search
         mode="unallocated"
         rows={result.data.data}
         state={{ page: result.data.page, perPage: result.data.per_page, total: result.data.total, sort: "document_date", dir: "asc" }}
-        parties={options.parties}
+        party={options.party}
         accounts={options.accounts}
         ignoredDates={ignoredDates}
         canAllocate={permissions.includes("cash_receipts.allocate")}

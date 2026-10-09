@@ -81,6 +81,17 @@ export function PartyCollections({
       ),
     },
     {
+      // The shortfall still expected after returns and fee refunds (13.3).
+      key: "uncollected",
+      header: t("summary.uncollected"),
+      className: "text-end",
+      cell: (row) => (
+        <span dir="ltr" data-testid="party-collection-uncollected">
+          {row.status === "confirmed_short" ? money(row, row.uncollected_amount_iqd) : "—"}
+        </span>
+      ),
+    },
+    {
       key: "settlement",
       header: t("settlement.title"),
       cell: (row) =>
