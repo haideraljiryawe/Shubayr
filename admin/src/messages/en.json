@@ -34,7 +34,9 @@
     "supplierPayments": "Supplier payments",
     "payables": "Payables & aging",
     "deliveryParties": "Delivery parties",
-    "cashReceipts": "Cash receipts"
+    "cashReceipts": "Cash receipts",
+    "trips": "Driver trips",
+    "custodyExceptions": "Custody exceptions"
   },
   "auth": {
     "signIn": "Sign in",
@@ -2276,7 +2278,8 @@
       "none": "This party holds no goods.",
       "product": "Product",
       "age": "Held for",
-      "unitCost": "Unit cost"
+      "unitCost": "Unit cost",
+      "exception": "Record exception"
     },
     "held": {
       "title": "Orders held",
@@ -2344,7 +2347,9 @@
       "amount": "Amount",
       "unsettled": "Unsettled",
       "running": "Cash held",
-      "paged": "Showing {shown} of {total}; page through the statement above for more."
+      "paged": "Showing {shown} of {total}; page through the statement above for more.",
+      "exceptions": "Custody exceptions",
+      "newTrip": "New trip"
     },
     "cashEvents": {
       "collection_confirmed": "Collection confirmed",
@@ -2354,6 +2359,20 @@
       "custody_exception_party_liability": "Charged to the party",
       "custody_exception_reversed": "Exception reversed",
       "trip_fare_netted": "Trip fare netted"
+    },
+    "trips": {
+      "title": "Trips",
+      "trip": "Trip",
+      "status": "Status",
+      "orders": "Orders",
+      "expected": "Expected cash",
+      "received": "Received",
+      "outstanding": "Outstanding",
+      "statuses": {
+        "open": "Open",
+        "in_progress": "In progress",
+        "closed": "Closed"
+      }
     }
   },
   "collections": {
@@ -2380,7 +2399,8 @@
     },
     "summary": {
       "collected": "Collected",
-      "shortfall": "Shortfall"
+      "shortfall": "Shortfall",
+      "uncollected": "Still expected"
     },
     "queue": {
       "title": "Cash to confirm",
@@ -2576,6 +2596,356 @@
         "status": "Status",
         "anyStatus": "All"
       }
+    }
+  },
+  "partySearch": {
+    "placeholder": "Search by name, phone or vehicle",
+    "clear": "Clear",
+    "failed": "Couldn't search parties. Try again.",
+    "loading": "Searching…",
+    "none": "No party matches.",
+    "close": "Close"
+  },
+  "custodyExceptions": {
+    "types": {
+      "goods_loss": "Lost or damaged",
+      "return_against_uncollected": "Returned at the door",
+      "delivery_fee_refund": "Delivery-fee refund"
+    },
+    "statuses": {
+      "active": "Active",
+      "reversed": "Reversed"
+    },
+    "bearers": {
+      "store": "Borne by the store",
+      "party": "Borne by the party"
+    },
+    "refusals": {
+      "receiptConsumed": "Refused: a cash receipt has already taken in this loss charged to the party. Reverse that cash receipt first, then reverse this exception.",
+      "receiptConsumedLink": "The party's cash receipts",
+      "ownException": "You recorded this exception, so you cannot reverse it. Another user must reverse it (separation of duties).",
+      "ownCustody": "You can't record or reverse an exception in your own custody (separation of duties).",
+      "strictRecorder": "Under strict separation of duties another user must record this exception (not the person who delivered or handed over the order).",
+      "alreadyReversed": "This exception has already been reversed.",
+      "notInCustody": "Refused: the order's goods are no longer in the party's custody.",
+      "noParty": "Refused: no delivery party holds this order.",
+      "noShortfall": "Refused: a return at the door needs the order delivered with less collected than due.",
+      "noUncollected": "Refused: nothing is left uncollected on this order to set the amount against.",
+      "feeCap": "Refused: refunds would exceed the delivery fee charged on this order.",
+      "notDelivered": "Refused: the delivery fee can be refunded only once the order is delivered.",
+      "notSold": "Refused: only goods already delivered from custody can be returned.",
+      "notInThisCustody": "Refused: those goods don't belong to this order and party.",
+      "overCustody": "Refused: more than the party holds of those goods.",
+      "noValue": "Refused: the goods have no value to record.",
+      "inactiveAccount": "Refused: the refund needs an active IQD cash account.",
+      "duplicateHolding": "Refused: the same goods are listed twice."
+    },
+    "create": {
+      "title": "Record a custody exception",
+      "description": "Goods lost or damaged in a delivery party's custody, goods the customer refused at the door, or a refund of the delivery fee — one numbered document, posted once.",
+      "back": "Order {number}",
+      "order": "Order",
+      "party": "Delivery party",
+      "deliveryStatus": "Delivery",
+      "kinds": "Kind of exception",
+      "types": {
+        "goods_loss": "Lost or damaged",
+        "return_against_uncollected": "Returned at the door",
+        "delivery_fee_refund": "Delivery-fee refund"
+      },
+      "reason": "Reason",
+      "product": "Product",
+      "lot": "Lot",
+      "held": "Held",
+      "lossBody": "The goods the party held for this order that were lost or damaged, at their original issue cost. Choose who bears the cost: the store (an expense) or the party (added to the cash they owe).",
+      "lostQuantity": "Lost or damaged",
+      "bearer": "Who bears the cost",
+      "bearers": {
+        "store": "The store",
+        "party": "The delivery party"
+      },
+      "bearerHints": {
+        "store": "Recorded as a store loss.",
+        "party": "Added to the cash the party owes; they hand it in with a cash receipt."
+      },
+      "returnBody": "The customer took part of the order and refused the rest at the door. The order is delivered with what they paid, and the refused goods go back into stock against what was left unpaid — the party is no longer expected to bring that cash.",
+      "returnedQuantity": "Refused at the door",
+      "location": "Restock at",
+      "pickLocation": "Choose a location…",
+      "collected": "Amount collected (IQD)",
+      "collectedHint": "Due {due}; refused goods are worth {value}.",
+      "returnValue": "Value of the refused goods",
+      "deliveredFirst": "The order is delivered with the amount collected. The return wasn't recorded yet — record it again to finish.",
+      "refundBody": "The order was charged {fee} for delivery. Refund all or part of it from a cash account, or set it against what is still uncollected on the order.",
+      "refundCap": "At most {cap} can be refunded.",
+      "refundMethod": "Refund from",
+      "methods": {
+        "cash_account": "A cash account",
+        "uncollected": "The amount still uncollected on the order"
+      },
+      "refundAmount": "Refund (IQD)",
+      "cashAccount": "Cash account",
+      "pickCash": "Choose an account…",
+      "errors": {
+        "reason": "Give a reason (at least 3 characters).",
+        "bearer": "Choose who bears the cost.",
+        "quantities": "Enter a quantity for at least one item, no more than is held.",
+        "location": "Choose where the goods go back into stock.",
+        "collected": "Enter the amount collected, less than what is due.",
+        "date": "Check the document date.",
+        "amount": "Enter the refund in whole dinars.",
+        "overCap": "At most {cap} can be refunded.",
+        "cash": "Choose the cash account."
+      },
+      "submit": {
+        "goods_loss": "Record the loss",
+        "return_against_uncollected": "Deliver and record the return",
+        "returnOnly": "Record the return",
+        "delivery_fee_refund": "Refund the fee"
+      },
+      "unavailable": {
+        "goods_loss": "Nothing to record: the party holds none of this order's goods (a loss is recorded while the goods are out for delivery, or after a failed delivery).",
+        "return_against_uncollected": "A return at the door is recorded while the order is out for delivery with a delivery party.",
+        "returnAfterDelivery": "This order is already delivered short. Its delivered goods can't be listed here (the API offers no read of them), so record a return at the door while the order is still out for delivery.",
+        "returnNeedsDeliver": "Recording a return at the door also marks the order delivered, which needs the orders.deliver permission.",
+        "delivery_fee_refund": "Nothing to refund: the order has no delivery fee, or isn't delivered yet."
+      }
+    },
+    "list": {
+      "title": "Custody exceptions",
+      "description": "Lost or damaged goods, returns at the door and delivery-fee refunds, newest first.",
+      "howTo": "Record an exception from the order, or from the party's custody.",
+      "forOrder": "Showing order {number} only.",
+      "allOrders": "All orders",
+      "ignoredDates": "The start date is after the end date, so the date filter isn't applied.",
+      "empty": "No custody exceptions match.",
+      "anyType": "All kinds",
+      "anyStatus": "All",
+      "from": "From",
+      "to": "To",
+      "columns": {
+        "number": "Document",
+        "date": "Date",
+        "type": "Kind",
+        "order": "Order",
+        "party": "Delivery party",
+        "amount": "Amount",
+        "status": "Status"
+      }
+    },
+    "detail": {
+      "title": "Custody exception",
+      "description": "One custody exception, its goods and postings, and its reversal if any.",
+      "back": "All custody exceptions",
+      "reversedNotice": "Reversed ({number}).",
+      "type": "Kind",
+      "status": "Status",
+      "order": "Order",
+      "party": "Delivery party",
+      "amount": "Amount",
+      "bearer": "Borne by",
+      "offset": "Set against uncollected",
+      "refundPayable": "Owed to the customer",
+      "goodsCost": "Goods at issue cost",
+      "cashAccount": "Cash account",
+      "documentDate": "Document date",
+      "reason": "Reason",
+      "lines": "Goods",
+      "quantity": "Quantity",
+      "returnAmount": "Value",
+      "postings": "Journal entries:",
+      "reversedBy": "Reversed by {number} on {date}",
+      "receiptRule": "A loss charged to the party can't be reversed once a cash receipt has taken it in: reverse that cash receipt first.",
+      "reverse": "Reverse exception",
+      "reverseTitle": "Reverse this exception",
+      "reverseBody": "Every posting and stock movement it made is undone by a reversal document; the exception itself is kept, marked reversed. The person who recorded it cannot reverse it.",
+      "reverseReason": "Reason",
+      "reverseReasonRequired": "Give a reason (at least 3 characters).",
+      "cancel": "Cancel",
+      "reverseConfirm": "Reverse"
+    },
+    "orderPanel": {
+      "title": "Custody exceptions",
+      "record": {
+        "goods_loss": "Record lost or damaged goods",
+        "return_against_uncollected": "Record a return at the door",
+        "delivery_fee_refund": "Refund the delivery fee"
+      },
+      "list": "This order's exceptions"
+    }
+  },
+  "trips": {
+    "bearers": {
+      "store": "Paid by the store",
+      "customer_direct": "Paid by the customer to the driver"
+    },
+    "methods": {
+      "payable": "Owed to the driver",
+      "cash_account": "Paid from a cash account",
+      "driver_keeps": "Kept from the cash collected",
+      "customer_direct": "Customer pays the driver"
+    },
+    "statuses": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "closed": "Closed"
+    },
+    "deliveryStatuses": {
+      "assigned": "Assigned",
+      "out_for_delivery": "Out for delivery",
+      "delivered": "Delivered",
+      "failed": "Failed",
+      "returned": "Returned"
+    },
+    "blockers": {
+      "notDelivered": "Not delivered, returned or resolved yet",
+      "unconfirmed": "Amount collected not confirmed yet"
+    },
+    "exceptionTypes": {
+      "goods_loss": "Lost or damaged",
+      "return_against_uncollected": "Returned at the door",
+      "delivery_fee_refund": "Delivery-fee refund"
+    },
+    "events": {
+      "handover": "Handed over",
+      "started": "Trip started",
+      "closed": "Trip closed"
+    },
+    "refusals": {
+      "unresolved": "Closing was refused: every order must be delivered with a confirmed amount, returned, or otherwise resolved first. Still open:",
+      "ownTrip": "You created this trip, so you cannot close it. Another user must close and settle it (separation of duties).",
+      "doubleCharge": "Refused: with a customer-paid fare the store's delivery fee on the order must be zero, or the customer would pay for delivery twice.",
+      "acceptanceNote": "With a customer-paid fare, note the customer's acceptance of paying the driver.",
+      "notOpen": "Orders are added, and the trip started, only while it is open.",
+      "notInProgress": "Only a trip in progress can be closed.",
+      "noOrders": "A trip needs at least one order before it starts.",
+      "sharesMismatch": "Refused: the orders' fare shares must add up to the trip's fare.",
+      "notAssigned": "Refused: the order isn't waiting for dispatch with a delivery to hand over.",
+      "driverNotFound": "Refused: the driver isn't an active external driver.",
+      "nettingTooLarge": "The driver can't keep more fare than the cash collected and not yet handed in.",
+      "inactiveAccount": "Refused: the fare needs an active IQD cash account."
+    },
+    "list": {
+      "title": "Driver trips",
+      "description": "External drivers' trips: the orders handed over, the fare and the cash to settle, newest first.",
+      "new": "New trip",
+      "ignoredDates": "The start date is after the end date, so the date filter isn't applied.",
+      "empty": "No trips match.",
+      "anyStatus": "All",
+      "from": "From",
+      "to": "To",
+      "columns": {
+        "number": "Trip",
+        "date": "Date",
+        "driver": "Driver",
+        "orders": "Orders",
+        "fare": "Fare",
+        "outstanding": "Outstanding cash",
+        "status": "Status"
+      }
+    },
+    "create": {
+      "title": "New driver trip",
+      "description": "One external driver, one fare for the whole trip, and the orders you hand over to them next.",
+      "back": "All trips",
+      "driver": "Driver",
+      "bearer": "Who pays the fare",
+      "bearerHints": {
+        "store": "The store pays the driver; the fare is the store's expense.",
+        "customer_direct": "The customer pays the driver directly; it never enters the store's money, and the orders must carry no store delivery fee."
+      },
+      "fare": "Fare for the trip (IQD)",
+      "method": "How the store settles it",
+      "methodHints": {
+        "payable": "Recorded as owed to the driver when the trip closes.",
+        "cash_account": "Paid from a cash account when the trip closes.",
+        "driver_keeps": "The driver keeps it from the cash collected; it is netted when the trip closes.",
+        "customer_direct": "Nothing for the store to settle."
+      },
+      "cashAccount": "Cash account",
+      "pickCash": "Choose an account…",
+      "agreement": "Agreement for failed or cancelled deliveries (optional)",
+      "agreementHint": "What the driver is paid when a delivery fails or is cancelled.",
+      "errors": {
+        "driver": "Choose the driver.",
+        "fare": "Enter the fare in whole dinars.",
+        "cash": "Choose the cash account.",
+        "date": "Check the document date."
+      },
+      "submit": "Create trip"
+    },
+    "detail": {
+      "title": "Driver trip",
+      "description": "The orders on this trip and what happened to each, the fare, and the cash expected and received.",
+      "back": "All trips",
+      "notice": {
+        "added": "Order {number} handed over.",
+        "started": "Trip started.",
+        "delivered": "Order {number} delivered.",
+        "failed": "Order {number} marked failed.",
+        "closed": "Trip closed."
+      },
+      "status": "Status",
+      "driver": "Driver",
+      "fare": "Fare",
+      "documentDate": "Date",
+      "startedAt": "Started {at}",
+      "closedAt": "Closed {at}",
+      "agreement": "Agreement for failed or cancelled deliveries",
+      "orders": "Orders",
+      "noOrders": "No orders yet. Add the orders you hand over to the driver.",
+      "settlement": "Cash",
+      "expected": "Expected (collected)",
+      "received": "Handed in",
+      "netted": "Fare kept by the driver",
+      "outstanding": "Still to hand in",
+      "customerDirectNote": "The fare is paid by the customers to the driver directly and isn't part of this cash.",
+      "receiveCash": "Receive the driver's cash ({amount})",
+      "results": {
+        "settled": "Settled: the cash expected was handed in.",
+        "settlement_open": "Closed with cash still open: the difference stays in the driver's custody until handed in."
+      },
+      "entries": {
+        "0": "Fare accrual",
+        "1": "Fare payment",
+        "2": "Fare netting"
+      },
+      "events": "History",
+      "toCollect": "To collect",
+      "storeFee": "Store fee",
+      "fareShare": "Fare share",
+      "collected": "Collected",
+      "addTitle": "Hand over orders",
+      "addBody": "Orders ready for dispatch. Each takes its share of the trip's fare; the shares must add up to the fare before the trip starts.",
+      "addBodyCustomer": "Orders ready for dispatch with no store delivery fee. Note the customer's acceptance of paying the driver.",
+      "searchOrder": "Find an order by number",
+      "shareHint": "{left} of the fare is not shared out yet.",
+      "acceptance": "Customer's acceptance",
+      "acceptanceHint": "How the customer agreed to pay the driver directly.",
+      "noReady": "No orders ready for dispatch match.",
+      "add": "Hand over",
+      "sharesMatch": "The fare shares add up to the fare ({fare}).",
+      "sharesOff": "The fare shares add up to {shares}, not the fare ({fare}).",
+      "start": "Start trip",
+      "closeTitle": "Close and settle",
+      "blockedBody": "These orders still need an outcome before the trip can close:",
+      "previewSettled": "Closing settles it: {expected} expected, all handed in.",
+      "previewShort": "Closing leaves a difference: {expected} expected, {received} handed in, {netted} kept as fare — {difference} still to hand in stays in the driver's custody.",
+      "previewOver": "Closing leaves a difference: {expected} expected but {received} handed in — {difference} more than collected stays unallocated.",
+      "cancel": "Cancel",
+      "closeConfirm": "Close trip",
+      "close": "Close trip…"
+    },
+    "actions": {
+      "delivered": "Delivered",
+      "failed": "Failed",
+      "returned": "Returned at the door",
+      "lost": "Lost or damaged",
+      "refund": "Refund fee",
+      "confirmDelivered": "Confirm delivered",
+      "failReason": "What happened",
+      "failReasonRequired": "Say what happened (at least 3 characters).",
+      "confirmFailed": "Mark failed"
     }
   }
 }

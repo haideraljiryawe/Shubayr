@@ -1,5 +1,6 @@
 import "server-only";
 
+import { loadPartyChoice } from "@/lib/api/parties-server";
 import { load, type serverApi } from "@/lib/api/server";
 import { lastPage } from "@/lib/list-queries";
 import { receiptListQuery } from "@/lib/finance/cash-receipts";
@@ -7,14 +8,11 @@ import type { TableParams } from "@/lib/table-params";
 
 type Api = Awaited<ReturnType<typeof serverApi>>;
 
-/** Filter choices for the receipt lists: parties, and cash accounts when readable. */
-export async function loadReceiptFilterOptions(api: Api) {
-  const [parties, accounts] = await Promise.all([
-    load(api.GET("/admin/delivery-parties", { params: { query: { per_page: 100 } } })),
-    load(api.GET("/admin/cash-accounts")),
-  ]);
+/** Filter choices for the receipt lists: the filtered party by name, and cash accounts when readable. */
+export async function loadReceiptFilterOptions(api: Api, partyId: string | undefined) {
+  const [party, accounts] = await Promise.all([loadPartyChoice(api, partyId), load(api.GET("/admin/cash-accounts"))]);
   return {
-    parties: parties.ok ? parties.data.data.map((party) => ({ value: party.id, label: party.name })) : [],
+    party,
     accounts: accounts.ok
       ? accounts.data.filter((account) => account.currency_code === "IQD").map((account) => ({ value: account.id, label: account.name }))
       : null,

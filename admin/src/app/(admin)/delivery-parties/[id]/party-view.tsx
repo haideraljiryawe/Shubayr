@@ -9,6 +9,10 @@ import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { DataTable, type Column, type TableState } from "@/components/table/data-table";
 import { isIssue, type CashActivity, type HeldOrder, type PartyCustody, type StatementEntry } from "@/lib/delivery-parties";
 import { receiptHref } from "@/lib/finance/cash-receipts";
+import { tripHref } from "@/lib/trips";
+import type { components } from "@/types/api";
+
+type TripStatement = components["schemas"]["ExternalDriverTripStatement"];
 import { formatCost, formatQuantity } from "@/lib/inventory";
 import { formatMoney } from "@/lib/orders";
 
@@ -20,6 +24,8 @@ export function PartyView({
   statementState,
   orderFilter,
   canViewCost,
+  canRecordException,
+  trips,
 }: {
   custody: PartyCustody;
   held: HeldOrder[];
@@ -29,6 +35,10 @@ export function PartyView({
   statementState: TableState;
   orderFilter: string | null;
   canViewCost: boolean;
+  /** Any custody-exception kind may be recorded (each form checks its own). */
+  canRecordException: boolean;
+  /** The party's external-driver trips (13.4), newest first. */
+  trips: TripStatement[];
 }) {
   const t = useTranslations("parties");
   const locale = useLocale();
@@ -179,6 +189,7 @@ export function PartyView({
                 <th className="px-3 py-2 text-end font-semibold">{t("custody.age")}</th>
                 {showCost ? <th className="px-3 py-2 text-end font-semibold">{t("custody.unitCost")}</th> : null}
                 {showCost ? <th className="px-3 py-2 text-end font-semibold">{t("custody.value")}</th> : null}
+                {canRecordException ? <th className="px-3 py-2" /> : null}
               </tr>
             </thead>
             <tbody>
@@ -210,6 +221,13 @@ export function PartyView({
                   {showCost ? (
                     <td className="px-3 py-2 text-end" dir="ltr">
                       {cost(line.value_iqd)}
+                    </td>
+                  ) : null}
+                  {canRecordException ? (
+                    <td className="px-3 py-2 text-end">
+                      <Link href={`/finance/custody-exceptions/new?order_id=${line.order.id}`} className="font-semibold text-primary-dark hover:underline" data-testid="custody-line-exception">
+                        {t("custody.exception")}
+                      </Link>
                     </td>
                   ) : null}
                 </tr>
@@ -347,6 +365,44 @@ export function PartyView({
           </Card>
         )}
       </section>
+
+      {trips.length ? (
+        <section className="flex flex-col gap-3" data-testid="party-trips">
+          <h2 className="text-lg font-bold">{t("trips.title")}</h2>
+          <Card className="overflow-x-auto">
+            <table className="w-full min-w-[40rem] text-sm">
+              <thead className="text-text-muted">
+                <tr>
+                  <th className="px-3 py-2 text-start font-semibold">{t("trips.trip")}</th>
+                  <th className="px-3 py-2 text-start font-semibold">{t("trips.status")}</th>
+                  <th className="px-3 py-2 text-end font-semibold">{t("trips.orders")}</th>
+                  <th className="px-3 py-2 text-end font-semibold">{t("trips.expected")}</th>
+                  <th className="px-3 py-2 text-end font-semibold">{t("trips.received")}</th>
+                  <th className="px-3 py-2 text-end font-semibold">{t("trips.outstanding")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trips.map((trip) => (
+                  <tr key={trip.id} className="border-t border-border" data-testid="party-trip" data-status={trip.status}>
+                    <td className="px-3 py-2">
+                      <Link href={tripHref(trip.id)} className="font-semibold text-primary-dark hover:underline" dir="ltr">
+                        {trip.document_number}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2">{t(`trips.statuses.${trip.status}`)}</td>
+                    <td className="px-3 py-2 text-end" dir="ltr">{trip.order_count}</td>
+                    <td className="px-3 py-2 text-end" dir="ltr">{trip.expected_cash_iqd === null ? "—" : formatMoney(trip.expected_cash_iqd, "IQD", locale)}</td>
+                    <td className="px-3 py-2 text-end" dir="ltr">{trip.received_cash_iqd === null ? "—" : formatMoney(trip.received_cash_iqd, "IQD", locale)}</td>
+                    <td className="px-3 py-2 text-end font-semibold" dir="ltr">
+                      {trip.outstanding_cash_iqd === null ? "—" : formatMoney(trip.outstanding_cash_iqd, "IQD", locale)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </section>
+      ) : null}
     </div>
   );
 }
