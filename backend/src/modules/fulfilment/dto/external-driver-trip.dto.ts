@@ -9,12 +9,20 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsArray,
+  ArrayMinSize,
   Max,
   MaxLength,
   Min,
   MinLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
+import { FinancialDocumentDto } from '../../finance/dto/finance.dto';
+import {
+  CustodyExceptionQuantityDto,
+  CustodyReturnLineDto,
+} from './custody-exception.dto';
 
 export class CreateExternalDriverTripDto {
   @IsString()
@@ -103,6 +111,108 @@ export class StartExternalDriverTripDto {
 
   @IsISO8601({ strict: true })
   event_at!: string;
+}
+
+export class ExternalDriverTripDeliveredDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  operation_id!: string;
+
+  @IsInt()
+  @Min(1)
+  order_version!: number;
+
+  @IsIn(['confirmed', 'unconfirmed'])
+  collection_confirmation!: 'confirmed' | 'unconfirmed';
+
+  @ValidateIf(
+    (input: ExternalDriverTripDeliveredDto) =>
+      input.collection_confirmation === 'confirmed',
+  )
+  @IsDecimal({ decimal_digits: '0,6', force_decimal: false })
+  collected_amount?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  source!: string;
+
+  @IsISO8601({ strict: true })
+  event_at!: string;
+}
+
+export class ExternalDriverTripFailedDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  operation_id!: string;
+
+  @IsInt()
+  @Min(1)
+  order_version!: number;
+
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  reason!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  source!: string;
+
+  @IsISO8601({ strict: true })
+  event_at!: string;
+}
+
+export class ExternalDriverTripLossDto extends FinancialDocumentDto {
+  @IsIn(['store', 'party'])
+  liability_bearer!: 'store' | 'party';
+
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  reason!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  source!: string;
+
+  @IsISO8601({ strict: true })
+  event_at!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CustodyExceptionQuantityDto)
+  lines!: CustodyExceptionQuantityDto[];
+}
+
+export class ExternalDriverTripDoorReturnDto extends FinancialDocumentDto {
+  @IsInt()
+  @Min(1)
+  order_version!: number;
+
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  reason!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  source!: string;
+
+  @IsISO8601({ strict: true })
+  event_at!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CustodyReturnLineDto)
+  lines!: CustodyReturnLineDto[];
 }
 
 export class CloseExternalDriverTripDto {

@@ -293,6 +293,31 @@ async function deliver(
   });
 }
 
+async function deliverThroughTrip(
+  trip,
+  order,
+  collected,
+  confirmation = 'confirmed',
+) {
+  return request(
+    `/admin/external-driver-trips/${trip.id}/orders/${order.orderId}/delivered`,
+    {
+      token: adminToken,
+      method: 'POST',
+      body: {
+        operation_id: `c10b-trip-delivery-${randomUUID()}`,
+        order_version: 5,
+        collection_confirmation: confirmation,
+        ...(confirmation === 'confirmed'
+          ? { collected_amount: String(collected) }
+          : {}),
+        source: 'trip delivery sheet',
+        event_at: new Date().toISOString(),
+      },
+    },
+  );
+}
+
 async function receive(amount, allocations) {
   return request('/admin/cash-receipts', {
     token: adminToken,
@@ -340,9 +365,9 @@ const customerTrip = await createTrip('customer-direct', {
   method: 'customer_direct',
 });
 const customerOrders = [
-  await readyOrder('customer-a', 120000),
-  await readyOrder('customer-b', 100000),
-  await readyOrder('customer-c', 80000),
+  await readyOrder('customer-a', 120000, 1000),
+  await readyOrder('customer-b', 100000, 1000),
+  await readyOrder('customer-c', 80000, 1000),
 ];
 for (const order of customerOrders) {
   await addOrder(
@@ -358,7 +383,34 @@ check(
   'in_progress',
   'three-order customer-direct trip starts',
 );
-for (const order of customerOrders) await deliver(order, order.total);
+await deliverThroughTrip(
+  customerTrip,
+  customerOrders[0],
+  customerOrders[0].total,
+);
+for (const order of customerOrders.slice(1)) await deliver(order, order.total);
+const customerPassThrough = (
+  await db.query(
+    `SELECT account.code,
+            coalesce(sum(line.debit_base),0)::numeric AS debit,
+            coalesce(sum(line.credit_base),0)::numeric AS credit
+     FROM delivery_collections collection
+     JOIN journal_entries entry ON entry.id=collection.delivery_journal_entry_id
+     JOIN journal_lines line ON line.entry_id=entry.id
+     JOIN ledger_accounts account ON account.id=line.account_id
+     WHERE collection.order_id=ANY($1::uuid[]) AND account.code IN ('1020','4000','4010')
+     GROUP BY account.code ORDER BY account.code`,
+    [customerOrders.map((order) => order.orderId)],
+  )
+).rows.map((row) => [row.code, Number(row.debit), Number(row.credit)]);
+check(
+  customerPassThrough,
+  [
+    ['1020', 300000, 0],
+    ['4000', 0, 300000],
+  ],
+  'customer-paid delivery fees pass through without store revenue or cash custody',
+);
 await receive(250000, [
   [customerOrders[0], 120000],
   [customerOrders[1], 100000],
@@ -383,6 +435,46 @@ check(
   'SELF_TRIP_CLOSE_FORBIDDEN',
   'trip creator cannot approve their own close',
 );
+const previewEventCount = Number(
+  await scalar(
+    'SELECT count(*)::int AS value FROM external_driver_trip_events WHERE trip_id=$1',
+    [customerTrip.id],
+  ),
+);
+const customerPreview = await request(
+  `/admin/external-driver-trips/${customerTrip.id}/close-preview`,
+  { token: operationsToken },
+);
+check(
+  [
+    customerPreview.can_close,
+    customerPreview.expected_cash_iqd,
+    customerPreview.received_cash_iqd,
+    customerPreview.netted_fare_iqd,
+    customerPreview.difference_iqd,
+    customerPreview.fare.outside_store_accounts,
+    customerPreview.postings,
+    customerPreview.blocking_orders,
+  ],
+  [true, 300000, 250000, 0, 50000, true, [], []],
+  'close preview exposes customer-paid settlement without posting anything',
+);
+check(
+  [
+    await scalar(
+      'SELECT status AS value FROM external_driver_trips WHERE id=$1',
+      [customerTrip.id],
+    ),
+    Number(
+      await scalar(
+        'SELECT count(*)::int AS value FROM external_driver_trip_events WHERE trip_id=$1',
+        [customerTrip.id],
+      ),
+    ),
+  ],
+  ['in_progress', previewEventCount],
+  'close preview is read-only',
+);
 const customerClosed = await closeTrip(customerTrip);
 check(
   [
@@ -393,7 +485,7 @@ check(
     customerClosed.result.settlement.result,
   ],
   [null, 300000, 250000, 50000, 'settlement_open'],
-  'customer-direct fare is outside store postings and cash difference remains visible',
+  'customer-paid fare is outside store postings and cash difference remains visible',
 );
 check(
   Number(
@@ -444,8 +536,8 @@ const doubleCharge = await request(
 );
 check(
   doubleCharge.code,
-  'DOUBLE_DELIVERY_CHARGE',
-  'server refuses a direct fare plus store delivery fee',
+  'TRIP_FARE_SHARE_MISMATCH',
+  'customer-paid fare share must equal the existing order delivery fee',
 );
 
 const paidTrip = await createTrip('store-cash', {
@@ -460,6 +552,44 @@ await addOrder(paidTrip, paidOrder, 3000, undefined, baghdadMonthBoundary);
 await startTrip(paidTrip);
 await deliver(paidOrder, 105000, 'confirmed', baghdadMonthBoundary);
 await receive(105000, [[paidOrder, 105000]]);
+const paidPreview = await request(
+  `/admin/external-driver-trips/${paidTrip.id}/close-preview`,
+  { token: operationsToken },
+);
+check(
+  {
+    can_close: paidPreview.can_close,
+    expected_cash_iqd: paidPreview.expected_cash_iqd,
+    received_cash_iqd: paidPreview.received_cash_iqd,
+    netted_fare_iqd: paidPreview.netted_fare_iqd,
+    difference_iqd: paidPreview.difference_iqd,
+    settlement_result: paidPreview.settlement_result,
+    postings: paidPreview.postings,
+  },
+  {
+    can_close: true,
+    expected_cash_iqd: 105000,
+    received_cash_iqd: 105000,
+    netted_fare_iqd: 0,
+    difference_iqd: 0,
+    settlement_result: 'settled',
+    postings: [
+      {
+        event: 'fare_accrual',
+        debit_account_code: '5040',
+        credit_account_code: '2020',
+        amount_iqd: 3000,
+      },
+      {
+        event: 'fare_payment',
+        debit_account_code: '2020',
+        credit_account_code: till.ledger_account.code,
+        amount_iqd: 3000,
+      },
+    ],
+  },
+  'store-paid close preview matches the exact fare postings made by close',
+);
 const paidClosed = (await closeTrip(paidTrip)).result;
 check(
   Boolean(
@@ -547,14 +677,55 @@ const exceptionTrip = await createTrip('exceptions', {
 });
 const failedOrder = await readyOrder('failed', 60000);
 const returnedOrder = await readyOrder('door-return', 50000);
+const lostOrder = await readyOrder('lost', 30000);
 await addOrder(exceptionTrip, failedOrder, 0);
 await addOrder(exceptionTrip, returnedOrder, 0);
+await addOrder(exceptionTrip, lostOrder, 0);
 await startTrip(exceptionTrip);
-await request(`/admin/deliveries/${failedOrder.deliveryId}/status`, {
-  token: adminToken,
-  method: 'PATCH',
-  body: { status: 'failed', order_version: 5, reason: 'Customer unavailable' },
-});
+await request(
+  `/admin/external-driver-trips/${exceptionTrip.id}/orders/${failedOrder.orderId}/failed`,
+  {
+    token: adminToken,
+    method: 'POST',
+    body: {
+      operation_id: `c10b-trip-failed-${randomUUID()}`,
+      order_version: 5,
+      reason: 'Customer unavailable',
+      source: 'trip delivery sheet',
+      event_at: new Date().toISOString(),
+    },
+  },
+);
+const lostHolding = await scalar(
+  'SELECT id::text AS value FROM custody_holdings WHERE order_id=$1',
+  [lostOrder.orderId],
+);
+await request(
+  `/admin/external-driver-trips/${exceptionTrip.id}/orders/${lostOrder.orderId}/lost`,
+  {
+    token: adminToken,
+    method: 'POST',
+    expected: 201,
+    body: {
+      operation_id: `c10b-trip-lost-${randomUUID()}`,
+      document_date: today,
+      liability_bearer: 'party',
+      reason: 'Parcel lost while in external-driver custody',
+      source: 'trip exception sheet',
+      event_at: new Date().toISOString(),
+      lines: [{ custody_holding_id: lostHolding, quantity: '1' }],
+    },
+  },
+);
+const unresolvedPreview = await request(
+  `/admin/external-driver-trips/${exceptionTrip.id}/close-preview`,
+  { token: operationsToken },
+);
+check(
+  unresolvedPreview.blocking_orders.map((row) => row.order_id).sort(),
+  [failedOrder.orderId, returnedOrder.orderId].sort(),
+  'close preview identifies every unresolved order and treats a recorded loss as resolved',
+);
 const unresolvedClose = await request(
   `/admin/external-driver-trips/${exceptionTrip.id}/close`,
   {
@@ -599,34 +770,195 @@ await request(`/admin/retrievals/${retrieval.id}/receive`, {
     })),
   },
 });
-await deliver(returnedOrder, 0);
 const returnedHolding = await scalar(
   'SELECT id::text AS value FROM custody_holdings WHERE order_id=$1',
   [returnedOrder.orderId],
 );
-await request('/admin/custody-exceptions/return-against-uncollected', {
+const rollbackBefore = (
+  await db.query(
+    `SELECT orders.status AS order_status,orders.version,
+            deliveries.status AS delivery_status,
+            (SELECT count(*)::int FROM delivery_collections WHERE order_id=orders.id) AS collections,
+            (SELECT count(*)::int FROM custody_exceptions WHERE order_id=orders.id) AS exceptions,
+            (SELECT count(*)::int FROM external_driver_trip_events WHERE order_id=orders.id) AS events,
+            (SELECT count(*)::int FROM journal_entries) AS journals
+     FROM orders JOIN deliveries ON deliveries.id=orders.delivery_id
+     WHERE orders.id=$1`,
+    [returnedOrder.orderId],
+  )
+).rows[0];
+const rejectedDoorReturn = await request(
+  `/admin/external-driver-trips/${exceptionTrip.id}/orders/${returnedOrder.orderId}/return-at-door`,
+  {
+    token: adminToken,
+    method: 'POST',
+    expected: 409,
+    body: {
+      operation_id: `c10b-door-return-fail-${randomUUID()}`,
+      document_date: today,
+      order_version: 5,
+      reason: 'Customer refused the parcel at the door',
+      source: 'trip return sheet',
+      event_at: new Date().toISOString(),
+      lines: [
+        {
+          custody_holding_id: returnedHolding,
+          location_id: randomUUID(),
+          quantity: '1',
+        },
+      ],
+    },
+  },
+);
+check(
+  rejectedDoorReturn.code,
+  'RETURN_LOCATION_INACTIVE',
+  'a failure during the restock phase rejects the atomic door return',
+);
+const rollbackAfter = (
+  await db.query(
+    `SELECT orders.status AS order_status,orders.version,
+            deliveries.status AS delivery_status,
+            (SELECT count(*)::int FROM delivery_collections WHERE order_id=orders.id) AS collections,
+            (SELECT count(*)::int FROM custody_exceptions WHERE order_id=orders.id) AS exceptions,
+            (SELECT count(*)::int FROM external_driver_trip_events WHERE order_id=orders.id) AS events,
+            (SELECT count(*)::int FROM journal_entries) AS journals
+     FROM orders JOIN deliveries ON deliveries.id=orders.delivery_id
+     WHERE orders.id=$1`,
+    [returnedOrder.orderId],
+  )
+).rows[0];
+check(
+  rollbackAfter,
+  rollbackBefore,
+  'a door-return failure after delivery processing leaves all business state and postings unchanged',
+);
+const doorReturnInput = {
+  operation_id: `c10b-door-return-${randomUUID()}`,
+  document_date: today,
+  order_version: 5,
+  reason: 'Customer refused the parcel at the door',
+  source: 'trip return sheet',
+  event_at: new Date().toISOString(),
+  lines: [
+    {
+      custody_holding_id: returnedHolding,
+      location_id: stock.location_id,
+      quantity: '1',
+    },
+  ],
+};
+const doorReturnPath = `/admin/external-driver-trips/${exceptionTrip.id}/orders/${returnedOrder.orderId}/return-at-door`;
+const doorReturn = await request(doorReturnPath, {
   token: adminToken,
   method: 'POST',
   expected: 201,
-  body: {
-    operation_id: `c8-door-return-${randomUUID()}`,
-    document_date: today,
-    order_id: returnedOrder.orderId,
-    reason: 'Customer refused the parcel at the door',
-    lines: [
-      {
-        custody_holding_id: returnedHolding,
-        location_id: stock.location_id,
-        quantity: '1',
-      },
-    ],
-  },
+  body: doorReturnInput,
 });
+const replayedDoorReturn = await request(doorReturnPath, {
+  token: adminToken,
+  method: 'POST',
+  expected: 201,
+  body: doorReturnInput,
+});
+check(
+  replayedDoorReturn.id,
+  doorReturn.id,
+  'atomic return-at-door operation replays to the original exception',
+);
+const deliveredGoods = await request(
+  `/admin/orders/${returnedOrder.orderId}/goods`,
+  { token: adminToken },
+);
+check(
+  deliveredGoods.lines.map((line) => ({
+    delivered: line.delivered_quantity,
+    returned: line.returned_quantity,
+    refused: line.refused_quantity,
+    returnable: line.returnable_quantity,
+  })),
+  [{ delivered: 1, returned: 0, refused: 1, returnable: 0 }],
+  'order goods read distinguishes refused-at-door quantities from later returns',
+);
+const exceptionHistory = await request(
+  `/admin/external-driver-trips/${exceptionTrip.id}`,
+  { token: adminToken },
+);
+check(
+  exceptionHistory.events
+    .filter((event) =>
+      ['failed', 'lost', 'return_at_door'].includes(event.type),
+    )
+    .map((event) => [
+      event.type,
+      Boolean(event.recorded_by),
+      Boolean(event.recorded_by_name),
+      Boolean(event.event_at),
+    ])
+    .sort(),
+  [
+    ['failed', true, true, true],
+    ['lost', true, true, true],
+    ['return_at_door', true, true, true],
+  ],
+  'trip history records failed, lost, and return-at-door events with staff and time',
+);
+const customerHistory = await request(
+  `/admin/external-driver-trips/${customerTrip.id}`,
+  { token: adminToken },
+);
+check(
+  customerHistory.events.filter((event) => event.type === 'delivered').length,
+  3,
+  'trip history includes delivery events from both trip and legacy per-order routes',
+);
+check(
+  customerHistory.events
+    .filter((event) => event.type === 'delivered')
+    .every((event) => event.recorded_by_name && event.event_at),
+  true,
+  'every trip delivery event identifies its recording staff member and time',
+);
+check(
+  Number(
+    await scalar(
+      `SELECT count(*)::int AS value FROM custody_exception_postings posting
+       WHERE posting.exception_id=$1`,
+      [doorReturn.id],
+    ),
+  ),
+  2,
+  'atomic door return creates both required immutable ledger postings',
+);
+check(
+  Number(
+    await scalar(
+      `SELECT count(*)::int AS value FROM stock_movements
+       WHERE source_type='custody_exception' AND source_id=$1 AND type='return_in'`,
+      [doorReturn.id],
+    ),
+  ),
+  1,
+  'atomic door return restocks refused goods at their original issue cost',
+);
+const returnedCollection = await request(
+  `/admin/delivery-parties/${driver.id}/collections?order_id=${returnedOrder.orderId}`,
+  { token: adminToken },
+);
+check(
+  [
+    returnedCollection.data[0].due_amount,
+    returnedCollection.data[0].collected_amount,
+    returnedCollection.data[0].shortfall_amount,
+  ],
+  [50000, 0, 50000],
+  'atomic door return reduces the party expected cash by the refused goods amount',
+);
 const exceptionClosed = (await closeTrip(exceptionTrip)).result;
 check(
   exceptionClosed.orders.map((row) => row.status).sort(),
-  ['ready_for_dispatch', 'returned'],
-  'failed retrieval and return-at-door outcomes remain visible inside the closed trip',
+  ['cancelled', 'ready_for_dispatch', 'returned'],
+  'failed retrieval, lost parcel, and return-at-door outcomes remain visible inside the closed trip',
 );
 
 const unconfirmedTrip = await createTrip('unconfirmed-sort', {
