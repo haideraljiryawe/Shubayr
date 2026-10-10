@@ -94,6 +94,10 @@ void main() {
         await tester.ensureVisible(find.text('2026/09/05 00:15'));
         await tester.pumpAndSettle();
         expect(find.text('2026/09/05 00:15'), findsOneWidget);
+        expect(
+          tester.widget<Text>(find.text('2026/09/05 00:15')).style!.fontSize,
+          14,
+        );
         expect(tester.takeException(), isNull);
       },
     );
@@ -218,6 +222,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Purchase name'), findsOneWidget);
     expect(find.text('XL'), findsOneWidget);
+    expect(tester.widget<Text>(find.text('XL')).style!.fontSize, 14);
     expect(find.text('Renamed'), findsNothing);
   });
 

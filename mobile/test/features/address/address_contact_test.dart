@@ -1,5 +1,8 @@
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:shubayr/features/auth/data/user.dart';
+import 'package:shubayr/features/auth/domain/session.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,6 +93,89 @@ Future<void> _save(WidgetTester tester) async {
 }
 
 void main() {
+  for (final locale in ['ar', 'en']) {
+    for (final dark in [false, true]) {
+      for (final phone in ['07700000000', '+123456789012345', '']) {
+        testWidgets(
+          'primary phone is readable without clipping $locale dark=$dark phone=$phone',
+          (tester) async {
+            final container = (await tester.runAsync(
+              () => _start(RecordingAddresses()),
+            ))!;
+            addTearDown(container.dispose);
+            (container.read(sessionControllerProvider.notifier)
+                    as AddressTestSession)
+                .setSession(
+                  Session.signedIn(
+                    User(id: 'customer', role: 'customer', phone: phone),
+                  ),
+                );
+            tester.view.devicePixelRatio = 1;
+            addTearDown(tester.view.reset);
+            for (final scale in [1.0, 1.5, 2.0]) {
+              for (final width in [320.0, 600.0]) {
+                tester.view.physicalSize = Size(width, 1000);
+                await tester.pumpWidget(
+                  _host(
+                    container,
+                    address: const Address(id: 'addr-0', city: 'Baghdad'),
+                    locale: locale,
+                    dark: dark,
+                    scale: scale,
+                  ),
+                );
+                await _open(tester);
+                await tester.ensureVisible(primary);
+                await tester.pumpAndSettle();
+                final tile = tester.widget<RadioListTile<bool>>(primary);
+                final title = find.byWidget(tile.title!);
+                final subtitle = find.byWidget(tile.subtitle!);
+                RenderParagraph paragraph(Finder finder) =>
+                    tester.renderObject<RenderParagraph>(
+                      find.descendant(
+                        of: finder,
+                        matching: find.byType(RichText),
+                      ),
+                    );
+                final number = paragraph(subtitle);
+                final heading = paragraph(title);
+                expect(number.text.style!.fontSize, 14);
+                expect(number.text.style!.fontFamily, 'Zain');
+                expect(number.text.style!.fontWeight, FontWeight.w400);
+                expect(heading.text.style!.fontSize, 14);
+                expect(heading.text.style!.fontWeight, FontWeight.w700);
+                expect(number.textScaler.scale(14), 14 * scale);
+                expect(
+                  number.textDirection,
+                  phone.isNotEmpty || locale == 'en'
+                      ? TextDirection.ltr
+                      : TextDirection.rtl,
+                );
+                expect(number.didExceedMaxLines, isFalse);
+                expect(heading.didExceedMaxLines, isFalse);
+                expect(
+                  tester.getRect(subtitle).top,
+                  greaterThanOrEqualTo(tester.getRect(title).bottom),
+                );
+                final tileBounds = tester.getRect(primary).inflate(0.01);
+                expect(
+                  tileBounds.contains(tester.getRect(subtitle).topLeft),
+                  isTrue,
+                );
+                expect(
+                  tileBounds.contains(tester.getRect(subtitle).bottomRight),
+                  isTrue,
+                );
+                expect(tester.takeException(), isNull);
+                await tester.pumpWidget(const SizedBox.shrink());
+              }
+            }
+          },
+        );
+      }
+    }
+  }
+
   for (final device in [
     (name: 'Android buttons', platform: TargetPlatform.android, bottom: 48.0),
     (name: 'Android gestures', platform: TargetPlatform.android, bottom: 24.0),

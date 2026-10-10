@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,7 +35,7 @@ class DesignGalleryScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Design system')),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
+        padding: AppLayout.pageInsets(context),
         children: [
           // ---- Live switches --------------------------------------------
           AppCard(

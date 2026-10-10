@@ -267,7 +267,7 @@ class _CategoryFilters extends StatelessWidget {
     return SingleChildScrollView(
       key: const ValueKey('product-subcategory-filters'),
       scrollDirection: Axis.horizontal,
-      padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
+      padding: AppLayout.horizontalScrollInsets(context),
       child: Row(
         children: [
           chip(allCategoryId, context.l10n.homeAllDepartments),

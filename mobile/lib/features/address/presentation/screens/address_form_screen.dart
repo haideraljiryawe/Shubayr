@@ -1,3 +1,4 @@
+import '../../../../core/theme/components/input_theme.dart';
 import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/utils/numeric_input_formatters.dart';
 import '../../../../core/utils/numeric_text.dart';
@@ -177,7 +178,10 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                     controller: _details,
                     inputFormatters: const [WesternDigitsInputFormatter()],
                     maxLines: 2,
-                    decoration: InputDecoration(labelText: l10n.addressDetails),
+                    decoration: InputDecoration(
+                      labelText: l10n.addressDetails,
+                      contentPadding: InputTheme.spaciousContentPadding,
+                    ),
                   ),
                 ),
                 ResponsiveField(
@@ -216,7 +220,9 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                                   _accountPhone.isEmpty
                                       ? l10n.accountNoPhone
                                       : _accountPhone,
-                                  textDirection: TextDirection.ltr,
+                                  textDirection: _accountPhone.isEmpty
+                                      ? null
+                                      : TextDirection.ltr,
                                 ),
                               ),
                               RadioListTile<bool>(

@@ -45,6 +45,7 @@ abstract final class AppTheme {
       dividerTheme: SurfaceThemes.divider(c),
       listTileTheme: SurfaceThemes.listTile(c, text),
       elevatedButtonTheme: ButtonThemes.elevated(c, text),
+      filledButtonTheme: ButtonThemes.filled,
       outlinedButtonTheme: ButtonThemes.outlined(c, text),
       textButtonTheme: ButtonThemes.text_(c, text),
       inputDecorationTheme: InputTheme.build(c, text),

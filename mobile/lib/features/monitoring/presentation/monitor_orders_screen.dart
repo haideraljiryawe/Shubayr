@@ -185,7 +185,7 @@ class _MonitorOrdersScreenState extends ConsumerState<MonitorOrdersScreen> {
           ),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
+            padding: AppLayout.horizontalScrollInsets(context),
             child: Row(
               children: [
                 for (final status in [null, ...remoteOrderStatuses])

@@ -166,7 +166,14 @@ class _OffersHeader extends StatelessWidget {
             AppRoutes.searchName,
             queryParameters: {'offers_only': 'true'},
           ),
-          child: Text(context.l10n.homeOffersViewAll),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(context.l10n.homeOffersViewAll),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(Icons.chevron_right_rounded, size: 20),
+            ],
+          ),
         ),
       ],
     ),
@@ -187,7 +194,7 @@ class _DepartmentsBar extends ConsumerWidget {
     Widget row(List<Widget> children) => SingleChildScrollView(
       key: const ValueKey('home-category-shortcuts'),
       scrollDirection: Axis.horizontal,
-      padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
+      padding: EdgeInsets.zero,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: children,

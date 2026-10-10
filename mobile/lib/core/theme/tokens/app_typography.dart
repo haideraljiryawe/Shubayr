@@ -75,7 +75,8 @@ abstract final class AppTypography {
       titleSmall: style(14, FontWeight.w700, 1.4, primaryText),
       bodyLarge: style(16, FontWeight.w400, kTextHeightNone, primaryText),
       bodyMedium: style(14, FontWeight.w400, 1.5, primaryText),
-      bodySmall: style(12, FontWeight.w400, 1.45, secondaryText),
+      // Supporting information stays readable; compact labels keep 12px below.
+      bodySmall: style(14, FontWeight.w400, 1.45, secondaryText),
       labelLarge: style(14, FontWeight.w700, kTextHeightNone, primaryText),
       labelMedium: style(12, FontWeight.w700, kTextHeightNone, secondaryText),
       labelSmall: style(11, FontWeight.w400, 1.2, secondaryText),

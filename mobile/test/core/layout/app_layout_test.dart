@@ -251,7 +251,7 @@ void main() {
           } else if (width == 390) {
             expect(b.top, greaterThan(a.top));
           }
-          final inset = width < AppLayout.compactWidth
+          final inset = width < 600
               ? AppSpacing.screenMobileH
               : AppSpacing.screenH;
           final footer = tester.getRect(find.byKey(const ValueKey('retry')));

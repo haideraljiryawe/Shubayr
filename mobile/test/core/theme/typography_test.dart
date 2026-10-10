@@ -31,7 +31,7 @@ void main() {
         (text.titleSmall!, 14, FontWeight.w700),
         (text.bodyLarge!, 16, FontWeight.w400),
         (text.bodyMedium!, 14, FontWeight.w400),
-        (text.bodySmall!, 12, FontWeight.w400),
+        (text.bodySmall!, 14, FontWeight.w400),
         (text.labelLarge!, 14, FontWeight.w700),
         (text.labelMedium!, 12, FontWeight.w700),
         (text.labelSmall!, 11, FontWeight.w400),
@@ -50,6 +50,11 @@ void main() {
         expect(style.fontWeight, FontWeight.w700);
       }
       expect(theme.chipTheme.labelStyle!.fontSize, 12);
+      expect(theme.listTileTheme.subtitleTextStyle!.fontSize, 14);
+      expect(
+        theme.listTileTheme.subtitleTextStyle!.fontWeight,
+        FontWeight.w400,
+      );
       expect(theme.chipTheme.labelStyle!.fontWeight, FontWeight.w700);
       final input = theme.inputDecorationTheme;
       final label = WidgetStateProperty.resolveAs(input.labelStyle!, {});

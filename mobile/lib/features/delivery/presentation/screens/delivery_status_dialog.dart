@@ -1,3 +1,4 @@
+import '../../../../core/theme/components/input_theme.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/error/failure.dart';
@@ -85,7 +86,10 @@ class _DeliveryStatusDialogState extends State<DeliveryStatusDialog> {
             DropdownButtonFormField<String>(
               initialValue: _status,
               isExpanded: true,
-              decoration: InputDecoration(labelText: l10n.deliverySelectStatus),
+              decoration: InputDecoration(
+                labelText: l10n.deliverySelectStatus,
+                contentPadding: InputTheme.spaciousContentPadding,
+              ),
               items: [
                 for (final status
                     in retry ? ['delivered'] : widget.delivery.nextStatuses)
@@ -107,6 +111,7 @@ class _DeliveryStatusDialogState extends State<DeliveryStatusDialog> {
                 maxLines: 4,
                 decoration: InputDecoration(
                   labelText: l10n.deliveryFailureReason,
+                  contentPadding: InputTheme.spaciousContentPadding,
                 ),
                 onChanged: (value) => setState(() => _reason = value),
               ),
@@ -118,6 +123,7 @@ class _DeliveryStatusDialogState extends State<DeliveryStatusDialog> {
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: l10n.deliveryCollectionConfirmation,
+                  contentPadding: InputTheme.spaciousContentPadding,
                 ),
                 items: [
                   DropdownMenuItem(

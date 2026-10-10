@@ -126,16 +126,19 @@ abstract final class NavigationThemes {
   // Keep horizontal geometry independent of the increased vertical clearance.
   static const double bottomBarSelectedSlotInset = 6;
 
+  // Floating navigation has its own calibrated gutter, independent of pages.
+  static const double bottomBarHorizontalInset = AppSpacing.sm;
+
   static EdgeInsets bottomBarPadding(
     MediaQueryData media, {
     required TargetPlatform platform,
   }) => EdgeInsets.only(
     left: math.max(
-      AppSpacing.screenMobileH,
+      bottomBarHorizontalInset,
       math.max(media.viewPadding.left, media.padding.left),
     ),
     right: math.max(
-      AppSpacing.screenMobileH,
+      bottomBarHorizontalInset,
       math.max(media.viewPadding.right, media.padding.right),
     ),
     bottom: bottomBarBottomOffset(media, platform: platform),

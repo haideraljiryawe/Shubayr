@@ -182,7 +182,7 @@ class _StatusFilterBar extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 48),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: AppLayout.pageInsets(
+        padding: AppLayout.horizontalScrollInsets(
           context,
           top: AppSpacing.xs,
           bottom: AppSpacing.xs,
@@ -248,26 +248,23 @@ class _OrderCard extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Text(
-                l10n.orderItemsCount(formatQuantity(count)),
-                style: context.text.bodySmall?.copyWith(
-                  color: colors.textSecondary,
-                ),
+          ResponsiveValueRow(
+            label: Text(
+              l10n.orderItemsCount(formatQuantity(count)),
+              style: context.text.bodySmall?.copyWith(
+                color: colors.textSecondary,
               ),
-              const Spacer(),
-              Text(
-                formatMoney(
-                  order.total,
-                  currencyCode: order.currency ?? brand.currencyCode,
-                  localeCode: lang,
-                ),
-                style: context.text.titleSmall?.copyWith(
-                  color: colors.primaryDark,
-                ),
+            ),
+            value: Text(
+              formatMoney(
+                order.total,
+                currencyCode: order.currency ?? brand.currencyCode,
+                localeCode: lang,
               ),
-            ],
+              style: context.text.titleSmall?.copyWith(
+                color: colors.primaryDark,
+              ),
+            ),
           ),
         ],
       ),

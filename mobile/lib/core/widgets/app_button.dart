@@ -65,7 +65,7 @@ class _Label extends StatelessWidget {
       children: [
         Icon(icon, size: 18),
         const SizedBox(width: AppSpacing.sm),
-        Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text(label)),
       ],
     );
   }

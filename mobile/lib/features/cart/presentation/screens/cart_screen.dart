@@ -208,7 +208,7 @@ class _CartLine extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   variantLabel,
-                  style: context.text.labelMedium?.copyWith(
+                  style: context.text.labelLarge?.copyWith(
                     color: colors.textMuted,
                   ),
                 ),

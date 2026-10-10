@@ -290,10 +290,12 @@ class _Header extends StatelessWidget {
               children: [
                 Icon(Icons.event_outlined, size: 16, color: colors.textMuted),
                 const SizedBox(width: AppSpacing.xs),
-                Text(
-                  '${l10n.orderDate}: ${DisplayDate.localDate(placedAt)}',
-                  style: context.text.bodySmall?.copyWith(
-                    color: colors.textSecondary,
+                Expanded(
+                  child: Text(
+                    '${l10n.orderDate}: ${DisplayDate.localDate(placedAt)}',
+                    style: context.text.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -411,7 +413,7 @@ class _TimelineRow extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       DisplayDate.localDateTime(at),
-                      style: context.text.labelMedium?.copyWith(
+                      style: context.text.labelLarge?.copyWith(
                         color: colors.textMuted,
                       ),
                     ),
@@ -467,7 +469,7 @@ class _OrderItemTile extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     variantLabel,
-                    style: context.text.labelMedium?.copyWith(
+                    style: context.text.labelLarge?.copyWith(
                       color: colors.textMuted,
                     ),
                   ),

@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
+import '../tokens/app_control_sizes.dart';
 import '../tokens/app_radii.dart';
 import '../tokens/app_spacing.dart';
 
 /// Button styling for the whole app. Feature code uses `AppButton` (or plain
 /// Material buttons) and never restyles them locally.
 abstract final class ButtonThemes {
-  /// Shared minimum height for all buttons — the single place to retune button
-  /// height app-wide. Kept close to the text-field height for a consistent bar
-  /// of controls.
-  static const Size _minSize = Size(64, 48);
+  static const Size _primaryMinSize = Size(64, AppControlSizes.standardHeight);
   static const EdgeInsets _padding = EdgeInsets.symmetric(
     horizontal: AppSpacing.xl,
     vertical: AppSpacing.md,
@@ -33,7 +31,7 @@ abstract final class ButtonThemes {
         ),
         elevation: WidgetStateProperty.all(0),
         shadowColor: WidgetStateProperty.all(Colors.transparent),
-        minimumSize: WidgetStateProperty.all(_minSize),
+        minimumSize: WidgetStateProperty.all(_primaryMinSize),
         padding: WidgetStateProperty.all(_padding),
         textStyle: WidgetStateProperty.all(text.labelLarge),
         shape: WidgetStateProperty.all(
@@ -42,6 +40,12 @@ abstract final class ButtonThemes {
       ),
     );
   }
+
+  /// Plain Material primary actions follow the same sizing as AppButton.
+  /// Retain FilledButton's existing Material colors, shape and typography.
+  static const filled = FilledButtonThemeData(
+    style: ButtonStyle(minimumSize: WidgetStatePropertyAll(_primaryMinSize)),
+  );
 
   static OutlinedButtonThemeData outlined(AppColors c, TextTheme text) {
     return OutlinedButtonThemeData(
@@ -59,7 +63,7 @@ abstract final class ButtonThemes {
             color: states.contains(WidgetState.disabled) ? c.divider : c.border,
           ),
         ),
-        minimumSize: WidgetStateProperty.all(_minSize),
+        minimumSize: WidgetStateProperty.all(const Size(64, 48)),
         padding: WidgetStateProperty.all(_padding),
         textStyle: WidgetStateProperty.all(text.labelLarge),
         shape: WidgetStateProperty.all(

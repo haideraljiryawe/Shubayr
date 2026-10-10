@@ -114,7 +114,10 @@ void main() {
         expect(aspectRatio, closeTo(2.0, 0.001));
         if (width <= 390) expect(aspectRatio, closeTo(2.0, 0.001));
         if (width <= 390) {
-          expect(size.height, (width - AppSpacing.screenMobileH * 2) / 2);
+          expect(
+            size.height,
+            (width - AppSpacing.horizontalScrollMobileH * 2) / 2,
+          );
         }
         // Artwork and its pager stay at a readable tablet width.
         if (width == 1920) expect(size, const Size(760, 380));
@@ -152,7 +155,7 @@ void main() {
           );
           expect(
             initial.width,
-            width == 390 ? width - AppSpacing.screenMobileH * 2 : 760,
+            width == 390 ? width - AppSpacing.horizontalScrollMobileH * 2 : 760,
           );
           expect(initial.center.dx, viewport.center.dx);
           expect(adjacent.hitTestable(), findsNothing);

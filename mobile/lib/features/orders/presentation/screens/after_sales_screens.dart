@@ -1,3 +1,4 @@
+import '../../../../core/theme/components/input_theme.dart';
 import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
 import '../../../../core/utils/quantity.dart';
@@ -126,6 +127,7 @@ class _ReviewOrderScreenState extends ConsumerState<_ReviewOrderForm> {
                         initialValue: selected?.id,
                         isExpanded: true,
                         decoration: InputDecoration(
+                          contentPadding: InputTheme.spaciousContentPadding,
                           labelText: l10n.reviewChooseProduct,
                         ),
                         items: [
@@ -177,6 +179,7 @@ class _ReviewOrderScreenState extends ConsumerState<_ReviewOrderForm> {
                         maxLines: 5,
                         decoration: InputDecoration(
                           labelText: l10n.reviewComment,
+                          contentPadding: InputTheme.spaciousContentPadding,
                         ),
                       ),
                       if (_error != null) ...[
@@ -435,6 +438,7 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                         maxLines: 5,
                         decoration: InputDecoration(
                           labelText: l10n.returnReason,
+                          contentPadding: InputTheme.spaciousContentPadding,
                         ),
                       ),
                       if (_error != null) ...[

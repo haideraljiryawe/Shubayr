@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/theme/brand.dart';
+import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/error/failure.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
@@ -38,6 +39,7 @@ class _FakeCatalog implements CatalogRepository {
         : [
             ProductVariant(
               id: 'v',
+              attributes: const {'size': 'XL'},
               wholeUnitsOnly: whole!,
               baseUnit: 'kg',
               availableQty: 0.5,
@@ -114,11 +116,12 @@ Widget _host(
     ] else
       cartControllerProvider.overrideWith(() => _FixedCart(cart)),
   ],
-  child: const MaterialApp(
-    locale: Locale('en'),
+  child: MaterialApp(
+    theme: AppTheme.light(const Brand.bundled()),
+    locale: const Locale('en'),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
-    home: CartScreen(),
+    home: const CartScreen(),
   ),
 );
 
@@ -154,6 +157,10 @@ void main() {
       await tester.pumpWidget(_host(cart, whole: false, repository: repo));
       await tester.pumpAndSettle();
       expect(find.text('0.5'), findsOneWidget);
+      final variantStyle = tester.widget<Text>(find.text('XL')).style!;
+      expect(variantStyle.fontSize, 14);
+      expect(variantStyle.fontFamily, 'Zain');
+      expect(variantStyle.fontWeight, FontWeight.w700);
       await tester.tap(find.text('0.5'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField), '0.125');

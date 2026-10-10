@@ -198,11 +198,13 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
     final generation = _generation;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     return ResponsiveContent(
-      maxWidth: AppLayout.readingWidth + AppLayout.pageHorizontal(context) * 2,
+      maxWidth:
+          AppLayout.readingWidth + AppLayout.horizontalScrollInset(context) * 2,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final imageWidth =
-              constraints.maxWidth - AppLayout.pageHorizontal(context) * 2;
+              constraints.maxWidth -
+              AppLayout.horizontalScrollInset(context) * 2;
           final height = _bannerHeight(context, imageWidth, widget.banners);
           return MouseRegion(
             onEnter: (_) {
@@ -291,7 +293,7 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
                               });
                             },
                             itemBuilder: (context, page) => Padding(
-                              padding: AppLayout.pageInsets(
+                              padding: AppLayout.horizontalScrollInsets(
                                 context,
                                 top: 0,
                                 bottom: 0,
@@ -315,8 +317,8 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
                       Padding(
                         padding: EdgeInsetsDirectional.only(
                           top: AppSpacing.sm,
-                          start: AppLayout.pageHorizontal(context),
-                          end: AppLayout.pageHorizontal(context),
+                          start: AppLayout.horizontalScrollInset(context),
+                          end: AppLayout.horizontalScrollInset(context),
                         ),
                         child: Semantics(
                           label: context.l10n.bannerPosition(
@@ -501,9 +503,9 @@ class HomeBannerSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: EdgeInsetsDirectional.fromSTEB(
-      AppLayout.pageHorizontal(context),
+      AppLayout.horizontalScrollInset(context),
       AppSpacing.lg,
-      AppLayout.pageHorizontal(context),
+      AppLayout.horizontalScrollInset(context),
       0,
     ),
     child: ResponsiveContent(

@@ -38,6 +38,25 @@ abstract final class AppLayout {
       ? AppSpacing.screenMobileH
       : AppSpacing.screenH;
 
+  /// Content inset that scrolls with horizontal lists, never around a viewport.
+  /// Separate from page margins to preserve existing artwork and card sizes.
+  /// Home category shortcuts intentionally use zero inset instead.
+  static double horizontalScrollInset(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < compactWidth
+      ? AppSpacing.horizontalScrollMobileH
+      : AppSpacing.screenH;
+
+  static EdgeInsetsDirectional horizontalScrollInsets(
+    BuildContext context, {
+    double top = 0,
+    double bottom = 0,
+  }) => EdgeInsetsDirectional.fromSTEB(
+    horizontalScrollInset(context),
+    top,
+    horizontalScrollInset(context),
+    bottom,
+  );
+
   static EdgeInsetsDirectional pageInsets(
     BuildContext context, {
     double top = AppSpacing.screenH,

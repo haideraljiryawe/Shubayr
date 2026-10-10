@@ -186,7 +186,7 @@ class _DeliveryStatusFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
     scrollDirection: Axis.horizontal,
-    padding: AppLayout.pageInsets(
+    padding: AppLayout.horizontalScrollInsets(
       context,
       top: AppSpacing.xs,
       bottom: AppSpacing.xs,

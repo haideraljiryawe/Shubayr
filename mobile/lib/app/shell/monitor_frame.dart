@@ -136,9 +136,10 @@ class GlobalMonitorHeader extends ConsumerWidget {
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenH,
-              vertical: AppSpacing.sm,
+            padding: AppLayout.pageInsets(
+              context,
+              top: AppSpacing.sm,
+              bottom: AppSpacing.sm,
             ),
             child: Row(
               children: [

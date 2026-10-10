@@ -189,7 +189,7 @@ void main() {
             ),
           )
           .position;
-      await tester.pump(const Duration(milliseconds: 1999));
+      await tester.pump(const Duration(milliseconds: 2999));
       expect(position.pixels, 0);
       final before = tester.getRect(category);
       await tester.pump(const Duration(milliseconds: 1));
@@ -437,7 +437,7 @@ void main() {
 
   for (final lang in ['ar', 'en']) {
     testWidgets(
-      'banner, offers and search use the central mobile inset inside the safe area $lang',
+      'page margins change without resizing horizontal content inside the safe area $lang',
       (tester) async {
         addTearDown(tester.view.reset);
         final container = await _container();
@@ -468,8 +468,26 @@ void main() {
             find.byKey(const ValueKey('banner-page-0')),
           );
           final card = tester.getRect(find.byType(ProductCard).first);
-          expect(banner.left, safeStart + AppSpacing.screenMobileH);
-          expect(width - banner.right, safeEnd + AppSpacing.screenMobileH);
+          final shortcuts = tester.getRect(
+            find.byKey(const ValueKey('home-category-shortcuts')),
+          );
+          final offers = tester.getRect(
+            find.byKey(const ValueKey('home-offers-list')),
+          );
+          final pager = tester.getRect(find.byType(PageView));
+          for (final viewport in [shortcuts, offers, pager]) {
+            expect(viewport.left, safeStart);
+            expect(viewport.right, width - safeEnd);
+          }
+          final title = tester.getRect(
+            find.text(lang == 'ar' ? 'عروض وخصومات' : 'Offers & Discounts'),
+          );
+          expect(
+            lang == 'ar' ? width - title.right : title.left,
+            (lang == 'ar' ? safeEnd : safeStart) + AppSpacing.screenMobileH,
+          );
+          expect(banner.left, safeStart + 8);
+          expect(width - banner.right, safeEnd + 8);
           expect(
             lang == 'ar' ? card.right : card.left,
             lang == 'ar' ? banner.right : banner.left,
@@ -478,7 +496,7 @@ void main() {
             card.width,
             AppLayout.homeOfferCardWidth(
               tester.element(find.byType(HomeScreen)),
-              width - safeStart - safeEnd - AppSpacing.screenMobileH * 2,
+              width - safeStart - safeEnd - 16,
             ),
           );
           container.read(routerProvider).pushNamed(AppRoutes.searchName);
@@ -487,8 +505,8 @@ void main() {
           final searchGrid = tester
               .getRect(searchCards.first)
               .expandToInclude(tester.getRect(searchCards.at(1)));
-          expect(searchGrid.left, banner.left);
-          expect(searchGrid.right, banner.right);
+          expect(searchGrid.left, safeStart + AppSpacing.screenMobileH);
+          expect(searchGrid.right, width - safeEnd - AppSpacing.screenMobileH);
           container.read(routerProvider).pop();
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);

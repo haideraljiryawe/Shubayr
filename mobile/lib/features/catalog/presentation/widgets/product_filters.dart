@@ -191,7 +191,7 @@ class AppliedProductFilters extends StatelessWidget {
     return SingleChildScrollView(
       key: const ValueKey('product-applied-filters'),
       scrollDirection: Axis.horizontal,
-      padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
+      padding: AppLayout.horizontalScrollInsets(context),
       child: Row(
         children: [
           if (query.minPrice != null || query.maxPrice != null)

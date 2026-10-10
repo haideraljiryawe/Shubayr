@@ -35,8 +35,7 @@ class HomeCategoryCarousel extends StatefulWidget {
 class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const _speed = 8.4;
-  static const _startupDelay = Duration(seconds: 2);
-  static const _resumeDelay = Duration(seconds: 3);
+  static const _autoScrollDelay = Duration(seconds: 3);
   static const _center = ValueKey('category-ring-center');
 
   late final Ticker _ticker;
@@ -45,6 +44,7 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
   ScrollableState? _verticalScrollable;
   Timer? _delayTimer;
   Duration _delay = Duration.zero;
+  bool _waitingForStartup = false;
   Duration _lastTick = Duration.zero;
   final Set<int> _pointers = {};
   List<String> _ids = const [];
@@ -143,7 +143,10 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
         _ids.isNotEmpty) {
       _startupChecked = true;
       final firstDisplay = widget.claimStartupDelay?.call() ?? false;
-      if (firstDisplay && _delay == Duration.zero) _delay = _startupDelay;
+      if (firstDisplay && _delay == Duration.zero) {
+        _delay = _autoScrollDelay;
+        _waitingForStartup = true;
+      }
     }
     if (!_canMove) {
       _stopTicker();
@@ -151,12 +154,16 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
       _delayTimer = null;
       // A hidden/disabled first display consumes the startup wait. Returning
       // must not restart it; the interaction delay retains its existing rules.
-      if (_delay == _startupDelay) _delay = Duration.zero;
+      if (_waitingForStartup) {
+        _delay = Duration.zero;
+        _waitingForStartup = false;
+      }
     } else if (_delay != Duration.zero) {
       _stopTicker();
       _delayTimer ??= Timer(_delay, () {
         _delayTimer = null;
         _delay = Duration.zero;
+        _waitingForStartup = false;
         if (mounted) _syncMotion();
       });
     } else if (!_ticker.isActive) {
@@ -184,7 +191,8 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
   }
 
   void _interact() {
-    _delay = _resumeDelay;
+    _delay = _autoScrollDelay;
+    _waitingForStartup = false;
     _delayTimer?.cancel();
     _delayTimer = null;
     _stopTicker();
@@ -265,7 +273,7 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
   Widget build(BuildContext context) {
     final width =
         AppLayout.categoryShortcutWidth * AppLayout.textScale(context);
-    final padding = AppLayout.pageInsets(context, top: 0, bottom: 0);
+    const padding = EdgeInsets.zero;
     final language = Localizations.localeOf(context).languageCode;
     final accessible = MediaQuery.accessibleNavigationOf(context);
     Widget item(int index) {

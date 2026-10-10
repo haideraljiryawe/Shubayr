@@ -102,7 +102,9 @@ void main() {
   for (final (locale, dark) in [('ar', false), ('en', true)]) {
     for (final (width, scale) in [
       for (final width in responsiveWidths) (width, 1.0),
-      for (final width in <double>[390, 600, 900, 1200, 1920]) (width, 2.0),
+      (320.0, 1.5),
+      for (final width in <double>[320, 390, 600, 900, 1200, 1920])
+        (width, 2.0),
     ]) {
       testWidgets('current screens fit $width $locale dark=$dark scale=$scale', (
         tester,

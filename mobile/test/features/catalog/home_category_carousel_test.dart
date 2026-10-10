@@ -118,7 +118,43 @@ void main() {
   }
 
   for (final language in ['ar', 'en']) {
-    testWidgets('cold start waits two visible seconds in $language', (
+    for (final accessible in [false, true]) {
+      testWidgets(
+        'shortcuts reach both viewport edges $language accessible=$accessible',
+        (tester) async {
+          await _start(
+            tester,
+            _app(language: language, accessible: accessible),
+          );
+          final viewport = tester.getRect(
+            find.byKey(const ValueKey('home-category-shortcuts')),
+          );
+          final scroll = find.descendant(
+            of: find.byKey(const ValueKey('home-category-shortcuts')),
+            matching: find.byType(Scrollable),
+          );
+          expect(tester.getRect(scroll), viewport);
+          final first = tester.getRect(_item(0));
+          expect(
+            language == 'ar' ? first.right : first.left,
+            language == 'ar' ? viewport.right : viewport.left,
+          );
+          if (accessible) {
+            final position = tester.state<ScrollableState>(scroll).position;
+            position.jumpTo(position.maxScrollExtent);
+            await tester.pump();
+            final last = tester.getRect(_item(7));
+            expect(
+              language == 'ar' ? last.left : last.right,
+              closeTo(language == 'ar' ? viewport.left : viewport.right, .001),
+            );
+          }
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+        },
+      );
+    }
+    testWidgets('cold start waits three visible seconds in $language', (
       tester,
     ) async {
       final claim = startupClaim();
@@ -136,7 +172,7 @@ void main() {
       await _start(tester, app());
       final start = tester.getTopLeft(_item(1)).dx;
       expect(_item(1).hitTestable(), findsOneWidget);
-      for (var i = 0; i < 19; i++) {
+      for (var i = 0; i < 29; i++) {
         await tester.pump(const Duration(milliseconds: 100));
         // Rebuilding must neither duplicate nor restart the timer.
         await _start(tester, app());
@@ -275,7 +311,7 @@ void main() {
     expect(_position(tester).pixels, closeTo(2.1, .001));
     await tester.pumpWidget(const SizedBox());
     await _start(tester, _app(claimStartupDelay: startupClaim()));
-    await tester.pump(const Duration(milliseconds: 1999));
+    await tester.pump(const Duration(milliseconds: 2999));
     expect(_position(tester).pixels, 0);
     await tester.pumpWidget(const SizedBox());
   });

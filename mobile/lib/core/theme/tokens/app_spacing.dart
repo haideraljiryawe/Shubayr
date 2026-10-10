@@ -12,9 +12,14 @@ abstract final class AppSpacing {
   /// Horizontal padding used by full-width screens.
   static const double screenH = 16;
 
-  /// Phone page horizontal inset, consumed by AppLayout.pageHorizontal.
-  /// Adjust this value to tune all phone page margins; SafeArea is separate.
-  static const double screenMobileH = 8;
+  /// Page horizontal inset on phones (<600dp), via AppLayout.pageHorizontal.
+  /// Tune this value only for phone page margins (for example 14, 16 or 18).
+  /// SafeArea, horizontal carousels and floating navigation are separate.
+  static const double screenMobileH = 14;
+
+  /// Resting content inset inside phone horizontal scroll views. This is not
+  /// viewport padding; keep carousel artwork/card sizing independent of pages.
+  static const double horizontalScrollMobileH = 8;
 
   /// Gap after Home banner/indicator and before category shortcuts.
   static const double homeBannerToCategories = 16;

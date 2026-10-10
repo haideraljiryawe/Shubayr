@@ -113,6 +113,10 @@ class CategoryCard extends StatelessWidget {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: context.text.bodySmall?.copyWith(
+                                    // This two-line preview shares a narrow
+                                    // card with artwork; keep its compact size.
+                                    fontSize:
+                                        context.text.labelMedium?.fontSize,
                                     color: colors.textSecondary,
                                   ),
                                 ),

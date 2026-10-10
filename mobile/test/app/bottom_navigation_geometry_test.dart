@@ -8,6 +8,7 @@ import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
 import 'package:shubayr/core/theme/components/navigation_themes.dart';
 import 'package:shubayr/core/layout/app_layout.dart';
+import 'package:shubayr/core/theme/tokens/app_spacing.dart';
 
 Rect _paintedRect(WidgetTester tester, Finder finder) {
   final box = tester.renderObject<RenderBox>(finder);
@@ -497,13 +498,24 @@ void main() {
                 expect(bar.left, greaterThanOrEqualTo(safeLeft));
                 expect(bar.right, lessThanOrEqualTo(width - safeRight));
                 if (consumed) {
-                  // The actual app consumes device insets above the Navigator:
-                  // the narrower bar stays centered inside the same content area.
+                  // Both regions share the consumed SafeArea and center, but
+                  // page margins must not shrink the floating navigation.
                   final content = tester.getRect(
                     find.byKey(const ValueKey('reference-content')),
                   );
-                  expect(bar.left, greaterThanOrEqualTo(content.left - .01));
-                  expect(bar.right, lessThanOrEqualTo(content.right + .01));
+                  final pageInset = width < 600
+                      ? AppSpacing.screenMobileH
+                      : AppSpacing.screenH;
+                  expect(
+                    content.width,
+                    closeTo(
+                      math.min(
+                        width - safeLeft - safeRight - pageInset * 2,
+                        760,
+                      ),
+                      .01,
+                    ),
+                  );
                   expect(bar.center.dx, closeTo(content.center.dx, .01));
                 }
                 final tabs = find.descendant(

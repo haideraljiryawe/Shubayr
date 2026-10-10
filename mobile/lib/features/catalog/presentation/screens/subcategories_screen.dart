@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +15,7 @@ import '../../data/category.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/product_list_controller.dart';
 import '../widgets/category_icon.dart';
+import '../widgets/catalog_image_view.dart';
 import 'product_list_screen.dart';
 
 class SubcategoriesScreen extends ConsumerWidget {
@@ -93,75 +92,104 @@ class _SubcategoryGrid extends StatelessWidget {
       minItemWidth: AppLayout.subcategoryMinWidth,
       itemCount: children?.length ?? 6,
       itemKeyBuilder: children == null ? null : (i) => children![i].id,
-      itemBuilder: (context, index) => LayoutBuilder(
-        builder: (context, constraints) {
-          final labelStyle = context.text.labelMedium!;
-          // Keep squares at normal scale, allowing two lines and a full touch
-          // target to grow vertically at accessibility text sizes.
-          final height = math.max(
-            constraints.maxWidth,
-            AppSpacing.md * 2 +
-                AppLayout.categoryIconSize +
-                AppSpacing.sm +
-                context.textLineHeight(labelStyle) * 2,
-          );
-          final category = children?[index];
-          if (category == null) {
-            return Skeleton(height: height, borderRadius: AppRadii.mdAll);
-          }
-          return ConstrainedBox(
-            key: ValueKey('cat-sub-${category.id}'),
-            constraints: BoxConstraints(minHeight: height),
-            child: Material(
-              color: context.colors.categoryTile,
-              shape: RoundedRectangleBorder(
-                borderRadius: AppRadii.mdAll,
-                side: BorderSide(color: context.colors.border),
+      itemBuilder: (context, index) {
+        final labelStyle = context.text.labelMedium!.copyWith(
+          color: context.colors.textPrimary,
+        );
+        final labelHeight = context.textLineHeight(labelStyle) * 2;
+        final category = children?[index];
+        if (category == null) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AspectRatio(
+                aspectRatio: 1,
+                child: Skeleton(borderRadius: AppRadii.mdAll),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => context.pushNamed(
-                  AppRoutes.searchName,
-                  queryParameters: {'category_id': category.id},
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.md,
-                    horizontal: AppSpacing.sm,
-                  ),
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                height: labelHeight,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        categoryIconFor(
-                          null,
-                          categoryId: category.id,
-                          iconKey: category.iconKey,
-                        ),
-                        size: AppLayout.categoryIconSize,
-                        color: context.colors.primary,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        category.localizedName(
-                          Localizations.localeOf(context).languageCode,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: labelStyle.copyWith(
-                          color: context.colors.textPrimary,
-                        ),
-                      ),
+                      Expanded(child: Skeleton.line()),
+                      SizedBox(height: AppSpacing.xs),
+                      Expanded(child: Skeleton.line()),
                     ],
                   ),
                 ),
               ),
-            ),
+            ],
           );
-        },
-      ),
+        }
+        final fallback = Center(
+          child: Icon(
+            categoryIconFor(
+              null,
+              categoryId: category.id,
+              iconKey: category.iconKey,
+            ),
+            size: AppLayout.categoryIconSize,
+            color: context.colors.primary,
+          ),
+        );
+        return Material(
+          key: ValueKey('cat-sub-${category.id}'),
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: AppRadii.mdAll,
+            onTap: () => context.pushNamed(
+              AppRoutes.searchName,
+              queryParameters: {'category_id': category.id},
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: Ink(
+                    key: ValueKey('cat-sub-artwork-${category.id}'),
+                    decoration: BoxDecoration(
+                      color: context.colors.surface,
+                      borderRadius: AppRadii.mdAll,
+                      border: Border.all(color: context.colors.border),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: AppRadii.mdAll,
+                      child: ExcludeSemantics(
+                        child: CatalogImageView(
+                          image: category.image,
+                          placeholder: fallback,
+                          loading: fallback,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  height: labelHeight,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                    ),
+                    child: Text(
+                      category.localizedName(
+                        Localizations.localeOf(context).languageCode,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: labelStyle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     ),
   );
 }
