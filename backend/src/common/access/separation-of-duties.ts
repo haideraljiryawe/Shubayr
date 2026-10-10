@@ -1,4 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
+import { codedError } from '../http/api-error';
 
 export type SeparationOfDutiesLevel = 'standard' | 'strict';
 export type PurchaseFollowUpAction = 'payment' | 'return' | 'cost_correction';
@@ -16,14 +17,10 @@ export function assertDifferentActor(
   actorId: string,
   beneficiaryOrOriginatorId: string,
   message = 'The actor cannot approve their own transaction',
+  code = 'SEPARATION_OF_DUTIES_VIOLATION',
 ): void {
   if (actorId === beneficiaryOrOriginatorId) {
-    throw new ForbiddenException({
-      status: 403,
-      code: 'SEPARATION_OF_DUTIES_VIOLATION',
-      message,
-      errors: [],
-    });
+    throw new ForbiddenException(codedError(403, code, message));
   }
 }
 

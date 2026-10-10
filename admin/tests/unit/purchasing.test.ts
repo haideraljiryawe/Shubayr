@@ -268,9 +268,8 @@ describe("reports and helpers", () => {
   });
 
   it("recognises the server's purchasing refusals", () => {
-    expect(isSeparationOfDuties(new ApiError(403, "A purchase creator cannot approve its supplier payment"))).toBe(true);
-    expect(isRateOverrideForbidden(new ApiError(403, "Editing the purchase exchange rate requires purchases.override_rate"))).toBe(true);
-    expect(isMissingRate(new ApiError(422, "No exchange rate exists for USD at the requested date"))).toBe(true);
+    expect(isSeparationOfDuties(new ApiError(403, "Translated", "SEPARATION_OF_DUTIES_VIOLATION"))).toBe(true);
+    expect(isRateOverrideForbidden(new ApiError(403, "Translated", "PURCHASE_RATE_OVERRIDE_REQUIRED"))).toBe(true);
     expect(isMissingRate(new ApiError(422, "Rate missing", "EXCHANGE_RATE_NOT_FOUND"))).toBe(true);
     expect(isMissingRate(new ApiError(422, "Request validation failed", "VALIDATION_FAILED"))).toBe(false);
   });

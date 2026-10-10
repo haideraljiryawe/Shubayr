@@ -17,6 +17,16 @@ import {
 } from 'class-validator';
 import { FinancialDocumentDto, OperationIdDto } from './finance.dto';
 
+export enum CashReceiptSortBy {
+  Date = 'date',
+  Amount = 'amount',
+}
+
+export enum CashReceiptSortDirection {
+  Asc = 'asc',
+  Desc = 'desc',
+}
+
 export class CashReceiptAllocationItemDto {
   @IsUUID('4')
   order_id!: string;
@@ -89,6 +99,14 @@ export class CashReceiptQueryDto {
   status?: 'active' | 'reversed';
 
   @IsOptional()
+  @IsIn(Object.values(CashReceiptSortBy))
+  sort_by: CashReceiptSortBy = CashReceiptSortBy.Date;
+
+  @IsOptional()
+  @IsIn(Object.values(CashReceiptSortDirection))
+  sort_direction: CashReceiptSortDirection = CashReceiptSortDirection.Desc;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -100,6 +118,12 @@ export class CashReceiptQueryDto {
   @Min(1)
   @Max(100)
   per_page = 20;
+}
+
+export class CashReceiptReconciliationQueryDto {
+  @IsOptional()
+  @IsUUID('4')
+  party_id?: string;
 }
 
 export class CashReceiptSuggestionQueryDto {

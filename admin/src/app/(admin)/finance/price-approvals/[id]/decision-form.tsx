@@ -21,7 +21,7 @@ interface Breach {
 
 /** The person who proposed a change can't decide it (separation of duties). */
 function isOwnRequest(error: unknown): boolean {
-  return error instanceof ApiError && (error.code === "SEPARATION_OF_DUTIES_VIOLATION" || (error.status === 403 && /own|cannot approve|cannot decide/i.test(error.message)));
+  return error instanceof ApiError && error.code === "SELF_APPROVAL_FORBIDDEN";
 }
 
 export function DecisionForm({ id, approval, canDecide, canViewCost }: { id: string; approval: Approval; canDecide: boolean; canViewCost: boolean }) {

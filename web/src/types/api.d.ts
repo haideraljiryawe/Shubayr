@@ -4830,6 +4830,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/delivery-parties/{id}/cash-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a party's separately paginated cash-custody activity
+         * @description Cash collections, receipts, receipt reversals, party liabilities, liability reversals, and trip-fare netting are paginated independently from the goods statement.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                    order_id?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated cash-custody activity with a running balance */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPartyCashActivityPage"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/delivery-parties/{id}/orders": {
         parameters: {
             query?: never;
@@ -8317,6 +8368,8 @@ export interface paths {
                     date_from?: string;
                     date_to?: string;
                     status?: "active" | "reversed";
+                    sort_by?: "date" | "amount";
+                    sort_direction?: "asc" | "desc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -8393,6 +8446,8 @@ export interface paths {
                     cash_account_id?: string;
                     date_from?: string;
                     date_to?: string;
+                    sort_by?: "date" | "amount";
+                    sort_direction?: "asc" | "desc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -8455,6 +8510,49 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cash-receipts/reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reconcile the unallocated-receipt subledger
+         * @description Proves total receipts minus active allocations minus full reversed receipts equals total unallocated, overall and per delivery party. No separate GL account is introduced.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    party_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Overall and per-party receipt subledger reconciliation */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReceiptReconciliation"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -11130,6 +11228,9 @@ export interface components {
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
+            created_by?: string;
+            created_by_name?: string;
+            /** Format: uuid */
             supplier_id?: string;
             invoice_number?: string | null;
             total_cost?: number;
@@ -11289,6 +11390,10 @@ export interface components {
             }[];
         };
         PurchasingDocument: {
+            /** Format: uuid */
+            created_by?: string;
+            created_by_name?: string;
+        } & {
             [key: string]: unknown;
         };
         SupplierBalance: {
@@ -11998,14 +12103,17 @@ export interface components {
             backdate_reason: string | null;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: date-time */
             created_at: string;
             /** Format: uuid */
             started_by: string | null;
+            started_by_name: string | null;
             /** Format: date-time */
             started_at: string | null;
             /** Format: uuid */
             closed_by: string | null;
+            closed_by_name: string | null;
             /** Format: date-time */
             closed_at: string | null;
         };
@@ -12091,6 +12199,7 @@ export interface components {
             event_at: string;
             /** Format: uuid */
             recorded_by: string;
+            recorded_by_name: string;
             /** Format: date-time */
             recorded_at: string;
         };
@@ -12114,8 +12223,17 @@ export interface components {
             order_count: number;
             /** Format: date */
             document_date: string;
+            /** Format: uuid */
+            created_by: string;
+            created_by_name: string;
+            /** Format: uuid */
+            started_by: string | null;
+            started_by_name: string | null;
             /** Format: date-time */
             started_at: string | null;
+            /** Format: uuid */
+            closed_by: string | null;
+            closed_by_name: string | null;
             /** Format: date-time */
             closed_at: string | null;
         };
@@ -12196,10 +12314,6 @@ export interface components {
         DeliveryPartyStatementPage: components["schemas"]["Pagination"] & {
             party: components["schemas"]["DeliveryParty"];
             data: components["schemas"]["DeliveryPartyStatementEntry"][];
-            cash_activity: {
-                total: number;
-                data: components["schemas"]["DeliveryPartyCashStatementEntry"][];
-            };
             trips: components["schemas"]["ExternalDriverTripStatement"][];
         };
         DeliveryPartyCashStatementEntry: {
@@ -12228,6 +12342,10 @@ export interface components {
                 amount_iqd: number;
             }[];
             running_cash_iqd: number;
+        };
+        DeliveryPartyCashActivityPage: components["schemas"]["Pagination"] & {
+            party: components["schemas"]["DeliveryParty"];
+            data: components["schemas"]["DeliveryPartyCashStatementEntry"][];
         };
         DeliveryPartyHeldOrders: {
             party: components["schemas"]["DeliveryParty"];
@@ -12874,6 +12992,7 @@ export interface components {
             status: "pending" | "approved" | "rejected";
             /** Format: uuid */
             proposed_by: string;
+            proposed_by_name: string;
             proposer: {
                 /** Format: uuid */
                 id: string;
@@ -12881,6 +13000,7 @@ export interface components {
             };
             /** Format: uuid */
             decided_by: string | null;
+            decided_by_name: string | null;
             decider: null | {
                 /** Format: uuid */
                 id: string;
@@ -13137,6 +13257,7 @@ export interface components {
             backdate_reason: string | null;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: date-time */
             created_at: string;
             /** @description False when the parent voucher has been reversed. */
@@ -13157,6 +13278,7 @@ export interface components {
             accounting_date: string;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: uuid */
             journal_entry_id: string;
             /** Format: date-time */
@@ -13192,6 +13314,7 @@ export interface components {
             notes: string | null;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: uuid */
             journal_entry_id: string;
             /** Format: date-time */
@@ -13201,6 +13324,27 @@ export interface components {
         };
         CashReceiptPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["CashReceiptVoucher"][];
+        };
+        CashReceiptReconciliationTotals: {
+            total_receipts_iqd: number;
+            total_allocations_iqd: number;
+            total_reversals_iqd: number;
+            total_unallocated_iqd: number;
+        };
+        CashReceiptPartyReconciliation: components["schemas"]["CashReceiptReconciliationTotals"] & {
+            party: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                kind: "internal_agent" | "external_driver";
+                name: string;
+            };
+        };
+        CashReceiptReconciliation: {
+            /** @constant */
+            currency: "IQD";
+            overall: components["schemas"]["CashReceiptReconciliationTotals"];
+            parties: components["schemas"]["CashReceiptPartyReconciliation"][];
         };
         CashReceiptSuggestions: {
             party: {
@@ -13325,6 +13469,7 @@ export interface components {
             accounting_date: string;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: date-time */
             created_at: string;
             postings: components["schemas"]["CustodyExceptionReversalPosting"][];
@@ -13363,6 +13508,7 @@ export interface components {
             backdate_reason: string | null;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: date-time */
             created_at: string;
             party: components["schemas"]["DeliveryPartySummary"];

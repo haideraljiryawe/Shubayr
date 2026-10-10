@@ -380,7 +380,7 @@ const ownClose = await request(
 );
 check(
   ownClose.code,
-  'SEPARATION_OF_DUTIES_VIOLATION',
+  'SELF_TRIP_CLOSE_FORBIDDEN',
   'trip creator cannot approve their own close',
 );
 const customerClosed = await closeTrip(customerTrip);
@@ -694,7 +694,12 @@ check(
   'external-driver statement includes trips',
 );
 check(
-  statement.cash_activity.data.some((row) => row.event === 'trip_fare_netted'),
+  (
+    await request(
+      `/admin/delivery-parties/${driver.id}/cash-activity?per_page=100`,
+      { token: adminToken },
+    )
+  ).data.some((row) => row.event === 'trip_fare_netted'),
   true,
   'driver statement shows fare netting against collections',
 );

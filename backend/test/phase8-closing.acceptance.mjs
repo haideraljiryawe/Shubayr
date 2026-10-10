@@ -294,6 +294,7 @@ check(
   previousDay,
   'local purchase is recorded before the Baghdad midnight boundary',
 );
+check(Boolean(localInvoice.created_by_name), true, 'purchase returns its actor display name');
 
 await request('/admin/exchange-rates', {
   token: admin,
@@ -366,6 +367,7 @@ check(
   200,
   'IQD account payment settles the 200 USD supplier invoice',
 );
+check(Boolean(usdPayment.created_by_name), true, 'supplier payment returns its actor display name');
 
 const address = await request('/addresses', {
   token: customer,
@@ -659,6 +661,7 @@ check(
   'party',
   'lost goods are explicitly party-borne',
 );
+check(Boolean(partyLoss.created_by_name), true, 'custody exception returns its actor display name');
 
 const returnedCustody = await request(
   `/admin/delivery-parties/${agentLogin.user.id}/custody`,
@@ -675,7 +678,7 @@ assertions += 1;
 await deliverInternal(orders.returned, 'door-return-short', {
   collected: 0,
 });
-await operation('/admin/custody-exceptions/return-against-uncollected', {
+const doorReturn = await operation('/admin/custody-exceptions/return-against-uncollected', {
   token: admin,
   body: {
     operation_id: `c9-door-return-${suffix}`,
@@ -691,6 +694,7 @@ await operation('/admin/custody-exceptions/return-against-uncollected', {
     ],
   },
 });
+check(Boolean(doorReturn.created_by_name), true, 'door return returns its actor display name');
 const feeRefund = await operation(
   '/admin/custody-exceptions/delivery-fee-refund',
   {
@@ -707,6 +711,28 @@ const feeRefund = await operation(
   },
 );
 check(feeRefund.type, 'delivery_fee_refund', 'delivery-fee refund is posted');
+const duplicateFeeRefund = await request(
+  '/admin/custody-exceptions/delivery-fee-refund',
+  {
+    token: admin,
+    method: 'POST',
+    expected: 409,
+    body: {
+      operation_id: `c10-fee-refund-refusal-${suffix}`,
+      document_date: today,
+      order_id: orders.returned.id,
+      amount_iqd: '1',
+      settlement_method: 'cash_account',
+      cash_account_id: till.id,
+      reason: 'Stable refusal-code acceptance',
+    },
+  },
+);
+check(
+  duplicateFeeRefund.code,
+  'DELIVERY_FEE_REFUND_EXCEEDS_CHARGE',
+  'custody refusal has a stable specific code',
+);
 
 const internalCollections = await request(
   `/admin/delivery-parties/${agentLogin.user.id}/collections?per_page=100`,
@@ -748,6 +774,16 @@ check(
   laterAllocationAmount,
   'multi-order receipt keeps an explicit remainder',
 );
+check(
+  Boolean(splitReceipt.created_by_name),
+  true,
+  'cash receipt returns its actor display name',
+);
+check(
+  Boolean(splitReceipt.allocation_batches[0].created_by_name),
+  true,
+  'initial allocation returns its actor display name',
+);
 const allocatedLater = await operation(
   `/admin/cash-receipts/${splitReceipt.id}/allocations`,
   {
@@ -769,6 +805,29 @@ check(
   0,
   'receipt remainder is allocated later',
 );
+check(
+  Boolean(allocatedLater.allocation_batches.at(-1).created_by_name),
+  true,
+  'later allocation returns its actor display name',
+);
+const allocationRefusal = await request(
+  `/admin/cash-receipts/${splitReceipt.id}/allocations`,
+  {
+    token: operations,
+    method: 'POST',
+    expected: 409,
+    body: {
+      operation_id: `c10-over-allocated-${suffix}`,
+      document_date: today,
+      allocations: [{ order_id: receiptOrders[2].id, amount_iqd: '1' }],
+    },
+  },
+);
+check(
+  allocationRefusal.code,
+  'ALLOCATION_EXCEEDS_RECEIPT',
+  'allocation refusal has a stable specific code',
+);
 
 const reversibleReceipt = await operation('/admin/cash-receipts', {
   token: admin,
@@ -782,6 +841,23 @@ const reversibleReceipt = await operation('/admin/cash-receipts', {
     allocations: [],
   },
 });
+const selfReversal = await request(
+  `/admin/cash-receipts/${reversibleReceipt.id}/reversal`,
+  {
+    token: admin,
+    method: 'POST',
+    expected: 403,
+    body: {
+      operation_id: `c10-self-reversal-${suffix}`,
+      reason: 'Stable self-reversal refusal-code acceptance',
+    },
+  },
+);
+check(
+  selfReversal.code,
+  'SELF_REVERSAL_FORBIDDEN',
+  'self-reversal refusal has a stable specific code',
+);
 const reversedReceipt = await operation(
   `/admin/cash-receipts/${reversibleReceipt.id}/reversal`,
   {
@@ -797,6 +873,11 @@ check(
   reversedReceipt.reversal.created_by,
   operationsLogin.user.id,
   'reversal records the second staff user',
+);
+check(
+  Boolean(reversedReceipt.reversal.created_by_name),
+  true,
+  'receipt reversal returns its actor display name',
 );
 
 // Customer-direct trips cannot also charge the store delivery fee. Change the
@@ -838,7 +919,8 @@ const trip = await operation('/admin/external-driver-trips', {
     document_date: previousDay,
   },
 });
-await operation(`/admin/external-driver-trips/${trip.id}/orders`, {
+check(Boolean(trip.created_by_name), true, 'trip returns its creator display name');
+const tripWithOrder = await operation(`/admin/external-driver-trips/${trip.id}/orders`, {
   token: admin,
   body: {
     operation_id: `c9-trip-handover-${suffix}`,
@@ -850,7 +932,12 @@ await operation(`/admin/external-driver-trips/${trip.id}/orders`, {
     customer_acceptance_note: 'Customer accepted the IQD 3,000 direct fare',
   },
 });
-await operation(`/admin/external-driver-trips/${trip.id}/start`, {
+check(
+  Boolean(tripWithOrder.events.at(-1).recorded_by_name),
+  true,
+  'trip handover event returns its actor display name',
+);
+const startedTrip = await operation(`/admin/external-driver-trips/${trip.id}/start`, {
   token: admin,
   expected: 200,
   body: {
@@ -859,6 +946,26 @@ await operation(`/admin/external-driver-trips/${trip.id}/start`, {
     event_at: boundary.before,
   },
 });
+check(Boolean(startedTrip.started_by_name), true, 'trip start returns its actor display name');
+const unresolvedTrip = await request(
+  `/admin/external-driver-trips/${trip.id}/close`,
+  {
+    token: operations,
+    method: 'POST',
+    expected: 409,
+    body: {
+      operation_id: `c10-unresolved-trip-${suffix}`,
+      document_date: today,
+      source: 'Stable unresolved-order refusal-code acceptance',
+      event_at: boundary.after,
+    },
+  },
+);
+check(
+  unresolvedTrip.code,
+  'TRIP_ORDERS_UNRESOLVED',
+  'trip refusal has a stable specific code',
+);
 tripOrder = await currentOrder(tripOrder.id);
 await operation(`/admin/deliveries/${tripOrder.delivery_id}/status`, {
   token: admin,
@@ -875,7 +982,7 @@ await operation(`/admin/deliveries/${tripOrder.delivery_id}/status`, {
   },
 });
 const tripCash = Math.max(1, tripOrder.total - 2000);
-await operation('/admin/cash-receipts', {
+const tripReceipt = await operation('/admin/cash-receipts', {
   token: admin,
   body: {
     operation_id: `c9-trip-receipt-${suffix}`,
@@ -886,6 +993,24 @@ await operation('/admin/cash-receipts', {
     allocations: [{ order_id: tripOrder.id, amount_iqd: String(tripCash) }],
   },
 });
+const wrongPartyAllocation = await request(
+  `/admin/cash-receipts/${splitReceipt.id}/allocations`,
+  {
+    token: operations,
+    method: 'POST',
+    expected: 409,
+    body: {
+      operation_id: `c10-wrong-party-${suffix}`,
+      document_date: today,
+      allocations: [{ order_id: tripOrder.id, amount_iqd: '1' }],
+    },
+  },
+);
+check(
+  wrongPartyAllocation.code,
+  'ALLOCATION_WRONG_PARTY',
+  'wrong-party allocation refusal has a stable specific code',
+);
 const closedTrip = await operation(
   `/admin/external-driver-trips/${trip.id}/close`,
   {
@@ -909,10 +1034,41 @@ check(
   2000,
   'trip close keeps the IQD 2,000 cash difference visible',
 );
+check(Boolean(closedTrip.closed_by_name), true, 'trip close returns its actor display name');
 check(
   [dateOnly(trip.document_date), baghdadDate(new Date(closedTrip.closed_at))],
   [previousDay, today],
   'trip documents straddle the Baghdad midnight boundary',
+);
+
+const unallocatedLow = await operation('/admin/cash-receipts', {
+  token: admin,
+  body: {
+    operation_id: `c10-unallocated-low-${suffix}`,
+    document_date: today,
+    party_id: driver.id,
+    cash_account_id: till.id,
+    amount_iqd: '400',
+    reference: 'Sorting and reconciliation low remainder',
+    allocations: [],
+  },
+});
+const unallocatedHigh = await operation('/admin/cash-receipts', {
+  token: admin,
+  body: {
+    operation_id: `c10-unallocated-high-${suffix}`,
+    document_date: today,
+    party_id: driver.id,
+    cash_account_id: till.id,
+    amount_iqd: '600',
+    reference: 'Sorting and reconciliation high remainder',
+    allocations: [],
+  },
+});
+check(
+  [tripReceipt.created_by_name, unallocatedLow.created_by_name, unallocatedHigh.created_by_name].every(Boolean),
+  true,
+  'all trip cash vouchers return actor display names',
 );
 
 const trial = await request('/admin/ledger/trial-balance', { token: admin });
@@ -976,7 +1132,85 @@ near(
   'AP control equals supplier balances',
 );
 
+const defaultVoucherSort = await allPages('/admin/cash-receipts', admin);
+check(
+  defaultVoucherSort[0].id,
+  unallocatedHigh.id,
+  'voucher list defaults to newest first',
+);
+for (const direction of ['asc', 'desc']) {
+  const rows = await allPages(
+    `/admin/cash-receipts?sort_by=amount&sort_direction=${direction}`,
+    admin,
+  );
+  const amounts = rows.map((row) => Number(row.amount_iqd));
+  check(
+    amounts,
+    [...amounts].sort((left, right) =>
+      direction === 'asc' ? left - right : right - left,
+    ),
+    `voucher amount sort is ${direction}`,
+  );
+}
+for (const direction of ['asc', 'desc']) {
+  const rows = await allPages(
+    `/admin/cash-receipts?sort_by=date&sort_direction=${direction}`,
+    admin,
+  );
+  const dates = rows.map((row) => row.document_date);
+  check(
+    dates,
+    [...dates].sort((left, right) =>
+      direction === 'asc'
+        ? left.localeCompare(right)
+        : right.localeCompare(left),
+    ),
+    `voucher date sort is ${direction}`,
+  );
+}
+
 const unallocated = await allPages('/admin/cash-receipts/unallocated', admin);
+check(
+  unallocated.slice(0, 2).map((row) => row.id),
+  [unallocatedHigh.id, unallocatedLow.id],
+  'unallocated receipts default to newest first',
+);
+const unallocatedAscending = await allPages(
+  '/admin/cash-receipts/unallocated?sort_by=amount&sort_direction=asc',
+  admin,
+);
+check(
+  unallocatedAscending.map((row) => row.id),
+  [unallocatedLow.id, unallocatedHigh.id],
+  'unallocated receipts sort by amount ascending',
+);
+const unallocatedDescending = await allPages(
+  '/admin/cash-receipts/unallocated?sort_by=amount&sort_direction=desc',
+  admin,
+);
+check(
+  unallocatedDescending.map((row) => row.id),
+  [unallocatedHigh.id, unallocatedLow.id],
+  'unallocated receipts sort by amount descending',
+);
+const unallocatedDateAscending = await allPages(
+  '/admin/cash-receipts/unallocated?sort_by=date&sort_direction=asc',
+  admin,
+);
+check(
+  unallocatedDateAscending.map((row) => row.id),
+  [unallocatedLow.id, unallocatedHigh.id],
+  'unallocated receipts sort by date ascending',
+);
+const unallocatedDateDescending = await allPages(
+  '/admin/cash-receipts/unallocated?sort_by=date&sort_direction=desc',
+  admin,
+);
+check(
+  unallocatedDateDescending.map((row) => row.id),
+  [unallocatedHigh.id, unallocatedLow.id],
+  'unallocated receipts sort by date descending',
+);
 const unallocatedTotal = unallocated.reduce(
   (sum, row) => sum + Number(row.unallocated_amount_iqd),
   0,
@@ -994,6 +1228,59 @@ near(
   detailUnallocated,
   'unallocated receipt queue equals active voucher remainders',
 );
+
+const reconciliation = await request(
+  '/admin/cash-receipts/reconciliation',
+  { token: admin },
+);
+near(
+  reconciliation.overall.total_receipts_iqd -
+    reconciliation.overall.total_allocations_iqd -
+    reconciliation.overall.total_reversals_iqd,
+  reconciliation.overall.total_unallocated_iqd,
+  'overall receipt subledger obeys receipts minus allocations minus reversals',
+);
+near(
+  reconciliation.overall.total_unallocated_iqd,
+  unallocatedTotal,
+  'receipt reconciliation equals the unallocated queue',
+);
+for (const party of reconciliation.parties) {
+  near(
+    party.total_receipts_iqd -
+      party.total_allocations_iqd -
+      party.total_reversals_iqd,
+    party.total_unallocated_iqd,
+    `${party.party.name} receipt subledger reconciles`,
+  );
+}
+const driverReconciliation = reconciliation.parties.find(
+  (row) => row.party.id === driver.id,
+);
+assert.ok(driverReconciliation, 'driver has a receipt reconciliation row');
+assertions += 1;
+check(
+  driverReconciliation.total_unallocated_iqd,
+  1000,
+  'driver reconciliation exposes both unallocated receipts',
+);
+
+const goodsStatement = await request(
+  `/admin/delivery-parties/${driver.id}/statement?page=1&per_page=1`,
+  { token: admin },
+);
+check(
+  Object.hasOwn(goodsStatement, 'cash_activity'),
+  false,
+  'goods statement does not embed cash paging',
+);
+const cashActivity = await request(
+  `/admin/delivery-parties/${driver.id}/cash-activity?page=1&per_page=1`,
+  { token: admin },
+);
+check(cashActivity.page, 1, 'party cash activity has its own page');
+check(cashActivity.per_page, 1, 'party cash activity has its own page size');
+check(cashActivity.total > 1, true, 'party cash activity reports its own total');
 
 const ledgerEntries = await allPages('/admin/ledger/entries', admin);
 const numberPattern = /^([A-Z][A-Z-]+)-(\d{4})-(\d{6})$/;
@@ -1041,6 +1328,7 @@ const beforeReplay = {
   custodyOverview,
   supplierBalances,
   unallocated,
+  reconciliation,
   documentNumbers: [...documentNumbers].sort(),
 };
 for (const [index, replay] of operationRequests.entries()) {
@@ -1065,6 +1353,10 @@ const afterReplaySuppliers = await request('/admin/suppliers/balances', {
 const afterReplayUnallocated = await allPages(
   '/admin/cash-receipts/unallocated',
   admin,
+);
+const afterReplayReconciliation = await request(
+  '/admin/cash-receipts/reconciliation',
+  { token: admin },
 );
 const afterReplayEntries = await allPages('/admin/ledger/entries', admin);
 const afterNumbers = new Set();
@@ -1096,6 +1388,11 @@ check(
   afterReplayUnallocated,
   beforeReplay.unallocated,
   'operation replays do not change receipt remainders',
+);
+check(
+  afterReplayReconciliation,
+  beforeReplay.reconciliation,
+  'operation replays do not change receipt reconciliation',
 );
 check(
   [...afterNumbers].sort(),

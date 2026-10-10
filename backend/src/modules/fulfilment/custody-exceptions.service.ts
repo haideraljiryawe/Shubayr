@@ -1,12 +1,9 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { conflict, invalid } from '../../common/http/api-error';
+import { actorDisplayName, actorSelect } from '../../common/users/actor-name';
 import {
   assertDifferentActor,
   separationOfDutiesLevel,
@@ -36,6 +33,7 @@ type Actor = { id: string; permissions: readonly string[] };
 type Tx = Prisma.TransactionClient;
 
 const exceptionInclude = {
+  creator: { select: actorSelect },
   party: {
     select: {
       id: true,
@@ -76,6 +74,7 @@ const exceptionInclude = {
   },
   reversal: {
     include: {
+      creator: { select: actorSelect },
       postings: {
         include: { journal_entry: { select: { id: true, event: true } } },
         orderBy: { role: 'asc' as const },
@@ -120,10 +119,14 @@ export class CustodyExceptionsService {
         });
         if (!order) throw new NotFoundException('Order not found');
         if (!order.delivery?.agent_id || !order.delivery.party) {
-          throw new ConflictException('Order has no delivery custody party');
+          throw conflict(
+            'ORDER_HAS_NO_CUSTODY_PARTY',
+            'Order has no delivery custody party',
+          );
         }
         if (!['dispatched', 'failed', 'cancelled'].includes(order.status)) {
-          throw new ConflictException(
+          throw conflict(
+            'GOODS_LOSS_STATUS_INVALID',
             'Goods loss requires an order with goods in delivery custody',
           );
         }
@@ -148,7 +151,10 @@ export class CustodyExceptionsService {
           lines: input.lines,
         });
         if (!stock.total.gt(0)) {
-          throw new ConflictException('Exception has no original issue cost');
+          throw conflict(
+            'CUSTODY_COST_UNAVAILABLE',
+            'Exception has no original issue cost',
+          );
         }
         await tx.custodyException.create({
           data: {
@@ -263,7 +269,8 @@ export class CustodyExceptionsService {
           collection.status !== 'confirmed_short' ||
           !collection.shortfall_amount?.gt(0)
         ) {
-          throw new ConflictException(
+          throw conflict(
+            'RETURN_REQUIRES_CONFIRMED_SHORTFALL',
             'Return against uncollected requires a confirmed collection shortfall',
           );
         }
@@ -276,7 +283,8 @@ export class CustodyExceptionsService {
         );
         const openShortfall = await this.openShortfall(tx, collection);
         if (!openShortfall.gt(0)) {
-          throw new ConflictException(
+          throw conflict(
+            'RETURN_SHORTFALL_RESOLVED',
             'Order has no uncollected amount available for a return',
           );
         }
@@ -298,7 +306,11 @@ export class CustodyExceptionsService {
         let returnAmount = new Prisma.Decimal(0);
         const persistedLines = stock.lines.map((line) => {
           const item = itemById.get(line.order_item_id);
-          if (!item) throw new ConflictException('Order item is unavailable');
+          if (!item)
+            throw conflict(
+              'ORDER_ITEM_UNAVAILABLE',
+              'Order item is unavailable',
+            );
           const lineAmount = item.line_total
             .div(item.quantity)
             .times(line.quantity)
@@ -316,7 +328,10 @@ export class CustodyExceptionsService {
           };
         });
         if (!returnAmount.gt(0)) {
-          throw new ConflictException('Return has no refundable goods value');
+          throw conflict(
+            'RETURN_HAS_NO_REFUNDABLE_VALUE',
+            'Return has no refundable goods value',
+          );
         }
         const exceptionOffset = Prisma.Decimal.min(returnAmount, openShortfall);
         const refundPayable = returnAmount.minus(exceptionOffset);
@@ -394,12 +409,14 @@ export class CustodyExceptionsService {
   async refundDeliveryFee(actor: Actor, input: CreateDeliveryFeeRefundDto) {
     const amount = this.positive(input.amount_iqd, 'amount_iqd');
     if (input.settlement_method === 'cash_account' && !input.cash_account_id) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'REFUND_CASH_ACCOUNT_REQUIRED',
         'cash_account_id is required for a cash-account refund',
       );
     }
     if (input.settlement_method === 'uncollected' && input.cash_account_id) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'REFUND_CASH_ACCOUNT_NOT_ALLOWED',
         'cash_account_id must be omitted when netting an uncollected amount',
       );
     }
@@ -426,7 +443,8 @@ export class CustodyExceptionsService {
         if (!order) throw new NotFoundException('Order not found');
         const collection = order.delivery_collection;
         if (!collection) {
-          throw new ConflictException(
+          throw conflict(
+            'DELIVERY_REVENUE_NOT_POSTED',
             'Delivery fee can be refunded only after delivery revenue was posted',
           );
         }
@@ -447,7 +465,8 @@ export class CustodyExceptionsService {
         });
         const remaining = order.delivery_fee.minus(prior._sum.amount_iqd ?? 0);
         if (amount.gt(remaining)) {
-          throw new ConflictException(
+          throw conflict(
+            'DELIVERY_FEE_REFUND_EXCEEDS_CHARGE',
             'Delivery-fee refund exceeds the amount originally charged',
           );
         }
@@ -467,7 +486,8 @@ export class CustodyExceptionsService {
             where: { id: cashAccount.id },
           });
           if (!fullCash.is_active || fullCash.currency_code !== 'IQD') {
-            throw new ConflictException(
+            throw conflict(
+              'REFUND_REQUIRES_ACTIVE_IQD_ACCOUNT',
               'Refund requires an active IQD cash account',
             );
           }
@@ -475,7 +495,8 @@ export class CustodyExceptionsService {
           offset = amount;
           const open = await this.openShortfall(tx, collection);
           if (amount.gt(open)) {
-            throw new ConflictException(
+            throw conflict(
+              'DELIVERY_FEE_REFUND_EXCEEDS_UNCOLLECTED',
               'Delivery-fee refund exceeds the uncollected amount',
             );
           }
@@ -588,12 +609,16 @@ export class CustodyExceptionsService {
         if (!exception)
           throw new NotFoundException('Custody exception not found');
         if (exception.reversal) {
-          throw new ConflictException('Custody exception is already reversed');
+          throw conflict(
+            'CUSTODY_EXCEPTION_ALREADY_REVERSED',
+            'Custody exception is already reversed',
+          );
         }
         assertDifferentActor(
           actor.id,
           exception.created_by,
           'A user cannot reverse their own custody exception',
+          'SELF_REVERSAL_FORBIDDEN',
         );
         if (exception.party.user_id) {
           assertDifferentActor(
@@ -782,6 +807,7 @@ export class CustodyExceptionsService {
       accounting_date: businessDateText(row.accounting_date),
       backdate_reason: row.backdate_reason,
       created_by: row.created_by,
+      created_by_name: actorDisplayName(row.creator),
       created_at: row.created_at,
       party: row.party,
       order: row.order,
@@ -827,6 +853,7 @@ export class CustodyExceptionsService {
             document_date: businessDateText(row.reversal.document_date),
             accounting_date: businessDateText(row.reversal.accounting_date),
             created_by: row.reversal.created_by,
+            created_by_name: actorDisplayName(row.reversal.creator),
             created_at: row.reversal.created_at,
             postings: row.reversal.postings.map((posting) => ({
               role: posting.role,
@@ -1177,7 +1204,8 @@ export class CustodyExceptionsService {
       .minus(removing)
       .minus(receipts._sum.amount_iqd ?? 0);
     if (after.lt(0)) {
-      throw new ConflictException(
+      throw conflict(
+        'RECEIPT_REVERSAL_REQUIRED',
         'Reverse the cash receipt that consumed this party liability first',
       );
     }
@@ -1192,7 +1220,8 @@ export class CustodyExceptionsService {
       new Set(lines.map((line) => line.custody_holding_id)).size !==
       lines.length
     ) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'CUSTODY_HOLDING_DUPLICATED',
         'Custody holdings must not repeat within one exception',
       );
     }
@@ -1200,7 +1229,8 @@ export class CustodyExceptionsService {
 
   private assertDateRange(from?: string, to?: string) {
     if (from && to && from > to) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'DATE_RANGE_INVALID',
         'date_from must be on or before date_to',
       );
     }
@@ -1209,7 +1239,7 @@ export class CustodyExceptionsService {
   private positive(value: string, field: string) {
     const amount = new Prisma.Decimal(value);
     if (!amount.gt(0)) {
-      throw new UnprocessableEntityException(`${field} must be positive`);
+      throw invalid('AMOUNT_NOT_POSITIVE', `${field} must be positive`);
     }
     return amount;
   }

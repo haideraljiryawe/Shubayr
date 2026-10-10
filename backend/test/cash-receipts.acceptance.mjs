@@ -447,7 +447,16 @@ const statement = await request(
   `/admin/delivery-parties/${party.id}/statement?per_page=100`,
   { token: adminToken },
 );
-const receiptStatement = statement.cash_activity.data.find(
+check(
+  Object.hasOwn(statement, 'cash_activity'),
+  false,
+  'goods statement no longer embeds independently paged cash activity',
+);
+const cashActivity = await request(
+  `/admin/delivery-parties/${party.id}/cash-activity?per_page=100`,
+  { token: adminToken },
+);
+const receiptStatement = cashActivity.data.find(
   (row) => row.event === 'cash_received' && row.voucher_id === receipt.id,
 );
 check(
@@ -456,7 +465,7 @@ check(
   'party statement shows receipt allocations to settled orders',
 );
 check(
-  statement.cash_activity.data.at(-1).running_cash_iqd,
+  cashActivity.data.at(-1).running_cash_iqd,
   40000,
   'party statement running cash matches custody after hand-in',
 );
@@ -647,18 +656,18 @@ await db.query('DELETE FROM accounting_periods WHERE month=$1', [
 ]);
 
 const finalStatement = await request(
-  `/admin/delivery-parties/${party.id}/statement?per_page=100`,
+  `/admin/delivery-parties/${party.id}/cash-activity?per_page=100`,
   { token: adminToken },
 );
 check(
-  finalStatement.cash_activity.data.filter(
+  finalStatement.data.filter(
     (row) => row.event === 'cash_receipt_reversed',
   ).length,
   2,
   'party statement keeps each receipt and reversal visible',
 );
 check(
-  finalStatement.cash_activity.data.at(-1).running_cash_iqd,
+  finalStatement.data.at(-1).running_cash_iqd,
   230000,
   'statement running balance is restored after reversals',
 );

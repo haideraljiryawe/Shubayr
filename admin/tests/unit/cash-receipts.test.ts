@@ -88,24 +88,24 @@ describe("unsettledRows", () => {
 });
 
 describe("receiptRefusal", () => {
-  const conflict = (message: string) => new ApiError(409, message, "CONFLICT");
+  const refusal = (code: string) => new ApiError(409, "Localized independently", code);
   it("names each refusal the API gives", () => {
-    expect(receiptRefusal(conflict("Allocations exceed the receipt’s unallocated amount"))).toBe("overAllocation");
-    expect(receiptRefusal(conflict("A receipt cannot be allocated to another party’s order"))).toBe("wrongParty");
-    expect(receiptRefusal(conflict("Allocation exceeds the order’s unsettled collected amount"))).toBe("moreThanCollected");
-    expect(receiptRefusal(conflict("Only confirmed collected amounts can be allocated"))).toBe("notConfirmed");
-    expect(receiptRefusal(new ApiError(422, "An order may appear only once in an allocation batch"))).toBe("duplicateOrder");
-    expect(receiptRefusal(conflict("Receipt amount exceeds the party’s cash custody balance"))).toBe("overCustody");
-    expect(receiptRefusal(new ApiError(403, "A user cannot reverse their own cash receipt voucher", "SEPARATION_OF_DUTIES_VIOLATION"))).toBe("ownReceipt");
-    expect(receiptRefusal(new ApiError(403, "A delivery party cannot receive or approve cash from their own custody", "SEPARATION_OF_DUTIES_VIOLATION"))).toBe("ownCustody");
+    expect(receiptRefusal(refusal("ALLOCATION_EXCEEDS_RECEIPT"))).toBe("overAllocation");
+    expect(receiptRefusal(refusal("ALLOCATION_WRONG_PARTY"))).toBe("wrongParty");
+    expect(receiptRefusal(refusal("ALLOCATION_EXCEEDS_COLLECTED"))).toBe("moreThanCollected");
+    expect(receiptRefusal(refusal("ALLOCATION_COLLECTION_UNCONFIRMED"))).toBe("notConfirmed");
+    expect(receiptRefusal(refusal("ALLOCATION_ORDER_DUPLICATED"))).toBe("duplicateOrder");
+    expect(receiptRefusal(refusal("RECEIPT_EXCEEDS_CASH_CUSTODY"))).toBe("overCustody");
+    expect(receiptRefusal(refusal("SELF_REVERSAL_FORBIDDEN"))).toBe("ownReceipt");
+    expect(receiptRefusal(refusal("SELF_CUSTODY_CASH_ACTION_FORBIDDEN"))).toBe("ownCustody");
     expect(
-      receiptRefusal(new ApiError(403, "Strict separation of duties requires another user to allocate the receipt after it is created", "SEPARATION_OF_DUTIES_VIOLATION")),
+      receiptRefusal(refusal("SEPARATION_OF_DUTIES_VIOLATION")),
     ).toBe("strictAllocation");
-    expect(receiptRefusal(conflict("Cash receipt is already reversed"))).toBe("alreadyReversed");
-    expect(receiptRefusal(conflict("A reversed cash receipt cannot be allocated"))).toBe("reversedReceipt");
-    expect(receiptRefusal(conflict("Delivery party is inactive"))).toBe("inactiveParty");
-    expect(receiptRefusal(conflict("Cash account is inactive"))).toBe("inactiveAccount");
-    expect(receiptRefusal(new ApiError(404, "Delivered order collection not found"))).toBe("collectionNotFound");
+    expect(receiptRefusal(refusal("RECEIPT_REVERSAL_ALREADY_REVERSED"))).toBe("alreadyReversed");
+    expect(receiptRefusal(refusal("RECEIPT_ALLOCATION_REVERSED"))).toBe("reversedReceipt");
+    expect(receiptRefusal(refusal("DELIVERY_PARTY_INACTIVE"))).toBe("inactiveParty");
+    expect(receiptRefusal(refusal("CASH_ACCOUNT_INACTIVE"))).toBe("inactiveAccount");
+    expect(receiptRefusal(refusal("ALLOCATION_COLLECTION_NOT_FOUND"))).toBe("collectionNotFound");
   });
 
   it("leaves anything else to the generic error", () => {

@@ -232,6 +232,11 @@ try {
     'approval list returns the fixed-price request',
   );
   check(
+    Boolean(ownList.data[0].proposed_by_name),
+    true,
+    'approval list returns the proposer display name',
+  );
+  check(
     'cost' in ownList.data[0].breaches[0],
     false,
     'approval discovery redacts cost',
@@ -288,7 +293,7 @@ try {
   );
   check(
     selfDecision.code,
-    'SEPARATION_OF_DUTIES_VIOLATION',
+    'SELF_APPROVAL_FORBIDDEN',
     'the proposer cannot approve their own fixed price',
   );
 
@@ -306,6 +311,11 @@ try {
     approved.decided_by,
     approver.staff.id,
     'approval records the decision maker',
+  );
+  check(
+    Boolean(approved.decided_by_name),
+    true,
+    'approval returns the decision maker display name',
   );
   const liveAfterApproval = await request(`/admin/products/${product.id}`, {
     token: proposer.token,

@@ -1,7 +1,7 @@
 # Phase 8 closing acceptance
 
-Contract version: 13.4.0. This closing task does not change the API contract or
-database schema.
+Contract version: 14.0.0. Task C10 changes the API contract but adds no database
+migration.
 
 ## Automated business-day pack
 
@@ -28,8 +28,10 @@ writes. The pack covers one connected day containing:
 At closing, the pack asserts the balanced ledger and trial balance, warehouse
 lot value against inventory account 1000, all-party goods and cash custody
 against accounts 1010 and 1020, supplier balances against AP control 2000,
-receipt-queue remainders against active voucher remainders, and gap-free
-document numbers per exercised series. It then replays every posting request
+receipt-queue remainders against the overall and per-party receipt subledger
+reconciliation, and gap-free document numbers per exercised series. It also
+checks stable refusal codes, receipt sorting, independent cash-activity paging,
+and actor display names. It then replays every posting request
 with the same operation ID and proves that the original response, balances,
 lots, custody, supplier balances, receipt remainders, and journal numbers do not
 change.
@@ -47,7 +49,7 @@ delivery-fee refund impossible through the public and admin endpoints unless a
 test bypassed the API. Cart calculation, cart reads, and checkout now use the
 configured fee. Existing response fields and request shapes are unchanged.
 
-## Finding requiring a larger design decision
+## Original C9 finding
 
 ### Unallocated receipts have no separate GL account
 
@@ -78,3 +80,21 @@ physical party cash equals account 1020. Adding a distinct unallocated-receipt
 control account would change the accounting model, posting maps, contract,
 migration, historical treatment, and reconciliation reports, so it is recorded
 as a finding rather than implemented as a closing-task workaround.
+
+## C10 decision: reconcile the subledger, not another GL account
+
+Contract 14.0.0 keeps the current accounting model. An unallocated amount is
+allocation state on cash the store already received; it is not cash in another
+place. Creating a separate GL account would double-classify the handover that
+already debited store cash and credited cash-in-custody account 1020.
+
+Authorized staff can now read
+`GET /admin/cash-receipts/reconciliation`. For every delivery party and for all
+parties together, it reports and proves:
+
+`total receipts - active allocations - full reversed receipts = total unallocated`
+
+The closing acceptance pack asserts this formula, matches its result to the
+unallocated-voucher queue, and snapshots it across operation replays. Physical
+party cash continues to reconcile to GL account 1020. No new account, posting
+map, historical rewrite, or database migration is introduced.
