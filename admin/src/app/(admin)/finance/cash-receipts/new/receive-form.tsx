@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Alert, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { PartySearch } from "@/components/parties/party-search";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { AllocationProblems, AllocationTable } from "@/components/finance/allocation-table";
@@ -16,13 +17,6 @@ import type { CashAccountOption } from "@/lib/api/purchasing-server";
 import { allocationPlan, OperationKey, receiptHref, unsettledRows, type CashReceipt, type Unsettled } from "@/lib/finance/cash-receipts";
 import { moneyText, toFixed } from "@/lib/purchasing";
 import type { components } from "@/types/api";
-
-interface PartyOption {
-  id: string;
-  name: string;
-  phone: string;
-  cashHeld: number;
-}
 
 type ReceiveProps = Omit<Parameters<typeof ReceiveForm>[0], "onAnother">;
 
@@ -41,8 +35,8 @@ export function ReceiveScreen(props: ReceiveProps) {
  */
 function ReceiveForm({
   onAnother,
-  parties,
   partyId,
+  presetAmount,
   party,
   cashHeld,
   suggestions,
@@ -53,8 +47,9 @@ function ReceiveForm({
   windowDays,
 }: {
   onAnother: () => void;
-  parties: PartyOption[];
   partyId: string;
+  /** An amount to start from (a trip's outstanding cash); empty for none. */
+  presetAmount: string;
   party: components["schemas"]["DeliveryParty"] | null;
   cashHeld: number | null;
   /** Unsettled collections, oldest first; null without cash_receipts.allocate. */
@@ -71,7 +66,7 @@ function ReceiveForm({
   const router = useRouter();
   const posting = usePosting<CashReceipt>();
   const operation = useRef(new OperationKey());
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(presetAmount);
   const [amountGeneration, setAmountGeneration] = useState(0);
   const [cashId, setCashId] = useState(cashAccounts?.length === 1 ? cashAccounts[0].id : "");
   const [date, setDate] = useState<DocumentDateValue>({ date: today, backdateReason: "" });
@@ -136,23 +131,18 @@ function ReceiveForm({
   return (
     <div className="flex flex-col gap-6" data-testid="receive-form">
       <Card className="grid gap-4 md:grid-cols-3">
-        <Field label={t("party")} name="party_id" error={attempted && !partyId ? t("errors.party") : null}>
-          <Select
-            value={partyId}
+        <div className="flex flex-col gap-1">
+          {/* Searched on the server by name, phone or vehicle (API 13.4). */}
+          <PartySearch
+            value={party ? { id: party.id, name: party.name, phone: party.phone } : null}
+            activeOnly
+            label={t("party")}
+            testId="receive-party"
             disabled={locked}
-            onChange={(event) =>
-              router.push(event.target.value ? `/finance/cash-receipts/new?party_id=${event.target.value}` : "/finance/cash-receipts/new")
-            }
-            data-testid="receive-party"
-          >
-            <option value="">{t("pickParty")}</option>
-            {parties.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name} · {money(toFixed(option.cashHeld))}
-              </option>
-            ))}
-          </Select>
-        </Field>
+            onChange={(next) => router.push(next ? `/finance/cash-receipts/new?party_id=${next.id}` : "/finance/cash-receipts/new")}
+          />
+          {attempted && !partyId ? <p className="text-xs font-semibold text-error-dark">{t("errors.party")}</p> : null}
+        </div>
         {party ? (
           <div className="flex flex-col gap-1 text-sm md:col-span-2" data-testid="receive-held">
             <span className="text-text-muted">{t("cashHeld")}</span>

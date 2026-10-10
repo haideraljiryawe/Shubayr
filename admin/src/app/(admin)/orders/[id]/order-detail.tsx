@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { FormError } from "@/components/forms/form-error";
 import { CollectionFields, OrderCollectionSummary } from "@/components/orders/collection-fields";
+import { CustodyExceptionLinks } from "@/components/orders/custody-exception-links";
 import { PartyPicker } from "@/components/orders/party-picker";
 import { AttentionPanel, BelowCostPanel, CancellationRequestPanel, DeliveryAttemptsPanel, RetrievalsPanel } from "@/components/orders/lifecycle-panels";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
@@ -466,6 +467,7 @@ export function OrderDetailView({
               <OrderCollectionSummary collection={order.collection} />
             </Card>
           ) : null}
+          <CustodyExceptionLinks order={order} permissions={permissions} />
           <DeliveryAttemptsPanel order={order} />
           <RetrievalsPanel order={order} permissions={permissions} onRefused={handleRefusal} />
 

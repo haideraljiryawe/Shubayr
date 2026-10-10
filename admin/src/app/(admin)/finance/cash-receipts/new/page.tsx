@@ -36,9 +36,7 @@ export default async function ReceiveCashPage({ searchParams }: { searchParams: 
     return <PageError error={new ApiError(403, "cash_receipts.receive required")} />;
   }
   const canAllocate = permissions.includes("cash_receipts.allocate");
-  const [parties, cashAccounts, windowDays, custody, suggestions] = await Promise.all([
-    // Active parties, the ones holding the most cash first.
-    load(api.GET("/admin/delivery-parties/custody-overview", { params: { query: { active: true, sort_by: "cash_held", sort_direction: "desc", per_page: 100 } } })),
+  const [cashAccounts, windowDays, custody, suggestions] = await Promise.all([
     loadCashAccounts(api),
     loadBackdatingWindow(api),
     partyId ? load(api.GET("/admin/delivery-parties/{id}/custody", { params: { path: { id: partyId } } })) : null,
@@ -46,16 +44,11 @@ export default async function ReceiveCashPage({ searchParams }: { searchParams: 
       ? load(api.GET("/admin/cash-receipts/allocation-suggestions", { params: { query: { party_id: partyId, per_page: 100 } } }))
       : null,
   ]);
-  if (!parties.ok) return <PageError error={parties.error} />;
   if (custody && !custody.ok) return <PageError error={custody.error} />;
   if (suggestions && !suggestions.ok) return <PageError error={suggestions.error} />;
 
-  const options = parties.data.data.map((party) => ({ id: party.id, name: party.name, phone: party.phone, cashHeld: party.custody_summary.cash_held }));
-  // A party from the URL beyond the first 100 (or inactive) is still named.
-  if (custody?.ok && !options.some((option) => option.id === partyId)) {
-    const party = custody.data.party;
-    options.push({ id: party.id, name: party.name, phone: party.phone, cashHeld: custody.data.cash.amount });
-  }
+  // A trip's "cash handed in" opens this page pre-filled for its driver.
+  const amount = typeof raw.amount === "string" && /^\d+$/.test(raw.amount) ? raw.amount : "";
 
   return (
     <>
@@ -66,8 +59,8 @@ export default async function ReceiveCashPage({ searchParams }: { searchParams: 
       <PageHeader title={t("title")} description={t("description")} />
       <ReceiveScreen
         key={partyId || "none"}
-        parties={options}
         partyId={partyId}
+        presetAmount={amount}
         party={custody?.ok ? custody.data.party : null}
         cashHeld={custody?.ok ? custody.data.cash.amount : null}
         suggestions={suggestions?.ok ? suggestions.data.data : null}

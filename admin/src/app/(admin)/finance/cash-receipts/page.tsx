@@ -27,7 +27,7 @@ export default async function CashReceiptsPage({ searchParams }: { searchParams:
   const api = await serverApi();
   const [{ result, ignoredDates }, options, permissions] = await Promise.all([
     loadReceiptPage(api, "vouchers", params),
-    loadReceiptFilterOptions(api),
+    loadReceiptFilterOptions(api, params.filters.party_id),
     loadPermissions(api),
   ]);
   if (!result.ok) return <PageError error={result.error} />;
@@ -51,7 +51,7 @@ export default async function CashReceiptsPage({ searchParams }: { searchParams:
         mode="vouchers"
         rows={result.data.data}
         state={{ page: result.data.page, perPage: result.data.per_page, total: result.data.total, sort: "document_date", dir: "desc" }}
-        parties={options.parties}
+        party={options.party}
         accounts={options.accounts}
         ignoredDates={ignoredDates}
         canAllocate={permissions.includes("cash_receipts.allocate")}

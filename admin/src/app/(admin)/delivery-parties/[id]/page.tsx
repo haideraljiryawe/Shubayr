@@ -8,6 +8,7 @@ import { PageError } from "@/components/shell/page-error";
 import { loadPermissions } from "@/lib/api/inventory-server";
 import { load, serverApi } from "@/lib/api/server";
 import { collectionListQuery, PARTY_COLLECTION_FILTER_KEYS } from "@/lib/collection";
+import { EXCEPTION_PERMISSION, EXCEPTION_TYPES } from "@/lib/finance/custody-exceptions";
 import { STATEMENT_FILTER_KEYS, statementQuery } from "@/lib/delivery-parties";
 import { UUID } from "@/lib/inventory";
 import { lastPage } from "@/lib/list-queries";
@@ -90,6 +91,16 @@ export default async function DeliveryPartyPage({
             <Link href={`/finance/cash-receipts?party_id=${id}`} className={buttonClasses({ variant: "secondary" })} data-testid="party-receipts">
               {t("cash.receipts")}
             </Link>
+            {permissions.includes("custody_exceptions.view") ? (
+              <Link href={`/finance/custody-exceptions?party_id=${id}`} className={buttonClasses({ variant: "secondary" })} data-testid="party-exceptions">
+                {t("cash.exceptions")}
+              </Link>
+            ) : null}
+            {permissions.includes("trips.manage") && party.kind === "external_driver" && party.is_active ? (
+              <Link href={`/deliveries/trips/new?driver_party_id=${id}`} className={buttonClasses({ variant: "secondary" })} data-testid="party-new-trip">
+                {t("cash.newTrip")}
+              </Link>
+            ) : null}
             {/* Only when there is cash to hand in: no dead buttons. */}
             {permissions.includes("cash_receipts.receive") && party.is_active && custody.data.cash.amount > 0 ? (
               <Link href={`/finance/cash-receipts/new?party_id=${id}`} className={buttonClasses()} data-testid="party-receive">
@@ -108,6 +119,8 @@ export default async function DeliveryPartyPage({
         statementState={{ page: statement.data.page, perPage: statement.data.per_page, total: statement.data.total, sort: "occurred_at", dir: "asc" }}
         orderFilter={orderId}
         canViewCost={permissions.includes("cost.view")}
+        canRecordException={EXCEPTION_TYPES.some((type) => permissions.includes(EXCEPTION_PERMISSION[type]))}
+        trips={statement.data.trips}
       />
     </>
   );

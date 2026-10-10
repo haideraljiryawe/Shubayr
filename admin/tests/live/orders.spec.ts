@@ -102,6 +102,8 @@ test("every transition path, with the timeline", async ({ page, request }) => {
   await expect(page.getByTestId("order-action-dispatch")).toBeDisabled();
   await expect(page.getByTestId("order-dispatch-blocked")).toBeVisible();
   // An internal agent (the picker also lists external drivers, 11.2).
+  // Searched, as staff would: other specs add many external drivers.
+  await page.getByTestId("party-search").fill("Development Delivery");
   await page.locator('[data-testid="party-option"][data-kind="internal_agent"]').first().click();
   await page.getByTestId("assign-submit").click();
   await expect(page.getByTestId("delivery-agent")).not.toHaveText(/بلا مندوب|No agent/);
