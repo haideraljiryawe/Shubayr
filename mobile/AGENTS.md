@@ -2,14 +2,19 @@
 
 Canonical guidance for humans and coding agents working in `mobile/`.
 Do not load `CLAUDE.md` as another instruction source; it is a compatibility
-pointer. Communicate with Ahmed in Arabic by default; keep code, identifiers
-and conventional commit messages in English.
+pointer. Communicate in the requesting team member's preferred language; use
+Arabic when no preference is known. Keep code, identifiers and conventional
+commit messages in English.
 
 ## Scope and decisions
 
-- Work inside `mobile/` unless explicitly authorized otherwise. Read root API
-  contracts as references; never silently edit Backend, Web Admin, web or API
-  contracts. Those are independently owned projects.
+- Authorized repository collaborators may request and perform Mobile changes
+  through Codex. Approval is not reserved to any named developer; task-specific
+  Git approvals follow the rules below.
+- Work inside `mobile/`; changes outside it require authorization from the
+  responsible project owner. Read the authoritative API contract as described
+  below; never silently edit Backend, Web Admin, web or API contracts. Those are
+  independently owned projects.
 - An implementation request authorizes necessary, low-risk work within its scope.
   Do not repeatedly ask for already granted permission. Make the smallest clean
   change, state material assumptions, and preserve unrelated/user changes.
@@ -25,10 +30,25 @@ and conventional commit messages in English.
 
 ## Contract and application scope
 
-- The current Mobile target is repository-root `api/openapi.yaml`, **11.0.0**.
-  Inspect the relevant operations and referenced schemas before changing wire
+- The authoritative Mobile API contract is `origin/main:api/openapi.yaml`.
+  Discover its version for each API-related implementation task; do not pin a
+  contract version in these development instructions or assume the checked-out
+  branch's copy is current.
+- Before API-related implementation, run `git fetch origin main` when available.
+  Read the contract with `git show origin/main:api/openapi.yaml` without checking
+  out `main`, and extract its `info.version`. List migration notes with
+  `git ls-tree -r --name-only origin/main docs/mobile/` and read relevant notes
+  using `git show origin/main:docs/mobile/<file>`. Report the discovered version
+  and compatibility gaps relevant to the task before changing API behavior.
+- If fetching fails or is unavailable, report that the latest contract could not
+  be verified. Any cached `origin/main` or checked-out contract is unverified
+  reference material, not silently authoritative. Continue independent work;
+  obtain a verified contract or explicit agreement on an identified offline
+  baseline before implementing API behavior that depends on it.
+- Inspect relevant operations and referenced schemas before changing wire
   behavior: requiredness, nullability, quantities, statuses, paging and errors.
-  Historical migration notes do not override OpenAPI.
+  Historical migration notes do not override OpenAPI. Never invent undocumented
+  API behavior or silently implement migrations unrelated to the requested task.
 - Do not invent endpoints, fields, default versions or retries. Preserve
   `version` / `order_version` and documented conflicts. Cancellation/delivery
   conflicts reload server state; they do not automatically repeat the write.
@@ -254,26 +274,34 @@ ApiClient**. Features stay shallow; introduce only the types/layers they need.
 
 - The standing Flutter/Mobile policy in root `AGENTS.md` takes precedence over
   conflicting general Git/handoff rules. `mobile` is the default branch for all
-  Flutter tasks. Make requested edits directly in Ahmed's usual checkout and
-  leave them there for him to run and inspect.
-- Do not create a branch, clone, worktree or PR without Ahmed's explicit request.
+  Flutter tasks. Make requested edits directly in the collaborator's existing
+  checkout and leave them there for the requesting team member to run and inspect.
+- Do not create a branch, clone, worktree or PR without an explicit request from
+  the requesting authorized team member.
   Do not use isolation as an automatic safety workaround. The workflow used
   for PR #99 is not the default for Mobile.
 - Do not switch to or work on `main` unless explicitly requested. If the checkout
   is on another branch, stop and ask before switching or starting edits.
 - Check for conflicting uncommitted changes, unfinished merge/rebase operations,
   Git conflicts and any other risk to existing work before editing. If unsafe,
-  stop, explain the issue briefly and wait for Ahmed's decision. Do not create a
-  branch/worktree or move, stash, discard or overwrite work to bypass the issue.
+  stop, explain the issue briefly and wait for the requesting team member's
+  decision. Preserve unrelated local changes and never overwrite another
+  developer's work. Do not create a branch/worktree or move, stash or discard
+  work to bypass the issue.
 - At task start and before committing/pushing, `git fetch origin main` and inspect
   `git log mobile..origin/main`. Report new team changes and their relevance to
   Mobile/contracts. A failed fetch is an incomplete check, not proof of currency.
-- Do not merge, squash or rebase without Ahmed's explicit request; cherry-picking
-  main also requires authorization. Root/team history does not authorize changing
+- Do not merge, squash or rebase without explicit approval from the requesting
+  authorized team member; cherry-picking main also requires authorization.
+  Never force-push without explicit authorization for that action. Respect
+  GitHub repository permissions and branch protection rules; task approval does
+  not authorize bypassing them. Root/team history does not authorize changing
   another independently owned project.
 - Present changes and verification for review and leave edits uncommitted unless
-  Ahmed explicitly requests a commit or a clear earlier instruction for the
-  current task already requires one. Implementation approval alone does not
-  authorize committing or pushing. Push only with explicit authorization for
-  the task, and include only task files in any authorized commit.
-- End with a concise Arabic report of changes, evidence and actual limitations.
+  the requesting authorized team member explicitly requests a commit or a clear
+  earlier instruction for the current task already requires one. That team member
+  may authorize commits and pushes for their own task. Implementation approval
+  alone does not authorize committing or pushing. Push only with explicit
+  authorization for the task, and include only task files in any authorized commit.
+- End with a concise report of changes, evidence and actual limitations in the
+  requesting team member's preferred language.
