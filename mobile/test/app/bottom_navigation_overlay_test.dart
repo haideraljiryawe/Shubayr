@@ -247,7 +247,11 @@ void main() {
               if (branch != 4) router.go('/home');
               await tester.pumpAndSettle();
               expect(tabs, findsNWidgets(3));
-              expect(tester.getRect(surface), bounds);
+              final compactBounds = tester.getRect(surface);
+              expect(compactBounds.width, closeTo(215.424, .01));
+              expect(compactBounds.center.dx, closeTo(bounds.center.dx, .001));
+              expect(compactBounds.center.dy, closeTo(bounds.center.dy, .001));
+              expect(compactBounds.height, bounds.height);
               final selected = find.descendant(
                 of: surface,
                 matching: find.byWidgetPredicate(

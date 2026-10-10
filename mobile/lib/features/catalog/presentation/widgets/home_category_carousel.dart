@@ -34,8 +34,8 @@ class HomeCategoryCarousel extends StatefulWidget {
 
 class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  static const _speed = 12.0;
-  static const _startupDelay = Duration(seconds: 1);
+  static const _speed = 8.4;
+  static const _startupDelay = Duration(seconds: 2);
   static const _resumeDelay = Duration(seconds: 3);
   static const _center = ValueKey('category-ring-center');
 

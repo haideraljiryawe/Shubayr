@@ -118,7 +118,7 @@ void main() {
   }
 
   for (final language in ['ar', 'en']) {
-    testWidgets('cold start waits one visible second in $language', (
+    testWidgets('cold start waits two visible seconds in $language', (
       tester,
     ) async {
       final claim = startupClaim();
@@ -136,7 +136,7 @@ void main() {
       await _start(tester, app());
       final start = tester.getTopLeft(_item(1)).dx;
       expect(_item(1).hitTestable(), findsOneWidget);
-      for (var i = 0; i < 9; i++) {
+      for (var i = 0; i < 19; i++) {
         await tester.pump(const Duration(milliseconds: 100));
         // Rebuilding must neither duplicate nor restart the timer.
         await _start(tester, app());
@@ -150,10 +150,10 @@ void main() {
       expect(tester.binding.transientCallbackCount, 1);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
-      expect(_position(tester).pixels, closeTo(3, .001));
+      expect(_position(tester).pixels, closeTo(2.1, .001));
       expect(
         tester.getTopLeft(_item(1)).dx - start,
-        closeTo(language == 'ar' ? 3 : -3, .001),
+        closeTo(language == 'ar' ? 2.1 : -2.1, .001),
       );
       await tester.pumpWidget(const SizedBox());
     });
@@ -196,7 +196,7 @@ void main() {
       expect(tester.binding.transientCallbackCount, 0);
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump(const Duration(seconds: 1));
-      expect(_position(tester).pixels, closeTo(stopped + 12, .001));
+      expect(_position(tester).pixels, closeTo(stopped + 8.4, .001));
       await tester.pumpWidget(const SizedBox());
     });
   }
@@ -254,7 +254,7 @@ void main() {
       await tester.pump();
       final returned = _position(tester).pixels;
       await tester.pump(const Duration(milliseconds: 250));
-      expect(_position(tester).pixels, closeTo(returned + 3, .001));
+      expect(_position(tester).pixels, closeTo(returned + 2.1, .001));
       await tester.pumpWidget(const SizedBox());
     });
   }
@@ -272,10 +272,10 @@ void main() {
     expect(tester.takeException(), isNull);
     await _start(tester, _app(claimStartupDelay: claim));
     await tester.pump(const Duration(milliseconds: 250));
-    expect(_position(tester).pixels, closeTo(3, .001));
+    expect(_position(tester).pixels, closeTo(2.1, .001));
     await tester.pumpWidget(const SizedBox());
     await _start(tester, _app(claimStartupDelay: startupClaim()));
-    await tester.pump(const Duration(milliseconds: 999));
+    await tester.pump(const Duration(milliseconds: 1999));
     expect(_position(tester).pixels, 0);
     await tester.pumpWidget(const SizedBox());
   });
@@ -290,7 +290,7 @@ void main() {
     expect(tester.binding.transientCallbackCount, 0);
     await _start(tester, _app(claimStartupDelay: claim));
     await tester.pump(const Duration(milliseconds: 250));
-    expect(_position(tester).pixels, closeTo(3, .001));
+    expect(_position(tester).pixels, closeTo(2.1, .001));
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -321,7 +321,7 @@ void main() {
           await tester.pump(Duration(microseconds: micros - previousMicros));
           previousMicros = micros;
         }
-        expect(_position(tester).pixels - start, closeTo(12, .001));
+        expect(_position(tester).pixels - start, closeTo(8.4, .001));
         expect(siblingBuilds, beforeBuilds);
         expect(
           counts,
@@ -453,7 +453,7 @@ void main() {
   );
 
   for (final language in ['en', 'ar']) {
-    testWidgets('linear 12px/s, seamless wrap and logical order $language', (
+    testWidgets('linear 8.4dp/s, seamless wrap and logical order $language', (
       tester,
     ) async {
       await _start(tester, _app(language: language));
@@ -461,15 +461,15 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       final first = tester.getRect(_item(1));
       final motionSign = language == 'ar' ? 1 : -1;
-      expect(first.left - initial.left, closeTo(motionSign * 12, .001));
+      expect(first.left - initial.left, closeTo(motionSign * 8.4, .001));
       await tester.pump(const Duration(milliseconds: 250));
       expect(
         tester.getRect(_item(1)).left - first.left,
-        closeTo(motionSign * 3, .001),
+        closeTo(motionSign * 2.1, .001),
       );
       // Approach the end of the ring, then cross its normalization boundary.
-      // 1.25s + 56.383333s places the offset 6px before a complete cycle.
-      await tester.pump(const Duration(microseconds: 56383333));
+      // 1.25s + 81.297619s places the offset 4.2dp before a complete cycle.
+      await tester.pump(const Duration(microseconds: 81297619));
       final last = tester.getRect(_item(7));
       final zero = tester.getRect(_item(0));
       expect((zero.center.dx - last.center.dx).abs(), closeTo(87.2, .001));
@@ -479,13 +479,13 @@ void main() {
       );
       final beforeSeam = tester.getRect(_item(0));
       await tester.pump(const Duration(seconds: 1));
-      expect(_position(tester).pixels, closeTo(6, .001));
+      expect(_position(tester).pixels, closeTo(4.2, .001));
       expect(
         tester.getRect(_item(0)).left - beforeSeam.left,
-        closeTo(motionSign * 12, .001),
+        closeTo(motionSign * 8.4, .001),
       );
       final before = tester.getRect(_item(1));
-      await tester.pump(const Duration(microseconds: 58133333));
+      await tester.pump(const Duration(microseconds: 83047619));
       expect(tester.getRect(_item(1)).left, closeTo(before.left, .001));
       expect(_position(tester).pixels, inInclusiveRange(0, 697.6));
       expect(tester.takeException(), isNull);
@@ -517,7 +517,7 @@ void main() {
       expect(_position(tester).pixels, stopped);
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump(const Duration(seconds: 1));
-      expect(_position(tester).pixels, closeTo(stopped + 12, .001));
+      expect(_position(tester).pixels, closeTo(stopped + 8.4, .001));
       await tester.pumpWidget(const SizedBox());
     },
   );
@@ -550,7 +550,10 @@ void main() {
         expect(_position(tester).pixels, stopped);
         await tester.pump(const Duration(milliseconds: 1));
         await tester.pump(const Duration(seconds: 1));
-        expect(_position(tester).pixels, closeTo((stopped + 12) % 697.6, .001));
+        expect(
+          _position(tester).pixels,
+          closeTo((stopped + 8.4) % 697.6, .001),
+        );
       }
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
@@ -607,12 +610,12 @@ void main() {
     await _start(tester, _app());
     var elapsedMicros = 0;
     for (var i = 0; i < 120; i++) {
-      final micros = i.isEven ? 16000 : 58133333;
+      final micros = i.isEven ? 16000 : 83047619;
       elapsedMicros += micros;
       await tester.pump(Duration(microseconds: micros));
       expect(
         _position(tester).pixels,
-        closeTo((12 * elapsedMicros / 1000000) % 697.6, .001),
+        closeTo((8.4 * elapsedMicros / 1000000) % 697.6, .001),
       );
       expect(
         find
@@ -635,7 +638,7 @@ void main() {
     expect(_position(tester).pixels, stopped);
     await _start(tester, _app());
     await tester.pump(const Duration(seconds: 1));
-    expect(_position(tester).pixels, closeTo(stopped + 12, .001));
+    expect(_position(tester).pixels, closeTo(stopped + 8.4, .001));
     await _start(tester, _app(accessible: true));
     expect(_ring, findsNothing);
     await _start(tester, _app());
@@ -730,7 +733,7 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
-      expect(_position(tester).pixels, closeTo((paused + 12) % 697.6, .001));
+      expect(_position(tester).pixels, closeTo((paused + 8.4) % 697.6, .001));
       navigator.currentState!.push(
         MaterialPageRoute<void>(
           builder: (_) => const Scaffold(body: Text('Other')),

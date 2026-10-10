@@ -22,22 +22,87 @@ final _capsule = find.byKey(const ValueKey('bottom-nav-capsule'));
 final _tabs = find.byType(InkWell);
 
 void main() {
+  for (final direction in TextDirection.values) {
+    testWidgets('fixed slots shrink with tab count across windows $direction', (
+      tester,
+    ) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      // Measured five-tab reference before the change on a 390dp phone.
+      const referenceSlot = 71.808;
+      const naturalWidths = [71.808, 143.616, 215.424, 287.232, 359.04];
+      for (final width in [320.0, 360.0, 390.0, 430.0, 599.0, 600.0, 1024.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 844));
+        for (final count in [1, 2, 3, 4, 5, 4, 3, 2, 1]) {
+          var selected = count - 1;
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: AppTheme.light(const Brand.bundled()),
+              home: Directionality(
+                textDirection: direction,
+                child: StatefulBuilder(
+                  builder: (context, setState) => Scaffold(
+                    bottomNavigationBar: CustomerBottomNavigation(
+                      destinations: _destinations(count),
+                      selectedIndex: selected,
+                      onSelected: (value) => setState(() => selected = value),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final surface = tester.getRect(_surface);
+          final compressed = count == 5 && width < 390;
+          final expectedWidth = compressed
+              ? width - 16
+              : naturalWidths[count - 1];
+          expect(surface.width, closeTo(expectedWidth, .001));
+          expect(surface.width, lessThanOrEqualTo(359.04));
+          expect(surface.height, 64);
+          expect(surface.center.dx, closeTo(width / 2, .001));
+          expect(surface.bottom, 840);
+          expect(_tabs, findsNWidgets(count));
+          for (var i = 0; i < count; i++) {
+            final target = tester.getRect(_tabs.at(i));
+            expect(
+              target.width,
+              closeTo(compressed ? expectedWidth / count : referenceSlot, .001),
+            );
+            expect(target.width, greaterThanOrEqualTo(48));
+            // Keep the existing vertical hit area and system-bar clearance.
+            expect(target.height, 44);
+            expect(surface.contains(target.center), isTrue);
+            await tester.tap(_tabs.at(i));
+            await tester.pumpAndSettle();
+            expect(selected, i);
+            final selectedCenter = tester.getCenter(_capsule);
+            expect(selectedCenter.dx, closeTo(target.center.dx, .001));
+            expect(selectedCenter.dy, closeTo(target.center.dy, .001));
+          }
+          if (!compressed) {
+            expect(tester.getSize(_capsule).width, closeTo(59.808, .001));
+            expect(tester.getSize(_capsule).height, 52);
+          }
+          expect(tester.takeException(), isNull);
+        }
+      }
+    });
+  }
+
   test('approved design tokens and bounded visual capsules', () {
-    expect(NavigationThemes.bottomBarMinDestinations, 2);
+    expect(NavigationThemes.bottomBarMinDestinations, 1);
     expect(NavigationThemes.bottomBarMaxDestinations, 5);
     expect(NavigationThemes.bottomBarHeight, 64);
-    expect(NavigationThemes.bottomBarWidthFactor, .96);
-    expect(NavigationThemes.bottomBarMaxWidth, 560);
+    expect(NavigationThemes.bottomBarMaxWidth, 359.04);
     expect(NavigationThemes.bottomBarMinimumInteractiveHeight, 44);
     expect(NavigationThemes.bottomBarIconSize, 28);
     expect(NavigationThemes.bottomBarSelectedScale, 1.11);
-    expect(NavigationThemes.bottomBarSelectedMaxAspectRatio, 2.2);
-    expect(NavigationThemes.bottomBarPressedMaxAspectRatio, 2.2);
-    for (final count in [2, 3, 4, 5]) {
+    for (final count in [1, 2, 3, 4, 5]) {
       final minimum = NavigationThemes.bottomBarMinimumSafeWidth(count);
       for (final width in [minimum, 264.0, 560.0, 1024.0]) {
         final geometry = NavigationThemes.bottomBarGeometry(width, count);
-        expect(geometry.barWidth, lessThanOrEqualTo(560));
+        expect(geometry.barWidth, lessThanOrEqualTo(359.04));
         expect(geometry.slotWidth, greaterThanOrEqualTo(44));
         for (final size in [geometry.selected, geometry.pressed]) {
           expect(size.width.isFinite && size.height.isFinite, isTrue);
@@ -69,12 +134,12 @@ void main() {
       }
     }
     final tablet = NavigationThemes.bottomBarGeometry(1024, 2);
-    expect(tablet.slotWidth, 280);
-    expect(tablet.selected.width, closeTo(114.4, .001));
-    expect(tablet.pressed.width, closeTo(129.8, .001));
+    expect(tablet.slotWidth, closeTo(71.808, .001));
+    expect(tablet.selected.width, closeTo(59.808, .001));
+    expect(tablet.pressed.width, closeTo(67.608, .001));
   });
 
-  for (final count in [0, 1, 6, 7, 64, 1000]) {
+  for (final count in [0, 6, 7, 64, 1000]) {
     test('$count destinations are invalid configuration, never truncated', () {
       expect(
         () => CustomerBottomNavigation(
@@ -86,7 +151,7 @@ void main() {
           isA<AssertionError>().having(
             (error) => error.toString(),
             'message',
-            contains('2–5 top-level destinations'),
+            contains('1–5 top-level destinations'),
           ),
         ),
       );
@@ -97,7 +162,7 @@ void main() {
           isA<FlutterError>().having(
             (error) => error.toString(),
             'message',
-            contains('2–5 top-level destinations'),
+            contains('1–5 top-level destinations'),
           ),
         ),
       );
@@ -122,7 +187,7 @@ void main() {
         ),
       );
       await pumpBar();
-      for (final nextCount in [2, 3, 4, 5]) {
+      for (final nextCount in [1, 2, 3, 4, 5]) {
         final press = await tester.startGesture(tester.getCenter(_tabs.last));
         await tester.pump(const Duration(milliseconds: 120));
         // Bypass construction validation only to exercise the release safeguard:
@@ -154,7 +219,7 @@ void main() {
     },
   );
 
-  for (final count in [2, 3, 4, 5]) {
+  for (final count in [1, 2, 3, 4, 5]) {
     testWidgets('$count tabs reject insufficient parent width and recover', (
       tester,
     ) async {
@@ -166,8 +231,7 @@ void main() {
             data: const MediaQueryData(size: Size(800, 600)),
             child: Center(
               child: SizedBox(
-                width:
-                    safeWidth + 32, // Shared wide-window gutters, 16 per side.
+                width: safeWidth + 16, // Fixed navigation gutters, 8 per side.
                 child: CustomerBottomNavigation(
                   destinations: _destinations(count),
                   selectedIndex: 0,
@@ -258,7 +322,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    for (final count in [2, 3, 4, 5]) {
+    for (final count in [1, 2, 3, 4, 5]) {
       testWidgets(
         '$count landscape tabs retain safe margins and adjacent hit edges $direction',
         (tester) async {
@@ -295,7 +359,7 @@ void main() {
             ),
           );
           final bar = tester.getRect(_surface);
-          expect(bar.width, 560);
+          expect(bar.width, closeTo(71.808 * count, .01));
           expect(bar.center.dx, (44 + 1024 - 24) / 2);
           expect(bar.left, greaterThanOrEqualTo(44));
           expect(bar.right, lessThanOrEqualTo(1000));

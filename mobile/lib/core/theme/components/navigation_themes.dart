@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import '../tokens/app_radii.dart';
 import '../tokens/app_motion.dart';
+import '../tokens/app_spacing.dart';
 
 abstract final class NavigationThemes {
   static const Duration bottomPageTransitionDuration = AppMotion.medium;
@@ -14,25 +15,28 @@ abstract final class NavigationThemes {
   static const double bottomPageIncomingOpacity = 0.96;
 
   // ---------------------------------------------------------------------------
-  // Bottom navigation supports 2–5 top-level destinations. Geometry comes from
-  // safe constraints: 96% phone width, capped at 560, with >=44px touch slots.
+  // Bottom navigation supports 1–5 fixed-width destinations, shrinking only
+  // when its parent's safe available width cannot fit the natural width.
   // ---------------------------------------------------------------------------
 
   /// Visual bounds are taller than the centered interactive strip. Only the
   /// decorative margin may overlap the iOS home-indicator area; hit targets
   /// never do. Android keeps the entire surface above the system navigation.
-  // Preserve vertical clearance around the base pill; visual widths are capped
-  // independently so wide slots do not stretch their decorative capsules.
+  // Preserve vertical clearance around the base pill.
   static const double _bottomBarGeometricHeight =
       bottomBarSelectedBaseHeight + 2 * bottomBarSelectedSlotInset;
   static const double bottomBarHeight =
       _bottomBarGeometricHeight >= bottomBarMinimumInteractiveHeight
       ? _bottomBarGeometricHeight
       : bottomBarMinimumInteractiveHeight;
-  static const int bottomBarMinDestinations = 2;
+  static const int bottomBarMinDestinations = 1;
   static const int bottomBarMaxDestinations = 5;
-  static const double bottomBarWidthFactor = 0.96;
-  static const double bottomBarMaxWidth = 560;
+
+  /// Existing five-tab geometry on a 390dp phone: (390 - 2 * 8) * .96.
+  /// Freeze that measured reference instead of scaling with the window.
+  static const double bottomBarMaxWidth = 359.04;
+  static const double bottomBarSlotWidth =
+      bottomBarMaxWidth / bottomBarMaxDestinations;
   // Keep the established minimum hit height centered within the taller surface.
   static const double bottomBarMinimumInteractiveHeight = 44;
   static const double bottomBarAndroidSystemGap = 4;
@@ -122,20 +126,16 @@ abstract final class NavigationThemes {
   // Keep horizontal geometry independent of the increased vertical clearance.
   static const double bottomBarSelectedSlotInset = 6;
 
-  static const double bottomBarSelectedMaxAspectRatio = 2.2;
-  static const double bottomBarPressedMaxAspectRatio = 2.2;
-
   static EdgeInsets bottomBarPadding(
-    MediaQueryData media,
-    double gutter, {
+    MediaQueryData media, {
     required TargetPlatform platform,
   }) => EdgeInsets.only(
     left: math.max(
-      gutter,
+      AppSpacing.screenMobileH,
       math.max(media.viewPadding.left, media.padding.left),
     ),
     right: math.max(
-      gutter,
+      AppSpacing.screenMobileH,
       math.max(media.viewPadding.right, media.padding.right),
     ),
     bottom: bottomBarBottomOffset(media, platform: platform),
@@ -145,24 +145,21 @@ abstract final class NavigationThemes {
       count >= bottomBarMinDestinations && count <= bottomBarMaxDestinations;
 
   static double bottomBarMinimumSafeWidth(int destinationCount) =>
-      destinationCount *
-      bottomBarMinimumInteractiveHeight /
-      bottomBarWidthFactor;
+      destinationCount * bottomBarMinimumInteractiveHeight;
 
   /// Reject unsupported constraints rather than silently shrinking touch targets.
   static ({double barWidth, double slotWidth, Size selected, Size pressed})
   bottomBarGeometry(double safeAvailableWidth, int destinationCount) {
     if (!isBottomBarDestinationCountValid(destinationCount)) {
       throw FlutterError(
-        'Bottom Navigation supports 2–5 top-level destinations; '
+        'Bottom Navigation supports 1–5 top-level destinations; '
         'received $destinationCount.',
       );
     }
-    final minimumBarWidth =
-        destinationCount * bottomBarMinimumInteractiveHeight;
+    final minimumBarWidth = bottomBarMinimumSafeWidth(destinationCount);
     final barWidth = math.min(
-      safeAvailableWidth * bottomBarWidthFactor,
-      bottomBarMaxWidth,
+      safeAvailableWidth,
+      destinationCount * bottomBarSlotWidth,
     );
     if (!safeAvailableWidth.isFinite || barWidth < minimumBarWidth) {
       throw FlutterError(
@@ -190,20 +187,8 @@ abstract final class NavigationThemes {
     return (
       barWidth: barWidth,
       slotWidth: slotWidth,
-      selected: Size(
-        math.min(
-          selectedNaturalWidth,
-          selectedHeight * bottomBarSelectedMaxAspectRatio,
-        ),
-        selectedHeight,
-      ),
-      pressed: Size(
-        math.min(
-          pressedNaturalWidth,
-          pressedHeight * bottomBarPressedMaxAspectRatio,
-        ),
-        pressedHeight,
-      ),
+      selected: Size(selectedNaturalWidth, selectedHeight),
+      pressed: Size(pressedNaturalWidth, pressedHeight),
     );
   }
 

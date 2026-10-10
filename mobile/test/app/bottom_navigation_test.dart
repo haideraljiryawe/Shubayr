@@ -206,7 +206,7 @@ void main() {
               expect(bar.height, closeTo(expectedHeight + 34.0 + 4, .01));
               expect(bar.bottom, 844);
               final surface = tester.getRect(_surface);
-              final gutter = width < 600 ? 8.0 : 16.0;
+              const gutter = 8.0;
               final geometry = NavigationThemes.bottomBarGeometry(
                 width - 2 * gutter,
                 count,
@@ -729,8 +729,8 @@ void main() {
           sideInset: 20,
         );
         final surface = tester.getRect(_surface);
-        expect(surface.left, closeTo(25.6, .01));
-        expect(surface.right, closeTo(294.4, .01));
+        expect(surface.left, closeTo(20, .01));
+        expect(surface.right, closeTo(300, .01));
         expect(surface.bottom, closeTo(844 - bottomInset - 4, .01));
         expect(surface.height, closeTo(64, .01));
         expect(
@@ -899,7 +899,17 @@ void main() {
                   tester.getCenter(_capsule).dx,
                   closeTo(tester.getCenter(_tabs.last).dx, .01),
                 );
-                expect(tester.getRect(_surface), bounds);
+                final expandedBounds = tester.getRect(_surface);
+                expect(expandedBounds.width, closeTo(304, .01));
+                expect(
+                  expandedBounds.center.dx,
+                  closeTo(bounds.center.dx, .001),
+                );
+                expect(
+                  expandedBounds.center.dy,
+                  closeTo(bounds.center.dy, .001),
+                );
+                expect(expandedBounds.height, bounds.height);
                 await tester.tap(_tabs.first);
                 await tester.pumpAndSettle();
                 await tester.tap(_tabs.at(branch));
@@ -963,7 +973,9 @@ void main() {
         expect(_tabs, findsNWidgets(3));
         expect(
           harness.router.routeInformationProvider.value.uri.path,
-          branch == 4 ? '/account' : '/home',
+          // The retained Account tab moves inward when the bar shrinks.
+          // Releasing at its old position is outside it and cancels the tap.
+          '/home',
         );
         expect(
           tester

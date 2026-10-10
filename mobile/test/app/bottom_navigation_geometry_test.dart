@@ -25,7 +25,7 @@ void main() {
     }
     await fonts.load();
   });
-  for (final count in [2, 3, 4, 5]) {
+  for (final count in [1, 2, 3, 4, 5]) {
     for (final rtl in [false, true]) {
       for (final dark in [false, true]) {
         for (final width in [
@@ -117,13 +117,13 @@ void main() {
                   );
                   expect(tabs, findsNWidgets(count));
                   expect(surface.bottom, closeTo(844 - inset - 4, .01));
-                  final gutter = width < 600 ? 8.0 : 16.0;
+                  const gutter = 8.0;
                   final geometry = NavigationThemes.bottomBarGeometry(
                     width - 2 * gutter,
                     count,
                   );
                   expect(surface.width, closeTo(geometry.barWidth, .01));
-                  expect(surface.width, lessThanOrEqualTo(560));
+                  expect(surface.width, lessThanOrEqualTo(359.04));
                   expect(surface.center.dx, closeTo(width / 2, .01));
                   expect(
                     surface.height,
@@ -286,15 +286,11 @@ void main() {
                     final verticalInset = (surface.height - capsule.height) / 2;
                     expect(
                       capsule.width / capsule.height,
-                      lessThanOrEqualTo(
-                        NavigationThemes.bottomBarSelectedMaxAspectRatio + .001,
-                      ),
+                      lessThanOrEqualTo(2.2),
                     );
                     expect(
                       stateBounds.width / stateBounds.height,
-                      lessThanOrEqualTo(
-                        NavigationThemes.bottomBarPressedMaxAspectRatio + .001,
-                      ),
+                      lessThanOrEqualTo(2.2),
                     );
                     expect(
                       capsule.top - surface.top,
@@ -395,7 +391,7 @@ void main() {
       }
     }
   }
-  for (final count in [2, 3, 4, 5]) {
+  for (final count in [1, 2, 3, 4, 5]) {
     testWidgets(
       '$count tabs respect parent constraints and consumed/unconsumed side insets',
       (tester) async {
@@ -484,7 +480,7 @@ void main() {
                 final bar = tester.getRect(
                   find.byKey(const ValueKey('bottom-nav-surface')),
                 );
-                final gutter = width < 600 ? 8.0 : 16.0;
+                const gutter = 8.0;
                 final left = consumed
                     ? safeLeft + gutter
                     : math.max(safeLeft, gutter);
@@ -496,7 +492,7 @@ void main() {
                   count,
                 );
                 expect(bar.width, closeTo(geometry.barWidth, .01));
-                expect(bar.width, lessThanOrEqualTo(560));
+                expect(bar.width, lessThanOrEqualTo(359.04));
                 expect(bar.center.dx, closeTo((left + width - right) / 2, .01));
                 expect(bar.left, greaterThanOrEqualTo(safeLeft));
                 expect(bar.right, lessThanOrEqualTo(width - safeRight));
@@ -599,8 +595,8 @@ void main() {
     final bar = tester.getRect(
       find.byKey(const ValueKey('bottom-nav-surface')),
     );
-    // A wide window uses the shared 16px gutter, but width comes from its parent.
-    expect(bar.width, closeTo(343.68, .01));
+    // Four reference slots fit the local parent without stretching.
+    expect(bar.width, closeTo(287.232, .01));
     expect(bar.center.dx, 600);
     expect(tester.takeException(), isNull);
   });

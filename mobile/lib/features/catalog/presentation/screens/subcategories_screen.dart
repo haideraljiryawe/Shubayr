@@ -114,7 +114,10 @@ class _SubcategoryGrid extends StatelessWidget {
             constraints: BoxConstraints(minHeight: height),
             child: Material(
               color: context.colors.categoryTile,
-              borderRadius: AppRadii.mdAll,
+              shape: RoundedRectangleBorder(
+                borderRadius: AppRadii.mdAll,
+                side: BorderSide(color: context.colors.border),
+              ),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () => context.pushNamed(

@@ -170,7 +170,7 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color surface;
   final Color surfaceAlt;
 
-  /// Quiet borderless tiles in the category browser.
+  /// Quiet tile backgrounds in the category browser.
   final Color categoryTile;
 
   /// Slightly stronger brand tint for Home's circular navigation shortcuts.

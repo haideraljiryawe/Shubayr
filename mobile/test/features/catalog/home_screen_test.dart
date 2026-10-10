@@ -189,13 +189,13 @@ void main() {
             ),
           )
           .position;
-      await tester.pump(const Duration(milliseconds: 999));
+      await tester.pump(const Duration(milliseconds: 1999));
       expect(position.pixels, 0);
       final before = tester.getRect(category);
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
-      expect(tester.getRect(category).left, closeTo(before.left + 12, .01));
+      expect(tester.getRect(category).left, closeTo(before.left + 8.4, .01));
       await tester.tap(category);
       await tester.pumpAndSettle();
       expect(find.byType(ProductListScreen), findsOneWidget);

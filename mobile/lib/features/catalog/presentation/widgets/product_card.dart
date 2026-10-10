@@ -38,6 +38,7 @@ class ProductCard extends ConsumerWidget {
       child: InkWell(
         onTap: onTap,
         child: DecoratedBox(
+          position: DecorationPosition.foreground,
           decoration: BoxDecoration(
             borderRadius: AppRadii.productAll,
             border: Border.all(color: colors.border),

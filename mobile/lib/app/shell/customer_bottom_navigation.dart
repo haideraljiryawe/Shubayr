@@ -3,7 +3,6 @@ import 'dart:ui' show SemanticsRole;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/layout/app_layout.dart';
 import '../../core/theme/components/navigation_themes.dart';
 import '../../core/theme/theme_context.dart';
 
@@ -30,7 +29,7 @@ Widget _badged(BuildContext context, Widget child, int count) {
 }
 
 /// Floating customer bottom bar with one capsule sliding between equally sized
-/// destinations in the ambient reading direction. Supports 2–5 top-level tabs;
+/// destinations in the ambient reading direction. Supports 1–5 top-level tabs;
 /// the opaque surface leaves content visible through the outer margins.
 class CustomerBottomNavigation extends StatelessWidget {
   const CustomerBottomNavigation({
@@ -41,7 +40,7 @@ class CustomerBottomNavigation extends StatelessWidget {
   }) : assert(
          destinations.length >= NavigationThemes.bottomBarMinDestinations &&
              destinations.length <= NavigationThemes.bottomBarMaxDestinations,
-         'Bottom Navigation supports 2–5 top-level destinations.',
+         'Bottom Navigation supports 1–5 top-level destinations.',
        ),
        assert(selectedIndex >= 0 && selectedIndex < destinations.length);
 
@@ -64,7 +63,6 @@ class CustomerBottomNavigation extends StatelessWidget {
     return Padding(
       padding: NavigationThemes.bottomBarPadding(
         media,
-        AppLayout.pageHorizontal(context),
         platform: Theme.of(context).platform,
       ),
       child: LayoutBuilder(
@@ -107,10 +105,12 @@ class CustomerBottomNavigation extends StatelessWidget {
                           IgnorePointer(
                             child: AnimatedAlign(
                               alignment: AlignmentDirectional(
-                                -1 +
-                                    2 *
-                                        selectedIndex /
-                                        (destinations.length - 1),
+                                destinations.length == 1
+                                    ? 0
+                                    : -1 +
+                                          2 *
+                                              selectedIndex /
+                                              (destinations.length - 1),
                                 0,
                               ),
                               duration: reduceMotion

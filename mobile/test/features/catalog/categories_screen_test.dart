@@ -360,7 +360,13 @@ void main() {
         final material = tester.widget<Material>(
           find.descendant(of: first, matching: find.byType(Material)),
         );
-        expect(material.borderRadius, AppRadii.lgAll);
+        final shape = material.shape! as RoundedRectangleBorder;
+        expect(shape.borderRadius, AppRadii.lgAll);
+        expect(
+          shape.side,
+          BorderSide(color: tester.element(first).colors.border),
+        );
+        expect(material.borderOnForeground, isTrue);
         expect(material.clipBehavior, Clip.antiAlias);
         expect(
           find.descendant(of: image, matching: find.byType(ClipRRect)),
@@ -394,7 +400,7 @@ void main() {
 
     for (final brightness in Brightness.values) {
       testWidgets(
-        'three borderless child tiles per phone row $locale $brightness',
+        'three bordered child tiles per phone row $locale $brightness',
         (tester) async {
           _size(tester, 390);
           await tester.pumpWidget(
@@ -430,9 +436,10 @@ void main() {
           );
           final colors = tester.element(tile).colors;
           expect(material.color, colors.categoryTile);
-          expect(material.shape, isNull);
+          final shape = material.shape! as RoundedRectangleBorder;
+          expect(shape.side, BorderSide(color: colors.border));
           expect(material.elevation, 0);
-          expect(material.borderRadius, AppRadii.mdAll);
+          expect(shape.borderRadius, AppRadii.mdAll);
           expect(find.byType(CachedNetworkImage), findsNothing);
           expect(find.byIcon(Icons.smartphone), findsOneWidget);
           expect(colors.categoryTile, isNot(colors.background));

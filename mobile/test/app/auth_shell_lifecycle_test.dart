@@ -150,7 +150,17 @@ void main() {
                 same(shellState),
               );
               expect(tabs, findsNWidgets(5));
-              expect(tester.getRect(surface), originalBounds);
+              final expandedBounds = tester.getRect(surface);
+              expect(expandedBounds.width, closeTo(359.04, .01));
+              expect(
+                expandedBounds.center.dx,
+                closeTo(originalBounds.center.dx, .001),
+              );
+              expect(
+                expandedBounds.center.dy,
+                closeTo(originalBounds.center.dy, .001),
+              );
+              expect(expandedBounds.height, originalBounds.height);
               expect(verifications, iteration + 1);
               expect(container.read(cartControllerProvider).hasError, isFalse);
               router.go(logoutPath);
@@ -188,7 +198,17 @@ void main() {
               await tester.pumpAndSettle();
               expect((await login)?.isSignedIn, isTrue);
               expect(tabs, findsNWidgets(5));
-              expect(tester.getRect(surface), originalBounds);
+              final expandedBounds = tester.getRect(surface);
+              expect(expandedBounds.width, closeTo(359.04, .01));
+              expect(
+                expandedBounds.center.dx,
+                closeTo(originalBounds.center.dx, .001),
+              );
+              expect(
+                expandedBounds.center.dy,
+                closeTo(originalBounds.center.dy, .001),
+              );
+              expect(expandedBounds.height, originalBounds.height);
               expect(
                 tester
                     .getCenter(find.byKey(const ValueKey('bottom-nav-capsule')))

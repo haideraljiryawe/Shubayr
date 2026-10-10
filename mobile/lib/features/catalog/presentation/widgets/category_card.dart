@@ -72,7 +72,10 @@ class CategoryCard extends StatelessWidget {
       ),
       child: Material(
         color: colors.surface,
-        borderRadius: AppRadii.lgAll,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadii.lgAll,
+          side: BorderSide(color: colors.border),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
