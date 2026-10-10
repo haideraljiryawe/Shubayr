@@ -567,6 +567,86 @@ export class OrdersService {
     return this.toAdminResponse(order);
   }
 
+  async getDeliveredGoods(id: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        order_number: true,
+        status: true,
+        currency_code: true,
+        items: {
+          orderBy: { id: 'asc' },
+          select: {
+            id: true,
+            product_id: true,
+            variant_id: true,
+            product_name_ar: true,
+            product_name_en: true,
+            quantity: true,
+            unit_price: true,
+            custody_holdings: {
+              where: { status: 'sold' },
+              select: { quantity: true },
+            },
+            return_items: {
+              where: { return: { status: 'completed' } },
+              select: { approved_quantity: true },
+            },
+            custody_exception_lines: {
+              where: {
+                exception: {
+                  type: 'return_against_uncollected',
+                  reversal: { is: null },
+                },
+              },
+              select: { quantity: true },
+            },
+          },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    return {
+      order_id: order.id,
+      order_number: order.order_number,
+      order_status: order.status,
+      currency_code: order.currency_code,
+      lines: order.items.flatMap((item) => {
+        const delivered = item.custody_holdings.reduce(
+          (sum, row) => sum.plus(row.quantity),
+          new Prisma.Decimal(0),
+        );
+        if (!delivered.gt(0)) return [];
+        const returned = item.return_items.reduce(
+          (sum, row) => sum.plus(row.approved_quantity),
+          new Prisma.Decimal(0),
+        );
+        const refused = item.custody_exception_lines.reduce(
+          (sum, row) => sum.plus(row.quantity),
+          new Prisma.Decimal(0),
+        );
+        return [
+          {
+            order_item_id: item.id,
+            product_id: item.product_id,
+            variant_id: item.variant_id,
+            product_name_ar: item.product_name_ar,
+            product_name_en: item.product_name_en,
+            ordered_quantity: Number(item.quantity),
+            delivered_quantity: Number(delivered),
+            returned_quantity: Number(returned),
+            refused_quantity: Number(refused),
+            returnable_quantity: Number(
+              Prisma.Decimal.max(0, delivered.minus(returned).minus(refused)),
+            ),
+            unit_price: Number(item.unit_price),
+          },
+        ];
+      }),
+    };
+  }
+
   async listMonitor(query: MonitorOrderQueryDto) {
     const page = query.page ?? 1;
     const perPage = query.per_page ?? 20;

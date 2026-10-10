@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 14.0.0
+  version: 14.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1754,7 +1754,7 @@ paths:
     patch:
       tags: [Deliveries]
       summary: Update delivery status (agent)
-      x-error-codes: [STALE_ORDER_STATE]
+      x-error-codes: [STALE_ORDER_STATE, TRIP_FARE_SHARE_MISMATCH]
       description: >
         Only the assigned agent may act. An assigned delivery may start only
         when its order is ready_for_dispatch. Legal transitions are assigned to
@@ -1782,7 +1782,7 @@ paths:
                 reason: { type: string, minLength: 1, maxLength: 500, description: Required when status=failed. }
                 operation_id: { type: string, minLength: 8, maxLength: 128, description: Required when status=delivered. }
                 collection_confirmation: { type: string, enum: [confirmed, unconfirmed], description: Required when status=delivered. }
-                collected_amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$', description: Required only for a confirmed collection; must be at most the amount due. }
+                collected_amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$', description: Required only for a confirmed collection. For a customer-paid trip, send the customer's total payment including the pass-through fare; only the goods amount enters store custody. }
       responses:
         "200":
           description: Updated delivery
@@ -1797,7 +1797,7 @@ paths:
     patch:
       tags: [Deliveries]
       summary: Complete, fail, or retry a delivery as authorized staff
-      x-error-codes: [STALE_ORDER_STATE]
+      x-error-codes: [STALE_ORDER_STATE, TRIP_FARE_SHARE_MISMATCH]
       description: >
         Uses the same concurrency-safe order/delivery transition as the assigned
         agent route. Staff may mark dispatched deliveries delivered or failed,
@@ -1822,7 +1822,7 @@ paths:
                 reason: { type: string, minLength: 1, maxLength: 500, description: Required when status=failed. }
                 operation_id: { type: string, minLength: 8, maxLength: 128, description: Required when status=delivered. }
                 collection_confirmation: { type: string, enum: [confirmed, unconfirmed], description: Required when status=delivered. }
-                collected_amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$', description: Required only for a confirmed collection; must be at most the amount due. }
+                collected_amount: { type: string, pattern: '^\\d+(\\.\\d{1,6})?$', description: Required only for a confirmed collection. For a customer-paid trip, send the customer's total payment including the pass-through fare; only the goods amount enters store custody. }
                 event_at: { type: string, format: date-time, description: Optional delivery event time reported by staff; posting uses its Baghdad business date. }
                 source: { type: string, minLength: 1, maxLength: 120, description: Required when staff records a delivery on behalf of a party. }
       responses:
@@ -1831,6 +1831,35 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Delivery" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/deliveries/{id}/return-at-door:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Atomically deliver short and restock goods refused at the door
+      description: >
+        For the current out-for-delivery order, recognizes the delivered sale,
+        records a confirmed short collection equal to the refused goods' sale
+        value, posts return_against_uncollected, and restocks the refused goods
+        at their original issue cost in one transaction and one operation id.
+        For a customer-paid trip, collected_amount includes the pass-through fare;
+        only the goods amount enters store cash custody.
+      x-permission: custody_exceptions.return_uncollected
+      x-error-codes: [DOOR_RETURN_REQUIRES_OUT_FOR_DELIVERY, STALE_ORDER_STATE, DELIVERY_PARTY_REQUIRED, RETURN_EXCEEDS_ORDER_VALUE, RETURN_REQUIRES_CONFIRMED_SHORTFALL, RETURN_SHORTFALL_RESOLVED, ORDER_ITEM_UNAVAILABLE, RETURN_HAS_NO_REFUNDABLE_VALUE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, GOODS_NOT_IN_CUSTODY, CUSTODY_EXCEPTION_EXCEEDS_GOODS, RETURN_REQUIRES_SOLD_CUSTODY, RETURN_EXCEEDS_ISSUED_QUANTITY, RETURN_LOCATION_INACTIVE, CUSTODY_HOLDING_DUPLICATED, TRIP_FARE_SHARE_MISMATCH, INVENTORY_COST_NEGATIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReturnAtDoorInput" }
+      responses:
+        "201":
+          description: Atomic return-against-uncollected exception
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustodyException" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
@@ -1861,7 +1890,7 @@ paths:
     post:
       tags: [Deliveries]
       summary: Confirm the amount collected for an unconfirmed delivery
-      description: Posts only the later full or later short confirmation map; sale revenue and COGS are never repeated.
+      description: Posts only the later full or later short confirmation map; sale revenue and COGS are never repeated. For a customer-paid trip the pass-through fare was already excluded, so collected_amount is the amount held for the store.
       x-permission: orders.deliver
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -2487,13 +2516,31 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/close-preview:
+    get:
+      tags: [Admin, Deliveries]
+      summary: Preview the exact operational and accounting effect of trip close
+      description: Read-only; returns expected and received cash, fare treatment, difference, proposed journal postings, and every blocking order without changing state.
+      x-permission: trips.settle
+      x-error-codes: [TRIP_FARE_ACCOUNT_INVALID]
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Current trip close preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalDriverTripClosePreview" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/external-driver-trips/{id}/orders:
     post:
       tags: [Admin, Deliveries]
       summary: Add and hand over one ready order to the trip driver
-      description: Atomically reuses the delivery handover and goods-custody posting. For customer-direct fares the store delivery fee must be zero and documented customer acceptance is required.
+      description: Atomically reuses the delivery handover and goods-custody posting. For customer-paid fares a nonzero order delivery fee is its pass-through fare share; a legacy zero-fee order may retain its separately accepted direct-fare share. Documented customer acceptance is required, and all shares must sum to the agreed trip fare before start.
       x-permission: trips.manage
-      x-error-codes: [TRIP_NOT_OPEN_FOR_ORDER, TRIP_ORDER_NOT_ASSIGNED, DOUBLE_DELIVERY_CHARGE, CUSTOMER_ACCEPTANCE_NOTE_REQUIRED, STALE_ORDER_STATE]
+      x-error-codes: [TRIP_NOT_OPEN_FOR_ORDER, TRIP_ORDER_NOT_ASSIGNED, TRIP_FARE_SHARE_MISMATCH, CUSTOMER_ACCEPTANCE_NOTE_REQUIRED, STALE_ORDER_STATE]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -2533,6 +2580,103 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/orders/{orderId}/delivered:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Record a delivered order through its external-driver trip
+      description: Reuses the staff delivery posting. For customer-paid trips, collected_amount is the customer's total payment including the fare that the driver keeps; the fare is excluded from store revenue and cash custody.
+      x-permission: orders.deliver
+      x-error-codes: [TRIP_ORDER_NOT_FOUND, TRIP_NOT_IN_PROGRESS, TRIP_ORDER_HAS_NO_DELIVERY, STALE_ORDER_STATE, TRIP_FARE_SHARE_MISMATCH]
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripDeliveredInput" }
+      responses:
+        "200":
+          description: Updated delivery; trip history is recorded atomically
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Delivery" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/orders/{orderId}/failed:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Record a failed order through its external-driver trip
+      x-permission: orders.fail
+      x-error-codes: [TRIP_ORDER_NOT_FOUND, TRIP_NOT_IN_PROGRESS, TRIP_ORDER_HAS_NO_DELIVERY, STALE_ORDER_STATE]
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripFailedInput" }
+      responses:
+        "200":
+          description: Updated failed delivery; trip history is recorded atomically
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Delivery" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/orders/{orderId}/return-at-door:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Atomically record goods refused at the door through a trip
+      x-permission: custody_exceptions.return_uncollected
+      x-error-codes: [TRIP_ORDER_NOT_FOUND, TRIP_NOT_IN_PROGRESS, TRIP_ORDER_HAS_NO_DELIVERY, DOOR_RETURN_REQUIRES_OUT_FOR_DELIVERY, STALE_ORDER_STATE, DELIVERY_PARTY_REQUIRED, RETURN_EXCEEDS_ORDER_VALUE, RETURN_REQUIRES_CONFIRMED_SHORTFALL, RETURN_SHORTFALL_RESOLVED, ORDER_ITEM_UNAVAILABLE, RETURN_HAS_NO_REFUNDABLE_VALUE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, GOODS_NOT_IN_CUSTODY, CUSTODY_EXCEPTION_EXCEEDS_GOODS, RETURN_REQUIRES_SOLD_CUSTODY, RETURN_EXCEEDS_ISSUED_QUANTITY, RETURN_LOCATION_INACTIVE, CUSTODY_HOLDING_DUPLICATED, TRIP_FARE_SHARE_MISMATCH, INVENTORY_COST_NEGATIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReturnAtDoorInput" }
+      responses:
+        "201":
+          description: Atomic return exception; trip history is recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustodyException" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/external-driver-trips/{id}/orders/{orderId}/lost:
+    post:
+      tags: [Admin, Deliveries]
+      summary: Record lost goods through an external-driver trip
+      x-permission: custody_exceptions.loss
+      x-error-codes: [TRIP_ORDER_NOT_FOUND, TRIP_NOT_IN_PROGRESS, ORDER_HAS_NO_CUSTODY_PARTY, GOODS_LOSS_STATUS_INVALID, CUSTODY_COST_UNAVAILABLE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, GOODS_NOT_IN_CUSTODY, CUSTODY_EXCEPTION_EXCEEDS_GOODS, CUSTODY_HOLDING_DUPLICATED, AMOUNT_NOT_POSITIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters:
+        - { $ref: "#/components/parameters/PathId" }
+        - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalDriverTripLossInput" }
+      responses:
+        "201":
+          description: Goods-loss exception; trip history is recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustodyException" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/external-driver-trips/{id}/close:
     post:
       tags: [Admin, Deliveries]
@@ -2568,6 +2712,21 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AdminOrder" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/orders/{id}/goods:
+    get:
+      tags: [Admin, Orders]
+      summary: Read delivered order lines and quantities already returned or refused
+      x-permission: orders.view
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Delivered goods and remaining returnable quantities
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOrderGoods" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
@@ -6572,6 +6731,34 @@ components:
                     properties:
                       custody_summary: { $ref: "#/components/schemas/DeliveryPartyCustodySummary" }
 
+    AdminOrderGoods:
+      type: object
+      additionalProperties: false
+      required: [order_id, order_number, order_status, currency_code, lines]
+      properties:
+        order_id: { type: string, format: uuid }
+        order_number: { type: string }
+        order_status: { $ref: "#/components/schemas/OrderStatus" }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        lines:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [order_item_id, product_id, variant_id, product_name_ar, product_name_en, ordered_quantity, delivered_quantity, returned_quantity, refused_quantity, returnable_quantity, unit_price]
+            properties:
+              order_item_id: { type: string, format: uuid }
+              product_id: { type: string, format: uuid }
+              variant_id: { type: string, format: uuid }
+              product_name_ar: { type: string }
+              product_name_en: { type: string }
+              ordered_quantity: { type: number, minimum: 0, multipleOf: 0.001 }
+              delivered_quantity: { type: number, minimum: 0, multipleOf: 0.001 }
+              returned_quantity: { type: number, minimum: 0, multipleOf: 0.001 }
+              refused_quantity: { type: number, minimum: 0, multipleOf: 0.001 }
+              returnable_quantity: { type: number, minimum: 0, multipleOf: 0.001 }
+              unit_price: { type: number, minimum: 0 }
+
     ExternalDriverCreate:
       type: object
       additionalProperties: false
@@ -6670,6 +6857,44 @@ components:
         source: { type: string, minLength: 1, maxLength: 120 }
         event_at: { type: string, format: date-time }
 
+    ExternalDriverTripDeliveredInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, order_version, collection_confirmation, source, event_at]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        order_version: { type: integer, minimum: 1 }
+        collection_confirmation: { type: string, enum: [confirmed, unconfirmed] }
+        collected_amount: { type: string, pattern: '^\d+(\.\d{1,6})?$', description: Required when confirmed. For customer-paid trips this is the total paid by the customer, including the pass-through fare. }
+        source: { type: string, minLength: 1, maxLength: 120 }
+        event_at: { type: string, format: date-time }
+
+    ExternalDriverTripFailedInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, order_version, reason, source, event_at]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        order_version: { type: integer, minimum: 1 }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        source: { type: string, minLength: 1, maxLength: 120 }
+        event_at: { type: string, format: date-time }
+
+    ExternalDriverTripLossInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [liability_bearer, reason, source, event_at, lines]
+          properties:
+            liability_bearer: { type: string, enum: [store, party] }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+            source: { type: string, minLength: 1, maxLength: 120 }
+            event_at: { type: string, format: date-time }
+            lines:
+              type: array
+              minItems: 1
+              items: { $ref: "#/components/schemas/CustodyExceptionQuantityInput" }
+
     ExternalDriverTripClose:
       type: object
       additionalProperties: false
@@ -6681,6 +6906,53 @@ components:
         backdate_reason: { type: string, maxLength: 500 }
         source: { type: string, minLength: 1, maxLength: 120 }
         event_at: { type: string, format: date-time }
+
+    ExternalDriverTripClosePreview:
+      type: object
+      additionalProperties: false
+      required: [trip_id, trip_status, can_close, expected_cash_iqd, received_cash_iqd, netted_fare_iqd, difference_iqd, settlement_result, fare, postings, blocking_orders]
+      properties:
+        trip_id: { type: string, format: uuid }
+        trip_status: { type: string, enum: [open, in_progress, closed] }
+        can_close: { type: boolean }
+        expected_cash_iqd: { type: number, minimum: 0 }
+        received_cash_iqd: { type: number, minimum: 0 }
+        netted_fare_iqd: { type: number, minimum: 0 }
+        difference_iqd: { type: number }
+        settlement_result: { type: string, enum: [settled, settlement_open] }
+        fare:
+          type: object
+          additionalProperties: false
+          required: [bearer, amount_iqd, settlement_method, outside_store_accounts, blocker_code]
+          properties:
+            bearer: { type: string, enum: [store, customer_direct] }
+            amount_iqd: { type: number, minimum: 0 }
+            settlement_method: { type: string, enum: [payable, cash_account, driver_keeps, customer_direct] }
+            outside_store_accounts: { type: boolean }
+            blocker_code: { type: [string, "null"], enum: [TRIP_FARE_EXCEEDS_UNSETTLED_CASH, null] }
+        postings:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [event, debit_account_code, credit_account_code, amount_iqd]
+            properties:
+              event: { type: string, enum: [fare_accrual, fare_payment, fare_netting] }
+              debit_account_code: { type: string }
+              credit_account_code: { type: string }
+              amount_iqd: { type: number, exclusiveMinimum: 0 }
+        blocking_orders:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [order_id, order_number, order_status, collection_status, reason]
+            properties:
+              order_id: { type: string, format: uuid }
+              order_number: { type: string }
+              order_status: { $ref: "#/components/schemas/OrderStatus" }
+              collection_status: { type: [string, "null"], enum: [confirmed_full, confirmed_short, unconfirmed, null] }
+              reason: { type: string, enum: [collection_unconfirmed, order_unresolved] }
 
     ExternalDriverTrip:
       type: object
@@ -6850,7 +7122,7 @@ components:
         trip_id: { type: string, format: uuid }
         order_id: { type: [string, "null"], format: uuid }
         operation_id: { type: string }
-        type: { type: string, enum: [handover, started, closed] }
+        type: { type: string, enum: [handover, started, delivered, failed, return_at_door, lost, closed] }
         source: { type: string }
         note: { type: [string, "null"] }
         event_at: { type: string, format: date-time }
@@ -8312,6 +8584,21 @@ components:
           properties:
             order_id: { type: string, format: uuid }
             reason: { type: string, minLength: 3, maxLength: 500 }
+            lines:
+              type: array
+              minItems: 1
+              items: { $ref: "#/components/schemas/CustodyExceptionReturnLineInput" }
+
+    ReturnAtDoorInput:
+      allOf:
+        - { $ref: "#/components/schemas/FinancialDocumentInput" }
+        - type: object
+          required: [order_version, reason, source, event_at, lines]
+          properties:
+            order_version: { type: integer, minimum: 1 }
+            reason: { type: string, minLength: 3, maxLength: 500 }
+            source: { type: string, minLength: 1, maxLength: 120 }
+            event_at: { type: string, format: date-time }
             lines:
               type: array
               minItems: 1

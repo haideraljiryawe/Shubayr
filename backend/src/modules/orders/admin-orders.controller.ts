@@ -46,6 +46,14 @@ export class AdminOrdersController {
     return this.orders.getAdmin(id);
   }
 
+  @Get(':id/goods')
+  @AdminPolicy('orders.view')
+  goods(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+  ) {
+    return this.orders.getDeliveredGoods(id);
+  }
+
   @Patch(':id/status')
   @Policy({
     access: 'authenticated',

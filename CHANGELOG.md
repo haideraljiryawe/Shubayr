@@ -1,5 +1,26 @@
 # Changelog
 
+## 14.1.0 - 2026-10-10
+
+### Added
+
+- One replay-safe return-at-the-door operation that delivers short, posts the
+  uncollected return, restores stock at original issue cost, and reduces party
+  cash expectation atomically.
+- External-driver trip routes for delivered, failed, returned-at-door and lost
+  outcomes, complete trip event history, and a read-only close preview.
+- A staff order-goods read with delivered, returned, refused and remaining
+  returnable quantities.
+
+### Changed
+
+- On customer-paid trips, an order's configured delivery fee is its fare share:
+  the driver collects and keeps it as a pass-through, and it never enters store
+  revenue, expense, cash custody or trip netting. Fare shares must still sum to
+  the trip's agreed fare.
+- The API contract is version 14.1.0. This is an additive, non-breaking minor
+  release; existing delivery and custody-exception routes remain available.
+
 ## 14.0.0 - 2026-10-09
 
 ### Added

@@ -25,9 +25,12 @@ import {
   CreateGoodsCustodyExceptionDto,
   CreateReturnAgainstUncollectedDto,
   CustodyExceptionQueryDto,
+  ReturnAtDoorDto,
   ReverseCustodyExceptionDto,
 } from './dto/custody-exception.dto';
 import { custodyExceptionBusinessDate } from './custody-exception-date';
+import { DeliveriesService } from './deliveries.service';
+import { ExternalDriverTripHistoryService } from './external-driver-trip-history.service';
 
 type Actor = { id: string; permissions: readonly string[] };
 type Tx = Prisma.TransactionClient;
@@ -93,9 +96,21 @@ export class CustodyExceptionsService {
     private readonly ledger: LedgerService,
     private readonly operations: OperationService,
     private readonly inventory: InventoryService,
+    private readonly deliveries: DeliveriesService,
+    private readonly tripHistory: ExternalDriverTripHistoryService,
   ) {}
 
-  async recordGoodsLoss(actor: Actor, input: CreateGoodsCustodyExceptionDto) {
+  async recordGoodsLoss(
+    actor: Actor,
+    input: CreateGoodsCustodyExceptionDto,
+    options: {
+      endpoint?: string;
+      expectedTripId?: string;
+      source?: string;
+      eventAt?: Date;
+      requireTripInProgress?: boolean;
+    } = {},
+  ) {
     this.assertUniqueHoldings(input.lines);
     const dates = await this.dates.validate({
       documentDate: input.document_date,
@@ -106,7 +121,7 @@ export class CustodyExceptionsService {
     return this.operations.execute({
       userId: actor.id,
       operationId: input.operation_id,
-      endpoint: 'POST /admin/custody-exceptions/goods-loss',
+      endpoint: options.endpoint ?? 'POST /admin/custody-exceptions/goods-loss',
       payload: input,
       responseStatus: 201,
       work: async (tx) => {
@@ -232,6 +247,17 @@ export class CustodyExceptionsService {
           },
           reason: input.reason.trim(),
         });
+        await this.tripHistory.recordForOrder(tx, {
+          actorId: actor.id,
+          operationId: input.operation_id,
+          orderId: order.id,
+          expectedTripId: options.expectedTripId,
+          requireInProgress: options.requireTripInProgress,
+          type: 'lost',
+          source: options.source ?? 'custody_exception',
+          note: input.reason,
+          eventAt: options.eventAt ?? new Date(),
+        });
         return this.detailTx(tx, exceptionId, this.canViewCost(actor));
       },
     });
@@ -251,159 +277,342 @@ export class CustodyExceptionsService {
       endpoint: 'POST /admin/custody-exceptions/return-against-uncollected',
       payload: input,
       responseStatus: 201,
+      work: (tx) => this.recordReturnTx(tx, actor, input, dates),
+    });
+  }
+
+  async recordDoorReturn(
+    actor: Actor,
+    deliveryId: string,
+    input: ReturnAtDoorDto,
+    options: {
+      endpoint?: string;
+      expectedTripId?: string;
+      requireTripInProgress?: boolean;
+    } = {},
+  ) {
+    this.assertUniqueHoldings(input.lines);
+    const dates = await this.dates.validate({
+      documentDate: input.document_date,
+      accountingDate: input.accounting_date,
+      backdateReason: input.backdate_reason,
+      permissions: actor.permissions,
+    });
+    return this.operations.execute({
+      userId: actor.id,
+      operationId: input.operation_id,
+      endpoint:
+        options.endpoint ??
+        `POST /admin/deliveries/${deliveryId}/return-at-door`,
+      payload: input,
+      responseStatus: 201,
       work: async (tx) => {
-        await this.lockOrder(tx, input.order_id);
-        const order = await tx.order.findUnique({
-          where: { id: input.order_id },
-          include: {
-            items: true,
-            delivery_collection: {
-              include: { party: true },
-            },
-          },
+        const delivery = await tx.delivery.findUnique({
+          where: { id: deliveryId },
+          include: { order: true },
         });
-        if (!order) throw new NotFoundException('Order not found');
-        const collection = order.delivery_collection;
+        if (!delivery) throw new NotFoundException('Delivery not found');
         if (
-          !collection ||
-          collection.status !== 'confirmed_short' ||
-          !collection.shortfall_amount?.gt(0)
+          delivery.status !== 'out_for_delivery' ||
+          delivery.order.status !== 'dispatched' ||
+          delivery.order.delivery_id !== delivery.id
         ) {
           throw conflict(
-            'RETURN_REQUIRES_CONFIRMED_SHORTFALL',
-            'Return against uncollected requires a confirmed collection shortfall',
+            'DOOR_RETURN_REQUIRES_OUT_FOR_DELIVERY',
+            'Return at the door requires the current order to be out for delivery',
           );
         }
-        await this.assertActorSeparation(
+        if (delivery.order.version !== input.order_version) {
+          throw conflict(
+            'STALE_ORDER_STATE',
+            'Order state changed; reload before recording the return',
+          );
+        }
+        const returnAmount = await this.returnRetailValueTx(
           tx,
+          delivery.order_id,
+          delivery.agent_id,
+          input.lines,
+        );
+        const customerCollected = delivery.order.total.minus(returnAmount);
+        if (customerCollected.lt(0)) {
+          throw conflict(
+            'RETURN_EXCEEDS_ORDER_VALUE',
+            'Refused goods value exceeds the order total',
+          );
+        }
+        const eventAt = new Date(input.event_at);
+        await this.deliveries.transitionStatus(
           actor.id,
-          collection.party.user_id,
-          order.id,
-          collection.delivered_by,
-        );
-        const openShortfall = await this.openShortfall(tx, collection);
-        if (!openShortfall.gt(0)) {
-          throw conflict(
-            'RETURN_SHORTFALL_RESOLVED',
-            'Order has no uncollected amount available for a return',
-          );
-        }
-        const exceptionId = randomUUID();
-        const documentNumber = await this.numbers.issue(
-          tx,
-          'custody_exception',
-          'CEX',
-          dates.documentDate,
-        );
-        const stock = await this.inventory.returnUncollectedGoods(tx, {
-          exceptionId,
-          orderId: order.id,
-          partyId: collection.party_id,
-          actorId: actor.id,
-          lines: input.lines,
-        });
-        const itemById = new Map(order.items.map((item) => [item.id, item]));
-        let returnAmount = new Prisma.Decimal(0);
-        const persistedLines = stock.lines.map((line) => {
-          const item = itemById.get(line.order_item_id);
-          if (!item)
-            throw conflict(
-              'ORDER_ITEM_UNAVAILABLE',
-              'Order item is unavailable',
-            );
-          const lineAmount = item.line_total
-            .div(item.quantity)
-            .times(line.quantity)
-            .toDecimalPlaces(6);
-          returnAmount = returnAmount.plus(lineAmount);
-          return {
-            exception_id: exceptionId,
-            custody_holding_id: line.custody_holding_id,
-            order_item_id: line.order_item_id,
-            batch_id: line.batch_id,
-            location_id: line.location_id,
-            quantity: line.quantity,
-            unit_cost_iqd: line.unit_cost_iqd,
-            return_amount_iqd: lineAmount,
-          };
-        });
-        if (!returnAmount.gt(0)) {
-          throw conflict(
-            'RETURN_HAS_NO_REFUNDABLE_VALUE',
-            'Return has no refundable goods value',
-          );
-        }
-        const exceptionOffset = Prisma.Decimal.min(returnAmount, openShortfall);
-        const refundPayable = returnAmount.minus(exceptionOffset);
-        await tx.custodyException.create({
-          data: {
-            id: exceptionId,
-            document_number: documentNumber,
+          delivery.id,
+          {
+            status: 'delivered',
+            order_version: input.order_version,
             operation_id: input.operation_id,
-            type: 'return_against_uncollected',
-            party_id: collection.party_id,
-            order_id: order.id,
-            collection_id: collection.id,
-            amount_iqd: returnAmount,
-            goods_cost_iqd: stock.total,
-            exception_offset_iqd: exceptionOffset,
-            refund_payable_iqd: refundPayable,
-            reason: input.reason.trim(),
-            document_date: dates.documentDate,
-            accounting_date: dates.accountingDate,
-            backdate_reason: dates.backdateReason ?? null,
-            created_by: actor.id,
+            collection_confirmation: 'confirmed',
+            collected_amount: customerCollected.toString(),
+            source: input.source,
+            event_at: input.event_at,
           },
-        });
-        await tx.custodyExceptionLine.createMany({ data: persistedLines });
-        await this.post(
+          false,
+          false,
           tx,
-          exceptionId,
-          'return_value',
-          'return_against_uncollected',
-          dates,
-          actor.id,
-          `Return against uncollected order ${order.order_number}`,
-          this.exceptionPosting('return_against_uncollected', {
-            returnAmount: returnAmount.toString(),
-            exceptionOffset: exceptionOffset.toString(),
-            refundPayable: refundPayable.toString(),
-          }),
+          eventAt,
+          { record: false, expectedTripId: options.expectedTripId },
         );
-        await this.post(
+        return this.recordReturnTx(
           tx,
-          exceptionId,
-          'restock_issue_cost',
-          'restock_issue_cost',
-          dates,
-          actor.id,
-          `Returned goods restocked at original issue cost for ${order.order_number}`,
-          this.simplePosting('1000', '5000', stock.total),
-        );
-        await this.applyReturnLifecycle(
-          tx,
-          order.id,
-          order.status,
-          documentNumber,
-        );
-        await this.audit.record(tx, {
-          actorId: actor.id,
-          action: 'custody_exception.return_uncollected',
-          entityType: 'custody_exception',
-          entityId: exceptionId,
-          after: {
-            document_number: documentNumber,
-            order_id: order.id,
-            party_id: collection.party_id,
-            return_amount_iqd: returnAmount.toString(),
-            exception_offset_iqd: exceptionOffset.toString(),
-            refund_payable_iqd: refundPayable.toString(),
+          actor,
+          {
+            operation_id: input.operation_id,
+            order_id: delivery.order_id,
+            reason: input.reason,
+            lines: input.lines,
+            document_date: input.document_date,
+            accounting_date: input.accounting_date,
+            backdate_reason: input.backdate_reason,
           },
-          reason: input.reason.trim(),
-        });
-        return this.detailTx(tx, exceptionId, this.canViewCost(actor));
+          dates,
+          {
+            expectedTripId: options.expectedTripId,
+            requireTripInProgress: options.requireTripInProgress,
+            source: input.source,
+            eventAt,
+            skipDeliveryActorSeparation: true,
+          },
+        );
       },
     });
+  }
+
+  private async recordReturnTx(
+    tx: Tx,
+    actor: Actor,
+    input: CreateReturnAgainstUncollectedDto,
+    dates: {
+      documentDate: Date;
+      accountingDate: Date;
+      backdateReason?: string | null;
+    },
+    options: {
+      expectedTripId?: string;
+      source?: string;
+      eventAt?: Date;
+      skipDeliveryActorSeparation?: boolean;
+      requireTripInProgress?: boolean;
+    } = {},
+  ) {
+    await this.lockOrder(tx, input.order_id);
+    const order = await tx.order.findUnique({
+      where: { id: input.order_id },
+      include: {
+        items: true,
+        delivery_collection: {
+          include: { party: true },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    const collection = order.delivery_collection;
+    if (
+      !collection ||
+      collection.status !== 'confirmed_short' ||
+      !collection.shortfall_amount?.gt(0)
+    ) {
+      throw conflict(
+        'RETURN_REQUIRES_CONFIRMED_SHORTFALL',
+        'Return against uncollected requires a confirmed collection shortfall',
+      );
+    }
+    await this.assertActorSeparation(
+      tx,
+      actor.id,
+      collection.party.user_id,
+      order.id,
+      options.skipDeliveryActorSeparation ? undefined : collection.delivered_by,
+    );
+    const openShortfall = await this.openShortfall(tx, collection);
+    if (!openShortfall.gt(0)) {
+      throw conflict(
+        'RETURN_SHORTFALL_RESOLVED',
+        'Order has no uncollected amount available for a return',
+      );
+    }
+    const exceptionId = randomUUID();
+    const documentNumber = await this.numbers.issue(
+      tx,
+      'custody_exception',
+      'CEX',
+      dates.documentDate,
+    );
+    const stock = await this.inventory.returnUncollectedGoods(tx, {
+      exceptionId,
+      orderId: order.id,
+      partyId: collection.party_id,
+      actorId: actor.id,
+      lines: input.lines,
+    });
+    const itemById = new Map(order.items.map((item) => [item.id, item]));
+    let returnAmount = new Prisma.Decimal(0);
+    const persistedLines = stock.lines.map((line) => {
+      const item = itemById.get(line.order_item_id);
+      if (!item) {
+        throw conflict('ORDER_ITEM_UNAVAILABLE', 'Order item is unavailable');
+      }
+      const lineAmount = item.line_total
+        .div(item.quantity)
+        .times(line.quantity)
+        .toDecimalPlaces(6);
+      returnAmount = returnAmount.plus(lineAmount);
+      return {
+        exception_id: exceptionId,
+        custody_holding_id: line.custody_holding_id,
+        order_item_id: line.order_item_id,
+        batch_id: line.batch_id,
+        location_id: line.location_id,
+        quantity: line.quantity,
+        unit_cost_iqd: line.unit_cost_iqd,
+        return_amount_iqd: lineAmount,
+      };
+    });
+    if (!returnAmount.gt(0)) {
+      throw conflict(
+        'RETURN_HAS_NO_REFUNDABLE_VALUE',
+        'Return has no refundable goods value',
+      );
+    }
+    const exceptionOffset = Prisma.Decimal.min(returnAmount, openShortfall);
+    const refundPayable = returnAmount.minus(exceptionOffset);
+    await tx.custodyException.create({
+      data: {
+        id: exceptionId,
+        document_number: documentNumber,
+        operation_id: input.operation_id,
+        type: 'return_against_uncollected',
+        party_id: collection.party_id,
+        order_id: order.id,
+        collection_id: collection.id,
+        amount_iqd: returnAmount,
+        goods_cost_iqd: stock.total,
+        exception_offset_iqd: exceptionOffset,
+        refund_payable_iqd: refundPayable,
+        reason: input.reason.trim(),
+        document_date: dates.documentDate,
+        accounting_date: dates.accountingDate,
+        backdate_reason: dates.backdateReason ?? null,
+        created_by: actor.id,
+      },
+    });
+    await tx.custodyExceptionLine.createMany({ data: persistedLines });
+    await this.post(
+      tx,
+      exceptionId,
+      'return_value',
+      'return_against_uncollected',
+      dates,
+      actor.id,
+      `Return against uncollected order ${order.order_number}`,
+      this.exceptionPosting('return_against_uncollected', {
+        returnAmount: returnAmount.toString(),
+        exceptionOffset: exceptionOffset.toString(),
+        refundPayable: refundPayable.toString(),
+      }),
+    );
+    await this.post(
+      tx,
+      exceptionId,
+      'restock_issue_cost',
+      'restock_issue_cost',
+      dates,
+      actor.id,
+      `Returned goods restocked at original issue cost for ${order.order_number}`,
+      this.simplePosting('1000', '5000', stock.total),
+    );
+    await this.applyReturnLifecycle(tx, order.id, order.status, documentNumber);
+    await this.audit.record(tx, {
+      actorId: actor.id,
+      action: 'custody_exception.return_uncollected',
+      entityType: 'custody_exception',
+      entityId: exceptionId,
+      after: {
+        document_number: documentNumber,
+        order_id: order.id,
+        party_id: collection.party_id,
+        return_amount_iqd: returnAmount.toString(),
+        exception_offset_iqd: exceptionOffset.toString(),
+        refund_payable_iqd: refundPayable.toString(),
+      },
+      reason: input.reason.trim(),
+    });
+    await this.tripHistory.recordForOrder(tx, {
+      actorId: actor.id,
+      operationId: input.operation_id,
+      orderId: order.id,
+      expectedTripId: options.expectedTripId,
+      requireInProgress: options.requireTripInProgress,
+      type: 'return_at_door',
+      source: options.source ?? 'custody_exception',
+      note: input.reason,
+      eventAt: options.eventAt ?? new Date(),
+    });
+    return this.detailTx(tx, exceptionId, this.canViewCost(actor));
+  }
+
+  private async returnRetailValueTx(
+    tx: Tx,
+    orderId: string,
+    partyId: string | null,
+    lines: Array<{ custody_holding_id: string; quantity: string }>,
+  ) {
+    if (!partyId) {
+      throw conflict(
+        'DELIVERY_PARTY_REQUIRED',
+        'Delivery has no assigned custody party',
+      );
+    }
+    let total = new Prisma.Decimal(0);
+    for (const line of lines) {
+      const holding = await tx.custodyHolding.findUnique({
+        where: { id: line.custody_holding_id },
+        include: { order_item: true },
+      });
+      if (!holding) throw new NotFoundException('Custody holding not found');
+      if (
+        holding.order_id !== orderId ||
+        holding.custody_party_id !== partyId
+      ) {
+        throw conflict(
+          'CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY',
+          'Custody holding does not belong to this order and party',
+        );
+      }
+      if (holding.status !== 'in_custody') {
+        throw conflict(
+          'GOODS_NOT_IN_CUSTODY',
+          'Goods are no longer in custody',
+        );
+      }
+      const quantity = this.positive(line.quantity, 'quantity');
+      if (quantity.gt(holding.remaining_quantity)) {
+        throw conflict(
+          'CUSTODY_EXCEPTION_EXCEEDS_GOODS',
+          'Exception quantity exceeds goods custody',
+        );
+      }
+      total = total.plus(
+        holding.order_item.line_total
+          .div(holding.order_item.quantity)
+          .times(quantity)
+          .toDecimalPlaces(6),
+      );
+    }
+    if (!total.gt(0)) {
+      throw conflict(
+        'RETURN_HAS_NO_REFUNDABLE_VALUE',
+        'Return has no refundable goods value',
+      );
+    }
+    return total;
   }
 
   async refundDeliveryFee(actor: Actor, input: CreateDeliveryFeeRefundDto) {

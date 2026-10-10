@@ -294,7 +294,11 @@ check(
   previousDay,
   'local purchase is recorded before the Baghdad midnight boundary',
 );
-check(Boolean(localInvoice.created_by_name), true, 'purchase returns its actor display name');
+check(
+  Boolean(localInvoice.created_by_name),
+  true,
+  'purchase returns its actor display name',
+);
 
 await request('/admin/exchange-rates', {
   token: admin,
@@ -367,7 +371,11 @@ check(
   200,
   'IQD account payment settles the 200 USD supplier invoice',
 );
-check(Boolean(usdPayment.created_by_name), true, 'supplier payment returns its actor display name');
+check(
+  Boolean(usdPayment.created_by_name),
+  true,
+  'supplier payment returns its actor display name',
+);
 
 const address = await request('/addresses', {
   token: customer,
@@ -661,7 +669,11 @@ check(
   'party',
   'lost goods are explicitly party-borne',
 );
-check(Boolean(partyLoss.created_by_name), true, 'custody exception returns its actor display name');
+check(
+  Boolean(partyLoss.created_by_name),
+  true,
+  'custody exception returns its actor display name',
+);
 
 const returnedCustody = await request(
   `/admin/delivery-parties/${agentLogin.user.id}/custody`,
@@ -678,23 +690,30 @@ assertions += 1;
 await deliverInternal(orders.returned, 'door-return-short', {
   collected: 0,
 });
-const doorReturn = await operation('/admin/custody-exceptions/return-against-uncollected', {
-  token: admin,
-  body: {
-    operation_id: `c9-door-return-${suffix}`,
-    document_date: today,
-    order_id: orders.returned.id,
-    reason: 'Customer returned the parcel at the door',
-    lines: [
-      {
-        custody_holding_id: returnedHolding.holding_id,
-        location_id: location.id,
-        quantity: String(returnedHolding.quantity),
-      },
-    ],
+const doorReturn = await operation(
+  '/admin/custody-exceptions/return-against-uncollected',
+  {
+    token: admin,
+    body: {
+      operation_id: `c9-door-return-${suffix}`,
+      document_date: today,
+      order_id: orders.returned.id,
+      reason: 'Customer returned the parcel at the door',
+      lines: [
+        {
+          custody_holding_id: returnedHolding.holding_id,
+          location_id: location.id,
+          quantity: String(returnedHolding.quantity),
+        },
+      ],
+    },
   },
-});
-check(Boolean(doorReturn.created_by_name), true, 'door return returns its actor display name');
+);
+check(
+  Boolean(doorReturn.created_by_name),
+  true,
+  'door return returns its actor display name',
+);
 const feeRefund = await operation(
   '/admin/custody-exceptions/delivery-fee-refund',
   {
@@ -880,8 +899,8 @@ check(
   'receipt reversal returns its actor display name',
 );
 
-// Customer-direct trips cannot also charge the store delivery fee. Change the
-// configured fee through the settings API only for this one checkout.
+// Keep one legacy zero-fee direct-fare order to prove existing calls remain
+// compatible alongside C10b's fee-carrying pass-through acceptance scenario.
 await request('/admin/settings', {
   token: admin,
   method: 'PUT',
@@ -919,34 +938,48 @@ const trip = await operation('/admin/external-driver-trips', {
     document_date: previousDay,
   },
 });
-check(Boolean(trip.created_by_name), true, 'trip returns its creator display name');
-const tripWithOrder = await operation(`/admin/external-driver-trips/${trip.id}/orders`, {
-  token: admin,
-  body: {
-    operation_id: `c9-trip-handover-${suffix}`,
-    order_id: tripOrder.id,
-    order_version: tripOrder.version,
-    fare_share_iqd: '3000',
-    source: 'Signed dispatch sheet',
-    event_at: boundary.before,
-    customer_acceptance_note: 'Customer accepted the IQD 3,000 direct fare',
+check(
+  Boolean(trip.created_by_name),
+  true,
+  'trip returns its creator display name',
+);
+const tripWithOrder = await operation(
+  `/admin/external-driver-trips/${trip.id}/orders`,
+  {
+    token: admin,
+    body: {
+      operation_id: `c9-trip-handover-${suffix}`,
+      order_id: tripOrder.id,
+      order_version: tripOrder.version,
+      fare_share_iqd: '3000',
+      source: 'Signed dispatch sheet',
+      event_at: boundary.before,
+      customer_acceptance_note: 'Customer accepted the IQD 3,000 direct fare',
+    },
   },
-});
+);
 check(
   Boolean(tripWithOrder.events.at(-1).recorded_by_name),
   true,
   'trip handover event returns its actor display name',
 );
-const startedTrip = await operation(`/admin/external-driver-trips/${trip.id}/start`, {
-  token: admin,
-  expected: 200,
-  body: {
-    operation_id: `c9-trip-start-${suffix}`,
-    source: 'Dispatch desk',
-    event_at: boundary.before,
+const startedTrip = await operation(
+  `/admin/external-driver-trips/${trip.id}/start`,
+  {
+    token: admin,
+    expected: 200,
+    body: {
+      operation_id: `c9-trip-start-${suffix}`,
+      source: 'Dispatch desk',
+      event_at: boundary.before,
+    },
   },
-});
-check(Boolean(startedTrip.started_by_name), true, 'trip start returns its actor display name');
+);
+check(
+  Boolean(startedTrip.started_by_name),
+  true,
+  'trip start returns its actor display name',
+);
 const unresolvedTrip = await request(
   `/admin/external-driver-trips/${trip.id}/close`,
   {
@@ -1034,7 +1067,11 @@ check(
   2000,
   'trip close keeps the IQD 2,000 cash difference visible',
 );
-check(Boolean(closedTrip.closed_by_name), true, 'trip close returns its actor display name');
+check(
+  Boolean(closedTrip.closed_by_name),
+  true,
+  'trip close returns its actor display name',
+);
 check(
   [dateOnly(trip.document_date), baghdadDate(new Date(closedTrip.closed_at))],
   [previousDay, today],
@@ -1066,7 +1103,11 @@ const unallocatedHigh = await operation('/admin/cash-receipts', {
   },
 });
 check(
-  [tripReceipt.created_by_name, unallocatedLow.created_by_name, unallocatedHigh.created_by_name].every(Boolean),
+  [
+    tripReceipt.created_by_name,
+    unallocatedLow.created_by_name,
+    unallocatedHigh.created_by_name,
+  ].every(Boolean),
   true,
   'all trip cash vouchers return actor display names',
 );
@@ -1229,10 +1270,9 @@ near(
   'unallocated receipt queue equals active voucher remainders',
 );
 
-const reconciliation = await request(
-  '/admin/cash-receipts/reconciliation',
-  { token: admin },
-);
+const reconciliation = await request('/admin/cash-receipts/reconciliation', {
+  token: admin,
+});
 near(
   reconciliation.overall.total_receipts_iqd -
     reconciliation.overall.total_allocations_iqd -
@@ -1280,7 +1320,11 @@ const cashActivity = await request(
 );
 check(cashActivity.page, 1, 'party cash activity has its own page');
 check(cashActivity.per_page, 1, 'party cash activity has its own page size');
-check(cashActivity.total > 1, true, 'party cash activity reports its own total');
+check(
+  cashActivity.total > 1,
+  true,
+  'party cash activity reports its own total',
+);
 
 const ledgerEntries = await allPages('/admin/ledger/entries', admin);
 const numberPattern = /^([A-Z][A-Z-]+)-(\d{4})-(\d{6})$/;

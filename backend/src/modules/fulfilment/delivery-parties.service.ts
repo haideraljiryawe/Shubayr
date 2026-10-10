@@ -316,7 +316,7 @@ export class DeliveryPartiesService {
       },
       cash: {
         currency: 'IQD',
-        amount: Number(cashBalance.amount),
+        amount: Number(cashBalance.amount.toDecimalPlaces(4)),
         oldest_age_days: cashBalance.oldestAgeDays,
       },
     };
@@ -891,7 +891,7 @@ export class DeliveryPartiesService {
     }
     for (const [id, balance] of cashBalances) {
       const summary = summaries.get(id)!;
-      summary.cash_held = Number(balance.amount);
+      summary.cash_held = Number(balance.amount.toDecimalPlaces(4));
       if (balance.oldestAgeDays !== null) {
         summary.oldest_item_age_days = Math.max(
           summary.oldest_item_age_days ?? 0,
