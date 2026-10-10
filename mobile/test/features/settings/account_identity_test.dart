@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +33,9 @@ Future<ProviderContainer> _start(User? user) async {
   final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       prefsStoreProvider.overrideWithValue(PrefsStore(prefs)),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
       sessionControllerProvider.overrideWith(() => _Session(user)),
@@ -67,12 +72,14 @@ Widget _host(
 
 void main() {
   setUpAll(() async {
-    await (FontLoader(
-      'Cairo',
-    )..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))).load();
+    await (FontLoader('Zain')
+          ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf')))
+        .load();
   });
 
-  for (final role in ['customer', 'admin', 'delivery']) {
+  for (final role in ['customer', 'order_monitor', 'delivery_agent']) {
     for (final locale in ['ar', 'en']) {
       testWidgets('identity and customer links follow session $role $locale', (
         tester,
@@ -101,8 +108,8 @@ void main() {
         expect(find.text('ahmed@example.com'), findsOneWidget);
         final roleLabel = role == 'customer'
             ? l10n.roleCustomer
-            : role == 'admin'
-            ? l10n.roleStaff
+            : role == 'order_monitor'
+            ? l10n.roleMonitor
             : l10n.roleDelivery;
         expect(find.text(l10n.accountSignedInAs(roleLabel)), findsOneWidget);
         expect(find.byType(TextField), findsNothing);
@@ -155,12 +162,8 @@ void main() {
         await tester.pumpAndSettle();
         final avatarBounds = tester.getRect(find.byType(UserAvatar));
         final nameBounds = tester.getRect(find.text('أحمد Ahmed'));
-        expect(
-          locale == 'ar'
-              ? avatarBounds.left > nameBounds.right
-              : avatarBounds.right < nameBounds.left,
-          isTrue,
-        );
+        expect(avatarBounds.bottom, lessThan(nameBounds.top));
+        expect(avatarBounds.center.dx, closeTo(nameBounds.center.dx, 0.01));
         expect(find.byType(UserAvatar), findsOneWidget);
         expect(find.byIcon(Icons.photo_camera_outlined), findsNothing);
         await tester.pumpWidget(const SizedBox.shrink());

@@ -1,3 +1,6 @@
+import '../../../core/utils/quantity.dart';
+import '../../../core/error/failure.dart';
+import '../../orders/data/coupon.dart';
 import '../../catalog/data/catalog_repository_mock.dart';
 import '../domain/cart_repository.dart';
 import 'cart.dart';
@@ -11,6 +14,8 @@ class CartRepositoryMock implements CartRepository {
   final Duration delay;
   final List<CartItem> _items = [];
   var _seq = 0;
+  final _adds = <String, (String, String?, num)>{};
+  Coupon? _coupon;
 
   Cart _cart() {
     final subtotal = _items.fold<num>(0, (sum, i) => sum + i.lineTotal);
@@ -18,6 +23,10 @@ class CartRepositoryMock implements CartRepository {
       id: 'mock-cart',
       items: List.unmodifiable(_items),
       subtotal: subtotal,
+      discount: _coupon?.discountOn(subtotal) ?? 0,
+      total: subtotal - (_coupon?.discountOn(subtotal) ?? 0),
+      couponCode: _coupon?.code,
+      currency: 'IQD',
     );
   }
 
@@ -28,17 +37,51 @@ class CartRepositoryMock implements CartRepository {
   }
 
   @override
+  Future<Cart> applyCoupon(String code) async {
+    await Future<void>.delayed(delay);
+    _coupon = switch (code.trim().toUpperCase()) {
+      'SAVE10' => const Coupon(code: 'SAVE10', type: 'percentage', value: 10),
+      'WELCOME' => const Coupon(code: 'WELCOME', type: 'fixed', value: 5000),
+      _ => throw const AppFailure(FailureKind.notFound),
+    };
+    return _cart();
+  }
+
+  @override
+  Future<Cart> removeCoupon() async {
+    await Future<void>.delayed(delay);
+    _coupon = null;
+    return _cart();
+  }
+
+  @override
   Future<Cart> addItem({
+    required String idempotencyKey,
     required String productId,
     String? variantId,
-    int quantity = 1,
+    num quantity = 1,
   }) async {
     await Future<void>.delayed(delay);
+    final intent = (productId, variantId, quantity);
+    if (_adds.containsKey(idempotencyKey)) {
+      if (_adds[idempotencyKey] != intent) {
+        throw const AppFailure(
+          FailureKind.conflict,
+          statusCode: 409,
+          code: 'IDEMPOTENCY_KEY_REUSED',
+        );
+      }
+      return _cart();
+    }
     final i = _items.indexWhere(
       (it) => it.productId == productId && it.variantId == variantId,
     );
     if (i >= 0) {
-      _items[i] = _items[i].copyWith(quantity: _items[i].quantity + quantity);
+      final updatedQuantity = addQuantity(_items[i].quantity, quantity);
+      _items[i] = _items[i].copyWith(
+        quantity: updatedQuantity,
+        lineTotal: _items[i].unitPrice * updatedQuantity,
+      );
     } else {
       _items.add(
         CartItem(
@@ -47,17 +90,34 @@ class CartRepositoryMock implements CartRepository {
           variantId: variantId,
           quantity: quantity,
           unitPrice: CatalogRepositoryMock.unitPrice(productId, variantId),
+          currentUnitPrice: CatalogRepositoryMock.unitPrice(
+            productId,
+            variantId,
+          ),
+          priceVersion: 'mock-price-v1',
+          currentPriceVersion: 'mock-price-v1',
+          lineTotal:
+              CatalogRepositoryMock.unitPrice(productId, variantId) * quantity,
+          currency: 'IQD',
+          available: true,
+          availableQty: 99,
         ),
       );
     }
+    _adds[idempotencyKey] = intent;
     return _cart();
   }
 
   @override
-  Future<Cart> updateItem(String itemId, int quantity) async {
+  Future<Cart> updateItem(String itemId, num quantity) async {
     await Future<void>.delayed(delay);
     final i = _items.indexWhere((it) => it.id == itemId);
-    if (i >= 0) _items[i] = _items[i].copyWith(quantity: quantity);
+    if (i >= 0) {
+      _items[i] = _items[i].copyWith(
+        quantity: quantity,
+        lineTotal: _items[i].unitPrice * quantity,
+      );
+    }
     return _cart();
   }
 

@@ -24,9 +24,14 @@ class ProductListScreen extends ConsumerStatefulWidget {
     this.initialQuery = const ProductQuery(),
     this.parentCategoryId,
     this.offersOnly = false,
+    this.categoryHeaderSliver,
   });
 
   final ProductQuery initialQuery;
+
+  /// Category navigation shares the products' scroll area when opened from
+  /// the Categories tab. Products remain assigned to their actual category.
+  final Widget? categoryHeaderSliver;
 
   /// A fixed discount scope, distinct from the optional Offers toggle.
   final bool offersOnly;
@@ -165,6 +170,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       ),
       body: SafeArea(
         top: false,
+        bottom: BottomNavigationInset.of(context) == 0,
         child: Column(
           children: [
             ProductSearchBar(
@@ -224,6 +230,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 state: state,
                 onRetry: _controller.retry,
                 onScroll: _onScroll,
+                headerSliver: widget.categoryHeaderSliver,
               ),
             ),
           ],
@@ -260,7 +267,7 @@ class _CategoryFilters extends StatelessWidget {
     return SingleChildScrollView(
       key: const ValueKey('product-subcategory-filters'),
       scrollDirection: Axis.horizontal,
-      padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
+      padding: AppLayout.horizontalScrollInsets(context),
       child: Row(
         children: [
           chip(allCategoryId, context.l10n.homeAllDepartments),
@@ -278,9 +285,11 @@ class _Body extends StatelessWidget {
     required this.onRetry,
     required this.onScroll,
     required this.scroll,
+    this.headerSliver,
   });
 
   final ProductListState state;
+  final Widget? headerSliver;
   final ScrollController scroll;
   final VoidCallback onRetry;
   final bool Function(ScrollNotification) onScroll;
@@ -289,14 +298,20 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     if (state.loadingInitial) {
       return CustomScrollView(
-        physics: const NeverScrollableScrollPhysics(),
+        physics: headerSliver == null
+            ? const NeverScrollableScrollPhysics()
+            : null,
         slivers: [
+          ?headerSliver,
           SliverPadding(
             padding: AppLayout.pageInsets(context),
             sliver: ProductGridSliver(
               itemCount: 6,
               itemBuilder: (_, _) => const ProductCardSkeleton(),
             ),
+          ),
+          SliverToBoxAdapter(
+            child: SizedBox(height: BottomNavigationInset.of(context)),
           ),
         ],
       );
@@ -306,14 +321,19 @@ class _Body extends StatelessWidget {
       // Preserve centered states when they fit and allow scrolling otherwise.
       return CustomScrollView(
         slivers: [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: state.error != null
-                ? AppErrorView(error: state.error, onRetry: onRetry)
-                : AppEmptyView(
-                    icon: Icons.search_off_outlined,
-                    message: context.l10n.searchNoResults,
-                  ),
+          ?headerSliver,
+          if (state.error != null || headerSliver == null)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: state.error != null
+                  ? AppErrorView(error: state.error, onRetry: onRetry)
+                  : AppEmptyView(
+                      icon: Icons.search_off_outlined,
+                      message: context.l10n.searchNoResults,
+                    ),
+            ),
+          SliverToBoxAdapter(
+            child: SizedBox(height: BottomNavigationInset.of(context)),
           ),
         ],
       );
@@ -324,10 +344,12 @@ class _Body extends StatelessWidget {
       child: CustomScrollView(
         controller: scroll,
         slivers: [
+          ?headerSliver,
           SliverPadding(
             padding: AppLayout.pageInsets(context),
             sliver: ProductGridSliver(
               itemCount: state.items.length,
+              itemKeyBuilder: (i) => state.items[i].id,
               itemBuilder: (context, i) {
                 final product = state.items[i];
                 return ProductCard(
@@ -351,6 +373,9 @@ class _Body extends StatelessWidget {
             SliverToBoxAdapter(
               child: AppErrorView(error: state.error, onRetry: onRetry),
             ),
+          SliverToBoxAdapter(
+            child: SizedBox(height: BottomNavigationInset.of(context)),
+          ),
         ],
       ),
     );

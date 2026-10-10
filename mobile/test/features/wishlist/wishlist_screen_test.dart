@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,12 +24,15 @@ Product _product(String id, String name) => Product(
   categoryId: 'c1',
   nameEn: name,
   nameAr: name,
-  salePrice: 1000,
+  effectivePrice: 1000,
 );
 
 Widget _host(List<WishlistItem> items) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
     wishlistControllerProvider.overrideWith(() => _FixedWishlist(items)),
     productProvider('p1').overrideWith((ref) async => _product('p1', 'Alpha')),
     productProvider('p2').overrideWith((ref) async => _product('p2', 'Beta')),

@@ -1,3 +1,4 @@
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/utils/numeric_input_formatters.dart';
 import '../../../../core/utils/numeric_text.dart';
 import 'package:flutter/material.dart';
@@ -39,17 +40,10 @@ Future<ProductQuery?> showProductFilters(
   required bool offersOnly,
 }) {
   Widget editor() => ProductFilterEditor(query: query, offersOnly: offersOnly);
-  if (AppLayout.isDesktop(context)) {
-    return showDialog<ProductQuery>(
-      context: context,
-      builder: (_) => Dialog(
-        child: SizedBox(width: AppLayout.productFilterWidth, child: editor()),
-      ),
-    );
-  }
   return showModalBottomSheet<ProductQuery>(
     context: context,
     isScrollControlled: true,
+    constraints: const BoxConstraints(maxWidth: AppLayout.productFilterWidth),
     useSafeArea: true,
     builder: (context) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -80,6 +74,7 @@ class ProductSearchBar extends StatelessWidget {
         children: [
           Expanded(
             child: TextField(
+              contextMenuBuilder: appTextSelectionToolbar,
               key: const ValueKey('product-search-field'),
               controller: controller,
               onChanged: onChanged,
@@ -196,7 +191,7 @@ class AppliedProductFilters extends StatelessWidget {
     return SingleChildScrollView(
       key: const ValueKey('product-applied-filters'),
       scrollDirection: Axis.horizontal,
-      padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
+      padding: AppLayout.horizontalScrollInsets(context),
       child: Row(
         children: [
           if (query.minPrice != null || query.maxPrice != null)
@@ -300,10 +295,7 @@ class _ProductFilterEditorState extends State<ProductFilterEditor> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      l10n.productFiltersSort,
-                      style: context.text.titleMedium,
-                    ),
+                    Text(l10n.productFiltersSort, style: context.sectionTitle),
                     const SizedBox(height: AppSpacing.sm),
                     Wrap(
                       spacing: AppSpacing.sm,
@@ -321,12 +313,13 @@ class _ProductFilterEditorState extends State<ProductFilterEditor> {
                       ],
                     ),
                     const Divider(height: AppSpacing.xxl),
-                    Text(l10n.filterPrice, style: context.text.titleMedium),
+                    Text(l10n.filterPrice, style: context.sectionTitle),
                     const SizedBox(height: AppSpacing.md),
                     Row(
                       children: [
                         Expanded(
                           child: TextField(
+                            contextMenuBuilder: appTextSelectionToolbar,
                             key: const ValueKey('filter-min-price'),
                             controller: _min,
                             inputFormatters: const [MoneyInputFormatter()],
@@ -341,6 +334,7 @@ class _ProductFilterEditorState extends State<ProductFilterEditor> {
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: TextField(
+                            contextMenuBuilder: appTextSelectionToolbar,
                             key: const ValueKey('filter-max-price'),
                             controller: _max,
                             inputFormatters: const [MoneyInputFormatter()],
@@ -356,7 +350,7 @@ class _ProductFilterEditorState extends State<ProductFilterEditor> {
                     ),
                     if (!widget.offersOnly) ...[
                       const Divider(height: AppSpacing.xxl),
-                      Text(l10n.filterOnSale, style: context.text.titleMedium),
+                      Text(l10n.filterOnSale, style: context.sectionTitle),
                       const SizedBox(height: AppSpacing.sm),
                       FilterChip(
                         key: const ValueKey('filter-offers-only'),

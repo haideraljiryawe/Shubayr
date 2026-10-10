@@ -27,7 +27,7 @@ class ProductCard extends ConsumerWidget {
     final lang = Localizations.localeOf(context).languageCode;
     final price = formatMoney(
       product.salePrice,
-      currencyCode: brand.currencyCode,
+      currencyCode: product.currency ?? brand.currencyCode,
       localeCode: lang,
     );
 
@@ -38,6 +38,7 @@ class ProductCard extends ConsumerWidget {
       child: InkWell(
         onTap: onTap,
         child: DecoratedBox(
+          position: DecorationPosition.foreground,
           decoration: BoxDecoration(
             borderRadius: AppRadii.productAll,
             border: Border.all(color: colors.border),
@@ -95,9 +96,7 @@ class ProductCardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    double lineHeight(TextStyle style) =>
-        MediaQuery.textScalerOf(context).scale(style.fontSize!) *
-        (style.height ?? 1);
+    double lineHeight(TextStyle style) => context.textLineHeight(style);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,

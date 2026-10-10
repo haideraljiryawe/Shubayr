@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +24,9 @@ void main() {
     container = ProviderContainer(
       retry: (retryCount, error) => null,
       overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
+        dataSourceProvider.overrideWithValue(DataSource.mock),
         sessionControllerProvider.overrideWith(() => session),
         wishlistRepositoryProvider.overrideWithValue(repository),
       ],
@@ -29,6 +34,32 @@ void main() {
     await container.read(sessionControllerProvider.future);
   });
   tearDown(() => container.dispose());
+
+  test(
+    'duplicate toggle coalesces but add/remove/add intentions remain ordered',
+    () async {
+      await container.read(wishlistControllerProvider.future);
+      final controller = container.read(wishlistControllerProvider.notifier);
+      final gate = Completer<WishlistItem>();
+      repository.onAdd = (_) => gate.future;
+      final first = controller.toggle('p1');
+      final duplicate = controller.toggle('p1');
+      await Future<void>.delayed(Duration.zero);
+      expect(repository.added, ['p1']);
+      gate.complete(const WishlistItem(id: 'new', productId: 'p1'));
+      await Future.wait([first, duplicate]);
+      expect(repository.removed, isEmpty);
+      repository.onAdd = null;
+      await Future.wait([
+        controller.add('p1'),
+        controller.remove('p1'),
+        controller.add('p1'),
+      ]);
+      expect(repository.added, ['p1', 'p1', 'p1']);
+      expect(repository.removed, ['p1']);
+      expect(container.read(isWishlistedProvider('p1')), isTrue);
+    },
+  );
 
   test('refresh retains data, reports failure and can recover', () async {
     final previous = await container.read(wishlistControllerProvider.future);
@@ -49,7 +80,7 @@ void main() {
     expect(failed.value, same(previous));
     repository.onFetch = (_) async => const WishlistPage(
       page: 1,
-      perPage: 8,
+      perPage: 100,
       total: 1,
       data: [WishlistItem(id: 'new', productId: 'new')],
     );
@@ -84,7 +115,7 @@ void main() {
     newPage.complete(
       const WishlistPage(
         page: 1,
-        perPage: 8,
+        perPage: 100,
         total: 1,
         data: [WishlistItem(id: 'new', productId: 'new')],
       ),
@@ -96,7 +127,7 @@ void main() {
 
   test('loads all pages and marks later-page products as saved', () async {
     final items = await container.read(wishlistControllerProvider.future);
-    expect(repository.requests, [(page: 1, perPage: 8), (page: 2, perPage: 8)]);
+    expect(repository.requests, [(page: 1, perPage: 100)]);
     expect(items, hasLength(10));
     expect(items.first.productId, 'p2');
     expect(items.last.productId, 'p11');
@@ -111,10 +142,10 @@ void main() {
         if (request.page == 2) throw const AppFailure.network();
         return WishlistPage(
           page: 1,
-          perPage: 8,
-          total: 9,
+          perPage: 100,
+          total: 101,
           data: [
-            for (var i = 0; i < 8; i++)
+            for (var i = 0; i < 100; i++)
               WishlistItem(id: 'w$i', productId: 'p$i'),
           ],
         );
@@ -130,7 +161,7 @@ void main() {
         container.read(wishlistControllerProvider).requireValue,
         hasLength(10),
       );
-      expect(repository.requests.map((r) => r.page), [1, 2, 1, 2]);
+      expect(repository.requests.map((r) => r.page), [1, 2, 1]);
     },
   );
 
@@ -139,10 +170,10 @@ void main() {
     repository.onFetch = (r) async => r.page == 1
         ? WishlistPage(
             page: 1,
-            perPage: 8,
-            total: 9,
+            perPage: 100,
+            total: 101,
             data: [
-              for (var i = 0; i < 8; i++)
+              for (var i = 0; i < 100; i++)
                 WishlistItem(id: 'w$i', productId: 'p$i'),
             ],
           )
@@ -157,8 +188,8 @@ void main() {
     page.complete(
       const WishlistPage(
         page: 2,
-        perPage: 8,
-        total: 9,
+        perPage: 100,
+        total: 101,
         data: [WishlistItem(id: 'later', productId: 'later')],
       ),
     );
@@ -167,7 +198,7 @@ void main() {
     expect(repository.added, isEmpty);
     expect(
       container.read(wishlistControllerProvider).requireValue,
-      hasLength(8),
+      hasLength(100),
     );
   });
 
@@ -218,10 +249,10 @@ void main() {
       repository.onFetch = (r) async => r.page == 1
           ? WishlistPage(
               page: 1,
-              perPage: 8,
-              total: 9,
+              perPage: 100,
+              total: 101,
               data: [
-                for (var i = 0; i < 8; i++)
+                for (var i = 0; i < 100; i++)
                   WishlistItem(id: 'w$i', productId: 'p$i'),
               ],
             )
@@ -236,8 +267,8 @@ void main() {
       lastPage.complete(
         const WishlistPage(
           page: 2,
-          perPage: 8,
-          total: 9,
+          perPage: 100,
+          total: 101,
           data: [WishlistItem(id: 'last', productId: 'last')],
         ),
       );
@@ -245,7 +276,7 @@ void main() {
       await add;
       expect(
         container.read(wishlistControllerProvider).requireValue,
-        hasLength(10),
+        hasLength(102),
       );
       expect(container.read(isWishlistedProvider('new')), isTrue);
       expect(container.read(isWishlistedProvider('last')), isTrue);
@@ -255,21 +286,21 @@ void main() {
   test('overlapping pages deduplicate products', () async {
     repository.onFetch = (r) async => WishlistPage(
       page: r.page,
-      perPage: 8,
-      total: 9,
+      perPage: 100,
+      total: 101,
       data: r.page == 1
           ? [
-              for (var i = 0; i < 8; i++)
+              for (var i = 0; i < 100; i++)
                 WishlistItem(id: 'w$i', productId: 'p$i'),
             ]
           : [
               const WishlistItem(id: 'duplicate', productId: 'p7'),
-              const WishlistItem(id: 'w8', productId: 'p8'),
+              const WishlistItem(id: 'w8', productId: 'p100'),
             ],
     );
     final items = await container.read(wishlistControllerProvider.future);
-    expect(items, hasLength(9));
-    expect(items.map((w) => w.productId).toSet(), hasLength(9));
+    expect(items, hasLength(101));
+    expect(items.map((w) => w.productId).toSet(), hasLength(101));
   });
 
   test(
@@ -277,11 +308,11 @@ void main() {
     () async {
       repository.onFetch = (r) async => WishlistPage(
         page: r.page,
-        perPage: 8,
-        total: 9,
+        perPage: 100,
+        total: 101,
         data: r.page == 1
             ? [
-                for (var i = 0; i < 8; i++)
+                for (var i = 0; i < 100; i++)
                   WishlistItem(id: 'w$i', productId: 'p$i'),
               ]
             : [],
@@ -308,8 +339,8 @@ void main() {
       firstPage.complete(
         const WishlistPage(
           page: 1,
-          perPage: 8,
-          total: 9,
+          perPage: 100,
+          total: 101,
           data: [WishlistItem(id: 'old', productId: 'old')],
         ),
       );

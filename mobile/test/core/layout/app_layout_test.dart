@@ -21,17 +21,91 @@ const responsiveWidths = <double>[
 ];
 
 void main() {
-  test('window classification includes both sides of each breakpoint', () {
-    for (final (edge, before, after) in [
-      (600.0, AppWindowClass.mobile, AppWindowClass.tablet),
-      (900.0, AppWindowClass.tablet, AppWindowClass.compactDesktop),
-      (1200.0, AppWindowClass.compactDesktop, AppWindowClass.desktop),
-      (1536.0, AppWindowClass.desktop, AppWindowClass.largeDesktop),
-    ]) {
-      expect(AppBreakpoints.classify(edge - 1), before);
-      expect(AppBreakpoints.classify(edge), after);
-      expect(AppBreakpoints.classify(edge + 1), after);
+  for (final direction in TextDirection.values) {
+    testWidgets(
+      'entity state survives reorder, deletion and resize $direction',
+      (tester) async {
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.binding.setSurfaceSize(const Size(390, 900));
+        var ids = ['a', 'b', 'c'];
+        late StateSetter update;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Directionality(
+                textDirection: direction,
+                child: StatefulBuilder(
+                  builder: (context, setState) {
+                    update = setState;
+                    return ResponsiveCardList(
+                      itemCount: ids.length,
+                      itemKeyBuilder: (i) => ids[i],
+                      itemBuilder: (_, i) =>
+                          _CounterTile(key: ValueKey(ids[i])),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        final b = find.byKey(const ValueKey('b'));
+        await tester.tap(
+          find.descendant(of: b, matching: find.byType(TextButton)),
+        );
+        await tester.pump();
+        final original = tester.state(b);
+        update(() => ids = ['c', 'a', 'b']);
+        await tester.pump();
+        expect(tester.state(b), same(original));
+        update(() => ids = ['c', 'b']);
+        await tester.pump();
+        expect(tester.state(b), same(original));
+        for (final width in [...responsiveWidths, 390.0]) {
+          await tester.binding.setSurfaceSize(Size(width, 900));
+          await tester.pump();
+          expect(tester.state(b), same(original));
+          expect(
+            find.descendant(of: b, matching: find.text('1')),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(
+              of: find.byKey(const ValueKey('c')),
+              matching: find.text('0'),
+            ),
+            findsOneWidget,
+          );
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+  }
+
+  testWidgets('columns follow local space and text scale, not window classes', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final counts = <int>[];
+    for (final width in [800.0, 1200.0, 1920.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 1000));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: 740,
+              child: Builder(
+                builder: (context) {
+                  counts.add(AppLayout.columns(context, 740));
+                  return const SizedBox();
+                },
+              ),
+            ),
+          ),
+        ),
+      );
     }
+    expect(counts, everyElement(2));
   });
 
   testWidgets('regrouping cards retains an in-progress interaction', (
@@ -177,7 +251,7 @@ void main() {
           } else if (width == 390) {
             expect(b.top, greaterThan(a.top));
           }
-          final inset = width < AppBreakpoints.tablet
+          final inset = width < 600
               ? AppSpacing.screenMobileH
               : AppSpacing.screenH;
           final footer = tester.getRect(find.byKey(const ValueKey('retry')));

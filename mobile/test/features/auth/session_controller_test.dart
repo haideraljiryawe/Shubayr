@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +19,9 @@ Future<ProviderContainer> _container({String? storedToken}) async {
   return ProviderContainer(
     retry: (retryCount, error) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(
         InMemoryTokenStore(accessToken: storedToken),
@@ -45,6 +50,9 @@ void main() {
     final container = ProviderContainer(
       retry: (retryCount, error) => null,
       overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
+        dataSourceProvider.overrideWithValue(DataSource.mock),
         tokenStoreProvider.overrideWithValue(tokens),
         authRepositoryProvider.overrideWith((ref) {
           repositoryReads++;
@@ -64,6 +72,9 @@ void main() {
     final container = ProviderContainer(
       retry: (retryCount, error) => null,
       overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
+        dataSourceProvider.overrideWithValue(DataSource.mock),
         tokenStoreProvider.overrideWithValue(tokens),
         authRepositoryProvider.overrideWithValue(
           AuthRepositoryMock(delay: Duration.zero),
@@ -83,7 +94,12 @@ void main() {
     final tokens = _PendingTokenStore()..token.complete(null);
     final container = ProviderContainer(
       retry: (retryCount, error) => null,
-      overrides: [tokenStoreProvider.overrideWithValue(tokens)],
+      overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
+        dataSourceProvider.overrideWithValue(DataSource.mock),
+        tokenStoreProvider.overrideWithValue(tokens),
+      ],
     );
     await container.read(sessionControllerProvider.future);
     final pending = container

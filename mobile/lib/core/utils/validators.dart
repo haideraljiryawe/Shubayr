@@ -9,6 +9,9 @@ abstract final class Validators {
     return RegExp(r'^\+?[0-9]{8,15}$').hasMatch(trimmed);
   }
 
+  static bool isE164Phone(String value) =>
+      RegExp(r'^\+[1-9][0-9]{7,14}$').hasMatch(normalizePhone(value));
+
   /// `POST /auth/verify-otp` documents a 6-digit code.
   static bool isOtp(String value) =>
       RegExp(r'^[0-9]{6}$').hasMatch(foldDigits(value).trim());

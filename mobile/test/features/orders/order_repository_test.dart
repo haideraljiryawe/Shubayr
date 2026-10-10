@@ -21,7 +21,11 @@ void main() {
     'places a COD order from the cart, applies the coupon, clears the cart',
     () async {
       final cart = CartRepositoryMock(delay: Duration.zero);
-      await cart.addItem(productId: 'p1', quantity: 2);
+      await cart.addItem(
+        idempotencyKey: 'test-add-key-0',
+        productId: 'p1',
+        quantity: 2,
+      );
       final subtotal = (await cart.fetchCart()).subtotal;
       final repo = OrderRepositoryMock(cart, delay: Duration.zero);
 
@@ -85,7 +89,11 @@ void main() {
 
   test('a placed order appears at the top of the list', () async {
     final cart = CartRepositoryMock(delay: Duration.zero);
-    await cart.addItem(productId: 'p1', quantity: 1);
+    await cart.addItem(
+      idempotencyKey: 'test-add-key-1',
+      productId: 'p1',
+      quantity: 1,
+    );
     final repo = OrderRepositoryMock(cart, delay: Duration.zero);
 
     final placed = await repo.placeOrder(addressId: 'a1');
@@ -133,7 +141,7 @@ void main() {
     final orders = (await repo.fetchOrders()).data;
     final open = orders.firstWhere((o) => o.status == 'processing');
 
-    final cancelled = await repo.cancelOrder(open.id);
+    final cancelled = await repo.cancelOrder(open.id, version: 1);
     expect(cancelled.status, 'cancelled');
     expect((await repo.fetchOrder(open.id)).status, 'cancelled');
     expect((await repo.fetchTracking(open.id)).events.map((e) => e.status), [

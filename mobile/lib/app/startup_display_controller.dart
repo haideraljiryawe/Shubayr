@@ -7,6 +7,14 @@ import '../core/theme/tokens/app_motion.dart';
 /// One minimum display window per app container, independent of auth readiness.
 class StartupDisplayController extends Notifier<bool> {
   Timer? _timer;
+  bool _homeCarouselDisplayed = false;
+
+  /// Survives Home/widget remounts, but resets with the app container.
+  bool claimHomeCarouselStartupDelay() {
+    if (_homeCarouselDisplayed) return false;
+    _homeCarouselDisplayed = true;
+    return true;
+  }
 
   @override
   bool build() {

@@ -1,7 +1,7 @@
+import 'package:shubayr/features/catalog/data/catalog_fixtures.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/network/api_client.dart';
-import 'package:shubayr/features/admin/data/admin_order_repository_mock.dart';
 import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
@@ -16,7 +16,14 @@ const _current = Product(
   categoryId: 'c1',
   nameAr: 'الاسم الجديد',
   nameEn: 'New name',
-  images: ['https://example.com/new.jpg'],
+  media: [
+    ProductImage(
+      id: 'new',
+      url: 'https://example.com/new.jpg',
+      sortOrder: 0,
+      isPrimary: true,
+    ),
+  ],
   variants: [
     ProductVariant(id: 'v1', attributes: {'size': 'XL'}),
   ],
@@ -138,7 +145,7 @@ void main() {
         await repo.placeOrder(addressId: 'a1', couponCode: 'SAVE10'),
         await repo.fetchOrder('o1'),
         (await repo.fetchOrders()).data.single,
-        await repo.cancelOrder('o1'),
+        await repo.cancelOrder('o1', version: 1),
       ];
       for (final order in orders) {
         expect(order.items.single.displayName('ar', _current), 'اسم الشراء');
@@ -164,7 +171,7 @@ void main() {
       }
 
       (await catalog.fetchCategories()).forEach(flatten);
-      void replace(List<Product> products) => catalog.applyAdminCatalog(
+      void replace(List<Product> products) => catalog.replaceFixtures(
         products: products.map((p) => p.toJson()).toList(),
         categories: categories,
       );
@@ -172,12 +179,10 @@ void main() {
 
       final cart = CartRepositoryMock(delay: Duration.zero);
       final repo = OrderRepositoryMock(cart, delay: Duration.zero);
-      final admin = AdminOrderRepositoryMock(delay: Duration.zero);
       final seed = (await repo.fetchOrders()).data.first;
-      final adminSeed = (await admin.fetchOrders()).data.first;
 
-      final atPurchase = Product.fromJson({
-        ...original.firstWhere((p) => p.id == 'p1').toJson(),
+      final atPurchase = productFromFixture({
+        ...original.firstWhere((p) => p.id == 'p1').toFixture(),
         'name_ar': 'اسم وقت الشراء',
         'name_en': 'At purchase',
         'images': ['https://example.com/purchase.jpg'],
@@ -186,23 +191,36 @@ void main() {
         for (final p in original)
           if (p.id == 'p1') atPurchase else p,
       ]);
-      await cart.addItem(productId: 'p1', quantity: 2);
+      await cart.addItem(
+        idempotencyKey: 'test-add-key-0',
+        productId: 'p1',
+        quantity: 2,
+      );
       final placed = await repo.placeOrder(addressId: 'a1');
       expect(placed.items.single.productNameEn, 'At purchase');
       expect(placed.items.single.imageUrl, 'https://example.com/purchase.jpg');
 
-      final renamed = Product.fromJson({
-        ...atPurchase.toJson(),
+      final renamed = productFromFixture({
+        ...atPurchase.toFixture(),
         'name_en': 'Renamed after purchase',
+        'sale_price': 99000,
+        'compare_at_price': null,
         'images': <String>[],
       });
       replace([
         for (final p in original)
           if (p.id == 'p1') renamed else p,
       ]);
-      await cart.addItem(productId: 'p1', quantity: 1);
+      await cart.addItem(
+        idempotencyKey: 'test-add-key-1',
+        productId: 'p1',
+        quantity: 1,
+      );
       final next = await repo.placeOrder(addressId: 'a1');
       expect(next.items.single.productNameEn, 'Renamed after purchase');
+      expect(next.items.single.unitPrice, 99000);
+      expect(placed.items.single.unitPrice, isNot(99000));
+      expect((await repo.fetchOrder(placed.id)).total, placed.total);
       expect(next.items.single.imageSnapshotProvided, isTrue);
       expect(next.items.single.imageUrl, isNull);
       expect(
@@ -217,21 +235,13 @@ void main() {
       final read = await repo.fetchOrder(placed.id);
       expect(read.items.single.toJson(), placed.items.single.toJson());
       expect(
-        (await repo.cancelOrder(placed.id)).items.single.toJson(),
+        (await repo.cancelOrder(placed.id, version: 1)).items.single.toJson(),
         placed.items.single.toJson(),
       );
       expect(
         (await repo.fetchOrder(seed.id)).items.first.toJson(),
         seed.items.first.toJson(),
       );
-      expect(
-        (await admin.updateStatus(
-          adminSeed.id,
-          'confirmed',
-        )).items.single.toJson(),
-        adminSeed.items.single.toJson(),
-      );
-      expect(adminSeed.items.single.productNameEn, isNotEmpty);
     },
   );
 }

@@ -1,9 +1,11 @@
+import '../../../../core/utils/quantity.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/display_date.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/error/failure.dart';
@@ -24,73 +26,103 @@ import '../../data/order.dart';
 import '../../data/order_tracking.dart';
 import '../order_status.dart';
 import '../providers/order_providers.dart';
+import '../providers/order_action_providers.dart';
+import '../providers/after_sales_providers.dart';
 import '../widgets/order_status_pill.dart';
 
 /// A single order: header, the status timeline, the items, the amount summary,
 /// and — while the order can still be cancelled — a cancel action.
-class OrderDetailScreen extends ConsumerStatefulWidget {
+class OrderDetailScreen extends ConsumerWidget {
   const OrderDetailScreen({super.key, required this.orderId});
 
   final String orderId;
 
   @override
-  ConsumerState<OrderDetailScreen> createState() => _OrderDetailScreenState();
+  Widget build(BuildContext context, WidgetRef ref) => _OrderDetailView(
+    key: ValueKey((orderId, ref.watch(ordersIdentityProvider))),
+    orderId: orderId,
+  );
 }
 
-class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
-  bool _cancelling = false;
+class _OrderDetailView extends ConsumerStatefulWidget {
+  const _OrderDetailView({super.key, required this.orderId});
+  final String orderId;
+  @override
+  ConsumerState<_OrderDetailView> createState() => _OrderDetailScreenState();
+}
 
-  String _money(num amount) {
+class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
+  bool _confirming = false;
+  bool get _cancelling => ref.read(orderCancellationProvider(widget.orderId));
+
+  String _money(num amount, {String? currency}) {
     final brand = ref.read(brandProvider);
     return formatMoney(
       amount,
-      currencyCode: brand.currencyCode,
+      currencyCode: currency ?? brand.currencyCode,
       localeCode: Localizations.localeOf(context).languageCode,
     );
   }
 
-  Future<void> _cancel() async {
+  Future<void> _cancel(int version) async {
+    if (_confirming || _cancelling) return;
+    final identity = ref.read(ordersIdentityProvider);
     final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.orderCancelTitle),
-        content: Text(l10n.orderCancelMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.orderKeepOrder),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: context.colors.danger),
-            child: Text(l10n.orderCancel),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    setState(() => _cancelling = true);
+    setState(() => _confirming = true);
     try {
-      await ref.read(orderRepositoryProvider).cancelOrder(widget.orderId);
-      ref
-        ..invalidate(orderProvider(widget.orderId))
-        ..invalidate(orderTrackingProvider(widget.orderId))
-        ..invalidate(ordersProvider);
-      if (!mounted) return;
-      setState(() => _cancelling = false);
-      showAppSnackBarMessage(context, message: l10n.orderCancelledDone);
-    } on AppFailure catch (e) {
-      if (!mounted) return;
-      setState(() => _cancelling = false);
-      showAppSnackBarMessage(context, message: e.localizedMessage(l10n));
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.orderCancelTitle),
+          content: Text(l10n.orderCancelMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.orderKeepOrder),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: TextButton.styleFrom(foregroundColor: ctx.colors.danger),
+              child: Text(l10n.orderCancel),
+            ),
+          ],
+        ),
+      );
+      if (!mounted ||
+          confirmed != true ||
+          ref.read(ordersIdentityProvider) != identity) {
+        return;
+      }
+      final result = await ref
+          .read(orderCancellationProvider(widget.orderId).notifier)
+          .cancel(version: version);
+      if (!mounted ||
+          ref.read(ordersIdentityProvider) != identity ||
+          ModalRoute.of(context)?.isCurrent == false) {
+        return;
+      }
+      if (result.status == OrderActionStatus.succeeded) {
+        showAppSnackBarMessage(context, message: l10n.orderCancelledDone);
+      } else if (result.status == OrderActionStatus.failed) {
+        final error = result.error;
+        showAppSnackBarMessage(
+          context,
+          message: error is AppFailure
+              ? (error.statusCode == 409
+                    ? l10n.orderStateConflict
+                    : error.localizedMessage(l10n))
+              : l10n.stateErrorTitle,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _confirming = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    ref.watch(orderCancellationProvider(widget.orderId));
     final order = ref.watch(orderProvider(widget.orderId));
 
     return Scaffold(
@@ -132,41 +164,77 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                         children: [
                           for (var i = 0; i < o.items.length; i++) ...[
                             if (i > 0) const Divider(height: AppSpacing.xl),
-                            _OrderItemTile(item: o.items[i], money: _money),
+                            _OrderItemTile(
+                              item: o.items[i],
+                              money: (amount) => _money(
+                                amount,
+                                currency: o.items[i].currency ?? o.currency,
+                              ),
+                            ),
                           ],
                         ],
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _SectionTitle(l10n.orderSummary),
-                    _Summary(order: o, money: _money),
+                    _Summary(
+                      order: o,
+                      money: (amount) => _money(amount, currency: o.currency),
+                    ),
                     if (o.status == 'delivered' && o.items.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.lg),
-                      AppButton(
-                        label: l10n.reviewOrderTitle,
-                        icon: Icons.star_outline,
-                        variant: AppButtonVariant.secondary,
-                        onPressed: () => context.pushNamed(
-                          AppRoutes.orderReviewName,
-                          pathParameters: {'id': o.id},
-                        ),
+                      AsyncValueView<Set<String>>(
+                        value: ref.watch(reviewEligibilityProvider(o.id)),
+                        loading: const Skeleton.line(),
+                        onRetry: () =>
+                            ref.invalidate(reviewEligibilityProvider(o.id)),
+                        builder: (context, eligible) => eligible.isEmpty
+                            ? Text(l10n.reviewAllSubmitted)
+                            : AppButton(
+                                label: l10n.reviewOrderTitle,
+                                icon: Icons.star_outline,
+                                variant: AppButtonVariant.secondary,
+                                onPressed: () => context.pushNamed(
+                                  AppRoutes.orderReviewName,
+                                  pathParameters: {'id': o.id},
+                                ),
+                              ),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      AppButton(
-                        label: l10n.returnOrderTitle,
-                        icon: Icons.assignment_return_outlined,
-                        variant: AppButtonVariant.secondary,
-                        onPressed: () => context.pushNamed(
-                          AppRoutes.orderReturnName,
-                          pathParameters: {'id': o.id},
-                        ),
+                      AsyncValueView<ReturnEligibility>(
+                        value: ref.watch(returnEligibilityProvider(o.id)),
+                        loading: const Skeleton.line(),
+                        onRetry: () =>
+                            ref.invalidate(returnEligibilityProvider(o.id)),
+                        builder: (context, eligibility) =>
+                            !eligibility.remaining.values.any((n) => n > 0)
+                            ? Text(l10n.returnAllRequested)
+                            : AppButton(
+                                label: l10n.returnOrderTitle,
+                                icon: Icons.assignment_return_outlined,
+                                variant: AppButtonVariant.secondary,
+                                onPressed: () => context.pushNamed(
+                                  AppRoutes.orderReturnName,
+                                  pathParameters: {'id': o.id},
+                                ),
+                              ),
                       ),
                     ],
-                    if (isOrderCancellable(o.status)) ...[
+                    if (isOrderCancellable(
+                      o.status,
+                      remote:
+                          ref.watch(dataSourceProvider) == DataSource.remote,
+                    )) ...[
                       const SizedBox(height: AppSpacing.lg),
                       Center(
                         child: TextButton.icon(
-                          onPressed: _cancelling ? null : _cancel,
+                          onPressed:
+                              _confirming ||
+                                  _cancelling ||
+                                  o.version == null ||
+                                  o.version! < 1
+                              ? null
+                              : () => _cancel(o.version!),
                           style: TextButton.styleFrom(
                             foregroundColor: context.colors.danger,
                           ),
@@ -222,10 +290,12 @@ class _Header extends StatelessWidget {
               children: [
                 Icon(Icons.event_outlined, size: 16, color: colors.textMuted),
                 const SizedBox(width: AppSpacing.xs),
-                Text(
-                  '${l10n.orderDate}: ${DateFormat('yyyy/MM/dd').format(placedAt)}',
-                  style: context.text.bodySmall?.copyWith(
-                    color: colors.textSecondary,
+                Expanded(
+                  child: Text(
+                    '${l10n.orderDate}: ${DisplayDate.localDate(placedAt)}',
+                    style: context.text.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -327,7 +397,7 @@ class _TimelineRow extends StatelessWidget {
                   Text(
                     orderStatusLabel(context.l10n, event.status),
                     style: context.text.bodyMedium?.copyWith(
-                      fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isLast ? FontWeight.w700 : FontWeight.w400,
                     ),
                   ),
                   if (event.note != null && event.note!.trim().isNotEmpty) ...[
@@ -342,8 +412,8 @@ class _TimelineRow extends StatelessWidget {
                   if (at != null) ...[
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      DateFormat('yyyy/MM/dd — HH:mm').format(at),
-                      style: context.text.labelMedium?.copyWith(
+                      DisplayDate.localDateTime(at),
+                      style: context.text.labelLarge?.copyWith(
                         color: colors.textMuted,
                       ),
                     ),
@@ -399,14 +469,14 @@ class _OrderItemTile extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     variantLabel,
-                    style: context.text.labelMedium?.copyWith(
+                    style: context.text.labelLarge?.copyWith(
                       color: colors.textMuted,
                     ),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  l10n.orderLineQuantity('${item.quantity}'),
+                  l10n.orderLineQuantity(formatQuantity(item.quantity)),
                   style: context.text.bodySmall?.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -522,7 +592,10 @@ class _SummaryRow extends StatelessWidget {
       value: Text(
         value,
         style: (emphasize ? context.text.titleMedium : context.text.bodyMedium)
-            ?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
+            ?.copyWith(
+              color: valueColor,
+              fontWeight: emphasize ? FontWeight.w700 : FontWeight.w400,
+            ),
       ),
     );
   }
@@ -539,6 +612,6 @@ class _SectionTitle extends StatelessWidget {
       start: AppSpacing.xs,
       bottom: AppSpacing.sm,
     ),
-    child: Text(text, style: context.text.titleSmall),
+    child: Text(text, style: context.sectionTitle),
   );
 }

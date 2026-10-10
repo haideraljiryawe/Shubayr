@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../../../core/error/response_decode.dart';
 import '../domain/delivery_repository.dart';
 import 'delivery.dart';
 
@@ -7,20 +8,41 @@ class DeliveryRepositoryRemote implements DeliveryRepository {
   final ApiClient _api;
 
   @override
-  Future<DeliveryPage> fetchAssigned({int page = 1, int perPage = 20}) async =>
-      DeliveryPage.fromJson(
-        await _api.get<Map<String, dynamic>>(
-          '/deliveries/assigned',
-          query: {'page': page, 'per_page': perPage},
-        ),
-      );
+  Future<DeliveryPage> fetchAssigned({
+    String? status,
+    int page = 1,
+    int perPage = 20,
+  }) => decodeResponse(
+    () async => DeliveryPage.fromJson(
+      await _api.get<Map<String, dynamic>>(
+        '/deliveries/assigned',
+        query: {'status': ?status, 'page': page, 'per_page': perPage},
+      ),
+    ),
+  );
 
   @override
-  Future<Delivery> updateStatus(String id, String status) async =>
-      Delivery.fromJson(
-        await _api.patch<Map<String, dynamic>>(
-          '/deliveries/$id',
-          body: {'status': status},
-        ),
-      );
+  Future<Delivery> updateStatus(
+    String id,
+    String status, {
+    required int orderVersion,
+    String? reason,
+    String? operationId,
+    String? collectionConfirmation,
+    String? collectedAmount,
+  }) => decodeResponse(
+    () async => Delivery.fromJson(
+      await _api.patch<Map<String, dynamic>>(
+        '/deliveries/$id',
+        body: {
+          'status': status,
+          'order_version': orderVersion,
+          'reason': ?reason,
+          'operation_id': ?operationId,
+          'collection_confirmation': ?collectionConfirmation,
+          'collected_amount': ?collectedAmount,
+        },
+      ),
+    ),
+  );
 }

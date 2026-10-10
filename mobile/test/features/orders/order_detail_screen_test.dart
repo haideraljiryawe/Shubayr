@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -7,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/theme/brand.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
+import 'package:shubayr/core/utils/currency_formatter.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:shubayr/features/orders/data/order.dart';
@@ -20,17 +23,18 @@ const _product = Product(
   categoryId: 'c1',
   nameEn: 'Widget',
   nameAr: 'ودجة',
-  salePrice: 15000,
+  effectivePrice: 15000,
 );
 
 Order _order(String status) => Order(
+  version: 1,
   id: 'o1',
   orderNumber: 'SH-9',
   status: status,
   subtotal: 30000,
   deliveryFee: 5000,
   total: 35000,
-  placedAt: DateTime(2026, 9, 5),
+  placedAt: DateTime(2026, 9, 5, 0, 15).toUtc(),
   items: const [
     OrderItem(
       id: 'i1',
@@ -45,7 +49,7 @@ Order _order(String status) => Order(
 final _tracking = OrderTracking(
   orderId: 'o1',
   events: [
-    OrderEvent(status: 'pending', at: DateTime(2026, 9, 5, 9)),
+    OrderEvent(status: 'pending', at: DateTime(2026, 9, 5, 0, 15).toUtc()),
     OrderEvent(status: 'processing', at: DateTime(2026, 9, 5, 12)),
   ],
 );
@@ -58,6 +62,9 @@ Widget _host(
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
     orderProvider('o1').overrideWith((ref) async => order),
     orderTrackingProvider('o1').overrideWith((ref) async => _tracking),
     productProvider('p1').overrideWith(
@@ -77,6 +84,52 @@ Widget _host(
 );
 
 void main() {
+  for (final locale in ['ar', 'en']) {
+    testWidgets(
+      'order and tracking timestamps use local Western dates $locale',
+      (tester) async {
+        await tester.pumpWidget(_host(_order('processing'), locale: locale));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('2026/09/05'), findsWidgets);
+        await tester.ensureVisible(find.text('2026/09/05 00:15'));
+        await tester.pumpAndSettle();
+        expect(find.text('2026/09/05 00:15'), findsOneWidget);
+        expect(
+          tester.widget<Text>(find.text('2026/09/05 00:15')).style!.fontSize,
+          14,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'rejected order shows saved currency and cannot be cancelled: $locale',
+      (tester) async {
+        final order = Order.fromJson({
+          'id': 'o1',
+          'order_number': 'SH-9',
+          'status': 'rejected',
+          'currency': 'USD',
+          'subtotal': 12.75,
+          'total': 12.75,
+        });
+        await tester.pumpWidget(_host(order, locale: locale));
+        await tester.pumpAndSettle();
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(Scaffold).first),
+        );
+        expect(find.text(l10n.orderStatusRejected), findsOneWidget);
+        expect(find.text(l10n.orderCancel), findsNothing);
+        expect(
+          find.text(
+            formatMoney(12.75, currencyCode: 'USD', localeCode: locale),
+          ),
+          findsWidgets,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   for (final width in [390.0, 600.0, 1200.0, 1920.0]) {
     for (final locale in ['ar', 'en']) {
       testWidgets('historical item skips catalog at $width / $locale', (
@@ -90,6 +143,7 @@ void main() {
         await tester.pumpWidget(
           _host(
             Order(
+              version: 1,
               id: 'o1',
               orderNumber: 'SH-9',
               status: 'delivered',
@@ -135,6 +189,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         Order(
+          version: 1,
           id: 'o1',
           orderNumber: 'SH-9',
           items: const [
@@ -167,6 +222,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Purchase name'), findsOneWidget);
     expect(find.text('XL'), findsOneWidget);
+    expect(tester.widget<Text>(find.text('XL')).style!.fontSize, 14);
     expect(find.text('Renamed'), findsNothing);
   });
 

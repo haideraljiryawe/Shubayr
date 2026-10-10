@@ -1,6 +1,18 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
+import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:shubayr/core/network/api_client.dart';
+import 'package:shubayr/features/orders/data/after_sales_repository_remote.dart';
+import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
+import '../../helpers/test_session.dart';
+import 'package:shubayr/features/auth/domain/session.dart';
+import 'package:shubayr/features/auth/data/user.dart';
+import 'package:shubayr/features/orders/data/order_tracking.dart';
+import 'package:shubayr/features/orders/presentation/screens/order_detail_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/error/failure.dart';
@@ -24,6 +36,12 @@ class _Repository implements AfterSalesRepository {
   String? reviewedItem;
   int? rating;
   List<ReturnRequestItem> lines = [];
+  @override
+  Future<ReviewPage> fetchOwnReviews({int page = 1, int perPage = 100}) async =>
+      ReviewPage(page: page, perPage: perPage);
+  @override
+  Future<ReturnPage> fetchReturns({int page = 1, int perPage = 100}) async =>
+      ReturnPage(page: page, perPage: perPage, total: 0, data: []);
   @override
   Future<Review> submitReview({
     required String productId,
@@ -68,18 +86,28 @@ class _Repository implements AfterSalesRepository {
 
 Widget _host(
   Widget screen,
-  _Repository repository, {
+  AfterSalesRepository repository, {
   String status = 'delivered',
   String locale = 'en',
   bool dark = false,
+  TargetPlatform? platform,
   List<OrderItem>? items,
   Future<Product> Function(String)? catalogLookup,
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    brandProvider.overrideWithValue(const Brand.bundled()),
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
+    sessionControllerProvider.overrideWith(TestSession.new),
     afterSalesRepositoryProvider.overrideWithValue(repository),
+    orderTrackingProvider(
+      'o1',
+    ).overrideWith((ref) async => const OrderTracking(orderId: 'o1')),
     orderProvider('o1').overrideWith(
       (ref) async => Order(
+        version: 1,
         id: 'o1',
         orderNumber: 'SH-42',
         status: status,
@@ -114,9 +142,11 @@ Widget _host(
   ],
   child: MaterialApp(
     locale: Locale(locale),
-    theme: dark
-        ? AppTheme.dark(const Brand.bundled())
-        : AppTheme.light(const Brand.bundled()),
+    theme:
+        (dark
+                ? AppTheme.dark(const Brand.bundled())
+                : AppTheme.light(const Brand.bundled()))
+            .copyWith(platform: platform),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: screen,
@@ -124,6 +154,367 @@ Widget _host(
 );
 
 void main() {
+  for (final device in [
+    (platform: TargetPlatform.android, bottom: 48.0),
+    (platform: TargetPlatform.android, bottom: 24.0),
+    (platform: TargetPlatform.iOS, bottom: 34.0),
+  ]) {
+    for (final review in [false, true]) {
+      testWidgets(
+        'after-sales action clears system UI and keyboard $device review=$review',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = const Size(320, 568);
+          tester.view.viewPadding = FakeViewPadding(
+            top: 24,
+            bottom: device.bottom,
+          );
+          tester.view.padding = FakeViewPadding(top: 24, bottom: device.bottom);
+          addTearDown(tester.view.reset);
+          final repo = _Repository();
+          await tester.pumpWidget(
+            _host(
+              review
+                  ? const ReviewOrderScreen(orderId: 'o1')
+                  : const ReturnOrderScreen(orderId: 'o1'),
+              repo,
+              platform: device.platform,
+            ),
+          );
+          await tester.pumpAndSettle();
+          if (review) {
+            await tester.tap(find.byType(DropdownButtonFormField<String>));
+            await tester.pumpAndSettle();
+            await tester.tap(find.text('Coffee').last);
+            await tester.pumpAndSettle();
+            await tester.ensureVisible(find.byTooltip('4 out of 5 stars'));
+            await tester.tap(find.byTooltip('4 out of 5 stars'));
+          } else {
+            await tester.ensureVisible(
+              find.byTooltip('Increase return quantity').first,
+            );
+            await tester.tap(find.byTooltip('Increase return quantity').first);
+          }
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.byType(TextField).last);
+          await tester.enterText(find.byType(TextField).last, 'A comment');
+          final action = find.widgetWithText(
+            ElevatedButton,
+            review ? 'Submit review' : 'Submit return request',
+          );
+          for (final keyboard in [0.0, 180.0, 0.0, 180.0]) {
+            tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+            tester.view.padding = FakeViewPadding(
+              top: 24,
+              bottom: keyboard == 0 ? device.bottom : 0,
+            );
+            await tester.pumpAndSettle();
+            await tester.drag(
+              find.byType(ListView).first,
+              const Offset(0, -2000),
+            );
+            await tester.pumpAndSettle();
+            final rect = tester.getRect(action);
+            expect(
+              rect.bottom,
+              closeTo(
+                568 - (keyboard > 0 ? keyboard : device.bottom) - 16,
+                .01,
+              ),
+            );
+            expect(
+              rect.top,
+              greaterThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
+            );
+            expect(action.hitTestable(), findsOneWidget);
+            expect(tester.takeException(), isNull);
+          }
+          await tester.tap(action);
+          await tester.pumpAndSettle();
+          expect(review ? repo.reviews : repo.returns, 1);
+        },
+      );
+    }
+  }
+
+  OrderItem line({bool? reviewed}) => OrderItem.fromJson({
+    'id': 'i1',
+    'product_id': 'p1',
+    'product_name_en': 'Coffee',
+    'quantity': .5,
+    'reviewed': ?reviewed,
+  });
+  AfterSalesRepository history({
+    num returned = 0,
+    bool fail = false,
+    Completer<void>? gate,
+    bool reviewOnPageTwo = false,
+  }) {
+    final dio = Dio();
+    addTearDown(dio.close);
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          await gate?.future;
+          if (fail) {
+            handler.reject(
+              DioException(
+                requestOptions: options,
+                type: DioExceptionType.connectionError,
+              ),
+            );
+            return;
+          }
+          final page = int.parse('${options.queryParameters['page'] ?? 1}');
+          final reviews = options.path == '/me/reviews';
+          final data = reviews
+              ? [
+                  if (reviewOnPageTwo)
+                    for (var i = 0; i < (page == 1 ? 100 : 1); i++)
+                      {
+                        'id': 'r$page-$i',
+                        'product_id': 'p1',
+                        'order_item_id': page == 2 ? 'i1' : 'other-$i',
+                        'rating': 5,
+                        'status': 'pending',
+                        'created_at': '2026-10-03T00:00:00Z',
+                      },
+                ]
+              : [
+                  if (returned > 0)
+                    {
+                      'id': 'r',
+                      'order_id': 'o1',
+                      'status': 'requested',
+                      'items': [
+                        {'order_item_id': 'i1', 'quantity': returned},
+                      ],
+                    },
+                ];
+          handler.resolve(
+            Response(
+              requestOptions: options,
+              data: {
+                'page': page,
+                'per_page': 100,
+                'total': reviews && reviewOnPageTwo ? 101 : data.length,
+                'data': data,
+              },
+            ),
+          );
+        },
+      ),
+    );
+    return AfterSalesRepositoryRemote(ApiClient(dio));
+  }
+
+  for (final reviewed in [true, false]) {
+    testWidgets('fresh order reviewed=$reviewed controls review eligibility', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const ReviewOrderScreen(orderId: 'o1'),
+          history(),
+          items: [line(reviewed: reviewed)],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byType(DropdownButtonFormField<String>),
+        reviewed ? findsNothing : findsOneWidget,
+      );
+    });
+  }
+  testWidgets('missing reviewed flag checks all own-review pages', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const ReviewOrderScreen(orderId: 'o1'),
+        history(reviewOnPageTwo: true),
+        items: [line()],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+  });
+  for (final quantity in [.125, .5]) {
+    testWidgets('persisted return $quantity survives a fresh screen', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const ReturnOrderScreen(orderId: 'o1'),
+          history(returned: quantity),
+          items: [line()],
+        ),
+      );
+      await tester.pumpAndSettle();
+      if (quantity == .125) {
+        expect(
+          find.text('Quantity available to request: 0.375'),
+          findsOneWidget,
+        );
+      } else {
+        expect(find.byTooltip('Increase return quantity'), findsNothing);
+      }
+    });
+  }
+  testWidgets('loading return history does not initially offer eligibility', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    await tester.pumpWidget(
+      _host(
+        const ReturnOrderScreen(orderId: 'o1'),
+        history(gate: gate),
+        items: [line()],
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byTooltip('Increase return quantity'), findsNothing);
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Increase return quantity'), findsOneWidget);
+  });
+  testWidgets('failed history does not grant return permission', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const ReturnOrderScreen(orderId: 'o1'),
+        history(fail: true),
+        items: [line()],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Increase return quantity'), findsNothing);
+    expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets(
+    'order detail does not offer exhausted persisted after-sales actions',
+    (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const OrderDetailScreen(orderId: 'o1'),
+          history(returned: .5),
+          items: [line(reviewed: true)],
+          catalogLookup: (_) async => const Product(
+            id: 'p1',
+            categoryId: 'c',
+            nameEn: 'Coffee',
+            nameAr: 'قهوة',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).first, const Offset(0, -1200));
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(OrderDetailScreen)),
+      );
+      expect(
+        find.widgetWithText(ElevatedButton, l10n.reviewOrderTitle),
+        findsNothing,
+      );
+      expect(
+        find.widgetWithText(ElevatedButton, l10n.returnOrderTitle),
+        findsNothing,
+      );
+      expect(find.text(l10n.reviewAllSubmitted), findsOneWidget);
+      expect(find.text(l10n.returnAllRequested), findsOneWidget);
+    },
+  );
+  testWidgets('switching accounts clears private review input', (tester) async {
+    await tester.pumpWidget(
+      _host(const ReviewOrderScreen(orderId: 'o1'), _Repository()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Coffee').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Private A comment');
+    final c = ProviderScope.containerOf(
+      tester.element(find.byType(ReviewOrderScreen)),
+    );
+    (c.read(sessionControllerProvider.notifier) as TestSession).setSession(
+      const Session.signedIn(User(id: 'B', role: 'customer')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Private A comment'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('switching accounts clears the previous return success receipt', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(const ReturnOrderScreen(orderId: 'o1'), _Repository()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Increase return quantity').first);
+    await tester.pump();
+    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.enterText(find.byType(TextField), 'Damaged');
+    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.tap(find.text('Submit return request'));
+    await tester.pumpAndSettle();
+    expect(find.text('Request reference: return-1'), findsOneWidget);
+    final c = ProviderScope.containerOf(
+      tester.element(find.byType(ReturnOrderScreen)),
+    );
+    (c.read(sessionControllerProvider.notifier) as TestSession).setSession(
+      const Session.signedIn(User(id: 'B', role: 'customer')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Request reference: return-1'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('fractional historical return clamps shortcuts and sends .125', (
+    tester,
+  ) async {
+    final repository = _Repository();
+    await tester.pumpWidget(
+      _host(
+        const ReturnOrderScreen(orderId: 'o1'),
+        repository,
+        items: const [
+          OrderItem(
+            id: 'i1',
+            productId: 'p1',
+            quantity: 0.5,
+            productNameEn: 'Historical coffee',
+          ),
+        ],
+        catalogLookup: (_) async => throw StateError('Deleted'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Quantity available to request: 0.5'), findsOneWidget);
+    await tester.tap(find.byTooltip('Increase return quantity'));
+    await tester.pump();
+    expect(find.text('0.5'), findsOneWidget);
+    await tester.tap(find.byTooltip('Decrease return quantity'));
+    await tester.pump();
+    expect(find.text('0'), findsOneWidget);
+    await tester.tap(find.text('0'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '0.125');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.enterText(find.byType(TextField), 'Damaged');
+    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.tap(find.text('Submit return request'));
+    await tester.pumpAndSettle();
+    expect(repository.lines.single.quantity, 0.125);
+    expect(find.text('Qty: 0.125'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'saved labels allow return input while variant lookup is pending',
     (tester) async {
@@ -162,6 +553,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Purchase name — XL'), findsOneWidget);
+      await tester.ensureVisible(find.text('Submit return request'));
+      await tester.enterText(find.byType(TextField), 'Damaged');
       await tester.ensureVisible(find.text('Submit return request'));
       await tester.tap(find.text('Submit return request'));
       await tester.pumpAndSettle();
@@ -231,6 +624,8 @@ void main() {
         expect(find.text(saved ? 'Purchase name' : 'p1'), findsOneWidget);
         await tester.tap(find.byTooltip('Increase return quantity'));
         await tester.pump();
+        await tester.ensureVisible(find.text('Submit return request'));
+        await tester.enterText(find.byType(TextField), 'Damaged');
         await tester.ensureVisible(find.text('Submit return request'));
         await tester.tap(find.text('Submit return request'));
         await tester.pumpAndSettle();
@@ -367,6 +762,8 @@ void main() {
     await tester.tap(find.byTooltip('Decrease return quantity').first);
     await tester.pump();
     await tester.ensureVisible(find.text('Submit return request'));
+    await tester.enterText(find.byType(TextField), 'Damaged');
+    await tester.ensureVisible(find.text('Submit return request'));
     await tester.tap(find.text('Submit return request'));
     await tester.pumpAndSettle();
     expect(repository.lines.single.orderItemId, 'i1');
@@ -392,23 +789,39 @@ void main() {
       );
     });
     for (final dark in [false, true]) {
-      testWidgets('${screen.runtimeType} Arabic narrow layout, dark=$dark', (
-        tester,
-      ) async {
-        tester.view.physicalSize = const Size(375, 812);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        await tester.pumpWidget(
-          _host(screen, _Repository(), locale: 'ar', dark: dark),
-        );
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-        expect(
-          Directionality.of(tester.element(find.byType(Scaffold))),
-          TextDirection.rtl,
-        );
-      });
+      testWidgets(
+        '${screen.runtimeType} Arabic responsive layout, dark=$dark',
+        (tester) async {
+          tester.view.physicalSize = const Size(375, 812);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          await tester.pumpWidget(
+            _host(screen, _Repository(), locale: 'ar', dark: dark),
+          );
+          await tester.pumpAndSettle();
+          for (final width in <double>[
+            375,
+            599,
+            600,
+            899,
+            900,
+            1199,
+            1200,
+            1535,
+            1536,
+            1920,
+          ]) {
+            tester.view.physicalSize = Size(width, 900);
+            await tester.pumpAndSettle();
+            expect(tester.takeException(), isNull, reason: 'width=$width');
+            expect(
+              Directionality.of(tester.element(find.byType(Scaffold))),
+              TextDirection.rtl,
+            );
+          }
+        },
+      );
     }
   }
 }

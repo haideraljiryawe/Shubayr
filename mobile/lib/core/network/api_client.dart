@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../error/error_mapper.dart';
 import '../error/failure.dart';
-import '../storage/token_store.dart';
+import '../error/response_decode.dart';
+import '../storage/session_credentials.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/logging_interceptor.dart';
 
@@ -21,13 +22,30 @@ class ApiClient {
   Future<T> get<T>(String path, {Map<String, dynamic>? query}) =>
       _guard(() => dio.get<T>(path, queryParameters: query));
 
-  Future<T> post<T>(String path, {Object? body}) =>
-      _guard(() => dio.post<T>(path, data: body));
+  Future<T> post<T>(
+    String path, {
+    Object? body,
+    Map<String, dynamic>? headers,
+  }) => _guard(
+    () => dio.post<T>(
+      path,
+      data: body,
+      options: Options(headers: headers),
+    ),
+  );
 
   Future<T> patch<T>(String path, {Object? body}) =>
       _guard(() => dio.patch<T>(path, data: body));
 
   Future<T> delete<T>(String path) => _guard(() => dio.delete<T>(path));
+
+  Future<void> postVoid(String path, {Object? body}) async {
+    try {
+      await dio.post<void>(path, data: body);
+    } on DioException catch (error) {
+      throw mapDioException(error);
+    }
+  }
 
   /// DELETE that expects no body (e.g. a `204 No Content`), so an empty
   /// response is success rather than a [FailureKind.server] error.
@@ -39,18 +57,19 @@ class ApiClient {
     }
   }
 
-  Future<T> _guard<T>(Future<Response<T>> Function() send) async {
-    try {
-      final response = await send();
-      final data = response.data;
-      if (data == null) {
-        throw const AppFailure(FailureKind.server);
-      }
-      return data;
-    } on DioException catch (e) {
-      throw mapDioException(e);
-    }
-  }
+  Future<T> _guard<T>(Future<Response<T>> Function() send) =>
+      decodeResponse(() async {
+        try {
+          final response = await send();
+          final data = response.data;
+          if (data == null) {
+            throw const AppFailure(FailureKind.server);
+          }
+          return data;
+        } on DioException catch (e) {
+          throw mapDioException(e);
+        }
+      });
 }
 
 /// Raised by the auth interceptor when the API rejects our token.
@@ -71,7 +90,7 @@ final unauthorizedSignalProvider = NotifierProvider<UnauthorizedSignal, int>(
 
 final dioProvider = Provider<Dio>((ref) {
   final config = ref.watch(appConfigProvider);
-  final tokens = ref.watch(tokenStoreProvider);
+  final credentials = ref.watch(sessionCredentialsProvider);
 
   final dio = Dio(
     BaseOptions(
@@ -85,7 +104,56 @@ final dioProvider = Provider<Dio>((ref) {
 
   dio.interceptors.add(
     AuthInterceptor(
-      readToken: tokens.readAccessToken,
+      readToken: () async => (await credentials.read()).accessToken,
+      sessionRevision: () => credentials.revision,
+      retry: dio.fetch<dynamic>,
+      refresh: () async {
+        final owner = credentials.revision;
+        final previous = await credentials.read();
+        if (!credentials.owns(owner)) return false;
+        final refresh = previous.refreshToken;
+        if (refresh == null) return false;
+        final client = Dio(
+          BaseOptions(
+            baseUrl: config.apiBaseUrl,
+            connectTimeout: AppConfig.connectTimeout,
+            receiveTimeout: AppConfig.receiveTimeout,
+          ),
+        );
+        try {
+          final response = await client.post<Map<String, dynamic>>(
+            '/auth/refresh',
+            data: {'refresh_token': refresh},
+          );
+          if (!credentials.owns(owner)) {
+            return false;
+          }
+          final nextAccess = response.data?['access_token'];
+          final nextRefresh = response.data?['refresh_token'];
+          if (nextAccess is! String ||
+              nextAccess.isEmpty ||
+              nextRefresh is! String ||
+              nextRefresh.isEmpty) {
+            throw const AppFailure(
+              FailureKind.server,
+              code: 'MALFORMED_RESPONSE',
+            );
+          }
+          return await credentials.save(
+            owner,
+            accessToken: nextAccess,
+            refreshToken: nextRefresh,
+            expected: previous,
+          );
+        } on DioException catch (e) {
+          if (e.response?.statusCode == 401 || e.response?.statusCode == 422) {
+            return false;
+          }
+          rethrow;
+        } finally {
+          client.close();
+        }
+      },
       onUnauthorized: () async {
         if (!ref.mounted) return;
         ref.read(unauthorizedSignalProvider.notifier).raise();
@@ -94,6 +162,7 @@ final dioProvider = Provider<Dio>((ref) {
   );
   if (kDebugMode) dio.interceptors.add(LoggingInterceptor());
 
+  ref.onDispose(() => dio.close(force: true));
   return dio;
 });
 

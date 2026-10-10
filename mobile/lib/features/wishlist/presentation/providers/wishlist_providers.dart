@@ -27,7 +27,8 @@ final wishlistRepositoryProvider = Provider<WishlistRepository>((ref) {
 /// Reads the complete wishlist so heart buttons also know about products on
 /// later pages. No partial result is published as a complete membership set.
 class WishlistController extends AsyncNotifier<List<WishlistItem>> {
-  static const _perPage = 8;
+  // API 11 PerPage maximum; the complete collection is required by consumers.
+  static const _perPage = 100;
   int _generation = 0;
   int? _refreshGeneration;
 
@@ -35,6 +36,7 @@ class WishlistController extends AsyncNotifier<List<WishlistItem>> {
   bool get isRefreshing => _refreshGeneration == _generation && state.isLoading;
 
   Future<void> _operations = Future.value();
+  final _pending = <Object, ({bool? saved, Future<void> task})>{};
 
   @override
   Future<List<WishlistItem>> build() async {
@@ -85,7 +87,19 @@ class WishlistController extends AsyncNotifier<List<WishlistItem>> {
   Future<void> remove(String productId) => _change(productId, saved: false);
   Future<void> toggle(String productId) => _change(productId);
 
-  Future<void> _change(String productId, {bool? saved}) => _enqueue((
+  Future<void> _change(String productId, {bool? saved}) {
+    final key = (_generation, productId);
+    final previous = _pending[key];
+    if (previous != null && previous.saved == saved) return previous.task;
+    late final Future<void> task;
+    task = _write(productId, saved: saved).whenComplete(() {
+      if (identical(_pending[key]?.task, task)) _pending.remove(key);
+    });
+    _pending[key] = (saved: saved, task: task);
+    return task;
+  }
+
+  Future<void> _write(String productId, {bool? saved}) => _enqueue((
     generation,
   ) async {
     if (!(ref.read(sessionControllerProvider).value?.isSignedIn ?? false)) {

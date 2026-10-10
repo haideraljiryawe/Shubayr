@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -19,8 +21,9 @@ const _products = [
     categoryId: 'c',
     nameAr: 'ساعة ذكية',
     nameEn: 'Watch',
-    salePrice: 120000,
-    compareAtPrice: 150000,
+    effectivePrice: 120000,
+    price: 150000,
+    onSale: true,
     discountPercent: 20,
     ratingAvg: 4.2,
   ),
@@ -29,7 +32,7 @@ const _products = [
     categoryId: 'c',
     nameAr: 'سماعات لاسلكية سماعات لاسلكية بتقنية إلغاء الضوضاء',
     nameEn: 'Wireless headphones with noise cancellation',
-    salePrice: 45000,
+    effectivePrice: 45000,
     ratingAvg: 4.5,
   ),
   Product(
@@ -37,8 +40,9 @@ const _products = [
     categoryId: 'c',
     nameAr: 'منتج',
     nameEn: 'Product',
-    salePrice: 123456789,
-    compareAtPrice: 987654321,
+    effectivePrice: 123456789,
+    price: 987654321,
+    onSale: true,
     discountPercent: 88,
     inStock: false,
   ),
@@ -52,7 +56,12 @@ Widget _host({
   void Function(Product)? onTap,
 }) => ProviderScope(
   retry: (retryCount, error) => null,
-  overrides: [brandProvider.overrideWithValue(const Brand.bundled())],
+  overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
+    brandProvider.overrideWithValue(const Brand.bundled()),
+  ],
   child: MaterialApp(
     locale: Locale(locale),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -89,10 +98,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     // Use the bundled Arabic font to exercise real line wrapping and metrics.
-    final font = FontLoader('Cairo')
-      ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/Cairo-SemiBold.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf'));
+    final font = FontLoader('Zain')
+      ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf'));
     await font.load();
   });
 
@@ -190,7 +199,7 @@ void main() {
           categoryId: 'c',
           nameAr: 'سماعات لاسلكية سماعات لاسلكية',
           nameEn: 'Headphones',
-          salePrice: 45000,
+          effectivePrice: 45000,
           ratingAvg: 4.5,
         ),
       ];
@@ -242,7 +251,7 @@ void main() {
                 nameEn: i < 2
                     ? 'Watch $i'
                     : 'Premium wireless headphones with noise cancellation and fast charging number $i',
-                salePrice: 5000,
+                effectivePrice: 5000,
                 ratingAvg: 4.2,
               ),
           ];

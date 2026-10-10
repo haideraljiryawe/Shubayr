@@ -1,3 +1,7 @@
+import 'package:shubayr/features/monitoring/presentation/monitor_providers.dart';
+import '../features/monitoring/monitoring_test.dart' show RecordingMonitor;
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -11,6 +15,8 @@ import 'package:shubayr/app/startup_assets.dart';
 import 'package:shubayr/app/startup_display_controller.dart';
 import 'package:shubayr/core/theme/tokens/app_spacing.dart';
 import 'package:shubayr/core/error/failure.dart';
+import 'package:shubayr/core/widgets/state_views.dart';
+import 'package:shubayr/features/orders/presentation/screens/orders_screen.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/storage/prefs_store.dart';
 import 'package:shubayr/core/storage/token_store.dart';
@@ -38,11 +44,12 @@ class _Tokens extends InMemoryTokenStore {
 class _Auth extends AuthRepositoryMock {
   final pending = Completer<User>();
   int reads = 0;
+  Future<User> Function()? onRead;
 
   @override
   Future<User> currentUser() {
     reads++;
-    return pending.future;
+    return onRead?.call() ?? pending.future;
   }
 }
 
@@ -61,6 +68,10 @@ void main() {
       final container = ProviderContainer(
         retry: (retryCount, error) => null,
         overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
+          dataSourceProvider.overrideWithValue(DataSource.mock),
+          monitorRepositoryProvider.overrideWithValue(RecordingMonitor()),
           prefsStoreProvider.overrideWithValue(
             PrefsStore(await SharedPreferences.getInstance()),
           ),
@@ -90,7 +101,10 @@ void main() {
       await tester.pump();
       expect(router.routeInformationProvider.value.uri.path, '/categories');
       await tester.pumpAndSettle();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
       expect(find.byType(SplashScreen), findsNothing);
@@ -238,11 +252,126 @@ void main() {
     }
   }
 
+  testWidgets(
+    'restore failure blocks a private route and retries without OTP',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final tokens = InMemoryTokenStore();
+      await tokens.save(
+        accessToken: 'stored-access',
+        refreshToken: 'stored-refresh',
+      );
+      final auth = _Auth()
+        ..onRead = () => Future.error(const AppFailure.network());
+      final container = ProviderContainer(
+        retry: (_, _) => null,
+        overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
+          dataSourceProvider.overrideWithValue(DataSource.mock),
+          prefsStoreProvider.overrideWithValue(
+            PrefsStore(await SharedPreferences.getInstance()),
+          ),
+          tokenStoreProvider.overrideWithValue(tokens),
+          authRepositoryProvider.overrideWithValue(auth),
+          homeBannersProvider.overrideWith((ref) async => []),
+        ],
+      );
+      addTearDown(container.dispose);
+      final router = container.read(routerProvider);
+      addTearDown(router.dispose);
+      router.go('/orders');
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const ShubayrApp(),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump();
+      expect(router.routeInformationProvider.value.uri.path, '/splash');
+      expect(find.byType(OrdersScreen), findsNothing);
+      expect(find.byType(AppErrorView), findsOneWidget);
+      expect(await tokens.readAccessToken(), 'stored-access');
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(AppErrorView)),
+      );
+      auth.onRead = () => auth.pending.future;
+      await tester.tap(find.text(l10n.actionRetry));
+      await tester.pump();
+      expect(container.read(sessionControllerProvider).isLoading, isTrue);
+      expect(find.byType(OrdersScreen), findsNothing);
+      auth.pending.complete(const User(id: 'restored', role: 'customer'));
+      await tester.pumpAndSettle();
+      expect(router.routeInformationProvider.value.uri.path, '/orders');
+      expect(find.byType(OrdersScreen), findsOneWidget);
+      expect(auth.reads, 2);
+      expect(await tokens.readRefreshToken(), 'stored-refresh');
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  for (final locale in ['ar', 'en']) {
+    for (final dark in [false, true]) {
+      testWidgets('restore retry fits $locale dark=$dark with large text', (
+        tester,
+      ) async {
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        for (final width in [
+          390.0,
+          599.0,
+          600.0,
+          899.0,
+          900.0,
+          1199.0,
+          1200.0,
+          1535.0,
+          1536.0,
+          1920.0,
+        ]) {
+          tester.view.physicalSize = Size(width, 700);
+          await tester.pumpWidget(
+            MaterialApp(
+              locale: Locale(locale),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              theme: dark
+                  ? AppTheme.dark(const Brand.bundled())
+                  : AppTheme.light(const Brand.bundled()),
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(2)),
+                child: child!,
+              ),
+              home: SplashScreen(
+                error: const AppFailure.network(),
+                onRetry: () {},
+              ),
+            ),
+          );
+          await tester.pump();
+          final context = tester.element(find.byType(AppErrorView));
+          final l10n = AppLocalizations.of(context);
+          expect(
+            Directionality.of(context),
+            locale == 'ar' ? TextDirection.rtl : TextDirection.ltr,
+          );
+          expect(find.text(l10n.errorNetwork), findsOneWidget);
+          await tester.ensureVisible(find.text(l10n.actionRetry));
+          expect(tester.takeException(), isNull, reason: '$width');
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
+  }
+
   for (final outcome in [
     'guest',
     'customer',
-    'delivery',
-    'admin',
+    'delivery_agent',
+    'order_monitor',
     'offline',
     'storage-error',
   ]) {
@@ -262,6 +391,10 @@ void main() {
       final container = ProviderContainer(
         retry: (retryCount, error) => null,
         overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
+          dataSourceProvider.overrideWithValue(DataSource.mock),
+          monitorRepositoryProvider.overrideWithValue(RecordingMonitor()),
           prefsStoreProvider.overrideWithValue(PrefsStore(prefs)),
           tokenStoreProvider.overrideWithValue(tokens),
           authRepositoryProvider.overrideWithValue(auth),
@@ -310,21 +443,41 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(router.routeInformationProvider.value.uri.path, switch (outcome) {
-        'delivery' => '/delivery',
-        'admin' => '/admin',
+        'delivery_agent' => '/delivery',
+        'order_monitor' => '/monitor/orders',
+        'offline' || 'storage-error' => '/splash',
         _ => '/home',
       });
       await tester.pump(const Duration(seconds: 1));
-      expect(find.byType(SplashScreen), findsNothing);
+      expect(
+        find.byType(SplashScreen),
+        ['offline', 'storage-error'].contains(outcome)
+            ? findsOneWidget
+            : findsNothing,
+      );
+      if (['offline', 'storage-error'].contains(outcome)) {
+        expect(find.byType(AppErrorView), findsOneWidget);
+      }
       settings.pending.completeError(
         StateError('optional settings unavailable'),
       );
       await refresh;
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
-      expect(find.byType(SplashScreen), findsNothing);
+      expect(
+        find.byType(SplashScreen),
+        ['offline', 'storage-error'].contains(outcome)
+            ? findsOneWidget
+            : findsNothing,
+      );
+      if (['offline', 'storage-error'].contains(outcome)) {
+        expect(find.byType(AppErrorView), findsOneWidget);
+      }
       expect(tokens.reads, 1);
       expect(auth.reads, ['guest', 'storage-error'].contains(outcome) ? 0 : 1);
       await tester.pumpWidget(const SizedBox.shrink());

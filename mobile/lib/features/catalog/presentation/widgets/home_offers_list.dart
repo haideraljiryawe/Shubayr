@@ -16,7 +16,7 @@ class HomeOffersList extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final inset = AppLayout.pageHorizontal(context);
+      final inset = AppLayout.horizontalScrollInset(context);
       final width = AppLayout.homeOfferCardWidth(
         context,
         constraints.maxWidth - inset * 2,
@@ -24,7 +24,7 @@ class HomeOffersList extends StatelessWidget {
       return SingleChildScrollView(
         key: const ValueKey('home-offers-list'),
         scrollDirection: Axis.horizontal,
-        padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
+        padding: AppLayout.horizontalScrollInsets(context),
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,

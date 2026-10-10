@@ -1,3 +1,10 @@
+import 'package:shubayr/core/config/store_identity.dart';
+import 'package:shubayr/core/widgets/brand_mark.dart';
+import 'package:shubayr/features/settings/data/store_settings.dart';
+import 'package:shubayr/features/settings/domain/settings_repository.dart';
+import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:shubayr/app/router/app_router.dart';
 import 'package:shubayr/app/router/app_routes.dart';
 import 'package:flutter/material.dart';
@@ -38,8 +45,9 @@ class _FakeCatalog implements CatalogRepository {
     categoryId: 'c1',
     nameEn: 'Test Product One',
     nameAr: 'منتج أول',
-    salePrice: 10000,
-    compareAtPrice: 12000,
+    effectivePrice: 10000,
+    price: 12000,
+    onSale: true,
     ratingAvg: 4.5,
     availableQty: 5,
   );
@@ -48,7 +56,7 @@ class _FakeCatalog implements CatalogRepository {
     categoryId: 'c2',
     nameEn: 'Test Product Two',
     nameAr: 'منتج ثانٍ',
-    salePrice: 20000,
+    effectivePrice: 20000,
     availableQty: 0,
     inStock: false,
   );
@@ -105,15 +113,34 @@ class _FakeCatalog implements CatalogRepository {
   }) async => const ReviewPage();
 }
 
-Future<ProviderContainer> _container() async {
+class _RuntimeSettings implements SettingsRepository {
+  @override
+  Future<StoreSettings> fetch() async => const StoreSettings(
+    storeName: 'Another Store',
+    primaryColor: '#3366CC',
+    currency: 'USD',
+  );
+}
+
+Future<ProviderContainer> _container({
+  SettingsRepository? settings,
+  List<Category>? categories,
+}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = PrefsStore(await SharedPreferences.getInstance());
   return ProviderContainer(
     retry: (retryCount, error) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
       catalogRepositoryProvider.overrideWithValue(_FakeCatalog()),
+      if (categories != null)
+        categoriesProvider.overrideWith((ref) async => categories),
+      if (settings != null)
+        settingsRepositoryProvider.overrideWithValue(settings),
       homeBannersProvider.overrideWith(
         (ref) async => const [
           HomeBanner(
@@ -128,6 +155,195 @@ Future<ProviderContainer> _container() async {
 }
 
 void main() {
+  testWidgets(
+    'moving shortcuts load asynchronously and keep category navigation',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 1000);
+      addTearDown(tester.view.reset);
+      final container = await _container(
+        categories: [
+          for (var i = 0; i < 8; i++)
+            Category(id: 'c$i', nameEn: 'Category $i', nameAr: 'قسم $i'),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const ShubayrApp(),
+        ),
+      );
+      final category = find.byKey(const ValueKey('home-category-c1'));
+      // Start the clock when real categories first appear, after async loading
+      // and the splash. No pumpAndSettle: this section animates continuously.
+      for (var i = 0; i < 400 && category.evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      expect(category, findsOneWidget);
+      final position = tester
+          .state<ScrollableState>(
+            find.descendant(
+              of: find.byType(CustomScrollView),
+              matching: find.byType(Scrollable),
+            ),
+          )
+          .position;
+      await tester.pump(const Duration(milliseconds: 2999));
+      expect(position.pixels, 0);
+      final before = tester.getRect(category);
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(tester.getRect(category).left, closeTo(before.left + 8.4, .01));
+      await tester.tap(category);
+      await tester.pumpAndSettle();
+      expect(find.byType(ProductListScreen), findsOneWidget);
+      expect(
+        tester
+            .widget<ProductListScreen>(find.byType(ProductListScreen))
+            .parentCategoryId,
+        'c1',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final locale in ['ar', 'en']) {
+    testWidgets(
+      'category circles and two-line names stay separate while scrolling $locale',
+      (tester) async {
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        // The finite screen-reader layout retains the same geometry. The ring
+        // is covered separately with a controlled clock.
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(accessibleNavigation: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+        final container = await _container(
+          categories: [
+            for (var i = 0; i < 8; i++)
+              Category(
+                id: 's$i',
+                nameEn: 'Home\nTools',
+                nameAr: 'لوازم\nالمنزل',
+              ),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container
+            .read(localeControllerProvider.notifier)
+            .setLocale(Locale(locale));
+        for (final width in [320.0, 390.0, 800.0]) {
+          for (final scale in [1.0, 1.5, 2.0]) {
+            tester.view.devicePixelRatio = 1;
+            tester.view.physicalSize = Size(width, 1200);
+            tester.platformDispatcher.textScaleFactorTestValue = scale;
+            await tester.pumpWidget(
+              UncontrolledProviderScope(
+                container: container,
+                child: const ShubayrApp(),
+              ),
+            );
+            await tester.pumpAndSettle();
+            final row = find.byKey(const ValueKey('home-category-shortcuts'));
+            expect(
+              tester.widget<SingleChildScrollView>(row).scrollDirection,
+              Axis.horizontal,
+            );
+            final scroll = tester
+                .state<ScrollableState>(
+                  find.descendant(of: row, matching: find.byType(Scrollable)),
+                )
+                .position;
+            scroll.jumpTo(0);
+            await tester.pumpAndSettle();
+            Rect? previousCircle;
+            Rect? previousLabel;
+            for (var i = 0; i < 8; i++) {
+              final item = find.byKey(ValueKey('home-category-s$i'));
+              final circle = find.descendant(
+                of: item,
+                matching: find.byWidgetPredicate(
+                  (w) =>
+                      w is Container &&
+                      w.decoration is BoxDecoration &&
+                      (w.decoration! as BoxDecoration).shape == BoxShape.circle,
+                ),
+              );
+              final label = find.descendant(
+                of: item,
+                matching: find.byType(Text),
+              );
+              final circleRect = tester.getRect(circle);
+              final labelRect = tester.getRect(label);
+              expect(circleRect.width, closeTo(67.2, .01));
+              expect(circleRect.height, closeTo(67.2, .01));
+              expect(labelRect.top - circleRect.bottom, AppSpacing.sm);
+              expect(tester.widget<Text>(label).maxLines, 2);
+              expect(
+                tester.widget<Text>(label).style,
+                tester.element(item).text.labelMedium,
+              );
+              if (previousCircle != null) {
+                final gap = locale == 'ar'
+                    ? previousCircle.left - circleRect.right
+                    : circleRect.left - previousCircle.right;
+                expect(gap, closeTo(87.2 * scale - 67.2, .01));
+                expect(previousLabel!.overlaps(labelRect), isFalse);
+              }
+              previousCircle = circleRect;
+              previousLabel = labelRect;
+            }
+            await tester.drag(row, Offset(locale == 'ar' ? 3000 : -3000, 0));
+            await tester.pumpAndSettle();
+            expect(scroll.pixels, closeTo(scroll.maxScrollExtent, .01));
+            if (width < 800 || scale > 1) {
+              expect(scroll.pixels, greaterThan(0));
+            }
+            expect(
+              find.byKey(const ValueKey('home-category-s7')).hitTestable(),
+              findsOneWidget,
+            );
+            expect(tester.takeException(), isNull);
+          }
+        }
+      },
+    );
+  }
+
+  testWidgets('home and app title update when API branding arrives', (
+    tester,
+  ) async {
+    final container = await _container(settings: _RuntimeSettings());
+    addTearDown(container.dispose);
+    await container
+        .read(localeControllerProvider.notifier)
+        .setLocale(const Locale('en'));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const ShubayrApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(StoreIdentity.nameEn), findsOneWidget);
+    final logo = tester.widget<BrandMark>(find.byType(BrandMark).first);
+    expect(logo.fallbackAsset, StoreIdentity.logoAsset);
+    await container.read(storeSettingsProvider.notifier).refresh();
+    await tester.pumpAndSettle();
+    expect(find.text('Another Store'), findsOneWidget);
+    expect(find.text(StoreIdentity.nameEn), findsNothing);
+    final context = tester.element(find.byType(HomeScreen));
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.onGenerateTitle!(context), 'Another Store');
+    expect(container.read(brandProvider).currencyCode, 'USD');
+    expect(container.read(brandProvider).primaryColor, const Color(0xFF3366CC));
+    expect(tester.takeException(), isNull);
+  });
+
   for (final lang in ['ar', 'en']) {
     testWidgets(
       'Home identity follows $lang direction and search still opens the product search',
@@ -206,7 +422,7 @@ void main() {
           );
           expect(
             Theme.of(tester.element(name)).textTheme.titleLarge!.fontFamily,
-            'Cairo',
+            'Zain',
           );
           expect(tester.takeException(), isNull);
         }
@@ -221,7 +437,7 @@ void main() {
 
   for (final lang in ['ar', 'en']) {
     testWidgets(
-      'banner, offers and search use the central mobile inset inside the safe area $lang',
+      'page margins change without resizing horizontal content inside the safe area $lang',
       (tester) async {
         addTearDown(tester.view.reset);
         final container = await _container();
@@ -252,8 +468,26 @@ void main() {
             find.byKey(const ValueKey('banner-page-0')),
           );
           final card = tester.getRect(find.byType(ProductCard).first);
-          expect(banner.left, safeStart + AppSpacing.screenMobileH);
-          expect(width - banner.right, safeEnd + AppSpacing.screenMobileH);
+          final shortcuts = tester.getRect(
+            find.byKey(const ValueKey('home-category-shortcuts')),
+          );
+          final offers = tester.getRect(
+            find.byKey(const ValueKey('home-offers-list')),
+          );
+          final pager = tester.getRect(find.byType(PageView));
+          for (final viewport in [shortcuts, offers, pager]) {
+            expect(viewport.left, safeStart);
+            expect(viewport.right, width - safeEnd);
+          }
+          final title = tester.getRect(
+            find.text(lang == 'ar' ? 'عروض وخصومات' : 'Offers & Discounts'),
+          );
+          expect(
+            lang == 'ar' ? width - title.right : title.left,
+            (lang == 'ar' ? safeEnd : safeStart) + AppSpacing.screenMobileH,
+          );
+          expect(banner.left, safeStart + 8);
+          expect(width - banner.right, safeEnd + 8);
           expect(
             lang == 'ar' ? card.right : card.left,
             lang == 'ar' ? banner.right : banner.left,
@@ -262,7 +496,7 @@ void main() {
             card.width,
             AppLayout.homeOfferCardWidth(
               tester.element(find.byType(HomeScreen)),
-              width - safeStart - safeEnd - AppSpacing.screenMobileH * 2,
+              width - safeStart - safeEnd - 16,
             ),
           );
           container.read(routerProvider).pushNamed(AppRoutes.searchName);
@@ -271,8 +505,8 @@ void main() {
           final searchGrid = tester
               .getRect(searchCards.first)
               .expandToInclude(tester.getRect(searchCards.at(1)));
-          expect(searchGrid.left, banner.left);
-          expect(searchGrid.right, banner.right);
+          expect(searchGrid.left, safeStart + AppSpacing.screenMobileH);
+          expect(searchGrid.right, width - safeEnd - AppSpacing.screenMobileH);
           container.read(routerProvider).pop();
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
@@ -350,8 +584,32 @@ void main() {
             tester.element(first).colors.categoryShortcutBackground,
           );
           expect(decoration.border, isNull);
-          expect(tester.getSize(circle).width, tester.getSize(circle).height);
+          expect(tester.getSize(circle).width, closeTo(67.2, .01));
+          expect(tester.getSize(circle).height, closeTo(67.2, .01));
+          expect(tester.getSize(first).width, closeTo(87.2, .01));
+          final secondCircle = find.descendant(
+            of: second,
+            matching: find.byWidgetPredicate(
+              (w) =>
+                  w is Container &&
+                  w.decoration is BoxDecoration &&
+                  (w.decoration! as BoxDecoration).shape == BoxShape.circle,
+            ),
+          );
+          final firstBounds = tester.getRect(circle);
+          final secondBounds = tester.getRect(secondCircle);
+          expect(
+            locale == 'ar'
+                ? firstBounds.left - secondBounds.right
+                : secondBounds.left - firstBounds.right,
+            closeTo(20, .01),
+          );
           final label = find.descendant(of: first, matching: find.byType(Text));
+          expect(
+            tester.widget<Text>(label).style,
+            tester.element(first).text.labelMedium,
+          );
+          expect(tester.widget<Text>(label).maxLines, 2);
           expect(
             tester.getRect(label).top,
             greaterThan(tester.getRect(circle).bottom),
@@ -366,6 +624,7 @@ void main() {
             find.descendant(of: first, matching: find.byType(Icon)),
           );
           expect(icon.color, tester.element(first).colors.primary);
+          expect(icon.size, closeTo(38.4, .01));
           await tester.tap(first);
           await tester.pumpAndSettle();
           expect(find.byType(SubcategoriesScreen), findsNothing);

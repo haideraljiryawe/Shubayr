@@ -1,4 +1,4 @@
-/// Cairo bodySmall (12px), 58% text area minus card padding: about 144px
+/// Zain compact category preview (12px), 58% text area minus card padding: about 144px
 /// on a 320px phone. Six short words / 36 characters conservatively target two
 /// lines in Arabic and English; maxLines remains necessary for wide glyphs and
 /// accessibility scaling. Count Unicode code points, including internal spaces.

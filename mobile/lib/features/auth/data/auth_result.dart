@@ -14,7 +14,7 @@ class AuthResult {
 
   final String? accessToken;
 
-  /// Stored but unused: the contract defines no refresh endpoint yet.
+  /// Used for automatic rotation and sign-out revocation.
   final String? refreshToken;
   final User? user;
 

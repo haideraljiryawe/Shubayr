@@ -1,45 +1,243 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
 import '../tokens/app_radii.dart';
+import '../tokens/app_motion.dart';
+import '../tokens/app_spacing.dart';
 
 abstract final class NavigationThemes {
+  static const Duration bottomPageTransitionDuration = AppMotion.medium;
+  static const Curve bottomPageTransitionCurve = AppMotion.standard;
+  static const double bottomPageIncomingOffset = 0.22;
+  static const double bottomPageOutgoingOffset = 0.10;
+  static const double bottomPageIncomingOpacity = 0.96;
+
   // ---------------------------------------------------------------------------
-  // Bottom navigation metrics — the single source of truth for the bar's size.
-  // Tune the bar here; never hard-code these numbers in CustomerShell.
+  // Bottom navigation supports 1–5 fixed-width destinations, shrinking only
+  // when its parent's safe available width cannot fit the natural width.
   // ---------------------------------------------------------------------------
 
-  /// Content height of the bottom navigation bar.
-  ///
-  /// This is the *content* height only: when the bar is used as
-  /// `Scaffold.bottomNavigationBar`, Flutter adds the device's bottom safe-area
-  /// inset (the iPhone home indicator) on top of it automatically. Material's
-  /// own default is 80; the bar reads too tall on a phone at that size.
-  ///
-  /// The destination is tappable across the full height, so this doubles as the
-  /// touch-target height — keep it at or above 48.
-  static const double bottomBarHeight = 70;
+  /// Visual bounds are taller than the centered interactive strip. Only the
+  /// decorative margin may overlap the iOS home-indicator area; hit targets
+  /// never do. Android keeps the entire surface above the system navigation.
+  // Preserve vertical clearance around the base pill.
+  static const double _bottomBarGeometricHeight =
+      bottomBarSelectedBaseHeight + 2 * bottomBarSelectedSlotInset;
+  static const double bottomBarHeight =
+      _bottomBarGeometricHeight >= bottomBarMinimumInteractiveHeight
+      ? _bottomBarGeometricHeight
+      : bottomBarMinimumInteractiveHeight;
+  static const int bottomBarMinDestinations = 1;
+  static const int bottomBarMaxDestinations = 5;
 
-  /// Icon size inside the bottom navigation bar.
-  static const double bottomBarIconSize = 30;
+  /// Existing five-tab geometry on a 390dp phone: (390 - 2 * 8) * .96.
+  /// Freeze that measured reference instead of scaling with the window.
+  static const double bottomBarMaxWidth = 359.04;
+  static const double bottomBarSlotWidth =
+      bottomBarMaxWidth / bottomBarMaxDestinations;
+  // Keep the established minimum hit height centered within the taller surface.
+  static const double bottomBarMinimumInteractiveHeight = 44;
+  static const double bottomBarAndroidSystemGap = 4;
+  static double get bottomBarSafeVisualOverlap =>
+      math.max(0.0, (bottomBarHeight - bottomBarMinimumInteractiveHeight) / 2);
 
-  /// Gap between a destination's icon and its label.
-  static const EdgeInsetsGeometry bottomBarLabelPadding = EdgeInsets.only(
-    top: 3,
+  /// viewPadding retains system UI clearance when the keyboard consumes
+  /// padding. Android edge-to-edge needs the full exclusion for the surface,
+  /// including its decorative margin, plus a small visual gap. Preserve iOS.
+  static double bottomBarBottomOffset(
+    MediaQueryData media, {
+    required TargetPlatform platform,
+  }) {
+    final exclusion = math.max(
+      media.viewPadding.bottom,
+      media.systemGestureInsets.bottom,
+    );
+    return platform == TargetPlatform.android
+        ? exclusion + bottomBarAndroidSystemGap
+        : math.max(0.0, exclusion - bottomBarSafeVisualOverlap);
+  }
+
+  /// Blend the established dark tint into the color, not the backdrop.
+  static Color bottomBarSurfaceColor(ColorScheme colors) =>
+      colors.brightness == Brightness.dark
+      ? Color.alphaBlend(
+          Colors.white.withValues(alpha: 0.08),
+          colors.surface.withValues(alpha: 1),
+        )
+      : Colors.white;
+
+  static const double bottomBarBorderOpacity = 0.22;
+  static const double bottomBarBorderWidth = 0.8;
+  static const double bottomBarShadowOpacityLight = 0.11;
+  static const double bottomBarShadowOpacityDark = 0.12;
+  static const double bottomBarShadowBlur = 24;
+  static const double bottomBarShadowSpread = 0;
+  static const Offset bottomBarShadowOffset = Offset(0, 4);
+
+  static BoxShadow bottomBarShadow(ColorScheme colors) => BoxShadow(
+    color: colors.shadow.withValues(
+      alpha: colors.brightness == Brightness.dark
+          ? bottomBarShadowOpacityDark
+          : bottomBarShadowOpacityLight,
+    ),
+    blurRadius: bottomBarShadowBlur,
+    spreadRadius: bottomBarShadowSpread,
+    offset: bottomBarShadowOffset,
+  );
+  static BorderSide bottomBarBorder(AppColors colors) => BorderSide(
+    color: colors.textPrimary.withValues(alpha: bottomBarBorderOpacity),
+    width: bottomBarBorderWidth,
   );
 
-  /// Active-tab top indicator — the thick bar shown at the top edge of the
-  /// selected destination, in the active (primary) colour. Tune its size here;
-  /// never hard-code these in CustomerShell.
-  static const double bottomBarIndicatorWidth = 50;
-  static const double bottomBarIndicatorThickness = 5;
+  static const double bottomBarCornerRadius = bottomBarHeight / 2;
+  static const BorderRadius bottomBarRadius = BorderRadius.all(
+    Radius.circular(bottomBarCornerRadius),
+  );
+  static const double bottomBarIconSize = 28;
+  static const double bottomBarLabelSize = 12;
+  static const double bottomBarUnselectedOpacity = 0.92;
+  static Color bottomBarUnselectedColor(ColorScheme colors) =>
+      colors.onSurface.withValues(alpha: bottomBarUnselectedOpacity);
+  static const FontWeight bottomBarSelectedLabelWeight = FontWeight.w700;
+  static const FontWeight bottomBarUnselectedLabelWeight = FontWeight.w400;
 
-  /// Icon size in the wide-layout navigation rail (left untouched by the
-  /// phone-oriented refinement above).
-  static const double railIconSize = 24;
+  static TextStyle? bottomBarLabelStyle(
+    TextTheme text, {
+    required Color color,
+    required bool selected,
+  }) => text.labelSmall?.copyWith(
+    fontSize: bottomBarLabelSize,
+    height: bottomBarLabelHeight,
+    color: color,
+    fontWeight: selected
+        ? bottomBarSelectedLabelWeight
+        : bottomBarUnselectedLabelWeight,
+  );
 
-  /// Bottom navigation.
-  ///
+  static const double bottomBarLabelGap = 3;
+  static const double bottomBarLabelHeight = 1.2;
+  static const EdgeInsets bottomBarLabelPadding = EdgeInsets.only(
+    top: bottomBarLabelGap,
+  );
+
+  static const double bottomBarSelectedBaseHeight = 52;
+  // Keep horizontal geometry independent of the increased vertical clearance.
+  static const double bottomBarSelectedSlotInset = 6;
+
+  // Floating navigation has its own calibrated gutter, independent of pages.
+  static const double bottomBarHorizontalInset = AppSpacing.sm;
+
+  static EdgeInsets bottomBarPadding(
+    MediaQueryData media, {
+    required TargetPlatform platform,
+  }) => EdgeInsets.only(
+    left: math.max(
+      bottomBarHorizontalInset,
+      math.max(media.viewPadding.left, media.padding.left),
+    ),
+    right: math.max(
+      bottomBarHorizontalInset,
+      math.max(media.viewPadding.right, media.padding.right),
+    ),
+    bottom: bottomBarBottomOffset(media, platform: platform),
+  );
+
+  static bool isBottomBarDestinationCountValid(int count) =>
+      count >= bottomBarMinDestinations && count <= bottomBarMaxDestinations;
+
+  static double bottomBarMinimumSafeWidth(int destinationCount) =>
+      destinationCount * bottomBarMinimumInteractiveHeight;
+
+  /// Reject unsupported constraints rather than silently shrinking touch targets.
+  static ({double barWidth, double slotWidth, Size selected, Size pressed})
+  bottomBarGeometry(double safeAvailableWidth, int destinationCount) {
+    if (!isBottomBarDestinationCountValid(destinationCount)) {
+      throw FlutterError(
+        'Bottom Navigation supports 1–5 top-level destinations; '
+        'received $destinationCount.',
+      );
+    }
+    final minimumBarWidth = bottomBarMinimumSafeWidth(destinationCount);
+    final barWidth = math.min(
+      safeAvailableWidth,
+      destinationCount * bottomBarSlotWidth,
+    );
+    if (!safeAvailableWidth.isFinite || barWidth < minimumBarWidth) {
+      throw FlutterError(
+        'Bottom Navigation requires at least '
+        '${bottomBarMinimumSafeWidth(destinationCount)} logical pixels of safe '
+        'available width for $destinationCount destinations with 44×44 touch '
+        'targets; received $safeAvailableWidth.',
+      );
+    }
+    final slotWidth = barWidth / destinationCount;
+    final selectedNaturalWidth = slotWidth - 2 * bottomBarSelectedSlotInset;
+    final selectedHeight = math.min(
+      bottomBarSelectedBaseHeight,
+      selectedNaturalWidth,
+    );
+    final pressedInset = math.max(
+      bottomBarPressedMinSlotInset,
+      bottomBarSelectedSlotInset * bottomBarPressedSlotInsetRatio,
+    );
+    final pressedNaturalWidth = slotWidth - 2 * pressedInset;
+    final pressedHeight = math.min(
+      bottomBarHeight - 2 * bottomBarPressedVerticalInset,
+      pressedNaturalWidth,
+    );
+    return (
+      barWidth: barWidth,
+      slotWidth: slotWidth,
+      selected: Size(selectedNaturalWidth, selectedHeight),
+      pressed: Size(pressedNaturalWidth, pressedHeight),
+    );
+  }
+
+  static const double bottomBarSelectedSurfaceOpacity = 0.20;
+  static Color bottomBarSelectedSurfaceColor(AppColors colors) =>
+      colors.primary.withValues(alpha: bottomBarSelectedSurfaceOpacity);
+  static const double bottomBarSelectedScale = 1.11;
+  static const Duration bottomBarSelectedIconDuration = Duration(
+    milliseconds: 200,
+  );
+  static const Curve bottomBarSelectedIconCurve = Curves.easeOutCubic;
+  static const Duration bottomBarSelectionDuration = AppMotion.medium;
+  static const Curve bottomBarCurve = Curves.easeInOut;
+  static const double bottomBarPressedOverlayOpacity = 0.10;
+  static const double bottomBarSelectedPressedOverlayOpacity = 0.07;
+  static const double bottomBarHoverOverlayOpacity = 0.05;
+  static const double bottomBarPressedVerticalInset = 2.5;
+  static const double bottomBarPressedSlotInsetRatio = 0.35;
+  static const double bottomBarPressedMinSlotInset = 2;
+  static const double bottomBarPressedInitialScale = 0.50;
+  static const Duration bottomBarPressedExpandDuration = Duration(
+    milliseconds: 130,
+  );
+  static const Duration bottomBarPressedFadeDuration = Duration(
+    milliseconds: 160,
+  );
+  static const Curve bottomBarPressedExpandCurve = Curves.easeOutCubic;
+
+  static double bottomBarStateOpacity(
+    Set<WidgetState> states, {
+    required bool selected,
+  }) {
+    if (states.contains(WidgetState.pressed) ||
+        states.contains(WidgetState.focused)) {
+      return selected
+          ? bottomBarSelectedPressedOverlayOpacity
+          : bottomBarPressedOverlayOpacity;
+    }
+    if (states.contains(WidgetState.hovered)) {
+      return bottomBarHoverOverlayOpacity;
+    }
+    return 0;
+  }
+
+  /// Default Material NavigationBar theme, separate from the customer shell's
+  /// icon-only CustomerBottomNavigation and its custom selected capsule.
   /// Deliberately has no selected indicator: the Material 3 pill is switched
   /// off (transparent indicator *and* transparent overlay) so a destination is
   /// just an icon above a label. Selection is carried entirely by foreground
@@ -59,19 +257,15 @@ abstract final class NavigationThemes {
         labelPadding: bottomBarLabelPadding,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              // primaryDark rather than primary: 12px text needs the darker
-              // shade to stay legible on the light surface.
-              ? text.labelMedium?.copyWith(
-                  color: c.primaryDark,
-                  fontWeight: FontWeight.w700,
-                )
-              : text.labelMedium?.copyWith(
-                  color: states.contains(WidgetState.disabled)
-                      ? c.textDisabled
-                      : c.textMuted,
-                  fontWeight: FontWeight.w500,
-                ),
+          (states) => bottomBarLabelStyle(
+            text,
+            selected: states.contains(WidgetState.selected),
+            color: states.contains(WidgetState.selected)
+                ? c.primaryDark
+                : states.contains(WidgetState.disabled)
+                ? c.textDisabled
+                : bottomBarUnselectedColor(c.toColorScheme()),
+          ),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
@@ -80,25 +274,10 @@ abstract final class NavigationThemes {
                 ? c.primary
                 : states.contains(WidgetState.disabled)
                 ? c.textDisabled
-                : c.textMuted,
+                : bottomBarUnselectedColor(c.toColorScheme()),
           ),
         ),
       );
-
-  static NavigationRailThemeData navigationRail(
-    AppColors c,
-    TextTheme text,
-  ) => NavigationRailThemeData(
-    backgroundColor: c.surface,
-    indicatorColor: c.primarySoft,
-    indicatorShape: const RoundedRectangleBorder(
-      borderRadius: AppRadii.pillAll,
-    ),
-    selectedIconTheme: IconThemeData(color: c.primaryDark, size: 24),
-    unselectedIconTheme: IconThemeData(color: c.textMuted, size: 24),
-    selectedLabelTextStyle: text.labelMedium?.copyWith(color: c.primaryDark),
-    unselectedLabelTextStyle: text.labelMedium?.copyWith(color: c.textMuted),
-  );
 
   static ChipThemeData chip(AppColors c, TextTheme text) => ChipThemeData(
     backgroundColor: c.surfaceAlt,

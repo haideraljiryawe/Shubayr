@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:shubayr/features/banners/presentation/providers/banner_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +20,9 @@ Future<ProviderContainer> _container() async {
   return ProviderContainer(
     retry: (retryCount, error) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       // Banner networking is covered separately; keep navigation tests deterministic.
       homeBannersProvider.overrideWith((ref) async => []),
       prefsStoreProvider.overrideWithValue(prefs),
@@ -27,6 +32,16 @@ Future<ProviderContainer> _container() async {
 }
 
 void main() {
+  setUp(() {
+    // These tests assert settled screens; continuous carousel motion is covered
+    // with a controlled clock in home_category_carousel_test.dart.
+    final platform =
+        TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher;
+    platform.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(
+      disableAnimations: true,
+    );
+    addTearDown(platform.clearAccessibilityFeaturesTestValue);
+  });
   for (final locale in ['ar', 'en']) {
     for (final mode in [ThemeMode.light, ThemeMode.dark]) {
       testWidgets(
@@ -53,25 +68,21 @@ void main() {
           final colors = Theme.of(
             tester.element(find.byType(HomeScreen)),
           ).extension<AppColors>()!;
+          final unselectedColor = Theme.of(
+            tester.element(find.byType(HomeScreen)),
+          ).colorScheme.onSurface.withValues(alpha: 0.92);
           final homeLabel = locale == 'ar' ? 'الرئيسية' : 'Home';
           final categoriesLabel = locale == 'ar' ? 'الأقسام' : 'Categories';
           Finder destinationIcon(String label, IconData icon) =>
               find.descendant(
-                of: find
-                    .ancestor(
-                      of: find.text(label),
-                      matching: find.byType(InkWell),
-                    )
-                    .first,
+                of: find.bySemanticsLabel(label),
                 matching: find.byIcon(icon),
               );
+          expect(find.text(homeLabel), findsNothing);
+          expect(find.text(categoriesLabel), findsNothing);
           expect(
-            tester.widget<Text>(find.text(homeLabel)).style!.color,
-            colors.primaryDark,
-          );
-          expect(
-            tester.widget<Text>(find.text(categoriesLabel)).style!.color,
-            colors.textMuted,
+            tester.widget<Icon>(destinationIcon(homeLabel, Icons.home)).color,
+            colors.primary,
           );
           expect(
             tester
@@ -79,19 +90,15 @@ void main() {
                   destinationIcon(categoriesLabel, Icons.grid_view_outlined),
                 )
                 .color,
-            colors.textMuted,
+            unselectedColor,
           );
-          await tester.tap(find.text(categoriesLabel));
+          await tester.tap(find.bySemanticsLabel(categoriesLabel));
           await tester.pumpAndSettle();
-          expect(
-            tester.widget<Text>(find.text(homeLabel)).style!.color,
-            colors.textMuted,
-          );
           expect(
             tester
                 .widget<Icon>(destinationIcon(homeLabel, Icons.home_outlined))
                 .color,
-            colors.textMuted,
+            unselectedColor,
           );
           expect(
             tester
@@ -122,9 +129,9 @@ void main() {
     final context = tester.element(find.byType(HomeScreen));
     expect(Directionality.of(context), TextDirection.rtl);
     expect(Localizations.localeOf(context).languageCode, 'ar');
-    expect(find.text('الرئيسية'), findsOneWidget);
-    expect(find.text('الأقسام'), findsOneWidget);
-    expect(find.text('الحساب'), findsOneWidget);
+    expect(find.bySemanticsLabel('الرئيسية'), findsOneWidget);
+    expect(find.bySemanticsLabel('الأقسام'), findsOneWidget);
+    expect(find.bySemanticsLabel('الحساب'), findsOneWidget);
   });
 
   testWidgets('guest bottom navigation has exactly three destinations', (
@@ -141,11 +148,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Guest bar = Home · Categories · Account (each label once); Cart absent.
-    expect(find.text('الرئيسية'), findsOneWidget);
-    expect(find.text('الأقسام'), findsOneWidget);
-    expect(find.text('الحساب'), findsOneWidget);
-    expect(find.text('السلة'), findsNothing);
+    // Guest bar retains localized semantic labels; Cart is absent.
+    expect(find.bySemanticsLabel('الرئيسية'), findsOneWidget);
+    expect(find.bySemanticsLabel('الأقسام'), findsOneWidget);
+    expect(find.bySemanticsLabel('الحساب'), findsOneWidget);
+    expect(find.bySemanticsLabel('السلة'), findsNothing);
   });
 
   testWidgets('a guest can reach Categories from the bottom navigation', (
@@ -188,9 +195,9 @@ void main() {
 
     final context = tester.element(find.byType(HomeScreen));
     expect(Directionality.of(context), TextDirection.ltr);
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Categories'), findsOneWidget);
-    expect(find.text('Account'), findsOneWidget);
+    expect(find.bySemanticsLabel('Home'), findsOneWidget);
+    expect(find.bySemanticsLabel('Categories'), findsOneWidget);
+    expect(find.bySemanticsLabel('Account'), findsOneWidget);
   });
 
   testWidgets('paints the bundled green brand on a warm off-white ground', (
@@ -210,6 +217,6 @@ void main() {
     final theme = Theme.of(tester.element(find.byType(HomeScreen)));
     final colors = theme.extension<AppColors>()!;
     expect(colors.primary, const Color(0xFF396D48));
-    expect(theme.scaffoldBackgroundColor, const Color(0xFFF6F5EE));
+    expect(theme.scaffoldBackgroundColor, const Color(0xFFFAFAF8));
   });
 }

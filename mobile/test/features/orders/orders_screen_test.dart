@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/error/failure.dart';
+import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/widgets/skeleton.dart';
 import 'package:shubayr/core/theme/brand.dart';
@@ -14,6 +17,7 @@ import 'package:shubayr/features/orders/presentation/screens/orders_screen.dart'
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 
 import 'support/order_history_repository.dart';
+import '../../helpers/test_session.dart';
 
 Widget _host(
   OrderHistoryRepository repository, {
@@ -23,6 +27,10 @@ Widget _host(
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
+    sessionControllerProvider.overrideWith(TestSession.new),
     orderRepositoryProvider.overrideWithValue(repository),
     brandProvider.overrideWithValue(const Brand.bundled()),
   ],
@@ -49,18 +57,20 @@ void main() {
     total: 2,
     data: [
       Order(
+        version: 1,
         id: 'o1',
         orderNumber: 'SH-1042',
         status: 'delivered',
         total: 30000,
-        placedAt: DateTime(2026, 9, 1),
+        placedAt: DateTime(2026, 9, 1, 0, 15).toUtc(),
       ),
       Order(
+        version: 1,
         id: 'o2',
         orderNumber: 'SH-1061',
         status: 'processing',
         total: 15000,
-        placedAt: DateTime(2026, 9, 5),
+        placedAt: DateTime(2026, 9, 5, 0, 15).toUtc(),
       ),
     ],
   );
@@ -75,6 +85,8 @@ void main() {
 
     expect(find.text('SH-1042'), findsOneWidget);
     expect(find.text('SH-1061'), findsOneWidget);
+    expect(find.text('2026/09/01'), findsOneWidget);
+    expect(find.text('2026/09/05'), findsOneWidget);
     // Each status label now shows on the card pill and again on its filter chip.
     expect(find.text('Delivered'), findsWidgets);
     expect(find.text('Processing'), findsWidgets);
@@ -133,8 +145,10 @@ void main() {
     (tester) async {
       final repository = OrderHistoryRepository(
         orders: [
-          for (var i = 0; i < 21; i++) Order(id: 'o$i', orderNumber: 'SH-$i'),
+          for (var i = 0; i < 21; i++)
+            Order(version: 1, id: 'o$i', orderNumber: 'SH-$i'),
           const Order(
+            version: 1,
             id: 'later',
             orderNumber: 'SH-LATER',
             status: 'processing',
@@ -248,7 +262,12 @@ void main() {
       const OrderPage(
         total: 1,
         data: [
-          Order(id: 'fresh', orderNumber: 'SH-FRESH', status: 'processing'),
+          Order(
+            version: 1,
+            id: 'fresh',
+            orderNumber: 'SH-FRESH',
+            status: 'processing',
+          ),
         ],
       ),
     );
@@ -274,7 +293,7 @@ void main() {
           total: 52,
           data: [
             for (var i = 0; i < 20; i++)
-              Order(id: 'tall-$i', orderNumber: 'TALL-$i'),
+              Order(version: 1, id: 'tall-$i', orderNumber: 'TALL-$i'),
           ],
         ),
       );

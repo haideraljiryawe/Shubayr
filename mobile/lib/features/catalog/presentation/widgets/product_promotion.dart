@@ -9,7 +9,7 @@ import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/product.dart';
 
 /// Product-level promotion metadata. No variant-specific original price exists
-/// in the contract, so a nonzero variant delta needs an explicit base-price label.
+/// in the contract, so a selected variant needs an explicit base-price label.
 class ProductPromotion extends ConsumerWidget {
   const ProductPromotion({
     super.key,
@@ -26,7 +26,7 @@ class ProductPromotion extends ConsumerWidget {
     final brand = ref.watch(brandProvider);
     String money(num value) => formatMoney(
       value,
-      currencyCode: brand.currencyCode,
+      currencyCode: product.currency ?? brand.currencyCode,
       localeCode: Localizations.localeOf(context).languageCode,
     );
     final original = money(product.compareAtPrice!);

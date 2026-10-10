@@ -18,8 +18,7 @@ class Brand {
   });
 
   /// Bundled fallback identity. [name] is intentionally null: the UI shows a
-  /// localised neutral label until the API tells us the real store name, so
-  /// no store name is hard-coded in the app.
+  /// build identity (or a neutral label) until the API supplies a store name.
   const Brand.bundled()
     : name = null,
       logoUrl = null,

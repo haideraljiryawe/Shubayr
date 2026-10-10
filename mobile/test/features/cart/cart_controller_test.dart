@@ -1,27 +1,26 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/error/failure.dart';
-import 'package:shubayr/features/auth/domain/session.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/features/cart/data/cart.dart';
 import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
 import 'package:shubayr/features/cart/presentation/providers/cart_providers.dart';
 
-class _GuestSession extends SessionController {
-  @override
-  Future<Session> build() async => const Session.signedOut();
-}
+import '../../helpers/test_session.dart';
 
 class _PendingCart extends CartRepositoryMock {
   final result = Completer<Cart>();
 
   @override
   Future<Cart> addItem({
+    required String idempotencyKey,
     required String productId,
     String? variantId,
-    int quantity = 1,
+    num quantity = 1,
   }) => result.future;
 }
 
@@ -34,7 +33,10 @@ void main() {
         final container = ProviderContainer(
           retry: (retryCount, error) => null,
           overrides: [
-            sessionControllerProvider.overrideWith(_GuestSession.new),
+            notificationSyncProvider.overrideWith((ref) {}),
+            unreadCountProvider.overrideWith((ref) async => 0),
+            dataSourceProvider.overrideWithValue(DataSource.mock),
+            sessionControllerProvider.overrideWith(TestSession.new),
             cartRepositoryProvider.overrideWithValue(repository),
           ],
         );
@@ -43,6 +45,7 @@ void main() {
         final pending = container
             .read(cartControllerProvider.notifier)
             .add(productId: 'p1');
+        await Future<void>.delayed(Duration.zero);
         container.dispose();
         if (fails) {
           repository.result.completeError(const AppFailure.network());

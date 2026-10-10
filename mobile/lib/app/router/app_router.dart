@@ -1,3 +1,6 @@
+import '../../features/monitoring/presentation/monitor_orders_screen.dart';
+import '../../features/monitoring/presentation/monitor_detail_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,11 +11,6 @@ import '../../core/widgets/state_views.dart';
 import '../../features/address/data/address.dart';
 import '../../features/address/presentation/screens/address_form_screen.dart';
 import '../../features/address/presentation/screens/addresses_screen.dart';
-import '../../features/admin/presentation/screens/admin_home_screen.dart';
-import '../../features/admin/presentation/screens/admin_orders_screen.dart';
-import '../../features/admin/presentation/screens/admin_hub_screen.dart';
-import '../../features/admin/presentation/screens/admin_list_screen.dart';
-import '../../features/admin/domain/admin_repository.dart';
 import '../../features/orders/presentation/screens/checkout_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/after_sales_screens.dart';
@@ -34,6 +32,7 @@ import '../../features/orders/presentation/screens/orders_screen.dart';
 import '../../features/settings/presentation/screens/account_screen.dart';
 import '../../features/settings/presentation/screens/profile_screen.dart';
 import '../shell/customer_shell.dart';
+import '../shell/customer_branch_transition.dart';
 import '../splash_screen.dart';
 import '../startup_display_controller.dart';
 import 'app_routes.dart';
@@ -67,7 +66,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref
     ..listen(
       sessionControllerProvider.select(
-        (s) => (s.isLoading, s.value?.isSignedIn ?? false, s.value?.role),
+        (s) => (
+          s.isLoading,
+          s.hasError,
+          s.value?.isSignedIn ?? false,
+          s.value?.role,
+        ),
       ),
       (_, _) => refresh.value++,
     )
@@ -84,7 +88,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
       final session = ref.read(sessionControllerProvider);
-      final status = !ref.read(startupDisplayReadyProvider)
+      final status =
+          !ref.read(startupDisplayReadyProvider) ||
+              session.isLoading ||
+              session.hasError
           ? SessionStatus.restoring
           : switch (session) {
               AsyncLoading() => SessionStatus.restoring,
@@ -138,10 +145,17 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        builder: (context, state) => SplashScreen(
-          onDisplayed: ref
-              .read(startupDisplayReadyProvider.notifier)
-              .beginDisplay,
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final session = ref.watch(sessionControllerProvider);
+            return SplashScreen(
+              error: session.isLoading ? null : session.error,
+              onRetry: () => ref.invalidate(sessionControllerProvider),
+              onDisplayed: ref
+                  .read(startupDisplayReadyProvider.notifier)
+                  .beginDisplay,
+            );
+          },
         ),
       ),
       GoRoute(
@@ -169,7 +183,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Orders · Account. A signed-out guest sees only Home · Categories ·
       // Account (Cart and Orders are guarded); CustomerShell hides those two
       // destinations and maps the visible tabs back to these branch indices.
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
+        navigatorContainerBuilder: CustomerBranchTransition.containerBuilder,
         builder: (context, state, navigationShell) =>
             CustomerShell(navigationShell: navigationShell),
         branches: [
@@ -179,7 +194,11 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.home,
                 name: AppRoutes.homeName,
-                builder: (context, state) => const HomeScreen(),
+                builder: (context, state) => HomeScreen(
+                  claimCarouselStartupDelay: ref
+                      .read(startupDisplayReadyProvider.notifier)
+                      .claimHomeCarouselStartupDelay,
+                ),
               ),
             ],
           ),
@@ -265,7 +284,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // Shared full-screen pages any signed-in role reaches with a back button:
-      // the account-settings page (staff/delivery open it here) and the profile
+      // the account-settings page (monitor/delivery open it here) and the profile
       // editor (reached from the account/profile row).
       GoRoute(
         path: AppRoutes.settings,
@@ -334,52 +353,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const DeliveryHomeScreen(),
       ),
       GoRoute(
-        path: AppRoutes.admin,
-        name: AppRoutes.adminName,
-        builder: (context, state) => const AdminHomeScreen(),
+        path: AppRoutes.monitor,
+        name: AppRoutes.monitorName,
+        builder: (_, _) => const MonitorOrdersScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.monitorDetail,
+        builder: (_, state) =>
+            MonitorDetailScreen(orderId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (_, _) => const NotificationsScreen(),
       ),
 
-      GoRoute(
-        path: AppRoutes.adminOrders,
-        builder: (_, _) => const AdminOrdersScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.adminCatalog,
-        builder: (_, _) => const AdminHubScreen(catalog: true),
-      ),
-      GoRoute(
-        path: AppRoutes.adminUsers,
-        builder: (_, _) => const AdminHubScreen(catalog: false),
-      ),
-      GoRoute(
-        path: AppRoutes.adminManage,
-        builder: (context, state) {
-          final resource = AdminResource.values
-              .where(
-                (r) =>
-                    r.name == state.pathParameters['resource'] &&
-                    r != AdminResource.permissions,
-              )
-              .firstOrNull;
-          if (resource == null) {
-            return Scaffold(
-              body: AppEmptyView(title: context.l10n.routeNotFoundTitle),
-            );
-          }
-          return AdminListScreen(
-            resource: resource,
-            warehouseId: state.uri.queryParameters['warehouse'],
-          );
-        },
-      ),
-
-      // Developer-only design gallery. The redirect above only lets this
-      // through in debug builds.
-      GoRoute(
-        path: AppRoutes.design,
-        name: AppRoutes.designName,
-        builder: (context, state) => const DesignGalleryScreen(),
-      ),
+      // Omit the route itself so direct links cannot expose it in production.
+      if (kDebugMode)
+        GoRoute(
+          path: AppRoutes.design,
+          name: AppRoutes.designName,
+          builder: (context, state) => const DesignGalleryScreen(),
+        ),
     ],
   );
 });

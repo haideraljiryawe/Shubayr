@@ -1,3 +1,4 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -16,6 +17,7 @@ import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/theme_context.dart';
 import 'package:shubayr/core/theme/tokens/app_radii.dart';
 import 'package:shubayr/core/theme/tokens/app_shadows.dart';
+import 'package:shubayr/core/theme/tokens/app_spacing.dart';
 import 'package:shubayr/core/widgets/skeleton.dart';
 import 'package:shubayr/core/widgets/state_views.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
@@ -77,6 +79,8 @@ Widget _host({
   return ProviderScope(
     retry: (_, _) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
       dataSourceProvider.overrideWithValue(dataSource),
       categoriesProvider.overrideWith(
         (ref) => load?.call() ?? Future.value(_tree),
@@ -110,9 +114,10 @@ void _size(WidgetTester tester, double width) {
 
 void main() {
   setUpAll(() async {
-    await (FontLoader('Cairo')
-          ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Cairo-SemiBold.ttf')))
+    await (FontLoader('Zain')
+          ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf')))
         .load();
   });
   for (final locale in ['ar', 'en']) {
@@ -151,6 +156,8 @@ void main() {
             expect(text.maxLines, 2);
             expect(text.overflow, TextOverflow.ellipsis);
             expect(text.style!.color, context.colors.textSecondary);
+            expect(text.style!.fontSize, 12);
+            expect(text.style!.fontWeight, FontWeight.w400);
             expect(
               text.style!.fontSize,
               lessThan(context.text.titleMedium!.fontSize!),
@@ -306,8 +313,9 @@ void main() {
         final second = find.byKey(const ValueKey('cat-card-c2'));
         final rect = tester.getRect(first);
         final secondRect = tester.getRect(second);
-        expect(rect.left, 28); // SafeArea + central 8px page padding.
-        expect(rect.right, 362);
+        // SafeArea + the central phone page padding, applied once.
+        expect(rect.left, 20 + AppSpacing.screenMobileH);
+        expect(rect.right, 390 - 20 - AppSpacing.screenMobileH);
         expect(secondRect.width, rect.width);
         expect(secondRect.top, greaterThan(rect.bottom));
         expect(secondRect.height, rect.height);
@@ -356,7 +364,13 @@ void main() {
         final material = tester.widget<Material>(
           find.descendant(of: first, matching: find.byType(Material)),
         );
-        expect(material.borderRadius, AppRadii.lgAll);
+        final shape = material.shape! as RoundedRectangleBorder;
+        expect(shape.borderRadius, AppRadii.lgAll);
+        expect(
+          shape.side,
+          BorderSide(color: tester.element(first).colors.border),
+        );
+        expect(material.borderOnForeground, isTrue);
         expect(material.clipBehavior, Clip.antiAlias);
         expect(
           find.descendant(of: image, matching: find.byType(ClipRRect)),
@@ -390,7 +404,7 @@ void main() {
 
     for (final brightness in Brightness.values) {
       testWidgets(
-        'three borderless child tiles per phone row $locale $brightness',
+        'three square child images with names below use card surfaces $locale $brightness',
         (tester) async {
           _size(tester, 390);
           await tester.pumpWidget(
@@ -413,7 +427,7 @@ void main() {
           expect(rects[0].top, rects[1].top);
           expect(rects[1].top, rects[2].top);
           expect(rects[3].top, greaterThan(rects[0].bottom));
-          expect(rects[0].height, closeTo(rects[0].width, 1));
+          expect(rects[0].height, greaterThan(rects[0].width));
           expect(
             locale == 'ar'
                 ? rects[0].left > rects[1].left
@@ -421,31 +435,46 @@ void main() {
             isTrue,
           );
           final tile = find.byKey(const ValueKey('cat-sub-cat-phones'));
-          final material = tester.widget<Material>(
-            find.descendant(of: tile, matching: find.byType(Material)),
+          final artwork = find.byKey(
+            const ValueKey('cat-sub-artwork-cat-phones'),
+          );
+          final imageRect = tester.getRect(artwork);
+          expect(imageRect.width, closeTo(imageRect.height, .01));
+          final name = find.descendant(of: tile, matching: find.byType(Text));
+          final labelRect = tester.getRect(name);
+          expect(labelRect.top - imageRect.bottom, AppSpacing.sm);
+          expect(labelRect.center.dx, closeTo(imageRect.center.dx, .01));
+          expect(
+            find.descendant(of: artwork, matching: find.byType(Text)),
+            findsNothing,
           );
           final colors = tester.element(tile).colors;
-          expect(material.color, colors.categoryTile);
-          expect(material.shape, isNull);
-          expect(material.elevation, 0);
-          expect(material.borderRadius, AppRadii.mdAll);
+          final decoration =
+              tester.widget<Ink>(artwork).decoration! as BoxDecoration;
+          expect(decoration.color, colors.surface);
+          expect(decoration.border, Border.all(color: colors.border));
+          expect(decoration.borderRadius, AppRadii.mdAll);
+          expect(tester.widget<Material>(tile).type, MaterialType.transparency);
           expect(find.byType(CachedNetworkImage), findsNothing);
-          expect(find.byIcon(Icons.smartphone), findsOneWidget);
-          expect(colors.categoryTile, isNot(colors.background));
-          double contrast(Color foreground) {
+          final icon = find.byIcon(Icons.smartphone);
+          expect(icon, findsOneWidget);
+          expect(tester.getCenter(icon).dx, closeTo(imageRect.center.dx, .01));
+          expect(tester.getCenter(icon).dy, closeTo(imageRect.center.dy, .01));
+          expect(tester.widget<Icon>(icon).size, AppLayout.categoryIconSize);
+          double contrast(Color foreground, Color background) {
             final a = foreground.computeLuminance();
-            final b = colors.categoryTile.computeLuminance();
+            final b = background.computeLuminance();
             return a > b ? (a + 0.05) / (b + 0.05) : (b + 0.05) / (a + 0.05);
           }
 
-          expect(contrast(colors.textPrimary), greaterThanOrEqualTo(4.5));
-          expect(contrast(colors.primary), greaterThanOrEqualTo(3));
-          if (brightness == Brightness.light) {
-            expect(
-              colors.categoryTile.computeLuminance(),
-              lessThan(colors.background.computeLuminance()),
-            );
-          }
+          expect(
+            contrast(colors.textPrimary, colors.background),
+            greaterThanOrEqualTo(4.5),
+          );
+          expect(
+            contrast(colors.primary, colors.surface),
+            greaterThanOrEqualTo(3),
+          );
           expect(tester.takeException(), isNull);
         },
       );
@@ -493,7 +522,7 @@ void main() {
         );
         expect(find.byKey(const ValueKey('cat-sub-cat-phones')), findsNothing);
         expect(find.byType(BackButton), findsOneWidget);
-        await tester.tap(find.byKey(const ValueKey('cat-sub-cat-pantry')));
+        await tester.tap(find.text(locale == 'ar' ? 'مؤن' : 'Pantry'));
         await tester.pumpAndSettle();
         expect(find.text('cat-pantry'), findsOneWidget);
         await tester.tap(find.byType(BackButton));
@@ -543,6 +572,18 @@ void main() {
           find.byKey(const ValueKey('cat-sub-cat-phones')),
           findsOneWidget,
         );
+        final artwork = tester.getRect(
+          find.byKey(const ValueKey('cat-sub-artwork-cat-phones')),
+        );
+        final label = tester.getRect(
+          find.descendant(
+            of: find.byKey(const ValueKey('cat-sub-cat-phones')),
+            matching: find.byType(Text),
+          ),
+        );
+        expect(artwork.height, closeTo(artwork.width, .01));
+        expect(label.top, greaterThan(artwork.bottom));
+        expect(label.center.dx, closeTo(artwork.center.dx, .01));
         expect(tester.takeException(), isNull);
       });
     }
@@ -588,6 +629,57 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+
+  testWidgets(
+    'subcategory uses its image and keeps the icon fallback inside the square',
+    (tester) async {
+      _size(tester, 390);
+      await tester.pumpWidget(
+        _host(
+          home: const SubcategoriesScreen(categoryId: 'c1'),
+          load: () async => const [
+            Category(
+              id: 'c1',
+              nameEn: 'Electronics',
+              nameAr: 'إلكترونيات',
+              children: [
+                Category(
+                  id: 'cat-phones',
+                  nameEn: 'Phones',
+                  nameAr: 'الهواتف',
+                  imageUrl: 'https://example.test/subcategory.png',
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      final artwork = find.byKey(const ValueKey('cat-sub-artwork-cat-phones'));
+      final image = tester.widget<CachedNetworkImage>(
+        find.descendant(of: artwork, matching: find.byType(CachedNetworkImage)),
+      );
+      expect(image.imageUrl, 'https://example.test/subcategory.png');
+      expect(image.fit, BoxFit.cover);
+      final icon = find.descendant(
+        of: artwork,
+        matching: find.byIcon(Icons.smartphone),
+      );
+      // Widget-test HTTP returns an error; the shared image view must keep the
+      // category icon and the surrounding card surface, not paint another fill.
+      expect(icon, findsOneWidget);
+      expect(
+        find.descendant(of: artwork, matching: find.byType(ColoredBox)),
+        findsNothing,
+      );
+      final square = tester.getRect(artwork);
+      expect(
+        tester.getRect(find.text('Phones')).top,
+        greaterThan(square.bottom),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('failed category artwork retains the category icon', (
     tester,

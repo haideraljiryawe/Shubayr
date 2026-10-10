@@ -2,34 +2,60 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/tokens/app_spacing.dart';
 
-/// Logical pixels. Window classes describe space, not fixed column counts.
-enum AppWindowClass { mobile, tablet, compactDesktop, desktop, largeDesktop }
+/// Scroll clearance supplied only by the customer shell's floating navigation.
+/// Keeping it scoped avoids changing layouts that reuse screens outside it.
+class BottomNavigationInset extends InheritedWidget {
+  const BottomNavigationInset({
+    super.key,
+    required this.bottom,
+    required super.child,
+  });
 
-abstract final class AppBreakpoints {
-  static const tablet = 600.0;
-  static const compactDesktop = 900.0;
-  static const desktop = 1200.0;
-  static const largeDesktop = 1536.0;
-  static AppWindowClass classify(double width) => switch (width) {
-    < tablet => AppWindowClass.mobile,
-    < compactDesktop => AppWindowClass.tablet,
-    < desktop => AppWindowClass.compactDesktop,
-    < largeDesktop => AppWindowClass.desktop,
-    _ => AppWindowClass.largeDesktop,
-  };
+  final double bottom;
+
+  static double of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<BottomNavigationInset>()
+          ?.bottom ??
+      0;
+
+  @override
+  bool updateShouldNotify(BottomNavigationInset oldWidget) =>
+      bottom != oldWidget.bottom;
 }
 
-/// Content-specific sizes; never a global cap on the application or tables.
+/// Shared content sizing. Only compact spacing/columns and the retained wide
+/// header need window thresholds; page content otherwise follows its slot.
 abstract final class AppLayout {
-  static bool isDesktop(BuildContext context) =>
-      AppBreakpoints.classify(MediaQuery.sizeOf(context).width).index >=
-      AppWindowClass.compactDesktop.index;
+  static const compactWidth = 600.0;
+  static const wideHeaderWidth = 900.0;
+
+  static bool usesWideHeader(BuildContext context) =>
+      MediaQuery.sizeOf(context).width >= wideHeaderWidth;
 
   static double pageHorizontal(BuildContext context) =>
-      AppBreakpoints.classify(MediaQuery.sizeOf(context).width) ==
-          AppWindowClass.mobile
+      MediaQuery.sizeOf(context).width < compactWidth
       ? AppSpacing.screenMobileH
       : AppSpacing.screenH;
+
+  /// Content inset that scrolls with horizontal lists, never around a viewport.
+  /// Separate from page margins to preserve existing artwork and card sizes.
+  /// Home category shortcuts intentionally use zero inset instead.
+  static double horizontalScrollInset(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < compactWidth
+      ? AppSpacing.horizontalScrollMobileH
+      : AppSpacing.screenH;
+
+  static EdgeInsetsDirectional horizontalScrollInsets(
+    BuildContext context, {
+    double top = 0,
+    double bottom = 0,
+  }) => EdgeInsetsDirectional.fromSTEB(
+    horizontalScrollInset(context),
+    top,
+    horizontalScrollInset(context),
+    bottom,
+  );
 
   static EdgeInsetsDirectional pageInsets(
     BuildContext context, {
@@ -42,27 +68,43 @@ abstract final class AppLayout {
     bottom,
   );
 
+  /// Clearance is inside the scroll view, never a fixed footer around it.
+  static EdgeInsetsDirectional scrollInsets(BuildContext context) => pageInsets(
+    context,
+    bottom: AppSpacing.screenH + BottomNavigationInset.of(context),
+  );
+
+  /// End clearance for scrollable forms, including inline action buttons.
+  /// Use the remaining padding: SafeArea/Scaffold may already consume it, and
+  /// a resizing Scaffold handles the keyboard through viewInsets. Adding raw
+  /// viewPadding or keyboard height here would reserve the same space twice.
+  /// The floating shell inset already includes its system clearance.
+  static EdgeInsetsDirectional formScrollInsets(BuildContext context) =>
+      pageInsets(
+        context,
+        bottom:
+            AppSpacing.screenH +
+            math.max(
+              MediaQuery.paddingOf(context).bottom,
+              BottomNavigationInset.of(context),
+            ),
+      );
+
   static const productFilterWidth = 520.0;
   static const dateRangeWidth = 520.0;
   static const dateRangeHeight = 640.0;
-  static const categoryShortcutWidth = 96.0;
+  // Home: 67.2px circle + 20px visible gap at the default text scale.
+  static const categoryShortcutWidth = 87.2;
   static const categoryCardHeight = 100.0;
 
   /// Main category artwork's share of the available card width.
   static const categoryCardImageFraction = 0.42;
   static const subcategoryMinWidth = 150.0;
   static const categoryIconSize = 32.0;
-  static const categoryIconTarget = 56.0;
+  static const categoryIconTarget = 67.2;
 
-  /// Wide phone artwork gradually becomes a panoramic desktop banner.
-  /// Interpolation avoids a height jump on either side of a breakpoint.
-  static double homeBannerAspectRatio(double imageWidth) {
-    final progress =
-        ((imageWidth - AppBreakpoints.tablet) /
-                (AppBreakpoints.desktop - AppBreakpoints.tablet))
-            .clamp(0.0, 1.0);
-    return 2.0 + (4.0 - 2.0) * progress;
-  }
+  /// One artwork proportion on all windows, within a readable content width.
+  static const homeBannerAspectRatio = 2.0;
 
   /// Two compact cards and a glimpse of the next on phones; cap each card
   /// on wide screens and allow readable growth with accessibility text sizes.
@@ -81,14 +123,12 @@ abstract final class AppLayout {
   static const fieldMinWidth = 260.0;
   static const dashboardMinHeight = 120.0;
   static const dashboardMinWidth = 220.0;
-  static const summaryWidth = 360.0;
-  static const categoryRailWidth = 180.0;
 
   static double textScale(BuildContext context) =>
       math.max(1, MediaQuery.textScalerOf(context).scale(14) / 14);
 
-  /// Use the smaller of the viewport and local slot so nested panes retain
-  /// phone behavior when a rail or split view leaves little room.
+  /// Preserve compact layouts; wider slots fit as many readable items as
+  /// their minimum width and current text scale allow.
   static int columns(
     BuildContext context,
     double availableWidth, {
@@ -96,8 +136,7 @@ abstract final class AppLayout {
     int phoneColumns = 1,
     double spacing = AppSpacing.md,
   }) {
-    if (math.min(MediaQuery.sizeOf(context).width, availableWidth) <
-        AppBreakpoints.tablet) {
+    if (availableWidth < compactWidth) {
       return phoneColumns;
     }
     return math.max(
@@ -190,12 +229,16 @@ class ResponsiveCardSliver extends StatefulWidget {
     super.key,
     required this.itemCount,
     required this.itemBuilder,
+    this.itemKeyBuilder,
     this.minItemWidth = AppLayout.cardMinWidth,
     this.phoneColumns = 1,
     this.equalHeight = false,
   });
   final int itemCount, phoneColumns;
   final IndexedWidgetBuilder itemBuilder;
+
+  /// Unique entity identity for mutable lists; omit only for static content.
+  final Object Function(int index)? itemKeyBuilder;
   final double minItemWidth;
   final bool equalHeight;
   @override
@@ -205,11 +248,20 @@ class ResponsiveCardSliver extends StatefulWidget {
 class _ResponsiveCardSliverState extends State<ResponsiveCardSliver> {
   // Rows change parents when column counts change. Preserve mounted card state
   // (including a delivery confirmation dialog) across that regrouping.
-  final _itemKeys = <int, GlobalKey>{};
+  final _itemKeys = <Object, GlobalKey>{};
+
+  Object _identity(int index) => widget.itemKeyBuilder?.call(index) ?? index;
   @override
   void didUpdateWidget(ResponsiveCardSliver oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _itemKeys.removeWhere((index, _) => index >= widget.itemCount);
+    final identities = {
+      for (var i = 0; i < widget.itemCount; i++) _identity(i),
+    };
+    assert(
+      identities.length == widget.itemCount,
+      'Card identities must be unique',
+    );
+    _itemKeys.removeWhere((identity, _) => !identities.contains(identity));
   }
 
   @override
@@ -236,7 +288,7 @@ class _ResponsiveCardSliverState extends State<ResponsiveCardSliver> {
                   child: row * columns + col < widget.itemCount
                       ? KeyedSubtree(
                           key: _itemKeys.putIfAbsent(
-                            row * columns + col,
+                            _identity(row * columns + col),
                             GlobalKey.new,
                           ),
                           child: widget.itemBuilder(
@@ -261,6 +313,7 @@ class ResponsiveCardList extends StatelessWidget {
     super.key,
     required this.itemCount,
     required this.itemBuilder,
+    this.itemKeyBuilder,
     this.padding,
     this.physics,
     this.controller,
@@ -271,6 +324,9 @@ class ResponsiveCardList extends StatelessWidget {
   });
   final int itemCount, phoneColumns;
   final IndexedWidgetBuilder itemBuilder;
+
+  /// Unique entity identity for mutable lists; omit only for static content.
+  final Object Function(int index)? itemKeyBuilder;
   final EdgeInsetsGeometry? padding;
   final ScrollPhysics? physics;
   final ScrollController? controller;
@@ -289,6 +345,7 @@ class ResponsiveCardList extends StatelessWidget {
             ResponsiveCardSliver(
               itemCount: itemCount,
               itemBuilder: itemBuilder,
+              itemKeyBuilder: itemKeyBuilder,
               minItemWidth: minItemWidth,
               phoneColumns: phoneColumns,
               equalHeight: equalHeight,
@@ -313,63 +370,35 @@ class ResponsiveSections extends StatelessWidget {
   const ResponsiveSections({
     super.key,
     required this.children,
-    this.breakpoint = AppBreakpoints.compactDesktop,
+    this.minItemWidth = AppLayout.orderMinWidth,
     this.maxWidth = AppLayout.detailWidth,
     this.stackedSpacing = AppSpacing.lg,
   });
   final List<Widget> children;
-  final double breakpoint, maxWidth, stackedSpacing;
+  final double minItemWidth, maxWidth, stackedSpacing;
   @override
   Widget build(BuildContext context) => ResponsiveContent(
     maxWidth: maxWidth,
     child: LayoutBuilder(
       builder: (context, constraints) {
-        final wide =
-            constraints.maxWidth >= breakpoint * AppLayout.textScale(context);
-        final width = wide
-            ? (constraints.maxWidth - AppSpacing.lg * (children.length - 1)) /
-                  children.length
-            : constraints.maxWidth;
+        final columns = AppLayout.columns(
+          context,
+          constraints.maxWidth,
+          minItemWidth: minItemWidth,
+          spacing: AppSpacing.lg,
+        ).clamp(1, math.max(1, children.length));
+        final width =
+            (constraints.maxWidth - AppSpacing.lg * (columns - 1)) / columns;
         return Wrap(
           spacing: AppSpacing.lg,
           runSpacing: stackedSpacing,
           children: [
             for (var i = 0; i < children.length; i++)
-              SizedBox(key: ValueKey(i), width: width, child: children[i]),
-          ],
-        );
-      },
-    ),
-  );
-}
-
-/// Keep the existing bottom summary on smaller layouts; use a bounded adjacent
-/// summary at desktop width. The main scrollable keeps its element on resize.
-class ResponsiveBodyWithAside extends StatelessWidget {
-  const ResponsiveBodyWithAside({
-    super.key,
-    required this.body,
-    required this.aside,
-  });
-  final Widget body, aside;
-  @override
-  Widget build(BuildContext context) => ResponsiveContent(
-    maxWidth: AppLayout.detailWidth,
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final wide =
-            constraints.maxWidth >=
-            AppBreakpoints.desktop * AppLayout.textScale(context);
-        return Flex(
-          direction: wide ? Axis.horizontal : Axis.vertical,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(key: const ValueKey('body'), child: body),
-            SizedBox(
-              key: const ValueKey('aside'),
-              width: wide ? AppLayout.summaryWidth : null,
-              child: wide ? SingleChildScrollView(child: aside) : aside,
-            ),
+              SizedBox(
+                key: ValueKey<Object>(children[i].key ?? i),
+                width: width,
+                child: children[i],
+              ),
           ],
         );
       },

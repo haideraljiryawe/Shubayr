@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 import 'package:shubayr/features/auth/domain/session.dart';
 import 'package:shubayr/features/auth/data/user.dart';
@@ -31,7 +33,7 @@ List<WishlistItem> _items(int count) => [
         categoryId: 'c',
         nameAr: 'منتج $i',
         nameEn: 'Product $i',
-        salePrice: 1000,
+        effectivePrice: 1000,
       ),
     ),
 ];
@@ -44,6 +46,9 @@ Widget _host(
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
     sessionControllerProvider.overrideWith(TestSession.new),
     wishlistRepositoryProvider.overrideWithValue(repository),
     brandProvider.overrideWithValue(const Brand.bundled()),
@@ -89,7 +94,7 @@ void main() {
     await tester.pump();
     await refresh;
     expect(find.text('Retry'), findsNothing);
-    newPage.complete(const WishlistPage(page: 1, perPage: 8, total: 0));
+    newPage.complete(const WishlistPage(page: 1, perPage: 100, total: 0));
     await tester.pumpAndSettle();
     expect(container.read(wishlistControllerProvider).hasError, isFalse);
     expect(find.text('Product 0'), findsNothing);
@@ -99,10 +104,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     // Measure the badge with the actual bundled font, not the test placeholder.
-    final font = FontLoader('Cairo')
-      ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/Cairo-SemiBold.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf'));
+    final font = FontLoader('Zain')
+      ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf'));
     await font.load();
   });
 
@@ -122,7 +127,7 @@ void main() {
               categoryId: 'c',
               nameAr: 'منتج نافذ',
               nameEn: 'Sold-out product',
-              salePrice: 1000,
+              effectivePrice: 1000,
               inStock: false,
             ),
           ),
@@ -150,7 +155,7 @@ void main() {
       final repo = RecordingWishlist(entries: _items(17));
       await tester.pumpWidget(_host(repo));
       await tester.pumpAndSettle();
-      expect(repo.requests.map((r) => r.page), [1, 2, 3]);
+      expect(repo.requests.map((r) => r.page), [1]);
       final scroll = find.byType(Scrollable).first;
       await tester.scrollUntilVisible(
         find.text('Product 16'),
@@ -185,15 +190,15 @@ void main() {
   testWidgets(
     'failure on a later page shows retry and can recover all products',
     (tester) async {
-      final entries = _items(9);
+      final entries = _items(101);
       final repo = RecordingWishlist(entries: entries)
         ..onFetch = (r) async {
           if (r.page == 2) throw const AppFailure.network();
           return WishlistPage(
             page: 1,
-            perPage: 8,
-            total: 9,
-            data: entries.take(8).toList(),
+            perPage: 100,
+            total: 101,
+            data: entries.take(100).toList(),
           );
         };
       await tester.pumpWidget(_host(repo));
@@ -222,7 +227,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(repo.requests, hasLength(2));
     expect(find.byType(RefreshProgressIndicator), findsOneWidget);
-    response.complete(WishlistPage(perPage: 8, total: 1, data: _items(1)));
+    response.complete(WishlistPage(perPage: 100, total: 1, data: _items(1)));
     await tester.pumpAndSettle();
     expect(find.text('Product 0'), findsOneWidget);
     expect(find.byType(RefreshProgressIndicator), findsNothing);
@@ -289,7 +294,7 @@ void main() {
           scrollable: find.byType(Scrollable).first,
         );
         await tester.pumpAndSettle();
-        expect(repo.requests.map((r) => r.page), [1, 2]);
+        expect(repo.requests.map((r) => r.page), [1]);
         expect(tester.takeException(), isNull);
       },
     );

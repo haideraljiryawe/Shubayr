@@ -1,18 +1,18 @@
-# Shubayr — Mobile & Admin (Flutter)
+# Shubayr — Flutter phone application
 
-> Current guest sign-in and customer after-sales mock workflows are documented in
-> [Customer mock journeys](docs/customer-mock-progress.md). The older feature and
-> API-blocker inventory below predates those implementations and must not be used
-> as the current backlog; check the code and root OpenAPI contract.
+Flutter for **guests, customers, delivery agents and order monitors**. All
+administrative operations belong to the separate Next.js Web Admin. The retained
+Chrome launch is an isolated development preview of this phone app.
 
-One Flutter codebase for **Customer + Delivery + Admin**, also building for
-**Flutter Web** (admin dashboard). See
-[`../docs/setup/SETUP_MOBILE.md`](../docs/setup/SETUP_MOBILE.md) for full
-environment setup and [`../prompts/MOBILE_CLAUDE_FULL.md`](../prompts/MOBILE_CLAUDE_FULL.md)
-for the authoritative build prompt.
+Current contract: repository-root [`api/openapi.yaml`](../api/openapi.yaml),
+**11.0.0**. [AGENTS.md](AGENTS.md) defines development/architecture decisions;
+[ROADMAP.md](ROADMAP.md) separates completed hardening from external acceptance.
+The [contract synchronization log](docs/contract-sync-log.md) records the consumed
+v9 → v10 → v11 changes. Earlier API/admin/mock progress records are historical.
 
-Branding is **white-label**: the store name, logo, primary colour and currency
-come from `GET /settings` at runtime — nothing brand-specific is hard-coded.
+Bundled Flutter identity lives in `StoreIdentity`. `GET /settings` can override
+supported display values at runtime; native IDs/icons/signing remain build-time
+configuration. See the branding section below.
 
 ---
 
@@ -28,29 +28,137 @@ and the current upgrade verification status.
 
 ```bash
 flutter pub get
-flutter run                        # device/emulator (customer/delivery)
-flutter run -d chrome              # admin web dashboard
+flutter run                        # phone app (server-assigned role)
+flutter run -d chrome --web-hostname=localhost --web-port=7357  # isolated preview
 flutter test
-flutter analyze
+flutter analyze --no-pub
 ```
 
 ### Configuration (`--dart-define`)
 
+For the local database-backed workflow, development OTP accounts, and remaining
+integration gaps, see [Local real-data development](docs/local-real-data.md).
+
 | Define | Values | Default | Purpose |
 |---|---|---|---|
-| `API_URL` | any URL | `http://localhost:8000/api/v1` | Backend base URL |
-| `DATA_SOURCE` | `mock` \| `remote` | `mock` | Which repositories the app builds |
+| `API_URL` | HTTPS production DNS URL in profile/release; local HTTP allowed in debug | Debug: `http://localhost:8000/api/v1`; profile/release: none | Backend base URL |
+| Runtime data | `remote` | `remote` | Live backend; no fixture fallback |
 
 ```bash
 # Against the real API once the backend is up:
-flutter run --dart-define=API_URL=http://localhost:8000/api/v1 \
-            --dart-define=DATA_SOURCE=remote
+flutter run --dart-define=API_URL=http://localhost:8000/api/v1
 ```
 
-While `DATA_SOURCE=mock`, signing in accepts **any 6-digit code**. The last
-digit of the phone number picks the area you land in — `…1` delivery agent,
-`…2` staff, anything else customer. That is a mock-only dev affordance, not API
-behaviour.
+Normal application launches always use remote repositories. Fixture repositories
+are retained only for explicit automated-test overrides. `DATA_SOURCE=mock`
+does not enable a mock application. Use work phones configured by Web Admin;
+the OTP response determines the role.
+
+### VS Code: iOS Simulator and real iPhone
+
+Both opening the repository root and opening `mobile/` in VS Code provide:
+
+- **Shubayr - iOS Simulator**: the existing iPhone 17 Pro simulator, debug mode,
+  `http://localhost:8000/api/v1`, and the existing API preflight.
+- **Shubayr - iPhone Device**: Ahmed's connected physical iPhone, debug mode,
+  with `API_URL` passed to the existing `AppConfig` through Flutter's
+  `--dart-define-from-file`.
+
+Select the configuration in **Run and Debug**, then press **F5**. No file edits
+are needed to switch environments. The **only Mac IP setting** is `API_URL` in
+[`mobile/.vscode/iphone.json`](.vscode/iphone.json); both launch files and the
+iPhone preflight read that same file. If the Mac IP changes, update it there
+(Wi-Fi address: `ipconfig getifaddr en0`), then stop and relaunch the app because
+Dart defines are build-time values. Keep the backend port and `/api/v1` suffix.
+
+The iPhone must be paired/trusted, unlocked, have Developer Mode enabled, and
+use the same local network as the Mac. Use the existing
+[local signing setup](docs/ios-local-signing.md). The device profile pins Ahmed's
+physical device ID so selecting a simulator in the status bar cannot redirect
+it; a replacement phone requires updating `deviceId` in the launch files using
+`flutter devices`.
+
+Start the existing backend first. Its server listens on `0.0.0.0:8000` inside
+the container, but Docker must also publish API port 8000 to the Mac's LAN
+interface; a `127.0.0.1:8000:8000` mapping only supports the simulator. Keep
+database and other service ports restricted to localhost. Allow the API's
+incoming connections through the Mac firewall if prompted. Open the value
+of `API_URL` plus `/health` in **Safari on the iPhone**: an HTTP 200 JSON response
+confirms phone-to-backend connectivity. Then launch the app, allow **Local
+Network** access when asked, and check that the catalog loads. If access was
+denied, enable Shubayr under iOS Settings → Privacy & Security → Local Network.
+The preflight only checks the LAN endpoint from the Mac; it cannot prove the
+iPhone's network access or permission.
+
+Only the Xcode **Debug** configuration uses `ios/Runner/Info-Debug.plist`, adding
+the local-network usage message and `NSAllowsLocalNetworking` for local HTTP.
+It does not enable `NSAllowsArbitraryLoads`. Flutter supplies its own Bonjour
+VM-service entry during development builds. Release and Profile keep the
+original `Info.plist` and existing production HTTPS validation. Keep shared app
+metadata in both plist files in sync when changing it. See Apple's
+[local networking policy](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking).
+
+### Production release configuration
+
+Profile and release require an explicit `--dart-define=API_URL=https://<production-dns-host>/api/v1`.
+The app validates this before opening stores, restoring a session, or making
+requests. Missing URLs, HTTP, localhost, IP literals (including loopback/private
+and emulator addresses), single-label hosts, reserved/development host labels,
+embedded credentials, query strings and fragments are rejected with a localized
+configuration error. A corrected build is required; retry cannot repair a
+compile-time value. This rule applies to Android, iOS and web.
+
+Debug retains the localhost default and the design gallery. Android cleartext
+traffic is permitted only in the debug overlay. Profile/release omit the gallery
+route entirely and always use remote repositories; `DATA_SOURCE=mock` is ignored.
+HTTP diagnostics retain C11 redaction. There is no remote-to-fixture fallback.
+
+Android release packaging requires `android/key.properties` (already Git-ignored)
+with all four values: `storeFile` (absolute path to the production keystore),
+`storePassword`, `keyAlias`, and `keyPassword`. Supply these privately on the
+signing machine/CI through its secret store; never commit the file or keystore.
+The build does not create keys or fall back to debug signing. Debug builds and
+release manifest/compile tasks do not require signing material. APK/AAB packaging
+fails clearly when material is missing; invalid keys/passwords fail in the Android
+signing tools. Existing iOS local signing remains described in
+[Local iOS device signing](docs/ios-local-signing.md).
+
+Real Android release verification remains external until an Android SDK/JDK
+and private production signing material are configured. On that machine, verify
+the effective manifest with:
+
+```bash
+cd android
+./gradlew :app:processReleaseMainManifest
+# Inspect app's merged release AndroidManifest.xml under ../build/app/intermediates/.
+# It must contain android.permission.INTERNET and usesCleartextTraffic=false.
+./gradlew :app:validateProductionSigning
+```
+
+Use `flutter build appbundle --release --dart-define=API_URL=https://<production-dns-host>/api/v1`
+with the real production host and private signing material. An unsigned compile
+is not evidence of a distributable release or backend connectivity.
+
+### Startup recovery
+
+API configuration and secure authentication state are mandatory. Secure-store
+errors and unverifiable sessions use the existing localized session error/retry
+screen; credentials are never treated as disposable preferences. Temporary
+verification failures retain credentials without granting authenticated access.
+
+Locale, theme and cached store settings are disposable presentation inputs.
+Malformed types affect only their own key; incompatible settings JSON is ignored
+as a whole and refreshed remotely. Missing/nullable settings and unknown legacy
+fields remain compatible. No migration database or blanket preferences reset is
+used. If the preferences platform store fails or exceeds its five-second load budget,
+this launch uses defaults;
+new choices are not persisted until a later launch can access that store again.
+
+The bundled splash logo and brand font are optional presentation resources. A
+resource error or five-second preload timeout records sanitized diagnostics and
+uses text/system-font fallback. Optional remote settings never block startup.
+Unexpected pre-app failures show the existing localized error view and allow a
+single retry at a time. No raw exception or configuration URL is displayed.
 
 ### Code generation
 
@@ -58,7 +166,7 @@ Models use `json_serializable`. The generated `*.g.dart` files are **committed**
 (CI does not run `build_runner`). After changing a model:
 
 ```bash
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 ```
 
 Localisations are generated from the ARB files by `flutter pub get` /
@@ -68,20 +176,21 @@ Localisations are generated from the ARB files by `flutter pub get` /
 
 ## Architecture
 
-Shallow and feature-first — **model → repository → Riverpod → UI**. There is no
-DTO/entity split, no use-case layer and no mappers: with the API contract still
-in flux, a second model layer would only double the churn.
+Shallow and feature-first — **UI → Riverpod controller/provider → repository →
+ApiClient**. Models generally follow the consumed contract, with business types
+where useful. There is no mandatory DTO/entity/use-case hierarchy; fixture
+adapters stay outside live model decoding.
 
 ```
 lib/
-├── main.dart · bootstrap.dart        # startup: prefs → first frame → background refresh
+├── main.dart · bootstrap.dart        # config validation, recoverable prefs/assets, session restore
 ├── app/
 │   ├── app.dart                      # MaterialApp.router (theme + locale from providers)
 │   ├── router/                       # routes, GoRouter, role guard
-│   ├── shell/                        # customer navigation shell (bar ⇄ rail)
+│   ├── shell/                        # customer/work shells and application composition
 │   └── splash_screen.dart
 ├── core/
-│   ├── config/                       # dart-define configuration, data-source switch
+│   ├── config/                       # remote API configuration, explicit test overrides
 │   ├── network/                      # Dio client, interceptors, AppFailure mapping
 │   ├── storage/                      # secure token store, shared-prefs store
 │   ├── error/                        # AppFailure + localised messages
@@ -91,97 +200,48 @@ lib/
 │   └── utils/                        # currency, validators, hex colours
 └── features/
     ├── settings/  auth/              # implemented
-    ├── catalog/  cart/  orders/      # placeholder screens (next phase)
-    └── delivery/  admin/             # routing shells only
+    ├── catalog/  cart/  orders/      # customer commerce
+    ├── delivery/  monitoring/        # role-specific work pages
+    └── notifications/                # saved inbox and read synchronization
 ```
 
-Each feature is `data/` (models + repository implementations), `domain/`
-(repository interface + domain types), `presentation/` (providers + screens).
+Features use `data/` (models/repositories), optional `domain/` contracts/types,
+and `presentation/` controllers/providers/screens. Account data is session-owned;
+Cart writes are serialized; checkout/cancellation commit independently of widget
+lifetime. Repositories use ApiClient/error boundaries, not navigation. Core has
+no feature dependencies. Server prices/totals, quantity precision and API version
+conflicts remain authoritative. See AGENTS.md for the concrete decision rules.
 
-### Mock ⇄ remote repositories
+### Current work
 
-Every feature declares an interface in `domain/` and two implementations in
-`data/`: `…RepositoryMock` and `…RepositoryRemote` (Dio). One provider picks
-between them from `DATA_SOURCE`:
+The planned C01–C22 hardening work is implemented; C21 records its closure.
+Follow [ROADMAP.md](ROADMAP.md) for external acceptance boundaries, not the old
+migration backlog. Tests use isolated fixtures; signed release/device and live
+API integration need their actual configured environments. Interactive checks
+are used only when they add evidence beyond deterministic tests.
 
-```dart
-final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
-  return switch (ref.watch(dataSourceProvider)) {
-    DataSource.mock   => const SettingsRepositoryMock(),
-    DataSource.remote => SettingsRepositoryRemote(ref.watch(apiClientProvider)),
-  };
-});
-```
+### Branding another application
 
-Presentation code only ever sees the interface, so flipping a feature to the
-real API changes no UI code. A single feature can be moved to `remote` ahead of
-the others by overriding its provider in a `ProviderScope`. Both
-implementations throw the same `AppFailure`, so error handling is identical.
+`lib/core/config/store_identity.dart` owns the bundled Arabic/English name,
+logo asset and startup wordmark font resource. Keep the referenced assets and
+`pubspec.yaml` declarations in sync (font family tokens live in
+`core/theme/tokens/app_typography.dart`). Startup uses this build identity;
+Home, monitoring and the app title use API store settings when provided.
+`GET /settings` supplies only `store_name`, `logo_url`, `primary_color` and
+`currency`; missing values use the existing bundled presentation defaults.
 
-**Mocks are only written for endpoints whose response schema exists in
-`api/openapi.yaml`.** Endpoints documented as bare `"200": { description: OK }`
-get no mock — inventing a shape would harden a guess.
+A separately published app still needs native/build changes: Android label in
+`android/app/src/main/AndroidManifest.xml`, namespace/applicationId in
+`android/app/build.gradle.kts` and matching MainActivity package; iOS display
+name in `ios/Runner/Info.plist` and bundle IDs/signing in
+`ios/Runner.xcodeproj/project.pbxproj`; launcher icons in Android mipmaps and
+iOS `Runner/Assets.xcassets/AppIcon.appiconset`. Update any enabled desktop/web
+runner metadata/icons, Dart package references if renaming the package, API
+build configuration and release signing for that app. Native identifiers are
+never taken from runtime settings. No flavors or tenant framework are required.
 
-### Design system
-
-Colour, type, spacing, radii, shadow and motion values live in
-`core/theme/tokens/`. `AppColors` (a `ThemeExtension`) is the semantic layer —
-`primary`, `primaryDark`, `primaryLight`, `primarySoft`, `onPrimary`, `accent`,
-`background`, `surface`, `surfaceAlt`, `textPrimary/Secondary/Muted`, `border`,
-`divider`, `success`, `warning`, `danger`, `info`.
-
-Widgets read `context.colors` / `context.text`. **Colour literals are allowed in
-`core/theme/tokens/color_primitives.dart` only** — never in feature widgets.
-
-`AppColors.fromSeed(primary)` derives the brand shades from a single colour,
-which is what makes runtime white-labelling work: `GET /settings` supplies
-`primary_color`, everything else stays bundled. Material 3 is the base, with
-elevation tinting switched off so surfaces keep the warm neutral palette.
-
-### Localisation
-
-Arabic-first (`ar` default, `en` secondary), ARB files in `core/l10n/arb/`, the
-choice persisted in shared preferences. Layout mirrors automatically; use
-`EdgeInsetsDirectional` and `start`/`end` in new widgets.
-
-### Fonts
-
-Cairo, bundled from local assets only — never fetched over the network. All four
-weights used by `AppTypography` (400/500/600/700) are present and declared in
-`pubspec.yaml`; see [`assets/fonts/README.md`](assets/fonts/README.md).
-
-### Startup
-
-Native launch screen (warm off-white on Android, iOS and web) → `bootstrap()`
-loads shared preferences → first frame with the cached brand and locale →
-session restore and settings refresh continue in the background. There is no
-artificial delay, and `Skeleton` / `SkeletonList` are in place so content
-screens can render immediately and fill in as data lands.
-
----
-
-## Not implemented yet (waiting on the API contract)
-
-These are blocked by `api/openapi.yaml`, not by effort:
-
-| Area | Blocker |
-|---|---|
-| Address book, checkout | no addresses endpoints |
-| Permission-gated admin UI | no `permissions[]` on the user |
-| Silent token refresh | no `/auth/refresh` — a 401 signs the user out |
-| Order history, tracking, cancel | no response schemas |
-| Reviews | `Order.items[]` has no `order_item_id` |
-| Wishlist | no response schema, no delete endpoint |
-| Push notifications | no device-token endpoint |
-| Stock availability | no stock field on `Product` |
-| Warehouses/locations, purchasing, inventory, picking, returns, reports, admin CRUD | no response schemas |
-| Delivery agent workflows | `/deliveries/assigned` has no response schema |
-
-Catalog and cart screens are placeholders on purpose: they are the next feature
-phase, not a contract gap.
-
-## Working agreement
-
-All app work stays inside `mobile/`. Branch off the latest `main`, use Conventional
-Commits, and open a PR into `main`. Delete the task branch after merge — see the
-repository `CONTRIBUTING.md`.
+Presentation dates use `DisplayDate`: timestamps become device-local time;
+calendar-only values retain their year/month/day. Numeric Gregorian dates use
+Western digits in both Arabic and English. These strings never replace raw
+API/domain dates. Product reviews display a read-only first-page preview, with
+an explicit shown/total label when further reviews exist.

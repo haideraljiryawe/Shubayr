@@ -21,7 +21,7 @@ class ProductAvailability {
 
   /// Total sellable across variants.
   @JsonKey(name: 'available_qty')
-  final int availableQty;
+  final num availableQty;
 
   final List<VariantAvailability> variants;
 
@@ -44,6 +44,9 @@ class VariantAvailability {
   const VariantAvailability({
     this.variantId,
     this.sku = '',
+    this.baseUnit,
+    this.wholeUnitsOnly,
+    this.lowStockThreshold,
     required this.availableQty,
     required this.inStock,
   });
@@ -52,9 +55,16 @@ class VariantAvailability {
   final String? variantId;
   final String sku;
   @JsonKey(name: 'available_qty')
-  final int availableQty;
+  final num availableQty;
   @JsonKey(name: 'in_stock')
   final bool inStock;
+
+  @JsonKey(name: 'base_unit', includeIfNull: false)
+  final String? baseUnit;
+  @JsonKey(name: 'whole_units_only', includeIfNull: false)
+  final bool? wholeUnitsOnly;
+  @JsonKey(name: 'low_stock_threshold', includeIfNull: false)
+  final num? lowStockThreshold;
 
   factory VariantAvailability.fromJson(Map<String, dynamic> json) =>
       _$VariantAvailabilityFromJson(json);

@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../../../core/error/response_decode.dart';
 import '../domain/catalog_repository.dart';
 import 'category.dart';
 import 'product.dart';
@@ -12,12 +13,12 @@ class CatalogRepositoryRemote implements CatalogRepository {
   final ApiClient _api;
 
   @override
-  Future<List<Category>> fetchCategories() async {
+  Future<List<Category>> fetchCategories() => decodeResponse(() async {
     final json = await _api.get<List<dynamic>>('/categories');
     return json
         .map((e) => Category.fromJson(e as Map<String, dynamic>))
         .toList();
-  }
+  });
 
   @override
   Future<ProductPage> fetchProducts({
@@ -29,7 +30,7 @@ class CatalogRepositoryRemote implements CatalogRepository {
     String? sort,
     int page = 1,
     int perPage = 20,
-  }) async {
+  }) => decodeResponse(() async {
     final params = <String, dynamic>{'page': page, 'per_page': perPage};
     if (query != null && query.trim().isNotEmpty) params['q'] = query.trim();
     if (categoryId != null) params['category_id'] = categoryId;
@@ -42,32 +43,33 @@ class CatalogRepositoryRemote implements CatalogRepository {
       query: params,
     );
     return ProductPage.fromJson(json);
-  }
+  });
 
   @override
-  Future<Product> fetchProduct(String id) async {
+  Future<Product> fetchProduct(String id) => decodeResponse(() async {
     final json = await _api.get<Map<String, dynamic>>('/products/$id');
     return Product.fromJson(json);
-  }
+  });
 
   @override
-  Future<ProductAvailability> fetchAvailability(String id) async {
-    final json = await _api.get<Map<String, dynamic>>(
-      '/products/$id/availability',
-    );
-    return ProductAvailability.fromJson(json);
-  }
+  Future<ProductAvailability> fetchAvailability(String id) =>
+      decodeResponse(() async {
+        final json = await _api.get<Map<String, dynamic>>(
+          '/products/$id/availability',
+        );
+        return ProductAvailability.fromJson(json);
+      });
 
   @override
   Future<ReviewPage> fetchReviews(
     String id, {
     int page = 1,
     int perPage = 20,
-  }) async {
+  }) => decodeResponse(() async {
     final json = await _api.get<Map<String, dynamic>>(
       '/products/$id/reviews',
       query: {'page': page, 'per_page': perPage},
     );
     return ReviewPage.fromJson(json);
-  }
+  });
 }

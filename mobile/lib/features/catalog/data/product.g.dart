@@ -12,6 +12,14 @@ ProductVariant _$ProductVariantFromJson(Map<String, dynamic> json) =>
       sku: json['sku'] as String? ?? '',
       attributes: json['attributes'] as Map<String, dynamic>? ?? const {},
       priceDelta: json['price_delta'] as num? ?? 0,
+      effectivePrice: json['effective_price'] as num? ?? 0,
+      currencyCode: json['currency_code'] as String?,
+      currency: json['currency'] as String?,
+      baseUnit: json['base_unit'] as String?,
+      wholeUnitsOnly: json['whole_units_only'] as bool? ?? true,
+      availableQty: json['available_qty'] as num?,
+      inStock: json['in_stock'] as bool?,
+      lowStockThreshold: json['low_stock_threshold'] as num?,
     );
 
 Map<String, dynamic> _$ProductVariantToJson(ProductVariant instance) =>
@@ -20,6 +28,14 @@ Map<String, dynamic> _$ProductVariantToJson(ProductVariant instance) =>
       'sku': instance.sku,
       'attributes': instance.attributes,
       'price_delta': instance.priceDelta,
+      'effective_price': instance.effectivePrice,
+      'currency_code': ?instance.currencyCode,
+      'currency': ?instance.currency,
+      'base_unit': ?instance.baseUnit,
+      'whole_units_only': instance.wholeUnitsOnly,
+      'available_qty': ?instance.availableQty,
+      'in_stock': ?instance.inStock,
+      'low_stock_threshold': ?instance.lowStockThreshold,
     };
 
 Product _$ProductFromJson(Map<String, dynamic> json) => Product(
@@ -29,6 +45,7 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
   nameAr: json['name_ar'] as String,
   description: json['description'] as String? ?? '',
   price: json['price'] as num? ?? 0,
+  currency: json['currency'] as String?,
   discountType: json['discount_type'] as String?,
   discountValue: json['discount_value'] as num?,
   discountStartsAt: json['discount_starts_at'] == null
@@ -48,9 +65,11 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
   ratingAvg: json['rating_avg'] as num? ?? 0,
   status: json['status'] as String? ?? 'active',
   inStock: json['in_stock'] as bool? ?? true,
-  availableQty: (json['available_qty'] as num?)?.toInt() ?? 0,
-  images:
-      (json['images'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+  availableQty: json['available_qty'] as num? ?? 0,
+  media:
+      (json['images'] as List<dynamic>?)
+          ?.map((e) => ProductImage.fromJson(e as Map<String, dynamic>))
+          .toList() ??
       const [],
   variants:
       (json['variants'] as List<dynamic>?)
@@ -66,6 +85,7 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
   'name_ar': instance.nameAr,
   'description': instance.description,
   'price': instance.price,
+  'currency': ?instance.currency,
   'discount_type': instance.discountType,
   'discount_value': instance.discountValue,
   'discount_starts_at': instance.discountStartsAt?.toIso8601String(),
@@ -82,6 +102,21 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
   'status': instance.status,
   'in_stock': instance.inStock,
   'available_qty': instance.availableQty,
-  'images': instance.images,
+  'images': instance.media.map((e) => e.toJson()).toList(),
   'variants': instance.variants.map((e) => e.toJson()).toList(),
 };
+
+ProductImage _$ProductImageFromJson(Map<String, dynamic> json) => ProductImage(
+  id: json['id'] as String,
+  url: json['url'] as String,
+  sortOrder: (json['sort_order'] as num).toInt(),
+  isPrimary: json['is_primary'] as bool,
+);
+
+Map<String, dynamic> _$ProductImageToJson(ProductImage instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'url': instance.url,
+      'sort_order': instance.sortOrder,
+      'is_primary': instance.isPrimary,
+    };

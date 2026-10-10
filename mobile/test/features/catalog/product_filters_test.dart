@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,6 +88,9 @@ Widget _host(
 ProviderContainer _container(_Catalog catalog) {
   final container = ProviderContainer(
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       catalogRepositoryProvider.overrideWithValue(catalog),
       brandProvider.overrideWithValue(const Brand.bundled()),
     ],
@@ -97,9 +102,10 @@ ProviderContainer _container(_Catalog catalog) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
-    await (FontLoader('Cairo')
-          ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf')))
+    await (FontLoader('Zain')
+          ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf')))
         .load();
   });
   test(
@@ -522,55 +528,48 @@ void main() {
       },
     );
 
-    testWidgets(
-      'responsive editor uses dialog on desktop and fits large text $locale',
-      (tester) async {
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        final container = _container(_Catalog());
-        for (final width in [
-          320.0,
-          599.0,
-          600.0,
-          899.0,
-          900.0,
-          1199.0,
-          1200.0,
-          1535.0,
-          1536.0,
-          1920.0,
-        ]) {
-          tester.view.physicalSize = Size(width, 900);
-          await tester.pumpWidget(_host(container, locale: locale, scale: 2));
-          await tester.pumpAndSettle();
-          await openProductFilters(tester);
-          expect(
-            find.byType(Dialog),
-            width >= 900 ? findsOneWidget : findsNothing,
-          );
-          expect(
-            find.byType(BottomSheet),
-            width < 900 ? findsOneWidget : findsNothing,
-          );
-          expect(
-            find.descendant(
-              of: find.byType(ProductFilterEditor),
-              matching: find.byType(Divider),
-            ),
-            findsNWidgets(2),
-          );
-          final target = find.byKey(const ValueKey('filter-max-price'));
-          await tester.ensureVisible(target);
-          await tester.pumpAndSettle();
-          await tester.enterText(target, '50000');
-          await applyProductFilters(tester);
-          expect(
-            find.byKey(const ValueKey('applied-filter-price')),
-            findsOneWidget,
-          );
-          expect(tester.takeException(), isNull, reason: '$width');
-        }
-      },
-    );
+    testWidgets('same filter sheet fits all windows and large text $locale', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final container = _container(_Catalog());
+      for (final width in [
+        320.0,
+        599.0,
+        600.0,
+        899.0,
+        900.0,
+        1199.0,
+        1200.0,
+        1535.0,
+        1536.0,
+        1920.0,
+      ]) {
+        tester.view.physicalSize = Size(width, 900);
+        await tester.pumpWidget(_host(container, locale: locale, scale: 2));
+        await tester.pumpAndSettle();
+        await openProductFilters(tester);
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(ProductFilterEditor),
+            matching: find.byType(Divider),
+          ),
+          findsNWidgets(2),
+        );
+        final target = find.byKey(const ValueKey('filter-max-price'));
+        await tester.ensureVisible(target);
+        await tester.pumpAndSettle();
+        await tester.enterText(target, '50000');
+        await applyProductFilters(tester);
+        expect(
+          find.byKey(const ValueKey('applied-filter-price')),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull, reason: '$width');
+      }
+    });
   }
 }

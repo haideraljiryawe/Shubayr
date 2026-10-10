@@ -1,0 +1,127 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Shubayr - iOS Simulator",
+      "presentation": {
+        "order": 2,
+        "group": "Remote"
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "deviceId": "iPhone 17 Pro",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define=API_URL=http://localhost:8000/api/v1"
+      ],
+      "preLaunchTask": "Check remote: ios"
+    },
+    {
+      "name": "Shubayr - iPhone Device",
+      "presentation": {
+        "order": 6,
+        "group": "Remote"
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "deviceId": "00008140-001125441AFB001C",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define-from-file=${workspaceFolder}/mobile/.vscode/iphone.json"
+      ],
+      "preLaunchTask": "Check remote: iphone"
+    },
+    {
+      "name": "Chrome Preview (Remote)",
+      "presentation": {
+        "order": 4,
+        "group": "Remote"
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "deviceId": "chrome",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define=API_URL=http://localhost:8000/api/v1",
+        "--web-hostname=localhost",
+        "--web-port=7357"
+      ],
+      "preLaunchTask": "Check remote: chrome"
+    },
+    {
+      "name": "Web Admin (Remote)",
+      "presentation": {
+        "order": 3,
+        "group": "Remote"
+      },
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev -- --hostname localhost",
+      "cwd": "${workspaceFolder}/admin",
+      "env": {
+        "API_URL": "http://localhost:8000/api/v1",
+        "ADMIN_ORIGIN": "http://localhost:3200",
+        "ADMIN_COOKIE_SECURE": "true"
+      },
+      "preLaunchTask": "Check remote: admin"
+    },
+    {
+      "name": "Android Emulator (Remote)",
+      "presentation": {
+        "order": 5,
+        "group": "Remote"
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "deviceId": "emulator-5554",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define=API_URL=http://10.0.2.2:8000/api/v1"
+      ]
+    },
+    {
+      "name": "Shubayr - Android Device",
+      "presentation": {
+        "order": 7,
+        "group": "Remote"
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "deviceId": "RFCWA13JCSH",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define-from-file=${workspaceFolder}/mobile/.vscode/iphone.json"
+      ]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "iOS + Web Admin (Remote)",
+      "configurations": [
+        "Web Admin (Remote)",
+        "Shubayr - iOS Simulator"
+      ],
+      "preLaunchTask": "Check remote: admin",
+      "stopAll": true,
+      "presentation": {
+        "group": "Remote",
+        "order": 1
+      }
+    }
+  ]
+}

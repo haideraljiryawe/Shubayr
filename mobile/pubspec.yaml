@@ -1,7 +1,7 @@
 name: shubayr
-description: "Shubayr — multi-role commerce app (customer, delivery, admin)."
+description: "Shubayr — commerce app for customers, delivery agents and order monitors."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.12.0
@@ -40,9 +40,7 @@ dependencies:
   # The de-facto standard for this in Flutter; used only by the product gallery.
   photo_view: ^0.15.0
 
-  cupertino_icons: ^1.0.8
   url_launcher: ^6.3.2
-  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:
@@ -64,23 +62,16 @@ flutter:
     - assets/images/branding/shubayr-logo.png
 
   # ---------------------------------------------------------------------------
-  # Local UI font — Cairo. Bundled from assets, never fetched over the network.
+  # Local UI font — Zain. Bundled from assets, never fetched over the network.
   # AppTypography.fontFamily is the single place that names the family.
   # Licence: assets/fonts/OFL.txt (SIL Open Font License 1.1).
   # ---------------------------------------------------------------------------
   fonts:
-    - family: Cairo
+    - family: Zain
       fonts:
-        - asset: assets/fonts/Cairo-Regular.ttf
+        - asset: assets/fonts/Zain-Regular.ttf
           weight: 400
-        - asset: assets/fonts/Cairo-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Cairo-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Cairo-Bold.ttf
-          weight: 700
-    # Brand wordmarks only; Cairo remains the app-wide UI family.
-    - family: Zain-Bold
-      fonts:
         - asset: assets/fonts/Zain-Bold.ttf
           weight: 700
+        - asset: assets/fonts/Zain-ExtraBold.ttf
+          weight: 800

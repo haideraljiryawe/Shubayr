@@ -5,17 +5,110 @@ It records contract readiness separately from Flutter implementation and accepta
 Earlier feature progress records describe their own dated implementation snapshots;
 this log and the roadmap record later changes to their dependencies.
 
-## Latest reviewed baseline
+## SYNC-2026-10-09 — delivery collection and repeat-safe cart adds
+
+Implemented against the unchanged root OpenAPI **13.4.0** (blob
+`ed412ff5362b24e67046e8b48bda5f43323a63f0`), following the v11→v12 and
+v13→v13.1 mobile handoffs. Implemented on `mobile`.
+
+- Delivered requires an explicit confirmed/unconfirmed choice. Confirmed amounts
+  use normalized decimal strings; unconfirmed requests omit the amount.
+- Required `Delivery.amount_due` is decoded without a fallback and displayed in
+  IQD, independently of delivery fee. Flutter does not recompute the due amount.
+- Controllers persist immutable pending requests in the existing secure-storage
+  platform, scoped by API URL, account and delivery/SKU. A timeout, malformed
+  success or unknown result retains the key and exact body across navigation and
+  app restart. An unresolved delivery cannot change amount/choice/version; retry
+  uses the original request. Stale-state 409 still reloads, without auto-retry.
+- Each successful cart add ends its intent; the next add gets a fresh key.
+  Repeating an unresolved add requires its original SKU/quantity. If an uncertain
+  add is subsequently rejected (for example, changed availability), its original
+  intent is retained rather than risking a second add. Such a persistent refusal
+  needs reconciliation; no unsafe discard/re-key control is offered.
+- Local storage failure prevents sending a new write. Clearing app data or losing
+  secure storage also loses pending recovery data; it is not a backup service.
+- No Backend, OpenAPI or Admin source changes. Collection-history/custody UI,
+  Retry-After support and optional guest-cart merge remain outside this change.
+
+Verification: Flutter controller/repository/widget tests cover full, partial and
+unconfirmed collection, excess amounts, lost responses, immutable replay and stale
+versions. `node mobile/tool/verify_api134.mjs` provisions isolated Docker services
+(Postgres on loopback 55432), copies Backend into a temporary verification folder,
+installs its locked dependencies there, seeds a unique `shubayr_*_verify` database,
+and runs the opt-in Flutter live test. Real API verification passed, including
+cart `IDEMPOTENCY_KEY_REUSED`; the database confirmed exactly three collections
+for three delivered fixtures after replay. The database and containers were
+removed. No simulator was used. This is targeted compatibility verification,
+not PR CI or approval to merge.
+
+Final local checks: `flutter analyze --no-pub` passed with no issues;
+`flutter test --no-pub` passed **1824 tests**, with five opt-in live tests skipped
+in the default run. The new API 13.4 live test was run separately and passed.
+`git diff --check` passed.
+
+<details>
+<summary>Files changed for this compatibility update</summary>
+
+- [docs/contract-sync-log.md](../docs/contract-sync-log.md)
+- [lib/core/error/failure.dart](../lib/core/error/failure.dart)
+- [lib/core/l10n/arb/app_ar.arb](../lib/core/l10n/arb/app_ar.arb)
+- [lib/core/l10n/arb/app_en.arb](../lib/core/l10n/arb/app_en.arb)
+- [lib/core/l10n/generated/app_localizations.dart](../lib/core/l10n/generated/app_localizations.dart)
+- [lib/core/l10n/generated/app_localizations_ar.dart](../lib/core/l10n/generated/app_localizations_ar.dart)
+- [lib/core/l10n/generated/app_localizations_en.dart](../lib/core/l10n/generated/app_localizations_en.dart)
+- [lib/core/network/api_client.dart](../lib/core/network/api_client.dart)
+- [lib/core/storage/pending_request_store.dart](../lib/core/storage/pending_request_store.dart)
+- [lib/features/cart/data/cart_repository_mock.dart](../lib/features/cart/data/cart_repository_mock.dart)
+- [lib/features/cart/data/cart_repository_remote.dart](../lib/features/cart/data/cart_repository_remote.dart)
+- [lib/features/cart/domain/cart_repository.dart](../lib/features/cart/domain/cart_repository.dart)
+- [lib/features/cart/presentation/providers/cart_providers.dart](../lib/features/cart/presentation/providers/cart_providers.dart)
+- [lib/features/catalog/presentation/screens/product_detail_screen.dart](../lib/features/catalog/presentation/screens/product_detail_screen.dart)
+- [lib/features/delivery/data/delivery.dart](../lib/features/delivery/data/delivery.dart)
+- [lib/features/delivery/data/delivery.g.dart](../lib/features/delivery/data/delivery.g.dart)
+- [lib/features/delivery/data/delivery_repository_mock.dart](../lib/features/delivery/data/delivery_repository_mock.dart)
+- [lib/features/delivery/data/delivery_repository_remote.dart](../lib/features/delivery/data/delivery_repository_remote.dart)
+- [lib/features/delivery/domain/delivery_collection_input.dart](../lib/features/delivery/domain/delivery_collection_input.dart)
+- [lib/features/delivery/domain/delivery_repository.dart](../lib/features/delivery/domain/delivery_repository.dart)
+- [lib/features/delivery/presentation/providers/delivery_providers.dart](../lib/features/delivery/presentation/providers/delivery_providers.dart)
+- [lib/features/delivery/presentation/screens/delivery_home_screen.dart](../lib/features/delivery/presentation/screens/delivery_home_screen.dart)
+- [lib/features/delivery/presentation/screens/delivery_status_dialog.dart](../lib/features/delivery/presentation/screens/delivery_status_dialog.dart)
+- [test/api134_live_test.dart](../test/api134_live_test.dart)
+- [test/core/storage/pending_request_store_test.dart](../test/core/storage/pending_request_store_test.dart)
+- [test/features/cart/cart_add_idempotency_test.dart](../test/features/cart/cart_add_idempotency_test.dart)
+- [test/features/cart/cart_concurrency_test.dart](../test/features/cart/cart_concurrency_test.dart)
+- [test/features/cart/cart_controller_test.dart](../test/features/cart/cart_controller_test.dart)
+- [test/features/cart/cart_repository_test.dart](../test/features/cart/cart_repository_test.dart)
+- [test/features/catalog/product_detail_test.dart](../test/features/catalog/product_detail_test.dart)
+- [test/features/commerce/api11_contract_test.dart](../test/features/commerce/api11_contract_test.dart)
+- [test/features/commerce/pricing_repository_test.dart](../test/features/commerce/pricing_repository_test.dart)
+- [test/features/commerce/quantity_contract_test.dart](../test/features/commerce/quantity_contract_test.dart)
+- [test/features/commerce/quantity_controller_test.dart](../test/features/commerce/quantity_controller_test.dart)
+- [test/features/delivery/api134_delivery_test.dart](../test/features/delivery/api134_delivery_test.dart)
+- [test/features/delivery/deliveries_controller_test.dart](../test/features/delivery/deliveries_controller_test.dart)
+- [test/features/delivery/delivery_collection_dialog_test.dart](../test/features/delivery/delivery_collection_dialog_test.dart)
+- [test/features/delivery/delivery_home_screen_test.dart](../test/features/delivery/delivery_home_screen_test.dart)
+- [test/features/delivery/delivery_repository_test.dart](../test/features/delivery/delivery_repository_test.dart)
+- [test/features/delivery/support/delivery_fakes.dart](../test/features/delivery/support/delivery_fakes.dart)
+- [test/features/orders/commerce_currency_test.dart](../test/features/orders/commerce_currency_test.dart)
+- [test/features/orders/order_item_snapshot_test.dart](../test/features/orders/order_item_snapshot_test.dart)
+- [test/features/orders/order_repository_test.dart](../test/features/orders/order_repository_test.dart)
+- [test/responsive_screens_test.dart](../test/responsive_screens_test.dart)
+- [tool/verify_api134.mjs](../tool/verify_api134.mjs)
+
+</details>
+
+## Previous reviewed baseline
 
 | Item | Value |
 |---|---|
-| Review date | 2026-09-10 |
-| Flutter implementation | `174e3eabb46d04410f5f2031fab17de4c47aa17b` on `mobile` |
-| Upstream reviewed | `origin/main` at `f4586900618ef75c36296bd5d53fe497b82fab1e` |
-| Last upstream commit changing the contract | `89c91207bf31a58bc985ac81cb3e4d823a3e42c6` |
-| Contract copied locally | [api/openapi.yaml](../../api/openapi.yaml), exact bytes from the upstream revision above |
-| Contract version | `1.1.0` — unchanged despite additions; use the commit to identify this snapshot |
-| Next comparison baseline | `f4586900618ef75c36296bd5d53fe497b82fab1e` for shared upstream changes; inspect the local working tree before the next import |
+| Review date | 2026-10-03 |
+| Flutter baseline | `0b858ad` on `mobile`; C01–C20/C22 implemented, C21 governance closure |
+| Upstream reviewed/merged | `704bef71f0cd3db959756161284310aa2f433d05` |
+| Contract | [api/openapi.yaml](../../api/openapi.yaml), exact upstream blob |
+| Contract version | **11.0.0** |
+| Comparison anchors | local v9 → `c006c7b` v10.0.2 → `704bef7` v11.0.0 |
+| Integration state | API 11 alignment committed in `ea9d784`; C21 makes no commit/push |
+| Next comparison baseline | `704bef7` |
 
 ## SYNC-2026-09-10 — reviewed and imported documentation
 
@@ -185,3 +278,145 @@ For each received change record:
 Update the phase task, dependency register and ready-work index in the same edit.
 Do not create a scheduled watcher, commit, push or send a message to the team
 unless Ahmed requests that action.
+
+## SYNC-2026-10-03 — API 11 alignment (historical implementation record)
+
+> The following records the migration before approval. It was subsequently
+> committed as `ea9d784`. The Checkout 320px/150% overflow noted at the end
+> was fixed by C18–C20 (`0b858ad`); it is not an outstanding code blocker.
+> Live deployment/contract acceptance remains distinct from isolated tests.
+
+Baseline: clean `mobile` at C09 `15de4c2`. Fetched `origin/main`; Ahmed selected
+`704bef71f0cd3db959756161284310aa2f433d05` explicitly. Directly read the complete
+OpenAPI structures used by Mobile at local v9, `c006c7b` v10.0.2, and `704bef7`
+v11.0.0, including transitive `$ref` dependencies. Compared object structure,
+not just migration-document claims. `docs/mobile/contract-changes-v9-to-v10.md`
+is historical evidence only (its last comparison is v10.0.1).
+
+### Source integration
+
+`git merge --no-ff --no-commit 704bef7` merged without conflicts. The incoming
+changes outside Mobile are the exact upstream integration, not new edits to
+Backend, Web Admin, web, contracts, or AGENTS. No commit/push is performed before
+review. The imported root Git instructions conflict with Ahmed's explicit Mobile
+branch/no-push workflow; his instructions and Mobile's review policy govern this
+batch. C10–C22 are not included.
+
+Incoming commits: `3f6fd7d` lifecycle v2; `4fe66f3` standing rules; `bd8d124`
+supplier payments; `6ab672e` web/admin lifecycle screens; `be6936c` supplier-payment
+UI; `b2a3c38` Baghdad exchange-rate timing; `c006c7b` web/admin production readiness;
+`704bef7` permission dependencies and secure approval initiators.
+
+### Complete consumed-operation inventory
+
+All 41 method/path pairs below were compared for request bodies, queries, headers,
+response schemas, requiredness, enums, transitions, concurrency, pagination,
+errors, numeric precision, and nullability. “Unchanged” includes transitive
+schemas unless the row identifies an addition. Shared `Error`/`FieldError` changes
+are described below and apply wherever those envelopes occur.
+
+| Area | Operations consumed | v9 → v10.2 | v10.2 → v11 / Mobile decision |
+|---|---|---|---|
+| Authentication/session | POST `/auth/request-otp`, `/auth/verify-otp`, `/auth/refresh`, `/auth/logout`; GET/PATCH `/me` | Unchanged: inline OTP input, AuthTokens, RefreshTokenRequest, User, UserSelfUpdate | Unchanged; retain C03/C04 and existing refresh semantics |
+| Configuration | GET `/settings` | StoreSettings unchanged | Unchanged; admin finance settings are not this endpoint |
+| Banners | GET `/banners` | Banner unchanged | Unchanged |
+| Catalog | GET `/categories`, `/products`, `/products/{id}` | Category, Brand, ProductPage, ProductImage, Product, ProductVariant unchanged | Product and ProductVariant gain optional nullable UUID `price_proposed_by`; ignored because Mobile neither reads nor edits proposer identity |
+| Availability | GET `/products/{id}/availability` | ProductAvailability unchanged | Unchanged; keep fractional available stock and whole-unit rules |
+| Public reviews | GET/POST `/products/{id}/reviews` | Review/ReviewPage and purchase-linked submit body unchanged | Unchanged |
+| Wishlist | GET/POST `/wishlist`; DELETE `/wishlist/{productId}` | WishlistPage/Item unchanged | Product's optional proposer addition only; pagination/body unchanged |
+| Cart | GET `/cart`; POST `/cart/items`; PATCH/DELETE `/cart/items/{id}`; DELETE `/cart/coupon` | Cart line requires `price_version`, `current_unit_price`, `current_price_version`, `price_changed`. `unit_price` and `line_total` mean the price last seen, not the latest catalog price | No further change. Decode separate price snapshots; retain server totals and serialized session-owned writes |
+| Coupons | POST `/coupons/validate` | Coupon and code-only request unchanged | Unchanged; apply then read server cart, remove uses returned cart |
+| Addresses | GET/POST `/addresses`; PATCH/DELETE `/addresses/{id}` | Address/Page/Create/Patch unchanged | Unchanged |
+| Checkout | POST `/orders` | Optional `accepted_price_versions` array of required `{variant_id: UUID, price_version: string(1..64)}`; explicit tokens from prior PRICE_CHANGED | Unchanged. No inferred/hash-generated versions, no unconditional acceptance, no automatic resubmit |
+| Order reads | GET `/orders`, `/orders/{id}`, `/orders/{id}/track` | Order adds optional integer `version >= 1`, deadlines, late flag, cancellation_request, price_change_info, attention fields, timeline, retrievals. OrderItem adds optional price_version. OrderStatus/OrderTracking/pagination unchanged | Unchanged. Consume version for existing cancellation. Optional unconsumed workflow fields do not add new Mobile features |
+| Cancellation | POST `/orders/{id}/cancel` | Required body `{version: integer >= 1}`, additionalProperties=false; existing 409 envelope | Unchanged. Send displayed version; reload detail/tracking/list on conflict without retrying the write |
+| Customer after-sales | GET `/me/reviews`, `/returns`; POST `/returns` | CustomerReview/Page, Return/Item/Page and refund reference schemas unchanged | Unchanged. Existing per-item required reason mismatch fixed; preserve C08 server/history eligibility |
+| Delivery | GET `/deliveries/assigned`; PATCH `/deliveries/{id}` | Delivery requires order_version; adds nullable failure_reason/failed_at and retry_count. PATCH requires order_version, reason(1..500) for failed. Failed→out_for_delivery is now allowed | Unchanged. Read queue-owned version, require failure reason, expose retry; existing 409 read refresh retained |
+| Monitoring | GET `/monitor/orders`, `/monitor/orders/{id}` | MonitorOrderListItem/Detail/Page inherit additive Order fields. Existing read fields, status counts, queries, pagination unchanged | Unchanged; read-only, no staff writes added |
+| Notifications | GET `/me/notifications`, `/me/notifications/unread-count`; PATCH `/me/notifications/{id}/read` | Notification.type adds order_acceptance_late/retrieval_update via its enum reference. Notification/Page/UnreadCount otherwise unchanged | Unchanged; Mobile uses role/entity/title/body, not this enum |
+
+The remaining common references are Page, PerPage, PathId, Pagination, Money,
+Conflict, PostingConflict, PeriodClosedError, Forbidden, Unauthorized, NotFound,
+Validation, RateLimited and FieldError. Pagination and consumed numeric scales,
+including 0.001 quantity precision and currency-bearing totals, did not change.
+No consumed existing field becomes nullable/nonnullable across these versions;
+new nullable fields are identified above. FieldError adds product_id, sku,
+old_price, new_price, old_price_version, new_price_version, current_status,
+current_version, price, threshold_percent, cost and minimum_price in v10. Mobile
+parses only the conflict fields needed by its existing workflows. Existing auth
+classification and error kinds are unchanged.
+
+### What v11 specifically adds
+
+The only commit in `c006c7b..704bef7` is `704bef7` (#87, 57 upstream files).
+Its breaking contract changes concern admin permission names, removal of
+client-supplied below_cost_originator_id, server-owned approval initiators,
+price-publish approvals/results, and separation-of-duties settings. None is a
+Mobile-consumed operation. Read the related catalog, orders, reviews and returns
+service diff as supporting evidence: requester/proposer identity and staff
+approval separation are enforced server-side; Mobile does not moderate, inspect,
+approve, or publish prices. The two optional Product/Variant proposer fields are
+the only changes reachable from Mobile's API reads. No admin models or features
+were introduced in Flutter.
+
+### Contract decisions and historical-document discrepancies
+
+- Cancellation: OpenAPI 11 still says “pending or confirmed”; the historical
+  document claims pending only. Preserve the contract's eligibility and surface
+  server rejection after refresh. Do not invent a cancellation-request feature.
+- `FieldError` now explicitly defines the price/conflict metadata that the older
+  document called undeclared. `PRICE_CHANGED` is referenced by the acceptance
+  input; the route's generic 409 description/error-code declaration remains
+  incomplete. Parse complete structured conflicts defensively; malformed ones
+  never authorize acceptance.
+- `accepted_price_versions` is not required on initial checkout. It contains the
+  variant UUID and the exact opaque new_price_version token from the preceding
+  conflict, not Order.version, a timestamp generated by Mobile, or the catalog's
+  price_version_id UUID. It is supplied only after the shopper reviews the new
+  unit prices and explicitly accepts. Another conflict needs another acceptance.
+  Acceptance is discarded after cart/address/session changes.
+- The historical document suggests reusing one idempotency key with a changed
+  body. OpenAPI says a different request using the same key conflicts. The
+  existing optional-key omission is preserved; this batch adds no automatic
+  network retries or new idempotency policy.
+- Return items require their own reason(1..1000), in both v9 and v11. The existing
+  common reason input now explicitly applies to all selected lines, is required,
+  and is serialized on every line. Optional line-specific model reasons take
+  precedence for repository callers. Read responses use customer_reason.
+- Delivery.order_version is required, but examples still omit it. The schema
+  takes precedence: malformed reads fail; no fabricated version is sent.
+  Delivery lacks order readiness; retain the server check for initial dispatch.
+- C08 return quantity-release ambiguity is unchanged in v11; keep conservative
+  unknown/error behavior rather than inventing a local return ledger policy.
+
+### Verification
+
+Completed: generated serializers with build_runner and bilingual l10n with
+flutter gen-l10n; dart format on touched Dart files; flutter analyze --no-pub
+(no issues); 463 focused auth/session/cart/order/commerce/delivery tests passed;
+full flutter test --no-pub: 1047 passed, four existing skips. Both unstaged and
+staged git diff --check pass. The contract bytes match 704bef7 exactly; new
+unstaged edits outside Mobile: none. No simulator or live backend verification
+was run for this batch. The merge remains uncommitted for review.
+
+Added 61 regression/interaction cases: eight contract/HTTP/model tests, ten
+checkout/cancellation ownership tests, 41 checkout UI cases and two delivery
+controller/UI cases. UI cases cover Arabic/English, both themes, widths 320,
+599/600, 899/900, 1199/1200, 1535/1536 and 1920, including enlarged text at 599.
+An old price prompt also cannot accept a newer offer produced by another attempt.
+The original C01–C06/C08/C09 tests remain in the full suite; fixture edits supply
+realistic contract fields and required reasons/versions without weakening their
+ownership/precision/pricing assertions.
+
+Five new regression tests ran before production edits and all failed: order version retention,
+failed-delivery retry/metadata, separate cart price snapshots, return per-item
+reason serialization, and blank reason rejection before networking.
+
+
+Remaining validation limits: live API deployment compatibility and simulator
+interaction were not exercised. A separate exploratory run at width 320 with
+150% text found a pre-existing overflow in Checkout's unchanged total row
+(`_PlaceOrderBar`), before the new price-review dialog. It is recorded without
+expanding this contract batch into a layout fix. Contract/backend cancellation
+eligibility disagreement and incomplete route-level conflict descriptions remain
+upstream issues; the authoritative OpenAPI decisions above govern this client.

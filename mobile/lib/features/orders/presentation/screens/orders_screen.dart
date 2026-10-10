@@ -1,8 +1,10 @@
+import '../../../../core/utils/quantity.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/display_date.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
@@ -60,6 +62,9 @@ class OrdersScreen extends ConsumerWidget {
         children: [
           _StatusFilterBar(
             selected: status,
+            statuses: ref.watch(dataSourceProvider) == DataSource.remote
+                ? remoteOrderStatuses
+                : _filterStatuses,
             onSelected: (value) =>
                 ref.read(orderStatusFilterProvider.notifier).state = value,
           ),
@@ -113,8 +118,9 @@ class OrdersScreen extends ConsumerWidget {
                         : ResponsiveCardList(
                             key: ValueKey(status),
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: AppLayout.pageInsets(context),
+                            padding: AppLayout.scrollInsets(context),
                             itemCount: list.items.length,
+                            itemKeyBuilder: (i) => list.items[i].id,
                             footer: list.loadMoreError != null
                                 ? AppErrorView(
                                     error: list.loadMoreError,
@@ -141,8 +147,13 @@ class OrdersScreen extends ConsumerWidget {
 /// Horizontal, scrollable status filter — "All" plus a chip per status, each
 /// carrying the same icon and colour it has in the order cards.
 class _StatusFilterBar extends StatelessWidget {
-  const _StatusFilterBar({required this.selected, required this.onSelected});
+  const _StatusFilterBar({
+    required this.selected,
+    required this.onSelected,
+    required this.statuses,
+  });
 
+  final List<String> statuses;
   final String? selected;
   final ValueChanged<String?> onSelected;
 
@@ -158,7 +169,7 @@ class _StatusFilterBar extends StatelessWidget {
         colors.textSecondary,
         l10n.ordersFilterAll,
       ),
-      for (final s in _filterStatuses)
+      for (final s in statuses)
         (
           s,
           orderStatusIcon(s),
@@ -171,7 +182,7 @@ class _StatusFilterBar extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 48),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: AppLayout.pageInsets(
+        padding: AppLayout.horizontalScrollInsets(
           context,
           top: AppSpacing.xs,
           bottom: AppSpacing.xs,
@@ -207,7 +218,10 @@ class _OrderCard extends ConsumerWidget {
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
     final brand = ref.watch(brandProvider);
-    final count = order.items.fold<int>(0, (s, i) => s + i.quantity);
+    final count = order.items.fold<num>(
+      0,
+      (s, i) => addQuantity(s, i.quantity),
+    );
     final placedAt = order.placedAt;
 
     return AppCard(
@@ -229,31 +243,28 @@ class _OrderCard extends ConsumerWidget {
           if (placedAt != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              DateFormat('yyyy/MM/dd').format(placedAt),
+              DisplayDate.localDate(placedAt),
               style: context.text.bodySmall?.copyWith(color: colors.textMuted),
             ),
           ],
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Text(
-                l10n.orderItemsCount('$count'),
-                style: context.text.bodySmall?.copyWith(
-                  color: colors.textSecondary,
-                ),
+          ResponsiveValueRow(
+            label: Text(
+              l10n.orderItemsCount(formatQuantity(count)),
+              style: context.text.bodySmall?.copyWith(
+                color: colors.textSecondary,
               ),
-              const Spacer(),
-              Text(
-                formatMoney(
-                  order.total,
-                  currencyCode: brand.currencyCode,
-                  localeCode: lang,
-                ),
-                style: context.text.titleSmall?.copyWith(
-                  color: colors.primaryDark,
-                ),
+            ),
+            value: Text(
+              formatMoney(
+                order.total,
+                currencyCode: order.currency ?? brand.currencyCode,
+                localeCode: lang,
               ),
-            ],
+              style: context.text.titleSmall?.copyWith(
+                color: colors.primaryDark,
+              ),
+            ),
           ),
         ],
       ),

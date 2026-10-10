@@ -1,3 +1,6 @@
+import '../../../settings/presentation/providers/settings_providers.dart';
+import '../../../../core/widgets/brand_mark.dart';
+import '../../../../core/config/store_identity.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,63 +17,94 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../banners/presentation/providers/banner_providers.dart';
 import '../../../banners/presentation/widgets/home_banners.dart';
+import '../../../notifications/presentation/notification_button.dart';
+import '../../../notifications/presentation/notification_providers.dart';
 import '../providers/catalog_providers.dart';
-import '../widgets/category_icon.dart';
+import '../widgets/home_category_carousel.dart';
 import '../widgets/home_offers_list.dart';
 
 /// Customer home: department navigation shortcuts above the store feed.
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.claimCarouselStartupDelay});
+
+  final bool Function()? claimCarouselStartupDelay;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final brand = ref.watch(brandProvider);
     final offers = ref.watch(homeOffersProvider);
+    final showNotifications = ref.watch(notificationIdentityProvider).signedIn;
 
     return Scaffold(
       appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              'assets/images/branding/shubayr-logo.png',
-              width: AppSpacing.xxl,
-              height: AppSpacing.xxl,
-              fit: BoxFit.contain,
-              excludeFromSemantics: true,
+            BrandMark(
+              brand: brand,
+              size: AppSpacing.xxl,
+              fallbackAsset: StoreIdentity.logoAsset,
             ),
             const SizedBox(width: AppSpacing.sm),
             Flexible(
-              // Zain's glyphs sit above the line-box center in both locales.
-              // Paint-only correction preserves all header layout metrics.
-              child: Transform.translate(
-                offset: const Offset(0, AppSpacing.xxs),
-                child: Text(
-                  l10n.homeBrandName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: AppTypography.homeBrandFontFamily,
-                    fontWeight: FontWeight.w700,
-                  ),
+              child: Text(
+                brand.name ??
+                    StoreIdentity.name(
+                      Localizations.localeOf(context).languageCode,
+                    ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: AppTypography.homeBrandFontFamily,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ],
         ),
         actions: [
-          IconButton(
-            onPressed: () => context.pushNamed(AppRoutes.searchName),
-            iconSize: AppSpacing.xl + AppSpacing.xs,
-            icon: const Icon(Icons.search),
-            tooltip: l10n.searchHint,
+          IconButtonTheme(
+            data: IconButtonThemeData(
+              style: IconButton.styleFrom(
+                fixedSize: const Size.square(kMinInteractiveDimension),
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                visualDensity: VisualDensity.standard,
+                shape: const CircleBorder(),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () => context.pushNamed(AppRoutes.searchName),
+                  iconSize: AppSpacing.xl + AppSpacing.xs,
+                  icon: const Icon(Icons.search),
+                  tooltip: l10n.searchHint,
+                ),
+                if (showNotifications) ...[
+                  const NotificationButton(
+                    iconSize: AppSpacing.xl + AppSpacing.xs,
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
+          // Another client (such as the admin web app) may have changed the
+          // catalog. Drop cached details too, so reopening a product cannot
+          // resurrect the old price, category or media after this refresh.
+          ref.invalidate(productProvider);
+          ref.invalidate(availabilityProvider);
+          ref.invalidate(categoryFeedProvider);
           ref.invalidate(offerCategoriesProvider);
           await Future.wait([
+            ref
+                .refresh(categoriesProvider.future)
+                .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
             ref
                 .refresh(homeOffersProvider.future)
                 .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
@@ -80,11 +114,14 @@ class HomeScreen extends ConsumerWidget {
           ]);
         },
         child: ListView(
-          padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.only(
+            bottom: AppSpacing.xxl + BottomNavigationInset.of(context),
+          ),
           children: [
             const HomeBanners(),
             const SizedBox(height: AppSpacing.homeBannerToCategories),
-            const _DepartmentsBar(),
+            _DepartmentsBar(claimStartupDelay: claimCarouselStartupDelay),
             const _OffersHeader(),
             AsyncValueView(
               value: offers,
@@ -119,7 +156,7 @@ class _OffersHeader extends StatelessWidget {
         Expanded(
           child: Text(
             context.l10n.homeOffersTitle,
-            style: context.text.titleMedium,
+            style: context.sectionTitle,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -129,7 +166,14 @@ class _OffersHeader extends StatelessWidget {
             AppRoutes.searchName,
             queryParameters: {'offers_only': 'true'},
           ),
-          child: Text(context.l10n.homeOffersViewAll),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(context.l10n.homeOffersViewAll),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(Icons.chevron_right_rounded, size: 20),
+            ],
+          ),
         ),
       ],
     ),
@@ -138,19 +182,19 @@ class _OffersHeader extends StatelessWidget {
 
 /// Shortcuts navigate; they never select or filter the Home feed.
 class _DepartmentsBar extends ConsumerWidget {
-  const _DepartmentsBar();
+  const _DepartmentsBar({this.claimStartupDelay});
+
+  final bool Function()? claimStartupDelay;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final lang = Localizations.localeOf(context).languageCode;
     final categories = ref.watch(categoriesProvider);
-    final colors = context.colors;
     final width =
         AppLayout.categoryShortcutWidth * AppLayout.textScale(context);
     Widget row(List<Widget> children) => SingleChildScrollView(
       key: const ValueKey('home-category-shortcuts'),
       scrollDirection: Axis.horizontal,
-      padding: AppLayout.pageInsets(context, top: 0, bottom: 0),
+      padding: EdgeInsets.zero,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: children,
@@ -178,57 +222,14 @@ class _DepartmentsBar extends ConsumerWidget {
           ),
       ]),
       error: (_, _) => const SizedBox.shrink(),
-      data: (list) => row([
-        for (final category in list)
-          SizedBox(
-            key: ValueKey('home-category-${category.id}'),
-            width: width,
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                borderRadius: AppRadii.mdAll,
-                onTap: () => context.pushNamed(
-                  AppRoutes.searchName,
-                  queryParameters: {'parent_category_id': category.id},
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      width: AppLayout.categoryIconTarget,
-                      height: AppLayout.categoryIconTarget,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: colors.categoryShortcutBackground,
-                      ),
-                      child: Icon(
-                        categoryShortcutIconFor(
-                          category.icon,
-                          categoryId: category.id,
-                          iconKey: category.iconKey,
-                        ),
-                        size: AppLayout.categoryIconSize,
-                        color: colors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                      ),
-                      child: Text(
-                        category.localizedName(lang),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: context.text.labelMedium,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-      ]),
+      data: (list) => HomeCategoryCarousel(
+        categories: list,
+        claimStartupDelay: claimStartupDelay,
+        onSelected: (category) => context.pushNamed(
+          AppRoutes.searchName,
+          queryParameters: {'parent_category_id': category.id},
+        ),
+      ),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:shubayr/features/auth/data/auth_repository_mock.dart';
 import 'package:shubayr/features/auth/data/auth_result.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
@@ -51,9 +53,14 @@ Future<ProviderContainer> _guestContainer({_RecordingAuth? auth}) async {
   return ProviderContainer(
     retry: (retryCount, error) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       if (auth != null) authRepositoryProvider.overrideWithValue(auth),
       // Banner networking is covered separately; keep navigation tests deterministic.
       homeBannersProvider.overrideWith((ref) async => []),
+      // Keep auth/snackbar tests independent of continuous Home motion.
+      categoriesProvider.overrideWith((ref) async => []),
       prefsStoreProvider.overrideWithValue(prefs),
       tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
       productProvider('p5').overrideWith(

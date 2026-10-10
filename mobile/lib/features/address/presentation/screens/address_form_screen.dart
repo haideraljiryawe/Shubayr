@@ -1,10 +1,13 @@
+import '../../../../core/theme/components/input_theme.dart';
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/utils/numeric_input_formatters.dart';
 import '../../../../core/utils/numeric_text.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
+import '../../../../core/storage/session_credentials.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
@@ -74,9 +77,16 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   }
 
   Future<void> _save() async {
-    if (_busy || ref.read(dataSourceProvider) != DataSource.mock) return;
+    if (_busy) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final navigator = Navigator.of(context);
+    final credentials = ref.read(sessionCredentialsProvider);
+    final owner = credentials.revision;
+    final userId = ref.read(sessionControllerProvider).value?.user?.id;
+    bool isCurrent() =>
+        mounted &&
+        credentials.owns(owner) &&
+        ref.read(sessionControllerProvider).value?.user?.id == userId;
 
     setState(() => _busy = true);
     final details = _details.text.trim();
@@ -100,10 +110,10 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
       } else {
         await controller.edit(widget.address!.id, input);
       }
-      if (mounted) navigator.pop();
-    } catch (error) {
-      if (!mounted) return;
-      final failure = error is AppFailure ? error : const AppFailure.unknown();
+      if (isCurrent()) navigator.pop();
+    } catch (error, stack) {
+      if (!mounted || !isCurrent()) return;
+      final failure = actionFailure(error, stack);
       showAppSnackBarMessage(
         context,
         message: failure.localizedMessage(context.l10n),
@@ -117,7 +127,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     ref.watch(sessionControllerProvider);
-    final supportsContact = ref.watch(dataSourceProvider) == DataSource.mock;
+    final isRemote = ref.watch(dataSourceProvider) == DataSource.remote;
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -129,15 +139,17 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
-            padding: AppLayout.pageInsets(context),
+            padding: AppLayout.formScrollInsets(context),
             child: ResponsiveFields(
               children: [
                 TextFormField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   controller: _label,
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(labelText: l10n.addressLabel),
                 ),
                 TextFormField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   controller: _city,
                   textInputAction: TextInputAction.next,
                   validator: (v) => (v == null || v.trim().isEmpty)
@@ -146,12 +158,14 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                   decoration: InputDecoration(labelText: l10n.addressCity),
                 ),
                 TextFormField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   controller: _area,
                   inputFormatters: const [WesternDigitsInputFormatter()],
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(labelText: l10n.addressArea),
                 ),
                 TextFormField(
+                  contextMenuBuilder: appTextSelectionToolbar,
                   controller: _street,
                   inputFormatters: const [WesternDigitsInputFormatter()],
                   textInputAction: TextInputAction.next,
@@ -160,17 +174,23 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                 ResponsiveField(
                   fullWidth: true,
                   child: TextFormField(
+                    contextMenuBuilder: appTextSelectionToolbar,
                     controller: _details,
                     inputFormatters: const [WesternDigitsInputFormatter()],
                     maxLines: 2,
-                    decoration: InputDecoration(labelText: l10n.addressDetails),
+                    decoration: InputDecoration(
+                      labelText: l10n.addressDetails,
+                      contentPadding: InputTheme.spaciousContentPadding,
+                    ),
                   ),
                 ),
                 ResponsiveField(
                   fullWidth: true,
                   child: FormField<String>(
                     validator: (_) =>
-                        Validators.isPhone(
+                        (isRemote
+                            ? Validators.isE164Phone
+                            : Validators.isPhone)(
                           _usePrimaryPhone ? _accountPhone : _otherPhone.text,
                         )
                         ? null
@@ -193,20 +213,22 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                               RadioListTile<bool>(
                                 key: const ValueKey('address-use-primary'),
                                 value: true,
-                                enabled: !_busy && supportsContact,
+                                enabled: !_busy,
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(l10n.addressUsePrimaryPhone),
                                 subtitle: Text(
                                   _accountPhone.isEmpty
                                       ? l10n.accountNoPhone
                                       : _accountPhone,
-                                  textDirection: TextDirection.ltr,
+                                  textDirection: _accountPhone.isEmpty
+                                      ? null
+                                      : TextDirection.ltr,
                                 ),
                               ),
                               RadioListTile<bool>(
                                 key: const ValueKey('address-use-other'),
                                 value: false,
-                                enabled: !_busy && supportsContact,
+                                enabled: !_busy,
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(l10n.addressUseOtherPhone),
                               ),
@@ -215,9 +237,10 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                         ),
                         if (!_usePrimaryPhone)
                           TextFormField(
+                            contextMenuBuilder: appTextSelectionToolbar,
                             key: const ValueKey('address-other-phone'),
                             controller: _otherPhone,
-                            enabled: !_busy && supportsContact,
+                            enabled: !_busy,
                             keyboardType: TextInputType.phone,
                             inputFormatters: const [PhoneInputFormatter()],
                             textDirection: TextDirection.ltr,
@@ -239,8 +262,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                               ),
                             ),
                           ),
-                        if (!supportsContact)
-                          Text(l10n.addressContactBackendPending),
+                        if (isRemote) Text(l10n.addressInternationalPhoneHint),
                       ],
                     ),
                   ),
@@ -262,7 +284,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                       label: l10n.actionSave,
                       icon: Icons.check,
                       isLoading: _busy,
-                      onPressed: supportsContact ? _save : null,
+                      onPressed: _save,
                     ),
                   ),
                 ),

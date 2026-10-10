@@ -1,8 +1,13 @@
+import '../../../../core/theme/components/input_theme.dart';
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
+import '../../../../core/widgets/quantity_stepper.dart';
+import '../../../../core/utils/quantity.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
@@ -19,14 +24,24 @@ import '../providers/after_sales_providers.dart';
 import '../providers/order_providers.dart';
 import '../widgets/order_item_display.dart';
 
-class ReviewOrderScreen extends ConsumerStatefulWidget {
+class ReviewOrderScreen extends ConsumerWidget {
   const ReviewOrderScreen({super.key, required this.orderId});
   final String orderId;
   @override
-  ConsumerState<ReviewOrderScreen> createState() => _ReviewOrderScreenState();
+  Widget build(BuildContext context, WidgetRef ref) => _ReviewOrderForm(
+    key: ValueKey((orderId, ref.watch(ordersIdentityProvider))),
+    orderId: orderId,
+  );
 }
 
-class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
+class _ReviewOrderForm extends ConsumerStatefulWidget {
+  const _ReviewOrderForm({super.key, required this.orderId});
+  final String orderId;
+  @override
+  ConsumerState<_ReviewOrderForm> createState() => _ReviewOrderScreenState();
+}
+
+class _ReviewOrderScreenState extends ConsumerState<_ReviewOrderForm> {
   final _comment = TextEditingController();
   String? _itemId;
   int _rating = 0;
@@ -42,34 +57,29 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
 
   Future<void> _submit(OrderItem item) async {
     if (_busy || _rating == 0) return;
-    final repository = ref.read(afterSalesRepositoryProvider);
     setState(() {
       _busy = true;
       _error = null;
       _sent = false;
     });
     try {
-      final review = await repository.submitReview(
-        productId: item.productId,
-        orderItemId: item.id,
-        rating: _rating,
-        comment: _comment.text.trim().isEmpty ? null : _comment.text.trim(),
-      );
-      if (!mounted || ref.read(afterSalesRepositoryProvider) != repository) {
-        return;
-      }
-      ref.read(afterSalesReceiptsProvider.notifier).addReview(review);
+      final review = await ref
+          .read(reviewEligibilityProvider(widget.orderId).notifier)
+          .submit(
+            item: item,
+            rating: _rating,
+            comment: _comment.text.trim().isEmpty ? null : _comment.text.trim(),
+          );
+      if (!mounted || review == null) return;
       setState(() {
         _sent = true;
         _rating = 0;
         _itemId = null;
       });
       _comment.clear();
-    } catch (e) {
+    } catch (e, stack) {
       if (mounted) {
-        setState(
-          () => _error = e is AppFailure ? e : const AppFailure.unknown(),
-        );
+        setState(() => _error = actionFailure(e, stack));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -79,130 +89,148 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final receipts = ref.watch(afterSalesReceiptsProvider);
     return PopScope(
       canPop: !_busy,
       child: Scaffold(
         appBar: AppBar(title: Text(l10n.reviewOrderTitle)),
         body: _AfterSalesOrderView(
           orderId: widget.orderId,
-          builder: (order, products) {
-            final available = order.items
-                .where((i) => !receipts.reviewed(i.id))
-                .toList();
-            final selected = available
-                .where((i) => i.id == _itemId)
-                .firstOrNull;
-            return ResponsiveContent(
-              child: ListView(
-                padding: AppLayout.pageInsets(context),
-                children: [
-                  Text(order.orderNumber, style: context.text.titleMedium),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(l10n.reviewOrderHint),
-                  if (_sent) ...[
+          builder: (order, products) => AsyncValueView<Set<String>>(
+            value: ref.watch(reviewEligibilityProvider(widget.orderId)),
+            loading: const SkeletonCardList(),
+            onRetry: () =>
+                ref.invalidate(reviewEligibilityProvider(widget.orderId)),
+            builder: (context, eligible) {
+              final available = order.items
+                  .where((i) => eligible.contains(i.id))
+                  .toList();
+              final selected = available
+                  .where((i) => i.id == _itemId)
+                  .firstOrNull;
+              return ResponsiveContent(
+                child: ListView(
+                  padding: AppLayout.formScrollInsets(context),
+                  children: [
+                    Text(order.orderNumber, style: context.text.titleMedium),
                     const SizedBox(height: AppSpacing.md),
-                    _SuccessMessage(l10n.reviewSubmitted),
-                  ],
-                  const SizedBox(height: AppSpacing.lg),
-                  if (available.isEmpty)
-                    Text(l10n.reviewAllSubmitted)
-                  else ...[
-                    DropdownButtonFormField<String>(
-                      key: ValueKey('review-item-${receipts.reviews.length}'),
-                      initialValue: selected?.id,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        labelText: l10n.reviewChooseProduct,
-                      ),
-                      items: [
-                        for (final i in available)
-                          DropdownMenuItem(
-                            value: i.id,
-                            child: Text(
-                              _itemLabel(context, i, products),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                      onChanged: _busy
-                          ? null
-                          : (id) => setState(() {
-                              _itemId = id;
-                              _rating = 0;
-                              _error = null;
-                              _sent = false;
-                              _comment.clear();
-                            }),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Text(l10n.reviewRating, style: context.text.titleSmall),
-                    Wrap(
-                      children: [
-                        for (var n = 1; n <= 5; n++)
-                          Semantics(
-                            selected: _rating == n,
-                            child: IconButton(
-                              tooltip: l10n.reviewStars('$n'),
-                              onPressed: _busy
-                                  ? null
-                                  : () => setState(() => _rating = n),
-                              color: context.colors.primary,
-                              icon: Icon(
-                                n <= _rating ? Icons.star : Icons.star_border,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    TextField(
-                      controller: _comment,
-                      enabled: !_busy,
-                      minLines: 3,
-                      maxLines: 5,
-                      decoration: InputDecoration(
-                        labelText: l10n.reviewComment,
-                      ),
-                    ),
-                    if (_error != null) ...[
+                    Text(l10n.reviewOrderHint),
+                    if (_sent) ...[
                       const SizedBox(height: AppSpacing.md),
-                      Text(
-                        _error!.localizedMessage(l10n),
-                        style: context.text.bodyMedium?.copyWith(
-                          color: context.colors.danger,
-                        ),
-                      ),
+                      _SuccessMessage(l10n.reviewSubmitted),
                     ],
                     const SizedBox(height: AppSpacing.lg),
-                    AppButton(
-                      label: l10n.reviewSubmit,
-                      isLoading: _busy,
-                      onPressed: selected == null || _rating == 0 || _busy
-                          ? null
-                          : () => _submit(selected),
-                    ),
+                    if (available.isEmpty)
+                      Text(l10n.reviewAllSubmitted)
+                    else ...[
+                      DropdownButtonFormField<String>(
+                        key: ValueKey('review-item-${eligible.join(',')}'),
+                        initialValue: selected?.id,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          contentPadding: InputTheme.spaciousContentPadding,
+                          labelText: l10n.reviewChooseProduct,
+                        ),
+                        items: [
+                          for (final i in available)
+                            DropdownMenuItem(
+                              value: i.id,
+                              child: Text(
+                                _itemLabel(context, i, products),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                        onChanged: _busy
+                            ? null
+                            : (id) => setState(() {
+                                _itemId = id;
+                                _rating = 0;
+                                _error = null;
+                                _sent = false;
+                                _comment.clear();
+                              }),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(l10n.reviewRating, style: context.text.titleSmall),
+                      Wrap(
+                        children: [
+                          for (var n = 1; n <= 5; n++)
+                            Semantics(
+                              selected: _rating == n,
+                              child: IconButton(
+                                tooltip: l10n.reviewStars('$n'),
+                                onPressed: _busy
+                                    ? null
+                                    : () => setState(() => _rating = n),
+                                color: context.colors.primary,
+                                icon: Icon(
+                                  n <= _rating ? Icons.star : Icons.star_border,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TextField(
+                        contextMenuBuilder: appTextSelectionToolbar,
+                        controller: _comment,
+                        enabled: !_busy,
+                        minLines: 3,
+                        maxLines: 5,
+                        decoration: InputDecoration(
+                          labelText: l10n.reviewComment,
+                          contentPadding: InputTheme.spaciousContentPadding,
+                        ),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          _error!.localizedMessage(l10n),
+                          style: context.text.bodyMedium?.copyWith(
+                            color: context.colors.danger,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.lg),
+                      AppButton(
+                        label: l10n.reviewSubmit,
+                        isLoading: _busy,
+                        onPressed: selected == null || _rating == 0 || _busy
+                            ? null
+                            : () => _submit(selected),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            );
-          },
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
   }
 }
 
-class ReturnOrderScreen extends ConsumerStatefulWidget {
+class ReturnOrderScreen extends ConsumerWidget {
   const ReturnOrderScreen({super.key, required this.orderId});
   final String orderId;
   @override
-  ConsumerState<ReturnOrderScreen> createState() => _ReturnOrderScreenState();
+  Widget build(BuildContext context, WidgetRef ref) => _ReturnOrderForm(
+    key: ValueKey((orderId, ref.watch(ordersIdentityProvider))),
+    orderId: orderId,
+  );
 }
 
-class _ReturnOrderScreenState extends ConsumerState<ReturnOrderScreen> {
+class _ReturnOrderForm extends ConsumerStatefulWidget {
+  const _ReturnOrderForm({super.key, required this.orderId});
+  final String orderId;
+  @override
+  ConsumerState<_ReturnOrderForm> createState() => _ReturnOrderScreenState();
+}
+
+class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
   final _reason = TextEditingController();
-  final Map<String, int> _quantities = {};
+  final Map<String, num> _quantities = {};
   bool _busy = false;
   ReturnRequest? _submitted;
   AppFailure? _error;
@@ -213,33 +241,38 @@ class _ReturnOrderScreenState extends ConsumerState<ReturnOrderScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  num _quantity(String itemId, ReturnEligibility eligibility) =>
+      (_quantities[itemId] ?? 0).clamp(0, eligibility.remaining[itemId] ?? 0);
+
+  Future<void> _submit(ReturnEligibility eligibility) async {
     if (_busy || !_quantities.values.any((n) => n > 0)) return;
-    final repository = ref.read(afterSalesRepositoryProvider);
+    if (_reason.text.trim().isEmpty || _reason.text.trim().length > 1000) {
+      setState(() => _error = const AppFailure(FailureKind.validation));
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final request = await repository.requestReturn(
-        orderId: widget.orderId,
-        reason: _reason.text.trim().isEmpty ? null : _reason.text.trim(),
-        items: [
-          for (final entry in _quantities.entries)
-            if (entry.value > 0)
-              ReturnRequestItem(orderItemId: entry.key, quantity: entry.value),
-        ],
-      );
-      if (!mounted || ref.read(afterSalesRepositoryProvider) != repository) {
-        return;
-      }
-      ref.read(afterSalesReceiptsProvider.notifier).addReturn(request);
+      final request = await ref
+          .read(returnEligibilityProvider(widget.orderId).notifier)
+          .submit(
+            reason: _reason.text.trim().isEmpty ? null : _reason.text.trim(),
+            items: [
+              for (final id in eligibility.remaining.keys)
+                if (_quantity(id, eligibility) > 0)
+                  ReturnRequestItem(
+                    orderItemId: id,
+                    quantity: _quantity(id, eligibility),
+                  ),
+            ],
+          );
+      if (!mounted || request == null) return;
       setState(() => _submitted = request);
-    } catch (e) {
+    } catch (e, stack) {
       if (mounted) {
-        setState(
-          () => _error = e is AppFailure ? e : const AppFailure.unknown(),
-        );
+        setState(() => _error = actionFailure(e, stack));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -249,140 +282,192 @@ class _ReturnOrderScreenState extends ConsumerState<ReturnOrderScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final receipts = ref.watch(afterSalesReceiptsProvider);
     return PopScope(
       canPop: !_busy,
       child: Scaffold(
         appBar: AppBar(title: Text(l10n.returnOrderTitle)),
         body: _AfterSalesOrderView(
           orderId: widget.orderId,
-          builder: (order, products) {
-            final submitted = _submitted;
-            if (submitted != null) {
-              return ResponsiveContent(
-                child: ListView(
-                  padding: AppLayout.pageInsets(context),
-                  children: [
-                    _SuccessMessage(l10n.returnSubmitted),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(l10n.returnReference(submitted.id)),
-                    const SizedBox(height: AppSpacing.md),
-                    for (final line in submitted.items)
-                      ListTile(
-                        title: Text(
-                          _itemLabel(
-                            context,
-                            order.items.firstWhere(
-                              (i) => i.id == line.orderItemId,
+          builder: (order, products) => AsyncValueView<ReturnEligibility>(
+            value: ref.watch(returnEligibilityProvider(widget.orderId)),
+            loading: const SkeletonCardList(),
+            onRetry: () =>
+                ref.invalidate(returnEligibilityProvider(widget.orderId)),
+            builder: (context, eligibility) {
+              final submitted = _submitted;
+              if (submitted != null) {
+                return ResponsiveContent(
+                  child: ListView(
+                    padding: AppLayout.pageInsets(context),
+                    children: [
+                      _SuccessMessage(l10n.returnSubmitted),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(l10n.returnReference(submitted.id)),
+                      const SizedBox(height: AppSpacing.md),
+                      for (final line in submitted.items)
+                        ListTile(
+                          title: Text(
+                            _itemLabel(
+                              context,
+                              order.items.firstWhere(
+                                (i) => i.id == line.orderItemId,
+                              ),
+                              products,
                             ),
-                            products,
+                          ),
+                          subtitle: Text(
+                            l10n.orderLineQuantity(
+                              formatQuantity(line.quantity),
+                            ),
                           ),
                         ),
-                        subtitle: Text(
-                          l10n.orderLineQuantity('${line.quantity}'),
+                      if (submitted.reason != null) Text(submitted.reason!),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(l10n.returnRequestOnly),
+                    ],
+                  ),
+                );
+              }
+              final available = order.items
+                  .where((i) => (eligibility.remaining[i.id] ?? 0) > 0)
+                  .toList();
+              return ResponsiveContent(
+                child: ListView(
+                  padding: AppLayout.formScrollInsets(context),
+                  children: [
+                    Text(order.orderNumber, style: context.text.titleMedium),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(l10n.returnOrderHint),
+                    const SizedBox(height: AppSpacing.lg),
+                    if (available.isEmpty) Text(l10n.returnAllRequested),
+                    for (final item in available) ...[
+                      AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _itemLabel(context, item, products),
+                              style: context.text.titleSmall,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              l10n.returnAvailable(
+                                formatQuantity(eligibility.remaining[item.id]!),
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  tooltip: l10n.returnDecrease,
+                                  onPressed:
+                                      _busy ||
+                                          (_quantity(item.id, eligibility)) == 0
+                                      ? null
+                                      : () => setState(
+                                          () => _quantities[item.id] =
+                                              subtractQuantity(
+                                                _quantity(item.id, eligibility),
+                                                1,
+                                              ).clamp(
+                                                0,
+                                                eligibility.remaining[item.id]!,
+                                              ),
+                                        ),
+                                  icon: const Icon(Icons.remove),
+                                ),
+                                InkWell(
+                                  onTap: _busy
+                                      ? null
+                                      : () async {
+                                          final quantity = await editQuantity(
+                                            context,
+                                            quantity: _quantity(
+                                              item.id,
+                                              eligibility,
+                                            ),
+                                            min: 0,
+                                            max:
+                                                eligibility.remaining[item.id]!,
+                                          );
+                                          if (mounted && quantity != null) {
+                                            setState(
+                                              () => _quantities[item.id] =
+                                                  quantity,
+                                            );
+                                          }
+                                        },
+                                  child: Text(
+                                    formatQuantity(
+                                      _quantity(item.id, eligibility),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: l10n.returnIncrease,
+                                  onPressed:
+                                      _busy ||
+                                          (_quantity(item.id, eligibility)) >=
+                                              eligibility.remaining[item.id]!
+                                      ? null
+                                      : () => setState(
+                                          () => _quantities[item.id] =
+                                              addQuantity(
+                                                _quantity(item.id, eligibility),
+                                                1,
+                                              ).clamp(
+                                                0,
+                                                eligibility.remaining[item.id]!,
+                                              ),
+                                        ),
+                                  icon: const Icon(Icons.add),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    if (submitted.reason != null) Text(submitted.reason!),
-                    const SizedBox(height: AppSpacing.lg),
-                    Text(l10n.returnRequestOnly),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+                    if (available.isNotEmpty) ...[
+                      TextField(
+                        contextMenuBuilder: appTextSelectionToolbar,
+                        controller: _reason,
+                        maxLength: 1000,
+                        enabled: !_busy,
+                        minLines: 3,
+                        maxLines: 5,
+                        decoration: InputDecoration(
+                          labelText: l10n.returnReason,
+                          contentPadding: InputTheme.spaciousContentPadding,
+                        ),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          _error!.localizedMessage(l10n),
+                          style: context.text.bodyMedium?.copyWith(
+                            color: context.colors.danger,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.lg),
+                      AppButton(
+                        label: l10n.returnSubmit,
+                        isLoading: _busy,
+                        onPressed:
+                            !_busy &&
+                                available.any(
+                                  (i) => _quantity(i.id, eligibility) > 0,
+                                )
+                            ? () => _submit(eligibility)
+                            : null,
+                      ),
+                    ],
                   ],
                 ),
               );
-            }
-            final available = order.items
-                .where((i) => i.quantity > receipts.returnedQuantity(i.id))
-                .toList();
-            return ResponsiveContent(
-              child: ListView(
-                padding: AppLayout.pageInsets(context),
-                children: [
-                  Text(order.orderNumber, style: context.text.titleMedium),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(l10n.returnOrderHint),
-                  const SizedBox(height: AppSpacing.lg),
-                  if (available.isEmpty) Text(l10n.returnAllRequested),
-                  for (final item in available) ...[
-                    AppCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _itemLabel(context, item, products),
-                            style: context.text.titleSmall,
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            l10n.returnAvailable(
-                              '${item.quantity - receipts.returnedQuantity(item.id)}',
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              IconButton(
-                                tooltip: l10n.returnDecrease,
-                                onPressed:
-                                    _busy || (_quantities[item.id] ?? 0) == 0
-                                    ? null
-                                    : () => setState(
-                                        () => _quantities[item.id] =
-                                            _quantities[item.id]! - 1,
-                                      ),
-                                icon: const Icon(Icons.remove),
-                              ),
-                              Text('${_quantities[item.id] ?? 0}'),
-                              IconButton(
-                                tooltip: l10n.returnIncrease,
-                                onPressed:
-                                    _busy ||
-                                        (_quantities[item.id] ?? 0) >=
-                                            item.quantity -
-                                                receipts.returnedQuantity(
-                                                  item.id,
-                                                )
-                                    ? null
-                                    : () => setState(
-                                        () => _quantities[item.id] =
-                                            (_quantities[item.id] ?? 0) + 1,
-                                      ),
-                                icon: const Icon(Icons.add),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                  ],
-                  if (available.isNotEmpty) ...[
-                    TextField(
-                      controller: _reason,
-                      enabled: !_busy,
-                      minLines: 3,
-                      maxLines: 5,
-                      decoration: InputDecoration(labelText: l10n.returnReason),
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        _error!.localizedMessage(l10n),
-                        style: context.text.bodyMedium?.copyWith(
-                          color: context.colors.danger,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.lg),
-                    AppButton(
-                      label: l10n.returnSubmit,
-                      isLoading: _busy,
-                      onPressed: !_busy && _quantities.values.any((n) => n > 0)
-                          ? _submit
-                          : null,
-                    ),
-                  ],
-                ],
-              ),
-            );
-          },
+            },
+          ),
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +27,9 @@ void main() {
         final prefs = PrefsStore(await SharedPreferences.getInstance());
         final container = ProviderContainer(
           overrides: [
+            notificationSyncProvider.overrideWith((ref) {}),
+            unreadCountProvider.overrideWith((ref) async => 0),
+            dataSourceProvider.overrideWithValue(DataSource.mock),
             prefsStoreProvider.overrideWithValue(prefs),
             tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
             homeBannersProvider.overrideWith((ref) async => []),
@@ -38,6 +43,7 @@ void main() {
                     Category(id: 'child', nameEn: 'Child', nameAr: 'الفرعي'),
                   ],
                 ),
+                Category(id: 'second', nameEn: 'Second', nameAr: 'الثاني'),
               ],
             ),
           ],
@@ -53,14 +59,16 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.text(locale == 'ar' ? 'الأقسام' : 'Categories'));
+        await tester.tap(
+          find.bySemanticsLabel(locale == 'ar' ? 'الأقسام' : 'Categories'),
+        );
         await tester.pumpAndSettle();
         expect(
           find.text(locale == 'ar' ? 'الأقسام الرئيسية' : 'Main Categories'),
           findsOneWidget,
         );
         expect(
-          find.text(locale == 'ar' ? 'الأقسام' : 'Categories'),
+          find.bySemanticsLabel(locale == 'ar' ? 'الأقسام' : 'Categories'),
           findsOneWidget,
         );
         await tester.tap(find.byKey(const ValueKey('cat-card-parent')));
@@ -72,7 +80,7 @@ void main() {
         );
         expect(find.text(locale == 'ar' ? 'الفرعي' : 'Child'), findsOneWidget);
         expect(
-          find.text(locale == 'ar' ? 'الحساب' : 'Account'),
+          find.bySemanticsLabel(locale == 'ar' ? 'الحساب' : 'Account'),
           findsOneWidget,
         );
         await tester.tap(find.byType(BackButton));
@@ -85,7 +93,29 @@ void main() {
         await tester.tap(find.byType(BackButton));
         await tester.pumpAndSettle();
         expect(find.byType(CategoriesScreen), findsOneWidget);
-        expect(tester.takeException(), isNull);
+        for (final width in [800.0, 1920.0, 390.0]) {
+          tester.view.physicalSize = Size(width, 1000);
+          await tester.pumpAndSettle();
+          expect(find.byType(NavigationRail), findsNothing);
+          expect(
+            find.bySemanticsLabel(locale == 'ar' ? 'الحساب' : 'Account'),
+            findsOneWidget,
+          );
+          expect(find.byType(CategoriesScreen), findsOneWidget);
+          final first = tester.getRect(
+            find.byKey(const ValueKey('cat-card-parent')),
+          );
+          final second = tester.getRect(
+            find.byKey(const ValueKey('cat-card-second')),
+          );
+          if (width == 390) {
+            expect(second.top, greaterThan(first.bottom));
+          } else {
+            expect(second.top, closeTo(first.top, 0.01));
+            expect(first.width, lessThan(width / 2));
+          }
+          expect(tester.takeException(), isNull);
+        }
       },
     );
   }

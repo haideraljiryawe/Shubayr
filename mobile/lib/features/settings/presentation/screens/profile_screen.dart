@@ -1,10 +1,12 @@
-import '../../../admin/presentation/widgets/admin_app_bar.dart';
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
+import '../../../../app/shell/work_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../auth/data/user.dart';
 import '../../../auth/domain/profile_update.dart';
 import '../../../../core/theme/theme_context.dart';
@@ -84,12 +86,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted || saved == null) return;
       setState(() => _load(saved));
       showAppSnackBarMessage(context, message: context.l10n.profileSaved);
-    } catch (error) {
+    } catch (error, stack) {
       if (mounted) {
-        setState(
-          () =>
-              _error = error is AppFailure ? error : const AppFailure.unknown(),
-        );
+        setState(() => _error = actionFailure(error, stack));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -113,12 +112,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      appBar: adminAppBar(context, ref, title: l10n.accountEditProfile),
+      appBar: workAppBar(context, ref, title: l10n.accountEditProfile),
       body: ResponsiveContent(
         child: Form(
           key: _form,
           child: SingleChildScrollView(
-            padding: AppLayout.pageInsets(context),
+            padding: AppLayout.formScrollInsets(context),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -141,6 +140,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ResponsiveFields(
                   children: [
                     TextFormField(
+                      contextMenuBuilder: appTextSelectionToolbar,
                       key: const ValueKey('profile-name'),
                       controller: _nameController,
                       enabled: !_saving && signedIn,
@@ -148,6 +148,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       autofillHints: const [AutofillHints.name],
                       decoration: InputDecoration(
                         labelText: l10n.profileName,
+                        errorText: _error?.hasFieldError('name') == true
+                            ? l10n.errorValidation
+                            : null,
                         prefixIcon: const Icon(Icons.person_outline),
                       ),
                       validator: (value) {
@@ -161,6 +164,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       },
                     ),
                     TextFormField(
+                      contextMenuBuilder: appTextSelectionToolbar,
                       key: const ValueKey('profile-email'),
                       controller: _emailController,
                       enabled: !_saving && signedIn,
@@ -170,6 +174,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       autocorrect: false,
                       decoration: InputDecoration(
                         labelText: l10n.profileEmail,
+                        errorText: _error?.hasFieldError('email') == true
+                            ? l10n.profileEmailInvalid
+                            : null,
                         prefixIcon: const Icon(Icons.email_outlined),
                       ),
                       validator: (value) =>

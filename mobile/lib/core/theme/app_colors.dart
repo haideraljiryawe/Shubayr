@@ -170,7 +170,7 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color surface;
   final Color surfaceAlt;
 
-  /// Quiet borderless tiles in the category browser.
+  /// Quiet tile backgrounds in the category browser.
   final Color categoryTile;
 
   /// Slightly stronger brand tint for Home's circular navigation shortcuts.
@@ -207,6 +207,15 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color warning;
   final Color danger;
   final Color info;
+
+  /// Inbox state keeps its green/grey meaning independently of brand overrides.
+  Color get notificationUnread => brightness == Brightness.dark
+      ? success
+      : ColorPrimitives.notificationUnread;
+
+  Color get notificationRead => brightness == Brightness.dark
+      ? textMuted
+      : ColorPrimitives.notificationRead;
 
   static Color _readableOn(Color color) => color.computeLuminance() > 0.55
       ? ColorPrimitives.ink900

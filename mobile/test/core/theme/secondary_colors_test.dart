@@ -73,16 +73,13 @@ void main() {
         colors.textMuted,
       );
       final nav = theme.navigationBarTheme;
-      expect(nav.labelTextStyle!.resolve({})!.color, colors.textMuted);
-      expect(nav.iconTheme!.resolve({})!.color, colors.textMuted);
+      final unselected = theme.colorScheme.onSurface.withValues(alpha: 0.92);
+      expect(nav.labelTextStyle!.resolve({})!.color, unselected);
+      expect(nav.iconTheme!.resolve({})!.color, unselected);
       expect(nav.iconTheme!.resolve(disabled)!.color, oldMuted);
       expect(nav.labelTextStyle!.resolve(disabled)!.color, oldMuted);
       expect(nav.iconTheme!.resolve(selected)!.color, colors.primary);
       expect(nav.labelTextStyle!.resolve(selected)!.color, colors.primaryDark);
-      expect(
-        theme.navigationRailTheme.unselectedIconTheme!.color,
-        colors.textMuted,
-      );
       expect(theme.tabBarTheme.unselectedLabelColor, colors.textMuted);
       // Updating semantic colours must not alter typography or control metrics.
       final oldTheme = AppTheme.fromColors(
@@ -105,7 +102,7 @@ void main() {
     testWidgets(
       'rendered hints and quantity controls keep disabled distinct $brightness',
       (tester) async {
-        var quantity = 1;
+        num quantity = 1;
         await tester.pumpWidget(
           MaterialApp(
             theme: theme,

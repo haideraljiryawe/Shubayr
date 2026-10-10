@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,7 +81,12 @@ void main() {
     repo = PendingCatalog();
     container = ProviderContainer(
       retry: (retryCount, error) => null,
-      overrides: [catalogRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
+        dataSourceProvider.overrideWithValue(DataSource.mock),
+        catalogRepositoryProvider.overrideWithValue(repo),
+      ],
     );
     container.listen(provider, (_, _) {});
     controller = container.read(provider.notifier);
@@ -135,7 +142,7 @@ void main() {
     controller.retry();
     expect(repo.requests.last.onSale, isTrue);
     expect(repo.requests.last.page, 1);
-    repo.requests.last.result.complete(const ProductPage(total: 0));
+    repo.requests.last.result.complete(const ProductPage(perPage: 8, total: 0));
     await flush();
     expect(container.read(provider).isEmpty, isTrue);
   });

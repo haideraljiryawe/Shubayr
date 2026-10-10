@@ -10,6 +10,8 @@ abstract interface class AuthRepository {
   /// `POST /auth/verify-otp`
   Future<AuthResult> verifyOtp({required String phone, required String code});
 
+  Future<void> logout(String refreshToken);
+
   /// `GET /me`
   Future<User> currentUser();
 

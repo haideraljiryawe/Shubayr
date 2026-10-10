@@ -1,17 +1,15 @@
-/// The three application areas the app routes between.
-///
-/// The API returns a single role string (`User.role`). The role names come
-/// from `infra/db/seed_rbac.sql`; everything that is not a customer or a
-/// delivery agent is staff, and anything unrecognised falls back to the
-/// least-privileged area.
+/// Phone sessions contain only these app roles. Unknown and legacy staff roles
+/// are rejected instead of falling through into the customer's shopping area.
 enum UserRole {
   customer,
   delivery,
-  staff;
+  monitor,
+  unsupported;
 
-  static UserRole fromApi(String? role) => switch (role?.trim().toLowerCase()) {
-    'delivery' => UserRole.delivery,
-    'admin' || 'manager' || 'purchasing' || 'warehouse' => UserRole.staff,
-    _ => UserRole.customer,
+  static UserRole fromApi(String? role) => switch (role) {
+    'customer' => UserRole.customer,
+    'delivery_agent' => UserRole.delivery,
+    'order_monitor' => UserRole.monitor,
+    _ => UserRole.unsupported,
   };
 }
