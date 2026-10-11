@@ -120,6 +120,93 @@ void main() {
           ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf')))
         .load();
   });
+
+  for (final locale in ['ar', 'en']) {
+    testWidgets('department grid follows local width and text scale $locale', (
+      tester,
+    ) async {
+      _size(tester, 390);
+      final semantics = tester.ensureSemantics();
+      try {
+        for (final (width, scale, columns) in <(double, double, int)>[
+          (390, 1, 1),
+          (631, 1, 1),
+          (632, 1, 2),
+          (760, 1, 2),
+          (1024, 1, 2),
+          (1024, 1.25, 2),
+          (1024, 1.3, 1),
+          (390, 2, 1),
+        ]) {
+          tester.view.physicalSize = Size(width, 1000);
+          await tester.pumpWidget(_host(locale: locale, scale: scale));
+          await tester.pumpAndSettle();
+          final first = find.byKey(const ValueKey('cat-card-c1'));
+          final a = tester.getRect(first);
+          final b = tester.getRect(find.byKey(const ValueKey('cat-card-c2')));
+          if (columns == 2) {
+            expect(a.top, b.top);
+            expect(a.width, b.width);
+            expect(locale == 'ar' ? a.left > b.left : a.left < b.left, isTrue);
+          } else {
+            expect(b.top, greaterThanOrEqualTo(a.bottom));
+          }
+          final image = find.byKey(const ValueKey('cat-image-c1'));
+          final imageRect = tester.getRect(image);
+          expect(
+            imageRect.width,
+            closeTo(a.width * AppLayout.categoryCardImageFraction, .01),
+          );
+          expect(
+            tester
+                .widget<CachedNetworkImage>(
+                  find.descendant(
+                    of: image,
+                    matching: find.byType(CachedNetworkImage),
+                  ),
+                )
+                .fit,
+            BoxFit.cover,
+          );
+          expect(
+            tester
+                .getSemantics(
+                  find.bySemanticsLabel(_tree.first.localizedName(locale)),
+                )
+                .getSemanticsData()
+                .hasAction(SemanticsAction.tap),
+            isTrue,
+          );
+          expect(tester.takeException(), isNull);
+        }
+      } finally {
+        semantics.dispose();
+      }
+    });
+
+    testWidgets('department skeleton has the same two columns $locale', (
+      tester,
+    ) async {
+      _size(tester, 1024);
+      final pending = Completer<List<Category>>();
+      await tester.pumpWidget(
+        _host(locale: locale, load: () => pending.future),
+      );
+      await tester.pump();
+      final cards = find.byType(CategoryCardSkeleton);
+      final a = tester.getRect(cards.at(0));
+      final b = tester.getRect(cards.at(1));
+      expect(a.width, 358);
+      expect(a.top, b.top);
+      pending.complete(_tree);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(find.byKey(const ValueKey('cat-card-c1'))).topLeft,
+        a.topLeft,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
   for (final locale in ['ar', 'en']) {
     for (final brightness in Brightness.values) {
       testWidgets(
@@ -275,6 +362,13 @@ void main() {
               );
               final paragraph = tester.renderObject<RenderParagraph>(subtitle);
               expect(paragraph.didExceedMaxLines, isTrue);
+              if (scale > 1) {
+                final title = find.text(category.localizedName(locale));
+                expect(
+                  tester.renderObject<RenderParagraph>(title).didExceedMaxLines,
+                  isFalse,
+                );
+              }
               expect(
                 tester.getRect(subtitle).bottom,
                 lessThanOrEqualTo(cardRect.bottom),

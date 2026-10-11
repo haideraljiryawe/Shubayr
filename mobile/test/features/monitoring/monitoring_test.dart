@@ -1,3 +1,4 @@
+import '../../helpers/page_layout_expectations.dart';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -319,6 +320,7 @@ void main() {
           );
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
+          expectPageContent(tester, width);
           expect(find.byType(Image), findsNothing);
           final l = AppLocalizations.of(
             tester.element(find.byType(Scaffold).first),

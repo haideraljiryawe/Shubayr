@@ -52,13 +52,13 @@ simulator and Web Admin together against `http://localhost:8000/api/v1`.
 Open `http://localhost:3200` for Web Admin. Stopping either debug session stops
 both sessions in this compound. Start the existing backend before launching.
 
-Standalone profiles remain available: **Shubayr - iOS Simulator**,
+Standalone profiles remain available: **iPhone Simulator**,
 **Web Admin (Remote)** and **Chrome Preview (Remote)**. Chrome uses
 `http://localhost:7357` for CORS and separate browser storage; the compound does
 not launch Chrome. Stop an existing standalone session before starting the
 compound to avoid duplicate processes.
 
-For a physical iPhone, select **Shubayr - iPhone Device** instead. The shared
+For a physical iPhone, select **iPhone Device** instead. The shared
 Mac address setting, local network requirements, and health check are described
 in [VS Code: iOS Simulator and real iPhone](../README.md#vs-code-ios-simulator-and-real-iphone).
 

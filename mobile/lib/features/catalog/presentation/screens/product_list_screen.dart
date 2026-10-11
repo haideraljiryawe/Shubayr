@@ -168,72 +168,74 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     l10n.homeSectionProducts,
         ),
       ),
-      body: SafeArea(
-        top: false,
-        bottom: BottomNavigationInset.of(context) == 0,
-        child: Column(
-          children: [
-            ProductSearchBar(
-              controller: _search,
-              onChanged: _onSearchChanged,
-              onFilters: _openFilters,
-              filterCount: state.query.appliedFilterCount(
-                offersOnly: widget.offersOnly,
+      body: ResponsiveContent.page(
+        child: SafeArea(
+          top: false,
+          bottom: BottomNavigationInset.of(context) == 0,
+          child: Column(
+            children: [
+              ProductSearchBar(
+                controller: _search,
+                onChanged: _onSearchChanged,
+                onFilters: _openFilters,
+                filterCount: state.query.appliedFilterCount(
+                  offersOnly: widget.offersOnly,
+                ),
               ),
-            ),
-            if (hasCategoryRow)
-              categories.when(
-                data: (list) {
-                  if (widget.offersOnly) {
-                    return list.isEmpty
+              if (hasCategoryRow)
+                categories.when(
+                  data: (list) {
+                    if (widget.offersOnly) {
+                      return list.isEmpty
+                          ? const SizedBox.shrink()
+                          : _CategoryFilters(
+                              categories: list,
+                              selectedId: state.query.categoryId,
+                              onSelected: _selectCategory,
+                            );
+                    }
+                    return parent == null || parent.children.isEmpty
                         ? const SizedBox.shrink()
                         : _CategoryFilters(
-                            categories: list,
+                            categories: parent.children,
+                            allCategoryId: parent.id,
                             selectedId: state.query.categoryId,
                             onSelected: _selectCategory,
                           );
-                  }
-                  return parent == null || parent.children.isEmpty
-                      ? const SizedBox.shrink()
-                      : _CategoryFilters(
-                          categories: parent.children,
-                          allCategoryId: parent.id,
-                          selectedId: state.query.categoryId,
-                          onSelected: _selectCategory,
-                        );
-                },
-                loading: () => Padding(
-                  padding: AppLayout.pageInsets(
-                    context,
-                    top: 0,
-                    bottom: AppSpacing.sm,
-                  ),
-                  child: const Skeleton.line(),
-                ),
-                error: (_, _) => TextButton.icon(
-                  onPressed: () {
-                    if (widget.offersOnly) ref.invalidate(categoriesProvider);
-                    ref.invalidate(categorySource);
                   },
-                  icon: const Icon(Icons.refresh),
-                  label: Text(l10n.actionRetry),
+                  loading: () => Padding(
+                    padding: AppLayout.pageInsets(
+                      context,
+                      top: 0,
+                      bottom: AppSpacing.sm,
+                    ),
+                    child: const Skeleton.line(),
+                  ),
+                  error: (_, _) => TextButton.icon(
+                    onPressed: () {
+                      if (widget.offersOnly) ref.invalidate(categoriesProvider);
+                      ref.invalidate(categorySource);
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: Text(l10n.actionRetry),
+                  ),
+                ),
+              AppliedProductFilters(
+                query: state.query,
+                offersOnly: widget.offersOnly,
+                onChanged: _applyFilters,
+              ),
+              Expanded(
+                child: _Body(
+                  scroll: _scroll,
+                  state: state,
+                  onRetry: _controller.retry,
+                  onScroll: _onScroll,
+                  headerSliver: widget.categoryHeaderSliver,
                 ),
               ),
-            AppliedProductFilters(
-              query: state.query,
-              offersOnly: widget.offersOnly,
-              onChanged: _applyFilters,
-            ),
-            Expanded(
-              child: _Body(
-                scroll: _scroll,
-                state: state,
-                onRetry: _controller.retry,
-                onScroll: _onScroll,
-                headerSliver: widget.categoryHeaderSliver,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

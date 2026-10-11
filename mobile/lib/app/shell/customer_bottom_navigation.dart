@@ -71,17 +71,20 @@ class CustomerBottomNavigation extends StatelessWidget {
             constraints.maxWidth,
             destinations.length,
           );
-          return Semantics(
-            container: true,
-            explicitChildNodes: true,
-            role: SemanticsRole.tabBar,
-            textDirection: Directionality.of(context),
-            child: Align(
-              alignment: Alignment.topCenter,
-              heightFactor: 1,
-              child: SizedBox(
-                width: geometry.barWidth,
-                height: NavigationThemes.bottomBarHeight,
+          return Align(
+            alignment: Alignment.topCenter,
+            heightFactor: 1,
+            child: SizedBox(
+              width: geometry.barWidth,
+              height: NavigationThemes.bottomBarHeight,
+              // Keep the tabBar's semantic bounds with its tabs. A full-width
+              // container can remain visible without any tabs while an iOS
+              // route slides the centered bar beyond the viewport clip.
+              child: Semantics(
+                container: true,
+                explicitChildNodes: true,
+                role: SemanticsRole.tabBar,
+                textDirection: Directionality.of(context),
                 child: DecoratedBox(
                   key: const ValueKey('bottom-nav-shadow'),
                   decoration: BoxDecoration(

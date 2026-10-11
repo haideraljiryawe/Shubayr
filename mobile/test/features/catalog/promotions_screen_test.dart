@@ -140,9 +140,11 @@ void main() {
     expect(tester.takeException(), isNull);
   });
   testWidgets(
-    'wide offers list loads the next page without requiring a scroll',
+    'tall bounded offers list loads the next page without requiring a scroll',
     (tester) async {
       size(tester, 1920);
+      // Three columns within 760dp need a taller viewport to fit page one.
+      tester.view.physicalSize = const Size(1920, 1600);
       final repo = _Catalog();
       await tester.pumpWidget(_host(repo, offers: true));
       await tester.pumpAndSettle();

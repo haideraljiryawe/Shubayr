@@ -42,9 +42,12 @@ class DeliveryHomeScreen extends ConsumerWidget {
         ),
       ],
     ),
-    body: ref.watch(sessionControllerProvider).value?.role == UserRole.delivery
-        ? const _DeliveriesList()
-        : AppEmptyView(title: context.l10n.deliveryNoAccess, message: ''),
+    body: ResponsiveContent.page(
+      child:
+          ref.watch(sessionControllerProvider).value?.role == UserRole.delivery
+          ? const _DeliveriesList()
+          : AppEmptyView(title: context.l10n.deliveryNoAccess, message: ''),
+    ),
   );
 }
 

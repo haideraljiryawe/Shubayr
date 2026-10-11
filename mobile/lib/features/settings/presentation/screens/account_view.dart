@@ -36,12 +36,11 @@ class AccountView extends ConsumerWidget {
     final session = ref.watch(sessionControllerProvider).value;
     final isSignedIn = session?.isSignedIn ?? false;
 
-    return ListView(
-      padding: AppLayout.scrollInsets(context),
-      children: [
-        ResponsiveContent(
-          alignment: AlignmentDirectional.topStart,
-          child: Column(
+    return ResponsiveContent.page(
+      child: ListView(
+        padding: AppLayout.scrollInsets(context),
+        children: [
+          Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Column(
@@ -119,8 +118,8 @@ class AccountView extends ConsumerWidget {
               ),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

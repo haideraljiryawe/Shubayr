@@ -99,8 +99,12 @@ class CategoryCard extends StatelessWidget {
                             children: [
                               Text(
                                 name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                                maxLines: AppLayout.textScale(context) > 1
+                                    ? null
+                                    : 2,
+                                overflow: AppLayout.textScale(context) > 1
+                                    ? TextOverflow.visible
+                                    : TextOverflow.ellipsis,
                                 style: context.text.titleMedium,
                               ),
                               if (hasDescription) ...[

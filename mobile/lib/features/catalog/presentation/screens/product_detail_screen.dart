@@ -41,11 +41,13 @@ class ProductDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(actions: [WishlistButton(productId: productId)]),
-      body: AsyncValueView(
-        value: product,
-        loading: const _DetailSkeleton(),
-        onRetry: () => ref.invalidate(productProvider(productId)),
-        builder: (context, p) => _Detail(product: p),
+      body: ResponsiveContent.page(
+        child: AsyncValueView(
+          value: product,
+          loading: const _DetailSkeleton(),
+          onRetry: () => ref.invalidate(productProvider(productId)),
+          builder: (context, p) => _Detail(product: p),
+        ),
       ),
     );
   }
@@ -61,6 +63,7 @@ class _DetailSkeleton extends StatelessWidget {
     padding: EdgeInsets.zero,
     children: [
       ResponsiveSections(
+        singleColumn: true,
         stackedSpacing: 0,
         children: [
           Skeleton(
@@ -196,6 +199,7 @@ class _DetailState extends ConsumerState<_Detail> {
             padding: const EdgeInsets.only(bottom: AppSpacing.xl),
             children: [
               ResponsiveSections(
+                singleColumn: true,
                 stackedSpacing: 0,
                 children: [
                   ProductGallery(images: product.images),

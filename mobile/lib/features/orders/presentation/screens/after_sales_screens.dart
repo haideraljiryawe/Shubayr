@@ -93,22 +93,22 @@ class _ReviewOrderScreenState extends ConsumerState<_ReviewOrderForm> {
       canPop: !_busy,
       child: Scaffold(
         appBar: AppBar(title: Text(l10n.reviewOrderTitle)),
-        body: _AfterSalesOrderView(
-          orderId: widget.orderId,
-          builder: (order, products) => AsyncValueView<Set<String>>(
-            value: ref.watch(reviewEligibilityProvider(widget.orderId)),
-            loading: const SkeletonCardList(),
-            onRetry: () =>
-                ref.invalidate(reviewEligibilityProvider(widget.orderId)),
-            builder: (context, eligible) {
-              final available = order.items
-                  .where((i) => eligible.contains(i.id))
-                  .toList();
-              final selected = available
-                  .where((i) => i.id == _itemId)
-                  .firstOrNull;
-              return ResponsiveContent(
-                child: ListView(
+        body: ResponsiveContent.page(
+          child: _AfterSalesOrderView(
+            orderId: widget.orderId,
+            builder: (order, products) => AsyncValueView<Set<String>>(
+              value: ref.watch(reviewEligibilityProvider(widget.orderId)),
+              loading: const SkeletonCardList(),
+              onRetry: () =>
+                  ref.invalidate(reviewEligibilityProvider(widget.orderId)),
+              builder: (context, eligible) {
+                final available = order.items
+                    .where((i) => eligible.contains(i.id))
+                    .toList();
+                final selected = available
+                    .where((i) => i.id == _itemId)
+                    .firstOrNull;
+                return ListView(
                   padding: AppLayout.formScrollInsets(context),
                   children: [
                     Text(order.orderNumber, style: context.text.titleMedium),
@@ -201,9 +201,9 @@ class _ReviewOrderScreenState extends ConsumerState<_ReviewOrderForm> {
                       ),
                     ],
                   ],
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -286,18 +286,18 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
       canPop: !_busy,
       child: Scaffold(
         appBar: AppBar(title: Text(l10n.returnOrderTitle)),
-        body: _AfterSalesOrderView(
-          orderId: widget.orderId,
-          builder: (order, products) => AsyncValueView<ReturnEligibility>(
-            value: ref.watch(returnEligibilityProvider(widget.orderId)),
-            loading: const SkeletonCardList(),
-            onRetry: () =>
-                ref.invalidate(returnEligibilityProvider(widget.orderId)),
-            builder: (context, eligibility) {
-              final submitted = _submitted;
-              if (submitted != null) {
-                return ResponsiveContent(
-                  child: ListView(
+        body: ResponsiveContent.page(
+          child: _AfterSalesOrderView(
+            orderId: widget.orderId,
+            builder: (order, products) => AsyncValueView<ReturnEligibility>(
+              value: ref.watch(returnEligibilityProvider(widget.orderId)),
+              loading: const SkeletonCardList(),
+              onRetry: () =>
+                  ref.invalidate(returnEligibilityProvider(widget.orderId)),
+              builder: (context, eligibility) {
+                final submitted = _submitted;
+                if (submitted != null) {
+                  return ListView(
                     padding: AppLayout.pageInsets(context),
                     children: [
                       _SuccessMessage(l10n.returnSubmitted),
@@ -325,14 +325,12 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                       const SizedBox(height: AppSpacing.lg),
                       Text(l10n.returnRequestOnly),
                     ],
-                  ),
-                );
-              }
-              final available = order.items
-                  .where((i) => (eligibility.remaining[i.id] ?? 0) > 0)
-                  .toList();
-              return ResponsiveContent(
-                child: ListView(
+                  );
+                }
+                final available = order.items
+                    .where((i) => (eligibility.remaining[i.id] ?? 0) > 0)
+                    .toList();
+                return ListView(
                   padding: AppLayout.formScrollInsets(context),
                   children: [
                     Text(order.orderNumber, style: context.text.titleMedium),
@@ -464,9 +462,9 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                       ),
                     ],
                   ],
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),

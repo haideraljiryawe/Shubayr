@@ -1,3 +1,4 @@
+import '../../helpers/page_layout_expectations.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -182,6 +183,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
+        expectPageContent(tester, width);
         expect(repo.reads, isEmpty);
         await tester.tap(
           find.text(language == 'ar' ? 'طلب جديد' : 'New order').first,

@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shubayr/app/startup_display_controller.dart';
+import 'package:shubayr/core/layout/app_layout.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/brand.dart';
@@ -109,6 +110,121 @@ class _RenderWorkBox extends RenderProxyBox {
 }
 
 void main() {
+  for (final language in ['ar', 'en']) {
+    for (final accessible in [false, true]) {
+      testWidgets(
+        'fitting categories center in their local slot without motion $language accessible=$accessible',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = const Size(1200, 1000);
+          addTearDown(tester.view.reset);
+          var taps = 0;
+          for (final count in [1, 3]) {
+            for (final scale in [1.0, 2.0]) {
+              await _start(
+                tester,
+                _app(
+                  language: language,
+                  accessible: accessible,
+                  categories: _categories.take(count).toList(),
+                  width: 834,
+                  scale: scale,
+                  onSelected: (_) => taps++,
+                ),
+              );
+              final viewport = tester.getRect(
+                find.byKey(const ValueKey('home-category-shortcuts')),
+              );
+              final first = tester.getRect(_item(0));
+              final last = tester.getRect(_item(count - 1));
+              final bounds = first.expandToInclude(last);
+              expect(viewport.width, 834);
+              expect(bounds.center.dx, closeTo(viewport.center.dx, .001));
+              expect(
+                bounds.width,
+                closeTo(count * AppLayout.categoryShortcutWidth * scale, .001),
+              );
+              if (count > 1) {
+                expect(
+                  language == 'ar'
+                      ? first.left > last.left
+                      : first.left < last.left,
+                  isTrue,
+                );
+              }
+              expect(_ring, findsNothing);
+              for (var i = 0; i < count; i++) {
+                expect(_item(i), findsOneWidget);
+                final label = _categories[i].localizedName(language);
+                expect(find.text(label), findsOneWidget);
+                expect(
+                  tester.getSemantics(find.text(label)),
+                  matchesSemantics(
+                    label: label,
+                    isFocusable: true,
+                    hasTapAction: true,
+                    hasFocusAction: true,
+                  ),
+                );
+              }
+              expect(tester.binding.transientCallbackCount, 0);
+              await tester.pump(const Duration(seconds: 20));
+              expect(tester.getRect(_item(0)), first);
+              expect(tester.binding.hasScheduledFrame, isFalse);
+              final previousTaps = taps;
+              tester.semantics.tap(
+                find.semantics.byLabel(
+                  _categories.first.localizedName(language),
+                ),
+              );
+              expect(taps, previousTaps + 1);
+              await tester.pumpAndSettle();
+              expect(tester.takeException(), isNull);
+            }
+          }
+        },
+      );
+    }
+
+    testWidgets(
+      'resize switches between centered and moving categories $language',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(1200, 1000);
+        addTearDown(tester.view.reset);
+        Widget app(double width) => _app(language: language, width: width);
+        await _start(tester, app(834));
+        final state = tester.state(find.byType(HomeCategoryCarousel));
+        expect(_ring, findsNothing);
+        expect(tester.binding.transientCallbackCount, 0);
+        await _start(tester, app(320));
+        expect(tester.state(find.byType(HomeCategoryCarousel)), same(state));
+        expect(_ring, findsOneWidget);
+        final first = tester.getRect(_item(1));
+        await tester.pump(const Duration(seconds: 1));
+        expect(_position(tester).pixels, closeTo(8.4, .001));
+        expect(
+          tester.getRect(_item(1)).left - first.left,
+          closeTo(language == 'ar' ? 8.4 : -8.4, .001),
+        );
+        final offset = _position(tester).pixels;
+        await _start(tester, app(390));
+        expect(_position(tester).pixels, closeTo(offset, .001));
+        await _start(tester, app(834));
+        expect(_ring, findsNothing);
+        expect(tester.binding.transientCallbackCount, 0);
+        final centered = tester.getRect(_item(0));
+        await tester.pump(const Duration(seconds: 20));
+        expect(tester.getRect(_item(0)), centered);
+        await _start(tester, app(320));
+        final resumed = _position(tester).pixels;
+        await tester.pump(const Duration(seconds: 1));
+        expect(_position(tester).pixels, closeTo(resumed + 8.4, .001));
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
   bool Function() startupClaim() {
     final container = ProviderContainer();
     addTearDown(container.dispose);

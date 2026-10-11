@@ -292,11 +292,12 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final contentWidth = widget.categories.length * width;
+        final availableWidth = constraints.maxWidth - padding.horizontal;
         final loop =
             !accessible &&
             widget.categories.length > 1 &&
-            widget.categories.length * width >
-                constraints.maxWidth - padding.horizontal;
+            contentWidth > availableWidth;
         _configure(width, loop);
         _scheduleVisibility();
         if (widget.categories.isEmpty) return const SizedBox.shrink();
@@ -307,11 +308,15 @@ class _HomeCategoryCarouselState extends State<HomeCategoryCarousel>
             key: const ValueKey('home-category-shortcuts'),
             scrollDirection: Axis.horizontal,
             padding: padding,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var i = 0; i < widget.categories.length; i++) item(i),
-              ],
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: availableWidth),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < widget.categories.length; i++) item(i),
+                ],
+              ),
             ),
           );
         }

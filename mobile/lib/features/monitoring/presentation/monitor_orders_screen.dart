@@ -127,132 +127,134 @@ class _MonitorOrdersScreenState extends ConsumerState<MonitorOrdersScreen> {
             ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: AppLayout.pageInsets(context),
-            child: ResponsiveFields(
-              children: [
-                TextField(
-                  contextMenuBuilder: appTextSelectionToolbar,
-                  controller: _search,
-                  maxLength: 80,
-                  decoration: InputDecoration(
-                    hintText: l.adminOrderSearch,
-                    counterText: '',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: IconButton(
-                      tooltip: l.adminOrderClearSearch,
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _debounce?.cancel();
-                        _search.clear();
-                        _select(search: '');
-                      },
-                    ),
-                  ),
-                  onChanged: (text) {
-                    _debounce?.cancel();
-                    _debounce = Timer(const Duration(milliseconds: 300), () {
-                      if (mounted) _select(search: text);
-                    });
-                  },
-                ),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _dates,
-                      icon: const Icon(Icons.date_range),
-                      label: Text(
-                        query.from == null
-                            ? l.adminOrderDateRange
-                            : '${MonitorQuery.date(query.from!)} – ${MonitorQuery.date(query.to!)}',
-                      ),
-                    ),
-                    if (query.from != null)
-                      IconButton(
-                        onPressed: () => _select(setDates: true),
-                        tooltip: l.adminOrderClearDates,
+      body: ResponsiveContent.page(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: AppLayout.pageInsets(context),
+              child: ResponsiveFields(
+                children: [
+                  TextField(
+                    contextMenuBuilder: appTextSelectionToolbar,
+                    controller: _search,
+                    maxLength: 80,
+                    decoration: InputDecoration(
+                      hintText: l.adminOrderSearch,
+                      counterText: '',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: IconButton(
+                        tooltip: l.adminOrderClearSearch,
                         icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _debounce?.cancel();
+                          _search.clear();
+                          _select(search: '');
+                        },
                       ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: AppLayout.horizontalScrollInsets(context),
-            child: Row(
-              children: [
-                for (final status in [null, ...remoteOrderStatuses])
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(
-                      end: AppSpacing.sm,
                     ),
-                    child: ChoiceChip(
-                      label: Text(
-                        '${status == null ? l.ordersFilterAll : orderStatusLabel(l, status)} (${status == null ? counts['all'] ?? 0 : counts[status] ?? 0})',
-                      ),
-                      selected: query.status == status,
-                      onSelected: (_) =>
-                          _select(status: status, setStatus: true),
-                    ),
+                    onChanged: (text) {
+                      _debounce?.cancel();
+                      _debounce = Timer(const Duration(milliseconds: 300), () {
+                        if (mounted) _select(search: text);
+                      });
+                    },
                   ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Expanded(
-            child: AsyncValueView(
-              value: value,
-              loading: const MonitorListSkeleton(),
-              onRetry: controller.refresh,
-              builder: (context, list) => _loadNearEnd(
-                RefreshIndicator(
-                  onRefresh: controller.refresh,
-                  child: list.items.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            AppEmptyView(
-                              title: l.ordersEmptyTitle,
-                              message: l.adminOrderEmptyHint,
-                            ),
-                          ],
-                        )
-                      : ResponsiveCardList(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: AppLayout.pageInsets(context),
-                          minItemWidth: AppLayout.orderMinWidth,
-                          itemCount: list.items.length,
-                          itemKeyBuilder: (i) => list.items[i].order.id,
-                          itemBuilder: (_, index) =>
-                              _OrderCard(item: list.items[index]),
-                          footer: list.appendError != null
-                              ? AppErrorView(
-                                  error: list.appendError,
-                                  onRetry: controller.loadMore,
-                                )
-                              : list.loadingMore
-                              ? const MonitorCardSkeleton()
-                              : list.page.hasMore
-                              ? Center(
-                                  child: TextButton(
-                                    onPressed: controller.loadMore,
-                                    child: Text(l.actionLoadMore),
-                                  ),
-                                )
-                              : null,
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _dates,
+                        icon: const Icon(Icons.date_range),
+                        label: Text(
+                          query.from == null
+                              ? l.adminOrderDateRange
+                              : '${MonitorQuery.date(query.from!)} – ${MonitorQuery.date(query.to!)}',
                         ),
+                      ),
+                      if (query.from != null)
+                        IconButton(
+                          onPressed: () => _select(setDates: true),
+                          tooltip: l.adminOrderClearDates,
+                          icon: const Icon(Icons.clear),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: AppLayout.horizontalScrollInsets(context),
+              child: Row(
+                children: [
+                  for (final status in [null, ...remoteOrderStatuses])
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        end: AppSpacing.sm,
+                      ),
+                      child: ChoiceChip(
+                        label: Text(
+                          '${status == null ? l.ordersFilterAll : orderStatusLabel(l, status)} (${status == null ? counts['all'] ?? 0 : counts[status] ?? 0})',
+                        ),
+                        selected: query.status == status,
+                        onSelected: (_) =>
+                            _select(status: status, setStatus: true),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Expanded(
+              child: AsyncValueView(
+                value: value,
+                loading: const MonitorListSkeleton(),
+                onRetry: controller.refresh,
+                builder: (context, list) => _loadNearEnd(
+                  RefreshIndicator(
+                    onRefresh: controller.refresh,
+                    child: list.items.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              AppEmptyView(
+                                title: l.ordersEmptyTitle,
+                                message: l.adminOrderEmptyHint,
+                              ),
+                            ],
+                          )
+                        : ResponsiveCardList(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: AppLayout.pageInsets(context),
+                            minItemWidth: AppLayout.orderMinWidth,
+                            itemCount: list.items.length,
+                            itemKeyBuilder: (i) => list.items[i].order.id,
+                            itemBuilder: (_, index) =>
+                                _OrderCard(item: list.items[index]),
+                            footer: list.appendError != null
+                                ? AppErrorView(
+                                    error: list.appendError,
+                                    onRetry: controller.loadMore,
+                                  )
+                                : list.loadingMore
+                                ? const MonitorCardSkeleton()
+                                : list.page.hasMore
+                                ? Center(
+                                    child: TextButton(
+                                      onPressed: controller.loadMore,
+                                      child: Text(l.actionLoadMore),
+                                    ),
+                                  )
+                                : null,
+                          ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

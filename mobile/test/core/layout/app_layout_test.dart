@@ -153,8 +153,7 @@ void main() {
             home: Scaffold(
               body: Directionality(
                 textDirection: direction,
-                child: ResponsiveContent(
-                  maxWidth: AppLayout.formWidth,
+                child: ResponsiveContent.page(
                   child: Form(
                     key: form,
                     child: SingleChildScrollView(

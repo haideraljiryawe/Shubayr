@@ -134,8 +134,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
           widget.address == null ? l10n.addressAdd : l10n.addressEdit,
         ),
       ),
-      body: ResponsiveContent(
-        maxWidth: AppLayout.formWidth,
+      body: ResponsiveContent.page(
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -278,14 +277,11 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                 ),
                 ResponsiveField(
                   fullWidth: true,
-                  child: ResponsiveContent(
-                    maxWidth: AppLayout.authWidth,
-                    child: AppButton(
-                      label: l10n.actionSave,
-                      icon: Icons.check,
-                      isLoading: _busy,
-                      onPressed: _save,
-                    ),
+                  child: AppButton(
+                    label: l10n.actionSave,
+                    icon: Icons.check,
+                    isLoading: _busy,
+                    onPressed: _save,
                   ),
                 ),
               ],

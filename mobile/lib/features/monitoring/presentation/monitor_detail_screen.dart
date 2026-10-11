@@ -27,107 +27,110 @@ class MonitorDetailScreen extends ConsumerWidget {
     );
     return Scaffold(
       appBar: AppBar(title: Text(l.orderDetailTitle)),
-      body: AsyncValueView(
-        value: ref.watch(monitorDetailProvider(orderId)),
-        loading: const MonitorListSkeleton(),
-        onRetry: () => ref.invalidate(monitorDetailProvider(orderId)),
-        builder: (context, item) => RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(monitorDetailProvider(orderId));
-            try {
-              await ref.read(monitorDetailProvider(orderId).future);
-            } catch (_) {
-              // The provider owns the visible retry/error state.
-            }
-          },
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: AppLayout.pageInsets(context),
-            children: [
-              ResponsiveFields(
-                children: [
-                  AppCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.order.orderNumber,
-                          style: context.text.titleLarge,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        OrderStatusPill(status: item.order.status),
-                        const SizedBox(height: AppSpacing.md),
-                        if (item.customerName != null) Text(item.customerName!),
-                        Text(
-                          item.customerPhone,
-                          textDirection: TextDirection.ltr,
-                        ),
-                        if (item.shipping['contact_phone'] != null &&
-                            item.shipping['contact_phone'] !=
-                                item.customerPhone)
+      body: ResponsiveContent.page(
+        child: AsyncValueView(
+          value: ref.watch(monitorDetailProvider(orderId)),
+          loading: const MonitorListSkeleton(),
+          onRetry: () => ref.invalidate(monitorDetailProvider(orderId)),
+          builder: (context, item) => RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(monitorDetailProvider(orderId));
+              try {
+                await ref.read(monitorDetailProvider(orderId).future);
+              } catch (_) {
+                // The provider owns the visible retry/error state.
+              }
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: AppLayout.pageInsets(context),
+              children: [
+                ResponsiveFields(
+                  children: [
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            item.shipping['contact_phone'] as String,
+                            item.order.orderNumber,
+                            style: context.text.titleLarge,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          OrderStatusPill(status: item.order.status),
+                          const SizedBox(height: AppSpacing.md),
+                          if (item.customerName != null)
+                            Text(item.customerName!),
+                          Text(
+                            item.customerPhone,
                             textDirection: TextDirection.ltr,
                           ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          ['city', 'area', 'street', 'details']
-                              .map((key) => item.shipping[key])
-                              .whereType<String>()
-                              .where((s) => s.trim().isNotEmpty)
-                              .join('، '),
-                        ),
-                      ],
+                          if (item.shipping['contact_phone'] != null &&
+                              item.shipping['contact_phone'] !=
+                                  item.customerPhone)
+                            Text(
+                              item.shipping['contact_phone'] as String,
+                              textDirection: TextDirection.ltr,
+                            ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            ['city', 'area', 'street', 'details']
+                                .map((key) => item.shipping[key])
+                                .whereType<String>()
+                                .where((s) => s.trim().isNotEmpty)
+                                .join('، '),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  AppCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(l.checkoutCod, style: context.sectionTitle),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          '${l.cartSubtotal}: ${money(item.order.subtotal)}',
-                        ),
-                        Text(
-                          '${l.checkoutDelivery}: ${money(item.order.deliveryFee)}',
-                        ),
-                        Text(
-                          '${l.checkoutDiscount}: ${money(item.order.discount)}',
-                        ),
-                        const Divider(),
-                        Text(
-                          '${l.checkoutTotal}: ${money(item.order.total)}',
-                          style: context.text.titleMedium,
-                        ),
-                      ],
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(l.checkoutCod, style: context.sectionTitle),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            '${l.cartSubtotal}: ${money(item.order.subtotal)}',
+                          ),
+                          Text(
+                            '${l.checkoutDelivery}: ${money(item.order.deliveryFee)}',
+                          ),
+                          Text(
+                            '${l.checkoutDiscount}: ${money(item.order.discount)}',
+                          ),
+                          const Divider(),
+                          Text(
+                            '${l.checkoutTotal}: ${money(item.order.total)}',
+                            style: context.text.titleMedium,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(l.orderItemsSection, style: context.sectionTitle),
-              const SizedBox(height: AppSpacing.md),
-              for (final line in item.order.items)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: AppCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          line.snapshotName(language) ?? line.productId,
-                          style: context.text.titleSmall,
-                        ),
-                        Text(
-                          '${formatQuantity(line.quantity)} × ${money(line.unitPrice)}',
-                        ),
-                        Text(money(line.lineTotal)),
-                      ],
-                    ),
-                  ),
+                  ],
                 ),
-            ],
+                const SizedBox(height: AppSpacing.lg),
+                Text(l.orderItemsSection, style: context.sectionTitle),
+                const SizedBox(height: AppSpacing.md),
+                for (final line in item.order.items)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            line.snapshotName(language) ?? line.productId,
+                            style: context.text.titleSmall,
+                          ),
+                          Text(
+                            '${formatQuantity(line.quantity)} × ${money(line.unitPrice)}',
+                          ),
+                          Text(money(line.lineTotal)),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

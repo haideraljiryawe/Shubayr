@@ -36,27 +36,27 @@ class CartScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.cartTitle)),
-      body: AsyncValueView(
-        value: cart,
-        loading: Padding(
-          padding: AppLayout.pageInsets(context),
-          child: SkeletonList(),
-        ),
-        onRetry: () => ref.invalidate(cartControllerProvider),
-        builder: (context, c) {
-          if (c.isEmpty) {
-            return AppEmptyView(
-              icon: Icons.shopping_bag_outlined,
-              title: l10n.cartEmptyTitle,
-              message: l10n.cartEmptyMessage,
-            );
-          }
-          final bottomInset = BottomNavigationInset.of(context);
-          if (bottomInset > 0) {
-            // Keep checkout reachable while the whole cart scrolls behind the
-            // floating bar. Clearance scrolls with the content, not a footer.
-            return ResponsiveContent(
-              child: CustomScrollView(
+      body: ResponsiveContent.page(
+        child: AsyncValueView(
+          value: cart,
+          loading: Padding(
+            padding: AppLayout.pageInsets(context),
+            child: SkeletonList(),
+          ),
+          onRetry: () => ref.invalidate(cartControllerProvider),
+          builder: (context, c) {
+            if (c.isEmpty) {
+              return AppEmptyView(
+                icon: Icons.shopping_bag_outlined,
+                title: l10n.cartEmptyTitle,
+                message: l10n.cartEmptyMessage,
+              );
+            }
+            final bottomInset = BottomNavigationInset.of(context);
+            if (bottomInset > 0) {
+              // Keep checkout reachable while the whole cart scrolls behind the
+              // floating bar. Clearance scrolls with the content, not a footer.
+              return CustomScrollView(
                 slivers: [
                   SliverPadding(
                     padding: AppLayout.pageInsets(context),
@@ -90,11 +90,9 @@ class CartScreen extends ConsumerWidget {
                   ),
                   SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
                 ],
-              ),
-            );
-          }
-          return ResponsiveContent(
-            child: Column(
+              );
+            }
+            return Column(
               children: [
                 Expanded(
                   child: ListView.separated(
@@ -119,9 +117,9 @@ class CartScreen extends ConsumerWidget {
                   canCheckout: c.canCheckout,
                 ),
               ],
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

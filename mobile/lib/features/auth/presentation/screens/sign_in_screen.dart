@@ -93,73 +93,77 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         // direction-specific is hard-coded here.
         leading: BackButton(onPressed: () => _goBack(context)),
       ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: AppLayout.pageInsets(
-              context,
-              top: AppSpacing.xl,
-              bottom: AppSpacing.xl,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: AppLayout.authWidth),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Center(
-                      child: SizedBox.square(
-                        dimension: AppSpacing.xxl * 2,
-                        child: FittedBox(child: UserAvatar()),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    Text(
-                      l10n.authSignInTitle,
-                      style: context.text.headlineSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      l10n.authSignInSubtitle,
-                      style: context.text.bodyMedium?.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    TextFormField(
-                      contextMenuBuilder: appTextSelectionToolbar,
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      inputFormatters: const [PhoneInputFormatter()],
-                      textDirection: TextDirection.ltr,
-                      autofillHints: const [AutofillHints.telephoneNumber],
-                      decoration: InputDecoration(
-                        labelText: l10n.authPhoneLabel,
-                        hintText: l10n.authPhoneHint,
-                        prefixIcon: const Icon(Icons.phone_outlined),
-                      ),
-                      validator: (value) => Validators.isPhone(value ?? '')
-                          ? null
-                          : l10n.authPhoneInvalid,
-                      onFieldSubmitted: (_) => _submit(),
-                    ),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        _errorMessage!,
-                        style: context.text.bodySmall?.copyWith(
-                          color: colors.danger,
+      body: ResponsiveContent.page(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: AppLayout.pageInsets(
+                context,
+                top: AppSpacing.xl,
+                bottom: AppSpacing.xl,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppLayout.authWidth,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Center(
+                        child: SizedBox.square(
+                          dimension: AppSpacing.xxl * 2,
+                          child: FittedBox(child: UserAvatar()),
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.xl),
+                      Text(
+                        l10n.authSignInTitle,
+                        style: context.text.headlineSmall,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        l10n.authSignInSubtitle,
+                        style: context.text.bodyMedium?.copyWith(
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      TextFormField(
+                        contextMenuBuilder: appTextSelectionToolbar,
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: const [PhoneInputFormatter()],
+                        textDirection: TextDirection.ltr,
+                        autofillHints: const [AutofillHints.telephoneNumber],
+                        decoration: InputDecoration(
+                          labelText: l10n.authPhoneLabel,
+                          hintText: l10n.authPhoneHint,
+                          prefixIcon: const Icon(Icons.phone_outlined),
+                        ),
+                        validator: (value) => Validators.isPhone(value ?? '')
+                            ? null
+                            : l10n.authPhoneInvalid,
+                        onFieldSubmitted: (_) => _submit(),
+                      ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          _errorMessage!,
+                          style: context.text.bodySmall?.copyWith(
+                            color: colors.danger,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.xl),
+                      AppButton(
+                        label: l10n.authSendCode,
+                        isLoading: _isSubmitting,
+                        onPressed: _submit,
+                      ),
                     ],
-                    const SizedBox(height: AppSpacing.xl),
-                    AppButton(
-                      label: l10n.authSendCode,
-                      isLoading: _isSubmitting,
-                      onPressed: _submit,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

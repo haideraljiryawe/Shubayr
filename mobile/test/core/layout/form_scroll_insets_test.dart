@@ -59,7 +59,7 @@ void main() {
                               child: const Text('Save'),
                             ),
                           ];
-                          return ResponsiveContent(
+                          return ResponsiveContent.page(
                             child: list
                                 ? ListView(
                                     padding: AppLayout.formScrollInsets(

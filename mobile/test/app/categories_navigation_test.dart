@@ -1,3 +1,4 @@
+import '../helpers/page_layout_expectations.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter/material.dart';
@@ -110,10 +111,16 @@ void main() {
           );
           if (width == 390) {
             expect(second.top, greaterThan(first.bottom));
+            expect(first.width, 362);
           } else {
-            expect(second.top, closeTo(first.top, 0.01));
-            expect(first.width, lessThan(width / 2));
+            expect(second.top, first.top);
+            expect(first.width, 358);
+            expect(
+              first.expandToInclude(second).center.dx,
+              closeTo(width / 2, .01),
+            );
           }
+          expectPageContent(tester, width);
           expect(tester.takeException(), isNull);
         }
       },

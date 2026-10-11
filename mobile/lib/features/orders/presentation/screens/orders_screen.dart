@@ -58,87 +58,89 @@ class OrdersScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.ordersTitle)),
-      body: Column(
-        children: [
-          _StatusFilterBar(
-            selected: status,
-            statuses: ref.watch(dataSourceProvider) == DataSource.remote
-                ? remoteOrderStatuses
-                : _filterStatuses,
-            onSelected: (value) =>
-                ref.read(orderStatusFilterProvider.notifier).state = value,
-          ),
-          Expanded(
-            child: AsyncValueView(
-              value: orders,
-              loading: Padding(
-                padding: AppLayout.pageInsets(context),
-                child: SkeletonCardList(minItemWidth: AppLayout.cardMinWidth),
-              ),
-              onRetry: controller.refresh,
-              builder: (context, list) => RefreshIndicator(
-                onRefresh: controller.refresh,
-                child: NotificationListener<ScrollMetricsNotification>(
-                  // Also fill a viewport taller than the first page, without
-                  // requiring a scroll gesture on a list that cannot scroll.
-                  onNotification: (notification) {
-                    if (notification.depth == 0) {
-                      loadIfNearEnd(notification.metrics);
-                    }
-                    return false;
-                  },
-                  child: NotificationListener<ScrollNotification>(
+      body: ResponsiveContent.page(
+        child: Column(
+          children: [
+            _StatusFilterBar(
+              selected: status,
+              statuses: ref.watch(dataSourceProvider) == DataSource.remote
+                  ? remoteOrderStatuses
+                  : _filterStatuses,
+              onSelected: (value) =>
+                  ref.read(orderStatusFilterProvider.notifier).state = value,
+            ),
+            Expanded(
+              child: AsyncValueView(
+                value: orders,
+                loading: Padding(
+                  padding: AppLayout.pageInsets(context),
+                  child: SkeletonCardList(minItemWidth: AppLayout.cardMinWidth),
+                ),
+                onRetry: controller.refresh,
+                builder: (context, list) => RefreshIndicator(
+                  onRefresh: controller.refresh,
+                  child: NotificationListener<ScrollMetricsNotification>(
+                    // Also fill a viewport taller than the first page, without
+                    // requiring a scroll gesture on a list that cannot scroll.
                     onNotification: (notification) {
                       if (notification.depth == 0) {
                         loadIfNearEnd(notification.metrics);
                       }
                       return false;
                     },
-                    child: list.items.isEmpty
-                        ? ListView(
-                            key: ValueKey(status),
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: [
-                              SizedBox(
-                                height: 320,
-                                child: AppEmptyView(
-                                  icon: status == null
-                                      ? Icons.receipt_long_outlined
-                                      : Icons.inbox_outlined,
-                                  title: status == null
-                                      ? l10n.ordersEmptyTitle
-                                      : l10n.ordersFilterEmpty,
-                                  message: status == null
-                                      ? l10n.ordersEmptyMessage
-                                      : null,
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: (notification) {
+                        if (notification.depth == 0) {
+                          loadIfNearEnd(notification.metrics);
+                        }
+                        return false;
+                      },
+                      child: list.items.isEmpty
+                          ? ListView(
+                              key: ValueKey(status),
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(
+                                  height: 320,
+                                  child: AppEmptyView(
+                                    icon: status == null
+                                        ? Icons.receipt_long_outlined
+                                        : Icons.inbox_outlined,
+                                    title: status == null
+                                        ? l10n.ordersEmptyTitle
+                                        : l10n.ordersFilterEmpty,
+                                    message: status == null
+                                        ? l10n.ordersEmptyMessage
+                                        : null,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          )
-                        : ResponsiveCardList(
-                            key: ValueKey(status),
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: AppLayout.scrollInsets(context),
-                            itemCount: list.items.length,
-                            itemKeyBuilder: (i) => list.items[i].id,
-                            footer: list.loadMoreError != null
-                                ? AppErrorView(
-                                    error: list.loadMoreError,
-                                    onRetry: controller.loadMore,
-                                  )
-                                : list.loadingMore
-                                ? const SkeletonCardList(itemCount: 1)
-                                : null,
-                            itemBuilder: (_, i) {
-                              return _OrderCard(order: list.items[i]);
-                            },
-                          ),
+                              ],
+                            )
+                          : ResponsiveCardList(
+                              key: ValueKey(status),
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: AppLayout.scrollInsets(context),
+                              itemCount: list.items.length,
+                              itemKeyBuilder: (i) => list.items[i].id,
+                              footer: list.loadMoreError != null
+                                  ? AppErrorView(
+                                      error: list.loadMoreError,
+                                      onRetry: controller.loadMore,
+                                    )
+                                  : list.loadingMore
+                                  ? const SkeletonCardList(itemCount: 1)
+                                  : null,
+                              itemBuilder: (_, i) {
+                                return _OrderCard(order: list.items[i]);
+                              },
+                            ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

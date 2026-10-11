@@ -113,7 +113,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       appBar: workAppBar(context, ref, title: l10n.accountEditProfile),
-      body: ResponsiveContent(
+      body: ResponsiveContent.page(
         child: Form(
           key: _form,
           child: SingleChildScrollView(

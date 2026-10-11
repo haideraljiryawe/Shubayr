@@ -127,135 +127,131 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.orderDetailTitle)),
-      body: AsyncValueView(
-        value: order,
-        loading: ResponsiveContent(
-          maxWidth: AppLayout.detailWidth,
-          child: Padding(
+      body: ResponsiveContent.page(
+        child: AsyncValueView(
+          value: order,
+          loading: Padding(
             padding: AppLayout.pageInsets(context),
-            child: SkeletonCardList(
-              itemCount: 4,
-              height: 120,
-              minItemWidth: AppLayout.orderMinWidth,
-            ),
+            child: SkeletonCardList(itemCount: 4, height: 120),
           ),
-        ),
-        onRetry: () => ref.invalidate(orderProvider(widget.orderId)),
-        builder: (context, o) => ListView(
-          padding: AppLayout.pageInsets(context),
-          children: [
-            ResponsiveSections(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _Header(order: o),
-                    const SizedBox(height: AppSpacing.lg),
-                    _SectionTitle(l10n.orderTrackingTitle),
-                    _TrackingCard(orderId: widget.orderId),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _SectionTitle(l10n.orderItemsSection),
-                    AppCard(
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < o.items.length; i++) ...[
-                            if (i > 0) const Divider(height: AppSpacing.xl),
-                            _OrderItemTile(
-                              item: o.items[i],
-                              money: (amount) => _money(
-                                amount,
-                                currency: o.items[i].currency ?? o.currency,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _SectionTitle(l10n.orderSummary),
-                    _Summary(
-                      order: o,
-                      money: (amount) => _money(amount, currency: o.currency),
-                    ),
-                    if (o.status == 'delivered' && o.items.isNotEmpty) ...[
+          onRetry: () => ref.invalidate(orderProvider(widget.orderId)),
+          builder: (context, o) => ListView(
+            padding: AppLayout.pageInsets(context),
+            children: [
+              ResponsiveSections(
+                singleColumn: true,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _Header(order: o),
                       const SizedBox(height: AppSpacing.lg),
-                      AsyncValueView<Set<String>>(
-                        value: ref.watch(reviewEligibilityProvider(o.id)),
-                        loading: const Skeleton.line(),
-                        onRetry: () =>
-                            ref.invalidate(reviewEligibilityProvider(o.id)),
-                        builder: (context, eligible) => eligible.isEmpty
-                            ? Text(l10n.reviewAllSubmitted)
-                            : AppButton(
-                                label: l10n.reviewOrderTitle,
-                                icon: Icons.star_outline,
-                                variant: AppButtonVariant.secondary,
-                                onPressed: () => context.pushNamed(
-                                  AppRoutes.orderReviewName,
-                                  pathParameters: {'id': o.id},
-                                ),
-                              ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      AsyncValueView<ReturnEligibility>(
-                        value: ref.watch(returnEligibilityProvider(o.id)),
-                        loading: const Skeleton.line(),
-                        onRetry: () =>
-                            ref.invalidate(returnEligibilityProvider(o.id)),
-                        builder: (context, eligibility) =>
-                            !eligibility.remaining.values.any((n) => n > 0)
-                            ? Text(l10n.returnAllRequested)
-                            : AppButton(
-                                label: l10n.returnOrderTitle,
-                                icon: Icons.assignment_return_outlined,
-                                variant: AppButtonVariant.secondary,
-                                onPressed: () => context.pushNamed(
-                                  AppRoutes.orderReturnName,
-                                  pathParameters: {'id': o.id},
-                                ),
-                              ),
-                      ),
+                      _SectionTitle(l10n.orderTrackingTitle),
+                      _TrackingCard(orderId: widget.orderId),
                     ],
-                    if (isOrderCancellable(
-                      o.status,
-                      remote:
-                          ref.watch(dataSourceProvider) == DataSource.remote,
-                    )) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      Center(
-                        child: TextButton.icon(
-                          onPressed:
-                              _confirming ||
-                                  _cancelling ||
-                                  o.version == null ||
-                                  o.version! < 1
-                              ? null
-                              : () => _cancel(o.version!),
-                          style: TextButton.styleFrom(
-                            foregroundColor: context.colors.danger,
-                          ),
-                          icon: _cancelling
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.cancel_outlined),
-                          label: Text(l10n.orderCancel),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _SectionTitle(l10n.orderItemsSection),
+                      AppCard(
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < o.items.length; i++) ...[
+                              if (i > 0) const Divider(height: AppSpacing.xl),
+                              _OrderItemTile(
+                                item: o.items[i],
+                                money: (amount) => _money(
+                                  amount,
+                                  currency: o.items[i].currency ?? o.currency,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.lg),
+                      _SectionTitle(l10n.orderSummary),
+                      _Summary(
+                        order: o,
+                        money: (amount) => _money(amount, currency: o.currency),
+                      ),
+                      if (o.status == 'delivered' && o.items.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.lg),
+                        AsyncValueView<Set<String>>(
+                          value: ref.watch(reviewEligibilityProvider(o.id)),
+                          loading: const Skeleton.line(),
+                          onRetry: () =>
+                              ref.invalidate(reviewEligibilityProvider(o.id)),
+                          builder: (context, eligible) => eligible.isEmpty
+                              ? Text(l10n.reviewAllSubmitted)
+                              : AppButton(
+                                  label: l10n.reviewOrderTitle,
+                                  icon: Icons.star_outline,
+                                  variant: AppButtonVariant.secondary,
+                                  onPressed: () => context.pushNamed(
+                                    AppRoutes.orderReviewName,
+                                    pathParameters: {'id': o.id},
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        AsyncValueView<ReturnEligibility>(
+                          value: ref.watch(returnEligibilityProvider(o.id)),
+                          loading: const Skeleton.line(),
+                          onRetry: () =>
+                              ref.invalidate(returnEligibilityProvider(o.id)),
+                          builder: (context, eligibility) =>
+                              !eligibility.remaining.values.any((n) => n > 0)
+                              ? Text(l10n.returnAllRequested)
+                              : AppButton(
+                                  label: l10n.returnOrderTitle,
+                                  icon: Icons.assignment_return_outlined,
+                                  variant: AppButtonVariant.secondary,
+                                  onPressed: () => context.pushNamed(
+                                    AppRoutes.orderReturnName,
+                                    pathParameters: {'id': o.id},
+                                  ),
+                                ),
+                        ),
+                      ],
+                      if (isOrderCancellable(
+                        o.status,
+                        remote:
+                            ref.watch(dataSourceProvider) == DataSource.remote,
+                      )) ...[
+                        const SizedBox(height: AppSpacing.lg),
+                        Center(
+                          child: TextButton.icon(
+                            onPressed:
+                                _confirming ||
+                                    _cancelling ||
+                                    o.version == null ||
+                                    o.version! < 1
+                                ? null
+                                : () => _cancel(o.version!),
+                            style: TextButton.styleFrom(
+                              foregroundColor: context.colors.danger,
+                            ),
+                            icon: _cancelling
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.cancel_outlined),
+                            label: Text(l10n.orderCancel),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-              ],
-            ),
-          ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

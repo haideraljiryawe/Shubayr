@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Shubayr - iOS Simulator",
+      "name": "iPhone Simulator",
       "presentation": {
         "order": 2,
         "group": "Remote"
@@ -20,7 +20,25 @@
       "preLaunchTask": "Check remote: ios"
     },
     {
-      "name": "Shubayr - iPhone Device",
+      "name": "iPad Simulator",
+      "presentation": {
+        "order": 8,
+        "group": "Remote"
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "deviceId": "F58BF179-6ED2-4FCE-BA8B-0CA661CC37EE",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define=API_URL=http://localhost:8000/api/v1"
+      ],
+      "preLaunchTask": "Check remote: ios"
+    },
+    {
+      "name": "iPhone Device",
       "presentation": {
         "order": 6,
         "group": "Remote"
@@ -92,7 +110,7 @@
       ]
     },
     {
-      "name": "Shubayr - Android Device",
+      "name": "Android Device",
       "presentation": {
         "order": 7,
         "group": "Remote"
@@ -114,7 +132,7 @@
       "name": "iOS + Web Admin (Remote)",
       "configurations": [
         "Web Admin (Remote)",
-        "Shubayr - iOS Simulator"
+        "iPhone Simulator"
       ],
       "preLaunchTask": "Check remote: admin",
       "stopAll": true,

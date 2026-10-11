@@ -122,66 +122,70 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.authVerifyTitle)),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: AppLayout.pageInsets(
-              context,
-              top: AppSpacing.xl,
-              bottom: AppSpacing.xl,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: AppLayout.authWidth),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.authVerifySubtitle(widget.phone),
-                      style: context.text.bodyMedium?.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    TextFormField(
-                      contextMenuBuilder: appTextSelectionToolbar,
-                      controller: _codeController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: const [OtpInputFormatter()],
-                      textDirection: TextDirection.ltr,
-                      autofillHints: const [AutofillHints.oneTimeCode],
-                      decoration: InputDecoration(
-                        labelText: l10n.authCodeLabel,
-                        prefixIcon: const Icon(Icons.lock_outline),
-                      ),
-                      validator: (value) => Validators.isOtp(value ?? '')
-                          ? null
-                          : l10n.authCodeInvalid,
-                      onFieldSubmitted: (_) => _verify(),
-                    ),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: AppSpacing.md),
+      body: ResponsiveContent.page(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: AppLayout.pageInsets(
+                context,
+                top: AppSpacing.xl,
+                bottom: AppSpacing.xl,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppLayout.authWidth,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        _errorMessage!,
-                        style: context.text.bodySmall?.copyWith(
-                          color: colors.danger,
+                        l10n.authVerifySubtitle(widget.phone),
+                        style: context.text.bodyMedium?.copyWith(
+                          color: colors.textSecondary,
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.xl),
+                      TextFormField(
+                        contextMenuBuilder: appTextSelectionToolbar,
+                        controller: _codeController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: const [OtpInputFormatter()],
+                        textDirection: TextDirection.ltr,
+                        autofillHints: const [AutofillHints.oneTimeCode],
+                        decoration: InputDecoration(
+                          labelText: l10n.authCodeLabel,
+                          prefixIcon: const Icon(Icons.lock_outline),
+                        ),
+                        validator: (value) => Validators.isOtp(value ?? '')
+                            ? null
+                            : l10n.authCodeInvalid,
+                        onFieldSubmitted: (_) => _verify(),
+                      ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          _errorMessage!,
+                          style: context.text.bodySmall?.copyWith(
+                            color: colors.danger,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.xl),
+                      AppButton(
+                        label: l10n.authVerify,
+                        isLoading: _isSubmitting,
+                        onPressed: _verify,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      AppButton(
+                        label: l10n.authResendCode,
+                        variant: AppButtonVariant.plain,
+                        onPressed: _isSubmitting ? null : _resend,
+                      ),
                     ],
-                    const SizedBox(height: AppSpacing.xl),
-                    AppButton(
-                      label: l10n.authVerify,
-                      isLoading: _isSubmitting,
-                      onPressed: _verify,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    AppButton(
-                      label: l10n.authResendCode,
-                      variant: AppButtonVariant.plain,
-                      onPressed: _isSubmitting ? null : _resend,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

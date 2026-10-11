@@ -44,35 +44,37 @@ class SubcategoriesScreen extends ConsumerWidget {
               context.l10n.categoriesTitle,
         ),
       ),
-      body: SafeArea(
-        top: false,
-        bottom: BottomNavigationInset.of(context) == 0,
-        child: AsyncValueView(
-          value: categories,
-          onRetry: () => ref.invalidate(categoriesProvider),
-          loading: CustomScrollView(
-            slivers: [
-              const _SubcategoryGrid(),
-              SliverToBoxAdapter(
-                child: SizedBox(height: BottomNavigationInset.of(context)),
-              ),
-            ],
-          ),
-          builder: (context, list) {
-            final category = parentIn(list);
-            if (category == null) {
-              return AppEmptyView(title: context.l10n.routeNotFoundTitle);
-            }
-            if (category.children.isEmpty) return const AppEmptyView();
-            return CustomScrollView(
+      body: ResponsiveContent.page(
+        child: SafeArea(
+          top: false,
+          bottom: BottomNavigationInset.of(context) == 0,
+          child: AsyncValueView(
+            value: categories,
+            onRetry: () => ref.invalidate(categoriesProvider),
+            loading: CustomScrollView(
               slivers: [
-                _SubcategoryGrid(children: category.children),
+                const _SubcategoryGrid(),
                 SliverToBoxAdapter(
                   child: SizedBox(height: BottomNavigationInset.of(context)),
                 ),
               ],
-            );
-          },
+            ),
+            builder: (context, list) {
+              final category = parentIn(list);
+              if (category == null) {
+                return AppEmptyView(title: context.l10n.routeNotFoundTitle);
+              }
+              if (category.children.isEmpty) return const AppEmptyView();
+              return CustomScrollView(
+                slivers: [
+                  _SubcategoryGrid(children: category.children),
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: BottomNavigationInset.of(context)),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

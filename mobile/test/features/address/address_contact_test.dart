@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:shubayr/core/layout/app_layout.dart';
+import 'package:shubayr/core/widgets/app_button.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -93,6 +96,95 @@ Future<void> _save(WidgetTester tester) async {
 }
 
 void main() {
+  for (final locale in ['ar', 'en']) {
+    for (final edit in [false, true]) {
+      testWidgets(
+        'save matches address fields and keeps busy geometry $locale edit=$edit',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = const Size(390, 1000);
+          addTearDown(tester.view.reset);
+          final repo = _PendingSaveAddresses();
+          final container = (await tester.runAsync(() => _start(repo)))!;
+          addTearDown(container.dispose);
+          await tester.pumpWidget(
+            _host(
+              container,
+              locale: locale,
+              address: edit
+                  ? const Address(
+                      id: 'addr-0',
+                      city: 'Baghdad',
+                      contactPhone: '07700000000',
+                    )
+                  : null,
+            ),
+          );
+          await _open(tester);
+          await tester.enterText(find.byType(TextFormField).at(1), 'Baghdad');
+          FocusManager.instance.primaryFocus?.unfocus();
+          await tester.pumpAndSettle();
+          final button = find.byType(AppButton);
+          for (final size in [
+            const Size(390, 1000),
+            const Size(834, 1194),
+            const Size(1194, 834),
+            const Size(390, 1000),
+          ]) {
+            tester.view.physicalSize = size;
+            await tester.pumpAndSettle();
+            await tester.ensureVisible(button);
+            await tester.pumpAndSettle();
+            final rect = tester.getRect(button);
+            final fields = tester.getRect(find.byType(ResponsiveFields));
+            final first = tester.getRect(find.byType(TextFormField).at(0));
+            final second = tester.getRect(find.byType(TextFormField).at(1));
+            final edges = first.expandToInclude(second);
+            expect(rect.left, closeTo(fields.left, .01));
+            expect(rect.right, closeTo(fields.right, .01));
+            expect(rect.left, closeTo(edges.left, .01));
+            expect(rect.right, closeTo(edges.right, .01));
+            expect(button.hitTestable(), findsOneWidget);
+            expect(tester.takeException(), isNull);
+          }
+          final before = tester.getRect(button);
+          final l10n = AppLocalizations.of(tester.element(button));
+          expect(tester.widget<AppButton>(button).label, l10n.actionSave);
+          expect(tester.widget<AppButton>(button).icon, Icons.check);
+          await tester.tap(button);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 200));
+          expect(tester.widget<AppButton>(button).isLoading, isTrue);
+          expect(
+            tester
+                .widget<ElevatedButton>(
+                  find.descendant(
+                    of: button,
+                    matching: find.byType(ElevatedButton),
+                  ),
+                )
+                .onPressed,
+            isNull,
+          );
+          expect(tester.getRect(button), before);
+          await tester.tap(button);
+          await tester.pump();
+          expect(repo.created.length + repo.updated.length, 1);
+          repo.pending.complete(
+            const Address(
+              id: 'addr-0',
+              city: 'Baghdad',
+              contactPhone: '07700000000',
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(AddressFormScreen), findsNothing);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
   for (final locale in ['ar', 'en']) {
     for (final dark in [false, true]) {
       for (final phone in ['07700000000', '+123456789012345', '']) {
@@ -526,4 +618,19 @@ void main() {
     expect(repo.created.single.contactPhone, '+9647812345678');
     expect(find.byType(AddressFormScreen), findsNothing);
   });
+}
+
+class _PendingSaveAddresses extends RecordingAddresses {
+  final pending = Completer<Address>();
+  @override
+  Future<Address> createAddress(AddressInput input) {
+    created.add(input);
+    return pending.future;
+  }
+
+  @override
+  Future<Address> updateAddress(String id, AddressInput input) {
+    updated.add(id);
+    return pending.future;
+  }
 }

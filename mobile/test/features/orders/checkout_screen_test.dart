@@ -1,3 +1,4 @@
+import '../../helpers/page_layout_expectations.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
@@ -215,6 +216,35 @@ Widget _host({
 
 void main() {
   for (final language in ['ar', 'en']) {
+    testWidgets(
+      'checkout retains coupon draft and focus across widths $language',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(390, 1000);
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(_host(language: language));
+        await tester.pumpAndSettle();
+        final input = find.byType(TextField);
+        await tester.ensureVisible(input);
+        await tester.pumpAndSettle();
+        await tester.enterText(input, 'SAVE');
+        final state = tester.state(input);
+        final focus = FocusManager.instance.primaryFocus;
+        for (final width in [834.0, 1194.0, 1920.0, 390.0]) {
+          tester.view.physicalSize = Size(width, 1000);
+          await tester.pumpAndSettle();
+          expect(tester.state(input), same(state));
+          expect(FocusManager.instance.primaryFocus, same(focus));
+          expect(tester.widget<TextField>(input).controller!.text, 'SAVE');
+          await tester.ensureVisible(input);
+          await tester.pumpAndSettle();
+          expect(input.hitTestable(), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+  }
+  for (final language in ['ar', 'en']) {
     for (final dark in [false, true]) {
       testWidgets('checkout 320px at 150%: $language dark=$dark', (
         tester,
@@ -281,9 +311,11 @@ void main() {
         expect(find.text('Place order'), findsNothing);
         carts.couponFailure = null;
         await tester.ensureVisible(find.text('Retry'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Retry'));
         await tester.pumpAndSettle();
         await tester.ensureVisible(find.text('Apply'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Apply'));
         await tester.pumpAndSettle();
         expect(carts.actions, ['apply:SAVE', 'apply:SAVE']);
@@ -357,6 +389,7 @@ void main() {
       expect(find.textContaining('5,071'), findsNothing);
       expect(find.text('Place order'), findsNothing);
       await tester.ensureVisible(find.text('Retry'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();
       expect(find.textContaining('4,750'), findsWidgets);
@@ -501,6 +534,9 @@ void main() {
   );
 
   testWidgets('shows the address and places a COD order', (tester) async {
+    tester.view.physicalSize = const Size(1024, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(_host());
     await tester.pumpAndSettle();
 
@@ -514,6 +550,7 @@ void main() {
     // The success view replaces the form.
     expect(find.text('Order placed'), findsOneWidget);
     expect(find.text('SH-1'), findsOneWidget);
+    expectPageContent(tester, 1024);
   });
 
   testWidgets(

@@ -31,57 +31,61 @@ class AddressesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.addressesTitle)),
+      floatingActionButtonLocation: AppLayout.pageEndFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.pushNamed(AppRoutes.addressFormName),
         icon: const Icon(Icons.add),
         label: Text(l10n.addressAdd),
       ),
-      body: AsyncValueView(
-        value: addresses,
-        skipLoadingOnReload: ref
-            .read(addressesControllerProvider.notifier)
-            .isRefreshing,
-        loading: Padding(
-          padding: AppLayout.pageInsets(context),
-          child: SkeletonCardList(
-            itemCount: 3,
-            minItemWidth: AppLayout.cardMinWidth,
+      body: ResponsiveContent.page(
+        child: AsyncValueView(
+          value: addresses,
+          skipLoadingOnReload: ref
+              .read(addressesControllerProvider.notifier)
+              .isRefreshing,
+          loading: Padding(
+            padding: AppLayout.pageInsets(context),
+            child: SkeletonCardList(
+              itemCount: 3,
+              minItemWidth: AppLayout.cardMinWidth,
+            ),
           ),
-        ),
-        onRetry: () => ref.read(addressesControllerProvider.notifier).refresh(),
-        builder: (context, list) {
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(addressesControllerProvider.notifier).refresh(),
-            child: list.isEmpty
-                ? CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    slivers: [
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: AppEmptyView(
-                          icon: Icons.location_off_outlined,
-                          title: l10n.addressEmptyTitle,
-                          message: l10n.addressEmptyMessage,
+          onRetry: () =>
+              ref.read(addressesControllerProvider.notifier).refresh(),
+          builder: (context, list) {
+            return RefreshIndicator(
+              onRefresh: () =>
+                  ref.read(addressesControllerProvider.notifier).refresh(),
+              child: list.isEmpty
+                  ? CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: AppEmptyView(
+                            icon: Icons.location_off_outlined,
+                            title: l10n.addressEmptyTitle,
+                            message: l10n.addressEmptyMessage,
+                          ),
                         ),
+                      ],
+                    )
+                  : ResponsiveCardList(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsetsDirectional.fromSTEB(
+                        AppLayout.pageHorizontal(context),
+                        AppSpacing.screenH,
+                        AppLayout.pageHorizontal(context),
+                        // Room so the last card clears the floating button.
+                        96,
                       ),
-                    ],
-                  )
-                : ResponsiveCardList(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsetsDirectional.fromSTEB(
-                      AppLayout.pageHorizontal(context),
-                      AppSpacing.screenH,
-                      AppLayout.pageHorizontal(context),
-                      // Room so the last card clears the floating button.
-                      96,
+                      itemCount: list.length,
+                      itemKeyBuilder: (i) => list[i].id,
+                      itemBuilder: (_, i) => _AddressCard(address: list[i]),
                     ),
-                    itemCount: list.length,
-                    itemKeyBuilder: (i) => list[i].id,
-                    itemBuilder: (_, i) => _AddressCard(address: list[i]),
-                  ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

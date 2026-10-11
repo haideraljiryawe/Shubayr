@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -70,9 +71,10 @@ Future<({ProviderContainer container, _GatedTokenStore tokens})> _pumpApp(
   ThemeMode mode, {
   // Auth animation cases need no moving carousel; layout cases opt into 10.
   int categoryCount = 1,
+  Size size = const Size(320, 700),
 }) async {
   tester.view.devicePixelRatio = 1;
-  tester.view.physicalSize = const Size(320, 700);
+  tester.view.physicalSize = size;
   tester.view.padding = const FakeViewPadding(bottom: 34);
   tester.view.viewPadding = const FakeViewPadding(bottom: 34);
   addTearDown(tester.view.reset);
@@ -331,4 +333,83 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+
+  for (final size in [const Size(390, 844), const Size(834, 1194)]) {
+    for (final language in ['ar', 'en']) {
+      testWidgets(
+        'logout dialog preserves semantics at every frame $size $language',
+        (tester) async {
+          final harness = await _pumpApp(
+            tester,
+            language,
+            ThemeMode.light,
+            size: size,
+          );
+          harness.container.read(routerProvider).go('/account');
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(
+            find.byKey(const ValueKey('account-sign-out')),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const ValueKey('account-sign-out')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const ValueKey('confirm-sign-out')));
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 16));
+          harness.tokens.clearGate.complete();
+          // Sample the native iOS slide instead of jumping past the frames
+          // where the centered bar is clipped outside the viewport.
+          for (var frame = 0; frame < 40; frame++) {
+            await tester.pump(const Duration(milliseconds: 16));
+            expect(tester.takeException(), isNull, reason: 'frame $frame');
+          }
+          await tester.pumpAndSettle();
+          expect(
+            harness.container
+                .read(sessionControllerProvider)
+                .requireValue
+                .isSignedIn,
+            isFalse,
+          );
+          final tabBar = tester.getSemantics(
+            find.byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics &&
+                  widget.properties.role == SemanticsRole.tabBar,
+            ),
+          );
+          final tabs = <SemanticsNode>[];
+          tabBar.visitChildren((node) {
+            tabs.add(node);
+            return true;
+          });
+          expect(tabs, hasLength(3));
+          expect(tabs.map((node) => node.id).toSet(), hasLength(3));
+          for (final tab in tabs) {
+            final data = tab.getSemanticsData();
+            expect(data.role, SemanticsRole.tab);
+            expect(data.label, isNotEmpty);
+            expect(data.hasAction(SemanticsAction.tap), isTrue);
+          }
+          // The fix must retain operable screen-reader tabs after logout.
+          tester.semantics.tap(find.semantics.byLabel(tabs[1].label));
+          await tester.pumpAndSettle();
+          expect(
+            harness.container
+                .read(routerProvider)
+                .routeInformationProvider
+                .value
+                .uri
+                .path,
+            '/categories',
+          );
+          expect(tester.takeException(), isNull);
+        },
+        variant: TargetPlatformVariant({
+          TargetPlatform.iOS,
+          TargetPlatform.android,
+        }),
+      );
+    }
+  }
 }

@@ -97,14 +97,65 @@ abstract final class AppLayout {
   static const categoryShortcutWidth = 87.2;
   static const categoryCardHeight = 100.0;
 
+  /// Two department cards fit the reading region without changing order grids.
+  static const categoryCardMinWidth = 280.0;
+
   /// Main category artwork's share of the available card width.
   static const categoryCardImageFraction = 0.42;
   static const subcategoryMinWidth = 150.0;
   static const categoryIconSize = 32.0;
   static const categoryIconTarget = 67.2;
 
-  /// One artwork proportion on all windows, within a readable content width.
+  /// Home artwork sizing inside a full-width paging viewport.
   static const homeBannerAspectRatio = 2.0;
+  static const homeBannerCompactFraction = 0.88;
+  static const homeBannerWideFraction = 0.86;
+  static const homeBannerActiveScale = 1.00;
+  static const homeBannerNeighborScale = 0.96;
+  // Retain the established container height when narrowing wide banner cards.
+  static const _homeBannerWideHeightFraction = 0.90;
+
+  static double homeBannerScale(double pageDistance) =>
+      homeBannerActiveScale -
+      (homeBannerActiveScale - homeBannerNeighborScale) *
+          pageDistance.abs().clamp(0.0, 1.0);
+
+  static double homeBannerHeight(double availableWidth) =>
+      (availableWidth *
+              (availableWidth < compactWidth
+                  ? homeBannerViewportFraction(availableWidth)
+                  : _homeBannerWideHeightFraction) -
+          _homeBannerSizingGap(availableWidth)) /
+      homeBannerAspectRatio;
+
+  static const homeBannerGap = 6.0;
+
+  // Preserve the existing height/text measurements and narrow-slot fraction;
+  // only the painted horizontal gap changes.
+  static double _homeBannerSizingGap(double availableWidth) =>
+      availableWidth < compactWidth ? AppSpacing.sm : AppSpacing.md;
+
+  static double homeBannerHeightMeasurementWidth(double availableWidth) =>
+      availableWidth * homeBannerViewportFraction(availableWidth) -
+      _homeBannerSizingGap(availableWidth);
+
+  static double homeBannerViewportFraction(double availableWidth) {
+    final compact = availableWidth < compactWidth;
+    final fraction = compact
+        ? homeBannerCompactFraction
+        : homeBannerWideFraction;
+    final minimumPeek = compact ? AppSpacing.md : AppSpacing.xl;
+    // Keep the established minimum-peek allowance on particularly small slots.
+    return math.min(
+      fraction,
+      math.max(
+        0.5,
+        1 -
+            (minimumPeek * 2 + _homeBannerSizingGap(availableWidth)) /
+                availableWidth,
+      ),
+    );
+  }
 
   /// Two compact cards and a glimpse of the next on phones; cap each card
   /// on wide screens and allow readable growth with accessibility text sizes.
@@ -115,6 +166,10 @@ abstract final class AppLayout {
 
   static const authWidth = 420.0;
   static const readingWidth = 760.0;
+
+  /// Keep page actions at the content edge; Scaffold still owns vertical
+  /// placement, keyboard avoidance and snackbar/bottom-sheet clearance.
+  static const pageEndFloat = _PageEndFloatLocation();
   static const formWidth = 1200.0;
   static const detailWidth = 1440.0;
   static const productMinWidth = 200.0;
@@ -148,26 +203,58 @@ abstract final class AppLayout {
   }
 }
 
-/// Opt-in width constraint for a form/detail/reading region, not for list pages.
+/// Shared width constraint for embedded regions and full page content.
+/// Use [ResponsiveContent.page] around a Scaffold body, inside its app bar and
+/// outside scroll padding. Home and global navigation do not use page sizing.
 class ResponsiveContent extends StatelessWidget {
   const ResponsiveContent({
     super.key,
     required this.child,
     this.maxWidth = AppLayout.readingWidth,
     this.alignment = Alignment.topCenter,
-  });
+  }) : _page = false;
+
+  /// Occupy the available safe width, up to [AppLayout.readingWidth], with
+  /// physical centering independent of the child's reading direction.
+  /// Vertical SafeArea/keyboard/scroll clearance stays with the existing page.
+  const ResponsiveContent.page({super.key, required this.child})
+    : maxWidth = AppLayout.readingWidth,
+      alignment = Alignment.topCenter,
+      _page = true;
   final Widget child;
   final double maxWidth;
   final AlignmentGeometry alignment;
+  final bool _page;
   @override
-  Widget build(BuildContext context) => Align(
-    alignment: alignment,
-    heightFactor: 1,
-    child: ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      child: child,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final content = Align(
+      alignment: alignment,
+      heightFactor: 1,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: _page ? SizedBox(width: double.infinity, child: child) : child,
+      ),
+    );
+    return _page
+        ? SafeArea(top: false, bottom: false, child: content)
+        : content;
+  }
+}
+
+class _PageEndFloatLocation extends FloatingActionButtonLocation {
+  const _PageEndFloatLocation();
+
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry geometry) {
+    final offset = FloatingActionButtonLocation.endFloat.getOffset(geometry);
+    final safeWidth =
+        geometry.scaffoldSize.width - geometry.minInsets.horizontal;
+    final margin = math.max(0.0, (safeWidth - AppLayout.readingWidth) / 2);
+    return offset.translate(
+      geometry.textDirection == TextDirection.rtl ? margin : -margin,
+      0,
+    );
+  }
 }
 
 /// Stable Wrap children preserve field controllers, focus and validation while
@@ -373,20 +460,26 @@ class ResponsiveSections extends StatelessWidget {
     this.minItemWidth = AppLayout.orderMinWidth,
     this.maxWidth = AppLayout.detailWidth,
     this.stackedSpacing = AppSpacing.lg,
+    this.singleColumn = false,
   });
   final List<Widget> children;
   final double minItemWidth, maxWidth, stackedSpacing;
+
+  /// Opt in for sequential detail/checkout content; list grids are unaffected.
+  final bool singleColumn;
   @override
   Widget build(BuildContext context) => ResponsiveContent(
     maxWidth: maxWidth,
     child: LayoutBuilder(
       builder: (context, constraints) {
-        final columns = AppLayout.columns(
-          context,
-          constraints.maxWidth,
-          minItemWidth: minItemWidth,
-          spacing: AppSpacing.lg,
-        ).clamp(1, math.max(1, children.length));
+        final columns = singleColumn
+            ? 1
+            : AppLayout.columns(
+                context,
+                constraints.maxWidth,
+                minItemWidth: minItemWidth,
+                spacing: AppSpacing.lg,
+              ).clamp(1, math.max(1, children.length));
         final width =
             (constraints.maxWidth - AppSpacing.lg * (columns - 1)) / columns;
         return Wrap(

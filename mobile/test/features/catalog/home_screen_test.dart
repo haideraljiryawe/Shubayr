@@ -281,7 +281,10 @@ void main() {
               final labelRect = tester.getRect(label);
               expect(circleRect.width, closeTo(67.2, .01));
               expect(circleRect.height, closeTo(67.2, .01));
-              expect(labelRect.top - circleRect.bottom, AppSpacing.sm);
+              expect(
+                labelRect.top - circleRect.bottom,
+                closeTo(AppSpacing.sm, .001),
+              );
               expect(tester.widget<Text>(label).maxLines, 2);
               expect(
                 tester.widget<Text>(label).style,
@@ -389,6 +392,19 @@ void main() {
           final title = find.text(
             lang == 'ar' ? 'عروض وخصومات' : 'Offers & Discounts',
           );
+          // Full-width banner artwork may place the offers below the fold.
+          await tester.scrollUntilVisible(
+            title,
+            300,
+            scrollable: find
+                .byWidgetPredicate(
+                  (w) =>
+                      w is Scrollable &&
+                      axisDirectionToAxis(w.axisDirection) == Axis.vertical,
+                )
+                .first,
+          );
+          await tester.pumpAndSettle();
           expect(title, findsOneWidget);
           final padding = find
               .ancestor(of: title, matching: find.byType(Padding))
@@ -437,7 +453,7 @@ void main() {
 
   for (final lang in ['ar', 'en']) {
     testWidgets(
-      'page margins change without resizing horizontal content inside the safe area $lang',
+      'safe area keeps banner peeks centered and offer sizes unchanged $lang',
       (tester) async {
         addTearDown(tester.view.reset);
         final container = await _container();
@@ -486,11 +502,13 @@ void main() {
             lang == 'ar' ? width - title.right : title.left,
             (lang == 'ar' ? safeEnd : safeStart) + AppSpacing.screenMobileH,
           );
-          expect(banner.left, safeStart + 8);
-          expect(width - banner.right, safeEnd + 8);
+          final bannerWidth = pager.width * 0.88 - 6;
+          expect(banner.width, closeTo(bannerWidth, .001));
+          expect(banner.center.dx, closeTo(pager.center.dx, .001));
+          // Offer cards retain their original inset, independent of the banner.
           expect(
             lang == 'ar' ? card.right : card.left,
-            lang == 'ar' ? banner.right : banner.left,
+            lang == 'ar' ? width - safeEnd - 8 : safeStart + 8,
           );
           expect(
             card.width,

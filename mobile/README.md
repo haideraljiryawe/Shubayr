@@ -58,9 +58,13 @@ the OTP response determines the role.
 
 Both opening the repository root and opening `mobile/` in VS Code provide:
 
-- **Shubayr - iOS Simulator**: the existing iPhone 17 Pro simulator, debug mode,
+- **iPhone Simulator**: the existing iPhone 17 Pro simulator, debug mode,
   `http://localhost:8000/api/v1`, and the existing API preflight.
-- **Shubayr - iPhone Device**: Ahmed's connected physical iPhone, debug mode,
+- **iPad Simulator**: iPad Pro 11-inch (M5) on iPadOS 26.5, pinned to UDID
+  `F58BF179-6ED2-4FCE-BA8B-0CA661CC37EE`, with the same debug mode, API URL,
+  and API preflight as the iPhone simulator. If shut down, open this device from
+  Simulator's **File > Open Simulator** menu before pressing **F5**.
+- **iPhone Device**: Ahmed's connected physical iPhone, debug mode,
   with `API_URL` passed to the existing `AppConfig` through Flutter's
   `--dart-define-from-file`.
 

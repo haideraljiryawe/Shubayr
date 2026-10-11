@@ -1,3 +1,4 @@
+import '../helpers/page_layout_expectations.dart';
 import 'package:shubayr/features/monitoring/presentation/monitor_providers.dart';
 import '../features/monitoring/monitoring_test.dart' show RecordingMonitor;
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
@@ -361,6 +362,7 @@ void main() {
           expect(find.text(l10n.errorNetwork), findsOneWidget);
           await tester.ensureVisible(find.text(l10n.actionRetry));
           expect(tester.takeException(), isNull, reason: '$width');
+          expectPageContent(tester, width);
         }
         await tester.pumpWidget(const SizedBox.shrink());
       });

@@ -3,6 +3,7 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 
+import '../layout/app_layout.dart';
 import '../theme/tokens/app_motion.dart';
 
 /// One queue per navigator overlay, matching ScaffoldMessenger's one-at-a-time
@@ -20,7 +21,7 @@ void showAppSnackBar(BuildContext context, SnackBar snackBar) {
     // Defensive fallback for unusual contexts without a Navigator. Normal app
     // routes always use the overlay path above.
     ScaffoldMessenger.of(context).showSnackBar(
-      snackBar,
+      _WidthLimitedSnackBar(snackBar),
       snackBarAnimationStyle: const AnimationStyle(
         duration: AppMotion.medium,
         reverseDuration: AppMotion.medium,
@@ -48,6 +49,58 @@ void showAppSnackBarMessage(
         : SnackBarAction(label: actionLabel, onPressed: onAction ?? () {}),
   ),
 );
+
+/// Keep the existing surface margins inside the shared page width. SnackBar
+/// measures action wrapping against MediaQuery, so give it its actual local
+/// width as well as box constraints (including when the window resizes).
+Widget _constrainSnackBar(Widget child) => SafeArea(
+  top: false,
+  bottom: false,
+  child: ResponsiveContent(
+    alignment: Alignment.bottomCenter,
+    child: LayoutBuilder(
+      builder: (context, constraints) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          size: Size(constraints.maxWidth, MediaQuery.sizeOf(context).height),
+        ),
+        child: child,
+      ),
+    ),
+  ),
+);
+
+/// ScaffoldMessenger requires a SnackBar, not an arbitrary width wrapper.
+/// Forward its queue/layout properties and keep Flutter's original surface,
+/// callbacks and animation intact in the defensive no-overlay path.
+class _WidthLimitedSnackBar extends SnackBar {
+  _WidthLimitedSnackBar(this.original, {super.key})
+    : super(
+        content: original.content,
+        action: original.action,
+        duration: original.duration,
+        persist: original.persist,
+        behavior: original.behavior,
+        width: original.width,
+        animation: original.animation,
+      );
+
+  final SnackBar original;
+
+  @override
+  SnackBar withAnimation(Animation<double> newAnimation, {Key? fallbackKey}) =>
+      _WidthLimitedSnackBar(
+        original.withAnimation(newAnimation),
+        key: key ?? fallbackKey,
+      );
+
+  @override
+  State<SnackBar> createState() => _WidthLimitedSnackBarState();
+}
+
+class _WidthLimitedSnackBarState extends State<_WidthLimitedSnackBar> {
+  @override
+  Widget build(BuildContext context) => _constrainSnackBar(widget.original);
+}
 
 class _AppSnackBarQueue {
   _AppSnackBarQueue(this.overlay);
@@ -251,7 +304,7 @@ class _SlidingSnackBarState extends State<_SlidingSnackBar>
           child: SlideTransition(
             key: const ValueKey('app-snackbar-slide'),
             position: _position,
-            child: SafeArea(top: false, child: surface),
+            child: SafeArea(top: false, child: _constrainSnackBar(surface)),
           ),
         ),
       ),

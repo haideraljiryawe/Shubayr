@@ -62,93 +62,95 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final controller = ref.read(inboxProvider.notifier);
     return Scaffold(
       appBar: AppBar(title: Text(l.notificationsTitle)),
-      body: AsyncValueView(
-        value: value,
-        loading: ResponsiveCardList(
-          minItemWidth: AppLayout.orderMinWidth,
-          itemCount: 4,
-          itemBuilder: (_, _) => const _NotificationSkeleton(),
-        ),
-        onRetry: controller.refresh,
-        builder: (context, data) => RefreshIndicator(
-          onRefresh: controller.refresh,
-          child: data.items.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    AppEmptyView(title: l.notificationsEmpty, message: ''),
-                  ],
-                )
-              : ResponsiveCardList(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: AppLayout.pageInsets(context),
-                  minItemWidth: AppLayout.orderMinWidth,
-                  itemCount: data.items.length,
-                  itemKeyBuilder: (i) => data.items[i].id,
-                  itemBuilder: (context, index) {
-                    final item = data.items[index];
-                    return AppCard(
-                      onTap: _opening == null ? () => _open(item) : null,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                item.readAt == null
-                                    ? Icons.mark_email_unread_outlined
-                                    : Icons.drafts_outlined,
-                                color: item.readAt == null
-                                    ? context.colors.notificationUnread
-                                    : context.colors.notificationRead,
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Text(
-                                  language == 'ar'
-                                      ? item.titleAr
-                                      : item.titleEn,
-                                  style: context.text.titleSmall,
+      body: ResponsiveContent.page(
+        child: AsyncValueView(
+          value: value,
+          loading: ResponsiveCardList(
+            minItemWidth: AppLayout.orderMinWidth,
+            itemCount: 4,
+            itemBuilder: (_, _) => const _NotificationSkeleton(),
+          ),
+          onRetry: controller.refresh,
+          builder: (context, data) => RefreshIndicator(
+            onRefresh: controller.refresh,
+            child: data.items.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      AppEmptyView(title: l.notificationsEmpty, message: ''),
+                    ],
+                  )
+                : ResponsiveCardList(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: AppLayout.pageInsets(context),
+                    minItemWidth: AppLayout.orderMinWidth,
+                    itemCount: data.items.length,
+                    itemKeyBuilder: (i) => data.items[i].id,
+                    itemBuilder: (context, index) {
+                      final item = data.items[index];
+                      return AppCard(
+                        onTap: _opening == null ? () => _open(item) : null,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  item.readAt == null
+                                      ? Icons.mark_email_unread_outlined
+                                      : Icons.drafts_outlined,
+                                  color: item.readAt == null
+                                      ? context.colors.notificationUnread
+                                      : context.colors.notificationRead,
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: Text(
+                                    language == 'ar'
+                                        ? item.titleAr
+                                        : item.titleEn,
+                                    style: context.text.titleSmall,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(language == 'ar' ? item.bodyAr : item.bodyEn),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              DateFormat('yyyy/MM/dd HH:mm', 'en').format(
+                                item.createdAt.toUtc().add(
+                                  const Duration(hours: 3),
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(language == 'ar' ? item.bodyAr : item.bodyEn),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            DateFormat('yyyy/MM/dd HH:mm', 'en').format(
-                              item.createdAt.toUtc().add(
-                                const Duration(hours: 3),
-                              ),
                             ),
+                          ],
+                        ),
+                      );
+                    },
+                    footer: Column(
+                      children: [
+                        if (data.syncError != null)
+                          AppErrorView(
+                            error: data.syncError,
+                            onRetry: controller.sync,
                           ),
-                        ],
-                      ),
-                    );
-                  },
-                  footer: Column(
-                    children: [
-                      if (data.syncError != null)
-                        AppErrorView(
-                          error: data.syncError,
-                          onRetry: controller.sync,
-                        ),
-                      if (data.appendError != null)
-                        AppErrorView(
-                          error: data.appendError,
-                          onRetry: controller.loadMore,
-                        )
-                      else if (data.loadingMore)
-                        const _NotificationSkeleton()
-                      else if (data.page.hasMore)
-                        TextButton(
-                          onPressed: controller.loadMore,
-                          child: Text(l.actionLoadMore),
-                        ),
-                    ],
+                        if (data.appendError != null)
+                          AppErrorView(
+                            error: data.appendError,
+                            onRetry: controller.loadMore,
+                          )
+                        else if (data.loadingMore)
+                          const _NotificationSkeleton()
+                        else if (data.page.hasMore)
+                          TextButton(
+                            onPressed: controller.loadMore,
+                            child: Text(l.actionLoadMore),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
+          ),
         ),
       ),
     );

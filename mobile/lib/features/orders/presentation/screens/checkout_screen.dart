@@ -271,121 +271,123 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.checkoutTitle)),
-      body: ListView(
-        padding: AppLayout.pageInsets(context),
-        children: [
-          ResponsiveSections(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _SectionTitle(l10n.checkoutAddress),
-                  AsyncValueView<List<Address>>(
-                    value: addressState,
-                    skipLoadingOnReload: ref
-                        .read(addressesControllerProvider.notifier)
-                        .isRefreshing,
-                    loading: const AppCard(
+      body: ResponsiveContent.page(
+        child: ListView(
+          padding: AppLayout.pageInsets(context),
+          children: [
+            ResponsiveSections(
+              singleColumn: true,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SectionTitle(l10n.checkoutAddress),
+                    AsyncValueView<List<Address>>(
+                      value: addressState,
+                      skipLoadingOnReload: ref
+                          .read(addressesControllerProvider.notifier)
+                          .isRefreshing,
+                      loading: const AppCard(
+                        child: Row(
+                          children: [
+                            Skeleton.box(
+                              width: AppSpacing.lg,
+                              height: AppSpacing.lg,
+                            ),
+                            SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Skeleton.line(),
+                                  SizedBox(height: AppSpacing.xxs),
+                                  Skeleton.line(),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      onRetry: () => ref
+                          .read(addressesControllerProvider.notifier)
+                          .refresh(),
+                      builder: (context, loaded) => _AddressSection(
+                        selected: address,
+                        onChange: address == null
+                            ? null
+                            : () => _pickAddress(loaded, address.id),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _SectionTitle(l10n.checkoutCoupon),
+                    _CouponSection(
+                      controller: _couponCtrl,
+                      applied: cart?.couponCode,
+                      error: _couponError,
+                      busy: _applyingCoupon,
+                      onApply:
+                          _applyingCoupon ||
+                              _placing ||
+                              cartState.isLoading ||
+                              cartState.hasError
+                          ? null
+                          : _applyCoupon,
+                      onRemove: _applyingCoupon || _placing
+                          ? null
+                          : () => _changeCoupon(remove: true),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _SectionTitle(l10n.checkoutPayment),
+                    AppCard(
                       child: Row(
                         children: [
-                          Skeleton.box(
-                            width: AppSpacing.lg,
-                            height: AppSpacing.lg,
+                          Icon(
+                            Icons.payments_outlined,
+                            color: context.colors.primary,
                           ),
-                          SizedBox(width: AppSpacing.md),
+                          const SizedBox(width: AppSpacing.md),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Skeleton.line(),
-                                SizedBox(height: AppSpacing.xxs),
-                                Skeleton.line(),
-                              ],
+                            child: Text(
+                              l10n.checkoutCod,
+                              style: context.text.bodyLarge,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    onRetry: () => ref
-                        .read(addressesControllerProvider.notifier)
-                        .refresh(),
-                    builder: (context, loaded) => _AddressSection(
-                      selected: address,
-                      onChange: address == null
-                          ? null
-                          : () => _pickAddress(loaded, address.id),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _SectionTitle(l10n.checkoutCoupon),
-                  _CouponSection(
-                    controller: _couponCtrl,
-                    applied: cart?.couponCode,
-                    error: _couponError,
-                    busy: _applyingCoupon,
-                    onApply:
-                        _applyingCoupon ||
-                            _placing ||
-                            cartState.isLoading ||
-                            cartState.hasError
-                        ? null
-                        : _applyCoupon,
-                    onRemove: _applyingCoupon || _placing
-                        ? null
-                        : () => _changeCoupon(remove: true),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _SectionTitle(l10n.checkoutPayment),
-                  AppCard(
-                    child: Row(
+                  ],
+                ),
+                AsyncValueView<Cart>(
+                  value: cartState,
+                  loading: const AppCard(
+                    child: Column(
                       children: [
-                        Icon(
-                          Icons.payments_outlined,
-                          color: context.colors.primary,
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Text(
-                            l10n.checkoutCod,
-                            style: context.text.bodyLarge,
-                          ),
-                        ),
+                        Skeleton.line(),
+                        SizedBox(height: AppSpacing.sm),
+                        Skeleton.line(),
+                        SizedBox(height: AppSpacing.sm),
+                        Skeleton.line(),
                       ],
                     ),
                   ),
-                ],
-              ),
-              AsyncValueView<Cart>(
-                value: cartState,
-                loading: const AppCard(
-                  child: Column(
-                    children: [
-                      Skeleton.line(),
-                      SizedBox(height: AppSpacing.sm),
-                      Skeleton.line(),
-                      SizedBox(height: AppSpacing.sm),
-                      Skeleton.line(),
-                    ],
+                  onRetry: () => ref.invalidate(cartControllerProvider),
+                  builder: (context, cart) => _Summary(
+                    subtotal: cart.subtotal,
+                    discount: cart.discount,
+                    deliveryFee: cart.deliveryFee,
+                    total: cart.total,
+                    money: _money,
                   ),
                 ),
-                onRetry: () => ref.invalidate(cartControllerProvider),
-                builder: (context, cart) => _Summary(
-                  subtotal: cart.subtotal,
-                  discount: cart.discount,
-                  deliveryFee: cart.deliveryFee,
-                  total: cart.total,
-                  money: _money,
-                ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar:
           cart == null || cartState.isLoading || cartState.hasError
           ? null
-          : ResponsiveContent(
-              maxWidth: AppLayout.readingWidth,
+          : ResponsiveContent.page(
               child: _PlaceOrderBar(
                 total: cart.total,
                 money: _money,
@@ -759,71 +761,73 @@ class _SuccessView extends ConsumerWidget {
     final l10n = context.l10n;
     final colors = context.colors;
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            children: [
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: colors.success.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+      body: ResponsiveContent.page(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              children: [
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: colors.success.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check_circle_outline,
+                    size: 48,
+                    color: colors.success,
+                  ),
                 ),
-                child: Icon(
-                  Icons.check_circle_outline,
-                  size: 48,
-                  color: colors.success,
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  l10n.checkoutSuccessTitle,
+                  style: context.text.headlineSmall,
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                l10n.checkoutSuccessTitle,
-                style: context.text.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                l10n.checkoutSuccessMessage,
-                style: context.text.bodyMedium?.copyWith(
-                  color: colors.textSecondary,
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  l10n.checkoutSuccessMessage,
+                  style: context.text.bodyMedium?.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              AppCard(
-                child: Column(
-                  children: [
-                    _SummaryRow(
-                      label: l10n.checkoutOrderNumber,
-                      value: order.orderNumber,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _SummaryRow(
-                      label: l10n.checkoutTotal,
-                      value: money(order.total),
-                      emphasize: true,
-                    ),
-                  ],
+                const SizedBox(height: AppSpacing.xl),
+                AppCard(
+                  child: Column(
+                    children: [
+                      _SummaryRow(
+                        label: l10n.checkoutOrderNumber,
+                        value: order.orderNumber,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      _SummaryRow(
+                        label: l10n.checkoutTotal,
+                        value: money(order.total),
+                        emphasize: true,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Spacer(),
-              AppButton(
-                label: l10n.checkoutViewOrders,
-                onPressed: () {
-                  ref.read(orderStatusFilterProvider.notifier).state =
-                      'pending';
-                  context.go(AppRoutes.orders);
-                },
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: l10n.checkoutBackHome,
-                variant: AppButtonVariant.secondary,
-                onPressed: () => context.go(AppRoutes.home),
-              ),
-            ],
+                const Spacer(),
+                AppButton(
+                  label: l10n.checkoutViewOrders,
+                  onPressed: () {
+                    ref.read(orderStatusFilterProvider.notifier).state =
+                        'pending';
+                    context.go(AppRoutes.orders);
+                  },
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppButton(
+                  label: l10n.checkoutBackHome,
+                  variant: AppButtonVariant.secondary,
+                  onPressed: () => context.go(AppRoutes.home),
+                ),
+              ],
+            ),
           ),
         ),
       ),

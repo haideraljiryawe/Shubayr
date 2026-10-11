@@ -1,3 +1,4 @@
+import '../../core/layout/app_layout.dart';
 import '../../features/monitoring/presentation/monitor_orders_screen.dart';
 import '../../features/monitoring/presentation/monitor_detail_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
@@ -136,10 +137,12 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     errorBuilder: (context, state) => Scaffold(
       appBar: AppBar(title: Text(context.l10n.routeNotFoundTitle)),
-      body: AppEmptyView(
-        icon: Icons.explore_off_outlined,
-        title: context.l10n.routeNotFoundTitle,
-        message: state.uri.toString(),
+      body: ResponsiveContent.page(
+        child: AppEmptyView(
+          icon: Icons.explore_off_outlined,
+          title: context.l10n.routeNotFoundTitle,
+          message: state.uri.toString(),
+        ),
       ),
     ),
     routes: [
