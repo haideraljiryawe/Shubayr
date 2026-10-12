@@ -33,7 +33,7 @@ class _PushNotificationBridgeState
         return;
       }
       _pendingOpen = null;
-      ref.read(routerProvider).go(AppRoutes.notifications);
+      ref.read(routerProvider).go(AppRoutes.pushNotifications);
     });
   }
 
@@ -55,7 +55,7 @@ class _PushNotificationBridgeState
       actionLabel: context.l10n.notificationsTitle,
       onAction: () {
         if (mounted && ref.read(pushOwnerProvider) == value.owner) {
-          router.go(AppRoutes.notifications);
+          router.go(AppRoutes.pushNotifications);
         }
       },
     );

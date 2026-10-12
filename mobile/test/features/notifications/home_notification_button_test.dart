@@ -261,6 +261,22 @@ void main() {
           await tester.tap(find.byType(BackButton));
           await tester.pumpAndSettle();
           _expectCount(tester, HomeScreen, 7);
+          // FCM entry keeps the existing detail flow, backed by one Home route.
+          router.go(AppRoutes.pushNotifications);
+          await tester.pumpAndSettle();
+          await tester.tap(
+            find.text(language == 'ar' ? 'إشعار 1' : 'Notification 1'),
+          );
+          await tester.pumpAndSettle();
+          expect(router.state.uri.path, '${AppRoutes.orders}/order-1');
+          await tester.tap(find.byType(BackButton));
+          await tester.pumpAndSettle();
+          expect(router.state.uri.path, AppRoutes.pushNotifications);
+          await tester.tap(find.byType(BackButton));
+          await tester.pumpAndSettle();
+          expect(router.state.uri.path, AppRoutes.home);
+          expect(router.canPop(), isFalse);
+          expect(find.byType(HomeScreen, skipOffstage: false), findsOneWidget);
           expect(tester.takeException(), isNull);
           await tester.pumpWidget(const SizedBox.shrink());
         },

@@ -23,6 +23,7 @@ abstract final class AppRoutes {
   static const monitor = '/monitor/orders';
   static const monitorDetail = '/monitor/orders/:id';
   static const notifications = '/notifications';
+  static const pushNotifications = '$home/notifications';
 
   // Product detail, pushed full-screen over the shell.
   static const product = '/products/:id';

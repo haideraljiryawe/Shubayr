@@ -202,6 +202,15 @@ final routerProvider = Provider<GoRouter>((ref) {
                       .read(startupDisplayReadyProvider.notifier)
                       .claimHomeCarouselStartupDelay,
                 ),
+                routes: [
+                  // Push entry always has Home underneath, even on cold start.
+                  // Keep /notifications for normal pushes from Home/Account.
+                  GoRoute(
+                    path: 'notifications',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (_, _) => const NotificationsScreen(),
+                  ),
+                ],
               ),
             ],
           ),
