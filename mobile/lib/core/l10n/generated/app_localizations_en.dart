@@ -1995,4 +1995,32 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get productUnavailableMessage =>
       'This product is no longer available. Please browse the catalog for other products.';
+
+  @override
+  String get errorWorkAccountShopping =>
+      'Shopping is available to customer accounts. Sign in with a customer account.';
+
+  @override
+  String get errorAppRoleForbidden =>
+      'Your account role cannot perform this action.';
+
+  @override
+  String get errorAuthSurfaceForbidden =>
+      'This sign-in cannot be used in the customer app. Sign in again through the app.';
+
+  @override
+  String get stockShortageTitle => 'Quantity unavailable';
+
+  @override
+  String stockAvailableQuantity(String quantity) {
+    return 'Available quantity: $quantity';
+  }
+
+  @override
+  String stockRequestedQuantity(String quantity) {
+    return 'Requested quantity: $quantity';
+  }
+
+  @override
+  String get stockCorrectCart => 'Correct cart';
 }

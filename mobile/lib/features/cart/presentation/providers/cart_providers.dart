@@ -16,7 +16,7 @@ import '../../domain/cart_repository.dart';
 
 /// Mock ⇄ remote switch for the cart.
 final cartRepositoryProvider = Provider<CartRepository>((ref) {
-  ref.watch(_cartSessionProvider);
+  ref.watch(cartSessionIdentityProvider);
   return switch (ref.watch(dataSourceProvider)) {
     DataSource.mock => CartRepositoryMock(),
     DataSource.remote => CartRepositoryRemote(ref.watch(apiClientProvider)),
@@ -25,7 +25,7 @@ final cartRepositoryProvider = Provider<CartRepository>((ref) {
 
 /// A narrow ownership key, renewed even on logout/login to the same customer.
 /// Profile edits with the same customer ID do not restart the cart workflow.
-final _cartSessionProvider = Provider<Object?>((ref) {
+final cartSessionIdentityProvider = Provider<Object?>((ref) {
   final customerId = ref.watch(
     sessionControllerProvider.select((value) {
       final session = value.asData?.value;
@@ -56,7 +56,7 @@ class CartController extends AsyncNotifier<Cart> {
 
   @override
   Future<Cart> build() {
-    final owner = ref.watch(_cartSessionProvider);
+    final owner = ref.watch(cartSessionIdentityProvider);
     final repository = ref.watch(cartRepositoryProvider);
     _loadGeneration++;
     if (_owner != owner) {
@@ -150,7 +150,7 @@ class CartController extends AsyncNotifier<Cart> {
         const CartMutationResult(CartMutationStatus.superseded),
       );
     }
-    final owner = ref.read(_cartSessionProvider);
+    final owner = ref.read(cartSessionIdentityProvider);
     final generation = _loadGeneration;
     return _run((repository) async {
       final previous = state;
@@ -197,7 +197,7 @@ class CartController extends AsyncNotifier<Cart> {
       );
 
   bool _owns(Object owner) =>
-      ref.mounted && ref.read(_cartSessionProvider) == owner;
+      ref.mounted && ref.read(cartSessionIdentityProvider) == owner;
 
   Future<T> _enqueue<T>(Future<T> Function() operation) {
     final task = _operations.then((_) => operation());
@@ -216,7 +216,7 @@ class CartController extends AsyncNotifier<Cart> {
         const CartMutationResult(CartMutationStatus.superseded),
       );
     }
-    final owner = ref.read(_cartSessionProvider);
+    final owner = ref.read(cartSessionIdentityProvider);
     if (owner == null) {
       return Future.value(
         const CartMutationResult(

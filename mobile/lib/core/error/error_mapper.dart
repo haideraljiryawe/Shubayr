@@ -1,3 +1,4 @@
+import '../utils/quantity.dart';
 import 'package:dio/dio.dart';
 
 import 'failure.dart';
@@ -70,6 +71,8 @@ List<ApiFieldError> _fieldsFromBody(Object? data) {
     for (final error in data['errors'] as List)
       if (error is Map && error['message'] is String)
         ApiFieldError(
+          requestedQuantity: _stockQuantity(error['requested']),
+          availableQuantity: _stockQuantity(error['available']),
           field: error['field'] is String ? error['field'] as String : null,
           code: error['code'] is String ? error['code'] as String : null,
           message: error['message'] as String,
@@ -94,4 +97,10 @@ List<ApiFieldError> _fieldsFromBody(Object? data) {
               : null,
         ),
   ];
+}
+
+num? _stockQuantity(Object? value) {
+  if (value is! String) return null;
+  final parsed = num.tryParse(value);
+  return parsed != null && isValidQuantity(parsed, min: 0) ? parsed : null;
 }
