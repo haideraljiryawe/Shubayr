@@ -1837,4 +1837,48 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pendingRequestMessage =>
       'A previous request is unresolved. Retry with the same selection and amount or quantity.';
+
+  @override
+  String get orderRequestCancellation => 'Request cancellation';
+
+  @override
+  String get orderCancellationReason => 'Reason for cancellation';
+
+  @override
+  String get orderCancellationRequestSent =>
+      'Cancellation request sent to the store.';
+
+  @override
+  String get orderCancellationPending => 'Cancellation request pending';
+
+  @override
+  String get orderCancellationApproved => 'Cancellation request approved';
+
+  @override
+  String get orderCancellationDenied => 'Cancellation request declined';
+
+  @override
+  String get orderReductionTitle => 'Quantity change proposed';
+
+  @override
+  String orderReductionQuantities(String oldQuantity, String newQuantity) {
+    return 'Original quantity: $oldQuantity. Proposed quantity: $newQuantity.';
+  }
+
+  @override
+  String get orderReductionAccept => 'Accept reduced quantity';
+
+  @override
+  String get orderReductionDecline => 'Decline reduced quantity';
+
+  @override
+  String get orderReductionAcceptConfirm =>
+      'Accept the displayed reduced quantity? The store will update the order totals.';
+
+  @override
+  String get orderReductionDeclineConfirm =>
+      'Decline this quantity change? The store will review your order.';
+
+  @override
+  String get orderDecisionSaved => 'Your response has been saved.';
 }

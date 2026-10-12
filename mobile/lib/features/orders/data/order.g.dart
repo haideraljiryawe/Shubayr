@@ -26,6 +26,16 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
           ?.map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
           .toList() ??
       const [],
+  cancellationRequest: json['cancellation_request'] == null
+      ? null
+      : OrderCancellationRequest.fromJson(
+          json['cancellation_request'] as Map<String, dynamic>,
+        ),
+  attentionDetails: json['attention_details'] == null
+      ? null
+      : OrderAttentionDetails.fromJson(
+          json['attention_details'] as Map<String, dynamic>,
+        ),
 );
 
 Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
@@ -42,6 +52,8 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
   'currency': ?instance.currency,
   'placed_at': instance.placedAt?.toIso8601String(),
   'items': instance.items.map((e) => e.toJson()).toList(),
+  'cancellation_request': ?instance.cancellationRequest?.toJson(),
+  'attention_details': ?instance.attentionDetails?.toJson(),
 };
 
 OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => OrderItem(
@@ -88,4 +100,51 @@ Map<String, dynamic> _$OrderPageToJson(OrderPage instance) => <String, dynamic>{
   'per_page': instance.perPage,
   'total': instance.total,
   'data': instance.data.map((e) => e.toJson()).toList(),
+};
+
+OrderCancellationRequest _$OrderCancellationRequestFromJson(
+  Map<String, dynamic> json,
+) => OrderCancellationRequest(
+  status: json['status'] as String,
+  reason: json['reason'] as String?,
+);
+
+Map<String, dynamic> _$OrderCancellationRequestToJson(
+  OrderCancellationRequest instance,
+) => <String, dynamic>{'status': instance.status, 'reason': instance.reason};
+
+OrderAttentionDetails _$OrderAttentionDetailsFromJson(
+  Map<String, dynamic> json,
+) => OrderAttentionDetails(
+  reductionProposal: json['reduction_proposal'] == null
+      ? null
+      : OrderQuantityProposal.fromJson(
+          json['reduction_proposal'] as Map<String, dynamic>,
+        ),
+);
+
+Map<String, dynamic> _$OrderAttentionDetailsToJson(
+  OrderAttentionDetails instance,
+) => <String, dynamic>{
+  'reduction_proposal': ?instance.reductionProposal?.toJson(),
+};
+
+OrderQuantityProposal _$OrderQuantityProposalFromJson(
+  Map<String, dynamic> json,
+) => OrderQuantityProposal(
+  orderItemId: json['order_item_id'] as String,
+  oldQuantity: json['old_quantity'] as num,
+  newQuantity: json['new_quantity'] as num,
+  reason: json['reason'] as String,
+  status: json['status'] as String,
+);
+
+Map<String, dynamic> _$OrderQuantityProposalToJson(
+  OrderQuantityProposal instance,
+) => <String, dynamic>{
+  'order_item_id': instance.orderItemId,
+  'old_quantity': instance.oldQuantity,
+  'new_quantity': instance.newQuantity,
+  'reason': instance.reason,
+  'status': instance.status,
 };

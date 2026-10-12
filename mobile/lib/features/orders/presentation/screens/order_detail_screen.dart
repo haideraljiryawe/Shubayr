@@ -29,6 +29,7 @@ import '../providers/order_providers.dart';
 import '../providers/order_action_providers.dart';
 import '../providers/after_sales_providers.dart';
 import '../widgets/order_status_pill.dart';
+import '../widgets/customer_order_requests.dart';
 
 /// A single order: header, the status timeline, the items, the amount summary,
 /// and — while the order can still be cancelled — a cancel action.
@@ -215,6 +216,7 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
                                 ),
                         ),
                       ],
+                      CustomerOrderRequests(order: o),
                       if (isOrderCancellable(
                         o.status,
                         remote:

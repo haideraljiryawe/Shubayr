@@ -289,4 +289,40 @@ class OrderRepositoryMock implements OrderRepository {
     placedAt: o.placedAt,
     items: o.items,
   );
+
+  @override
+  Future<Order> requestCancellation(
+    String id, {
+    required int version,
+    required String reason,
+  }) async {
+    final order = await fetchOrder(id);
+    if (order.version != version) {
+      throw const AppFailure(
+        FailureKind.conflict,
+        statusCode: 409,
+        code: 'STALE_ORDER_STATE',
+      );
+    }
+    final updated = Order.fromJson({
+      ...order.toJson(),
+      'version': version + 1,
+      'cancellation_request': {'status': 'pending', 'reason': reason},
+    });
+    _orders[_orders.indexWhere((o) => o.id == id)] = updated;
+    return updated;
+  }
+
+  @override
+  Future<Order> respondToShortage(
+    String id, {
+    required int version,
+    required ShortageDecision decision,
+  }) async {
+    throw const AppFailure(
+      FailureKind.conflict,
+      statusCode: 409,
+      code: 'QUANTITY_REDUCTION_NOT_PENDING',
+    );
+  }
 }

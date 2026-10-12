@@ -48,6 +48,18 @@ class _FixedAddresses extends AddressesController {
 
 class _FakeOrders implements OrderRepository {
   final queries = <({String? status, int page})>[];
+  @override
+  Future<Order> requestCancellation(
+    String id, {
+    required int version,
+    required String reason,
+  }) => throw UnimplementedError();
+  @override
+  Future<Order> respondToShortage(
+    String id, {
+    required int version,
+    required ShortageDecision decision,
+  }) => throw UnimplementedError();
   Order? placed;
   String? placedAddressId;
 

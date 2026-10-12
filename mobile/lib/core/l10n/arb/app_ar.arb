@@ -632,5 +632,18 @@
   "deliveryCollectedAmount": "المبلغ المحصل",
   "deliveryInvalidAmount": "أدخل مبلغاً من صفر إلى المبلغ المستحق (بحد أقصى 6 منازل عشرية).",
   "pendingDeliveryRetry": "نتيجة المحاولة السابقة غير معروفة. أعد محاولة التحصيل نفسه؛ لا يمكن تغيير المبلغ حتى تتضح النتيجة.",
-  "pendingRequestMessage": "نتيجة الطلب السابق لم تُحسم. أعد المحاولة بنفس الاختيار والمبلغ أو الكمية."
+  "pendingRequestMessage": "نتيجة الطلب السابق لم تُحسم. أعد المحاولة بنفس الاختيار والمبلغ أو الكمية.",
+  "orderRequestCancellation": "طلب إلغاء الطلب",
+  "orderCancellationReason": "سبب طلب الإلغاء",
+  "orderCancellationRequestSent": "تم إرسال طلب الإلغاء إلى المتجر.",
+  "orderCancellationPending": "طلب الإلغاء قيد المراجعة",
+  "orderCancellationApproved": "تمت الموافقة على طلب الإلغاء",
+  "orderCancellationDenied": "تم رفض طلب الإلغاء",
+  "orderReductionTitle": "اقتراح تعديل الكمية",
+  "orderReductionQuantities": "الكمية الأصلية: {oldQuantity}. الكمية المقترحة: {newQuantity}.",
+  "orderReductionAccept": "الموافقة على تقليل الكمية",
+  "orderReductionDecline": "رفض تقليل الكمية",
+  "orderReductionAcceptConfirm": "هل توافق على الكمية المخفضة المعروضة؟ سيحدث المتجر إجمالي الطلب.",
+  "orderReductionDeclineConfirm": "هل ترفض تعديل الكمية؟ سيراجع المتجر طلبك.",
+  "orderDecisionSaved": "تم حفظ ردك."
 }
