@@ -5,6 +5,8 @@ import '../data/order_tracking.dart';
 /// Checkout and orders. On checkout the server builds the order from the user's
 /// current cart, so placing only needs the delivery address and an optional
 /// coupon. The rest read and manage placed orders.
+enum ShortageDecision { accepted, denied }
+
 abstract interface class OrderRepository {
   /// `POST /coupons/validate` — throws [AppFailure] (notFound) when invalid.
   Future<Coupon> validateCoupon(String code);
@@ -34,4 +36,15 @@ abstract interface class OrderRepository {
 
   /// `POST /orders/{id}/cancel` — cancels the order and returns the updated one.
   Future<Order> cancelOrder(String id, {required int version});
+
+  Future<Order> requestCancellation(
+    String id, {
+    required int version,
+    required String reason,
+  });
+  Future<Order> respondToShortage(
+    String id, {
+    required int version,
+    required ShortageDecision decision,
+  });
 }

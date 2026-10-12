@@ -86,4 +86,32 @@ class OrderRepositoryRemote implements OrderRepository {
           ),
         ),
       );
+
+  @override
+  Future<Order> requestCancellation(
+    String id, {
+    required int version,
+    required String reason,
+  }) => decodeResponse(
+    () async => Order.fromJson(
+      await _api.post<Map<String, dynamic>>(
+        '/orders/$id/cancellation-request',
+        body: {'version': version, 'reason': reason},
+      ),
+    ),
+  );
+
+  @override
+  Future<Order> respondToShortage(
+    String id, {
+    required int version,
+    required ShortageDecision decision,
+  }) => decodeResponse(
+    () async => Order.fromJson(
+      await _api.post<Map<String, dynamic>>(
+        '/orders/$id/shortage-response',
+        body: {'version': version, 'decision': decision.name},
+      ),
+    ),
+  );
 }

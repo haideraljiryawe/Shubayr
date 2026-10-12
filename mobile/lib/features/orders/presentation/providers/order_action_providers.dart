@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/error/response_decode.dart';
 import '../../../../core/storage/pending_request_store.dart';
-import '../../domain/order_repository.dart';
 import 'pending_checkout_provider.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../cart/data/cart.dart';
 import '../../data/order.dart';
+import '../../domain/order_repository.dart';
 import 'order_providers.dart';
 
 enum OrderActionStatus { succeeded, failed, superseded, duplicate }
@@ -309,7 +309,50 @@ class OrderCancellationController extends Notifier<bool> {
       _owner == owner &&
       ref.read(ordersIdentityProvider) == owner;
 
-  Future<OrderActionResult> cancel({required int version}) async {
+  Future<OrderActionResult> cancel({required int version}) => _run(
+    version,
+    (repository) => repository.cancelOrder(orderId, version: version),
+  );
+
+  Future<OrderActionResult> requestCancellation({
+    required int version,
+    required String reason,
+  }) {
+    final trimmed = reason.trim();
+    if (trimmed.isEmpty || trimmed.length > 500) {
+      return Future.value(
+        const OrderActionResult(
+          OrderActionStatus.failed,
+          error: AppFailure(FailureKind.validation),
+        ),
+      );
+    }
+    return _run(
+      version,
+      (repository) => repository.requestCancellation(
+        orderId,
+        version: version,
+        reason: trimmed,
+      ),
+    );
+  }
+
+  Future<OrderActionResult> respondToShortage({
+    required int version,
+    required ShortageDecision decision,
+  }) => _run(
+    version,
+    (repository) => repository.respondToShortage(
+      orderId,
+      version: version,
+      decision: decision,
+    ),
+  );
+
+  Future<OrderActionResult> _run(
+    int version,
+    Future<Order> Function(OrderRepository) action,
+  ) async {
     if (!ref.mounted) {
       return const OrderActionResult(OrderActionStatus.superseded);
     }
@@ -327,9 +370,7 @@ class OrderCancellationController extends Notifier<bool> {
     final keepAlive = ref.keepAlive();
     state = true;
     try {
-      final order = await ref
-          .read(orderRepositoryProvider)
-          .cancelOrder(orderId, version: version);
+      final order = await action(ref.read(orderRepositoryProvider));
       if (!_owns(owner)) {
         return const OrderActionResult(OrderActionStatus.superseded);
       }

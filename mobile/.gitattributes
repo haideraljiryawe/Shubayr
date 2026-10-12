@@ -1,0 +1,5 @@
+# Flutter derives generated localization line endings from pubspec.yaml.
+pubspec.yaml text eol=lf
+l10n.yaml text eol=lf
+lib/core/l10n/arb/*.arb text eol=lf
+lib/core/l10n/generated/*.dart text eol=lf

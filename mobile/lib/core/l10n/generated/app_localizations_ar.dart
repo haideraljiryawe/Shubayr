@@ -1829,4 +1829,47 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get checkoutResolvePending => 'التحقق من عملية الشراء السابقة';
+
+  @override
+  String get orderRequestCancellation => 'طلب إلغاء الطلب';
+
+  @override
+  String get orderCancellationReason => 'سبب طلب الإلغاء';
+
+  @override
+  String get orderCancellationRequestSent => 'تم إرسال طلب الإلغاء إلى المتجر.';
+
+  @override
+  String get orderCancellationPending => 'طلب الإلغاء قيد المراجعة';
+
+  @override
+  String get orderCancellationApproved => 'تمت الموافقة على طلب الإلغاء';
+
+  @override
+  String get orderCancellationDenied => 'تم رفض طلب الإلغاء';
+
+  @override
+  String get orderReductionTitle => 'اقتراح تعديل الكمية';
+
+  @override
+  String orderReductionQuantities(String oldQuantity, String newQuantity) {
+    return 'الكمية الأصلية: $oldQuantity. الكمية المقترحة: $newQuantity.';
+  }
+
+  @override
+  String get orderReductionAccept => 'الموافقة على تقليل الكمية';
+
+  @override
+  String get orderReductionDecline => 'رفض تقليل الكمية';
+
+  @override
+  String get orderReductionAcceptConfirm =>
+      'هل توافق على الكمية المخفضة المعروضة؟ سيحدث المتجر إجمالي الطلب.';
+
+  @override
+  String get orderReductionDeclineConfirm =>
+      'هل ترفض تعديل الكمية؟ سيراجع المتجر طلبك.';
+
+  @override
+  String get orderDecisionSaved => 'تم حفظ ردك.';
 }
