@@ -1988,4 +1988,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get accountDeletionUnsettled =>
       'Settle outstanding amounts before deleting your account.';
+
+  @override
+  String get productUnavailableTitle => 'Product unavailable';
+
+  @override
+  String get productUnavailableMessage =>
+      'This product is no longer available. Please browse the catalog for other products.';
 }
