@@ -27,7 +27,11 @@ import type {
   NotificationType,
 } from './notification-types';
 import type { NotificationProvider } from './notification-provider';
-import { PUSH_PROVIDER, SMS_PROVIDER } from './notification-provider';
+import {
+  InvalidNotificationRecipientError,
+  PUSH_PROVIDER,
+  SMS_PROVIDER,
+} from './notification-provider';
 import {
   NotificationHistoryQueryDto,
   PatchPreferencesDto,
@@ -673,6 +677,19 @@ export class NotificationsService
       });
     } catch (error) {
       this.logger.warn(`Notification ${row.id} failed: ${String(error)}`);
+      if (
+        channel === 'push' &&
+        error instanceof InvalidNotificationRecipientError
+      ) {
+        await this.prisma.deviceToken.updateMany({
+          where: {
+            id: target.key,
+            token: target.recipient,
+            is_active: true,
+          },
+          data: { is_active: false, deactivated_at: new Date() },
+        });
+      }
       await this.prisma.notificationLog.update({
         where: { id: row.id },
         data: { status: 'failed', error: String(error).slice(0, 500) },

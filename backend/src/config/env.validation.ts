@@ -25,11 +25,23 @@ const schema = Joi.object({
     .uri({ scheme: ['redis', 'rediss'] })
     .required(),
   NOTIFICATION_PROVIDER: Joi.string()
-    .valid('dev', 'disabled')
+    .valid('dev', 'disabled', 'fcm')
     .when('APP_ENV', {
       is: 'production',
-      then: Joi.valid('disabled').default('disabled'),
-      otherwise: Joi.valid('dev', 'disabled').default('dev'),
+      then: Joi.valid('disabled', 'fcm').default('disabled'),
+      otherwise: Joi.valid('dev', 'disabled', 'fcm').default('dev'),
+    }),
+  FCM_PROJECT_ID: Joi.string().when('NOTIFICATION_PROVIDER', {
+    is: 'fcm',
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(''),
+  }),
+  FCM_SERVICE_ACCOUNT_JSON_BASE64: Joi.string()
+    .min(32)
+    .when('NOTIFICATION_PROVIDER', {
+      is: 'fcm',
+      then: Joi.required(),
+      otherwise: Joi.optional().allow(''),
     }),
   MEILI_HOST: Joi.string().uri().required(),
   MEILI_MASTER_KEY: Joi.string().min(8).required(),

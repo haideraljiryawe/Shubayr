@@ -1,5 +1,16 @@
-import { Body, Controller, Get, Patch, Req } from '@nestjs/common';
-import { AnySessionPolicy } from '../../common/decorators/access-policy.decorator';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Patch,
+  Req,
+} from '@nestjs/common';
+import {
+  AnySessionPolicy,
+  AppPolicy,
+} from '../../common/decorators/access-policy.decorator';
 import type { Request } from 'express';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { UserSelfUpdateDto } from './dto/user-self-update.dto';
@@ -23,5 +34,12 @@ export class MeController {
     @Body() input: UserSelfUpdateDto,
   ) {
     return this.me.updateCurrentUser(request.user, input);
+  }
+
+  @Delete('account')
+  @HttpCode(204)
+  @AppPolicy('customer')
+  deleteAccount(@Req() request: AuthenticatedRequest) {
+    return this.me.deleteCustomerAccount(request.user.id);
   }
 }

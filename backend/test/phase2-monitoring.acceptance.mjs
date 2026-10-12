@@ -194,6 +194,11 @@ try {
     'chip counts exclude selected status',
   );
   check(combined.status_counts.all, 2, 'all chip count respects q and dates');
+  check(
+    combined.data[0].currency,
+    'IQD',
+    'monitor list row identifies its currency',
+  );
 
   const expectedOrder = (
     await db.query(
@@ -225,6 +230,16 @@ try {
     detail.items[0].quantity,
     2,
     'detail returns item snapshot and quantity',
+  );
+  check(
+    detail.items[0].base_unit,
+    'piece',
+    'monitor detail returns the unit snapshot',
+  );
+  check(
+    detail.items[0].whole_units_only,
+    true,
+    'monitor detail returns the quantity rule snapshot',
   );
   check(
     JSON.stringify(detail).includes('image_url'),

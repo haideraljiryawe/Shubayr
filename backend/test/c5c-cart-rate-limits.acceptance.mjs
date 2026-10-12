@@ -50,6 +50,19 @@ async function request(
 // The runner reaches the API from loopback, which is deliberately configured
 // as a trusted store proxy. Each forwarded shopper therefore gets a separate
 // generous catalog bucket; the server itself is never exempt.
+const publicSettings = await request('/settings', {
+  forwardedFor: '198.51.100.250',
+});
+check(
+  publicSettings.default_low_stock_threshold,
+  '5',
+  'public settings expose the catalog low-stock default',
+);
+check(
+  publicSettings.sale_rounding_multiple,
+  '250',
+  'public settings expose the active sale rounding policy',
+);
 await Promise.all(
   Array.from({ length: 300 }, (_, index) =>
     request('/settings', {
