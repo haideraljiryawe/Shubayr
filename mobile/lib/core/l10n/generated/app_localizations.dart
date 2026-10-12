@@ -3644,6 +3644,102 @@ abstract class AppLocalizations {
   /// **'Your response has been saved.'**
   String get orderDecisionSaved;
 
+  /// No description provided for @errorCheckoutIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'This checkout conflicts with a previous request. Resolve the previous checkout before trying again.'**
+  String get errorCheckoutIdentity;
+
+  /// No description provided for @errorCartEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Your cart is empty. Add items before checking out.'**
+  String get errorCartEmpty;
+
+  /// No description provided for @errorCartQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'A cart quantity is invalid. Review and update your quantities.'**
+  String get errorCartQuantity;
+
+  /// No description provided for @errorCartUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'An item is no longer available. Review your cart and remove or replace it.'**
+  String get errorCartUnavailable;
+
+  /// No description provided for @errorStockShortage.
+  ///
+  /// In en, this message translates to:
+  /// **'The requested quantity is no longer available. Review the updated stock and choose a smaller quantity.'**
+  String get errorStockShortage;
+
+  /// No description provided for @errorWholeUnits.
+  ///
+  /// In en, this message translates to:
+  /// **'This item is sold in whole units. Enter a whole-number quantity.'**
+  String get errorWholeUnits;
+
+  /// No description provided for @errorCouponInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This coupon cannot be used. Remove it or enter another code.'**
+  String get errorCouponInvalid;
+
+  /// No description provided for @errorPriceChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices have changed. Review the latest prices before confirming your order.'**
+  String get errorPriceChanged;
+
+  /// No description provided for @errorOrderAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'This order is not available to your account. Return to your orders list.'**
+  String get errorOrderAccess;
+
+  /// No description provided for @errorCancellationNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation is not available in the current order state. Review the updated order.'**
+  String get errorCancellationNotAllowed;
+
+  /// No description provided for @errorCancellationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'A cancellation request is already pending for this order.'**
+  String get errorCancellationPending;
+
+  /// No description provided for @errorReductionResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'This quantity proposal is no longer pending. Review the updated order.'**
+  String get errorReductionResolved;
+
+  /// No description provided for @errorPaidCancellation.
+  ///
+  /// In en, this message translates to:
+  /// **'This paid order cannot be cancelled here. Contact the store for help.'**
+  String get errorPaidCancellation;
+
+  /// No description provided for @checkoutPendingRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.'**
+  String get checkoutPendingRecovery;
+
+  /// No description provided for @checkoutResolvePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve previous checkout'**
+  String get checkoutResolvePending;
+
+  /// No description provided for @productLowStockLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Low stock'**
+  String get productLowStockLabel;
+
   /// No description provided for @privacyPolicyUnavailable.
   ///
   /// In en, this message translates to:
@@ -3679,24 +3775,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settle outstanding amounts before deleting your account.'**
   String get accountDeletionUnsettled;
-
-  /// No description provided for @checkoutPendingRecovery.
-  ///
-  /// In en, this message translates to:
-  /// **'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.'**
-  String get checkoutPendingRecovery;
-
-  /// No description provided for @checkoutResolvePending.
-  ///
-  /// In en, this message translates to:
-  /// **'Resolve previous checkout'**
-  String get checkoutResolvePending;
-
-  /// No description provided for @productLowStockLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Low stock'**
-  String get productLowStockLabel;
 }
 
 class _AppLocalizationsDelegate

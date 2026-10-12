@@ -472,12 +472,15 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     setState(() => _busy = false);
 
     if (result.status == CartMutationStatus.failed) {
+      final error = result.error;
+      if (error is AppFailure && error.requiresCartRefresh) {
+        ref.invalidate(availabilityProvider(widget.productId));
+        ref.invalidate(productProvider(widget.productId));
+      }
       showAppSnackBarMessage(
         context,
-        message:
-            result.error is AppFailure &&
-                (result.error as AppFailure).code == 'PENDING_REQUEST'
-            ? l10n.pendingRequestMessage
+        message: error is AppFailure
+            ? error.localizedMessage(l10n)
             : l10n.stateErrorTitle,
       );
       return;
