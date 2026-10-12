@@ -93,6 +93,11 @@ The browser never sees a token and never calls the API directly.
   (`GET /me/notifications[/unread-count]`, `PATCH …/{id}/read`,
   `PATCH …/read-all`) and `PATCH /deliveries/{id}/assign`
   (`src/lib/session/proxy-paths.ts`). Never dot segments.
+- **Image uploads** — `POST /api/media/images` takes one multipart `file`,
+  checks the Origin, type (JPEG/PNG/WebP/AVIF) and size (8 MiB), and forwards
+  it to `POST /media/images` with the bearer attached here: the JSON proxy
+  cannot carry a file, and the media route lives outside `/admin`. Pictures
+  are shrunk in the browser first (1600 px, WebP) and sent with progress.
 - **Notification stream** — `GET /api/notifications/stream` mints the API's
   single-use stream ticket server-side, opens the API's SSE stream with it and
   pipes the events back, so the browser holds neither a token nor a ticket.
@@ -121,6 +126,24 @@ The browser never sees a token and never calls the API directly.
   renders a clean in-shell **403 page** when refused; client actions show a
   form-level "you don't have permission" instead of failing silently.
 
+## Modules (`ADMIN_MODULES`)
+
+Which areas this installation shows (`src/lib/modules.ts`). Unset or `all`
+shows everything; a comma-separated list shows only those modules:
+
+```bash
+ADMIN_MODULES=catalog,stock,orders,settings,users            # the launch core
+ADMIN_MODULES=catalog,stock,orders,settings,users,finance    # + currencies (USD prices)
+```
+
+Keys: `catalog`, `stock`, `orders`, `settings`, `users`, `purchasing`,
+`finance`, `deliveryParties`, `trips`, `custody`, `cashReceipts`, `audit`. A
+module that is off leaves the menu and the dashboard, and its routes show a
+"not enabled" page (`src/proxy.ts`); unknown keys are ignored, and a value
+naming no known module falls back to everything. It is presentation only —
+permissions and the API still decide every call. The menu lists the launch
+core first: catalog, stock, orders, settings, users.
+
 ## Screens
 
 | Route | Needs | What it does |
@@ -143,6 +166,12 @@ The browser never sees a token and never calls the API directly.
 | `/finance/periods`, `/finance/periods/[month]` | `ledger.view` (+ `period.close`, `period.reopen`) | Recent months open/closed; the API's close checklist; close; reopen with a required reason; close history and differences at re-close |
 | `/finance/ledger`, `/finance/ledger/entries` | `ledger.view` | Trial balance as of a date; entries by account, document or date (server-paged), each linking to its own page. Read-only |
 | `/finance/ledger/entries/[id]` | `ledger.view` | One journal entry (8.1): lines, dates, a direct link to its source document, and to the entry it reverses or the entries that reverse it. Read-only |
+| `/catalog/categories` | `catalog.categories` | Two levels (department → subcategory). The Arabic name is enough: the English one defaults to it, the slug is made from the name (Arabic in Latin letters) and kept unique, under "advanced" with the display order |
+| `/catalog/brands` | `catalog.brands` | Search, create (Arabic name enough, slug generated; a taken one moves on to `-2`…), logo uploaded from the device, hide, delete unused |
+| `/catalog/products` | `catalog.products` (+ `prices.change` for bulk) | Thumbnails; search; category, brand, status and stock filters; server paging. Select a page of rows for bulk publish / hide / move to a subcategory / change brand (one PATCH each, with progress; refusals listed by name and kept selected). Duplicate per row |
+| `/catalog/products/new` (`?from=<id>` duplicate, `?category=&brand=` preset) | `catalog.products`, `prices.change` | Pictures (multi-pick or drop, shrunk in the browser, progress, retry, drag or arrows to reorder, make main), variants with name/value attributes (a new row copies the last one's unit, threshold and attribute names), generated SKU codes, publish or hide, quick brand, "create and add another" |
+| `/catalog/products/[id]` | same | The editor, stock per SKU, Duplicate and Opening stock; after creating, next steps (opening stock, another product, duplicate) |
+| `/inventory/openings/new?product=<id>` | `inventory.manage` | Opening stock with one line per SKU of that product, the only sellable location preselected |
 | `/finance/documents/[id]` | `ledger.view` or `cash_accounts.manage` | One posted opening balance or cash transfer (8.1), with a direct link to its journal entry (for `ledger.view`). A successful posting links here and to the entry |
 
 **Order actions** show only when BOTH the staff member's current
@@ -229,6 +258,13 @@ the build, then boots the API from the same commit on a disposable database
 and runs the live suite against it.
 
 ## Known API gaps (worked around here)
+
+- **`GET /admin/products` has no status or stock filter.** With one chosen,
+  the list reads the API's (name/category/brand-filtered) result through, 100
+  at a time up to 2,000 products, filters and pages it here, and says so when
+  the cap cut it short (`src/lib/product-list.ts`).
+- **Product search does not match SKU codes** (names and description only).
+- **No bulk product endpoint:** bulk actions send one PATCH per product.
 
 - There is no `GET /admin/staff/{id}` or `/admin/presets/{id}`; detail pages
   read the unqueried list (which still answers every row).

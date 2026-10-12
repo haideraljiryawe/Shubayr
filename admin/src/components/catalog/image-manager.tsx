@@ -261,7 +261,7 @@ export function ImageManager({
                     </div>
                   ) : null}
                 </div>
-                <div className="flex items-center justify-between gap-1 border-t border-border px-1 py-1">
+                <div className="flex flex-wrap items-center justify-between gap-1 border-t border-border px-1 py-1">
                   {single ? (
                     <span />
                   ) : (
@@ -283,7 +283,7 @@ export function ImageManager({
                       <GripVertical className="size-4" aria-hidden />
                     </button>
                   )}
-                  <div className="flex items-center">
+                  <div className="flex flex-wrap items-center">
                     {single ? null : (
                       <>
                         <IconButton

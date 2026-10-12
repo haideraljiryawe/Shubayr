@@ -172,11 +172,14 @@ export function ProductsTable({
     {
       key: "brand",
       header: t("columns.brand"),
+      // On a tablet the status and actions matter more; the brand stays a filter.
+      className: "hidden lg:table-cell",
       cell: (product) => (product.brand ? nameOf(product.brand) : <span className="text-text-muted">—</span>),
     },
     {
       key: "skus",
       header: t("columns.skus"),
+      className: "hidden xl:table-cell",
       cell: (product) => (
         <span className="text-sm" data-testid="product-sku-count">
           {t("skuCount", { count: product.variants?.length ?? 0 })}
@@ -207,7 +210,7 @@ export function ProductsTable({
       key: "stock",
       header: t("columns.stock"),
       cell: (product) => (
-        <Badge tone={availabilityTone(product.availability)} data-testid="product-availability">
+        <Badge tone={availabilityTone(product.availability)} className="whitespace-nowrap" data-testid="product-availability">
           {t(`filters.stock.${product.availability ?? "out_of_stock"}`)}
         </Badge>
       ),
@@ -217,7 +220,10 @@ export function ProductsTable({
       header: t("columns.status"),
       cell: (product) => (
         <div className="flex flex-wrap gap-1" data-testid="product-status-cell" data-status={product.status}>
-          <Badge tone={product.status === "active" ? "success" : product.status === "archived" ? "danger" : "neutral"}>
+          <Badge
+            tone={product.status === "active" ? "success" : product.status === "archived" ? "danger" : "neutral"}
+            className="whitespace-nowrap"
+          >
             {t(`status.${product.status ?? "hidden"}`)}
           </Badge>
           {product.status === "active" && !product.published_at ? <Badge tone="warning">{t("unpublished")}</Badge> : null}
