@@ -1796,7 +1796,6 @@
     "approvalPendingToast": "The below-cost price change is pending approval.",
     "openApproval": "Open approval request",
     "copyTitle": "Copy of a product",
-    "copySuffix": "(copy)",
     "copyNotice": "This is a copy of “{name}” with its pictures, variants and prices. Change what differs and save; variant codes were moved on by one to stay unique, and the copy starts hidden.",
     "noImage": "No picture",
     "duplicate": "Duplicate",

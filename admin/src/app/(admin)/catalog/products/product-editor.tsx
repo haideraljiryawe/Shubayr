@@ -117,15 +117,16 @@ export function ProductEditor({
   const groups = subcategories(tree);
   const nameOf = (item: { name_ar?: string; name_en?: string }) =>
     (locale === "ar" ? item.name_ar : item.name_en) || item.name_en || item.name_ar || "";
-  const copied = (name: string | undefined) => (template && name ? `${name} ${t("copySuffix")}` : (name ?? ""));
-
-  const [nameAr, setNameAr] = useState(product ? (product.name_ar ?? "") : copied(template?.name_ar));
+  // Each name is marked as a copy in its own language.
+  const [nameAr, setNameAr] = useState(
+    product ? (product.name_ar ?? "") : template?.name_ar ? `${template.name_ar} (نسخة)` : "",
+  );
   // A stored English name equal to the Arabic one was the "same as Arabic"
   // default; it stays empty here so it keeps following the Arabic name.
   const [nameEn, setNameEn] = useState(() => {
-    const en = product ? (product.name_en ?? "") : copied(template?.name_en);
-    const ar = product ? (product.name_ar ?? "") : copied(template?.name_ar);
-    return en === ar ? "" : en;
+    const source = product ?? template;
+    if (!source?.name_en || source.name_en === source.name_ar) return "";
+    return product ? source.name_en : `${source.name_en} (copy)`;
   });
   const [description, setDescription] = useState(source?.description ?? "");
   const [categoryId, setCategoryId] = useState(source?.category_id ?? seed?.categoryId ?? "");
@@ -278,197 +279,200 @@ export function ProductEditor({
   const missingSkus = drafts.some((draft) => !draft.sku.trim());
 
   return (
-    <form
-      className="flex flex-col gap-6 pb-24"
-      noValidate
-      data-testid="product-editor"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void submit("open");
-      }}
-    >
-      {template ? (
-        <Alert tone="info" data-testid="product-copy-notice">
-          {t("copyNotice", { name: nameOf(template) })}
-        </Alert>
-      ) : null}
-
-      <Card className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold">{t("sections.basics")}</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label={t("fields.nameAr")} name="name_ar" error={error("name_ar")}>
-            <Input value={nameAr} dir="rtl" onChange={(e) => setNameAr(e.target.value)} data-testid="product-name-ar" />
-          </Field>
-          <Field label={t("fields.nameEnOptional")} name="name_en" error={error("name_en")} hint={t("fields.nameEnHint")}>
-            <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="product-name-en" />
-          </Field>
-          <Field label={t("fields.category")} name="category_id" error={error("category_id")} hint={groups.length ? t("fields.categoryHint") : undefined}>
-            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} data-testid="product-category">
-              <option value="">{t("chooseCategory")}</option>
-              {groups.map((group) => (
-                <optgroup key={group.department.id} label={nameOf(group.department)}>
-                  {group.children.map((child) => (
-                    <option key={child.id} value={child.id}>
-                      {nameOf(child)}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t("fields.brand")} name="brand_id" error={error("brand_id")}>
-            <div className="flex gap-2">
-              <Select className="min-w-0 flex-1" value={brandId} onChange={(e) => setBrandId(e.target.value)} data-testid="product-brand">
-                <option value="">{t("noBrand")}</option>
-                {brands.map((brand) => (
-                  <option key={brand.id} value={brand.id}>
-                    {nameOf(brand)}
-                    {brand.is_visible ? "" : ` (${t("hiddenBrand")})`}
-                  </option>
-                ))}
-              </Select>
-              {canCreateBrand ? (
-                <Button variant="secondary" onClick={() => setBrandDialog(true)} data-testid="product-brand-new" aria-label={t("newBrand")}>
-                  <Plus className="size-4" aria-hidden />
-                  <span className="hidden sm:inline">{t("newBrand")}</span>
-                </Button>
-              ) : null}
-            </div>
-          </Field>
-          <Field
-            label={t("fields.price", { currency: pricing.baseCode })}
-            name="price"
-            error={error("price")}
-            hint={t("fields.priceHint")}
-          >
-            <NumberInput value={price} parse={{ integer: true, min: 0 }} onValueChange={setPrice} data-testid="product-price" />
-          </Field>
-        </div>
-        {groups.length === 0 ? (
-          <Alert tone="info" data-testid="product-no-categories">
-            {t("noCategories")}{" "}
-            <Link href="/catalog/categories" className="font-semibold underline">
-              {t("openCategories")}
-            </Link>
+    <>
+      <form
+        className="flex flex-col gap-6 pb-24"
+        noValidate
+        data-testid="product-editor"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit("open");
+        }}
+      >
+        {template ? (
+          <Alert tone="info" data-testid="product-copy-notice">
+            {t("copyNotice", { name: nameOf(template) })}
           </Alert>
         ) : null}
-        <Field label={t("fields.description")} name="description" error={error("description")} hint={t("fields.descriptionHint")}>
-          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} data-testid="product-description" />
-        </Field>
-      </Card>
 
-      <Card className="flex flex-col gap-4" data-testid="images-section">
-        <div>
-          <h2 className="text-lg font-bold">{t("sections.images")}</h2>
-          <p className="text-sm text-text-muted">{t("sections.imagesHint")}</p>
-        </div>
-        <ImageManager images={images} onChange={setImages} testId="product-images" />
-        {imageProblem && settled !== "ready" ? (
-          <Alert data-testid="images-not-ready">{t(imageProblem === "busy" ? "imagesBusy" : "imagesFailed")}</Alert>
-        ) : null}
-      </Card>
+        <Card className="flex flex-col gap-4">
+          <h2 className="text-lg font-bold">{t("sections.basics")}</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("fields.nameAr")} name="name_ar" error={error("name_ar")}>
+              <Input value={nameAr} dir="rtl" onChange={(e) => setNameAr(e.target.value)} data-testid="product-name-ar" />
+            </Field>
+            <Field label={t("fields.nameEnOptional")} name="name_en" error={error("name_en")} hint={t("fields.nameEnHint")}>
+              <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="product-name-en" />
+            </Field>
+            <Field label={t("fields.category")} name="category_id" error={error("category_id")} hint={groups.length ? t("fields.categoryHint") : undefined}>
+              <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} data-testid="product-category">
+                <option value="">{t("chooseCategory")}</option>
+                {groups.map((group) => (
+                  <optgroup key={group.department.id} label={nameOf(group.department)}>
+                    {group.children.map((child) => (
+                      <option key={child.id} value={child.id}>
+                        {nameOf(child)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("fields.brand")} name="brand_id" error={error("brand_id")}>
+              <div className="flex gap-2">
+                <Select className="min-w-0 flex-1" value={brandId} onChange={(e) => setBrandId(e.target.value)} data-testid="product-brand">
+                  <option value="">{t("noBrand")}</option>
+                  {brands.map((brand) => (
+                    <option key={brand.id} value={brand.id}>
+                      {nameOf(brand)}
+                      {brand.is_visible ? "" : ` (${t("hiddenBrand")})`}
+                    </option>
+                  ))}
+                </Select>
+                {canCreateBrand ? (
+                  <Button variant="secondary" onClick={() => setBrandDialog(true)} data-testid="product-brand-new" aria-label={t("newBrand")}>
+                    <Plus className="size-4" aria-hidden />
+                    <span className="hidden sm:inline">{t("newBrand")}</span>
+                  </Button>
+                ) : null}
+              </div>
+            </Field>
+            <Field
+              label={t("fields.price", { currency: pricing.baseCode })}
+              name="price"
+              error={error("price")}
+              hint={t("fields.priceHint")}
+            >
+              <NumberInput value={price} parse={{ integer: true, min: 0 }} onValueChange={setPrice} data-testid="product-price" />
+            </Field>
+          </div>
+          {groups.length === 0 ? (
+            <Alert tone="info" data-testid="product-no-categories">
+              {t("noCategories")}{" "}
+              <Link href="/catalog/categories" className="font-semibold underline">
+                {t("openCategories")}
+              </Link>
+            </Alert>
+          ) : null}
+          <Field label={t("fields.description")} name="description" error={error("description")} hint={t("fields.descriptionHint")}>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} data-testid="product-description" />
+          </Field>
+        </Card>
 
-      <Card className="flex flex-col gap-4" data-testid="variants-section">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <Card className="flex flex-col gap-4" data-testid="images-section">
           <div>
-            <h2 className="text-lg font-bold">{t("sections.variants")}</h2>
-            <p className="text-sm text-text-muted">{t("sections.variantsHint")}</p>
+            <h2 className="text-lg font-bold">{t("sections.images")}</h2>
+            <p className="text-sm text-text-muted">{t("sections.imagesHint")}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {missingSkus ? (
-              <Button variant="ghost" onClick={fillSkus} data-testid="variant-fill-skus">
-                <Sparkles className="size-4" aria-hidden />
-                {t("fillSkus")}
+          <ImageManager images={images} onChange={setImages} testId="product-images" />
+          {imageProblem && settled !== "ready" ? (
+            <Alert data-testid="images-not-ready">{t(imageProblem === "busy" ? "imagesBusy" : "imagesFailed")}</Alert>
+          ) : null}
+        </Card>
+
+        <Card className="flex flex-col gap-4" data-testid="variants-section">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold">{t("sections.variants")}</h2>
+              <p className="text-sm text-text-muted">{t("sections.variantsHint")}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {missingSkus ? (
+                <Button variant="ghost" onClick={fillSkus} data-testid="variant-fill-skus">
+                  <Sparkles className="size-4" aria-hidden />
+                  {t("fillSkus")}
+                </Button>
+              ) : null}
+              <Button
+                variant="secondary"
+                onClick={() => setDrafts((current) => [...current, nextDraft(current.at(-1), pricing.foreign[0]?.code ?? "")])}
+                data-testid="variant-add"
+              >
+                <Plus className="size-4" aria-hidden />
+                {t("addVariant")}
               </Button>
-            ) : null}
-            <Button
-              variant="secondary"
-              onClick={() => setDrafts((current) => [...current, nextDraft(current.at(-1), pricing.foreign[0]?.code ?? "")])}
-              data-testid="variant-add"
-            >
-              <Plus className="size-4" aria-hidden />
-              {t("addVariant")}
-            </Button>
+            </div>
           </div>
-        </div>
-        {drafts.map((draft, index) => (
-          <VariantCard
-            key={draft.key}
-            index={index}
-            draft={draft}
-            stored={draft.id ? stored.get(draft.id) : undefined}
-            productPrice={price}
-            pricing={pricing}
-            errors={variantErrors[draft.key] ?? {}}
-            canRemove={drafts.length > 1}
-            onChange={(patch) => change(draft.key, patch)}
-            onRemove={() => setDrafts((current) => current.filter((item) => item.key !== draft.key))}
-          />
-        ))}
-      </Card>
-
-      <Card className="flex flex-col gap-3" data-testid="visibility-section">
-        <h2 className="text-lg font-bold">{t("sections.visibility")}</h2>
-        <div className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label={t("sections.visibility")} data-testid="product-status">
-          {(["active", "hidden", ...(product ? (["archived"] as const) : [])] as const).map((value) => (
-            <label
-              key={value}
-              className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
-            >
-              <input
-                type="radio"
-                name="product-status"
-                className="mt-1"
-                checked={status === value}
-                onChange={() => setStatus(value)}
-                data-testid={`product-status-${value}`}
-              />
-              <span className="flex flex-col">
-                <span className="font-semibold">{t(`statusChoice.${value}.title`)}</span>
-                <span className="text-xs text-text-muted">{t(`statusChoice.${value}.body`)}</span>
-              </span>
-            </label>
+          {drafts.map((draft, index) => (
+            <VariantCard
+              key={draft.key}
+              index={index}
+              draft={draft}
+              stored={draft.id ? stored.get(draft.id) : undefined}
+              productPrice={price}
+              pricing={pricing}
+              errors={variantErrors[draft.key] ?? {}}
+              canRemove={drafts.length > 1}
+              onChange={(patch) => change(draft.key, patch)}
+              onRemove={() => setDrafts((current) => current.filter((item) => item.key !== draft.key))}
+            />
           ))}
-        </div>
-      </Card>
+        </Card>
 
-      {pendingApprovalId ? (
-        <Alert tone="info" data-testid="fixed-price-approval-pending" data-request={pendingApprovalId}>
-          <p className="font-semibold">{t("approvalPendingTitle")}</p>
-          <p className="mt-1 text-sm">{t("approvalPendingBody")}</p>
-          <Link href={`/finance/price-approvals/${pendingApprovalId}`} className="mt-2 inline-block text-sm font-semibold underline" data-testid="fixed-price-approval-link">
-            {t("openApproval")}
-          </Link>
-        </Alert>
-      ) : belowCost ? (
-        <BelowCostPanel
-          breaches={belowCost}
-          currency={product?.currency ?? "IQD"}
-          canApprove={false}
-          selfRefused={false}
-          note={t("belowCostNote")}
-        />
-      ) : (
-        <FormError kind={api.formError} detail={api.formErrorDetail} />
-      )}
+        <Card className="flex flex-col gap-3" data-testid="visibility-section">
+          <h2 className="text-lg font-bold">{t("sections.visibility")}</h2>
+          <div className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label={t("sections.visibility")} data-testid="product-status">
+            {(["active", "hidden", ...(product ? (["archived"] as const) : [])] as const).map((value) => (
+              <label
+                key={value}
+                className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+              >
+                <input
+                  type="radio"
+                  name="product-status"
+                  className="mt-1"
+                  checked={status === value}
+                  onChange={() => setStatus(value)}
+                  data-testid={`product-status-${value}`}
+                />
+                <span className="flex flex-col">
+                  <span className="font-semibold">{t(`statusChoice.${value}.title`)}</span>
+                  <span className="text-xs text-text-muted">{t(`statusChoice.${value}.body`)}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </Card>
 
-      {/* The save row stays in reach on a long form and on a tablet. */}
-      <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur lg:-mx-8 lg:px-8 print:hidden">
-        {settled === "busy" ? (
-          <span className="me-auto text-sm text-text-muted" aria-live="polite">
-            {t("imagesUploading")}
-          </span>
-        ) : null}
-        {product ? null : (
-          <Button variant="secondary" pending={api.pending} onClick={() => void submit("another")} data-testid="product-save-another">
-            {t("createAndAnother")}
-          </Button>
+        {pendingApprovalId ? (
+          <Alert tone="info" data-testid="fixed-price-approval-pending" data-request={pendingApprovalId}>
+            <p className="font-semibold">{t("approvalPendingTitle")}</p>
+            <p className="mt-1 text-sm">{t("approvalPendingBody")}</p>
+            <Link href={`/finance/price-approvals/${pendingApprovalId}`} className="mt-2 inline-block text-sm font-semibold underline" data-testid="fixed-price-approval-link">
+              {t("openApproval")}
+            </Link>
+          </Alert>
+        ) : belowCost ? (
+          <BelowCostPanel
+            breaches={belowCost}
+            currency={product?.currency ?? "IQD"}
+            canApprove={false}
+            selfRefused={false}
+            note={t("belowCostNote")}
+          />
+        ) : (
+          <FormError kind={api.formError} detail={api.formErrorDetail} />
         )}
-        <Button type="submit" pending={api.pending} data-testid="product-save">
-          {product ? t("save") : t("create")}
-        </Button>
-      </div>
 
+        {/* The save row stays in reach on a long form and on a tablet. */}
+        <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur lg:-mx-8 lg:px-8 print:hidden">
+          {settled === "busy" ? (
+            <span className="me-auto text-sm text-text-muted" aria-live="polite">
+              {t("imagesUploading")}
+            </span>
+          ) : null}
+          {product ? null : (
+            <Button variant="secondary" pending={api.pending} onClick={() => void submit("another")} data-testid="product-save-another">
+              {t("createAndAnother")}
+            </Button>
+          )}
+          <Button type="submit" pending={api.pending} data-testid="product-save">
+            {product ? t("save") : t("create")}
+          </Button>
+        </div>
+      </form>
+
+      {/* Outside the product form: the dialog is a form of its own. */}
       {canCreateBrand ? (
         <BrandQuickCreate
           open={brandDialog}
@@ -482,7 +486,7 @@ export function ProductEditor({
           }}
         />
       ) : null}
-    </form>
+    </>
   );
 }
 

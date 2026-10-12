@@ -7,6 +7,7 @@ import { Badge, Button, Input, Spinner } from "@/components/ui";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import type { Product } from "@/lib/catalog";
+import { useUnitName } from "@/components/catalog/unit-name";
 
 export interface PickedSku {
   variantId: string;
@@ -35,6 +36,7 @@ export function SkuPicker({
   disabled?: boolean;
 }) {
   const t = useTranslations("inventory.skuPicker");
+  const unitName = useUnitName();
   const locale = useLocale();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Product[]>([]);
@@ -74,7 +76,7 @@ export function SkuPicker({
         <span className="flex flex-col text-sm">
           <span className="font-semibold" dir="ltr">{value.sku}</span>
           <span className="text-xs text-text-muted">
-            {value.productName} · {value.wholeUnitsOnly ? t("wholeUnits", { unit: value.baseUnit }) : t("decimal", { unit: value.baseUnit })}
+            {value.productName} · {value.wholeUnitsOnly ? t("wholeUnits", { unit: unitName(value.baseUnit) }) : t("decimal", { unit: unitName(value.baseUnit) })}
           </span>
         </span>
         {disabled ? null : (
@@ -133,7 +135,7 @@ export function SkuPicker({
                     <span className="font-semibold" dir="ltr">{variant.sku}</span>
                     <span className="text-xs text-text-muted">{nameOf(product)}</span>
                   </span>
-                  <Badge>{variant.base_unit ?? "piece"}</Badge>
+                  <Badge>{unitName(variant.base_unit)}</Badge>
                 </button>
               </li>
             )),

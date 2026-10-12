@@ -10,6 +10,7 @@ import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
 import { InventoryPostingStatus } from "@/components/inventory/inventory-posting-status";
 import { SkuPicker, type PickedSku } from "@/components/inventory/sku-picker";
+import { useUnitName } from "@/components/catalog/unit-name";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { storeDay } from "@/lib/finance/dates";
 import { newOperationId } from "@/lib/finance/operations";
@@ -57,6 +58,7 @@ export function OpeningForm({
 }) {
   const t = useTranslations("inventory");
   const locale = useLocale();
+  const unitName = useUnitName();
   const posting = usePosting<Opening>();
   const nextKey = useRef(Math.max(1, initialSkus.length));
   // The usual case is one shop with one sellable location: it is chosen for
@@ -168,7 +170,7 @@ export function OpeningForm({
                   {line.lotNumber || t("lotAutomatic")}
                   {line.expiry ? <span className="block text-xs text-text-muted">{t("expires", { date: line.expiry })}</span> : null}
                 </td>
-                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(line.quantity, locale)} {line.sku?.baseUnit}</td>
+                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(line.quantity, locale)} {unitName(line.sku?.baseUnit)}</td>
                 <td className="px-3 py-2 text-end" dir="ltr">{formatCost(line.unitCost, locale)}</td>
               </tr>
             ))}
@@ -260,7 +262,7 @@ export function OpeningForm({
               </Field>
               <Field
                 key={`qty-${line.sku?.variantId ?? "none"}`}
-                label={line.sku ? t("quantityIn", { unit: line.sku.baseUnit }) : t("columns.quantity")}
+                label={line.sku ? t("quantityIn", { unit: unitName(line.sku.baseUnit) }) : t("columns.quantity")}
                 name="quantity"
                 error={e.quantity}
                 hint={line.sku ? (line.sku.wholeUnitsOnly ? t("wholeUnitsHint") : t("decimalHint")) : undefined}

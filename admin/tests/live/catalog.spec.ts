@@ -91,6 +91,8 @@ test("categories stay two levels; re-parenting is blocked with the API's message
   const form = page.getByTestId("category-form");
   await form.getByTestId("category-name-ar").fill(`قسم ${run}`);
   await form.getByTestId("category-name-en").fill(`Dept ${run}`);
+  // The slug is normally generated; this test sets its own, under "advanced".
+  await form.getByTestId("category-advanced").locator("summary").click();
   await form.getByTestId("category-slug").fill(dept);
   await form.getByTestId("dialog-submit").click();
   await expect(page.getByTestId(`category-row-${dept}`)).toBeVisible();
@@ -99,6 +101,8 @@ test("categories stay two levels; re-parenting is blocked with the API's message
   await expect(form.getByTestId("category-parent")).toHaveValue(/.+/);
   await form.getByTestId("category-name-ar").fill(`فرعي ${run}`);
   await form.getByTestId("category-name-en").fill(`Child ${run}`);
+  // The slug is normally generated; this test sets its own, under "advanced".
+  await form.getByTestId("category-advanced").locator("summary").click();
   await form.getByTestId("category-slug").fill(`child-${run}`);
   await form.getByTestId("dialog-submit").click();
   const child = page.getByTestId(`category-row-child-${run}`);
@@ -202,6 +206,8 @@ test("brands: create, edit, hide, and delete only when unused", async ({ page, r
   const form = page.getByTestId("brand-form");
   await form.getByTestId("brand-name-ar").fill(`أكمي ${run}`);
   await form.getByTestId("brand-name-en").fill(`Acme ${run}`);
+  // The slug is normally generated; this test sets its own, under "advanced".
+  await form.getByTestId("brand-advanced").locator("summary").click();
   await form.getByTestId("brand-slug").fill(slug);
   await form.getByTestId("dialog-submit").click();
   await expect(form).toBeHidden();
