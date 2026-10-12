@@ -8,6 +8,7 @@ import 'package:shubayr/core/widgets/quantity_stepper.dart';
 Widget host({
   required ValueChanged<num> onChanged,
   bool whole = false,
+  bool showRange = true,
   num quantity = 0.5,
   num max = 0.5,
   String locale = 'en',
@@ -28,6 +29,7 @@ Widget host({
     body: Center(
       child: QuantityStepper(
         quantity: quantity,
+        showRange: showRange,
         max: max,
         wholeUnitsOnly: whole,
         baseUnit: 'kg',
@@ -38,6 +40,42 @@ Widget host({
 );
 
 void main() {
+  for (final locale in ['en', 'ar']) {
+    testWidgets(
+      'private stock limit stays enforced without range disclosure $locale',
+      (tester) async {
+        num? result;
+        await tester.pumpWidget(
+          host(
+            onChanged: (q) => result = q,
+            quantity: 0.25,
+            max: 1.375,
+            showRange: false,
+            locale: locale,
+          ),
+        );
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(QuantityStepper)),
+        );
+        await tester.tap(find.text('0.25'));
+        await tester.pumpAndSettle();
+        final input = tester.widget<TextField>(find.byType(TextField));
+        expect(input.decoration?.helperText, isNull);
+        expect(find.textContaining('1.375'), findsNothing);
+        await tester.enterText(find.byType(TextFormField), '1.376');
+        await tester.tap(find.text(l10n.actionSave));
+        await tester.pumpAndSettle();
+        expect(result, isNull);
+        expect(find.textContaining('1.375'), findsNothing);
+        await tester.enterText(find.byType(TextFormField), '0.125');
+        await tester.tap(find.text(l10n.actionSave));
+        await tester.pumpAndSettle();
+        expect(result, 0.125);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('a closed cart line cannot commit an open quantity dialog', (
     tester,
   ) async {
