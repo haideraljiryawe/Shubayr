@@ -195,7 +195,16 @@
     }
   },
   "productReviewsPreview": "Showing {shown} of {total} reviews — preview",
-  "@productReviewsPreview": {"placeholders": {"shown": {"type": "String"}, "total": {"type": "String"}}},
+  "@productReviewsPreview": {
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "productReviews": "Reviews",
   "productNoReviews": "No reviews yet",
   "productReviewsCount": "{count} reviews",
@@ -761,5 +770,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "productLowStockLabel": "Low stock"
 }

@@ -1865,4 +1865,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get orderDecisionSaved => 'تم حفظ ردك.';
+
+  @override
+  String get productLowStockLabel => 'الكمية محدودة';
 }

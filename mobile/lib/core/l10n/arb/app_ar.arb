@@ -645,5 +645,6 @@
   "orderReductionDecline": "رفض تقليل الكمية",
   "orderReductionAcceptConfirm": "هل توافق على الكمية المخفضة المعروضة؟ سيحدث المتجر إجمالي الطلب.",
   "orderReductionDeclineConfirm": "هل ترفض تعديل الكمية؟ سيراجع المتجر طلبك.",
-  "orderDecisionSaved": "تم حفظ ردك."
+  "orderDecisionSaved": "تم حفظ ردك.",
+  "productLowStockLabel": "الكمية محدودة"
 }
