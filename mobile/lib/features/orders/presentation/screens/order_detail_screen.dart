@@ -30,6 +30,7 @@ import '../providers/order_action_providers.dart';
 import '../providers/after_sales_providers.dart';
 import '../widgets/order_status_pill.dart';
 import '../widgets/customer_order_requests.dart';
+import '../widgets/order_server_details.dart';
 
 /// A single order: header, the status timeline, the items, the amount summary,
 /// and — while the order can still be cancelled — a cancel action.
@@ -149,7 +150,10 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
                       _Header(order: o),
                       const SizedBox(height: AppSpacing.lg),
                       _SectionTitle(l10n.orderTrackingTitle),
-                      _TrackingCard(orderId: widget.orderId),
+                      _TrackingCard(
+                        orderId: widget.orderId,
+                        timeline: o.timeline,
+                      ),
                     ],
                   ),
                   Column(
@@ -217,6 +221,7 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
                                 ),
                         ),
                       ],
+                      OrderServerDetails(order: o),
                       CustomerOrderRequests(order: o),
                       if (isOrderCancellable(
                         o.status,
@@ -307,13 +312,16 @@ class _Header extends StatelessWidget {
 }
 
 class _TrackingCard extends ConsumerWidget {
-  const _TrackingCard({required this.orderId});
+  const _TrackingCard({required this.orderId, this.timeline});
 
   final String orderId;
+  final List<OrderEvent>? timeline;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tracking = ref.watch(orderTrackingProvider(orderId));
+    final tracking = timeline == null
+        ? ref.watch(orderTrackingProvider(orderId))
+        : AsyncData(OrderTracking(orderId: orderId, events: timeline!));
     return AppCard(
       child: tracking.when(
         loading: () => const Padding(
@@ -326,9 +334,9 @@ class _TrackingCard extends ConsumerWidget {
             ),
           ),
         ),
-        error: (_, _) => Text(
-          context.l10n.actionRetry,
-          style: TextStyle(color: context.colors.textMuted),
+        error: (_, _) => TextButton(
+          onPressed: () => ref.invalidate(orderTrackingProvider(orderId)),
+          child: Text(context.l10n.actionRetry),
         ),
         data: (t) => Column(
           children: [

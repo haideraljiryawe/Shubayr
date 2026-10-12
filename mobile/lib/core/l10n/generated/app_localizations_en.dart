@@ -1990,9 +1990,48 @@ class AppLocalizationsEn extends AppLocalizations {
       'Settle outstanding amounts before deleting your account.';
 
   @override
+  String get orderRequestDate => 'Requested';
+
+  @override
+  String get orderResolutionDate => 'Resolved';
+
+  @override
+  String get orderResolutionNote => 'Resolution note';
+
+  @override
+  String get orderAcceptedPrices => 'Accepted price changes';
+
+  @override
+  String get orderStockAttention => 'Order quantity shortage';
+
+  @override
+  String orderShortageQuantities(
+    String requested,
+    String allocated,
+    String short,
+  ) {
+    return 'Requested: $requested · Allocated: $allocated · Short: $short';
+  }
+
+  @override
+  String get orderPaidOnDelivery => 'Paid on delivery';
+
+  @override
+  String get orderStillOwed => 'Still owed';
+
+  @override
+  String get orderCollectionUnconfirmed => 'Payment is awaiting confirmation';
+
+  @override
   String get productUnavailableTitle => 'Product unavailable';
 
   @override
   String get productUnavailableMessage =>
       'This product is no longer available. Please browse the catalog for other products.';
+
+  @override
+  String get orderReductionAccepted => 'Quantity change accepted';
+
+  @override
+  String get orderReductionDenied => 'Quantity change declined';
 }
