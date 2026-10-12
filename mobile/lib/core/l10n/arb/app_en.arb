@@ -821,5 +821,29 @@
         "type": "String"
       }
     }
-  }
+  },
+  "orderRequestDate": "Requested",
+  "orderResolutionDate": "Resolved",
+  "orderResolutionNote": "Resolution note",
+  "orderAcceptedPrices": "Accepted price changes",
+  "orderStockAttention": "Order quantity shortage",
+  "orderShortageQuantities": "Requested: {requested} · Allocated: {allocated} · Short: {short}",
+  "orderPaidOnDelivery": "Paid on delivery",
+  "orderStillOwed": "Still owed",
+  "orderCollectionUnconfirmed": "Payment is awaiting confirmation",
+  "@orderShortageQuantities": {
+    "placeholders": {
+      "requested": {
+        "type": "String"
+      },
+      "allocated": {
+        "type": "String"
+      },
+      "short": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReductionAccepted": "Quantity change accepted",
+  "orderReductionDenied": "Quantity change declined"
 }

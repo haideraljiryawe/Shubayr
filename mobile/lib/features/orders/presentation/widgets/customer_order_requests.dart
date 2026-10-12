@@ -5,6 +5,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/quantity.dart';
+import '../../../../core/utils/display_date.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -165,6 +166,18 @@ class _CustomerOrderRequestsState extends ConsumerState<CustomerOrderRequests> {
             'denied' => l10n.orderCancellationDenied,
             _ => l10n.orderStateConflict,
           }),
+          if (request.reason?.trim().isNotEmpty == true)
+            Text('${l10n.orderCancellationReason}: ${request.reason}'),
+          if (request.requestedAt != null)
+            Text(
+              '${l10n.orderRequestDate}: ${DisplayDate.localDateTime(request.requestedAt!)}',
+            ),
+          if (request.resolutionNote?.trim().isNotEmpty == true)
+            Text('${l10n.orderResolutionNote}: ${request.resolutionNote}'),
+          if (request.resolvedAt != null)
+            Text(
+              '${l10n.orderResolutionDate}: ${DisplayDate.localDateTime(request.resolvedAt!)}',
+            ),
         ],
         if (canRequestOrderCancellation(order.status) &&
             request?.status != 'pending') ...[
