@@ -11,13 +11,20 @@ class SessionCredentials {
   SessionCredentials(this._store);
   final TokenStore _store;
   int _revision = 0;
+  final _cleanupOwners = <int>{};
+  final _deferredInvalidations = <int>{};
   Future<void> _operations = Future.value();
 
   int get revision => _revision;
   int beginTransition() => ++_revision;
   bool owns(int owner) => owner == _revision;
   void invalidate(int owner) {
-    if (owns(owner)) _revision++;
+    if (!owns(owner)) return;
+    if (_cleanupOwners.contains(owner)) {
+      _deferredInvalidations.add(owner);
+    } else {
+      _revision++;
+    }
   }
 
   Future<T> _serialize<T>(Future<T> Function() operation) {
@@ -62,6 +69,30 @@ class SessionCredentials {
     }
     return true;
   });
+
+  /// Logout cleanup may need authenticated HTTP before wiping credentials.
+  /// Retain only this cleanup's ownership across container disposal. A newer
+  /// login still increments the revision immediately and cannot be cleared.
+  /// Reads remain available to the cleanup; no credential copy/cache is made.
+  Future<StoredCredentials?> clearAfter(
+    int owner,
+    Future<void> Function() cleanup,
+  ) async {
+    if (!owns(owner)) return null;
+    _cleanupOwners.add(owner);
+    try {
+      try {
+        await cleanup();
+      } catch (_) {
+        if (owns(owner)) await clear(owner);
+        rethrow;
+      }
+      return owns(owner) ? await clear(owner) : null;
+    } finally {
+      _cleanupOwners.remove(owner);
+      if (_deferredInvalidations.remove(owner) && owns(owner)) _revision++;
+    }
+  }
 
   /// Accept a clear only from the current owner. Once accepted, it occupies a
   /// position before any newer writer and must finish even on disposal (logout

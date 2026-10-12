@@ -9,6 +9,7 @@ import '../../data/auth_repository_mock.dart';
 import '../../data/auth_repository_remote.dart';
 import '../../domain/auth_repository.dart';
 import '../../domain/session.dart';
+import '../../domain/session_exit_tasks.dart';
 import '../../domain/user_role.dart';
 import '../../../../core/storage/pending_request_store.dart';
 import '../../domain/profile_update.dart';
@@ -155,6 +156,8 @@ class SessionController extends AsyncNotifier<Session> {
       // Once replacing credentials, the previous identity no longer authorizes
       // account data. Ordinary guest OTP flows retain their existing UI state.
       state = const AsyncData(Session.signedOut());
+      await _endSessionTasks(revision);
+      if (!_owns(revision)) return null;
       final saved = await _credentials.save(
         revision,
         accessToken: accessToken,
@@ -235,13 +238,19 @@ class SessionController extends AsyncNotifier<Session> {
     final api = ref.read(appConfigProvider).apiBaseUrl;
     try {
       await repository.deleteAccount();
-      if (!_owns(revision)) return false;
+      if (!_owns(revision)) {
+        await journals.clearAccount(api, userId);
+        return false;
+      }
       // Immediately revoke authorization; all identity-bound providers discard
       // private state before asynchronous storage cleanup finishes.
       final cleanup = _owner = _credentials.beginTransition();
       state = const AsyncLoading();
       try {
-        await _credentials.clear(cleanup);
+        await _credentials.clearAfter(
+          cleanup,
+          () => _endSessionTasks(cleanup, accountDeleted: true),
+        );
         await journals.clearAccount(api, userId);
       } catch (error, stack) {
         if (_owns(cleanup)) {
@@ -260,6 +269,19 @@ class SessionController extends AsyncNotifier<Session> {
     }
   }
 
+  Future<void> _endSessionTasks(
+    int revision, {
+    bool accountDeleted = false,
+  }) async {
+    try {
+      await ref
+          .read(sessionExitTasksProvider)
+          .run(revision, accountDeleted: accountDeleted);
+    } catch (error, stack) {
+      actionFailure(error, stack);
+    }
+  }
+
   Future<void> signOut() async {
     final revision = _owner = _credentials.beginTransition();
     final repository = ref.read(authRepositoryProvider);
@@ -268,7 +290,10 @@ class SessionController extends AsyncNotifier<Session> {
     state = const AsyncLoading();
     final StoredCredentials? removed;
     try {
-      removed = await _credentials.clear(revision);
+      removed = await _credentials.clearAfter(
+        revision,
+        () => _endSessionTasks(revision),
+      );
     } catch (error, stack) {
       final failure = actionFailure(error, stack);
       if (_owns(revision)) state = AsyncError(failure, stack);

@@ -26,11 +26,17 @@ class ApiClient {
     String path, {
     Object? body,
     Map<String, dynamic>? headers,
+    int? sessionRevision,
   }) => _guard(
     () => dio.post<T>(
       path,
       data: body,
-      options: Options(headers: headers),
+      options: Options(
+        headers: headers,
+        extra: {
+          'sessionRevision': ?sessionRevision,
+        },
+      ),
     ),
   );
 
@@ -49,9 +55,21 @@ class ApiClient {
 
   /// DELETE that expects no body (e.g. a `204 No Content`), so an empty
   /// response is success rather than a [FailureKind.server] error.
-  Future<void> deleteVoid(String path) async {
+  Future<void> deleteVoid(
+    String path, {
+    Object? body,
+    int? sessionRevision,
+  }) async {
     try {
-      await dio.delete<void>(path);
+      await dio.delete<void>(
+        path,
+        data: body,
+        options: Options(
+          extra: {
+            'sessionRevision': ?sessionRevision,
+          },
+        ),
+      );
     } on DioException catch (e) {
       throw mapDioException(e);
     }

@@ -1824,6 +1824,13 @@ class AppLocalizationsAr extends AppLocalizations {
       'نتيجة الطلب السابق لم تُحسم. أعد المحاولة بنفس الاختيار والمبلغ أو الكمية.';
 
   @override
+  String get checkoutPendingRecovery =>
+      'نتيجة عملية الشراء السابقة غير معروفة. تحقق منها قبل إنشاء طلب جديد. ستتم إعادة المحاولة بالطلب الأصلي حتى إذا أصبحت السلة فارغة.';
+
+  @override
+  String get checkoutResolvePending => 'التحقق من عملية الشراء السابقة';
+
+  @override
   String get orderRequestCancellation => 'طلب إلغاء الطلب';
 
   @override
@@ -1865,6 +1872,29 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get orderDecisionSaved => 'تم حفظ ردك.';
+
+  @override
+  String get productLowStockLabel => 'الكمية محدودة';
+
+  @override
+  String get pushEnable => 'تفعيل الإشعارات الفورية';
+
+  @override
+  String get pushEnabled => 'تم تفعيل الإشعارات الفورية.';
+
+  @override
+  String get pushDenied =>
+      'الإشعارات معطّلة. اسمح بها في إعدادات جهازك ثم حاول مجددًا.';
+
+  @override
+  String get pushPending =>
+      'تسجيل الجهاز غير جاهز بعد. يرجى المحاولة بعد قليل.';
+
+  @override
+  String get pushUnavailable => 'لم تُضبط الإشعارات الفورية لهذا الإصدار بعد.';
+
+  @override
+  String get pushReceived => 'لديك إشعار جديد.';
 
   @override
   String get errorCheckoutIdentity =>
@@ -1916,16 +1946,6 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorPaidCancellation =>
       'لا يمكن إلغاء هذا الطلب المدفوع من هنا. تواصل مع المتجر للمساعدة.';
-
-  @override
-  String get checkoutPendingRecovery =>
-      'نتيجة عملية الشراء السابقة غير معروفة. تحقق منها قبل إنشاء طلب جديد. ستتم إعادة المحاولة بالطلب الأصلي حتى إذا أصبحت السلة فارغة.';
-
-  @override
-  String get checkoutResolvePending => 'التحقق من عملية الشراء السابقة';
-
-  @override
-  String get productLowStockLabel => 'الكمية محدودة';
 
   @override
   String get privacyPolicyUnavailable =>
