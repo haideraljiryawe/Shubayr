@@ -1888,4 +1888,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orderDecisionSaved => 'Your response has been saved.';
+
+  @override
+  String get productLowStockLabel => 'Low stock';
 }

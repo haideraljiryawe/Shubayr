@@ -772,5 +772,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "productLowStockLabel": "Low stock"
 }

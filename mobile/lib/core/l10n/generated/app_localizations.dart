@@ -3655,6 +3655,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your response has been saved.'**
   String get orderDecisionSaved;
+
+  /// No description provided for @productLowStockLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Low stock'**
+  String get productLowStockLabel;
 }
 
 class _AppLocalizationsDelegate
