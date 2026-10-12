@@ -69,13 +69,16 @@ class FirebasePushClient implements PushClient {
 
   @override
   Future<String?> token() async {
-    // Apple requires APNs registration before FCM token APIs. Retry on resume
-    // and token refresh if APNs has not finished yet; never synthesize a token.
+    // The lifecycle verifies customer ownership and permission before calling.
+    // Auto-init starts APNs registration; waiting for APNs first can deadlock it.
+    await _messaging.setAutoInitEnabled(true);
+    // Apple requires APNs before getToken(). Keep pending until resume/token
+    // refresh retries after APNs registration completes; never synthesize a token.
     if (platform == 'ios' && await _messaging.getAPNSToken() == null) {
       return null;
     }
-    await _messaging.setAutoInitEnabled(true);
-    return _messaging.getToken();
+    final token = await _messaging.getToken();
+    return token;
   }
 
   @override
