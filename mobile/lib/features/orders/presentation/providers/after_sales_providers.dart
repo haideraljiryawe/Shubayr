@@ -209,6 +209,26 @@ class ReturnEligibility {
         );
       }
     }
+    // The order snapshot owns the unit rule, including when the live SKU is hidden.
+    // Missing rules cannot authorize a return. Never guess from the base-unit name.
+    if (order.status == 'delivered' &&
+        order.items.any(
+          (item) =>
+              item.baseUnit == null ||
+              item.baseUnit!.trim().isEmpty ||
+              item.wholeUnitsOnly == null ||
+              !isValidQuantity(
+                item.quantity,
+                wholeUnitsOnly: item.wholeUnitsOnly!,
+              ) ||
+              !isValidQuantity(
+                consumed[item.id] ?? 0,
+                min: 0,
+                wholeUnitsOnly: item.wholeUnitsOnly!,
+              ),
+        )) {
+      throw const AppFailure(FailureKind.server);
+    }
     remaining = Map.unmodifiable({
       for (final item in order.items)
         item.id: order.status == 'delivered'
@@ -308,6 +328,12 @@ class ReturnEligibilityController extends AsyncNotifier<ReturnEligibility> {
         items.any(
           (i) => !isValidQuantity(
             i.quantity,
+            wholeUnitsOnly:
+                current.order.items
+                    .where((item) => item.id == i.orderItemId)
+                    .firstOrNull
+                    ?.wholeUnitsOnly ??
+                true,
             max: current.remaining[i.orderItemId] ?? 0,
           ),
         )) {

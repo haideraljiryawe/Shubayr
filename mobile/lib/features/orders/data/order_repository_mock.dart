@@ -105,6 +105,8 @@ class OrderRepositoryMock implements OrderRepository {
             imageUrl: product?.primaryImage,
             imageSnapshotProvided: true,
             quantity: qty,
+            baseUnit: 'piece',
+            wholeUnitsOnly: true,
             unitPrice: unit,
             lineTotal: unit * qty,
           );
@@ -179,6 +181,18 @@ class OrderRepositoryMock implements OrderRepository {
           imageUrl: product?.primaryImage,
           imageSnapshotProvided: true,
           quantity: i.quantity,
+          baseUnit:
+              product?.variants
+                  .where((v) => v.id == i.variantId)
+                  .firstOrNull
+                  ?.baseUnit ??
+              'piece',
+          wholeUnitsOnly:
+              product?.variants
+                  .where((v) => v.id == i.variantId)
+                  .firstOrNull
+                  ?.wholeUnitsOnly ??
+              true,
           unitPrice: i.unitPrice,
           lineTotal: i.lineTotal,
         );

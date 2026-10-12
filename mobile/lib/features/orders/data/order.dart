@@ -86,6 +86,8 @@ class OrderItem {
     this.imageUrl,
     bool? imageSnapshotProvided,
     this.quantity = 1,
+    this.baseUnit,
+    this.wholeUnitsOnly,
     this.unitPrice = 0,
     this.lineTotal = 0,
     this.reviewed,
@@ -123,6 +125,10 @@ class OrderItem {
   }
 
   final num quantity;
+  @JsonKey(name: 'base_unit', includeIfNull: false)
+  final String? baseUnit;
+  @JsonKey(name: 'whole_units_only', includeIfNull: false)
+  final bool? wholeUnitsOnly;
   @JsonKey(name: 'unit_price')
   final num unitPrice;
   @JsonKey(name: 'line_total')
@@ -141,6 +147,8 @@ class OrderItem {
       productId: item.productId,
       variantId: item.variantId,
       quantity: item.quantity,
+      baseUnit: item.baseUnit,
+      wholeUnitsOnly: item.wholeUnitsOnly,
       unitPrice: item.unitPrice,
       lineTotal: item.lineTotal,
       reviewed: item.reviewed,

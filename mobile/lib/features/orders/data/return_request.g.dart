@@ -36,12 +36,16 @@ ReturnRequestItem _$ReturnRequestItemFromJson(Map<String, dynamic> json) =>
       quantity: json['quantity'] as num,
       approvedQuantity: json['approved_quantity'] as num?,
       reason: json['customer_reason'] as String?,
+      baseUnit: json['base_unit'] as String?,
+      wholeUnitsOnly: json['whole_units_only'] as bool?,
     );
 
 Map<String, dynamic> _$ReturnRequestItemToJson(ReturnRequestItem instance) =>
     <String, dynamic>{
       'order_item_id': instance.orderItemId,
       'quantity': instance.quantity,
+      'base_unit': ?instance.baseUnit,
+      'whole_units_only': ?instance.wholeUnitsOnly,
       'approved_quantity': ?instance.approvedQuantity,
       'customer_reason': ?instance.reason,
     };

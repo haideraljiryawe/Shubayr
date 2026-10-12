@@ -317,7 +317,8 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                           ),
                           subtitle: Text(
                             l10n.orderLineQuantity(
-                              formatQuantity(line.quantity),
+                              '${formatQuantity(line.quantity)} ${line.baseUnit ?? order.items.firstWhere((item) => item.id == line.orderItemId).baseUnit ?? ''}'
+                                  .trim(),
                             ),
                           ),
                         ),
@@ -350,7 +351,8 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                             const SizedBox(height: AppSpacing.sm),
                             Text(
                               l10n.returnAvailable(
-                                formatQuantity(eligibility.remaining[item.id]!),
+                                '${formatQuantity(eligibility.remaining[item.id]!)} ${item.baseUnit ?? ''}'
+                                    .trim(),
                               ),
                             ),
                             Row(
@@ -384,6 +386,8 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                                               eligibility,
                                             ),
                                             min: 0,
+                                            wholeUnitsOnly:
+                                                item.wholeUnitsOnly!,
                                             max:
                                                 eligibility.remaining[item.id]!,
                                           );
