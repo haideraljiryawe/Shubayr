@@ -176,6 +176,28 @@ dart run build_runner build
 Localisations are generated from the ARB files by `flutter pub get` /
 `flutter gen-l10n` into `lib/core/l10n/generated/` and are committed too.
 
+Generation explicitly enables Dart formatting in `l10n.yaml`. Mobile's
+`.gitattributes` keeps the manifest, ARBs and generated Dart on LF line endings:
+Flutter derives generated line endings from `pubspec.yaml`, so a platform's
+checkout conversion must not change them. Do not hand-format or ignore tracked
+generated files as a workaround for build changes.
+
+After changing translations, run `flutter gen-l10n`, review the generated diff,
+then verify repeatability with:
+
+```bash
+dart run tool/check_localizations.dart
+```
+
+The check generates twice and rejects stale or non-repeatable output. It leaves
+regenerated files available for review. Run it before and after release builds;
+also inspect `git diff -- lib/core/l10n/generated`. Use the same Flutter/Dart
+toolchain when comparing results; generator or formatter upgrades can require
+an intentional regeneration commit. The Release 1 investigation on Flutter
+3.47.4 found no drift in standalone generation or an unsigned iOS release build;
+the historical build drift was not reproduced on that baseline. These explicit
+settings and the check guard the output invariant without changing translations.
+
 ---
 
 ## Architecture
