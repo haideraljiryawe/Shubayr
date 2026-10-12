@@ -525,6 +525,16 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(AlertDialog), findsOneWidget);
         expect(repo.returns, 0);
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(ReturnOrderScreen)),
+        );
+        (container.read(sessionControllerProvider.notifier) as TestSession)
+            .setSession(
+              const Session.signedIn(User(id: 'B', role: 'customer')),
+            );
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(repo.returns, 0);
         expect(tester.takeException(), isNull);
       },
     );

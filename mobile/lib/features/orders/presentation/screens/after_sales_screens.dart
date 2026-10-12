@@ -241,6 +241,30 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
     super.dispose();
   }
 
+  Widget _ownedQuantityDialog(
+    BuildContext dialogContext,
+    Object? identity,
+    Widget dialog,
+  ) => Consumer(
+    builder: (context, dialogRef, _) {
+      dialogRef.listen(ordersIdentityProvider, (_, next) {
+        if (next == identity || !dialogContext.mounted) {
+          return;
+        }
+        final route = ModalRoute.of(dialogContext);
+        if (route == null || !route.isActive) {
+          return;
+        }
+        if (route.isCurrent) {
+          Navigator.pop(dialogContext);
+        } else {
+          Navigator.of(dialogContext).removeRoute(route);
+        }
+      });
+      return dialog;
+    },
+  );
+
   num _quantity(String itemId, ReturnEligibility eligibility) =>
       (_quantities[itemId] ?? 0).clamp(0, eligibility.remaining[itemId] ?? 0);
 
@@ -379,6 +403,9 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                                   onTap: _busy
                                       ? null
                                       : () async {
+                                          final identity = ref.read(
+                                            ordersIdentityProvider,
+                                          );
                                           final quantity = await editQuantity(
                                             context,
                                             quantity: _quantity(
@@ -386,12 +413,25 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                                               eligibility,
                                             ),
                                             min: 0,
+                                            baseUnit: item.baseUnit,
+                                            dialogWrapper:
+                                                (dialogContext, dialog) =>
+                                                    _ownedQuantityDialog(
+                                                      dialogContext,
+                                                      identity,
+                                                      dialog,
+                                                    ),
                                             wholeUnitsOnly:
                                                 item.wholeUnitsOnly!,
                                             max:
                                                 eligibility.remaining[item.id]!,
                                           );
-                                          if (mounted && quantity != null) {
+                                          if (mounted &&
+                                              quantity != null &&
+                                              ref.read(
+                                                    ordersIdentityProvider,
+                                                  ) ==
+                                                  identity) {
                                             setState(
                                               () => _quantities[item.id] =
                                                   quantity,
