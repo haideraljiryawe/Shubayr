@@ -19,6 +19,10 @@ ProductVariant _$ProductVariantFromJson(Map<String, dynamic> json) =>
       wholeUnitsOnly: json['whole_units_only'] as bool? ?? true,
       availableQty: json['available_qty'] as num?,
       inStock: json['in_stock'] as bool?,
+      availability: $enumDecodeNullable(
+        _$StockAvailabilityEnumMap,
+        json['availability'],
+      ),
       lowStockThreshold: json['low_stock_threshold'] as num?,
     );
 
@@ -34,9 +38,16 @@ Map<String, dynamic> _$ProductVariantToJson(ProductVariant instance) =>
       'base_unit': ?instance.baseUnit,
       'whole_units_only': instance.wholeUnitsOnly,
       'available_qty': ?instance.availableQty,
+      'availability': ?_$StockAvailabilityEnumMap[instance.availability],
       'in_stock': ?instance.inStock,
       'low_stock_threshold': ?instance.lowStockThreshold,
     };
+
+const _$StockAvailabilityEnumMap = {
+  StockAvailability.outOfStock: 'out_of_stock',
+  StockAvailability.lowStock: 'low_stock',
+  StockAvailability.inStock: 'in_stock',
+};
 
 Product _$ProductFromJson(Map<String, dynamic> json) => Product(
   id: json['id'] as String,
@@ -65,6 +76,10 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
   ratingAvg: json['rating_avg'] as num? ?? 0,
   status: json['status'] as String? ?? 'active',
   inStock: json['in_stock'] as bool? ?? true,
+  availability: $enumDecodeNullable(
+    _$StockAvailabilityEnumMap,
+    json['availability'],
+  ),
   availableQty: json['available_qty'] as num? ?? 0,
   media:
       (json['images'] as List<dynamic>?)
@@ -100,6 +115,7 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
   'tracks_expiry': instance.tracksExpiry,
   'rating_avg': instance.ratingAvg,
   'status': instance.status,
+  'availability': ?_$StockAvailabilityEnumMap[instance.availability],
   'in_stock': instance.inStock,
   'available_qty': instance.availableQty,
   'images': instance.media.map((e) => e.toJson()).toList(),

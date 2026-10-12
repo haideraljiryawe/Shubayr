@@ -1933,4 +1933,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorPaidCancellation =>
       'This paid order cannot be cancelled here. Contact the store for help.';
+
+  @override
+  String get checkoutPendingRecovery =>
+      'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.';
+
+  @override
+  String get checkoutResolvePending => 'Resolve previous checkout';
+
+  @override
+  String get productLowStockLabel => 'Low stock';
 }

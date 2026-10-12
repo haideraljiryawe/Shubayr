@@ -1,5 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import 'stock_availability.dart';
+
 part 'product_availability.g.dart';
 
 /// Live availability for a product, computed by the API at read time. Shapes
@@ -10,12 +12,15 @@ class ProductAvailability {
   const ProductAvailability({
     required this.productId,
     required this.inStock,
+    this.availability,
     required this.availableQty,
     this.variants = const [],
   });
 
   @JsonKey(name: 'product_id')
   final String productId;
+  @JsonKey(includeIfNull: false)
+  final StockAvailability? availability;
   @JsonKey(name: 'in_stock')
   final bool inStock;
 
@@ -49,6 +54,7 @@ class VariantAvailability {
     this.lowStockThreshold,
     required this.availableQty,
     required this.inStock,
+    this.availability,
   });
 
   @JsonKey(name: 'variant_id')
@@ -56,6 +62,8 @@ class VariantAvailability {
   final String sku;
   @JsonKey(name: 'available_qty')
   final num availableQty;
+  @JsonKey(includeIfNull: false)
+  final StockAvailability? availability;
   @JsonKey(name: 'in_stock')
   final bool inStock;
 

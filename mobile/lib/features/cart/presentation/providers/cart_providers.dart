@@ -182,6 +182,20 @@ class CartController extends AsyncNotifier<Cart> {
     }, duplicateKey: 'checkout');
   }
 
+  /// Replays an existing checkout even when the server has consumed the cart.
+  /// Serialized with cart writes, and never authorizes a fresh order itself.
+  Future<CartMutationResult> recoverCheckout(Future<void> Function() recover) =>
+      _run(
+        (repository) async {
+          final owner = _owner;
+          await recover();
+          if (owner == null || !_owns(owner)) return const Cart();
+          return repository.fetchCart();
+        },
+        duplicateKey: 'checkout',
+        requireFreshSnapshot: true,
+      );
+
   bool _owns(Object owner) =>
       ref.mounted && ref.read(_cartSessionProvider) == owner;
 

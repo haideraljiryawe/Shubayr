@@ -1916,4 +1916,14 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorPaidCancellation =>
       'لا يمكن إلغاء هذا الطلب المدفوع من هنا. تواصل مع المتجر للمساعدة.';
+
+  @override
+  String get checkoutPendingRecovery =>
+      'نتيجة عملية الشراء السابقة غير معروفة. تحقق منها قبل إنشاء طلب جديد. ستتم إعادة المحاولة بالطلب الأصلي حتى إذا أصبحت السلة فارغة.';
+
+  @override
+  String get checkoutResolvePending => 'التحقق من عملية الشراء السابقة';
+
+  @override
+  String get productLowStockLabel => 'الكمية محدودة';
 }

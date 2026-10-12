@@ -783,5 +783,8 @@
   "errorCancellationNotAllowed": "Cancellation is not available in the current order state. Review the updated order.",
   "errorCancellationPending": "A cancellation request is already pending for this order.",
   "errorReductionResolved": "This quantity proposal is no longer pending. Review the updated order.",
-  "errorPaidCancellation": "This paid order cannot be cancelled here. Contact the store for help."
+  "errorPaidCancellation": "This paid order cannot be cancelled here. Contact the store for help.",
+  "checkoutPendingRecovery": "A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.",
+  "checkoutResolvePending": "Resolve previous checkout",
+  "productLowStockLabel": "Low stock"
 }

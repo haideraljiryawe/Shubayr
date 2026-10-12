@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/error/response_decode.dart';
+import '../../../../core/storage/pending_request_store.dart';
+import 'pending_checkout_provider.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../cart/data/cart.dart';
 import '../../data/order.dart';
@@ -81,17 +83,40 @@ class CheckoutController extends Notifier<bool> {
         _priceChanges = const [];
         Order order;
         try {
-          order = await repository.placeOrder(
-            addressId: addressId,
-            couponCode: cart.couponCode,
-            acceptedPriceVersions: [
-              for (final change in accepted)
-                (
-                  variantId: change.variantId!,
-                  priceVersion: change.newPriceVersion!,
-                ),
-            ],
-          );
+          final slot = ref.read(pendingCheckoutSlotProvider)!;
+          final store = ref.read(pendingRequestStoreProvider);
+          if (await store.read(slot) != null) {
+            throw const AppFailure(
+              FailureKind.conflict,
+              code: 'PENDING_REQUEST',
+            );
+          }
+          if (!_owns(owner)) throw const AppFailure.unauthorized();
+          final request = await store.prepare(slot, {
+            'address_id': addressId,
+            'coupon_code': ?cart.couponCode,
+            'payment_method': 'cod',
+            if (accepted.isNotEmpty)
+              'accepted_price_versions': [
+                for (final change in accepted)
+                  {
+                    'variant_id': change.variantId!,
+                    'price_version': change.newPriceVersion!,
+                  },
+              ],
+          });
+          if (!_owns(owner)) throw const AppFailure.unauthorized();
+          try {
+            order = await _sendPending(repository, request);
+          } catch (error) {
+            // Only a definitive rejection of this first attempt releases its
+            // key. Unknown outcomes remain durable until explicit recovery.
+            if (isDefinitiveWriteRejection(error)) {
+              await store.complete(slot, request.id);
+            }
+            rethrow;
+          }
+          await store.complete(slot, request.id);
         } on AppFailure catch (error) {
           if (_owns(owner) &&
               error.statusCode == 409 &&
@@ -133,10 +158,112 @@ class CheckoutController extends Notifier<bool> {
             )
           : const OrderActionResult(OrderActionStatus.superseded);
     } finally {
-      if (_owns(owner)) state = false;
+      if (_owns(owner)) {
+        state = false;
+        ref.invalidate(pendingCheckoutProvider);
+      }
       keepAlive.close();
     }
   }
+
+  /// Explicitly resolves a previous uncertain order, using its original payload.
+  /// It may have already consumed the cart, so do not require a nonempty cart.
+  Future<OrderActionResult> recover() async {
+    if (!ref.mounted) {
+      return const OrderActionResult(OrderActionStatus.superseded);
+    }
+    final owner = ref.read(ordersIdentityProvider);
+    if (!_owns(owner)) {
+      return const OrderActionResult(OrderActionStatus.superseded);
+    }
+    if (state) return const OrderActionResult(OrderActionStatus.duplicate);
+    final keepAlive = ref.keepAlive();
+    state = true;
+    try {
+      final slot = ref.read(pendingCheckoutSlotProvider)!;
+      final store = ref.read(pendingRequestStoreProvider);
+      final repository = ref.read(orderRepositoryProvider);
+      final request = await store.read(slot);
+      if (!_owns(owner)) {
+        return const OrderActionResult(OrderActionStatus.superseded);
+      }
+      if (request == null) {
+        return const OrderActionResult(
+          OrderActionStatus.failed,
+          error: AppFailure(FailureKind.validation),
+        );
+      }
+      Order? placed;
+      final result = await ref
+          .read(cartControllerProvider.notifier)
+          .recoverCheckout(() async {
+            if (!_owns(owner)) throw const AppFailure.unauthorized();
+            // Even a later 4xx cannot establish that the original attempt failed.
+            final order = await _sendPending(repository, request);
+            await store.complete(slot, request.id);
+            if (!_owns(owner)) return;
+            placed = order;
+            ref.invalidate(ordersProvider);
+          });
+      if (!_owns(owner)) {
+        return const OrderActionResult(OrderActionStatus.superseded);
+      }
+      if (placed != null) {
+        return OrderActionResult(OrderActionStatus.succeeded, order: placed);
+      }
+      return OrderActionResult(OrderActionStatus.failed, error: result.error);
+    } catch (error, stack) {
+      return _owns(owner)
+          ? OrderActionResult(
+              OrderActionStatus.failed,
+              error: actionFailure(error, stack),
+            )
+          : const OrderActionResult(OrderActionStatus.superseded);
+    } finally {
+      if (_owns(owner)) {
+        state = false;
+        ref.invalidate(pendingCheckoutProvider);
+      }
+      keepAlive.close();
+    }
+  }
+
+  Future<Order> _sendPending(
+    OrderRepository repository,
+    PendingRequest request,
+  ) => decodeResponse(() async {
+    final body = request.body;
+    if (body['address_id'] is! String ||
+        (body['address_id'] as String).isEmpty ||
+        body['payment_method'] != 'cod' ||
+        body.keys.any(
+          (key) => !const {
+            'address_id',
+            'coupon_code',
+            'payment_method',
+            'accepted_price_versions',
+          }.contains(key),
+        )) {
+      throw const FormatException('Invalid saved checkout');
+    }
+    final accepted = body['accepted_price_versions'] as List? ?? const [];
+    final versions = <({String variantId, String priceVersion})>[];
+    for (final value in accepted) {
+      final line = value as Map;
+      final variant = line['variant_id'] as String;
+      final version = line['price_version'] as String;
+      if (variant.isEmpty || version.isEmpty || version.length > 64) {
+        throw const FormatException('Invalid saved acceptance');
+      }
+      versions.add((variantId: variant, priceVersion: version));
+    }
+    return repository.placeOrder(
+      idempotencyKey: request.id,
+      addressId: body['address_id'] as String,
+      couponCode: body['coupon_code'] as String?,
+      acceptedPriceVersions: versions,
+    );
+  });
 
   bool _validPriceChanges(List<ApiFieldError> changes, Cart cart) {
     if (changes.isEmpty) return false;

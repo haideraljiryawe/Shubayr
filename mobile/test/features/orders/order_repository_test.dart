@@ -30,6 +30,7 @@ void main() {
       final repo = OrderRepositoryMock(cart, delay: Duration.zero);
 
       final order = await repo.placeOrder(
+        idempotencyKey: 'test-checkout-key',
         addressId: 'a1',
         couponCode: 'SAVE10',
       );
@@ -96,7 +97,10 @@ void main() {
     );
     final repo = OrderRepositoryMock(cart, delay: Duration.zero);
 
-    final placed = await repo.placeOrder(addressId: 'a1');
+    final placed = await repo.placeOrder(
+      idempotencyKey: 'test-checkout-key',
+      addressId: 'a1',
+    );
     final page = await repo.fetchOrders();
 
     expect(page.data.first.id, placed.id);

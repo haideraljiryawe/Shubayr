@@ -1,5 +1,4 @@
 import '../../../../core/error/failure.dart';
-import '../../../../core/utils/quantity.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import '../widgets/product_promotion.dart';
@@ -22,6 +21,7 @@ import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/product.dart';
 import '../../data/product_availability.dart';
+import '../../data/stock_availability.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/product_gallery.dart';
 import '../widgets/reviews_section.dart';
@@ -108,7 +108,7 @@ typedef _Stock = ({
   num qty,
   bool wholeUnitsOnly,
   String? baseUnit,
-  num lowStockThreshold,
+  StockAvailability? availability,
 });
 
 class _Detail extends ConsumerStatefulWidget {
@@ -157,8 +157,10 @@ class _DetailState extends ConsumerState<_Detail> {
       qty: qty,
       wholeUnitsOnly: whole,
       baseUnit: row?.baseUnit ?? selected?.baseUnit,
-      lowStockThreshold:
-          row?.lowStockThreshold ?? selected?.lowStockThreshold ?? 5,
+      availability:
+          row?.availability ??
+          selected?.availability ??
+          (selected == null ? a?.availability ?? product.availability : null),
     );
   }
 
@@ -249,8 +251,7 @@ class _DetailState extends ConsumerState<_Detail> {
                         const SizedBox(height: AppSpacing.sm),
                         _AvailabilityBadge(
                           inStock: stock.inStock,
-                          qty: stock.qty,
-                          lowStockThreshold: stock.lowStockThreshold,
+                          availability: stock.availability,
                         ),
                         if (product.variants.isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.lg),
@@ -329,31 +330,26 @@ class _DetailState extends ConsumerState<_Detail> {
 
 /// In-stock / low-stock / out-of-stock indicator for the current selection.
 class _AvailabilityBadge extends StatelessWidget {
-  const _AvailabilityBadge({
-    required this.inStock,
-    required this.qty,
-    required this.lowStockThreshold,
-  });
+  const _AvailabilityBadge({required this.inStock, required this.availability});
 
   final bool inStock;
-  final num qty;
-
-  final num lowStockThreshold;
+  final StockAvailability? availability;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final colors = context.colors;
-    final (Color color, IconData icon, String label) = switch ((inStock, qty)) {
-      (false, _) => (
+    final (Color color, IconData icon, String label) = switch (availability ??
+        (inStock ? StockAvailability.inStock : StockAvailability.outOfStock)) {
+      StockAvailability.outOfStock => (
         colors.textMuted,
         Icons.remove_circle_outline,
         l10n.commonOutOfStock,
       ),
-      (true, final q) when q <= lowStockThreshold => (
+      StockAvailability.lowStock => (
         colors.warning,
         Icons.timelapse,
-        l10n.productLowStock(formatQuantity(q)),
+        l10n.productLowStockLabel,
       ),
       _ => (colors.success, Icons.check_circle_outline, l10n.productInStock),
     };

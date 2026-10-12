@@ -1,3 +1,4 @@
+import 'package:shubayr/core/storage/pending_request_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,6 +46,9 @@ void main() {
             final c = ProviderContainer(
               retry: (_, _) => null,
               overrides: [
+                pendingRequestStoreProvider.overrideWithValue(
+                  PendingRequestStore.memory(),
+                ),
                 sessionControllerProvider.overrideWith(TestSession.new),
                 cartRepositoryProvider.overrideWithValue(carts),
                 orderRepositoryProvider.overrideWithValue(orders),
@@ -107,6 +111,9 @@ void main() {
     final c = ProviderContainer(
       retry: (_, _) => null,
       overrides: [
+        pendingRequestStoreProvider.overrideWith(
+          (ref) => PendingRequestStore.memory(),
+        ),
         sessionControllerProvider.overrideWith(TestSession.new),
         cartRepositoryProvider.overrideWithValue(carts),
         orderRepositoryProvider.overrideWithValue(orders),

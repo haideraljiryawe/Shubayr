@@ -3721,6 +3721,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This paid order cannot be cancelled here. Contact the store for help.'**
   String get errorPaidCancellation;
+
+  /// No description provided for @checkoutPendingRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.'**
+  String get checkoutPendingRecovery;
+
+  /// No description provided for @checkoutResolvePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve previous checkout'**
+  String get checkoutResolvePending;
+
+  /// No description provided for @productLowStockLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Low stock'**
+  String get productLowStockLabel;
 }
 
 class _AppLocalizationsDelegate
