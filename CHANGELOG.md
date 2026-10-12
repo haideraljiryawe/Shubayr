@@ -1,5 +1,26 @@
 # Changelog
 
+## 14.2.0 - 2026-10-12
+
+### Added
+
+- Assignment-scoped delivery details for agents, including the recipient,
+  shipping snapshot, items, quantity units and amount due, with staff access
+  through a separate permission-protected route.
+- Customer self-service account deletion with blocker codes, transactional
+  anonymization, session revocation, audit history and later phone reuse.
+- Production push delivery through FCM HTTP v1 using secret-managed Firebase
+  service-account credentials, including automatic invalid-token deactivation.
+
+### Changed
+
+- Order and return items now preserve `base_unit` and `whole_units_only` as
+  immutable order-time snapshots.
+- Monitor order-list rows now identify their currency, and public settings now
+  return the already-declared low-stock threshold and sale-rounding multiple.
+- The API contract is version 14.2.0. This is an additive, non-breaking minor
+  release; no existing fields or routes were removed.
+
 ## 14.1.0 - 2026-10-10
 
 ### Added

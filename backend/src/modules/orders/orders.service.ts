@@ -268,6 +268,8 @@ export class OrdersService {
           unit_price,
           line_total: calculateLineTotal(unit_price, requestedQuantity),
           price_version: priceVersion,
+          base_unit: variant.base_unit,
+          whole_units_only: variant.whole_units_only,
           product_name_ar: product.name_ar,
           product_name_en: product.name_en,
           image_url: product.images[0]?.url ?? null,
@@ -677,6 +679,7 @@ export class OrdersService {
       customer_phone: string | null;
       total: Prisma.Decimal;
       payment_method: string;
+      currency_code: string;
       placed_at: Date;
     };
     const [totalRows, counts, rows] = await this.prisma.$transaction([
@@ -688,7 +691,7 @@ export class OrdersService {
         WHERE true ${search} ${from} ${to} GROUP BY o.status`),
       this.prisma.$queryRaw<MonitorListRow[]>(Prisma.sql`
         SELECT o.id, o.order_number, o.status, u.name AS customer_name, u.phone AS customer_phone,
-               o.total, o.payment_method, o.placed_at
+               o.total, o.payment_method, o.currency_code, o.placed_at
         FROM orders o JOIN users u ON u.id = o.user_id
         WHERE true ${search} ${from} ${to} ${status}
         ORDER BY o.placed_at DESC, o.id DESC
@@ -704,7 +707,11 @@ export class OrdersService {
       per_page: perPage,
       total: Number(totalRows[0]?.count ?? 0n),
       status_counts: statusCounts,
-      data: rows.map((row) => ({ ...row, total: Number(row.total) })),
+      data: rows.map(({ currency_code, ...row }) => ({
+        ...row,
+        total: Number(row.total),
+        currency: currency_code,
+      })),
     };
   }
 
@@ -739,6 +746,8 @@ export class OrdersService {
         product_name_ar: item.product_name_ar,
         product_name_en: item.product_name_en,
         quantity: Number(item.quantity),
+        base_unit: item.base_unit,
+        whole_units_only: item.whole_units_only,
         unit_price: Number(item.unit_price),
         line_total: Number(item.line_total),
         currency: item.currency_code,
@@ -1629,6 +1638,8 @@ export class OrdersService {
         product_name_en: item.product_name_en,
         image_url: item.image_url,
         quantity: Number(item.quantity),
+        base_unit: item.base_unit,
+        whole_units_only: item.whole_units_only,
         unit_price: Number(item.unit_price),
         price_version: item.price_version,
         line_total: Number(item.line_total),

@@ -148,6 +148,131 @@ describe('DeliveriesService', () => {
   });
 });
 
+describe('DeliveriesService delivery details', () => {
+  const detailRow = {
+    id: 'delivery-1',
+    order_id: 'order-1',
+    agent_id: 'party-1',
+    status: 'out_for_delivery',
+    order: {
+      id: 'order-1',
+      order_number: 'ORD-1001',
+      version: 4,
+      currency_code: 'IQD',
+      total: 125000,
+      delivery_contact_phone: '+9647700000000',
+      delivery_address_label: 'Home',
+      delivery_city: 'Baghdad',
+      delivery_area: 'Karrada',
+      delivery_street: '42 Street',
+      delivery_details: 'Gate 3',
+      delivery_lat: 33.3,
+      delivery_lng: 44.4,
+      user: { name: 'Recipient' },
+      items: [
+        {
+          id: 'item-1',
+          product_name_ar: 'تمر',
+          product_name_en: 'Dates',
+          variant_id: 'variant-1',
+          variant: { sku: 'DATES-1KG', attributes: { size: '1 kg' } },
+          quantity: 2.5,
+          base_unit: 'kg',
+          whole_units_only: false,
+          unit_price: 50000,
+          line_total: 125000,
+          currency_code: 'IQD',
+        },
+      ],
+    },
+  };
+
+  function detailService(row = detailRow) {
+    const findFirst = jest.fn(
+      ({ where }: { where: { party?: { is: { user_id: string } } } }) =>
+        Promise.resolve(where.party?.is.user_id === 'agent-other' ? null : row),
+    );
+    return {
+      findFirst,
+      service: new DeliveriesService(
+        { delivery: { findFirst } } as never,
+        {} as never,
+        {} as never,
+      ),
+    };
+  }
+
+  it('returns recipient, address, item variant and unit snapshots to the assigned active agent', async () => {
+    const { service } = detailService();
+
+    await expect(
+      service.getAssignedDetail('agent-current', 'delivery-1'),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        order_number: 'ORD-1001',
+        recipient_name: 'Recipient',
+        recipient_phone: '+9647700000000',
+        shipping_address: expect.objectContaining({
+          city: 'Baghdad',
+          details: 'Gate 3',
+          lat: 33.3,
+          lng: 44.4,
+        }) as Record<string, unknown>,
+        items: [
+          expect.objectContaining({
+            variant_sku: 'DATES-1KG',
+            quantity: 2.5,
+            base_unit: 'kg',
+            whole_units_only: false,
+          }),
+        ],
+        amount_due: 125000,
+      }),
+    );
+  });
+
+  it("returns 404 for another agent's delivery", async () => {
+    const { service } = detailService();
+
+    await expect(
+      service.getAssignedDetail('agent-other', 'delivery-1'),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('redacts recipient identity and address after completion for the agent', async () => {
+    const { service } = detailService({ ...detailRow, status: 'delivered' });
+
+    await expect(
+      service.getAssignedDetail('agent-current', 'delivery-1'),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        recipient_name: null,
+        recipient_phone: null,
+        shipping_address: null,
+      }),
+    );
+  });
+
+  it('allows authorized staff to read the retained snapshot for any status', async () => {
+    const { service, findFirst } = detailService({
+      ...detailRow,
+      status: 'delivered',
+    });
+
+    await expect(service.getDetailForStaff('delivery-1')).resolves.toEqual(
+      expect.objectContaining({
+        recipient_phone: '+9647700000000',
+        shipping_address: expect.objectContaining({
+          city: 'Baghdad',
+        }) as Record<string, unknown>,
+      }),
+    );
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'delivery-1' } }),
+    );
+  });
+});
+
 describe('DeliveriesController', () => {
   it('requires the delivery-agent app role and uses the authenticated agent id', async () => {
     const listAssigned = jest.fn().mockResolvedValue({});

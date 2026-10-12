@@ -82,9 +82,10 @@ CREATE TABLE users (
     session_version INTEGER NOT NULL DEFAULT 1,
     permission_version INTEGER NOT NULL DEFAULT 1,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    anonymized_at   TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT users_identity_check CHECK (phone IS NOT NULL OR username IS NOT NULL),
+    CONSTRAINT users_identity_check CHECK (phone IS NOT NULL OR username IS NOT NULL OR anonymized_at IS NOT NULL),
     CONSTRAINT users_username_format_check CHECK (username IS NULL OR username ~ '^[a-z][a-z0-9._-]{2,79}$')
 );
 
@@ -544,6 +545,8 @@ CREATE TABLE order_items (
     quantity        INT NOT NULL CHECK (quantity > 0),
     unit_price      NUMERIC(12,2) NOT NULL,
     line_total      NUMERIC(12,2) NOT NULL,
+    base_unit       VARCHAR(32) NOT NULL DEFAULT 'piece',
+    whole_units_only BOOLEAN NOT NULL DEFAULT TRUE,
     reviewed        BOOLEAN NOT NULL DEFAULT FALSE
 );
 
@@ -677,6 +680,8 @@ CREATE TABLE return_items (
     approved_quantity INT NOT NULL DEFAULT 0 CHECK (approved_quantity >= 0 AND approved_quantity <= quantity),
     customer_reason TEXT NOT NULL,
     unit_price      NUMERIC(12,2) NOT NULL,
+    base_unit       VARCHAR(32) NOT NULL DEFAULT 'piece',
+    whole_units_only BOOLEAN NOT NULL DEFAULT TRUE,
     condition       VARCHAR(20),                             -- sellable | opened | damaged
     restock         BOOLEAN NOT NULL DEFAULT FALSE,          -- only sellable normally re-enters stock
     batch_id        UUID REFERENCES inventory_batches(id),   -- batch it is restocked into, if any

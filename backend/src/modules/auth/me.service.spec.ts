@@ -24,9 +24,12 @@ const storedUser = {
 describe('MeService', () => {
   const findUniqueOrThrow = jest.fn().mockResolvedValue(storedUser);
   const update = jest.fn().mockResolvedValue(storedUser);
-  const service = new MeService({
-    user: { findUniqueOrThrow, update },
-  } as never);
+  const service = new MeService(
+    {
+      user: { findUniqueOrThrow, update },
+    } as never,
+    {} as never,
+  );
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -112,6 +115,106 @@ describe('MeController', () => {
       {
         name: 'Updated Customer',
       },
+    );
+  });
+
+  it('takes the account-deletion target from the authenticated request', async () => {
+    const deleteCustomerAccount = jest.fn().mockResolvedValue(undefined);
+    const controller = new MeController({ deleteCustomerAccount } as never);
+
+    await controller.deleteAccount({ user: { id: 'current-user' } } as never);
+
+    expect(deleteCustomerAccount).toHaveBeenCalledWith('current-user');
+  });
+});
+
+describe('MeService account deletion', () => {
+  function makeService(blockers = [0, 0, 0, 0]) {
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([{ id: 'current-user' }]),
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'current-user',
+          name: 'Customer',
+          phone: '+9647700000000',
+          email: 'customer@example.com',
+          is_active: true,
+          anonymized_at: null,
+          role: { name: 'customer' },
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      order: { count: jest.fn().mockResolvedValue(blockers[0]) },
+      return: { count: jest.fn().mockResolvedValue(blockers[1]) },
+      refundLedgerEntry: { count: jest.fn().mockResolvedValue(blockers[2]) },
+      deliveryCollection: { count: jest.fn().mockResolvedValue(blockers[3]) },
+      address: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      deviceToken: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      refreshToken: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      otpCode: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        callback(tx),
+      ),
+    };
+    const audit = { record: jest.fn().mockResolvedValue({}) };
+    return {
+      tx,
+      audit,
+      service: new MeService(prisma as never, audit),
+    };
+  }
+
+  it('refuses deletion with a stable code and every blocker', async () => {
+    const { service, tx } = makeService([2, 1, 1, 1]);
+
+    await expect(
+      service.deleteCustomerAccount('current-user'),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'ACCOUNT_DELETION_BLOCKED',
+        errors: [
+          expect.objectContaining({ code: 'OPEN_ORDERS' }),
+          expect.objectContaining({ code: 'PENDING_RETURNS' }),
+          expect.objectContaining({ code: 'UNSETTLED_AMOUNTS' }),
+        ],
+      },
+    });
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it('anonymizes identity, releases the phone, removes devices and revokes sessions', async () => {
+    const { service, tx, audit } = makeService();
+
+    await service.deleteCustomerAccount('current-user');
+
+    expect(tx.address.deleteMany).toHaveBeenCalledWith({
+      where: { user_id: 'current-user' },
+    });
+    expect(tx.deviceToken.deleteMany).toHaveBeenCalledWith({
+      where: { user_id: 'current-user' },
+    });
+    expect(tx.refreshToken.deleteMany).toHaveBeenCalledWith({
+      where: { user_id: 'current-user' },
+    });
+    expect(tx.otpCode.deleteMany).toHaveBeenCalledWith({
+      where: { phone: '+9647700000000' },
+    });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'current-user' },
+      data: expect.objectContaining({
+        name: null,
+        phone: null,
+        email: null,
+        is_active: false,
+        anonymized_at: expect.any(Date) as Date,
+        session_version: { increment: 1 },
+      }) as Record<string, unknown>,
+    });
+    expect(audit.record).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ action: 'customer.account_delete' }),
     );
   });
 });

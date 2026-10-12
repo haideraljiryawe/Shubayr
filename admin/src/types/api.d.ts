@@ -351,6 +351,46 @@ export interface paths {
         };
         trace?: never;
     };
+    "/me/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete and anonymize the current customer account
+         * @description Customer app sessions only. Refuses while an order is open, a return is pending, or a customer/order amount remains unsettled. Otherwise removes direct identity, addresses, device registrations and authentication sessions while retaining anonymized order, return, audit and financial records required for immutable history. The released phone may register later as a new customer account.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Account anonymized and all sessions revoked */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/media/images": {
         parameters: {
             query?: never;
@@ -3655,7 +3695,35 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read one delivery assigned to the current agent
+         * @description Another agent's delivery returns 404. Recipient identity, phone and shipping address are disclosed only while the delivery is assigned, out for delivery, or awaiting retry after failure. Delivered and returned records remain readable by their assigned agent but those contact fields are null. Staff use the admin delivery-detail route.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Assignment-scoped delivery details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryDetail"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -3781,6 +3849,50 @@ export interface paths {
                 422: components["responses"]["Validation"];
             };
         };
+        trace?: never;
+    };
+    "/admin/deliveries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one delivery with recipient and order details as staff
+         * @description Authorized operations staff may read any delivery, including its retained immutable shipping snapshot.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Staff delivery details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryDetail"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/admin/deliveries/{id}/return-at-door": {
@@ -11110,6 +11222,10 @@ export interface components {
              */
             image_url?: string | null;
             quantity?: number;
+            /** @description SKU base unit captured when the order is created. */
+            base_unit: string;
+            /** @description SKU fractional-quantity rule captured when the order is created. */
+            whole_units_only: boolean;
             /** @description The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order. */
             unit_price?: components["schemas"]["Money"];
             price_version?: string;
@@ -11341,6 +11457,7 @@ export interface components {
             customer_name: string | null;
             customer_phone: string;
             total: components["schemas"]["Money"];
+            currency: string;
             /** @enum {string} */
             payment_method: "cod";
             /** Format: date-time */
@@ -11383,6 +11500,8 @@ export interface components {
                 product_name_ar: string;
                 product_name_en: string;
                 quantity: number;
+                base_unit: string;
+                whole_units_only: boolean;
                 unit_price: components["schemas"]["Money"];
                 line_total: components["schemas"]["Money"];
                 currency: string;
@@ -12194,6 +12313,10 @@ export interface components {
             order_item_id?: string;
             quantity?: number;
             approved_quantity?: number;
+            /** @description Order-time SKU base-unit snapshot. */
+            base_unit: string;
+            /** @description Order-time SKU fractional-quantity rule. */
+            whole_units_only: boolean;
             customer_reason?: string;
             /** @description Immutable order-line unit price. */
             unit_price?: components["schemas"]["Money"];
@@ -12914,6 +13037,51 @@ export interface components {
             retry_count?: number;
             attempts?: components["schemas"]["DeliveryAttempt"][];
             collection?: components["schemas"]["DeliveryCollection"] | null;
+        };
+        DeliveryDetail: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            order_id: string;
+            order_number: string;
+            order_version: number;
+            /** @enum {string} */
+            status: "assigned" | "out_for_delivery" | "delivered" | "failed" | "returned";
+            currency: string;
+            amount_due: components["schemas"]["Money"];
+            /** @description Null for terminal deliveries on the agent route. */
+            recipient_name: string | null;
+            /** @description Null for terminal deliveries on the agent route. */
+            recipient_phone: string | null;
+            shipping_address: null | {
+                label: string | null;
+                city: string;
+                area: string | null;
+                street: string | null;
+                details: string | null;
+                /** Format: double */
+                lat: number | null;
+                /** Format: double */
+                lng: number | null;
+            };
+            items: {
+                /** Format: uuid */
+                id: string;
+                product_name_ar: string;
+                product_name_en: string;
+                /** Format: uuid */
+                variant_id: string;
+                variant_sku: string;
+                variant_attributes: {
+                    [key: string]: unknown;
+                } | null;
+                quantity: number;
+                base_unit: string;
+                whole_units_only: boolean;
+                unit_price: components["schemas"]["Money"];
+                line_total: components["schemas"]["Money"];
+                currency: string;
+            }[];
         };
         CustomerDeliveryAttempt: {
             /** Format: uuid */

@@ -45,7 +45,16 @@ export class SettingsService {
   async getPublicSettings(): Promise<Record<string, string>> {
     const rows = await this.prisma.storeSetting.findMany({
       where: {
-        key: { in: ['store_name', 'logo_url', 'primary_color', 'currency'] },
+        key: {
+          in: [
+            'store_name',
+            'logo_url',
+            'primary_color',
+            'currency',
+            'default_low_stock_threshold',
+            'sale_rounding_multiple',
+          ],
+        },
       },
     });
     return Object.fromEntries(rows.map(({ key, value }) => [key, value ?? '']));

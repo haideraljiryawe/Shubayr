@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 14.1.0
+  version: 14.2.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -244,6 +244,25 @@ paths:
               schema: { $ref: "#/components/schemas/User" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "422": { $ref: "#/components/responses/Validation" }
+
+  /me/account:
+    delete:
+      tags: [Auth]
+      summary: Delete and anonymize the current customer account
+      description: >
+        Customer app sessions only. Refuses while an order is open, a return is
+        pending, or a customer/order amount remains unsettled. Otherwise removes
+        direct identity, addresses, device registrations and authentication
+        sessions while retaining anonymized order, return, audit and financial
+        records required for immutable history. The released phone may register
+        later as a new customer account.
+      x-app-role: customer
+      x-error-codes: [ACCOUNT_DELETION_BLOCKED]
+      responses:
+        "204": { description: Account anonymized and all sessions revoked }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   # ---------------- MEDIA ----------------
   /media/images:
@@ -1751,6 +1770,26 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
   /deliveries/{id}:
+    get:
+      tags: [Deliveries]
+      summary: Read one delivery assigned to the current agent
+      description: >
+        Another agent's delivery returns 404. Recipient identity, phone and
+        shipping address are disclosed only while the delivery is assigned,
+        out for delivery, or awaiting retry after failure. Delivered and
+        returned records remain readable by their assigned agent but those
+        contact fields are null. Staff use the admin delivery-detail route.
+      x-app-role: delivery_agent
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Assignment-scoped delivery details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryDetail" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
     patch:
       tags: [Deliveries]
       summary: Update delivery status (agent)
@@ -1834,6 +1873,23 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/deliveries/{id}:
+    get:
+      tags: [Deliveries, Admin]
+      summary: Read one delivery with recipient and order details as staff
+      description: Authorized operations staff may read any delivery, including its retained immutable shipping snapshot.
+      x-permission: deliveries.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Staff delivery details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryDetail" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/deliveries/{id}/return-at-door:
     post:
@@ -5379,6 +5435,7 @@ components:
 
     OrderItem:
       type: object
+      required: [base_unit, whole_units_only]
       properties:
         id: { type: string, format: uuid, description: "order_item_id — reference this from reviews & returns" }
         product_id: { type: string, format: uuid }
@@ -5387,6 +5444,8 @@ components:
         product_name_en: { type: string, description: "English product name captured when the order is created." }
         image_url: { type: [string, "null"], format: uri, description: "Primary product image URL captured when the order is created." }
         quantity: { type: number, multipleOf: 0.001 }
+        base_unit: { type: string, minLength: 1, maxLength: 32, description: "SKU base unit captured when the order is created." }
+        whole_units_only: { type: boolean, description: "SKU fractional-quantity rule captured when the order is created." }
         unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order." }
         price_version: { type: string, maxLength: 64 }
         line_total: { $ref: "#/components/schemas/Money" }
@@ -5652,7 +5711,7 @@ components:
 
     MonitorOrderListItem:
       type: object
-      required: [id, order_number, status, customer_name, customer_phone, total, payment_method, placed_at]
+      required: [id, order_number, status, customer_name, customer_phone, total, currency, payment_method, placed_at]
       properties:
         id: { type: string, format: uuid }
         order_number: { type: string }
@@ -5660,6 +5719,7 @@ components:
         customer_name: { type: [string, "null"] }
         customer_phone: { type: string }
         total: { $ref: "#/components/schemas/Money" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
         payment_method: { type: string, enum: [cod] }
         placed_at: { type: string, format: date-time }
 
@@ -5706,7 +5766,7 @@ components:
           type: array
           items:
             type: object
-            required: [id, product_id, variant_id, product_name_ar, product_name_en, quantity, unit_price, line_total, currency]
+            required: [id, product_id, variant_id, product_name_ar, product_name_en, quantity, base_unit, whole_units_only, unit_price, line_total, currency]
             properties:
               id: { type: string, format: uuid }
               product_id: { type: string, format: uuid }
@@ -5714,6 +5774,8 @@ components:
               product_name_ar: { type: string }
               product_name_en: { type: string }
               quantity: { type: number, multipleOf: 0.001 }
+              base_unit: { type: string, minLength: 1, maxLength: 32 }
+              whole_units_only: { type: boolean }
               unit_price: { $ref: "#/components/schemas/Money" }
               line_total: { $ref: "#/components/schemas/Money" }
               currency: { type: string, pattern: '^[A-Z]{3}$' }
@@ -6635,11 +6697,14 @@ components:
 
     ReturnItem:
       type: object
+      required: [base_unit, whole_units_only]
       properties:
         id: { type: string, format: uuid }
         order_item_id: { type: string, format: uuid }
         quantity: { type: number, multipleOf: 0.001 }
         approved_quantity: { type: number, multipleOf: 0.001 }
+        base_unit: { type: string, minLength: 1, maxLength: 32, description: "Order-time SKU base-unit snapshot." }
+        whole_units_only: { type: boolean, description: "Order-time SKU fractional-quantity rule." }
         customer_reason: { type: string }
         unit_price: { $ref: "#/components/schemas/Money", description: Immutable order-line unit price. }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
@@ -7453,6 +7518,54 @@ components:
           oneOf:
             - { $ref: "#/components/schemas/DeliveryCollection" }
             - { type: "null" }
+
+    DeliveryDetail:
+      type: object
+      additionalProperties: false
+      required: [id, order_id, order_number, order_version, status, currency, amount_due, recipient_name, recipient_phone, shipping_address, items]
+      properties:
+        id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        order_number: { type: string }
+        order_version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [assigned, out_for_delivery, delivered, failed, returned] }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        amount_due: { $ref: "#/components/schemas/Money" }
+        recipient_name: { type: [string, "null"], description: "Null for terminal deliveries on the agent route." }
+        recipient_phone: { type: [string, "null"], description: "Null for terminal deliveries on the agent route." }
+        shipping_address:
+          oneOf:
+            - { type: "null" }
+            - type: object
+              additionalProperties: false
+              required: [label, city, area, street, details, lat, lng]
+              properties:
+                label: { type: [string, "null"] }
+                city: { type: string }
+                area: { type: [string, "null"] }
+                street: { type: [string, "null"] }
+                details: { type: [string, "null"] }
+                lat: { type: [number, "null"], format: double }
+                lng: { type: [number, "null"], format: double }
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, product_name_ar, product_name_en, variant_id, variant_sku, variant_attributes, quantity, base_unit, whole_units_only, unit_price, line_total, currency]
+            properties:
+              id: { type: string, format: uuid }
+              product_name_ar: { type: string }
+              product_name_en: { type: string }
+              variant_id: { type: string, format: uuid }
+              variant_sku: { type: string }
+              variant_attributes: { type: [object, "null"], additionalProperties: true }
+              quantity: { type: number, multipleOf: 0.001 }
+              base_unit: { type: string, minLength: 1, maxLength: 32 }
+              whole_units_only: { type: boolean }
+              unit_price: { $ref: "#/components/schemas/Money" }
+              line_total: { $ref: "#/components/schemas/Money" }
+              currency: { type: string, pattern: '^[A-Z]{3}$' }
 
     CustomerDeliveryAttempt:
       type: object

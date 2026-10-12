@@ -53,6 +53,15 @@ export class DeliveriesController {
     return this.deliveries.listAssigned(request.user.id, query);
   }
 
+  @Get(':id')
+  @AppPolicy('delivery_agent')
+  detail(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+  ) {
+    return this.deliveries.getAssignedDetail(request.user.id, id);
+  }
+
   @Patch(':id/assign')
   @AdminPolicy('orders.assign_agent')
   assign(
@@ -95,6 +104,14 @@ export class AdminDeliveriesController {
   @AdminPolicy('deliveries.manage')
   listUnconfirmed(@Query() query: UnconfirmedDeliveriesQueryDto) {
     return this.deliveries.listUnconfirmed(query);
+  }
+
+  @Get(':id')
+  @AdminPolicy('deliveries.manage')
+  detail(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+  ) {
+    return this.deliveries.getDetailForStaff(id);
   }
 
   @Post(':id/collection-confirmation')

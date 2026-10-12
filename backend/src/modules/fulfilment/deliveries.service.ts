@@ -48,6 +48,12 @@ const transitions: Record<string, readonly string[]> = {
   returned: [],
 };
 
+const deliveryContactStatuses = new Set([
+  'assigned',
+  'out_for_delivery',
+  'failed',
+]);
+
 @Injectable()
 export class DeliveriesService {
   constructor(
@@ -67,6 +73,81 @@ export class DeliveriesService {
 
   listAll(query: AssignedDeliveriesQueryDto) {
     return this.list({}, query);
+  }
+
+  getAssignedDetail(agentUserId: string, id: string) {
+    return this.getDeliveryDetail(id, agentUserId, false);
+  }
+
+  getDetailForStaff(id: string) {
+    return this.getDeliveryDetail(id, undefined, true);
+  }
+
+  private async getDeliveryDetail(
+    id: string,
+    agentUserId: string | undefined,
+    staff: boolean,
+  ) {
+    const delivery = await this.prisma.delivery.findFirst({
+      where: {
+        id,
+        ...(agentUserId ? { party: { is: { user_id: agentUserId } } } : {}),
+      },
+      include: {
+        order: {
+          include: {
+            user: { select: { name: true } },
+            items: {
+              include: {
+                variant: { select: { sku: true, attributes: true } },
+              },
+              orderBy: { id: 'asc' },
+            },
+          },
+        },
+      },
+    });
+    if (!delivery) throw new NotFoundException('Delivery not found');
+
+    const discloseContact =
+      staff || deliveryContactStatuses.has(delivery.status);
+    const order = delivery.order;
+    return {
+      id: delivery.id,
+      order_id: order.id,
+      order_number: order.order_number,
+      order_version: order.version,
+      status: delivery.status,
+      currency: order.currency_code,
+      amount_due: Number(order.total),
+      recipient_name: discloseContact ? order.user.name : null,
+      recipient_phone: discloseContact ? order.delivery_contact_phone : null,
+      shipping_address: discloseContact
+        ? {
+            label: order.delivery_address_label,
+            city: order.delivery_city,
+            area: order.delivery_area,
+            street: order.delivery_street,
+            details: order.delivery_details,
+            lat: order.delivery_lat,
+            lng: order.delivery_lng,
+          }
+        : null,
+      items: order.items.map((item) => ({
+        id: item.id,
+        product_name_ar: item.product_name_ar,
+        product_name_en: item.product_name_en,
+        variant_id: item.variant_id,
+        variant_sku: item.variant.sku,
+        variant_attributes: item.variant.attributes,
+        quantity: Number(item.quantity),
+        base_unit: item.base_unit,
+        whole_units_only: item.whole_units_only,
+        unit_price: Number(item.unit_price),
+        line_total: Number(item.line_total),
+        currency: item.currency_code,
+      })),
+    };
   }
 
   async listAgents(query: DeliveryAgentsQueryDto) {
