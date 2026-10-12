@@ -1,18 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Plus, Trash2 } from "lucide-react";
-import { Alert, Button, Card, Input, Select } from "@/components/ui";
+import { Alert, Button, buttonClasses, Card, Input, Select } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
 import { InventoryPostingStatus } from "@/components/inventory/inventory-posting-status";
 import { SkuPicker, type PickedSku } from "@/components/inventory/sku-picker";
+import { useUnitName } from "@/components/catalog/unit-name";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { storeDay } from "@/lib/finance/dates";
 import { newOperationId } from "@/lib/finance/operations";
 import { formatCost, formatQuantity, fromMilli, locationLabel, quantityRule, toMilli, type LocationInfo, type Opening } from "@/lib/inventory";
+
+/** The location new lines start with: the only sellable one, if there is exactly one. */
+function defaultLocationId(locations: readonly LocationInfo[]): string {
+  const sellable = locations.filter((info) => info.sellable);
+  if (sellable.length === 1) return sellable[0].id;
+  return locations.length === 1 ? locations[0].id : "";
+}
 
 interface Line {
   key: number;
@@ -34,13 +43,39 @@ type LineErrors = Partial<Record<"sku" | "location" | "quantity" | "unitCost" | 
  * Review, then confirm: the operation id is fixed when the person reviews,
  * so a double click, or a retry after a lost answer, posts one document.
  */
-export function OpeningForm({ locations, canSearchSku }: { locations: LocationInfo[]; canSearchSku: boolean }) {
+export function OpeningForm({
+  locations,
+  canSearchSku,
+  initialSkus = [],
+  productHref,
+}: {
+  locations: LocationInfo[];
+  canSearchSku: boolean;
+  /** "Opening stock" from a product: one line per SKU, ready for quantities. */
+  initialSkus?: PickedSku[];
+  /** Where "back to the product" goes after posting, when it came from one. */
+  productHref?: string;
+}) {
   const t = useTranslations("inventory");
   const locale = useLocale();
+  const unitName = useUnitName();
   const posting = usePosting<Opening>();
-  const nextKey = useRef(1);
-  const blank = (key: number): Line => ({ key, sku: null, locationId: "", quantity: null, unitCost: null, lotNumber: "", expiry: "" });
-  const [lines, setLines] = useState<Line[]>([blank(0)]);
+  const nextKey = useRef(Math.max(1, initialSkus.length));
+  // The usual case is one shop with one sellable location: it is chosen for
+  // every line; with several, the person picks.
+  const defaultLocation = defaultLocationId(locations);
+  const blank = (key: number, sku: PickedSku | null = null): Line => ({
+    key,
+    sku,
+    locationId: defaultLocation,
+    quantity: null,
+    unitCost: null,
+    lotNumber: "",
+    expiry: "",
+  });
+  const [lines, setLines] = useState<Line[]>(() =>
+    initialSkus.length ? initialSkus.map((sku, index) => blank(index, sku)) : [blank(0)],
+  );
   const [date, setDate] = useState(storeDay());
   const [backdateReason, setBackdateReason] = useState("");
   const [errors, setErrors] = useState<Record<number, LineErrors>>({});
@@ -135,7 +170,7 @@ export function OpeningForm({ locations, canSearchSku }: { locations: LocationIn
                   {line.lotNumber || t("lotAutomatic")}
                   {line.expiry ? <span className="block text-xs text-text-muted">{t("expires", { date: line.expiry })}</span> : null}
                 </td>
-                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(line.quantity, locale)} {line.sku?.baseUnit}</td>
+                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(line.quantity, locale)} {unitName(line.sku?.baseUnit)}</td>
                 <td className="px-3 py-2 text-end" dir="ltr">{formatCost(line.unitCost, locale)}</td>
               </tr>
             ))}
@@ -154,9 +189,16 @@ export function OpeningForm({ locations, canSearchSku }: { locations: LocationIn
         <InventoryPostingStatus state={posting.state} type="opening" onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
         <div className="flex justify-end gap-2">
           {posted ? (
-            <Button variant="secondary" onClick={startOver} data-testid="opening-another">
-              {t("another")}
-            </Button>
+            <>
+              {productHref ? (
+                <Link href={productHref} className={buttonClasses({ variant: "secondary" })} data-testid="opening-back-to-product">
+                  {t("backToProduct")}
+                </Link>
+              ) : null}
+              <Button variant="secondary" onClick={startOver} data-testid="opening-another">
+                {t("another")}
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="ghost" onClick={() => setReview(null)} disabled={busy}>
@@ -220,7 +262,7 @@ export function OpeningForm({ locations, canSearchSku }: { locations: LocationIn
               </Field>
               <Field
                 key={`qty-${line.sku?.variantId ?? "none"}`}
-                label={line.sku ? t("quantityIn", { unit: line.sku.baseUnit }) : t("columns.quantity")}
+                label={line.sku ? t("quantityIn", { unit: unitName(line.sku.baseUnit) }) : t("columns.quantity")}
                 name="quantity"
                 error={e.quantity}
                 hint={line.sku ? (line.sku.wholeUnitsOnly ? t("wholeUnitsHint") : t("decimalHint")) : undefined}

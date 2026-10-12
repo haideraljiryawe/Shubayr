@@ -60,9 +60,12 @@ export interface ForwardInit {
   method: string;
   /** Path under the API base, starting with "/". Includes any query string. */
   path: string;
-  body?: string;
+  /** JSON text, or a multipart form (an image upload: fetch sets its boundary). */
+  body?: string | FormData;
   /** Send the bearer token (default true). */
   authenticated?: boolean;
+  /** Give up after this long (default 15 s; uploads take longer). */
+  timeoutMs?: number;
 }
 
 export interface Forwarded {
@@ -87,7 +90,7 @@ async function send(
   // the client sent — lets the API rate-limit and audit per person once it
   // trusts this server (see forwarding.ts and docs/deploy/web-and-admin.md).
   const headers: Record<string, string> = { Accept: "application/json", ...forwarded };
-  if (init.body !== undefined) headers["Content-Type"] = "application/json";
+  if (typeof init.body === "string") headers["Content-Type"] = "application/json";
   if (init.authenticated !== false && accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -96,7 +99,7 @@ async function send(
     headers,
     body: init.body,
     cache: "no-store",
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(init.timeoutMs ?? 15_000),
   });
 }
 

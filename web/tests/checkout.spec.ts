@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import { SCREENSHOT_DIR } from "./screenshots";
 
 /**
  * Cash-on-Delivery checkout: address → sign-in gate → review → confirmation.
@@ -137,7 +138,7 @@ for (const [name, width, height] of [
 ] as const) {
   test(`checkout step screenshots: ${name}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await mkdir("docs/screenshots", { recursive: true });
+    await mkdir(SCREENSHOT_DIR, { recursive: true });
 
     const shoot = async (step: string) => {
       // Let any confirmation toast clear before capturing the step.
@@ -153,7 +154,7 @@ for (const [name, width, height] of [
         ),
       ).toBe(true);
       await page.screenshot({
-        path: `docs/screenshots/checkout-${step}-${name}.png`,
+        path: `${SCREENSHOT_DIR}/checkout-${step}-${name}.png`,
         fullPage: true,
         caret: "initial",
         style: "nextjs-portal { display: none !important; }",

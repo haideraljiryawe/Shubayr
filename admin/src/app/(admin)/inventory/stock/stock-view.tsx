@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { useUnitName } from "@/components/catalog/unit-name";
 import { X } from "lucide-react";
 import { Badge, Card } from "@/components/ui";
 import { DataTable, TableFilter, useTableUrl, type Column, type TableState } from "@/components/table/data-table";
@@ -196,6 +197,7 @@ export function StockView({
 function SummaryCard({ summary }: { summary: SkuSummary }) {
   const t = useTranslations("inventory");
   const locale = useLocale();
+  const unitName = useUnitName();
   const qty = (value: number | null | undefined) => formatQuantity(value, locale);
   const catalog = summary.catalog;
   const tiles = [
@@ -224,7 +226,7 @@ function SummaryCard({ summary }: { summary: SkuSummary }) {
             </Badge>
             <span className="text-xs text-text-muted">
               {catalog.threshold !== null
-                ? t("stock.threshold", { value: qty(catalog.threshold), unit: catalog.baseUnit })
+                ? t("stock.threshold", { value: qty(catalog.threshold), unit: unitName(catalog.baseUnit) })
                 : t("stock.thresholdDefault")}
             </span>
           </div>

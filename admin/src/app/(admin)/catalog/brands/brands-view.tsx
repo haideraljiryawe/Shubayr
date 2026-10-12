@@ -14,8 +14,10 @@ import { NumberInput } from "@/components/forms/number-input";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { DataTable, TableSearch, type Column, type TableState } from "@/components/table/data-table";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { errorKind, type ErrorKind } from "@/lib/api/errors";
-import { SLUG_PATTERN, slugify, type Brand } from "@/lib/catalog";
+import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
+import { ImageManager } from "@/components/catalog/image-manager";
+import { englishOrArabic, SLUG_PATTERN, slugFor, type Brand } from "@/lib/catalog";
+import { imagesSettled, type ImageDraft } from "@/lib/product-images";
 
 type Dialog = { kind: "form"; brand: Brand | null } | { kind: "delete"; brand: Brand } | null;
 
@@ -169,6 +171,12 @@ export function BrandsView({ rows, state }: { rows: Brand[]; state: TableState }
   );
 }
 
+/**
+ * Create or edit a brand. The Arabic name is enough — the English one
+ * defaults to it — and a new brand's slug is made from the name; if that
+ * slug is taken (the API answers 409), the next free "-2", "-3"… is tried.
+ * The logo is uploaded from the device like a product picture.
+ */
 function BrandForm({
   brand,
   onClose,
@@ -181,40 +189,61 @@ function BrandForm({
   const t = useTranslations("brands");
   const api = useApiForm();
   const [nameAr, setNameAr] = useState(brand?.name_ar ?? "");
-  const [nameEn, setNameEn] = useState(brand?.name_en ?? "");
+  const [nameEn, setNameEn] = useState(brand && brand.name_en !== brand.name_ar ? brand.name_en : "");
   const [slug, setSlug] = useState(brand?.slug ?? "");
-  const [logo, setLogo] = useState(brand?.logo_url ?? "");
+  const [logo, setLogo] = useState<ImageDraft[]>(() =>
+    brand?.logo_url ? [{ key: "logo", url: brand.logo_url, preview: brand.logo_url, phase: "ready", progress: 100 }] : [],
+  );
   const [sortOrder, setSortOrder] = useState<number | null>(brand?.sort_order ?? 0);
   const [visible, setVisible] = useState(brand?.is_visible ?? true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [advanced, setAdvanced] = useState(false);
+  const suggested = slugFor(nameEn, nameAr);
+  const logoState = imagesSettled(logo);
 
   async function submit() {
-    const finalSlug = slug.trim() || slugify(nameEn);
+    const typed = slug.trim();
     const found: Record<string, string> = {};
     if (!nameAr.trim()) found.name_ar = t("errors.nameAr");
-    if (!nameEn.trim()) found.name_en = t("errors.nameEn");
-    if (!SLUG_PATTERN.test(finalSlug)) found.slug = t("errors.slug");
-    if (logo.trim() && !/^https?:\/\/\S+$/.test(logo.trim())) found.logo_url = t("errors.logo");
+    if (typed && !SLUG_PATTERN.test(typed)) found.slug = t("errors.slug");
     if (sortOrder === null || sortOrder < 0) found.sort_order = t("errors.sortOrder");
+    if (logoState !== "ready") found.logo_url = t(logoState === "busy" ? "errors.logoBusy" : "errors.logoFailed");
     setErrors(found);
-    if (Object.keys(found).length) return;
+    if (Object.keys(found).length) {
+      if (found.slug || found.sort_order) setAdvanced(true);
+      return;
+    }
 
     // The API accepts only logos uploaded through the media service, so the
     // stored URL is sent back only when someone actually changed it.
-    const nextLogo = logo.trim() || null;
-    const body = {
+    const nextLogo = logo[0]?.url ?? null;
+    const fields = {
       name_ar: nameAr.trim(),
-      name_en: nameEn.trim(),
-      slug: finalSlug,
+      name_en: englishOrArabic(nameEn, nameAr),
       ...(nextLogo !== (brand?.logo_url ?? null) ? { logo_url: nextLogo } : {}),
       sort_order: sortOrder ?? 0,
       is_visible: visible,
     };
-    const saved = await api.run(() =>
-      brand
-        ? unwrap(browserApi.PATCH("/admin/brands/{id}", { params: { path: { id: brand.id } }, body }))
-        : unwrap(browserApi.POST("/admin/brands", { body })),
-    );
+    const saved = await api.run(async () => {
+      if (brand) {
+        return unwrap(
+          browserApi.PATCH("/admin/brands/{id}", {
+            params: { path: { id: brand.id } },
+            body: { ...fields, ...(typed && typed !== brand.slug ? { slug: typed } : {}) },
+          }),
+        );
+      }
+      const base = typed || suggested || "brand";
+      for (let attempt = 1; ; attempt += 1) {
+        const candidate = attempt === 1 ? base : `${base}-${attempt}`;
+        try {
+          return await unwrap(browserApi.POST("/admin/brands", { body: { ...fields, slug: candidate } }));
+        } catch (cause) {
+          // A slug the person typed is theirs to change; a suggested one moves on.
+          if (typed || attempt >= 6 || !(cause instanceof ApiError) || cause.status !== 409) throw cause;
+        }
+      }
+    });
     if (saved) onSaved(saved, !brand);
   }
 
@@ -234,23 +263,40 @@ function BrandForm({
         <Field label={t("fields.nameAr")} name="name_ar" error={error("name_ar")}>
           <Input value={nameAr} dir="rtl" onChange={(e) => setNameAr(e.target.value)} data-testid="brand-name-ar" />
         </Field>
-        <Field label={t("fields.nameEn")} name="name_en" error={error("name_en")}>
+        <Field label={t("fields.nameEnOptional")} name="name_en" error={error("name_en")} hint={t("fields.nameEnHint")}>
           <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="brand-name-en" />
         </Field>
-        <Field label={t("fields.slug")} name="slug" error={error("slug")} hint={t("fields.slugHint")}>
-          <Input value={slug} dir="ltr" placeholder={slugify(nameEn)} onChange={(e) => setSlug(e.target.value)} data-testid="brand-slug" />
-        </Field>
-        <Field label={t("fields.sortOrder")} name="sort_order" error={error("sort_order")}>
-          <NumberInput value={sortOrder} parse={{ integer: true, min: 0 }} onValueChange={setSortOrder} data-testid="brand-sort" />
-        </Field>
       </div>
-      <Field label={t("fields.logo")} name="logo_url" error={error("logo_url")} hint={t("fields.logoHint")}>
-        <Input value={logo} dir="ltr" type="url" onChange={(e) => setLogo(e.target.value)} data-testid="brand-logo" />
-      </Field>
+      <div className="flex flex-col gap-1.5" data-field="logo_url">
+        <p className="text-sm font-semibold">{t("fields.logo")}</p>
+        <p className="text-xs text-text-muted">{t("fields.logoHint")}</p>
+        <ImageManager images={logo} onChange={setLogo} single testId="brand-logo" />
+        {error("logo_url") ? (
+          <p className="text-xs font-semibold text-error-dark" data-testid="error-logo_url">
+            {error("logo_url")}
+          </p>
+        ) : null}
+      </div>
       <label className="flex items-center gap-2 text-sm font-semibold">
         <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} data-testid="brand-visible" />
         {t("fields.visible")}
       </label>
+      <details
+        className="rounded-md border border-border px-3 py-2"
+        open={advanced}
+        onToggle={(event) => setAdvanced(event.currentTarget.open)}
+        data-testid="brand-advanced"
+      >
+        <summary className="cursor-pointer text-sm font-semibold">{t("advanced")}</summary>
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <Field label={t("fields.slug")} name="slug" error={error("slug")} hint={t("fields.slugHint")}>
+            <Input value={slug} dir="ltr" placeholder={brand ? undefined : suggested} onChange={(e) => setSlug(e.target.value)} data-testid="brand-slug" />
+          </Field>
+          <Field label={t("fields.sortOrder")} name="sort_order" error={error("sort_order")}>
+            <NumberInput value={sortOrder} parse={{ integer: true, min: 0 }} onValueChange={setSortOrder} data-testid="brand-sort" />
+          </Field>
+        </div>
+      </details>
       <FormError kind={api.formError} detail={api.formErrorDetail} />
     </FormDialog>
   );

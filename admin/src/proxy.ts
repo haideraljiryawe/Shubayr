@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { API_URL, ADMIN_ORIGIN, COOKIE_SECURE } from "@/lib/config";
+import { ADMIN_MODULES, API_URL, ADMIN_ORIGIN, COOKIE_SECURE } from "@/lib/config";
+import { isRouteEnabled, parseModules } from "@/lib/modules";
 import { contentSecurityPolicy, newNonce, originOf } from "@/lib/security-headers";
 import { clientForwardHeaders } from "@/lib/session/forwarding";
 import { refreshSession } from "@/lib/session/refresh";
@@ -33,6 +34,19 @@ const HTTPS = (ADMIN_ORIGIN ?? "").startsWith("https://");
 
 const PUBLIC_PATHS = new Set(["/login"]);
 
+/** Modules switched off by ADMIN_MODULES answer with the "not enabled" page. */
+const ENABLED_MODULES = parseModules(ADMIN_MODULES);
+
+/** On to the page — or to the "not enabled" page for a module that is off. */
+function proceed(request: NextRequest): NextResponse {
+  const init = { request: { headers: request.headers } };
+  if (isRouteEnabled(request.nextUrl.pathname, ENABLED_MODULES)) return NextResponse.next(init);
+  const url = request.nextUrl.clone();
+  url.pathname = "/module-disabled";
+  url.search = "";
+  return NextResponse.rewrite(url, init);
+}
+
 function toLogin(request: NextRequest): NextResponse {
   const url = request.nextUrl.clone();
   const next = request.nextUrl.pathname + request.nextUrl.search;
@@ -65,7 +79,7 @@ async function gate(request: NextRequest): Promise<NextResponse> {
 
   if (!needsRefresh(access)) {
     if (isPublic) return NextResponse.redirect(new URL("/", request.url));
-    return NextResponse.next({ request: { headers: request.headers } });
+    return proceed(request);
   }
 
   const pair = refresh ? await refreshSession(refresh, fetch, clientForwardHeaders(request.headers)) : null;
@@ -82,7 +96,7 @@ async function gate(request: NextRequest): Promise<NextResponse> {
   // Hand the fresh pair to this very render, then to the browser.
   request.cookies.set(ACCESS_COOKIE, pair.access_token);
   request.cookies.set(REFRESH_COOKIE, pair.refresh_token);
-  const response = NextResponse.next({ request: { headers: request.headers } });
+  const response = proceed(request);
   for (const [name, value, options] of sessionCookies(pair, COOKIE_SECURE)) {
     response.cookies.set(name, value, options);
   }

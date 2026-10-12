@@ -18,11 +18,14 @@ import {
   canHaveChildren,
   conversionTargets,
   departments,
+  englishOrArabic,
   flattenTree,
   legacyNodes,
   parentChoices,
   SLUG_PATTERN,
+  slugFor,
   slugify,
+  uniqueSlug,
   type Category,
 } from "@/lib/catalog";
 
@@ -253,6 +256,11 @@ function CategoryForm({
   const [sortOrder, setSortOrder] = useState<number | null>(editing?.sort_order ?? 0);
   const [visible, setVisible] = useState(editing?.is_visible ?? true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [advanced, setAdvanced] = useState(false);
+  const suggestedSlug = uniqueSlug(
+    slugFor(nameEn, nameAr),
+    flattenTree(tree).flatMap(({ category }) => (category.slug ? [category.slug] : [])),
+  );
   const title = editing
     ? t("editTitle", { name: nameOf(editing, locale) })
     : parent
@@ -262,17 +270,22 @@ function CategoryForm({
   async function submit() {
     const found: Record<string, string> = {};
     if (!nameAr.trim()) found.name_ar = t("errors.nameAr");
-    if (!nameEn.trim()) found.name_en = t("errors.nameEn");
     if (slug.trim() && !SLUG_PATTERN.test(slug.trim())) found.slug = t("errors.slug");
     if (sortOrder === null || sortOrder < 0) found.sort_order = t("errors.sortOrder");
     setErrors(found);
-    if (Object.keys(found).length) return;
+    if (Object.keys(found).length) {
+      // A problem in the advanced fields must not hide behind the fold.
+      if (found.slug || found.sort_order) setAdvanced(true);
+      return;
+    }
 
-    // The storefront routes categories by slug, so a new one always gets one.
-    const finalSlug = slug.trim() || (editing ? "" : slugify(nameEn));
+    // The storefront routes categories by slug, so a new one always gets one:
+    // from the name (English, else the Arabic one in Latin letters), kept
+    // clear of every slug already in the tree.
+    const finalSlug = slug.trim() || (editing ? "" : suggestedSlug);
     const fields = {
       name_ar: nameAr.trim(),
-      name_en: nameEn.trim(),
+      name_en: englishOrArabic(nameEn, nameAr),
       ...(finalSlug ? { slug: finalSlug } : {}),
       sort_order: sortOrder ?? 0,
       is_visible: visible,
@@ -312,27 +325,38 @@ function CategoryForm({
         <Field label={t("fields.nameAr")} name="name_ar" error={error("name_ar")}>
           <Input value={nameAr} dir="rtl" onChange={(e) => setNameAr(e.target.value)} data-testid="category-name-ar" />
         </Field>
-        <Field label={t("fields.nameEn")} name="name_en" error={error("name_en")}>
+        <Field label={t("fields.nameEnOptional")} name="name_en" error={error("name_en")} hint={t("fields.nameEnHint")}>
           <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="category-name-en" />
         </Field>
-        <Field label={t("fields.slug")} name="slug" error={error("slug")} hint={t("fields.slugHint")}>
-          <Input
-            value={slug}
-            dir="ltr"
-            placeholder={slugify(nameEn)}
-            onChange={(e) => setSlug(e.target.value)}
-            data-testid="category-slug"
-          />
-        </Field>
-        <Field label={t("fields.sortOrder")} name="sort_order" error={error("sort_order")}>
-          <NumberInput
-            value={sortOrder}
-            parse={{ integer: true, min: 0 }}
-            onValueChange={setSortOrder}
-            data-testid="category-sort"
-          />
-        </Field>
       </div>
+
+      <details
+        className="rounded-md border border-border px-3 py-2"
+        open={advanced}
+        onToggle={(event) => setAdvanced(event.currentTarget.open)}
+        data-testid="category-advanced"
+      >
+        <summary className="cursor-pointer text-sm font-semibold">{t("advanced")}</summary>
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <Field label={t("fields.slug")} name="slug" error={error("slug")} hint={t("fields.slugHint")}>
+            <Input
+              value={slug}
+              dir="ltr"
+              placeholder={editing ? undefined : suggestedSlug}
+              onChange={(e) => setSlug(e.target.value)}
+              data-testid="category-slug"
+            />
+          </Field>
+          <Field label={t("fields.sortOrder")} name="sort_order" error={error("sort_order")}>
+            <NumberInput
+              value={sortOrder}
+              parse={{ integer: true, min: 0 }}
+              onValueChange={setSortOrder}
+              data-testid="category-sort"
+            />
+          </Field>
+        </div>
+      </details>
 
       <Field
         label={t("fields.parent")}

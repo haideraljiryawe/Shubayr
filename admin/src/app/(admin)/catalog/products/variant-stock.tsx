@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Badge, Card } from "@/components/ui";
-import type { ProductVariant } from "@/lib/catalog";
+import { BASE_UNITS, type ProductVariant } from "@/lib/catalog";
 import { availabilityTone, formatQuantity, stockHref, type StockTotals } from "@/lib/inventory";
 
 /**
@@ -22,6 +22,9 @@ export async function VariantStock({
   totals: Record<string, StockTotals> | null;
 }) {
   const t = await getTranslations("inventory");
+  const tUnits = await getTranslations("products.units");
+  const unitName = (unit: string | undefined) =>
+    (BASE_UNITS as readonly string[]).includes(unit ?? "piece") ? tUnits((unit ?? "piece") as (typeof BASE_UNITS)[number]) : (unit ?? "");
   const locale = await getLocale();
   const qty = (value: number | null | undefined) => formatQuantity(value, locale);
   if (variants.length === 0) return null;
@@ -52,7 +55,7 @@ export async function VariantStock({
               <tr key={variant.id} className="border-t border-border" data-testid="variant-stock-row" data-sku={variant.sku}>
                 <td className="px-3 py-2 font-semibold" dir="ltr">{variant.sku}</td>
                 <td className="px-3 py-2 text-end" dir="ltr" data-testid="variant-stock-available">
-                  {qty(variant.available_qty ?? 0)} <span className="text-text-muted">{variant.base_unit}</span>
+                  {qty(variant.available_qty ?? 0)} <span className="text-text-muted">{unitName(variant.base_unit)}</span>
                 </td>
                 <td className="px-3 py-2">
                   <Badge tone={availabilityTone(variant.availability)}>{t(`availability.${variant.availability ?? "out_of_stock"}`)}</Badge>
