@@ -263,6 +263,64 @@ Widget _host({
 );
 
 void main() {
+  for (final language in ['en', 'ar']) {
+    testWidgets('missing product has dedicated localized state ($language)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          retry: (_, _) => null,
+          overrides: [
+            notificationSyncProvider.overrideWith((ref) {}),
+            unreadCountProvider.overrideWith((ref) async => 0),
+            productProvider('gone').overrideWith(
+              (ref) => throw const AppFailure(
+                FailureKind.notFound,
+                serverMessage: 'private server detail',
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: Locale(language),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const ProductDetailScreen(productId: 'gone'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(ProductDetailScreen)),
+      );
+      expect(find.text(l10n.productUnavailableTitle), findsOneWidget);
+      expect(find.text(l10n.productUnavailableMessage), findsOneWidget);
+      expect(find.text(l10n.productAddToCart), findsNothing);
+      expect(find.text('private server detail'), findsNothing);
+      expect(
+        Directionality.of(
+          tester.element(find.text(l10n.productUnavailableTitle)),
+        ),
+        language == 'ar' ? TextDirection.rtl : TextDirection.ltr,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+  test('legacy negotiation fields are ignored and never serialized', () {
+    final product = Product.fromJson({
+      'id': 'p',
+      'category_id': 'c',
+      'name_en': 'P',
+      'name_ar': 'منتج',
+      'price': 10,
+      'is_negotiable': true,
+      'floor_price': 5,
+      'points_price': 3,
+    });
+    expect(product.toJson().keys, isNot(contains('is_negotiable')));
+    expect(product.copyWith().toJson().keys, isNot(contains('floor_price')));
+    expect(product.toJson().keys, isNot(contains('points_price')));
+    expect(product.effectivePrice, 10);
+  });
   // A phone-sized portrait surface so the square gallery doesn't push the rest
   // of the (lazily built) list out of the viewport.
   void sizePhone(WidgetTester tester) {

@@ -3811,6 +3811,88 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settle outstanding amounts before deleting your account.'**
   String get accountDeletionUnsettled;
+
+  /// No description provided for @orderRequestDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested'**
+  String get orderRequestDate;
+
+  /// No description provided for @orderResolutionDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved'**
+  String get orderResolutionDate;
+
+  /// No description provided for @orderResolutionNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolution note'**
+  String get orderResolutionNote;
+
+  /// No description provided for @orderAcceptedPrices.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted price changes'**
+  String get orderAcceptedPrices;
+
+  /// No description provided for @orderStockAttention.
+  ///
+  /// In en, this message translates to:
+  /// **'Order quantity shortage'**
+  String get orderStockAttention;
+
+  /// No description provided for @orderShortageQuantities.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested: {requested} · Allocated: {allocated} · Short: {short}'**
+  String orderShortageQuantities(
+    String requested,
+    String allocated,
+    String short,
+  );
+
+  /// No description provided for @orderPaidOnDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid on delivery'**
+  String get orderPaidOnDelivery;
+
+  /// No description provided for @orderStillOwed.
+  ///
+  /// In en, this message translates to:
+  /// **'Still owed'**
+  String get orderStillOwed;
+
+  /// No description provided for @orderCollectionUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment is awaiting confirmation'**
+  String get orderCollectionUnconfirmed;
+
+  /// No description provided for @productUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Product unavailable'**
+  String get productUnavailableTitle;
+
+  /// No description provided for @productUnavailableMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This product is no longer available. Please browse the catalog for other products.'**
+  String get productUnavailableMessage;
+
+  /// No description provided for @orderReductionAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity change accepted'**
+  String get orderReductionAccepted;
+
+  /// No description provided for @orderReductionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity change declined'**
+  String get orderReductionDenied;
 }
 
 class _AppLocalizationsDelegate
