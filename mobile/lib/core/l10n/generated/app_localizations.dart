@@ -3869,6 +3869,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Payment is awaiting confirmation'**
   String get orderCollectionUnconfirmed;
+
+  /// No description provided for @productUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Product unavailable'**
+  String get productUnavailableTitle;
+
+  /// No description provided for @productUnavailableMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This product is no longer available. Please browse the catalog for other products.'**
+  String get productUnavailableMessage;
+
+  /// No description provided for @orderReductionAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity change accepted'**
+  String get orderReductionAccepted;
+
+  /// No description provided for @orderReductionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity change declined'**
+  String get orderReductionDenied;
 }
 
 class _AppLocalizationsDelegate

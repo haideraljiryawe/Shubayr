@@ -18,6 +18,7 @@ class OrderServerDetails extends StatelessWidget {
     final l10n = context.l10n;
     final language = Localizations.localeOf(context).languageCode;
     final prices = order.priceChangeInfo;
+    final proposal = order.attentionDetails?.reductionProposal;
     final collection = order.collection;
     final shortLines = order.attentionDetails?.shortLines ?? const [];
     String label(OrderItem? item) =>
@@ -74,6 +75,29 @@ class OrderServerDetails extends StatelessWidget {
                 ),
               ),
             ],
+          ]),
+        if (proposal != null &&
+            (proposal.status == 'accepted' || proposal.status == 'denied'))
+          card([
+            Text(
+              proposal.status == 'accepted'
+                  ? l10n.orderReductionAccepted
+                  : l10n.orderReductionDenied,
+            ),
+            Text(
+              label(
+                order.items
+                    .where((item) => item.id == proposal.orderItemId)
+                    .firstOrNull,
+              ),
+            ),
+            Text(
+              l10n.orderReductionQuantities(
+                formatQuantity(proposal.oldQuantity),
+                formatQuantity(proposal.newQuantity),
+              ),
+            ),
+            Text(proposal.reason),
           ]),
         if (collection != null)
           card([

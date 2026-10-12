@@ -13,7 +13,7 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
-import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -42,11 +42,21 @@ class ProductDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(actions: [WishlistButton(productId: productId)]),
       body: ResponsiveContent.page(
-        child: AsyncValueView(
-          value: product,
-          loading: const _DetailSkeleton(),
-          onRetry: () => ref.invalidate(productProvider(productId)),
-          builder: (context, p) => _Detail(product: p),
+        child: product.when(
+          skipLoadingOnRefresh: false,
+          loading: () => const _DetailSkeleton(),
+          error: (error, _) =>
+              error is AppFailure && error.kind == FailureKind.notFound
+              ? AppEmptyView(
+                  icon: Icons.inventory_2_outlined,
+                  title: context.l10n.productUnavailableTitle,
+                  message: context.l10n.productUnavailableMessage,
+                )
+              : AppErrorView(
+                  error: error,
+                  onRetry: () => ref.invalidate(productProvider(productId)),
+                ),
+          data: (p) => _Detail(product: p),
         ),
       ),
     );

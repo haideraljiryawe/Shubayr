@@ -2003,4 +2003,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get orderCollectionUnconfirmed => 'الدفع بانتظار التأكيد';
+
+  @override
+  String get productUnavailableTitle => 'المنتج غير متاح';
+
+  @override
+  String get productUnavailableMessage =>
+      'هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.';
+
+  @override
+  String get orderReductionAccepted => 'تم قبول تعديل الكمية';
+
+  @override
+  String get orderReductionDenied => 'تم رفض تعديل الكمية';
 }

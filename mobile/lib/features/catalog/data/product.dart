@@ -83,9 +83,6 @@ class Product {
     this.discountedPrice,
     num? effectivePrice,
     this.discountPercent,
-    this.isNegotiable = false,
-    this.floorPrice,
-    this.pointsPrice,
     this.tracksExpiry = false,
     this.ratingAvg = 0,
     this.status = 'active',
@@ -132,12 +129,6 @@ class Product {
 
   bool get isOnSale => onSale;
 
-  @JsonKey(name: 'is_negotiable')
-  final bool isNegotiable;
-  @JsonKey(name: 'floor_price')
-  final num? floorPrice;
-  @JsonKey(name: 'points_price')
-  final int? pointsPrice;
   @JsonKey(name: 'tracks_expiry')
   final bool tracksExpiry;
   @JsonKey(name: 'rating_avg')
@@ -192,9 +183,6 @@ class Product {
     discountedPrice: discountedPrice,
     effectivePrice: effectivePrice,
     discountPercent: discountPercent,
-    isNegotiable: isNegotiable,
-    floorPrice: floorPrice,
-    pointsPrice: pointsPrice,
     tracksExpiry: tracksExpiry,
     ratingAvg: ratingAvg,
     status: status,

@@ -58,6 +58,47 @@ void main() {
   );
 
   test(
+    'category browsing discards deeper legacy nodes without changing metadata',
+    () async {
+      const child = Category(
+        id: 'child',
+        parentId: 'root',
+        nameEn: 'Child',
+        nameAr: 'فرع',
+        children: [
+          Category(
+            id: 'legacy',
+            parentId: 'child',
+            nameEn: 'Legacy',
+            nameAr: 'قديم',
+          ),
+        ],
+      );
+      const root = Category(
+        id: 'root',
+        nameEn: 'Department',
+        nameAr: 'قسم',
+        children: [child],
+      );
+      final container = ProviderContainer(
+        overrides: [
+          catalogRepositoryProvider.overrideWithValue(_CategorySnapshot(root)),
+        ],
+      );
+      addTearDown(container.dispose);
+      final tree = await container.read(categoriesProvider.future);
+      expect(
+        tree.single.children.single.toJson(),
+        child.copyWith(children: []).toJson(),
+      );
+      expect(
+        tree.single.toJson(),
+        root.copyWith(children: [child.copyWith(children: [])]).toJson(),
+      );
+    },
+  );
+
+  test(
     'mock scopes search, price, sale, sorting and pagination to the subtree',
     () async {
       final repo = CatalogRepositoryMock(delay: Duration.zero);

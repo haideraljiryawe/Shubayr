@@ -2021,4 +2021,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orderCollectionUnconfirmed => 'Payment is awaiting confirmation';
+
+  @override
+  String get productUnavailableTitle => 'Product unavailable';
+
+  @override
+  String get productUnavailableMessage =>
+      'This product is no longer available. Please browse the catalog for other products.';
+
+  @override
+  String get orderReductionAccepted => 'Quantity change accepted';
+
+  @override
+  String get orderReductionDenied => 'Quantity change declined';
 }

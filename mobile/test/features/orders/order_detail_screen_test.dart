@@ -13,6 +13,7 @@ import 'package:shubayr/core/utils/currency_formatter.dart';
 import 'package:shubayr/features/catalog/data/product.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:shubayr/features/orders/data/order.dart';
+import 'package:shubayr/features/orders/presentation/widgets/order_server_details.dart';
 import 'package:shubayr/features/orders/data/order_tracking.dart';
 import 'package:shubayr/features/orders/presentation/providers/order_providers.dart';
 import 'package:shubayr/features/orders/presentation/screens/order_detail_screen.dart';
@@ -87,6 +88,50 @@ Widget _host(
 );
 
 void main() {
+  for (final status in ['accepted', 'denied']) {
+    testWidgets('resolved quantity proposal remains visible: $status', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('ar'),
+          home: Scaffold(
+            body: OrderServerDetails(
+              order: Order(
+                id: 'o',
+                attentionDetails: OrderAttentionDetails(
+                  reductionProposal: OrderQuantityProposal(
+                    orderItemId: 'i',
+                    oldQuantity: 1.25,
+                    newQuantity: .625,
+                    reason: 'Saved proposal reason',
+                    status: status,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(OrderServerDetails)),
+      );
+      expect(
+        find.text(
+          status == 'accepted'
+              ? l10n.orderReductionAccepted
+              : l10n.orderReductionDenied,
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Saved proposal reason'), findsOneWidget);
+      expect(find.text(l10n.orderReductionAccept), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
   Map<String, dynamic> details({bool confirmed = true}) => {
     'id': 'o1',
     'status': 'cancelled',

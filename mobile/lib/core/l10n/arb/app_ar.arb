@@ -695,5 +695,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "productUnavailableTitle": "المنتج غير متاح",
+  "productUnavailableMessage": "هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.",
+  "orderReductionAccepted": "تم قبول تعديل الكمية",
+  "orderReductionDenied": "تم رفض تعديل الكمية"
 }

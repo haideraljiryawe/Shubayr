@@ -22,10 +22,16 @@ final catalogRepositoryProvider = Provider<CatalogRepository>((ref) {
 /// Application-owned display metadata, shared across navigation. Home refresh
 /// explicitly invalidates this tree; price and stock live in disposable providers.
 final categoriesProvider = FutureProvider<List<Category>>((ref) async {
-  List<Category> visible(List<Category> nodes) {
+  List<Category> visible(List<Category> nodes, {bool department = true}) {
     final result = [
       for (final node in nodes)
-        if (node.isActive) node.copyWith(children: visible(node.children)),
+        if (node.isActive)
+          node.copyWith(
+            // Published category migration: discard deeper legacy nodes.
+            children: department
+                ? visible(node.children, department: false)
+                : const [],
+          ),
     ];
     result.sort((a, b) {
       final order = a.sortOrder.compareTo(b.sortOrder);
