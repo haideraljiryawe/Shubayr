@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
@@ -27,8 +28,10 @@ final addressRepositoryProvider = Provider<AddressRepository>((ref) {
 /// Loads every page before checkout resolves its default address. Mutations
 /// keep the complete list and the single-default invariant in sync.
 class AddressesController extends AsyncNotifier<List<Address>> {
-  static const _perPage = 8;
+  // API 11 PerPage maximum; the complete collection is required by consumers.
+  static const _perPage = 100;
   int _generation = 0;
+  final _pending = <Object, ({Object intent, Future<void> task})>{};
   int? _refreshGeneration;
 
   /// A manual refresh keeps visible data; a new session/repository must reload.
@@ -78,19 +81,29 @@ class AddressesController extends AsyncNotifier<List<Address>> {
     return List.unmodifiable(items.values);
   }
 
-  Future<void> add(AddressInput input) =>
-      _save((repository) => repository.createAddress(input));
+  Future<void> add(AddressInput input) => _once(
+    'add',
+    jsonEncode(input.toJson()),
+    () => _save((repository) => repository.createAddress(input)),
+  );
 
-  Future<void> edit(String id, AddressInput input) =>
-      _save((repository) => repository.updateAddress(id, input));
+  Future<void> edit(String id, AddressInput input) => _once(
+    ('address', id),
+    ('edit', jsonEncode(input.toJson())),
+    () => _save((repository) => repository.updateAddress(id, input)),
+  );
 
-  Future<void> setDefault(Address address) => _save((repository) {
-    final current = state.requireValue.firstWhere((a) => a.id == address.id);
-    return repository.updateAddress(
-      current.id,
-      current.toInput(isDefault: true),
-    );
-  });
+  Future<void> setDefault(Address address) => _once(
+    ('address', address.id),
+    'default',
+    () => _save((repository) {
+      final current = state.requireValue.firstWhere((a) => a.id == address.id);
+      return repository.updateAddress(
+        current.id,
+        current.toInput(isDefault: true),
+      );
+    }),
+  );
 
   Future<void> _save(Future<Address> Function(AddressRepository) save) =>
       _enqueue((generation) async {
@@ -114,16 +127,36 @@ class AddressesController extends AsyncNotifier<List<Address>> {
         );
       });
 
-  Future<void> remove(String id) => _enqueue((generation) async {
-    _requireSignedIn();
-    await ref.read(addressRepositoryProvider).deleteAddress(id);
-    if (generation != _generation) return;
-    state = AsyncData(
-      List.unmodifiable(
-        state.requireValue.where((address) => address.id != id),
-      ),
-    );
-  });
+  Future<void> remove(String id) => _once(
+    ('address', id),
+    'remove',
+    () => _enqueue((generation) async {
+      _requireSignedIn();
+      await ref.read(addressRepositoryProvider).deleteAddress(id);
+      if (generation != _generation) return;
+      state = AsyncData(
+        List.unmodifiable(
+          state.requireValue.where((address) => address.id != id),
+        ),
+      );
+    }),
+  );
+
+  Future<void> _once(
+    Object entity,
+    Object intent,
+    Future<void> Function() run,
+  ) {
+    final key = (_generation, entity);
+    final previous = _pending[key];
+    if (previous != null && previous.intent == intent) return previous.task;
+    late final Future<void> task;
+    task = run().whenComplete(() {
+      if (identical(_pending[key]?.task, task)) _pending.remove(key);
+    });
+    _pending[key] = (intent: intent, task: task);
+    return task;
+  }
 
   void _requireSignedIn() {
     if (!(ref.read(sessionControllerProvider).value?.isSignedIn ?? false)) {

@@ -1,15 +1,28 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../../../core/error/failure.dart';
 
 part 'order.g.dart';
 
-/// A placed order. Shapes match `Order` in `api/openapi.yaml`. Amounts are
-/// computed by the server (subtotal, delivery fee, discount, total); the client
-/// only sends the address and an optional coupon.
+const remoteOrderStatuses = [
+  'pending',
+  'confirmed',
+  'preparing',
+  'ready_for_dispatch',
+  'dispatched',
+  'delivered',
+  'failed',
+  'rejected',
+  'cancelled',
+  'return_requested',
+  'returned',
+];
+
 @JsonSerializable(explicitToJson: true)
 class Order {
   const Order({
     required this.id,
     this.orderNumber = '',
+    this.version,
     this.status = 'pending',
     this.paymentMethod = 'cod',
     this.addressId,
@@ -17,6 +30,7 @@ class Order {
     this.deliveryFee = 0,
     this.discount = 0,
     this.total = 0,
+    this.currency,
     this.placedAt,
     this.items = const [],
   });
@@ -25,6 +39,10 @@ class Order {
   @JsonKey(name: 'order_number')
   final String orderNumber;
   final String status;
+
+  /// Absent versions cannot authorize a state-changing request.
+  @JsonKey(includeIfNull: false)
+  final int? version;
   @JsonKey(name: 'payment_method')
   final String paymentMethod;
   @JsonKey(name: 'address_id')
@@ -34,11 +52,19 @@ class Order {
   final num deliveryFee;
   final num discount;
   final num total;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
   @JsonKey(name: 'placed_at')
   final DateTime? placedAt;
   final List<OrderItem> items;
 
-  factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
+  factory Order.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('version') &&
+        (json['version'] is! int || (json['version'] as int) < 1)) {
+      throw const AppFailure(FailureKind.server);
+    }
+    return _$OrderFromJson(json);
+  }
 
   Map<String, dynamic> toJson() => _$OrderToJson(this);
 }
@@ -56,6 +82,8 @@ class OrderItem {
     this.quantity = 1,
     this.unitPrice = 0,
     this.lineTotal = 0,
+    this.reviewed,
+    this.currency,
   }) : imageSnapshotProvided = imageSnapshotProvided ?? (imageUrl != null);
 
   final String id;
@@ -75,6 +103,9 @@ class OrderItem {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool imageSnapshotProvided;
 
+  bool get needsCatalogLabel => snapshotName('en') == null || variantId != null;
+  bool get needsCatalogDetails => needsCatalogLabel || !imageSnapshotProvided;
+
   String? snapshotName(String language) {
     final names = language == 'ar'
         ? [productNameAr, productNameEn]
@@ -85,11 +116,17 @@ class OrderItem {
     return null;
   }
 
-  final int quantity;
+  final num quantity;
   @JsonKey(name: 'unit_price')
   final num unitPrice;
   @JsonKey(name: 'line_total')
   final num lineTotal;
+
+  /// Null means the optional contract field was absent, not proof of no review.
+  @JsonKey(includeIfNull: false)
+  final bool? reviewed;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     final item = _$OrderItemFromJson(json);
@@ -100,6 +137,8 @@ class OrderItem {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       lineTotal: item.lineTotal,
+      reviewed: item.reviewed,
+      currency: item.currency,
       productNameAr: item.productNameAr,
       productNameEn: item.productNameEn,
       imageUrl: item.imageUrl,

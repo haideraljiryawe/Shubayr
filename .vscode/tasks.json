@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Check remote: ios",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/mobile/tool/check_debug_environment.mjs",
+        "ios"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": true
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
+      "label": "Check remote: iphone",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/mobile/tool/check_debug_environment.mjs",
+        "iphone"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": true
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
+      "label": "Check remote: chrome",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/mobile/tool/check_debug_environment.mjs",
+        "chrome"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": true
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
+      "label": "Check remote: admin",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/mobile/tool/check_debug_environment.mjs",
+        "admin"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": true
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    }
+  ]
+}

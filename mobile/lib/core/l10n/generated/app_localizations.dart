@@ -98,12 +98,6 @@ abstract class AppLocalizations {
     Locale('en'),
   ];
 
-  /// No description provided for @homeBrandName.
-  ///
-  /// In en, this message translates to:
-  /// **'Shubayr'**
-  String get homeBrandName;
-
   /// Neutral brand name used before store settings load.
   ///
   /// In en, this message translates to:
@@ -203,7 +197,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorNetwork.
   ///
   /// In en, this message translates to:
-  /// **'No internet connection. Check your network and try again.'**
+  /// **'Could not connect to the server. Check your connection and try again.'**
   String get errorNetwork;
 
   /// No description provided for @errorTimeout.
@@ -878,6 +872,12 @@ abstract class AppLocalizations {
   /// **'Delivery failed'**
   String get orderStatusFailedDelivery;
 
+  /// No description provided for @orderStatusRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get orderStatusRejected;
+
   /// No description provided for @orderStatusCancelled.
   ///
   /// In en, this message translates to:
@@ -895,6 +895,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Returned'**
   String get orderStatusReturned;
+
+  /// No description provided for @deliveryFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get deliveryFilterAll;
+
+  /// No description provided for @deliveryFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No deliveries with this status'**
+  String get deliveryFilterEmpty;
+
+  /// No description provided for @deliveryStatusConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'The current state does not allow this action. Check the delivery and order status before trying again.'**
+  String get deliveryStatusConflict;
 
   /// No description provided for @deliveryTitle.
   ///
@@ -997,6 +1015,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Only {count} left'**
   String productLowStock(String count);
+
+  /// No description provided for @productReviewsPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total} reviews — preview'**
+  String productReviewsPreview(String shown, String total);
 
   /// No description provided for @productReviews.
   ///
@@ -1331,7 +1355,7 @@ abstract class AppLocalizations {
   /// No description provided for @reviewAllSubmitted.
   ///
   /// In en, this message translates to:
-  /// **'You have submitted reviews for all items in this session.'**
+  /// **'You have already reviewed all items in this order.'**
   String get reviewAllSubmitted;
 
   /// No description provided for @returnOrderTitle.
@@ -1367,7 +1391,7 @@ abstract class AppLocalizations {
   /// No description provided for @returnReason.
   ///
   /// In en, this message translates to:
-  /// **'Reason for return (optional)'**
+  /// **'Reason for all selected items (required)'**
   String get returnReason;
 
   /// No description provided for @returnSubmit.
@@ -1397,7 +1421,7 @@ abstract class AppLocalizations {
   /// No description provided for @returnAllRequested.
   ///
   /// In en, this message translates to:
-  /// **'All item quantities have been requested for return in this session.'**
+  /// **'There are no remaining quantities available to request for return.'**
   String get returnAllRequested;
 
   /// No description provided for @routeNotFoundTitle.
@@ -3311,8 +3335,236 @@ abstract class AppLocalizations {
   /// No description provided for @adminRetainedProductCategory.
   ///
   /// In en, this message translates to:
-  /// **'The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it.'**
+  /// **'The current category is retained but unavailable for new assignments. Keep it for this product or choose another category to change it.'**
   String get adminRetainedProductCategory;
+
+  /// No description provided for @adminDiscountType.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount type'**
+  String get adminDiscountType;
+
+  /// No description provided for @adminDiscountNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No discount'**
+  String get adminDiscountNone;
+
+  /// No description provided for @adminDiscountPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Percentage'**
+  String get adminDiscountPercentage;
+
+  /// No description provided for @adminDiscountAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed amount'**
+  String get adminDiscountAmount;
+
+  /// No description provided for @adminDiscountValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount value'**
+  String get adminDiscountValue;
+
+  /// No description provided for @adminDiscountStartsAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount starts'**
+  String get adminDiscountStartsAt;
+
+  /// No description provided for @adminDiscountEndsAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount ends'**
+  String get adminDiscountEndsAt;
+
+  /// No description provided for @adminDiscountDateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional; UTC example: 2026-10-01T09:00:00Z'**
+  String get adminDiscountDateHint;
+
+  /// No description provided for @adminDiscountDateInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid date and time with timezone, e.g. 2026-10-01T09:00:00Z'**
+  String get adminDiscountDateInvalid;
+
+  /// No description provided for @adminCategorySlug.
+  ///
+  /// In en, this message translates to:
+  /// **'Category URL slug'**
+  String get adminCategorySlug;
+
+  /// No description provided for @addressInternationalPhoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use an international number starting with + and country code; no country code is added automatically.'**
+  String get addressInternationalPhoneHint;
+
+  /// No description provided for @mediaUploadHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Images upload when saved. JPEG, PNG, WebP or AVIF, up to 8 MiB per image.'**
+  String get mediaUploadHint;
+
+  /// No description provided for @orderStatusReadyForDispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready for dispatch'**
+  String get orderStatusReadyForDispatch;
+
+  /// No description provided for @roleMonitor.
+  ///
+  /// In en, this message translates to:
+  /// **'Order monitor'**
+  String get roleMonitor;
+
+  /// No description provided for @monitorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order monitoring'**
+  String get monitorTitle;
+
+  /// No description provided for @notificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsTitle;
+
+  /// No description provided for @notificationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet'**
+  String get notificationsEmpty;
+
+  /// No description provided for @actionLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get actionLoadMore;
+
+  /// No description provided for @quantityInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a quantity within the limits, with up to 3 decimal places.'**
+  String get quantityInvalid;
+
+  /// No description provided for @quantityWholeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole quantity within the limits.'**
+  String get quantityWholeInvalid;
+
+  /// No description provided for @checkoutPricesChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices changed'**
+  String get checkoutPricesChanged;
+
+  /// No description provided for @checkoutPricesChangedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the new unit prices before placing your order. The server will calculate the final total.'**
+  String get checkoutPricesChangedMessage;
+
+  /// No description provided for @checkoutAcceptPrices.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept prices and place order'**
+  String get checkoutAcceptPrices;
+
+  /// No description provided for @cartPricesChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Some prices changed. You will be asked to review and accept them at checkout.'**
+  String get cartPricesChanged;
+
+  /// No description provided for @deliveryFailureReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for failed delivery'**
+  String get deliveryFailureReason;
+
+  /// No description provided for @deliveryRetryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry count'**
+  String get deliveryRetryCount;
+
+  /// No description provided for @orderStateConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This order changed or can no longer be cancelled. Please review its latest status.'**
+  String get orderStateConflict;
+
+  /// No description provided for @errorConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This action conflicts with the current state. Refresh and review before trying again.'**
+  String get errorConflict;
+
+  /// No description provided for @startupConfigurationError.
+  ///
+  /// In en, this message translates to:
+  /// **'This build has an invalid production API configuration. Contact support for a corrected build.'**
+  String get startupConfigurationError;
+
+  /// No description provided for @deliveryAmountDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount due'**
+  String get deliveryAmountDue;
+
+  /// No description provided for @deliveryCollectionConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment collection'**
+  String get deliveryCollectionConfirmation;
+
+  /// No description provided for @deliveryCollectionConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment collected'**
+  String get deliveryCollectionConfirmed;
+
+  /// No description provided for @deliveryCollectionUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount not confirmed'**
+  String get deliveryCollectionUnconfirmed;
+
+  /// No description provided for @deliveryCollectionUnconfirmedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The order is delivered now; the store confirms the amount later.'**
+  String get deliveryCollectionUnconfirmedHint;
+
+  /// No description provided for @deliveryCollectedAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount collected'**
+  String get deliveryCollectedAmount;
+
+  /// No description provided for @deliveryInvalidAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount from zero up to the amount due (at most 6 decimal places).'**
+  String get deliveryInvalidAmount;
+
+  /// No description provided for @pendingDeliveryRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'The previous result is unknown. Retry the same collection; its amount cannot be changed until the result is known.'**
+  String get pendingDeliveryRetry;
+
+  /// No description provided for @pendingRequestMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'A previous request is unresolved. Retry with the same selection and amount or quantity.'**
+  String get pendingRequestMessage;
 }
 
 class _AppLocalizationsDelegate

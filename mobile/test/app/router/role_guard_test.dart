@@ -5,18 +5,24 @@ import 'package:shubayr/features/auth/domain/user_role.dart';
 
 void main() {
   group('UserRole.fromApi', () {
-    test('maps the roles defined in seed_rbac.sql', () {
+    test('maps only the current app contract roles', () {
       expect(UserRole.fromApi('customer'), UserRole.customer);
-      expect(UserRole.fromApi('delivery'), UserRole.delivery);
-      expect(UserRole.fromApi('admin'), UserRole.staff);
-      expect(UserRole.fromApi('manager'), UserRole.staff);
-      expect(UserRole.fromApi('purchasing'), UserRole.staff);
-      expect(UserRole.fromApi('warehouse'), UserRole.staff);
+      expect(UserRole.fromApi('delivery_agent'), UserRole.delivery);
+      expect(UserRole.fromApi('order_monitor'), UserRole.monitor);
     });
-
-    test('falls back to the least-privileged area', () {
-      expect(UserRole.fromApi(null), UserRole.customer);
-      expect(UserRole.fromApi('something_new'), UserRole.customer);
+    test('rejects unknown and legacy staff roles', () {
+      for (final role in [
+        null,
+        '',
+        'admin',
+        'manager',
+        'purchasing',
+        'warehouse',
+        'delivery',
+        'unknown',
+      ]) {
+        expect(UserRole.fromApi(role), UserRole.unsupported);
+      }
     });
   });
 
@@ -78,14 +84,14 @@ void main() {
         AppRoutes.delivery,
       );
       expect(
-        redirect(SessionStatus.signedIn, UserRole.staff, AppRoutes.splash),
-        AppRoutes.admin,
+        redirect(SessionStatus.signedIn, UserRole.monitor, AppRoutes.splash),
+        AppRoutes.monitor,
       );
     });
 
     test('roles cannot enter another role area', () {
       expect(
-        redirect(SessionStatus.signedIn, UserRole.customer, AppRoutes.admin),
+        redirect(SessionStatus.signedIn, UserRole.customer, AppRoutes.monitor),
         AppRoutes.home,
       );
       expect(
@@ -93,8 +99,8 @@ void main() {
         AppRoutes.delivery,
       );
       expect(
-        redirect(SessionStatus.signedIn, UserRole.staff, AppRoutes.delivery),
-        AppRoutes.admin,
+        redirect(SessionStatus.signedIn, UserRole.monitor, AppRoutes.delivery),
+        AppRoutes.monitor,
       );
     });
 
@@ -124,7 +130,7 @@ void main() {
         isNull,
       );
       expect(
-        redirect(SessionStatus.signedIn, UserRole.staff, AppRoutes.admin),
+        redirect(SessionStatus.signedIn, UserRole.monitor, AppRoutes.monitor),
         isNull,
       );
     });

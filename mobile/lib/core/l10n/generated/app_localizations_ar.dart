@@ -9,9 +9,6 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get homeBrandName => 'شُبَيّر';
-
-  @override
   String get storeFallbackName => 'المتجر';
 
   @override
@@ -61,7 +58,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorNetwork =>
-      'لا يوجد اتصال بالإنترنت. تحقّق من الشبكة وحاول مرة أخرى.';
+      'تعذّر الاتصال بالخادم. تحقّق من الاتصال وحاول مرة أخرى.';
 
   @override
   String get errorTimeout => 'استغرق الطلب وقتًا طويلًا. حاول مرة أخرى.';
@@ -410,6 +407,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get orderStatusFailedDelivery => 'تعذّر التوصيل';
 
   @override
+  String get orderStatusRejected => 'مرفوض';
+
+  @override
   String get orderStatusCancelled => 'ملغى';
 
   @override
@@ -417,6 +417,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get orderStatusReturned => 'مُرجَع';
+
+  @override
+  String get deliveryFilterAll => 'الكل';
+
+  @override
+  String get deliveryFilterEmpty => 'لا توجد توصيلات بهذه الحالة';
+
+  @override
+  String get deliveryStatusConflict =>
+      'لا تسمح الحالة الحالية بتنفيذ هذا الإجراء. تحقّق من حالة التوصيل والطلب وحاول مرة أخرى.';
 
   @override
   String get deliveryTitle => 'التوصيل';
@@ -469,6 +479,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String productLowStock(String count) {
     return 'باقٍ $count';
+  }
+
+  @override
+  String productReviewsPreview(String shown, String total) {
+    return 'عرض $shown من أصل $total تقييم — معاينة';
   }
 
   @override
@@ -652,8 +667,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get reviewSubmitted => 'تم إرسال التقييم. يخضع النشر للمراجعة.';
 
   @override
-  String get reviewAllSubmitted =>
-      'أرسلت تقييمات لجميع المنتجات خلال هذه الجلسة.';
+  String get reviewAllSubmitted => 'سبق أن قيّمت جميع منتجات هذا الطلب.';
 
   @override
   String get returnOrderTitle => 'طلب إرجاع';
@@ -674,7 +688,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get returnDecrease => 'تقليل كمية الإرجاع';
 
   @override
-  String get returnReason => 'سبب الإرجاع (اختياري)';
+  String get returnReason => 'سبب إرجاع جميع العناصر المحددة (مطلوب)';
 
   @override
   String get returnSubmit => 'إرسال طلب الإرجاع';
@@ -692,7 +706,7 @@ class AppLocalizationsAr extends AppLocalizations {
       'هذا طلب إرجاع وليس موافقة أو استردادًا للمبلغ. سيراجعه المتجر.';
 
   @override
-  String get returnAllRequested => 'طلبت إرجاع جميع الكميات خلال هذه الجلسة.';
+  String get returnAllRequested => 'لا توجد كميات متبقية متاحة لطلب الإرجاع.';
 
   @override
   String get routeNotFoundTitle => 'الصفحة غير موجودة';
@@ -1679,5 +1693,133 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminRetainedProductCategory =>
-      'التصنيف الحالي محفوظ، لكنه غير متاح للإسناد الجديد. يمكنك إبقاؤه لهذا المنتج أو اختيار قسم فرعي لتغييره.';
+      'التصنيف الحالي محفوظ، لكنه غير متاح للإسناد الجديد. يمكنك إبقاؤه لهذا المنتج أو اختيار قسم آخر لتغييره.';
+
+  @override
+  String get adminDiscountType => 'نوع الخصم';
+
+  @override
+  String get adminDiscountNone => 'بدون خصم';
+
+  @override
+  String get adminDiscountPercentage => 'نسبة مئوية';
+
+  @override
+  String get adminDiscountAmount => 'مبلغ ثابت';
+
+  @override
+  String get adminDiscountValue => 'قيمة الخصم';
+
+  @override
+  String get adminDiscountStartsAt => 'بداية الخصم';
+
+  @override
+  String get adminDiscountEndsAt => 'نهاية الخصم';
+
+  @override
+  String get adminDiscountDateHint =>
+      'اختياري؛ مثال بتوقيت UTC: 2026-10-01T09:00:00Z';
+
+  @override
+  String get adminDiscountDateInvalid =>
+      'أدخل تاريخًا ووقتًا صالحين مع المنطقة الزمنية، مثل 2026-10-01T09:00:00Z';
+
+  @override
+  String get adminCategorySlug => 'معرّف رابط القسم';
+
+  @override
+  String get addressInternationalPhoneHint =>
+      'أدخل رقمًا دوليًا يبدأ بـ + ورمز البلد؛ لا يُضاف رمز البلد تلقائيًا.';
+
+  @override
+  String get mediaUploadHint =>
+      'تُرفع الصور عند الحفظ. JPEG وPNG وWebP وAVIF، بحد أقصى 8 MiB للصورة.';
+
+  @override
+  String get orderStatusReadyForDispatch => 'جاهز للإرسال';
+
+  @override
+  String get roleMonitor => 'متابع الطلبات';
+
+  @override
+  String get monitorTitle => 'متابعة الطلبات';
+
+  @override
+  String get notificationsTitle => 'الإشعارات';
+
+  @override
+  String get notificationsEmpty => 'لا توجد إشعارات حتى الآن';
+
+  @override
+  String get actionLoadMore => 'تحميل المزيد';
+
+  @override
+  String get quantityInvalid =>
+      'أدخل كمية ضمن الحدود، بثلاث منازل عشرية كحد أقصى.';
+
+  @override
+  String get quantityWholeInvalid => 'أدخل كمية صحيحة ضمن الحدود.';
+
+  @override
+  String get checkoutPricesChanged => 'تغيّرت الأسعار';
+
+  @override
+  String get checkoutPricesChangedMessage =>
+      'راجع أسعار الوحدات الجديدة قبل تأكيد الطلب. سيحسب الخادم الإجمالي النهائي.';
+
+  @override
+  String get checkoutAcceptPrices => 'قبول الأسعار وتأكيد الطلب';
+
+  @override
+  String get cartPricesChanged =>
+      'تغيّرت بعض الأسعار. ستُطلب منك مراجعتها وقبولها عند تأكيد الطلب.';
+
+  @override
+  String get deliveryFailureReason => 'سبب تعذّر التوصيل';
+
+  @override
+  String get deliveryRetryCount => 'عدد محاولات الإعادة';
+
+  @override
+  String get orderStateConflict =>
+      'تغيّر الطلب أو لم يعد إلغاؤه متاحًا. راجع حالته الحالية.';
+
+  @override
+  String get errorConflict =>
+      'تتعارض هذه العملية مع الحالة الحالية. حدّث البيانات وراجعها قبل المحاولة مجددًا.';
+
+  @override
+  String get startupConfigurationError =>
+      'إعداد اتصال هذه النسخة بالخادم غير صالح للإنتاج. تواصل مع الدعم للحصول على نسخة مصحّحة.';
+
+  @override
+  String get deliveryAmountDue => 'المبلغ المستحق';
+
+  @override
+  String get deliveryCollectionConfirmation => 'تحصيل المبلغ';
+
+  @override
+  String get deliveryCollectionConfirmed => 'تم تحصيل المبلغ';
+
+  @override
+  String get deliveryCollectionUnconfirmed => 'المبلغ غير مؤكد';
+
+  @override
+  String get deliveryCollectionUnconfirmedHint =>
+      'يُسجّل الطلب كمُسلّم الآن، ويؤكد المتجر المبلغ لاحقاً.';
+
+  @override
+  String get deliveryCollectedAmount => 'المبلغ المحصل';
+
+  @override
+  String get deliveryInvalidAmount =>
+      'أدخل مبلغاً من صفر إلى المبلغ المستحق (بحد أقصى 6 منازل عشرية).';
+
+  @override
+  String get pendingDeliveryRetry =>
+      'نتيجة المحاولة السابقة غير معروفة. أعد محاولة التحصيل نفسه؛ لا يمكن تغيير المبلغ حتى تتضح النتيجة.';
+
+  @override
+  String get pendingRequestMessage =>
+      'نتيجة الطلب السابق لم تُحسم. أعد المحاولة بنفس الاختيار والمبلغ أو الكمية.';
 }

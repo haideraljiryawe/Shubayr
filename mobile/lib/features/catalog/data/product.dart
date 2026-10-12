@@ -1,5 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../core/error/failure.dart';
 import 'media/catalog_image.dart';
 
 part 'product.g.dart';
@@ -13,6 +14,14 @@ class ProductVariant {
     this.sku = '',
     this.attributes = const {},
     this.priceDelta = 0,
+    this.effectivePrice = 0,
+    this.currencyCode,
+    this.currency,
+    this.baseUnit,
+    this.wholeUnitsOnly = true,
+    this.availableQty,
+    this.inStock,
+    this.lowStockThreshold,
   });
 
   final String id;
@@ -20,9 +29,30 @@ class ProductVariant {
   final Map<String, dynamic> attributes;
   @JsonKey(name: 'price_delta')
   final num priceDelta;
+  @JsonKey(name: 'effective_price')
+  final num effectivePrice;
+  @JsonKey(name: 'currency_code', includeIfNull: false)
+  final String? currencyCode;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
 
-  factory ProductVariant.fromJson(Map<String, dynamic> json) =>
-      _$ProductVariantFromJson(json);
+  @JsonKey(name: 'base_unit', includeIfNull: false)
+  final String? baseUnit;
+  @JsonKey(name: 'whole_units_only')
+  final bool wholeUnitsOnly;
+  @JsonKey(name: 'available_qty', includeIfNull: false)
+  final num? availableQty;
+  @JsonKey(name: 'in_stock', includeIfNull: false)
+  final bool? inStock;
+  @JsonKey(name: 'low_stock_threshold', includeIfNull: false)
+  final num? lowStockThreshold;
+
+  factory ProductVariant.fromJson(Map<String, dynamic> json) {
+    // The API's effective SKU price includes linked conversion and the product
+    // discount. A delta or fixed override cannot reconstruct that value.
+    _checkedPrice(json['effective_price']);
+    return _$ProductVariantFromJson(json);
+  }
 
   Map<String, dynamic> toJson() => _$ProductVariantToJson(this);
 }
@@ -39,6 +69,7 @@ class Product {
     required this.nameAr,
     this.description = '',
     this.price = 0,
+    this.currency,
     this.discountType,
     this.discountValue,
     this.discountStartsAt,
@@ -47,8 +78,6 @@ class Product {
     this.discountedPrice,
     num? effectivePrice,
     this.discountPercent,
-    num? salePrice,
-    num? compareAtPrice,
     this.isNegotiable = false,
     this.floorPrice,
     this.pointsPrice,
@@ -57,12 +86,9 @@ class Product {
     this.status = 'active',
     this.inStock = true,
     this.availableQty = 0,
-    this.images = const [],
-    this.mockImages,
+    this.media = const [],
     this.variants = const [],
-  }) : effectivePrice = effectivePrice ?? salePrice ?? price,
-       _legacySalePrice = salePrice,
-       _legacyCompareAtPrice = compareAtPrice;
+  }) : effectivePrice = effectivePrice ?? price;
 
   final String id;
   @JsonKey(name: 'category_id')
@@ -73,6 +99,8 @@ class Product {
   final String nameAr;
   final String description;
   final num price;
+  @JsonKey(includeIfNull: false)
+  final String? currency;
   @JsonKey(name: 'discount_type')
   final String? discountType;
   @JsonKey(name: 'discount_value')
@@ -90,32 +118,14 @@ class Product {
   @JsonKey(name: 'discount_percent')
   final int? discountPercent;
 
-  // Keep direct constructors used by the mock layer source-compatible while
-  // remote reads use the scheduled-discount contract above.
-  final num? _legacySalePrice;
-  final num? _legacyCompareAtPrice;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  num get salePrice => effectivePrice;
 
-  num get salePrice => _legacySalePrice ?? effectivePrice;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  num? get compareAtPrice => onSale ? price : null;
 
-  num? get compareAtPrice => _legacyCompareAtPrice ?? (onSale ? price : null);
+  bool get isOnSale => onSale;
 
-  bool get isOnSale =>
-      onSale ||
-      (_legacyCompareAtPrice != null &&
-          _legacyCompareAtPrice.isFinite &&
-          salePrice.isFinite &&
-          _legacyCompareAtPrice > 0 &&
-          _legacyCompareAtPrice > salePrice);
-
-  /// Contract calculation for mock responses; remote percentages remain read-only.
-  static int? discountPercentFor(num sale, num? original) =>
-      original != null &&
-          original.isFinite &&
-          sale.isFinite &&
-          original > 0 &&
-          original > sale
-      ? ((original - sale) / original * 100).round()
-      : null;
   @JsonKey(name: 'is_negotiable')
   final bool isNegotiable;
   @JsonKey(name: 'floor_price')
@@ -130,17 +140,17 @@ class Product {
   @JsonKey(name: 'in_stock')
   final bool inStock;
   @JsonKey(name: 'available_qty')
-  final int availableQty;
-  final List<String> images;
+  final num availableQty;
   @JsonKey(includeFromJson: false, includeToJson: false)
-  final List<CatalogImage>? mockImages;
+  List<String> get images =>
+      orderedMedia.map((image) => image.url).toList(growable: false);
+  @JsonKey(name: 'images')
+  final List<ProductImage> media;
+  List<ProductImage> get orderedMedia =>
+      [...media]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
   List<CatalogImage> get displayImages =>
-      mockImages ?? images.map(UrlCatalogImage.new).toList(growable: false);
+      images.map(UrlCatalogImage.new).toList(growable: false);
 
-  factory Product.fromMock(Map<String, dynamic> json) => Product.fromJson(
-    json,
-  ).copyWith(mockImages: (json['mock_images'] as List?)?.cast<CatalogImage>());
-  Map<String, dynamic> toMock() => {...toJson(), 'mock_images': mockImages};
   final List<ProductVariant> variants;
 
   /// The name for the active language, falling back to the other side.
@@ -152,90 +162,87 @@ class Product {
   /// First image, or null when the product has none (the UI shows a placeholder).
   CatalogImage? get primaryDisplayImage => displayImages.firstOrNull;
 
-  /// URL-only consumers cannot represent session-local bytes. Never return an
-  /// unrelated old URL when the current primary image is local.
+  /// The URL of the first image in server-defined display order.
   String? get primaryImage => switch (primaryDisplayImage) {
     UrlCatalogImage(:final url) => url,
     _ => null,
   };
 
-  Product copyWith({List<String>? images, List<CatalogImage>? mockImages}) =>
-      Product(
-        id: id,
-        categoryId: categoryId,
-        nameEn: nameEn,
-        nameAr: nameAr,
-        description: description,
-        price: price,
-        discountType: discountType,
-        discountValue: discountValue,
-        discountStartsAt: discountStartsAt,
-        discountEndsAt: discountEndsAt,
-        onSale: onSale,
-        discountedPrice: discountedPrice,
-        effectivePrice: effectivePrice,
-        discountPercent: discountPercent,
-        salePrice: _legacySalePrice,
-        compareAtPrice: _legacyCompareAtPrice,
-        isNegotiable: isNegotiable,
-        floorPrice: floorPrice,
-        pointsPrice: pointsPrice,
-        tracksExpiry: tracksExpiry,
-        ratingAvg: ratingAvg,
-        status: status,
-        inStock: inStock,
-        availableQty: availableQty,
-        images: images ?? this.images,
-        mockImages: mockImages ?? this.mockImages,
-        variants: variants,
-      );
+  Product copyWith({List<ProductImage>? media}) => Product(
+    id: id,
+    categoryId: categoryId,
+    nameEn: nameEn,
+    nameAr: nameAr,
+    description: description,
+    price: price,
+    currency: currency,
+    discountType: discountType,
+    discountValue: discountValue,
+    discountStartsAt: discountStartsAt,
+    discountEndsAt: discountEndsAt,
+    onSale: onSale,
+    discountedPrice: discountedPrice,
+    effectivePrice: effectivePrice,
+    discountPercent: discountPercent,
+    isNegotiable: isNegotiable,
+    floorPrice: floorPrice,
+    pointsPrice: pointsPrice,
+    tracksExpiry: tracksExpiry,
+    ratingAvg: ratingAvg,
+    status: status,
+    inStock: inStock,
+    availableQty: availableQty,
+    media: media ?? this.media,
+    variants: variants,
+  );
 
   factory Product.fromJson(Map<String, dynamic> json) {
-    if (!json.containsKey('sale_price') &&
-        !json.containsKey('compare_at_price')) {
-      return _$ProductFromJson(json);
+    // The original promotion price must also be usable before showing it.
+    if (json.containsKey('price') || json['on_sale'] == true) {
+      _checkedPrice(json['price']);
     }
-
-    // Compatibility for persisted fixtures produced before the scheduled
-    // discount contract. New API responses never need this normalization.
-    final sale =
-        json['sale_price'] as num? ??
-        json['effective_price'] as num? ??
-        json['price'] as num? ??
-        0;
-    final original = json['compare_at_price'] as num?;
-    final discounted = original != null && original.isFinite && original > sale;
+    // Product read properties are optional in API 11. For older partial responses,
+    // use the server's discounted_price while on sale, otherwise its base price.
+    // Never infer a scheduled promotion using the device clock or legacy fields.
+    final price = json.containsKey('effective_price')
+        ? json['effective_price']
+        : json['on_sale'] == true
+        ? json['discounted_price']
+        : json['on_sale'] == false || json['discount_type'] == null
+        ? json['price']
+        : null;
     return _$ProductFromJson({
       ...json,
-      'price': discounted ? original : sale,
-      'discount_type': discounted ? 'amount' : null,
-      'discount_value': discounted ? original - sale : null,
-      'discount_starts_at': null,
-      'discount_ends_at': null,
-      'on_sale': discounted,
-      'discounted_price': discounted ? sale : null,
-      'effective_price': sale,
+      'effective_price': _checkedPrice(price),
     });
   }
 
-  Map<String, dynamic> toJson() {
-    final json = _$ProductToJson(this);
-    if (_legacySalePrice == null) return json;
+  Map<String, dynamic> toJson() => _$ProductToJson(this);
+}
 
-    final original = _legacyCompareAtPrice;
-    final discounted = isOnSale;
-    json
-      ..['price'] = discounted ? original : salePrice
-      ..['discount_type'] = discounted ? 'amount' : null
-      ..['discount_value'] = discounted ? original! - salePrice : null
-      ..['discount_starts_at'] = null
-      ..['discount_ends_at'] = null
-      ..['on_sale'] = discounted
-      ..['discounted_price'] = discounted ? salePrice : null
-      ..['effective_price'] = salePrice
-      ..['discount_percent'] = discounted
-          ? discountPercent ?? discountPercentFor(salePrice, original)
-          : null;
-    return json;
+/// Server image identity and display order survive JSON round trips.
+@JsonSerializable()
+class ProductImage {
+  const ProductImage({
+    required this.id,
+    required this.url,
+    required this.sortOrder,
+    required this.isPrimary,
+  });
+  final String id;
+  final String url;
+  @JsonKey(name: 'sort_order')
+  final int sortOrder;
+  @JsonKey(name: 'is_primary')
+  final bool isPrimary;
+  factory ProductImage.fromJson(Map<String, dynamic> json) =>
+      _$ProductImageFromJson(json);
+  Map<String, dynamic> toJson() => _$ProductImageToJson(this);
+}
+
+num _checkedPrice(Object? value) {
+  if (value is! num || !value.isFinite || value < 0) {
+    throw const AppFailure(FailureKind.server);
   }
+  return value;
 }

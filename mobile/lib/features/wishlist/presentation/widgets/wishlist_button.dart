@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -51,13 +51,11 @@ class WishlistButton extends ConsumerWidget {
         }
         try {
           await ref.read(wishlistControllerProvider.notifier).toggle(productId);
-        } catch (error) {
+        } catch (error, stack) {
           if (!context.mounted) return;
           showAppSnackBarMessage(
             context,
-            message: error is AppFailure
-                ? error.localizedMessage(l10n)
-                : l10n.errorUnknown,
+            message: actionFailure(error, stack).localizedMessage(l10n),
           );
         }
       },

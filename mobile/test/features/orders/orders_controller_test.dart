@@ -1,23 +1,34 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/error/failure.dart';
+import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/features/orders/data/order.dart';
 import 'package:shubayr/features/orders/presentation/providers/order_providers.dart';
 
 import 'support/order_history_repository.dart';
+import '../../helpers/test_session.dart';
 
 void main() {
   late OrderHistoryRepository repository;
   late ProviderContainer container;
 
-  setUp(() {
+  setUp(() async {
     repository = OrderHistoryRepository();
     container = ProviderContainer(
       retry: (retryCount, error) => null,
-      overrides: [orderRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
+        dataSourceProvider.overrideWithValue(DataSource.mock),
+        sessionControllerProvider.overrideWith(TestSession.new),
+        orderRepositoryProvider.overrideWithValue(repository),
+      ],
     );
+    await container.read(sessionControllerProvider.future);
   });
   tearDown(() => container.dispose());
 
@@ -109,11 +120,15 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(refreshed, isFalse);
       refreshResponse.complete(
-        const OrderPage(total: 1, data: [Order(id: 'fresh')]),
+        const OrderPage(total: 1, data: [Order(version: 1, id: 'fresh')]),
       );
       await refresh;
       appendResponse.complete(
-        const OrderPage(page: 2, total: 21, data: [Order(id: 'stale')]),
+        const OrderPage(
+          page: 2,
+          total: 21,
+          data: [Order(version: 1, id: 'stale')],
+        ),
       );
       await append;
       expect(
@@ -131,12 +146,14 @@ void main() {
           ? old.future
           : const OrderPage(
               total: 1,
-              data: [Order(id: 'filtered', status: 'processing')],
+              data: [Order(version: 1, id: 'filtered', status: 'processing')],
             );
       container.read(ordersProvider);
       container.read(orderStatusFilterProvider.notifier).state = 'processing';
       await container.read(ordersProvider.future);
-      old.complete(const OrderPage(total: 1, data: [Order(id: 'old')]));
+      old.complete(
+        const OrderPage(total: 1, data: [Order(version: 1, id: 'old')]),
+      );
       await Future<void>.delayed(Duration.zero);
       expect(
         container.read(ordersProvider).requireValue.items.single.id,
@@ -171,7 +188,7 @@ void main() {
       container.read(orderStatusFilterProvider.notifier).state = 'pending';
       final initial = await container.read(ordersProvider.future);
       final id = initial.items.first.id;
-      await repository.cancelOrder(id);
+      await repository.cancelOrder(id, version: 1);
       container.invalidate(ordersProvider);
       var list = await container.read(ordersProvider.future);
       expect(list.items.any((o) => o.id == id), isFalse);
@@ -207,7 +224,7 @@ void main() {
         total: 60,
         data: [
           initial.items.last,
-          const Order(id: 'new'),
+          const Order(version: 1, id: 'new'),
         ],
       );
       final controller = container.read(ordersProvider.notifier);

@@ -6,15 +6,22 @@ abstract interface class CartRepository {
   /// `GET /cart`.
   Future<Cart> fetchCart();
 
+  /// `POST /coupons/validate`, then `GET /cart` for authoritative totals.
+  Future<Cart> applyCoupon(String code);
+
+  /// `DELETE /cart/coupon` returns the repriced cart.
+  Future<Cart> removeCoupon();
+
   /// `POST /cart/items`.
   Future<Cart> addItem({
+    required String idempotencyKey,
     required String productId,
     String? variantId,
-    int quantity = 1,
+    num quantity = 1,
   });
 
   /// `PATCH /cart/items/{id}`.
-  Future<Cart> updateItem(String itemId, int quantity);
+  Future<Cart> updateItem(String itemId, num quantity);
 
   /// `DELETE /cart/items/{id}`.
   Future<Cart> removeItem(String itemId);

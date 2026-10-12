@@ -10,11 +10,20 @@ abstract interface class OrderRepository {
   Future<Coupon> validateCoupon(String code);
 
   /// `POST /orders` — places a COD order from the current cart.
-  Future<Order> placeOrder({required String addressId, String? couponCode});
+  Future<Order> placeOrder({
+    required String addressId,
+    String? couponCode,
+    List<({String variantId, String priceVersion})> acceptedPriceVersions =
+        const [],
+  });
 
   /// `GET /orders` — the customer's orders, newest first. [status] filters by
   /// a single [OrderStatus] value when given.
-  Future<OrderPage> fetchOrders({String? status, int page = 1, int perPage = 20});
+  Future<OrderPage> fetchOrders({
+    String? status,
+    int page = 1,
+    int perPage = 20,
+  });
 
   /// `GET /orders/{id}` — a single order with its items.
   Future<Order> fetchOrder(String id);
@@ -23,5 +32,5 @@ abstract interface class OrderRepository {
   Future<OrderTracking> fetchTracking(String id);
 
   /// `POST /orders/{id}/cancel` — cancels the order and returns the updated one.
-  Future<Order> cancelOrder(String id);
+  Future<Order> cancelOrder(String id, {required int version});
 }

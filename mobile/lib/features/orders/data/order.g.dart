@@ -9,6 +9,7 @@ part of 'order.dart';
 Order _$OrderFromJson(Map<String, dynamic> json) => Order(
   id: json['id'] as String,
   orderNumber: json['order_number'] as String? ?? '',
+  version: (json['version'] as num?)?.toInt(),
   status: json['status'] as String? ?? 'pending',
   paymentMethod: json['payment_method'] as String? ?? 'cod',
   addressId: json['address_id'] as String?,
@@ -16,6 +17,7 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
   deliveryFee: json['delivery_fee'] as num? ?? 0,
   discount: json['discount'] as num? ?? 0,
   total: json['total'] as num? ?? 0,
+  currency: json['currency'] as String?,
   placedAt: json['placed_at'] == null
       ? null
       : DateTime.parse(json['placed_at'] as String),
@@ -30,12 +32,14 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
   'id': instance.id,
   'order_number': instance.orderNumber,
   'status': instance.status,
+  'version': ?instance.version,
   'payment_method': instance.paymentMethod,
   'address_id': instance.addressId,
   'subtotal': instance.subtotal,
   'delivery_fee': instance.deliveryFee,
   'discount': instance.discount,
   'total': instance.total,
+  'currency': ?instance.currency,
   'placed_at': instance.placedAt?.toIso8601String(),
   'items': instance.items.map((e) => e.toJson()).toList(),
 };
@@ -47,9 +51,11 @@ OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => OrderItem(
   productNameAr: json['product_name_ar'] as String?,
   productNameEn: json['product_name_en'] as String?,
   imageUrl: json['image_url'] as String?,
-  quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+  quantity: json['quantity'] as num? ?? 1,
   unitPrice: json['unit_price'] as num? ?? 0,
   lineTotal: json['line_total'] as num? ?? 0,
+  reviewed: json['reviewed'] as bool?,
+  currency: json['currency'] as String?,
 );
 
 Map<String, dynamic> _$OrderItemToJson(OrderItem instance) => <String, dynamic>{
@@ -62,6 +68,8 @@ Map<String, dynamic> _$OrderItemToJson(OrderItem instance) => <String, dynamic>{
   'quantity': instance.quantity,
   'unit_price': instance.unitPrice,
   'line_total': instance.lineTotal,
+  'reviewed': ?instance.reviewed,
+  'currency': ?instance.currency,
 };
 
 OrderPage _$OrderPageFromJson(Map<String, dynamic> json) => OrderPage(

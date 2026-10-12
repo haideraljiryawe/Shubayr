@@ -11,7 +11,7 @@ abstract final class ColorPrimitives {
   static const Color green500 = Color(0xFF396D48);
 
   // Warm neutrals — the app sits on warm off-white, not pure white.
-  static const Color sand50 = Color(0xFFF6F5EE); // app background
+  static const Color sand50 = Color(0xFFFAFAF8); // app background
   static const Color sand75 = Color(0xFFECE9E2); // category tiles
   static const Color sand100 = Color(0xFFF4F0E8); // alternate surface
   static const Color sand200 = Color(0xFFE6E1D6); // borders
@@ -23,6 +23,10 @@ abstract final class ColorPrimitives {
   static const Color ink600 = Color(0xFF515A53);
   static const Color ink500 = Color(0xFF6B716D);
   static const Color ink400 = Color(0xFF8A918B);
+
+  // Inbox read-state icons on light surfaces.
+  static const Color notificationUnread = Color(0xFF376E4B);
+  static const Color notificationRead = Color(0xFF8A938D);
 
   // Accent — warm amber, pairs with the green without reading "botanical".
   static const Color amber500 = Color(0xFFC98A3C);

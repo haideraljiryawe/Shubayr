@@ -29,52 +29,56 @@ class WishlistScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.wishlistTitle)),
-      body: AsyncValueView(
-        value: wishlist,
-        skipLoadingOnReload: ref
-            .read(wishlistControllerProvider.notifier)
-            .isRefreshing,
-        loading: CustomScrollView(
-          physics: const NeverScrollableScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: AppLayout.pageInsets(context),
-              sliver: ProductGridSliver(
-                itemCount: 6,
-                itemBuilder: (_, _) => const ProductCardSkeleton(),
+      body: ResponsiveContent.page(
+        child: AsyncValueView(
+          value: wishlist,
+          skipLoadingOnReload: ref
+              .read(wishlistControllerProvider.notifier)
+              .isRefreshing,
+          loading: CustomScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            slivers: [
+              SliverPadding(
+                padding: AppLayout.pageInsets(context),
+                sliver: ProductGridSliver(
+                  itemCount: 6,
+                  itemBuilder: (_, _) => const ProductCardSkeleton(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          onRetry: () =>
+              ref.read(wishlistControllerProvider.notifier).refresh(),
+          builder: (context, items) {
+            return RefreshIndicator(
+              onRefresh: () =>
+                  ref.read(wishlistControllerProvider.notifier).refresh(),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  if (items.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: AppEmptyView(
+                        icon: Icons.favorite_border,
+                        title: l10n.wishlistEmptyTitle,
+                        message: l10n.wishlistEmptyMessage,
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: AppLayout.pageInsets(context),
+                      sliver: ProductGridSliver(
+                        itemCount: items.length,
+                        itemKeyBuilder: (i) => items[i].productId,
+                        itemBuilder: (_, i) => _WishlistCell(item: items[i]),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
         ),
-        onRetry: () => ref.read(wishlistControllerProvider.notifier).refresh(),
-        builder: (context, items) {
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(wishlistControllerProvider.notifier).refresh(),
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                if (items.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: AppEmptyView(
-                      icon: Icons.favorite_border,
-                      title: l10n.wishlistEmptyTitle,
-                      message: l10n.wishlistEmptyMessage,
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: AppLayout.pageInsets(context),
-                    sliver: ProductGridSliver(
-                      itemCount: items.length,
-                      itemBuilder: (_, i) => _WishlistCell(item: items[i]),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }

@@ -20,11 +20,9 @@ abstract final class AppRoutes {
 
   // Role areas.
   static const delivery = '/delivery';
-  static const admin = '/admin';
-  static const adminOrders = '/admin/orders';
-  static const adminCatalog = '/admin/catalog';
-  static const adminUsers = '/admin/users';
-  static const adminManage = '/admin/manage/:resource';
+  static const monitor = '/monitor/orders';
+  static const monitorDetail = '/monitor/orders/:id';
+  static const notifications = '/notifications';
 
   // Product detail, pushed full-screen over the shell.
   static const product = '/products/:id';
@@ -36,7 +34,7 @@ abstract final class AppRoutes {
   static const search = '/search';
 
   // Cross-area, full-screen pages any signed-in role can open with a back
-  // button: the account-settings page (staff/delivery reach it here instead of
+  // button: the account-settings page (monitor/delivery reach it here instead of
   // a bottom sheet) and the user's own profile editor.
   static const settings = '/settings';
   static const profile = '/profile';
@@ -69,7 +67,7 @@ abstract final class AppRoutes {
   static const orderReturnName = 'order-return';
   static const accountName = 'account';
   static const deliveryName = 'delivery';
-  static const adminName = 'admin';
+  static const monitorName = 'monitor';
   static const productName = 'product';
   static const searchName = 'search';
   static const settingsName = 'settings';

@@ -1,3 +1,5 @@
+import '../../../../core/layout/app_layout.dart';
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,277 +34,281 @@ class DesignGalleryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Design system')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
-        children: [
-          // ---- Live switches --------------------------------------------
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _Label('Theme mode'),
-                const SizedBox(height: AppSpacing.sm),
-                SegmentedButton<ThemeMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: ThemeMode.system,
-                      icon: Icon(Icons.brightness_auto_outlined),
-                      label: Text('System'),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      icon: Icon(Icons.light_mode_outlined),
-                      label: Text('Light'),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      icon: Icon(Icons.dark_mode_outlined),
-                      label: Text('Dark'),
-                    ),
-                  ],
-                  selected: {themeMode},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (s) => ref
-                      .read(themeModeControllerProvider.notifier)
-                      .setMode(s.first),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                const _Label('Language / direction'),
-                const SizedBox(height: AppSpacing.sm),
-                SegmentedButton<Locale>(
-                  segments: const [
-                    ButtonSegment(
-                      value: Locale('ar'),
-                      label: Text('العربية (RTL)'),
-                    ),
-                    ButtonSegment(
-                      value: Locale('en'),
-                      label: Text('English (LTR)'),
-                    ),
-                  ],
-                  selected: {Locale(locale.languageCode)},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (s) => ref
-                      .read(localeControllerProvider.notifier)
-                      .setLocale(AppLocales.fromCode(s.first.languageCode)),
-                ),
-              ],
-            ),
-          ),
-
-          // ---- Brand ----------------------------------------------------
-          _Section(
-            title: 'Brand',
-            child: Row(
-              children: [
-                BrandMark(brand: brand, size: 56),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        brand.name ?? 'Store (fallback name)',
-                        style: context.text.titleMedium,
+      body: ResponsiveContent.page(
+        child: ListView(
+          padding: AppLayout.pageInsets(context),
+          children: [
+            // ---- Live switches --------------------------------------------
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _Label('Theme mode'),
+                  const SizedBox(height: AppSpacing.sm),
+                  SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: ThemeMode.system,
+                        icon: Icon(Icons.brightness_auto_outlined),
+                        label: Text('System'),
                       ),
-                      Text(
-                        'Currency: ${brand.currencyCode}',
-                        style: context.text.bodySmall?.copyWith(
-                          color: colors.textSecondary,
+                      ButtonSegment(
+                        value: ThemeMode.light,
+                        icon: Icon(Icons.light_mode_outlined),
+                        label: Text('Light'),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.dark,
+                        icon: Icon(Icons.dark_mode_outlined),
+                        label: Text('Dark'),
+                      ),
+                    ],
+                    selected: {themeMode},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (s) => ref
+                        .read(themeModeControllerProvider.notifier)
+                        .setMode(s.first),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  const _Label('Language / direction'),
+                  const SizedBox(height: AppSpacing.sm),
+                  SegmentedButton<Locale>(
+                    segments: const [
+                      ButtonSegment(
+                        value: Locale('ar'),
+                        label: Text('العربية (RTL)'),
+                      ),
+                      ButtonSegment(
+                        value: Locale('en'),
+                        label: Text('English (LTR)'),
+                      ),
+                    ],
+                    selected: {Locale(locale.languageCode)},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (s) => ref
+                        .read(localeControllerProvider.notifier)
+                        .setLocale(AppLocales.fromCode(s.first.languageCode)),
+                  ),
+                ],
+              ),
+            ),
+
+            // ---- Brand ----------------------------------------------------
+            _Section(
+              title: 'Brand',
+              child: Row(
+                children: [
+                  BrandMark(brand: brand, size: 56),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          brand.name ?? 'Store (fallback name)',
+                          style: context.text.titleMedium,
                         ),
+                        Text(
+                          'Currency: ${brand.currencyCode}',
+                          style: context.text.bodySmall?.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ---- Colours --------------------------------------------------
+            _Section(
+              title: 'Colours',
+              child: Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.md,
+                children: [
+                  _Swatch('primary', colors.primary),
+                  _Swatch('primaryDark', colors.primaryDark),
+                  _Swatch('primaryLight', colors.primaryLight),
+                  _Swatch('primarySoft', colors.primarySoft),
+                  _Swatch('accent', colors.accent),
+                  _Swatch('accentSoft', colors.accentSoft),
+                  _Swatch('background', colors.background),
+                  _Swatch('surface', colors.surface),
+                  _Swatch('surfaceAlt', colors.surfaceAlt),
+                  _Swatch('border', colors.border),
+                  _Swatch('divider', colors.divider),
+                  _Swatch('success', colors.success),
+                  _Swatch('warning', colors.warning),
+                  _Swatch('danger', colors.danger),
+                  _Swatch('info', colors.info),
+                ],
+              ),
+            ),
+
+            // ---- Typography -----------------------------------------------
+            _Section(
+              title: 'Typography (Zain)',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Type('displaySmall', context.text.displaySmall),
+                  _Type('headlineMedium', context.text.headlineMedium),
+                  _Type('headlineSmall', context.text.headlineSmall),
+                  _Type('titleLarge', context.text.titleLarge),
+                  _Type('titleMedium', context.text.titleMedium),
+                  _Type('bodyLarge', context.text.bodyLarge),
+                  _Type('bodyMedium', context.text.bodyMedium),
+                  _Type('bodySmall', context.text.bodySmall),
+                  _Type('labelLarge', context.text.labelLarge),
+                ],
+              ),
+            ),
+
+            // ---- Buttons --------------------------------------------------
+            _Section(
+              title: 'Buttons',
+              child: Column(
+                children: [
+                  AppButton(label: 'Primary', onPressed: () {}),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppButton(
+                    label: 'Primary with icon',
+                    icon: Icons.add_shopping_cart_outlined,
+                    onPressed: () {},
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppButton(
+                    label: 'Secondary',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: () {},
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  const AppButton(
+                    label: 'Loading',
+                    isLoading: true,
+                    onPressed: null,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  const AppButton(label: 'Disabled', onPressed: null),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AppButton(
+                        label: 'Plain',
+                        variant: AppButtonVariant.plain,
+                        expand: false,
+                        onPressed: () {},
                       ),
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // ---- Colours --------------------------------------------------
-          _Section(
-            title: 'Colours',
-            child: Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
-              children: [
-                _Swatch('primary', colors.primary),
-                _Swatch('primaryDark', colors.primaryDark),
-                _Swatch('primaryLight', colors.primaryLight),
-                _Swatch('primarySoft', colors.primarySoft),
-                _Swatch('accent', colors.accent),
-                _Swatch('accentSoft', colors.accentSoft),
-                _Swatch('background', colors.background),
-                _Swatch('surface', colors.surface),
-                _Swatch('surfaceAlt', colors.surfaceAlt),
-                _Swatch('border', colors.border),
-                _Swatch('divider', colors.divider),
-                _Swatch('success', colors.success),
-                _Swatch('warning', colors.warning),
-                _Swatch('danger', colors.danger),
-                _Swatch('info', colors.info),
-              ],
-            ),
-          ),
-
-          // ---- Typography -----------------------------------------------
-          _Section(
-            title: 'Typography (Cairo)',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _Type('displaySmall', context.text.displaySmall),
-                _Type('headlineMedium', context.text.headlineMedium),
-                _Type('headlineSmall', context.text.headlineSmall),
-                _Type('titleLarge', context.text.titleLarge),
-                _Type('titleMedium', context.text.titleMedium),
-                _Type('bodyLarge', context.text.bodyLarge),
-                _Type('bodyMedium', context.text.bodyMedium),
-                _Type('bodySmall', context.text.bodySmall),
-                _Type('labelLarge', context.text.labelLarge),
-              ],
-            ),
-          ),
-
-          // ---- Buttons --------------------------------------------------
-          _Section(
-            title: 'Buttons',
-            child: Column(
-              children: [
-                AppButton(label: 'Primary', onPressed: () {}),
-                const SizedBox(height: AppSpacing.sm),
-                AppButton(
-                  label: 'Primary with icon',
-                  icon: Icons.add_shopping_cart_outlined,
-                  onPressed: () {},
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                AppButton(
-                  label: 'Secondary',
-                  variant: AppButtonVariant.secondary,
-                  onPressed: () {},
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const AppButton(
-                  label: 'Loading',
-                  isLoading: true,
-                  onPressed: null,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const AppButton(label: 'Disabled', onPressed: null),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AppButton(
-                      label: 'Plain',
-                      variant: AppButtonVariant.plain,
-                      expand: false,
-                      onPressed: () {},
+            // ---- Inputs ---------------------------------------------------
+            _Section(
+              title: 'Inputs',
+              child: Column(
+                children: [
+                  const TextField(
+                    contextMenuBuilder: appTextSelectionToolbar,
+                    decoration: InputDecoration(
+                      labelText: 'Label',
+                      hintText: 'Hint text',
                     ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // ---- Inputs ---------------------------------------------------
-          _Section(
-            title: 'Inputs',
-            child: Column(
-              children: [
-                const TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Label',
-                    hintText: 'Hint text',
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                const TextField(
-                  decoration: InputDecoration(
-                    labelText: 'With error',
-                    errorText: 'Something is wrong',
+                  const SizedBox(height: AppSpacing.md),
+                  const TextField(
+                    contextMenuBuilder: appTextSelectionToolbar,
+                    decoration: InputDecoration(
+                      labelText: 'With error',
+                      errorText: 'Something is wrong',
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    _StatefulSwitch(),
-                    const SizedBox(width: AppSpacing.md),
-                    _StatefulCheck(),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      _StatefulSwitch(),
+                      const SizedBox(width: AppSpacing.md),
+                      _StatefulCheck(),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          // ---- Chips ----------------------------------------------------
-          _Section(
-            title: 'Chips',
-            child: Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                const Chip(label: Text('Chip')),
-                ChoiceChip(
-                  label: const Text('Selected'),
-                  selected: true,
-                  onSelected: (_) {},
-                ),
-                ChoiceChip(
-                  label: const Text('Unselected'),
-                  selected: false,
-                  onSelected: (_) {},
-                ),
-              ],
+            // ---- Chips ----------------------------------------------------
+            _Section(
+              title: 'Chips',
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  const Chip(label: Text('Chip')),
+                  ChoiceChip(
+                    label: const Text('Selected'),
+                    selected: true,
+                    onSelected: (_) {},
+                  ),
+                  ChoiceChip(
+                    label: const Text('Unselected'),
+                    selected: false,
+                    onSelected: (_) {},
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          // ---- Radii ----------------------------------------------------
-          _Section(
-            title: 'Corner radii',
-            child: Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
-              children: const [
-                _RadiusBox('xs', AppRadii.xs),
-                _RadiusBox('sm', AppRadii.sm),
-                _RadiusBox('md', AppRadii.md),
-                _RadiusBox('lg', AppRadii.lg),
-                _RadiusBox('xl', AppRadii.xl),
-              ],
+            // ---- Radii ----------------------------------------------------
+            _Section(
+              title: 'Corner radii',
+              child: Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.md,
+                children: const [
+                  _RadiusBox('xs', AppRadii.xs),
+                  _RadiusBox('sm', AppRadii.sm),
+                  _RadiusBox('md', AppRadii.md),
+                  _RadiusBox('lg', AppRadii.lg),
+                  _RadiusBox('xl', AppRadii.xl),
+                ],
+              ),
             ),
-          ),
 
-          // ---- Shadows / elevation -------------------------------------
-          _Section(
-            title: 'Elevation',
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: const [
-                _ShadowBox('level1', 1),
-                _ShadowBox('level2', 2),
-                _ShadowBox('level3', 3),
-              ],
+            // ---- Shadows / elevation -------------------------------------
+            _Section(
+              title: 'Elevation',
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: const [
+                  _ShadowBox('level1', 1),
+                  _ShadowBox('level2', 2),
+                  _ShadowBox('level3', 3),
+                ],
+              ),
             ),
-          ),
 
-          // ---- State views ----------------------------------------------
-          _Section(
-            title: 'State views',
-            child: Column(
-              children: const [
-                SizedBox(height: 150, child: AppLoadingView()),
-                Divider(),
-                SizedBox(height: 220, child: AppEmptyView()),
-                Divider(),
-                SizedBox(height: 240, child: AppErrorView()),
-                Divider(),
-                SizedBox(height: 220, child: ComingSoonView()),
-              ],
+            // ---- State views ----------------------------------------------
+            _Section(
+              title: 'State views',
+              child: Column(
+                children: const [
+                  SizedBox(height: 150, child: AppLoadingView()),
+                  Divider(),
+                  SizedBox(height: 220, child: AppEmptyView()),
+                  Divider(),
+                  SizedBox(height: 240, child: AppErrorView()),
+                  Divider(),
+                  SizedBox(height: 220, child: ComingSoonView()),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-        ],
+            const SizedBox(height: AppSpacing.xxl),
+          ],
+        ),
       ),
     );
   }
@@ -343,8 +349,7 @@ class _Label extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) =>
-      Text(text, style: context.text.titleSmall);
+  Widget build(BuildContext context) => Text(text, style: context.sectionTitle);
 }
 
 class _Swatch extends StatelessWidget {
@@ -386,9 +391,12 @@ class _Type extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(name, style: context.text.labelSmall?.copyWith(
-          color: context.colors.textMuted,
-        )),
+        Text(
+          name,
+          style: context.text.labelSmall?.copyWith(
+            color: context.colors.textMuted,
+          ),
+        ),
         Text('نص عربي · English text', style: style),
       ],
     ),

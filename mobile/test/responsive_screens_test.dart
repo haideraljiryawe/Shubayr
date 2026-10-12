@@ -1,6 +1,14 @@
+import 'package:shubayr/features/dev/presentation/screens/design_gallery_screen.dart';
+import 'helpers/page_layout_expectations.dart';
+import 'package:shubayr/features/settings/presentation/screens/account_screen.dart';
+import 'package:shubayr/features/catalog/presentation/screens/subcategories_screen.dart';
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
+import 'helpers/test_session.dart';
 import 'package:shubayr/features/banners/data/home_banner.dart';
 import 'package:shubayr/features/banners/presentation/providers/banner_providers.dart';
 import 'package:flutter/material.dart';
+import 'package:shubayr/core/layout/app_layout.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,16 +20,14 @@ import 'package:shubayr/core/storage/prefs_store.dart';
 import 'package:shubayr/core/storage/token_store.dart';
 import 'package:shubayr/core/widgets/skeleton.dart';
 import 'package:shubayr/core/widgets/app_card.dart';
+import 'package:shubayr/core/widgets/app_button.dart';
 import 'package:shubayr/core/widgets/state_views.dart';
 import 'package:shubayr/features/catalog/presentation/widgets/product_card.dart';
+import 'package:shubayr/features/catalog/presentation/widgets/category_card.dart';
 import 'package:shubayr/features/wishlist/presentation/screens/wishlist_screen.dart';
 import 'package:shubayr/features/auth/presentation/screens/sign_in_screen.dart';
 import 'package:shubayr/features/auth/presentation/screens/verify_otp_screen.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
-import 'package:shubayr/features/admin/presentation/providers/admin_providers.dart';
-import 'package:shubayr/features/admin/presentation/providers/admin_order_providers.dart';
-import 'package:shubayr/features/admin/domain/admin_repository.dart';
-import 'package:shubayr/features/admin/data/admin_order_repository_mock.dart';
 import 'package:shubayr/features/cart/data/cart_repository_mock.dart';
 import 'package:shubayr/features/cart/presentation/providers/cart_providers.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
@@ -33,11 +39,6 @@ import 'package:shubayr/features/orders/presentation/providers/order_providers.d
 import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 import 'package:shubayr/features/address/presentation/providers/address_providers.dart';
 import 'package:shubayr/features/delivery/presentation/providers/delivery_providers.dart';
-import 'package:shubayr/features/admin/presentation/screens/admin_home_screen.dart';
-import 'package:shubayr/features/admin/presentation/screens/admin_hub_screen.dart';
-import 'package:shubayr/features/admin/presentation/screens/admin_list_screen.dart';
-import 'package:shubayr/features/admin/presentation/screens/admin_record_form.dart';
-import 'package:shubayr/features/admin/presentation/screens/admin_orders_screen.dart';
 import 'package:shubayr/features/address/presentation/screens/address_form_screen.dart';
 import 'package:shubayr/features/address/presentation/screens/addresses_screen.dart';
 import 'package:shubayr/features/catalog/presentation/screens/home_screen.dart';
@@ -50,10 +51,8 @@ import 'package:shubayr/features/orders/presentation/screens/order_detail_screen
 import 'package:shubayr/features/orders/presentation/screens/after_sales_screens.dart';
 import 'package:shubayr/features/cart/presentation/screens/cart_screen.dart';
 import 'package:shubayr/features/settings/presentation/screens/profile_screen.dart';
-import 'package:shubayr/features/settings/presentation/screens/account_view.dart';
 import 'package:shubayr/features/delivery/presentation/screens/delivery_home_screen.dart';
 import 'core/layout/app_layout_test.dart' show responsiveWidths;
-import 'features/admin/support/admin_fakes.dart';
 import 'features/address/support/address_fakes.dart';
 import 'features/delivery/support/delivery_fakes.dart';
 
@@ -100,16 +99,18 @@ void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = PrefsStore(await SharedPreferences.getInstance());
-    await (FontLoader('Cairo')
-          ..addFont(rootBundle.load('assets/fonts/Cairo-Regular.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Cairo-SemiBold.ttf'))
-          ..addFont(rootBundle.load('assets/fonts/Cairo-Bold.ttf')))
+    await (FontLoader('Zain')
+          ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-Bold.ttf'))
+          ..addFont(rootBundle.load('assets/fonts/Zain-ExtraBold.ttf')))
         .load();
   });
   for (final (locale, dark) in [('ar', false), ('en', true)]) {
     for (final (width, scale) in [
       for (final width in responsiveWidths) (width, 1.0),
-      for (final width in <double>[390, 600, 900, 1200, 1920]) (width, 2.0),
+      (320.0, 1.5),
+      for (final width in <double>[320, 390, 600, 900, 1200, 1920])
+        (width, 2.0),
     ]) {
       testWidgets('current screens fit $width $locale dark=$dark scale=$scale', (
         tester,
@@ -121,25 +122,14 @@ void main() {
         await tester.binding.setSurfaceSize(Size(width, 1000));
         addTearDown(() => tester.binding.setSurfaceSize(null));
         final cart = CartRepositoryMock(delay: Duration.zero);
-        await tester.runAsync(() => cart.addItem(productId: 'p1', quantity: 2));
-        for (final screen in <Widget>[
-          const AdminHomeScreen(),
-          const AdminHubScreen(catalog: true),
-          const AdminListScreen(resource: AdminResource.users),
-          const AdminOrdersScreen(),
-          const AdminListScreen(resource: AdminResource.warehouses),
-          const AdminListScreen(
-            resource: AdminResource.locations,
-            warehouseId: 'warehouse-1',
+        await tester.runAsync(
+          () => cart.addItem(
+            idempotencyKey: 'test-add-key-0',
+            productId: 'p1',
+            quantity: 2,
           ),
-          const AdminRecordForm(query: AdminQuery(AdminResource.products)),
-          const AdminRecordForm(query: AdminQuery(AdminResource.roles)),
-          for (final resource in [
-            AdminResource.categories,
-            AdminResource.users,
-            AdminResource.suppliers,
-          ])
-            AdminRecordForm(query: AdminQuery(resource)),
+        );
+        for (final screen in <Widget>[
           const AddressFormScreen(),
           const AddressesScreen(),
           const WishlistScreen(),
@@ -148,6 +138,7 @@ void main() {
           const DeliveryHomeScreen(),
           const HomeScreen(),
           const CategoriesScreen(),
+          const SubcategoriesScreen(categoryId: 'cat-electronics'),
           const ProductListScreen(),
           const ProductDetailScreen(productId: 'p1'),
           const OrdersScreen(),
@@ -156,21 +147,25 @@ void main() {
           const CheckoutScreen(),
           const ReviewOrderScreen(orderId: 'order-1042'),
           const ReturnOrderScreen(orderId: 'order-1042'),
-          const Scaffold(body: AccountView()),
+          const AccountScreen(),
           const ProfileScreen(),
+          if (scale == 1 && width >= 600) const DesignGalleryScreen(),
         ]) {
           await tester.pumpWidget(
             ProviderScope(
               retry: (retryCount, error) => null,
               key: UniqueKey(),
               overrides: [
+                notificationSyncProvider.overrideWith((ref) {}),
+                unreadCountProvider.overrideWith((ref) async => 0),
+                dataSourceProvider.overrideWithValue(DataSource.mock),
                 prefsStoreProvider.overrideWithValue(prefs),
                 tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
                 sessionControllerProvider.overrideWith(
-                  () => AdminTestSession(
+                  () => TestSession(
                     initial: screen is DeliveryHomeScreen
                         ? agentSession
-                        : adminSession,
+                        : customerSession,
                   ),
                 ),
                 brandProvider.overrideWithValue(const Brand.bundled()),
@@ -182,10 +177,6 @@ void main() {
                       imageUrl: '',
                     ),
                   ],
-                ),
-                adminRepositoryProvider.overrideWithValue(RecordingAdmin()),
-                adminOrderRepositoryProvider.overrideWithValue(
-                  AdminOrderRepositoryMock(delay: Duration.zero),
                 ),
                 cartRepositoryProvider.overrideWithValue(cart),
                 catalogRepositoryProvider.overrideWithValue(_Catalog()),
@@ -207,9 +198,10 @@ void main() {
                     ? AppTheme.dark(const Brand.bundled())
                     : AppTheme.light(const Brand.bundled()),
                 builder: (context, child) => MediaQuery(
-                  data: MediaQuery.of(
-                    context,
-                  ).copyWith(textScaler: TextScaler.linear(scale)),
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(scale),
+                    disableAnimations: true,
+                  ),
                   child: child!,
                 ),
                 home: screen,
@@ -228,7 +220,81 @@ void main() {
             findsNothing,
             reason: '$screen must show data',
           );
+          final l10n = AppLocalizations.of(
+            tester.element(find.byType(Scaffold).first),
+          );
+          final sectionLabels = switch (screen) {
+            CheckoutScreen() => [
+              l10n.checkoutAddress,
+              l10n.checkoutCoupon,
+              l10n.checkoutPayment,
+            ],
+            OrderDetailScreen() => [
+              l10n.orderTrackingTitle,
+              l10n.orderItemsSection,
+              l10n.orderSummary,
+            ],
+            AccountScreen() => [l10n.accountPreferences, l10n.accountSupport],
+            _ => <String>[],
+          };
+          for (final label in sectionLabels) {
+            final heading = tester.widget<Text>(find.text(label));
+            expect(heading.style!.fontFamily, 'Zain');
+            expect(heading.style!.fontSize, 16);
+            expect(heading.style!.fontWeight, FontWeight.w700);
+          }
           final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+          if (screen is HomeScreen) {
+            expect(tester.getSize(find.byWidget(scaffold.body!)).width, width);
+            expect(tester.getSize(find.byType(AppBar)).width, width);
+          } else {
+            expectPageContent(tester, width);
+          }
+          if (screen is ProductDetailScreen ||
+              screen is CheckoutScreen ||
+              screen is OrderDetailScreen) {
+            final sectionsFinder = find.byType(ResponsiveSections);
+            final sections = tester.widget<ResponsiveSections>(sectionsFinder);
+            final bounds = tester.getRect(sectionsFinder);
+            expect(bounds.width, lessThanOrEqualTo(AppLayout.readingWidth));
+            expect(bounds.center.dx, closeTo(width / 2, .001));
+            Rect? previous;
+            for (final child in sections.children) {
+              final rect = tester.getRect(find.byWidget(child));
+              expect(rect.width, closeTo(bounds.width, .001));
+              expect(rect.center.dx, closeTo(bounds.center.dx, .001));
+              if (previous != null) {
+                expect(rect.top, greaterThanOrEqualTo(previous.bottom));
+              }
+              previous = rect;
+            }
+            final scroll = find
+                .descendant(
+                  of: find.byWidget(scaffold.body!),
+                  matching: find.byType(ListView),
+                )
+                .first;
+            expect(
+              tester.getSize(scroll).width,
+              closeTo(
+                width < AppLayout.readingWidth ? width : AppLayout.readingWidth,
+                .001,
+              ),
+              reason: '$screen preserves phone width and bounds wide content',
+            );
+            if (screen is ProductDetailScreen || screen is CheckoutScreen) {
+              final action = find.widgetWithText(
+                AppButton,
+                screen is ProductDetailScreen
+                    ? l10n.productAddToCart
+                    : l10n.checkoutPlaceOrder,
+              );
+              expect(action.hitTestable(), findsOneWidget);
+              final rect = tester.getRect(action);
+              expect(rect.width, lessThanOrEqualTo(AppLayout.readingWidth));
+              expect(rect.center.dx, closeTo(width / 2, .001));
+            }
+          }
           if (screen is CheckoutScreen ||
               screen is CartScreen ||
               screen is ProductDetailScreen) {
@@ -240,28 +306,68 @@ void main() {
           }
           if (scale == 1 &&
               width >= 900 &&
-              ((screen is AdminListScreen &&
-                      screen.resource == AdminResource.users) ||
-                  screen is OrdersScreen ||
+              (screen is OrdersScreen ||
                   screen is DeliveryHomeScreen ||
                   screen is AddressesScreen)) {
             final cards = find.byType(AppCard);
             expect(cards.evaluate().length, greaterThan(1));
-            expect(
-              tester.getTopLeft(cards.at(0)).dy,
-              tester.getTopLeft(cards.at(1)).dy,
-              reason: '$screen must actually use adjacent cards',
-            );
-            expect(tester.getSize(cards.first).width, lessThan(width / 2));
+            if (screen is AddressesScreen || screen is OrdersScreen) {
+              expect(
+                tester.getTopLeft(cards.at(0)).dy,
+                tester.getTopLeft(cards.at(1)).dy,
+              );
+              expect(tester.getSize(cards.first).width, closeTo(358, .001));
+            } else {
+              // 728dp after padding cannot fit two 360dp cards plus 12dp gap.
+              expect(
+                tester.getTopLeft(cards.at(1)).dy,
+                greaterThan(tester.getBottomLeft(cards.at(0)).dy),
+              );
+              expect(tester.getSize(cards.first).width, closeTo(728, .001));
+            }
           }
           if (scale == 1 &&
               width >= 900 &&
               (screen is HomeScreen ||
                   screen is ProductListScreen ||
                   screen is WishlistScreen)) {
+            if (screen is HomeScreen) {
+              // Full-width banner artwork can place offers below the fold.
+              await tester.scrollUntilVisible(
+                find.text(l10n.homeOffersTitle),
+                300,
+                scrollable: find
+                    .byWidgetPredicate(
+                      (w) =>
+                          w is Scrollable &&
+                          axisDirectionToAxis(w.axisDirection) == Axis.vertical,
+                    )
+                    .first,
+              );
+              await tester.pumpAndSettle();
+            }
             final cards = find.byType(ProductCard);
             expect(cards.evaluate().length, greaterThan(2));
             expect(tester.getSize(cards.first).width, lessThan(300));
+            if (screen is! HomeScreen) {
+              expect(
+                tester.getTopLeft(cards.at(0)).dy,
+                tester.getTopLeft(cards.at(2)).dy,
+              );
+              expect(
+                tester.getSize(cards.first).width,
+                closeTo((728 - 24) / 3, .001),
+              );
+            }
+          }
+          if (scale == 1 && width >= 900 && screen is CategoriesScreen) {
+            final cards = find.byType(CategoryCard);
+            expect(cards, findsAtLeastNWidgets(2));
+            expect(
+              tester.getTopLeft(cards.at(1)).dy,
+              tester.getTopLeft(cards.at(0)).dy,
+            );
+            expect(tester.getSize(cards.first).width, closeTo(358, .001));
           }
 
           // Exercise lower fields, actions and content, not only the first viewport.
@@ -273,7 +379,12 @@ void main() {
           if (vertical.evaluate().isNotEmpty) {
             final state = tester.state<ScrollableState>(vertical.first);
             state.position.jumpTo(state.position.maxScrollExtent);
-            await tester.pumpAndSettle();
+            if (screen is DesignGalleryScreen) {
+              // The gallery deliberately demonstrates indeterminate spinners.
+              await tester.pump(const Duration(milliseconds: 200));
+            } else {
+              await tester.pumpAndSettle();
+            }
             expect(
               tester.takeException(),
               isNull,
