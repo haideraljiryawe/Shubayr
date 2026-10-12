@@ -1,3 +1,6 @@
+import '../../../../core/error/response_decode.dart';
+import '../../../../core/storage/session_credentials.dart';
+import '../providers/privacy_policy_provider.dart';
 import '../../../notifications/presentation/notification_button.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -225,6 +228,7 @@ class _AccountActions extends ConsumerStatefulWidget {
 }
 
 class _AccountActionsState extends ConsumerState<_AccountActions> {
+  bool _deleting = false;
   Future<void> _signOut() async {
     await ref.read(sessionControllerProvider.notifier).signOut();
     if (!mounted) return;
@@ -257,6 +261,10 @@ class _AccountActionsState extends ConsumerState<_AccountActions> {
   }
 
   Future<void> _confirmDelete() async {
+    if (_deleting) return;
+    final owner = ref.read(sessionCredentialsProvider).revision;
+    final userId = ref.read(sessionControllerProvider).value?.user?.id;
+    if (userId == null) return;
     final l10n = context.l10n;
     final colors = context.colors;
     var acknowledged = false;
@@ -302,8 +310,22 @@ class _AccountActionsState extends ConsumerState<_AccountActions> {
       ),
     );
     if (confirmed == true && mounted) {
-      // Account deletion has no endpoint in the contract yet; keep it honest.
-      showAppSnackBarMessage(context, message: l10n.comingSoonTitle);
+      setState(() => _deleting = true);
+      try {
+        final deleted = await ref
+            .read(sessionControllerProvider.notifier)
+            .deleteAccount(userId: userId, revision: owner);
+        if (deleted && mounted) context.go(AppRoutes.home);
+      } catch (error, stack) {
+        if (mounted && ref.read(sessionCredentialsProvider).owns(owner)) {
+          showAppSnackBarMessage(
+            context,
+            message: actionFailure(error, stack).localizedMessage(l10n),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _deleting = false);
+      }
     }
   }
 
@@ -316,18 +338,21 @@ class _AccountActionsState extends ConsumerState<_AccountActions> {
           key: const ValueKey('account-sign-out'),
           leading: const Icon(Icons.logout),
           title: Text(context.l10n.authSignOut),
-          onTap: _confirmSignOut,
+          onTap: _deleting ? null : _confirmSignOut,
         ),
-        const Divider(height: AppSpacing.xxs),
-        ListTile(
-          key: const ValueKey('account-delete'),
-          leading: Icon(Icons.delete_outline, color: context.colors.danger),
-          title: Text(
-            context.l10n.profileDeleteAccount,
-            style: TextStyle(color: context.colors.danger),
+        if (ref.watch(sessionControllerProvider).value?.role ==
+            UserRole.customer) ...[
+          const Divider(height: AppSpacing.xxs),
+          ListTile(
+            key: const ValueKey('account-delete'),
+            leading: Icon(Icons.delete_outline, color: context.colors.danger),
+            title: Text(
+              context.l10n.profileDeleteAccount,
+              style: TextStyle(color: context.colors.danger),
+            ),
+            onTap: _deleting ? null : _confirmDelete,
           ),
-          onTap: _confirmDelete,
-        ),
+        ],
       ],
     ),
   );
@@ -459,11 +484,11 @@ class _PreferencesCard extends ConsumerWidget {
 
 /// Support links. The destinations arrive in a later phase; the rows exist now
 /// so the settings structure (help, privacy, …) is in place.
-class _SupportCard extends StatelessWidget {
+class _SupportCard extends ConsumerWidget {
   const _SupportCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     void soon() =>
         showAppSnackBarMessage(context, message: l10n.comingSoonTitle);
@@ -482,7 +507,18 @@ class _SupportCard extends StatelessWidget {
             leading: const Icon(Icons.privacy_tip_outlined),
             title: Text(l10n.accountPrivacy),
             trailing: const Icon(Icons.chevron_right),
-            onTap: soon,
+            onTap: () async {
+              try {
+                await ref.read(openPrivacyPolicyProvider)();
+              } catch (error, stack) {
+                if (context.mounted) {
+                  showAppSnackBarMessage(
+                    context,
+                    message: actionFailure(error, stack).localizedMessage(l10n),
+                  );
+                }
+              }
+            },
           ),
         ],
       ),

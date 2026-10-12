@@ -9,6 +9,8 @@ import '../../data/auth_repository_mock.dart';
 import '../../data/auth_repository_remote.dart';
 import '../../domain/auth_repository.dart';
 import '../../domain/session.dart';
+import '../../domain/user_role.dart';
+import '../../../../core/storage/pending_request_store.dart';
 import '../../domain/profile_update.dart';
 import '../../data/user.dart';
 
@@ -47,6 +49,7 @@ class SessionController extends AsyncNotifier<Session> {
   final _verifications =
       <(String, String), ({int owner, Future<Session?> task})>{};
   int? _profileSubmitting;
+  int? _deleting;
 
   @override
   Future<Session> build() async {
@@ -209,6 +212,51 @@ class SessionController extends AsyncNotifier<Session> {
       rethrow;
     } finally {
       if (_profileSubmitting == sessionRevision) _profileSubmitting = null;
+    }
+  }
+
+  /// Confirmation belongs to the exact credential epoch and account that saw it.
+  Future<bool> deleteAccount({
+    required String userId,
+    required int revision,
+  }) async {
+    final session = state.value;
+    if (!_owns(revision) ||
+        state.isLoading ||
+        state.hasError ||
+        session?.user?.id != userId ||
+        session?.role != UserRole.customer ||
+        _deleting == revision) {
+      return false;
+    }
+    _deleting = revision;
+    final repository = ref.read(authRepositoryProvider);
+    final journals = ref.read(pendingRequestStoreProvider);
+    final api = ref.read(appConfigProvider).apiBaseUrl;
+    try {
+      await repository.deleteAccount();
+      if (!_owns(revision)) return false;
+      // Immediately revoke authorization; all identity-bound providers discard
+      // private state before asynchronous storage cleanup finishes.
+      final cleanup = _owner = _credentials.beginTransition();
+      state = const AsyncLoading();
+      try {
+        await _credentials.clear(cleanup);
+        await journals.clearAccount(api, userId);
+      } catch (error, stack) {
+        if (_owns(cleanup)) {
+          state = AsyncError(actionFailure(error, stack), stack);
+        }
+        rethrow;
+      }
+      if (!_owns(cleanup)) return false;
+      state = const AsyncData(Session.signedOut());
+      return true;
+    } catch (_) {
+      if (!_owns(revision)) return false;
+      rethrow;
+    } finally {
+      if (_deleting == revision) _deleting = null;
     }
   }
 

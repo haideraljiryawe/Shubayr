@@ -27,6 +27,9 @@ class AuthRepositoryRemote implements AuthRepository {
       });
 
   @override
+  Future<void> deleteAccount() => _api.deleteVoid('/me/account');
+
+  @override
   Future<void> logout(String refreshToken) => decodeResponse(() async {
     await _api.postVoid('/auth/logout', body: {'refresh_token': refreshToken});
   });

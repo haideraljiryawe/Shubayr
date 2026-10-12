@@ -271,3 +271,21 @@ calendar-only values retain their year/month/day. Numeric Gregorian dates use
 Western digits in both Arabic and English. These strings never replace raw
 API/domain dates. Product reviews display a read-only first-page preview, with
 an explicit shown/total label when further reviews exist.
+
+### Customer account deletion and privacy policy
+
+Release 1 uses API 14.2.0 `DELETE /me/account`. Deletion requires explicit
+confirmation and is restricted to a verified customer session. A refused
+request leaves the account signed in and localizes open-order, pending-return
+and unsettled-amount blockers. A successful 204 revokes local authorization,
+clears credentials and deletes the account's pending-request journals. Other
+accounts and device display preferences are preserved.
+
+Supply the real published policy with `--dart-define=PRIVACY_POLICY_URL=...`
+or an external `--dart-define-from-file` build configuration. Only a valid
+production HTTPS DNS URL opens, using the system browser. There is deliberately
+no default policy address; missing configuration shows localized unavailable
+feedback. Publishing and verifying this URL is a release blocker, not a
+completed integration check. The production API URL, policy URL and Firebase
+project are currently **pending production configuration**. Never substitute
+localhost/LAN, sample domains or invented production identifiers.

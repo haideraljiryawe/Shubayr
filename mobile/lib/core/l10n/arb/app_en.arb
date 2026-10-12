@@ -195,7 +195,16 @@
     }
   },
   "productReviewsPreview": "Showing {shown} of {total} reviews — preview",
-  "@productReviewsPreview": {"placeholders": {"shown": {"type": "String"}, "total": {"type": "String"}}},
+  "@productReviewsPreview": {
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "productReviews": "Reviews",
   "productNoReviews": "No reviews yet",
   "productReviewsCount": "{count} reviews",
@@ -272,7 +281,7 @@
   "profileSaved": "Changes saved.",
   "profileDeleteAccount": "Delete account",
   "profileDeleteTitle": "Delete account?",
-  "profileDeleteMessage": "Your account and its data will be permanently deleted. This cannot be undone.",
+  "profileDeleteMessage": "Your personal details, addresses and sign-in sessions will be removed. Anonymized order and financial records are retained as required. This cannot be undone.",
   "galleryCounter": "{current} of {total}",
   "@galleryCounter": {
     "description": "Image position in the full-screen product gallery, e.g. '1 of 5'. Digits are passed as strings so they stay Western Arabic numerals like the rest of the app.",
@@ -761,5 +770,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "privacyPolicyUnavailable": "The privacy policy has not been published yet. Please try again after the app is configured.",
+  "privacyPolicyOpenFailed": "Could not open the privacy policy. Please try again.",
+  "accountDeletionBlocked": "Your account cannot be deleted while orders, returns or amounts remain unresolved.",
+  "accountDeletionOpenOrders": "Complete or cancel your open orders before deleting your account.",
+  "accountDeletionPendingReturns": "Wait for your pending returns to be resolved before deleting your account.",
+  "accountDeletionUnsettled": "Settle outstanding amounts before deleting your account."
 }

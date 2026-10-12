@@ -198,7 +198,7 @@
   "profileSaved": "تم حفظ التغييرات.",
   "profileDeleteAccount": "حذف الحساب",
   "profileDeleteTitle": "حذف الحساب؟",
-  "profileDeleteMessage": "سيتم حذف حسابك وبياناته نهائيًا. لا يمكن التراجع عن هذا الإجراء.",
+  "profileDeleteMessage": "ستُحذف بياناتك الشخصية وعناوينك وجلسات تسجيل الدخول. تُحفظ سجلات الطلبات والسجلات المالية دون بيانات هويتك حسب المتطلبات. لا يمكن التراجع عن الحذف.",
   "galleryCounter": "{current} من {total}",
   "afterSalesDeliveredOnly": "تتوفر هذه الخدمات بعد استلام الطلب.",
   "reviewOrderTitle": "تقييم المنتجات",
@@ -645,5 +645,11 @@
   "orderReductionDecline": "رفض تقليل الكمية",
   "orderReductionAcceptConfirm": "هل توافق على الكمية المخفضة المعروضة؟ سيحدث المتجر إجمالي الطلب.",
   "orderReductionDeclineConfirm": "هل ترفض تعديل الكمية؟ سيراجع المتجر طلبك.",
-  "orderDecisionSaved": "تم حفظ ردك."
+  "orderDecisionSaved": "تم حفظ ردك.",
+  "privacyPolicyUnavailable": "لم تُنشر سياسة الخصوصية بعد. يرجى المحاولة بعد إعداد التطبيق.",
+  "privacyPolicyOpenFailed": "تعذر فتح سياسة الخصوصية. يرجى المحاولة مجددًا.",
+  "accountDeletionBlocked": "لا يمكن حذف حسابك قبل تسوية الطلبات أو المرتجعات أو المبالغ المعلقة.",
+  "accountDeletionOpenOrders": "أكمل طلباتك المفتوحة أو ألغها قبل حذف حسابك.",
+  "accountDeletionPendingReturns": "انتظر تسوية المرتجعات المعلقة قبل حذف حسابك.",
+  "accountDeletionUnsettled": "يرجى تسوية المبالغ المعلقة قبل حذف حسابك."
 }
