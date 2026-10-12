@@ -1,3 +1,4 @@
+import 'push_notification_bridge.dart';
 import '../core/config/store_identity.dart';
 import '../features/notifications/presentation/notification_providers.dart';
 import '../features/cart/presentation/providers/cart_providers.dart';
@@ -57,7 +58,9 @@ class ShubayrApp extends ConsumerWidget {
           child: SafeArea(
             top: false,
             bottom: false,
-            child: MonitorFrame(router: router, child: child!),
+            child: PushNotificationBridge(
+              child: MonitorFrame(router: router, child: child!),
+            ),
           ),
         );
       },

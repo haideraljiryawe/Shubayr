@@ -1,3 +1,4 @@
+import 'package:shubayr/features/auth/domain/session_exit_tasks.dart';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,6 +58,13 @@ void main() {
   tearDown(() => container.dispose());
 
   test('204 clears credentials and only deleted customer journals', () async {
+    final cleanup = <bool>[];
+    container.read(sessionExitTasksProvider).register((
+      revision,
+      deleted,
+    ) async {
+      cleanup.add(deleted);
+    });
     final own = PendingRequestStore.slot(
       'https://api.shubayr.com',
       'mock-user',
@@ -80,6 +88,7 @@ void main() {
       isFalse,
     );
     expect(await tokens.readAccessToken(), isNull);
+    expect(cleanup, [true]);
     expect(await tokens.readRefreshToken(), isNull);
     expect(await journals.read(own), isNull);
     expect(await journals.read(other), isNotNull);

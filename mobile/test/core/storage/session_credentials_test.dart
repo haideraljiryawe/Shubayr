@@ -55,6 +55,39 @@ class _Storage extends FlutterSecureStorage {
 
 void main() {
   test(
+    'logout cleanup can read tokens and persists after disposal invalidation',
+    () async {
+      final store = InMemoryTokenStore();
+      await store.save(accessToken: 'old', refreshToken: 'refresh');
+      final credentials = SessionCredentials(store);
+      final owner = credentials.beginTransition();
+      final gate = Completer<void>();
+      final done = credentials.clearAfter(owner, () async {
+        expect((await credentials.read()).accessToken, 'old');
+        await gate.future;
+      });
+      credentials.invalidate(owner);
+      gate.complete();
+      await done;
+      expect(await store.readAccessToken(), isNull);
+      expect(await store.readRefreshToken(), isNull);
+      expect(credentials.owns(owner), isFalse);
+    },
+  );
+  test('delayed logout cleanup cannot wipe a newer login', () async {
+    final store = InMemoryTokenStore(accessToken: 'old');
+    final credentials = SessionCredentials(store);
+    final owner = credentials.beginTransition();
+    final gate = Completer<void>();
+    final done = credentials.clearAfter(owner, () => gate.future);
+    final newer = credentials.beginTransition();
+    await credentials.save(newer, accessToken: 'new');
+    gate.complete();
+    expect(await done, isNull);
+    expect(await store.readAccessToken(), 'new');
+  });
+
+  test(
     'a read cannot observe access written without the matching refresh',
     () async {
       final storage = _Storage();

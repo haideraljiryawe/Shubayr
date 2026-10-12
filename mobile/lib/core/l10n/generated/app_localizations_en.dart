@@ -1839,6 +1839,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'A previous request is unresolved. Retry with the same selection and amount or quantity.';
 
   @override
+  String get checkoutPendingRecovery =>
+      'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.';
+
+  @override
+  String get checkoutResolvePending => 'Resolve previous checkout';
+
+  @override
   String get orderRequestCancellation => 'Request cancellation';
 
   @override
@@ -1881,6 +1888,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orderDecisionSaved => 'Your response has been saved.';
+
+  @override
+  String get productLowStockLabel => 'Low stock';
+
+  @override
+  String get pushEnable => 'Enable push notifications';
+
+  @override
+  String get pushEnabled => 'Push notifications are enabled.';
+
+  @override
+  String get pushDenied =>
+      'Notifications are disabled. Allow them in your device settings, then try again.';
+
+  @override
+  String get pushPending =>
+      'Device registration is not ready yet. Please try again shortly.';
+
+  @override
+  String get pushUnavailable =>
+      'Push notifications are not configured for this build yet.';
+
+  @override
+  String get pushReceived => 'You have a new notification.';
 
   @override
   String get errorCheckoutIdentity =>
@@ -1933,16 +1964,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorPaidCancellation =>
       'This paid order cannot be cancelled here. Contact the store for help.';
-
-  @override
-  String get checkoutPendingRecovery =>
-      'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.';
-
-  @override
-  String get checkoutResolvePending => 'Resolve previous checkout';
-
-  @override
-  String get productLowStockLabel => 'Low stock';
 
   @override
   String get privacyPolicyUnavailable =>

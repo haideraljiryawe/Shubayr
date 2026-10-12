@@ -1,3 +1,4 @@
+import '../../../notifications/presentation/push_permission_tile.dart';
 import '../../../../core/error/response_decode.dart';
 import '../../../../core/storage/session_credentials.dart';
 import '../providers/privacy_policy_provider.dart';
@@ -66,6 +67,11 @@ class AccountView extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.md),
                   ],
                   if (isSignedIn && session?.role == UserRole.customer) ...[
+                    const AppCard(
+                      padding: EdgeInsets.zero,
+                      child: PushPermissionTile(),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
                     AppCard(
                       padding: EdgeInsets.zero,
                       child: ListTile(
