@@ -44,24 +44,46 @@ class AppFailure implements Exception {
   bool hasFieldError(String field) =>
       errors.any((error) => error.field == field);
 
-  String localizedMessage(AppLocalizations l10n) => code == 'PENDING_REQUEST'
-      ? l10n.pendingRequestMessage
-      : code == 'INVALID_COLLECTION_AMOUNT'
-      ? l10n.deliveryInvalidAmount
-      : code == 'INVALID_API_CONFIGURATION'
-      ? l10n.startupConfigurationError
-      : switch (kind) {
-          FailureKind.network => l10n.errorNetwork,
-          FailureKind.timeout => l10n.errorTimeout,
-          FailureKind.unauthorized => l10n.errorUnauthorized,
-          FailureKind.forbidden => l10n.adminNoAccess,
-          FailureKind.notFound => l10n.errorNotFound,
-          FailureKind.validation => l10n.errorValidation,
-          FailureKind.conflict => l10n.errorConflict,
-          FailureKind.rateLimited => l10n.errorRateLimited,
-          FailureKind.server => l10n.errorServer,
-          FailureKind.unknown => l10n.errorUnknown,
-        };
+  String localizedMessage(AppLocalizations l10n) {
+    if (code == 'ACCOUNT_DELETION_BLOCKED') {
+      final blockers = <String>{
+        for (final error in errors)
+          if (error.code == 'OPEN_ORDERS')
+            l10n.accountDeletionOpenOrders
+          else if (error.code == 'PENDING_RETURNS')
+            l10n.accountDeletionPendingReturns
+          else if (error.code == 'UNSETTLED_AMOUNTS')
+            l10n.accountDeletionUnsettled,
+      };
+      return blockers.isEmpty
+          ? l10n.accountDeletionBlocked
+          : blockers.join('\n');
+    }
+    if (code == 'PRIVACY_POLICY_UNAVAILABLE') {
+      return l10n.privacyPolicyUnavailable;
+    }
+    if (code == 'PRIVACY_POLICY_OPEN_FAILED') {
+      return l10n.privacyPolicyOpenFailed;
+    }
+    return code == 'PENDING_REQUEST'
+        ? l10n.pendingRequestMessage
+        : code == 'INVALID_COLLECTION_AMOUNT'
+        ? l10n.deliveryInvalidAmount
+        : code == 'INVALID_API_CONFIGURATION'
+        ? l10n.startupConfigurationError
+        : switch (kind) {
+            FailureKind.network => l10n.errorNetwork,
+            FailureKind.timeout => l10n.errorTimeout,
+            FailureKind.unauthorized => l10n.errorUnauthorized,
+            FailureKind.forbidden => l10n.adminNoAccess,
+            FailureKind.notFound => l10n.errorNotFound,
+            FailureKind.validation => l10n.errorValidation,
+            FailureKind.conflict => l10n.errorConflict,
+            FailureKind.rateLimited => l10n.errorRateLimited,
+            FailureKind.server => l10n.errorServer,
+            FailureKind.unknown => l10n.errorUnknown,
+          };
+  }
 
   @override
   String toString() =>

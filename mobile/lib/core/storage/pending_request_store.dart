@@ -68,6 +68,38 @@ class PendingRequestStore {
     return request;
   });
 
+  /// Delete only this API/account's journals after confirmed account deletion.
+  /// Unrelated accounts, credentials and preferences are never touched.
+  Future<void> clearAccount(String api, String user) => _serialize(() async {
+    final keys = (_storage == null ? _memory : await _storage.readAll()).keys
+        .toList();
+    for (final key in keys) {
+      if (!key.startsWith('pending.request.v1.')) continue;
+      List<dynamic> scope;
+      try {
+        scope =
+            jsonDecode(
+                  utf8.decode(
+                    base64Url.decode(
+                      key.substring('pending.request.v1.'.length),
+                    ),
+                  ),
+                )
+                as List<dynamic>;
+      } on FormatException {
+        continue;
+      } on TypeError {
+        continue;
+      }
+      if (scope.length != 4 || scope[0] != api || scope[1] != user) continue;
+      if (_storage == null) {
+        _memory.remove(key);
+      } else {
+        await _storage.delete(key: key);
+      }
+    }
+  });
+
   Future<void> complete(String slot, String id) => _serialize(() async {
     if ((await _read(slot))?.id != id) return;
     if (_storage == null) {

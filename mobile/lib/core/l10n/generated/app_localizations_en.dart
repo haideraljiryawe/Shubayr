@@ -636,7 +636,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileDeleteMessage =>
-      'Your account and its data will be permanently deleted. This cannot be undone.';
+      'Your personal details, addresses and sign-in sessions will be removed. Anonymized order and financial records are retained as required. This cannot be undone.';
 
   @override
   String galleryCounter(String current, String total) {
@@ -1839,13 +1839,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'A previous request is unresolved. Retry with the same selection and amount or quantity.';
 
   @override
-  String get checkoutPendingRecovery =>
-      'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.';
-
-  @override
-  String get checkoutResolvePending => 'Resolve previous checkout';
-
-  @override
   String get orderRequestCancellation => 'Request cancellation';
 
   @override
@@ -1888,6 +1881,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orderDecisionSaved => 'Your response has been saved.';
+
+  @override
+  String get privacyPolicyUnavailable =>
+      'The privacy policy has not been published yet. Please try again after the app is configured.';
+
+  @override
+  String get privacyPolicyOpenFailed =>
+      'Could not open the privacy policy. Please try again.';
+
+  @override
+  String get accountDeletionBlocked =>
+      'Your account cannot be deleted while orders, returns or amounts remain unresolved.';
+
+  @override
+  String get accountDeletionOpenOrders =>
+      'Complete or cancel your open orders before deleting your account.';
+
+  @override
+  String get accountDeletionPendingReturns =>
+      'Wait for your pending returns to be resolved before deleting your account.';
+
+  @override
+  String get accountDeletionUnsettled =>
+      'Settle outstanding amounts before deleting your account.';
+
+  @override
+  String get checkoutPendingRecovery =>
+      'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.';
+
+  @override
+  String get checkoutResolvePending => 'Resolve previous checkout';
 
   @override
   String get productLowStockLabel => 'Low stock';
