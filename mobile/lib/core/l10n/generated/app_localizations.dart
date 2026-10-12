@@ -3661,6 +3661,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Low stock'**
   String get productLowStockLabel;
+
+  /// No description provided for @pushEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable push notifications'**
+  String get pushEnable;
+
+  /// No description provided for @pushEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications are enabled.'**
+  String get pushEnabled;
+
+  /// No description provided for @pushDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are disabled. Allow them in your device settings, then try again.'**
+  String get pushDenied;
+
+  /// No description provided for @pushPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Device registration is not ready yet. Please try again shortly.'**
+  String get pushPending;
+
+  /// No description provided for @pushUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications are not configured for this build yet.'**
+  String get pushUnavailable;
+
+  /// No description provided for @pushReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'You have a new notification.'**
+  String get pushReceived;
 }
 
 class _AppLocalizationsDelegate

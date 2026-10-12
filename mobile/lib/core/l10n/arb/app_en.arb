@@ -773,5 +773,11 @@
       }
     }
   },
-  "productLowStockLabel": "Low stock"
+  "productLowStockLabel": "Low stock",
+  "pushEnable": "Enable push notifications",
+  "pushEnabled": "Push notifications are enabled.",
+  "pushDenied": "Notifications are disabled. Allow them in your device settings, then try again.",
+  "pushPending": "Device registration is not ready yet. Please try again shortly.",
+  "pushUnavailable": "Push notifications are not configured for this build yet.",
+  "pushReceived": "You have a new notification."
 }

@@ -9,6 +9,7 @@ import '../../data/auth_repository_mock.dart';
 import '../../data/auth_repository_remote.dart';
 import '../../domain/auth_repository.dart';
 import '../../domain/session.dart';
+import '../../domain/session_exit_tasks.dart';
 import '../../domain/profile_update.dart';
 import '../../data/user.dart';
 
@@ -152,6 +153,8 @@ class SessionController extends AsyncNotifier<Session> {
       // Once replacing credentials, the previous identity no longer authorizes
       // account data. Ordinary guest OTP flows retain their existing UI state.
       state = const AsyncData(Session.signedOut());
+      await _endSessionTasks(revision);
+      if (!_owns(revision)) return null;
       final saved = await _credentials.save(
         revision,
         accessToken: accessToken,
@@ -212,6 +215,14 @@ class SessionController extends AsyncNotifier<Session> {
     }
   }
 
+  Future<void> _endSessionTasks(int revision) async {
+    try {
+      await ref.read(sessionExitTasksProvider).run(revision);
+    } catch (error, stack) {
+      actionFailure(error, stack);
+    }
+  }
+
   Future<void> signOut() async {
     final revision = _owner = _credentials.beginTransition();
     final repository = ref.read(authRepositoryProvider);
@@ -220,7 +231,10 @@ class SessionController extends AsyncNotifier<Session> {
     state = const AsyncLoading();
     final StoredCredentials? removed;
     try {
-      removed = await _credentials.clear(revision);
+      removed = await _credentials.clearAfter(
+        revision,
+        () => _endSessionTasks(revision),
+      );
     } catch (error, stack) {
       final failure = actionFailure(error, stack);
       if (_owns(revision)) state = AsyncError(failure, stack);

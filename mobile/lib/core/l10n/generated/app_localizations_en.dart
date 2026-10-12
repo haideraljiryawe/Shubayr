@@ -1891,4 +1891,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get productLowStockLabel => 'Low stock';
+
+  @override
+  String get pushEnable => 'Enable push notifications';
+
+  @override
+  String get pushEnabled => 'Push notifications are enabled.';
+
+  @override
+  String get pushDenied =>
+      'Notifications are disabled. Allow them in your device settings, then try again.';
+
+  @override
+  String get pushPending =>
+      'Device registration is not ready yet. Please try again shortly.';
+
+  @override
+  String get pushUnavailable =>
+      'Push notifications are not configured for this build yet.';
+
+  @override
+  String get pushReceived => 'You have a new notification.';
 }

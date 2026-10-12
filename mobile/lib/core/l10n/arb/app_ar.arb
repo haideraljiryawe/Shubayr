@@ -648,5 +648,11 @@
   "orderReductionAcceptConfirm": "هل توافق على الكمية المخفضة المعروضة؟ سيحدث المتجر إجمالي الطلب.",
   "orderReductionDeclineConfirm": "هل ترفض تعديل الكمية؟ سيراجع المتجر طلبك.",
   "orderDecisionSaved": "تم حفظ ردك.",
-  "productLowStockLabel": "الكمية محدودة"
+  "productLowStockLabel": "الكمية محدودة",
+  "pushEnable": "تفعيل الإشعارات الفورية",
+  "pushEnabled": "تم تفعيل الإشعارات الفورية.",
+  "pushDenied": "الإشعارات معطّلة. اسمح بها في إعدادات جهازك ثم حاول مجددًا.",
+  "pushPending": "تسجيل الجهاز غير جاهز بعد. يرجى المحاولة بعد قليل.",
+  "pushUnavailable": "لم تُضبط الإشعارات الفورية لهذا الإصدار بعد.",
+  "pushReceived": "لديك إشعار جديد."
 }

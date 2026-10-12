@@ -1,3 +1,4 @@
+import '../../../notifications/presentation/push_permission_tile.dart';
 import '../../../notifications/presentation/notification_button.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -63,6 +64,11 @@ class AccountView extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.md),
                   ],
                   if (isSignedIn && session?.role == UserRole.customer) ...[
+                    const AppCard(
+                      padding: EdgeInsets.zero,
+                      child: PushPermissionTile(),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
                     AppCard(
                       padding: EdgeInsets.zero,
                       child: ListTile(

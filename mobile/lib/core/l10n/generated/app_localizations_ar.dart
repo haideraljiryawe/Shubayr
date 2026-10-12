@@ -1875,4 +1875,24 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get productLowStockLabel => 'الكمية محدودة';
+
+  @override
+  String get pushEnable => 'تفعيل الإشعارات الفورية';
+
+  @override
+  String get pushEnabled => 'تم تفعيل الإشعارات الفورية.';
+
+  @override
+  String get pushDenied =>
+      'الإشعارات معطّلة. اسمح بها في إعدادات جهازك ثم حاول مجددًا.';
+
+  @override
+  String get pushPending =>
+      'تسجيل الجهاز غير جاهز بعد. يرجى المحاولة بعد قليل.';
+
+  @override
+  String get pushUnavailable => 'لم تُضبط الإشعارات الفورية لهذا الإصدار بعد.';
+
+  @override
+  String get pushReceived => 'لديك إشعار جديد.';
 }
