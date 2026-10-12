@@ -826,5 +826,26 @@
     }
   },
   "orderReductionAccepted": "Quantity change accepted",
-  "orderReductionDenied": "Quantity change declined"
+  "orderReductionDenied": "Quantity change declined",
+  "errorWorkAccountShopping": "Shopping is available to customer accounts. Sign in with a customer account.",
+  "errorAppRoleForbidden": "Your account role cannot perform this action.",
+  "errorAuthSurfaceForbidden": "This sign-in cannot be used in the customer app. Sign in again through the app.",
+  "stockShortageTitle": "Quantity unavailable",
+  "stockAvailableQuantity": "Available quantity: {quantity}",
+  "stockRequestedQuantity": "Requested quantity: {quantity}",
+  "stockCorrectCart": "Correct cart",
+  "@stockAvailableQuantity": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "@stockRequestedQuantity": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  }
 }

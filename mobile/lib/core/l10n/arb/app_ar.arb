@@ -701,5 +701,26 @@
     }
   },
   "orderReductionAccepted": "تم قبول تعديل الكمية",
-  "orderReductionDenied": "تم رفض تعديل الكمية"
+  "orderReductionDenied": "تم رفض تعديل الكمية",
+  "errorWorkAccountShopping": "التسوق متاح لحسابات العملاء. سجّل الدخول بحساب عميل.",
+  "errorAppRoleForbidden": "دور حسابك لا يسمح بتنفيذ هذا الإجراء.",
+  "errorAuthSurfaceForbidden": "جلسة الدخول هذه لا يمكن استخدامها في تطبيق العملاء. سجّل الدخول مجدداً من التطبيق.",
+  "stockShortageTitle": "الكمية غير متاحة",
+  "stockAvailableQuantity": "الكمية المتاحة: {quantity}",
+  "stockRequestedQuantity": "الكمية المطلوبة: {quantity}",
+  "stockCorrectCart": "تعديل السلة",
+  "@stockAvailableQuantity": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "@stockRequestedQuantity": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  }
 }

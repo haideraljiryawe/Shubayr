@@ -53,9 +53,13 @@ class AppFailure implements Exception {
     'CART_VARIANT_UNAVAILABLE',
     'CART_SKU_UNAVAILABLE',
     'REQUESTED_QUANTITY_UNAVAILABLE',
+    'INSUFFICIENT_STOCK',
     'SKU_WHOLE_UNITS_ONLY',
     'COUPON_INVALID',
   }.contains(code);
+
+  bool get isStockShortage =>
+      code == 'INSUFFICIENT_STOCK' || code == 'REQUESTED_QUANTITY_UNAVAILABLE';
 
   String localizedMessage(AppLocalizations l10n) {
     if (code == 'ACCOUNT_DELETION_BLOCKED') {
@@ -87,7 +91,11 @@ class AppFailure implements Exception {
       'CART_PRODUCT_UNAVAILABLE' ||
       'CART_VARIANT_UNAVAILABLE' ||
       'CART_SKU_UNAVAILABLE' => l10n.errorCartUnavailable,
-      'REQUESTED_QUANTITY_UNAVAILABLE' => l10n.errorStockShortage,
+      'REQUESTED_QUANTITY_UNAVAILABLE' ||
+      'INSUFFICIENT_STOCK' => l10n.errorStockShortage,
+      'WORK_ACCOUNT_SHOPPING_FORBIDDEN' => l10n.errorWorkAccountShopping,
+      'APP_ROLE_FORBIDDEN' => l10n.errorAppRoleForbidden,
+      'AUTH_SURFACE_FORBIDDEN' => l10n.errorAuthSurfaceForbidden,
       'SKU_WHOLE_UNITS_ONLY' => l10n.errorWholeUnits,
       'COUPON_INVALID' => l10n.errorCouponInvalid,
       'PRICE_CHANGED' => l10n.errorPriceChanged,
@@ -134,9 +142,12 @@ class ApiFieldError {
     this.newPriceVersion,
     this.currentStatus,
     this.currentVersion,
+    this.requestedQuantity,
+    this.availableQuantity,
   });
   final String? variantId, sku, newPriceVersion, currentStatus;
   final num? oldPrice, newPrice;
+  final num? requestedQuantity, availableQuantity;
   final int? currentVersion;
   final String? field;
   final String? code;
