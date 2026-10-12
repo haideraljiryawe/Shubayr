@@ -4,6 +4,7 @@
 
 - Shubayr: single-owner multi-department store in Iraq. Base currency IQD (precision 0), optional USD. Time zone Asia/Baghdad. Weekday convention Sunday=0…Saturday=6.
 - Spec: `docs/Shubayr_Software_Engineering_Analysis_v5.1` (.docx/.pdf + Markdown copy). The contract `api/openapi.yaml` is the source of truth.
+- Product decisions: [`docs/decisions/2026-10-12.md`](docs/decisions/2026-10-12.md). Shubayr has no delivery-agent app; delivery-agent app work is a future add-on.
 
 ## Git workflow
 
@@ -22,6 +23,7 @@
 - Bump the version per semver and state in the PR description what is breaking (if anything).
 - Declare every new error code on every affected route.
 - web/ and admin/ live suites must pass before a breaking change merges. mobile/ on main is a stale snapshot of the app: do not block on it — instead document every mobile-affecting change in docs/mobile/contract-changes-<from>-to-<to>.md in the same PR. Never edit mobile/ or the mobile branches.
+- Delivery-pricing changes may merge only after the checkout → confirmation → delivery → receipt acceptance flow proves that the order total, collection amount, revenue posting, receipt, and exact return allocation reconcile.
 
 ## Money and dates
 
