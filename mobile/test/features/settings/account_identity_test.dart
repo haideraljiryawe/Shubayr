@@ -79,6 +79,27 @@ void main() {
         .load();
   });
 
+  for (final locale in ['ar', 'en']) {
+    testWidgets(
+      'support without official configuration gives localized guidance $locale',
+      (tester) async {
+        final container = (await tester.runAsync(() => _start(null)))!;
+        addTearDown(container.dispose);
+        await tester.pumpWidget(_host(container, locale: locale));
+        await tester.pumpAndSettle();
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(AccountView)),
+        );
+        await tester.ensureVisible(find.text(l10n.accountHelp));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.accountHelp));
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.supportUnavailable), findsOneWidget);
+        expect(find.text(l10n.comingSoonTitle), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   for (final role in ['customer', 'order_monitor', 'delivery_agent']) {
     for (final locale in ['ar', 'en']) {
       testWidgets('identity and customer links follow session $role $locale', (

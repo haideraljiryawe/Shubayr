@@ -3823,6 +3823,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This product is no longer available. Please browse the catalog for other products.'**
   String get productUnavailableMessage;
+
+  /// No description provided for @supportUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer support contact details are not available yet. Please try again later.'**
+  String get supportUnavailable;
+
+  /// No description provided for @supportOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open customer support. Please try again.'**
+  String get supportOpenFailed;
 }
 
 class _AppLocalizationsDelegate

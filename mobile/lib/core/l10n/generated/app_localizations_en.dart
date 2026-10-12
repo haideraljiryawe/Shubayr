@@ -1995,4 +1995,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get productUnavailableMessage =>
       'This product is no longer available. Please browse the catalog for other products.';
+
+  @override
+  String get supportUnavailable =>
+      'Customer support contact details are not available yet. Please try again later.';
+
+  @override
+  String get supportOpenFailed =>
+      'Could not open customer support. Please try again.';
 }

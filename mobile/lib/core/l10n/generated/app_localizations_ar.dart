@@ -1977,4 +1977,12 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get productUnavailableMessage =>
       'هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.';
+
+  @override
+  String get supportUnavailable =>
+      'بيانات التواصل مع خدمة العملاء غير متاحة حالياً. يرجى المحاولة لاحقاً.';
+
+  @override
+  String get supportOpenFailed =>
+      'تعذر فتح وسيلة التواصل مع خدمة العملاء. يرجى المحاولة مجدداً.';
 }
