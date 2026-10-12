@@ -243,6 +243,7 @@ class _CartLine extends ConsumerWidget {
               const SizedBox(height: AppSpacing.sm),
               ResponsiveValueRow(
                 label: QuantityStepper(
+                  showRange: false,
                   quantity: item.quantity,
                   wholeUnitsOnly: whole,
                   max: max,

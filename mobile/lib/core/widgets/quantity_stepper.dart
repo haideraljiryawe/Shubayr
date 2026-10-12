@@ -18,6 +18,7 @@ class QuantityStepper extends StatelessWidget {
     this.wholeUnitsOnly = true,
     this.max = 99,
     this.baseUnit,
+    this.showRange = true,
   });
 
   final num quantity;
@@ -27,6 +28,9 @@ class QuantityStepper extends StatelessWidget {
   final bool wholeUnitsOnly;
   final num max;
   final String? baseUnit;
+
+  /// Hide when the input limit is derived from private inventory.
+  final bool showRange;
   num get min => wholeUnitsOnly ? 1 : 0.001;
 
   @override
@@ -64,6 +68,7 @@ class QuantityStepper extends StatelessWidget {
                         max: max,
                         wholeUnitsOnly: wholeUnitsOnly,
                         baseUnit: baseUnit,
+                        showRange: showRange,
                       );
                       if (context.mounted && value != null) onChanged(value);
                     },
@@ -123,6 +128,7 @@ Future<num?> editQuantity(
   required num max,
   bool wholeUnitsOnly = false,
   String? baseUnit,
+  bool showRange = true,
 }) async {
   num? selected;
   final formKey = GlobalKey<FormState>();
@@ -155,7 +161,9 @@ Future<num?> editQuantity(
                       child: Text(baseUnit, textDirection: TextDirection.ltr),
                     ),
               errorMaxLines: 3,
-              helperText: '${formatQuantity(min)} – ${formatQuantity(max)}',
+              helperText: showRange
+                  ? '${formatQuantity(min)} – ${formatQuantity(max)}'
+                  : null,
             ),
             validator: (text) {
               final raw = (text ?? '').trim().replaceAll('٫', '.');

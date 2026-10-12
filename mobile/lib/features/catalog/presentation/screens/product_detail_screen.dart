@@ -278,6 +278,7 @@ class _DetailState extends ConsumerState<_Detail> {
                               ),
                               const Spacer(),
                               QuantityStepper(
+                                showRange: false,
                                 quantity: quantity,
                                 wholeUnitsOnly: stock.wholeUnitsOnly,
                                 max: max,
