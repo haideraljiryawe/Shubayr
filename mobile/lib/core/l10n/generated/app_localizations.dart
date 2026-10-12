@@ -3565,6 +3565,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A previous request is unresolved. Retry with the same selection and amount or quantity.'**
   String get pendingRequestMessage;
+
+  /// No description provided for @orderRequestCancellation.
+  ///
+  /// In en, this message translates to:
+  /// **'Request cancellation'**
+  String get orderRequestCancellation;
+
+  /// No description provided for @orderCancellationReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for cancellation'**
+  String get orderCancellationReason;
+
+  /// No description provided for @orderCancellationRequestSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation request sent to the store.'**
+  String get orderCancellationRequestSent;
+
+  /// No description provided for @orderCancellationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation request pending'**
+  String get orderCancellationPending;
+
+  /// No description provided for @orderCancellationApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation request approved'**
+  String get orderCancellationApproved;
+
+  /// No description provided for @orderCancellationDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation request declined'**
+  String get orderCancellationDenied;
+
+  /// No description provided for @orderReductionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity change proposed'**
+  String get orderReductionTitle;
+
+  /// No description provided for @orderReductionQuantities.
+  ///
+  /// In en, this message translates to:
+  /// **'Original quantity: {oldQuantity}. Proposed quantity: {newQuantity}.'**
+  String orderReductionQuantities(String oldQuantity, String newQuantity);
+
+  /// No description provided for @orderReductionAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept reduced quantity'**
+  String get orderReductionAccept;
+
+  /// No description provided for @orderReductionDecline.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline reduced quantity'**
+  String get orderReductionDecline;
+
+  /// No description provided for @orderReductionAcceptConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept the displayed reduced quantity? The store will update the order totals.'**
+  String get orderReductionAcceptConfirm;
+
+  /// No description provided for @orderReductionDeclineConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline this quantity change? The store will review your order.'**
+  String get orderReductionDeclineConfirm;
+
+  /// No description provided for @orderDecisionSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Your response has been saved.'**
+  String get orderDecisionSaved;
 }
 
 class _AppLocalizationsDelegate

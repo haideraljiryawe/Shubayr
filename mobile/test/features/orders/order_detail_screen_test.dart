@@ -256,7 +256,7 @@ void main() {
     expect(find.text('Processing'), findsWidgets);
   });
 
-  testWidgets('an open order can be cancelled (with confirmation)', (
+  testWidgets('a pending order can be cancelled (with confirmation)', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 3000);
@@ -264,7 +264,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(_host(_order('processing')));
+    await tester.pumpWidget(_host(_order('pending')));
     await tester.pumpAndSettle();
 
     expect(find.text('Cancel order'), findsOneWidget);

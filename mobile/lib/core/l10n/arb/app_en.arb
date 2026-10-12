@@ -738,5 +738,28 @@
   "deliveryCollectedAmount": "Amount collected",
   "deliveryInvalidAmount": "Enter an amount from zero up to the amount due (at most 6 decimal places).",
   "pendingDeliveryRetry": "The previous result is unknown. Retry the same collection; its amount cannot be changed until the result is known.",
-  "pendingRequestMessage": "A previous request is unresolved. Retry with the same selection and amount or quantity."
+  "pendingRequestMessage": "A previous request is unresolved. Retry with the same selection and amount or quantity.",
+  "orderRequestCancellation": "Request cancellation",
+  "orderCancellationReason": "Reason for cancellation",
+  "orderCancellationRequestSent": "Cancellation request sent to the store.",
+  "orderCancellationPending": "Cancellation request pending",
+  "orderCancellationApproved": "Cancellation request approved",
+  "orderCancellationDenied": "Cancellation request declined",
+  "orderReductionTitle": "Quantity change proposed",
+  "orderReductionQuantities": "Original quantity: {oldQuantity}. Proposed quantity: {newQuantity}.",
+  "orderReductionAccept": "Accept reduced quantity",
+  "orderReductionDecline": "Decline reduced quantity",
+  "orderReductionAcceptConfirm": "Accept the displayed reduced quantity? The store will update the order totals.",
+  "orderReductionDeclineConfirm": "Decline this quantity change? The store will review your order.",
+  "orderDecisionSaved": "Your response has been saved.",
+  "@orderReductionQuantities": {
+    "placeholders": {
+      "oldQuantity": {
+        "type": "String"
+      },
+      "newQuantity": {
+        "type": "String"
+      }
+    }
+  }
 }

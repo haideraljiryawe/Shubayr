@@ -48,8 +48,14 @@ IconData orderStatusIcon(String status) => switch (status) {
   _ => Icons.circle_outlined,
 };
 
-/// The customer can cancel only before the order leaves for delivery.
+/// Direct cancellation is allowed only while pending (API 14.2).
 bool isOrderCancellable(String status, {bool remote = false}) =>
-    status == 'pending' ||
-    status == 'confirmed' ||
-    (!remote && status == 'processing');
+    status == 'pending';
+
+bool canRequestOrderCancellation(String status) => const {
+  'confirmed',
+  'preparing',
+  'ready_for_dispatch',
+  'dispatched',
+  'failed',
+}.contains(status);

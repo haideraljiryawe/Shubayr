@@ -33,6 +33,8 @@ class Order {
     this.currency,
     this.placedAt,
     this.items = const [],
+    this.cancellationRequest,
+    this.attentionDetails,
   });
 
   final String id;
@@ -57,6 +59,10 @@ class Order {
   @JsonKey(name: 'placed_at')
   final DateTime? placedAt;
   final List<OrderItem> items;
+  @JsonKey(name: 'cancellation_request', includeIfNull: false)
+  final OrderCancellationRequest? cancellationRequest;
+  @JsonKey(name: 'attention_details', includeIfNull: false)
+  final OrderAttentionDetails? attentionDetails;
 
   factory Order.fromJson(Map<String, dynamic> json) {
     if (json.containsKey('version') &&
@@ -173,4 +179,46 @@ class OrderPage {
       _$OrderPageFromJson(json);
 
   Map<String, dynamic> toJson() => _$OrderPageToJson(this);
+}
+
+@JsonSerializable()
+class OrderCancellationRequest {
+  const OrderCancellationRequest({required this.status, this.reason});
+  final String status;
+  final String? reason;
+  factory OrderCancellationRequest.fromJson(Map<String, dynamic> json) =>
+      _$OrderCancellationRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$OrderCancellationRequestToJson(this);
+}
+
+@JsonSerializable(explicitToJson: true)
+class OrderAttentionDetails {
+  const OrderAttentionDetails({this.reductionProposal});
+  @JsonKey(name: 'reduction_proposal', includeIfNull: false)
+  final OrderQuantityProposal? reductionProposal;
+  factory OrderAttentionDetails.fromJson(Map<String, dynamic> json) =>
+      _$OrderAttentionDetailsFromJson(json);
+  Map<String, dynamic> toJson() => _$OrderAttentionDetailsToJson(this);
+}
+
+@JsonSerializable()
+class OrderQuantityProposal {
+  const OrderQuantityProposal({
+    required this.orderItemId,
+    required this.oldQuantity,
+    required this.newQuantity,
+    required this.reason,
+    required this.status,
+  });
+  @JsonKey(name: 'order_item_id')
+  final String orderItemId;
+  @JsonKey(name: 'old_quantity')
+  final num oldQuantity;
+  @JsonKey(name: 'new_quantity')
+  final num newQuantity;
+  final String reason;
+  final String status;
+  factory OrderQuantityProposal.fromJson(Map<String, dynamic> json) =>
+      _$OrderQuantityProposalFromJson(json);
+  Map<String, dynamic> toJson() => _$OrderQuantityProposalToJson(this);
 }
