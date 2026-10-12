@@ -651,5 +651,8 @@
   "accountDeletionBlocked": "لا يمكن حذف حسابك قبل تسوية الطلبات أو المرتجعات أو المبالغ المعلقة.",
   "accountDeletionOpenOrders": "أكمل طلباتك المفتوحة أو ألغها قبل حذف حسابك.",
   "accountDeletionPendingReturns": "انتظر تسوية المرتجعات المعلقة قبل حذف حسابك.",
-  "accountDeletionUnsettled": "يرجى تسوية المبالغ المعلقة قبل حذف حسابك."
+  "accountDeletionUnsettled": "يرجى تسوية المبالغ المعلقة قبل حذف حسابك.",
+  "checkoutPendingRecovery": "نتيجة عملية الشراء السابقة غير معروفة. تحقق منها قبل إنشاء طلب جديد. ستتم إعادة المحاولة بالطلب الأصلي حتى إذا أصبحت السلة فارغة.",
+  "checkoutResolvePending": "التحقق من عملية الشراء السابقة",
+  "productLowStockLabel": "الكمية محدودة"
 }

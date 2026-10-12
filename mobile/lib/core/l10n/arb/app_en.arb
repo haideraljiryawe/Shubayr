@@ -776,5 +776,8 @@
   "accountDeletionBlocked": "Your account cannot be deleted while orders, returns or amounts remain unresolved.",
   "accountDeletionOpenOrders": "Complete or cancel your open orders before deleting your account.",
   "accountDeletionPendingReturns": "Wait for your pending returns to be resolved before deleting your account.",
-  "accountDeletionUnsettled": "Settle outstanding amounts before deleting your account."
+  "accountDeletionUnsettled": "Settle outstanding amounts before deleting your account.",
+  "checkoutPendingRecovery": "A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.",
+  "checkoutResolvePending": "Resolve previous checkout",
+  "productLowStockLabel": "Low stock"
 }

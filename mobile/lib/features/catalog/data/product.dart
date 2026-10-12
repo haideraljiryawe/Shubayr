@@ -1,5 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import 'stock_availability.dart';
+
 import '../../../core/error/failure.dart';
 import 'media/catalog_image.dart';
 
@@ -21,6 +23,7 @@ class ProductVariant {
     this.wholeUnitsOnly = true,
     this.availableQty,
     this.inStock,
+    this.availability,
     this.lowStockThreshold,
   });
 
@@ -42,6 +45,8 @@ class ProductVariant {
   final bool wholeUnitsOnly;
   @JsonKey(name: 'available_qty', includeIfNull: false)
   final num? availableQty;
+  @JsonKey(includeIfNull: false)
+  final StockAvailability? availability;
   @JsonKey(name: 'in_stock', includeIfNull: false)
   final bool? inStock;
   @JsonKey(name: 'low_stock_threshold', includeIfNull: false)
@@ -85,6 +90,7 @@ class Product {
     this.ratingAvg = 0,
     this.status = 'active',
     this.inStock = true,
+    this.availability,
     this.availableQty = 0,
     this.media = const [],
     this.variants = const [],
@@ -137,6 +143,8 @@ class Product {
   @JsonKey(name: 'rating_avg')
   final num ratingAvg;
   final String status;
+  @JsonKey(includeIfNull: false)
+  final StockAvailability? availability;
   @JsonKey(name: 'in_stock')
   final bool inStock;
   @JsonKey(name: 'available_qty')
@@ -191,6 +199,7 @@ class Product {
     ratingAvg: ratingAvg,
     status: status,
     inStock: inStock,
+    availability: availability,
     availableQty: availableQty,
     media: media ?? this.media,
     variants: variants,

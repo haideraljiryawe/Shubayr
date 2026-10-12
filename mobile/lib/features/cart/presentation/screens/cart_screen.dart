@@ -22,6 +22,7 @@ import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/cart.dart';
 import '../providers/cart_providers.dart';
+import '../../../orders/presentation/providers/pending_checkout_provider.dart';
 
 /// The cart: each line looks its product up from the catalog for name/image
 /// (the API supplies line totals and current availability). Quantity steppers
@@ -33,6 +34,25 @@ class CartScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final cart = ref.watch(cartControllerProvider);
+    final pending = ref.watch(pendingCheckoutProvider);
+    if (pending.asData?.value != null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.cartTitle)),
+        body: ResponsiveContent.page(
+          child: ListView(
+            padding: AppLayout.pageInsets(context),
+            children: [
+              Text(l10n.checkoutPendingRecovery),
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                label: l10n.checkoutResolvePending,
+                onPressed: () => context.pushNamed(AppRoutes.checkoutName),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.cartTitle)),

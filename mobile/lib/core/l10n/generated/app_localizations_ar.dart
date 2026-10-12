@@ -1889,4 +1889,14 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get accountDeletionUnsettled =>
       'يرجى تسوية المبالغ المعلقة قبل حذف حسابك.';
+
+  @override
+  String get checkoutPendingRecovery =>
+      'نتيجة عملية الشراء السابقة غير معروفة. تحقق منها قبل إنشاء طلب جديد. ستتم إعادة المحاولة بالطلب الأصلي حتى إذا أصبحت السلة فارغة.';
+
+  @override
+  String get checkoutResolvePending => 'التحقق من عملية الشراء السابقة';
+
+  @override
+  String get productLowStockLabel => 'الكمية محدودة';
 }

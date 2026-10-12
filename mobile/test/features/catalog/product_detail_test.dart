@@ -1,3 +1,4 @@
+import 'package:shubayr/features/catalog/data/stock_availability.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
@@ -109,6 +110,7 @@ class _FakeCatalog implements CatalogRepository {
       ? Product.fromJson({
           ..._product.toJson(),
           'available_qty': 0.5,
+          'availability': 'low_stock',
           'variants': [
             {
               'id': 'v1-s',
@@ -117,6 +119,7 @@ class _FakeCatalog implements CatalogRepository {
               'whole_units_only': whole,
               'base_unit': 'kg',
               'available_qty': 0.5,
+              'availability': 'low_stock',
               'in_stock': true,
             },
             {
@@ -152,6 +155,7 @@ class _FakeCatalog implements CatalogRepository {
             {
               'variant_id': 'v1-s',
               'available_qty': 0.5,
+              'availability': 'low_stock',
               'in_stock': true,
               'whole_units_only': whole,
               'base_unit': 'kg',
@@ -171,11 +175,15 @@ class _FakeCatalog implements CatalogRepository {
           variants: [
             VariantAvailability(
               variantId: 'v1-s',
+              availability: StockAvailability.lowStock,
+              lowStockThreshold: 0,
               availableQty: 3,
               inStock: true,
             ),
             VariantAvailability(
               variantId: 'v1-m',
+              availability: StockAvailability.inStock,
+              lowStockThreshold: 100,
               availableQty: 10,
               inStock: true,
             ),
@@ -306,7 +314,8 @@ void main() {
       sizePhone(tester);
       await tester.pumpWidget(_host(fractional: true));
       await tester.pumpAndSettle();
-      expect(find.text('Only 0.5 left'), findsOneWidget);
+      expect(find.text('Low stock'), findsOneWidget);
+      expect(find.textContaining(' left'), findsNothing);
       expect(find.text('0.5'), findsOneWidget);
       final addButton = find.widgetWithText(ElevatedButton, 'Add to cart');
       expect(tester.widget<ElevatedButton>(addButton).onPressed, isNotNull);
@@ -436,7 +445,8 @@ void main() {
 
     // Defaults to the first variant (S): base price and its low-stock hint.
     expect(find.textContaining('10,000'), findsOneWidget);
-    expect(find.text('Only 3 left'), findsOneWidget);
+    expect(find.text('Low stock'), findsOneWidget);
+    expect(find.textContaining(' left'), findsNothing);
 
     // Selecting M uses its effective price and refreshes the badge.
     await tester.tap(find.text('M'));

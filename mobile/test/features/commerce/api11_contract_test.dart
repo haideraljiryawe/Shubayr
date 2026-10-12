@@ -40,9 +40,13 @@ void main() {
         ),
       );
       final orders = OrderRepositoryRemote(ApiClient(dio));
-      await orders.placeOrder(addressId: 'a');
+      await orders.placeOrder(
+        idempotencyKey: 'test-checkout-key',
+        addressId: 'a',
+      );
       expect(requests.last.data, {'address_id': 'a', 'payment_method': 'cod'});
       await orders.placeOrder(
+        idempotencyKey: 'test-checkout-key',
         addressId: 'a',
         acceptedPriceVersions: [
           (variantId: 'v', priceVersion: 'opaque-from-conflict'),

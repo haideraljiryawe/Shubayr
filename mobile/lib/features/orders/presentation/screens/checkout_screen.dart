@@ -24,6 +24,7 @@ import '../../../cart/data/cart.dart';
 import '../../data/order.dart';
 import '../providers/order_providers.dart';
 import '../providers/order_action_providers.dart';
+import '../providers/pending_checkout_provider.dart';
 
 /// Cash-on-Delivery checkout: pick a delivery address, optionally apply a
 /// coupon, review the server cart summary and place the order. Checkout
@@ -131,11 +132,16 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
   Future<void> _placeOrder(
     String addressId, {
     List<ApiFieldError>? acceptedPriceChanges,
+    bool recover = false,
   }) async {
     final identity = ref.read(ordersIdentityProvider);
-    final result = await ref
-        .read(checkoutControllerProvider.notifier)
-        .place(addressId, acceptedPriceChanges: acceptedPriceChanges);
+    final controller = ref.read(checkoutControllerProvider.notifier);
+    final result = recover
+        ? await controller.recover()
+        : await controller.place(
+            addressId,
+            acceptedPriceChanges: acceptedPriceChanges,
+          );
     if (!mounted || ref.read(ordersIdentityProvider) != identity) return;
     if (result.status == OrderActionStatus.succeeded) {
       setState(() => _placed = result.order);
@@ -252,6 +258,38 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
     final placed = _placed;
     if (placed != null) {
       return _SuccessView(order: placed, money: _money);
+    }
+
+    final pending = ref.watch(pendingCheckoutProvider);
+    if (pending.isLoading || pending.hasError || pending.value != null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.checkoutTitle)),
+        body: ResponsiveContent.page(
+          child: Padding(
+            padding: AppLayout.pageInsets(context),
+            child: AsyncValueView(
+              value: pending,
+              loading: const Skeleton.line(),
+              onRetry: () => ref.invalidate(pendingCheckoutProvider),
+              builder: (context, request) => request == null
+                  ? const SizedBox.shrink()
+                  : ListView(
+                      children: [
+                        Text(l10n.checkoutPendingRecovery),
+                        const SizedBox(height: AppSpacing.lg),
+                        AppButton(
+                          label: l10n.checkoutResolvePending,
+                          isLoading: _placing,
+                          onPressed: _placing
+                              ? null
+                              : () => _placeOrder('', recover: true),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      );
     }
 
     final cartState = ref.watch(cartControllerProvider);

@@ -1,3 +1,4 @@
+import '../../data/stock_availability.dart';
 import 'catalog_image_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -154,13 +155,17 @@ class _Thumb extends StatelessWidget {
           )
         else
           image,
-        if (!product.inStock)
+        if (product.availability == StockAvailability.lowStock ||
+            product.availability == StockAvailability.outOfStock ||
+            !product.inStock)
           PositionedDirectional(
             top: AppSpacing.sm,
             start: AppSpacing.sm,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: colors.danger,
+                color: product.availability == StockAvailability.lowStock
+                    ? colors.warning
+                    : colors.danger,
                 borderRadius: AppRadii.pillAll,
               ),
               child: Padding(
@@ -169,7 +174,9 @@ class _Thumb extends StatelessWidget {
                   vertical: 2,
                 ),
                 child: Text(
-                  context.l10n.commonOutOfStock,
+                  product.availability == StockAvailability.lowStock
+                      ? context.l10n.productLowStockLabel
+                      : context.l10n.commonOutOfStock,
                   style: context.text.labelSmall?.copyWith(
                     color: colors.onDark,
                   ),

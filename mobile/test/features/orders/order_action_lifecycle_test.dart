@@ -1,3 +1,4 @@
+import 'package:shubayr/core/storage/pending_request_store.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,6 +65,7 @@ class Orders extends OrderRepositoryMock {
   Future<Order> Function()? onCancel;
   @override
   Future<Order> placeOrder({
+    required String idempotencyKey,
     required String addressId,
     String? couponCode,
     List<({String variantId, String priceVersion})> acceptedPriceVersions =
@@ -123,6 +125,9 @@ void main() {
     c = ProviderContainer(
       retry: (_, _) => null,
       overrides: [
+        pendingRequestStoreProvider.overrideWith(
+          (ref) => PendingRequestStore.memory(),
+        ),
         sessionControllerProvider.overrideWith(TestSession.new),
         dataSourceProvider.overrideWithValue(DataSource.remote),
         cartRepositoryProvider.overrideWithValue(carts),
@@ -308,23 +313,26 @@ void main() {
       expect(find.byType(SnackBar), findsOneWidget);
     },
   );
-  testWidgets('unexpected checkout failure clears busy and permits retry', (
-    tester,
-  ) async {
-    await mount(tester);
-    await tester.tap(find.text('Place order'));
-    await tester.pump();
-    orders.placeGate.completeError(StateError('unexpected'));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(
-      tester
-          .widget<AppButton>(find.widgetWithText(AppButton, 'Place order'))
-          .onPressed,
-      isNotNull,
-    );
-    expect(find.byType(SnackBar), findsOneWidget);
-  });
+  testWidgets(
+    'unexpected checkout failure clears busy and permits safe recovery',
+    (tester) async {
+      await mount(tester);
+      await tester.tap(find.text('Place order'));
+      await tester.pump();
+      orders.placeGate.completeError(StateError('unexpected'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(
+        tester
+            .widget<AppButton>(
+              find.widgetWithText(AppButton, 'Resolve previous checkout'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      expect(find.byType(SnackBar), findsOneWidget);
+    },
+  );
   testWidgets('an address sheet is dismissed when the customer changes', (
     tester,
   ) async {
