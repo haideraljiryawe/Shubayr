@@ -677,5 +677,29 @@
   "productUnavailableTitle": "المنتج غير متاح",
   "productUnavailableMessage": "هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.",
   "supportUnavailable": "بيانات التواصل مع خدمة العملاء غير متاحة حالياً. يرجى المحاولة لاحقاً.",
-  "supportOpenFailed": "تعذر فتح وسيلة التواصل مع خدمة العملاء. يرجى المحاولة مجدداً."
+  "supportOpenFailed": "تعذر فتح وسيلة التواصل مع خدمة العملاء. يرجى المحاولة مجدداً.",
+  "orderRequestDate": "تاريخ الطلب",
+  "orderResolutionDate": "تاريخ البت",
+  "orderResolutionNote": "ملاحظة البت",
+  "orderAcceptedPrices": "تغييرات الأسعار المقبولة",
+  "orderStockAttention": "نقص في كميات الطلب",
+  "orderShortageQuantities": "المطلوب: {requested} · المخصص: {allocated} · النقص: {short}",
+  "orderPaidOnDelivery": "المدفوع عند التسليم",
+  "orderStillOwed": "المبلغ المتبقي",
+  "orderCollectionUnconfirmed": "الدفع بانتظار التأكيد",
+  "@orderShortageQuantities": {
+    "placeholders": {
+      "requested": {
+        "type": "String"
+      },
+      "allocated": {
+        "type": "String"
+      },
+      "short": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReductionAccepted": "تم قبول تعديل الكمية",
+  "orderReductionDenied": "تم رفض تعديل الكمية"
 }

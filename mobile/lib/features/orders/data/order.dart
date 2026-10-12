@@ -1,5 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 import '../../../core/error/failure.dart';
+import 'order_tracking.dart';
 
 part 'order.g.dart';
 
@@ -35,6 +36,9 @@ class Order {
     this.items = const [],
     this.cancellationRequest,
     this.attentionDetails,
+    this.timeline,
+    this.priceChangeInfo,
+    this.collection,
   });
 
   final String id;
@@ -63,6 +67,12 @@ class Order {
   final OrderCancellationRequest? cancellationRequest;
   @JsonKey(name: 'attention_details', includeIfNull: false)
   final OrderAttentionDetails? attentionDetails;
+  @JsonKey(includeIfNull: false)
+  final List<OrderEvent>? timeline;
+  @JsonKey(name: 'price_change_info', includeIfNull: false)
+  final OrderPriceChangeInfo? priceChangeInfo;
+  @JsonKey(includeIfNull: false)
+  final OrderCollectionResult? collection;
 
   factory Order.fromJson(Map<String, dynamic> json) {
     if (json.containsKey('version') &&
@@ -86,6 +96,8 @@ class OrderItem {
     this.imageUrl,
     bool? imageSnapshotProvided,
     this.quantity = 1,
+    this.baseUnit,
+    this.wholeUnitsOnly,
     this.unitPrice = 0,
     this.lineTotal = 0,
     this.reviewed,
@@ -123,6 +135,10 @@ class OrderItem {
   }
 
   final num quantity;
+  @JsonKey(name: 'base_unit', includeIfNull: false)
+  final String? baseUnit;
+  @JsonKey(name: 'whole_units_only', includeIfNull: false)
+  final bool? wholeUnitsOnly;
   @JsonKey(name: 'unit_price')
   final num unitPrice;
   @JsonKey(name: 'line_total')
@@ -141,6 +157,8 @@ class OrderItem {
       productId: item.productId,
       variantId: item.variantId,
       quantity: item.quantity,
+      baseUnit: item.baseUnit,
+      wholeUnitsOnly: item.wholeUnitsOnly,
       unitPrice: item.unitPrice,
       lineTotal: item.lineTotal,
       reviewed: item.reviewed,
@@ -183,9 +201,21 @@ class OrderPage {
 
 @JsonSerializable()
 class OrderCancellationRequest {
-  const OrderCancellationRequest({required this.status, this.reason});
+  const OrderCancellationRequest({
+    required this.status,
+    this.reason,
+    this.requestedAt,
+    this.resolvedAt,
+    this.resolutionNote,
+  });
   final String status;
   final String? reason;
+  @JsonKey(name: 'requested_at', includeIfNull: false)
+  final DateTime? requestedAt;
+  @JsonKey(name: 'resolved_at', includeIfNull: false)
+  final DateTime? resolvedAt;
+  @JsonKey(name: 'resolution_note', includeIfNull: false)
+  final String? resolutionNote;
   factory OrderCancellationRequest.fromJson(Map<String, dynamic> json) =>
       _$OrderCancellationRequestFromJson(json);
   Map<String, dynamic> toJson() => _$OrderCancellationRequestToJson(this);
@@ -193,7 +223,12 @@ class OrderCancellationRequest {
 
 @JsonSerializable(explicitToJson: true)
 class OrderAttentionDetails {
-  const OrderAttentionDetails({this.reductionProposal});
+  const OrderAttentionDetails({
+    this.reductionProposal,
+    this.shortLines = const [],
+  });
+  @JsonKey(name: 'short_lines')
+  final List<OrderShortLine> shortLines;
   @JsonKey(name: 'reduction_proposal', includeIfNull: false)
   final OrderQuantityProposal? reductionProposal;
   factory OrderAttentionDetails.fromJson(Map<String, dynamic> json) =>
@@ -221,4 +256,88 @@ class OrderQuantityProposal {
   factory OrderQuantityProposal.fromJson(Map<String, dynamic> json) =>
       _$OrderQuantityProposalFromJson(json);
   Map<String, dynamic> toJson() => _$OrderQuantityProposalToJson(this);
+}
+
+@JsonSerializable(explicitToJson: true)
+class OrderPriceChangeInfo {
+  const OrderPriceChangeInfo({required this.acceptedAt, required this.lines});
+  @JsonKey(name: 'accepted_at')
+  final DateTime acceptedAt;
+  final List<OrderAcceptedPrice> lines;
+  factory OrderPriceChangeInfo.fromJson(Map<String, dynamic> json) =>
+      _$OrderPriceChangeInfoFromJson(json);
+  Map<String, dynamic> toJson() => _$OrderPriceChangeInfoToJson(this);
+}
+
+@JsonSerializable()
+class OrderAcceptedPrice {
+  const OrderAcceptedPrice({
+    required this.variantId,
+    required this.unitPrice,
+    required this.priceVersion,
+  });
+  @JsonKey(name: 'variant_id')
+  final String variantId;
+  @JsonKey(name: 'unit_price')
+  final num unitPrice;
+  @JsonKey(name: 'price_version')
+  final String priceVersion;
+  factory OrderAcceptedPrice.fromJson(Map<String, dynamic> json) =>
+      _$OrderAcceptedPriceFromJson(json);
+  Map<String, dynamic> toJson() => _$OrderAcceptedPriceToJson(this);
+}
+
+@JsonSerializable()
+class OrderShortLine {
+  const OrderShortLine({
+    required this.orderItemId,
+    required this.variantId,
+    required this.requested,
+    required this.allocated,
+    required this.short,
+  });
+  @JsonKey(name: 'order_item_id')
+  final String orderItemId;
+  @JsonKey(name: 'variant_id')
+  final String variantId;
+  @JsonKey(fromJson: _quantityFromString, toJson: _quantityToString)
+  final num requested;
+  @JsonKey(fromJson: _quantityFromString, toJson: _quantityToString)
+  final num allocated;
+  @JsonKey(fromJson: _quantityFromString, toJson: _quantityToString)
+  final num short;
+  factory OrderShortLine.fromJson(Map<String, dynamic> json) =>
+      _$OrderShortLineFromJson(json);
+  Map<String, dynamic> toJson() => _$OrderShortLineToJson(this);
+}
+
+num _quantityFromString(String value) {
+  final quantity = num.parse(value);
+  if (!quantity.isFinite || quantity < 0) {
+    throw const FormatException('Invalid quantity');
+  }
+  return quantity;
+}
+
+String _quantityToString(num value) => value.toString();
+
+@JsonSerializable()
+class OrderCollectionResult {
+  const OrderCollectionResult({
+    required this.result,
+    required this.amountCollected,
+    required this.shortfall,
+    required this.confirmationState,
+    required this.currency,
+  });
+  final String result;
+  @JsonKey(name: 'amount_collected')
+  final num? amountCollected;
+  final num? shortfall;
+  @JsonKey(name: 'confirmation_state')
+  final String confirmationState;
+  final String currency;
+  factory OrderCollectionResult.fromJson(Map<String, dynamic> json) =>
+      _$OrderCollectionResultFromJson(json);
+  Map<String, dynamic> toJson() => _$OrderCollectionResultToJson(this);
 }

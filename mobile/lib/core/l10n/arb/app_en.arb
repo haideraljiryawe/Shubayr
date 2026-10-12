@@ -802,5 +802,29 @@
   "productUnavailableTitle": "Product unavailable",
   "productUnavailableMessage": "This product is no longer available. Please browse the catalog for other products.",
   "supportUnavailable": "Customer support contact details are not available yet. Please try again later.",
-  "supportOpenFailed": "Could not open customer support. Please try again."
+  "supportOpenFailed": "Could not open customer support. Please try again.",
+  "orderRequestDate": "Requested",
+  "orderResolutionDate": "Resolved",
+  "orderResolutionNote": "Resolution note",
+  "orderAcceptedPrices": "Accepted price changes",
+  "orderStockAttention": "Order quantity shortage",
+  "orderShortageQuantities": "Requested: {requested} · Allocated: {allocated} · Short: {short}",
+  "orderPaidOnDelivery": "Paid on delivery",
+  "orderStillOwed": "Still owed",
+  "orderCollectionUnconfirmed": "Payment is awaiting confirmation",
+  "@orderShortageQuantities": {
+    "placeholders": {
+      "requested": {
+        "type": "String"
+      },
+      "allocated": {
+        "type": "String"
+      },
+      "short": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReductionAccepted": "Quantity change accepted",
+  "orderReductionDenied": "Quantity change declined"
 }

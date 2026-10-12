@@ -2003,4 +2003,43 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get supportOpenFailed =>
       'Could not open customer support. Please try again.';
+
+  @override
+  String get orderRequestDate => 'Requested';
+
+  @override
+  String get orderResolutionDate => 'Resolved';
+
+  @override
+  String get orderResolutionNote => 'Resolution note';
+
+  @override
+  String get orderAcceptedPrices => 'Accepted price changes';
+
+  @override
+  String get orderStockAttention => 'Order quantity shortage';
+
+  @override
+  String orderShortageQuantities(
+    String requested,
+    String allocated,
+    String short,
+  ) {
+    return 'Requested: $requested · Allocated: $allocated · Short: $short';
+  }
+
+  @override
+  String get orderPaidOnDelivery => 'Paid on delivery';
+
+  @override
+  String get orderStillOwed => 'Still owed';
+
+  @override
+  String get orderCollectionUnconfirmed => 'Payment is awaiting confirmation';
+
+  @override
+  String get orderReductionAccepted => 'Quantity change accepted';
+
+  @override
+  String get orderReductionDenied => 'Quantity change declined';
 }

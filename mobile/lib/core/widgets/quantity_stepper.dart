@@ -129,6 +129,7 @@ Future<num?> editQuantity(
   bool wholeUnitsOnly = false,
   String? baseUnit,
   bool showRange = true,
+  Widget Function(BuildContext, Widget)? dialogWrapper,
 }) async {
   num? selected;
   final formKey = GlobalKey<FormState>();
@@ -136,7 +137,7 @@ Future<num?> editQuantity(
     context: context,
     builder: (context) {
       final l10n = context.l10n;
-      return AlertDialog(
+      final dialog = AlertDialog(
         title: Text(l10n.productQuantity),
         content: Form(
           key: formKey,
@@ -202,6 +203,7 @@ Future<num?> editQuantity(
           ),
         ],
       );
+      return dialogWrapper?.call(context, dialog) ?? dialog;
     },
   );
   return value;
