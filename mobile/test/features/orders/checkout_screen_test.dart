@@ -1,3 +1,4 @@
+import 'package:shubayr/core/storage/pending_request_store.dart';
 import '../../helpers/page_layout_expectations.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
@@ -57,6 +58,7 @@ class _FakeOrders implements OrderRepository {
 
   @override
   Future<Order> placeOrder({
+    required String idempotencyKey,
     required String addressId,
     String? couponCode,
     List<({String variantId, String priceVersion})> acceptedPriceVersions =
@@ -150,6 +152,7 @@ Widget _host({
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    pendingRequestStoreProvider.overrideWithValue(PendingRequestStore.memory()),
     notificationSyncProvider.overrideWith((ref) {}),
     unreadCountProvider.overrideWith((ref) async => 0),
     dataSourceProvider.overrideWithValue(DataSource.mock),

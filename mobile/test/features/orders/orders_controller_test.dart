@@ -192,7 +192,10 @@ void main() {
       container.invalidate(ordersProvider);
       var list = await container.read(ordersProvider.future);
       expect(list.items.any((o) => o.id == id), isFalse);
-      final placed = await repository.placeOrder(addressId: 'addr-1');
+      final placed = await repository.placeOrder(
+        idempotencyKey: 'test-checkout-key',
+        addressId: 'addr-1',
+      );
       container.invalidate(ordersProvider);
       list = await container.read(ordersProvider.future);
       expect(list.items.first.id, placed.id);

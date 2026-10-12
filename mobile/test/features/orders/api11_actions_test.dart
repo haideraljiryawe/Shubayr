@@ -1,3 +1,4 @@
+import 'package:shubayr/core/storage/pending_request_store.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -54,6 +55,7 @@ class PriceOrders extends Orders {
   int? cancelledVersion;
   @override
   Future<Order> placeOrder({
+    required String idempotencyKey,
     required String addressId,
     String? couponCode,
     List<({String variantId, String priceVersion})> acceptedPriceVersions =
@@ -61,6 +63,7 @@ class PriceOrders extends Orders {
   }) {
     accepted.add(acceptedPriceVersions);
     return super.placeOrder(
+      idempotencyKey: idempotencyKey,
       addressId: addressId,
       couponCode: couponCode,
       acceptedPriceVersions: acceptedPriceVersions,
@@ -86,6 +89,9 @@ void main() {
     c = ProviderContainer(
       retry: (_, _) => null,
       overrides: [
+        pendingRequestStoreProvider.overrideWith(
+          (ref) => PendingRequestStore.memory(),
+        ),
         sessionControllerProvider.overrideWith(TestSession.new),
         cartRepositoryProvider.overrideWithValue(carts),
         orderRepositoryProvider.overrideWithValue(orders),

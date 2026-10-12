@@ -139,6 +139,7 @@ class OrderRepositoryMock implements OrderRepository {
 
   @override
   Future<Order> placeOrder({
+    required String idempotencyKey,
     required String addressId,
     String? couponCode,
     List<({String variantId, String priceVersion})> acceptedPriceVersions =

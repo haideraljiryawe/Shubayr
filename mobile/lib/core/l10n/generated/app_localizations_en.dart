@@ -1837,4 +1837,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pendingRequestMessage =>
       'A previous request is unresolved. Retry with the same selection and amount or quantity.';
+
+  @override
+  String get checkoutPendingRecovery =>
+      'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.';
+
+  @override
+  String get checkoutResolvePending => 'Resolve previous checkout';
 }

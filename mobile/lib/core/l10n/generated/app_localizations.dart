@@ -3565,6 +3565,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A previous request is unresolved. Retry with the same selection and amount or quantity.'**
   String get pendingRequestMessage;
+
+  /// No description provided for @checkoutPendingRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.'**
+  String get checkoutPendingRecovery;
+
+  /// No description provided for @checkoutResolvePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve previous checkout'**
+  String get checkoutResolvePending;
 }
 
 class _AppLocalizationsDelegate

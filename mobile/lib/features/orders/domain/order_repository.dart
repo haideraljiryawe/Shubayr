@@ -11,6 +11,7 @@ abstract interface class OrderRepository {
 
   /// `POST /orders` — places a COD order from the current cart.
   Future<Order> placeOrder({
+    required String idempotencyKey,
     required String addressId,
     String? couponCode,
     List<({String variantId, String priceVersion})> acceptedPriceVersions =
