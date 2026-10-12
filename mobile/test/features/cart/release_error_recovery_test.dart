@@ -13,6 +13,7 @@ import '../../helpers/test_session.dart';
 class _Cart extends CartRepositoryMock {
   int reads = 0, writes = 0;
   bool failRefresh = false;
+  String code = 'REQUESTED_QUANTITY_UNAVAILABLE';
   @override
   Future<Cart> fetchCart() async {
     reads++;
@@ -23,11 +24,7 @@ class _Cart extends CartRepositoryMock {
   @override
   Future<Cart> updateItem(String itemId, num quantity) async {
     writes++;
-    throw const AppFailure(
-      FailureKind.conflict,
-      statusCode: 409,
-      code: 'REQUESTED_QUANTITY_UNAVAILABLE',
-    );
+    throw AppFailure(FailureKind.conflict, statusCode: 409, code: code);
   }
 }
 
@@ -42,6 +39,10 @@ void main() {
         'CART_VARIANT_UNAVAILABLE',
         'CART_SKU_UNAVAILABLE',
         'REQUESTED_QUANTITY_UNAVAILABLE',
+        'INSUFFICIENT_STOCK',
+        'WORK_ACCOUNT_SHOPPING_FORBIDDEN',
+        'APP_ROLE_FORBIDDEN',
+        'AUTH_SURFACE_FORBIDDEN',
         'SKU_WHOLE_UNITS_ONLY',
         'COUPON_INVALID',
         'PRICE_CHANGED',
@@ -88,40 +89,41 @@ void main() {
       isFalse,
     );
   });
-  for (final failRefresh in [false, true]) {
-    test(
-      'stock rejection refreshes without retrying mutation; read fails=$failRefresh',
-      () async {
-        final repo = _Cart()..failRefresh = failRefresh;
-        final c = ProviderContainer(
-          overrides: [
-            dataSourceProvider.overrideWithValue(DataSource.mock),
-            sessionControllerProvider.overrideWith(TestSession.new),
-            cartRepositoryProvider.overrideWithValue(repo),
-          ],
-        );
-        addTearDown(c.dispose);
-        await c.read(sessionControllerProvider.future);
-        await c.read(cartControllerProvider.future);
-        final result = await c
-            .read(cartControllerProvider.notifier)
-            .setQuantity('line', 2);
-        expect(result.status, CartMutationStatus.failed);
-        expect(
-          (result.error as AppFailure).code,
-          'REQUESTED_QUANTITY_UNAVAILABLE',
-        );
-        expect(repo.reads, 2);
-        expect(repo.writes, 1);
-        if (failRefresh) {
-          expect(c.read(cartControllerProvider).hasError, isTrue);
-        } else {
-          expect(
-            c.read(cartControllerProvider).requireValue.couponCode,
-            'SERVER',
+  for (final code in ['REQUESTED_QUANTITY_UNAVAILABLE', 'INSUFFICIENT_STOCK']) {
+    for (final failRefresh in [false, true]) {
+      test(
+        'stock rejection refreshes without retrying mutation; $code read fails=$failRefresh',
+        () async {
+          final repo = _Cart()
+            ..failRefresh = failRefresh
+            ..code = code;
+          final c = ProviderContainer(
+            overrides: [
+              dataSourceProvider.overrideWithValue(DataSource.mock),
+              sessionControllerProvider.overrideWith(TestSession.new),
+              cartRepositoryProvider.overrideWithValue(repo),
+            ],
           );
-        }
-      },
-    );
+          addTearDown(c.dispose);
+          await c.read(sessionControllerProvider.future);
+          await c.read(cartControllerProvider.future);
+          final result = await c
+              .read(cartControllerProvider.notifier)
+              .setQuantity('line', 2);
+          expect(result.status, CartMutationStatus.failed);
+          expect((result.error as AppFailure).code, code);
+          expect(repo.reads, 2);
+          expect(repo.writes, 1);
+          if (failRefresh) {
+            expect(c.read(cartControllerProvider).hasError, isTrue);
+          } else {
+            expect(
+              c.read(cartControllerProvider).requireValue.couponCode,
+              'SERVER',
+            );
+          }
+        },
+      );
+    }
   }
 }

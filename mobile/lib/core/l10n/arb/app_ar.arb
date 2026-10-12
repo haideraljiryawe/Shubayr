@@ -674,6 +674,29 @@
   "accountDeletionOpenOrders": "أكمل طلباتك المفتوحة أو ألغها قبل حذف حسابك.",
   "accountDeletionPendingReturns": "انتظر تسوية المرتجعات المعلقة قبل حذف حسابك.",
   "accountDeletionUnsettled": "يرجى تسوية المبالغ المعلقة قبل حذف حسابك.",
+  "productUnavailableTitle": "المنتج غير متاح",
+  "productUnavailableMessage": "هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.",
+  "errorWorkAccountShopping": "التسوق متاح لحسابات العملاء. سجّل الدخول بحساب عميل.",
+  "errorAppRoleForbidden": "دور حسابك لا يسمح بتنفيذ هذا الإجراء.",
+  "errorAuthSurfaceForbidden": "جلسة الدخول هذه لا يمكن استخدامها في تطبيق العملاء. سجّل الدخول مجدداً من التطبيق.",
+  "stockShortageTitle": "الكمية غير متاحة",
+  "stockAvailableQuantity": "الكمية المتاحة: {quantity}",
+  "stockRequestedQuantity": "الكمية المطلوبة: {quantity}",
+  "stockCorrectCart": "تعديل السلة",
+  "@stockAvailableQuantity": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "@stockRequestedQuantity": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
   "orderRequestDate": "تاريخ الطلب",
   "orderResolutionDate": "تاريخ البت",
   "orderResolutionNote": "ملاحظة البت",
@@ -696,8 +719,6 @@
       }
     }
   },
-  "productUnavailableTitle": "المنتج غير متاح",
-  "productUnavailableMessage": "هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.",
   "orderReductionAccepted": "تم قبول تعديل الكمية",
   "orderReductionDenied": "تم رفض تعديل الكمية"
 }

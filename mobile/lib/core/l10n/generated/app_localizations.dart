@@ -3812,6 +3812,60 @@ abstract class AppLocalizations {
   /// **'Settle outstanding amounts before deleting your account.'**
   String get accountDeletionUnsettled;
 
+  /// No description provided for @productUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Product unavailable'**
+  String get productUnavailableTitle;
+
+  /// No description provided for @productUnavailableMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This product is no longer available. Please browse the catalog for other products.'**
+  String get productUnavailableMessage;
+
+  /// No description provided for @errorWorkAccountShopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Shopping is available to customer accounts. Sign in with a customer account.'**
+  String get errorWorkAccountShopping;
+
+  /// No description provided for @errorAppRoleForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account role cannot perform this action.'**
+  String get errorAppRoleForbidden;
+
+  /// No description provided for @errorAuthSurfaceForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'This sign-in cannot be used in the customer app. Sign in again through the app.'**
+  String get errorAuthSurfaceForbidden;
+
+  /// No description provided for @stockShortageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity unavailable'**
+  String get stockShortageTitle;
+
+  /// No description provided for @stockAvailableQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Available quantity: {quantity}'**
+  String stockAvailableQuantity(String quantity);
+
+  /// No description provided for @stockRequestedQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested quantity: {quantity}'**
+  String stockRequestedQuantity(String quantity);
+
+  /// No description provided for @stockCorrectCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct cart'**
+  String get stockCorrectCart;
+
   /// No description provided for @orderRequestDate.
   ///
   /// In en, this message translates to:
@@ -3869,18 +3923,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Payment is awaiting confirmation'**
   String get orderCollectionUnconfirmed;
-
-  /// No description provided for @productUnavailableTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Product unavailable'**
-  String get productUnavailableTitle;
-
-  /// No description provided for @productUnavailableMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'This product is no longer available. Please browse the catalog for other products.'**
-  String get productUnavailableMessage;
 
   /// No description provided for @orderReductionAccepted.
   ///

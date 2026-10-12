@@ -22,6 +22,7 @@ import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/cart.dart';
 import '../providers/cart_providers.dart';
+import '../widgets/stock_shortage_dialog.dart';
 import '../../../orders/presentation/providers/pending_checkout_provider.dart';
 
 /// The cart: each line looks its product up from the catalog for name/image
@@ -152,11 +153,21 @@ class _CartLine extends ConsumerWidget {
 
   Future<void> _showResult(
     BuildContext context,
+    WidgetRef ref,
     Future<CartMutationResult> operation,
   ) async {
+    final identity = ref.read(cartSessionIdentityProvider);
     final result = await operation;
-    if (!context.mounted || result.status != CartMutationStatus.failed) return;
+    if (!context.mounted ||
+        ref.read(cartSessionIdentityProvider) != identity ||
+        result.status != CartMutationStatus.failed) {
+      return;
+    }
     final error = result.error;
+    if (error is AppFailure && error.isStockShortage) {
+      await showStockShortageDialog(context, ref, error, affectedItem: item);
+      return;
+    }
     showAppSnackBarMessage(
       context,
       message: error is AppFailure
@@ -250,6 +261,7 @@ class _CartLine extends ConsumerWidget {
                   baseUnit: row?.baseUnit ?? variant?.baseUnit,
                   onChanged: (q) => _showResult(
                     context,
+                    ref,
                     ref
                         .read(cartControllerProvider.notifier)
                         .setQuantity(item.id, q),
@@ -269,6 +281,7 @@ class _CartLine extends ConsumerWidget {
           icon: Icon(Icons.close, size: 20, color: colors.textMuted),
           onPressed: () => _showResult(
             context,
+            ref,
             ref.read(cartControllerProvider.notifier).remove(item.id),
           ),
           tooltip: l10n.cartRemove,

@@ -21,6 +21,7 @@ import '../../../address/presentation/providers/address_providers.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../../cart/data/cart.dart';
+import '../../../cart/presentation/widgets/stock_shortage_dialog.dart';
 import '../../data/order.dart';
 import '../providers/order_providers.dart';
 import '../providers/order_action_providers.dart';
@@ -214,6 +215,21 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
         return;
       }
       final error = result.error;
+      if (error is AppFailure && error.isStockShortage) {
+        final correct = await showStockShortageDialog(
+          context,
+          ref,
+          error,
+          returnToCart: true,
+        );
+        if (correct &&
+            mounted &&
+            ref.read(ordersIdentityProvider) == identity &&
+            ModalRoute.of(context)?.isCurrent != false) {
+          context.goNamed(AppRoutes.cartName);
+        }
+        return;
+      }
       showAppSnackBarMessage(
         context,
         message: error is AppFailure

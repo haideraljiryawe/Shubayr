@@ -1972,6 +1972,40 @@ class AppLocalizationsAr extends AppLocalizations {
       'يرجى تسوية المبالغ المعلقة قبل حذف حسابك.';
 
   @override
+  String get productUnavailableTitle => 'المنتج غير متاح';
+
+  @override
+  String get productUnavailableMessage =>
+      'هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.';
+
+  @override
+  String get errorWorkAccountShopping =>
+      'التسوق متاح لحسابات العملاء. سجّل الدخول بحساب عميل.';
+
+  @override
+  String get errorAppRoleForbidden => 'دور حسابك لا يسمح بتنفيذ هذا الإجراء.';
+
+  @override
+  String get errorAuthSurfaceForbidden =>
+      'جلسة الدخول هذه لا يمكن استخدامها في تطبيق العملاء. سجّل الدخول مجدداً من التطبيق.';
+
+  @override
+  String get stockShortageTitle => 'الكمية غير متاحة';
+
+  @override
+  String stockAvailableQuantity(String quantity) {
+    return 'الكمية المتاحة: $quantity';
+  }
+
+  @override
+  String stockRequestedQuantity(String quantity) {
+    return 'الكمية المطلوبة: $quantity';
+  }
+
+  @override
+  String get stockCorrectCart => 'تعديل السلة';
+
+  @override
   String get orderRequestDate => 'تاريخ الطلب';
 
   @override
@@ -2003,13 +2037,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get orderCollectionUnconfirmed => 'الدفع بانتظار التأكيد';
-
-  @override
-  String get productUnavailableTitle => 'المنتج غير متاح';
-
-  @override
-  String get productUnavailableMessage =>
-      'هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.';
 
   @override
   String get orderReductionAccepted => 'تم قبول تعديل الكمية';
