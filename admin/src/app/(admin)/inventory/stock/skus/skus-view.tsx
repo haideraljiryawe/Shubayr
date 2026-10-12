@@ -6,10 +6,12 @@ import { Badge } from "@/components/ui";
 import { DataTable, TableSearch, type Column, type TableState } from "@/components/table/data-table";
 import type { Product } from "@/lib/catalog";
 import { availabilityTone, formatQuantity, stockHref } from "@/lib/inventory";
+import { useUnitName } from "@/components/catalog/unit-name";
 
 export function SkusView({ rows, state }: { rows: Product[]; state: TableState }) {
   const t = useTranslations("inventory");
   const locale = useLocale();
+  const unitName = useUnitName();
   const nameOf = (product: Product) =>
     (locale === "ar" ? product.name_ar : product.name_en) || product.name_en || product.name_ar || "";
 
@@ -37,7 +39,7 @@ export function SkusView({ rows, state }: { rows: Product[]; state: TableState }
                   </Link>
                 </td>
                 <td className="py-1 pe-3 text-end" dir="ltr" data-testid="sku-available">
-                  {formatQuantity(variant.available_qty ?? 0, locale)} <span className="text-text-muted">{variant.base_unit}</span>
+                  {formatQuantity(variant.available_qty ?? 0, locale)} <span className="text-text-muted">{unitName(variant.base_unit)}</span>
                 </td>
                 <td className="py-1 pe-3">
                   <Badge tone={availabilityTone(variant.availability)} data-testid="sku-state" data-state={variant.availability}>

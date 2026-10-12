@@ -49,6 +49,7 @@ import type { components } from "@/types/api";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { isNavActive, visibleNav, type NavKey } from "@/lib/nav";
+import type { ModuleKey } from "@/lib/modules";
 import { NotificationBell } from "@/components/inbox/notification-bell";
 import { LocaleSwitch } from "./locale-switch";
 import { hardNavigate } from "@/lib/hard-navigate";
@@ -125,9 +126,12 @@ const ICONS: Record<NavKey, LucideIcon> = {
  */
 export function AdminShell({
   initialUser,
+  modules,
   children,
 }: {
   initialUser: User;
+  /** The modules ADMIN_MODULES enables (src/lib/modules.ts). */
+  modules: readonly ModuleKey[];
   children: ReactNode;
 }) {
   const t = useTranslations("nav");
@@ -197,7 +201,7 @@ export function AdminShell({
     hardNavigate("/login");
   }
 
-  const items = visibleNav(user.permissions);
+  const items = visibleNav(user.permissions, undefined, modules);
 
   const nav = (
     <nav aria-label={t("label")} data-testid="sidebar-nav">

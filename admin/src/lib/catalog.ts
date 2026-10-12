@@ -118,6 +118,30 @@ export function canConvertToBrand(category: Category): boolean {
   return (category.children ?? []).length === 0;
 }
 
+/**
+ * Arabic letters in Latin, for slugs and SKU codes made from an Arabic-only
+ * name ("هواتف" → "hwatf"). Readable enough to recognise, not a scholarly
+ * transliteration; diacritics and tatweel are dropped, Arabic digits kept.
+ */
+const ARABIC_LATIN: Record<string, string> = {
+  ا: "a", أ: "a", إ: "i", آ: "a", ء: "", ؤ: "u", ئ: "y", ب: "b", ت: "t", ث: "th",
+  ج: "j", ح: "h", خ: "kh", د: "d", ذ: "dh", ر: "r", ز: "z", س: "s", ش: "sh", ص: "s",
+  ض: "d", ط: "t", ظ: "z", ع: "a", غ: "gh", ف: "f", ق: "q", ك: "k", ل: "l", م: "m",
+  ن: "n", ه: "h", ة: "a", و: "w", ي: "y", ى: "a", پ: "p", چ: "ch", ژ: "zh", گ: "g",
+  ک: "k", ی: "y",
+};
+
+export function transliterate(text: string): string {
+  return [...text.replace(/[ً-ٰٟـ]/g, "")]
+    .map((char) => {
+      const code = char.charCodeAt(0);
+      if (code >= 0x0660 && code <= 0x0669) return String(code - 0x0660);
+      if (code >= 0x06f0 && code <= 0x06f9) return String(code - 0x06f0);
+      return ARABIC_LATIN[char] ?? char;
+    })
+    .join("");
+}
+
 /** A URL slug from an English name: "Gaming Laptops" → "gaming-laptops". */
 export function slugify(text: string): string {
   return text
@@ -130,6 +154,35 @@ export function slugify(text: string): string {
 }
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** The slug a new category or brand gets: from the English name, else the Arabic one. */
+export function slugFor(nameEn: string, nameAr: string): string {
+  return slugify(nameEn) || slugify(transliterate(nameAr));
+}
+
+/**
+ * A slug no other row uses yet: "accessories", then "accessories-2"… The
+ * API refuses a taken slug (409), and two departments may well both have an
+ * "Accessories" subcategory, so a suggested slug is made unique up front.
+ */
+export function uniqueSlug(base: string, taken: Iterable<string>): string {
+  const used = new Set(taken);
+  const root = (base || "item").slice(0, 132).replace(/-+$/, "") || "item";
+  if (!used.has(root)) return root;
+  for (let n = 2; ; n += 1) {
+    const candidate = `${root}-${n}`;
+    if (!used.has(candidate)) return candidate;
+  }
+}
+
+/**
+ * The English name sent when the person left it empty: the Arabic one. The
+ * API needs both names; the storefront shows the Arabic name in English
+ * until someone writes a translation.
+ */
+export function englishOrArabic(nameEn: string, nameAr: string): string {
+  return nameEn.trim() || nameAr.trim();
+}
 
 /* ------------------------------------------------------------ units */
 
@@ -320,13 +373,18 @@ export const STALE_PREVIEW = "STALE_PRICE_PREVIEW";
 
 /* ------------------------------------------------------------ variant drafts */
 
+/** One SKU attribute as the editor shows it: «اللون» = «أحمر». */
+export interface AttributeRow {
+  name: string;
+  value: string;
+}
+
 export interface VariantDraft {
   /** Stable React key, also for new rows that have no id yet. */
   key: string;
   id?: string;
   sku: string;
-  /** One `name: value` pair per line. */
-  attributes: string;
+  attributes: AttributeRow[];
   base_unit: string;
   whole_units_only: boolean;
   /** Fixed-price override in whole base currency; empty inherits. */
@@ -348,6 +406,32 @@ export function attributesText(attributes: unknown): string {
     .filter(([, value]) => typeof value === "string" || typeof value === "number")
     .map(([key, value]) => `${key}: ${String(value)}`)
     .join("\n");
+}
+
+/** A stored attribute object as editor rows (text and number values only). */
+export function attributeRows(attributes: unknown): AttributeRow[] {
+  if (!attributes || typeof attributes !== "object") return [];
+  return Object.entries(attributes as Record<string, unknown>)
+    .filter(([, value]) => typeof value === "string" || typeof value === "number")
+    .map(([name, value]) => ({ name, value: String(value) }));
+}
+
+/**
+ * Editor rows as the API's attribute object. A blank row is ignored; a row
+ * with only a name or only a value, or a name used twice, is refused.
+ */
+export function attributesFromRows(
+  rows: readonly AttributeRow[],
+): { ok: true; value: Record<string, string> } | { ok: false } {
+  const value: Record<string, string> = {};
+  for (const row of rows) {
+    const name = row.name.trim();
+    const entry = row.value.trim();
+    if (!name && !entry) continue;
+    if (!name || !entry || name in value) return { ok: false };
+    value[name] = entry;
+  }
+  return { ok: true, value };
 }
 
 export function parseAttributes(
@@ -375,7 +459,7 @@ export function draftFromVariant(variant: ProductVariant): VariantDraft {
     key: variant.id ?? `draft-${draftCounter}`,
     id: variant.id,
     sku: variant.sku ?? "",
-    attributes: attributesText(variant.attributes),
+    attributes: attributeRows(variant.attributes),
     base_unit: variant.base_unit || "piece",
     whole_units_only: variant.whole_units_only ?? true,
     selling_price:
@@ -397,7 +481,7 @@ export function emptyDraft(defaultCurrency = "", key?: string): VariantDraft {
   return {
     key: key ?? `draft-${draftCounter}`,
     sku: "",
-    attributes: "",
+    attributes: [],
     base_unit: "piece",
     whole_units_only: true,
     selling_price: "",
@@ -406,6 +490,60 @@ export function emptyDraft(defaultCurrency = "", key?: string): VariantDraft {
     reference_currency_code: defaultCurrency,
     reference_price: "",
   };
+}
+
+/**
+ * The next SKU row, set up like the one before it: same unit, whole-units
+ * rule, low-stock threshold and pricing mode, and the same attribute names
+ * with their values left for the person — a size run or a colour range is
+ * then just the values and the codes. Its own price is not copied: a new
+ * row inherits the product price until told otherwise.
+ */
+export function nextDraft(previous: VariantDraft | undefined, defaultCurrency = ""): VariantDraft {
+  const draft = emptyDraft(defaultCurrency);
+  if (!previous) return draft;
+  return {
+    ...draft,
+    attributes: previous.attributes.filter((row) => row.name.trim()).map((row) => ({ name: row.name, value: "" })),
+    base_unit: previous.base_unit,
+    whole_units_only: previous.whole_units_only,
+    low_stock_threshold: previous.low_stock_threshold,
+    pricing_mode: previous.pricing_mode,
+    reference_currency_code: previous.reference_currency_code || defaultCurrency,
+  };
+}
+
+/** Upper-case code characters from any text: "Red / XL" → "RED-XL". */
+function codePart(text: string): string {
+  return slugify(transliterate(text)).toUpperCase();
+}
+
+/**
+ * SKU codes for rows the person left empty: the product's name (English, or
+ * the Arabic one in Latin letters) and the row's attribute values —
+ * "Galaxy A15" in black → "GALAXY-A15-BLACK" — or a number when a row has
+ * none, never repeating a code already on the form. The API still checks the
+ * whole store; a clash there comes back next to the field.
+ */
+export function suggestSkus(drafts: readonly VariantDraft[], nameEn: string, nameAr: string): VariantDraft[] {
+  const base = (codePart(nameEn) || codePart(nameAr) || "SKU").slice(0, 40).replace(/-+$/, "");
+  const taken = new Set(drafts.map((draft) => draft.sku.trim()).filter(Boolean));
+  return drafts.map((draft, index) => {
+    if (draft.sku.trim()) return draft;
+    const values = draft.attributes.map((row) => codePart(row.value)).filter(Boolean).join("-");
+    const stem = `${base}-${values || index + 1}`.slice(0, 76);
+    let candidate = stem;
+    for (let n = 2; taken.has(candidate); n += 1) candidate = `${stem}-${n}`;
+    taken.add(candidate);
+    return { ...draft, sku: candidate };
+  });
+}
+
+/** A copy's SKU: "TSHIRT-RED" → "TSHIRT-RED-2", "TSHIRT-RED-2" → "TSHIRT-RED-3". */
+export function copySku(sku: string): string {
+  const match = /^(.*)-(\d+)$/.exec(sku);
+  const next = match ? `${match[1]}-${Number(match[2]) + 1}` : `${sku}-2`;
+  return next.slice(0, 80);
 }
 
 /** Message keys under `products.variantErrors`. */
@@ -434,7 +572,7 @@ export function variantInput(
   if (!sku) errors.sku = "skuRequired";
   else if (sku.length > 80) errors.sku = "skuTooLong";
 
-  const attributes = parseAttributes(draft.attributes);
+  const attributes = attributesFromRows(draft.attributes);
   if (!attributes.ok) errors.attributes = "attributes";
 
   const unit = draft.base_unit.trim();

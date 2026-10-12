@@ -91,6 +91,8 @@ test("categories stay two levels; re-parenting is blocked with the API's message
   const form = page.getByTestId("category-form");
   await form.getByTestId("category-name-ar").fill(`قسم ${run}`);
   await form.getByTestId("category-name-en").fill(`Dept ${run}`);
+  // The slug is normally generated; this test sets its own, under "advanced".
+  await form.getByTestId("category-advanced").locator("summary").click();
   await form.getByTestId("category-slug").fill(dept);
   await form.getByTestId("dialog-submit").click();
   await expect(page.getByTestId(`category-row-${dept}`)).toBeVisible();
@@ -99,6 +101,8 @@ test("categories stay two levels; re-parenting is blocked with the API's message
   await expect(form.getByTestId("category-parent")).toHaveValue(/.+/);
   await form.getByTestId("category-name-ar").fill(`فرعي ${run}`);
   await form.getByTestId("category-name-en").fill(`Child ${run}`);
+  // The slug is normally generated; this test sets its own, under "advanced".
+  await form.getByTestId("category-advanced").locator("summary").click();
   await form.getByTestId("category-slug").fill(`child-${run}`);
   await form.getByTestId("dialog-submit").click();
   const child = page.getByTestId(`category-row-child-${run}`);
@@ -202,6 +206,8 @@ test("brands: create, edit, hide, and delete only when unused", async ({ page, r
   const form = page.getByTestId("brand-form");
   await form.getByTestId("brand-name-ar").fill(`أكمي ${run}`);
   await form.getByTestId("brand-name-en").fill(`Acme ${run}`);
+  // The slug is normally generated; this test sets its own, under "advanced".
+  await form.getByTestId("brand-advanced").locator("summary").click();
   await form.getByTestId("brand-slug").fill(slug);
   await form.getByTestId("dialog-submit").click();
   await expect(form).toBeHidden();
@@ -282,10 +288,11 @@ test("the SKU editor: base unit, whole units, price override, low-stock threshol
   await expect(page.getByTestId("variant-1").getByTestId("error-low_stock_threshold")).toBeVisible();
   await page.getByTestId("variant-threshold-1").fill("2.5");
   await page.getByTestId("product-save").click();
-  await page.waitForURL(/\/catalog\/products\/[0-9a-f-]{36}$/);
+  // A new product opens on its own page with the next steps (?created=1).
+  await page.waitForURL(/\/catalog\/products\/[0-9a-f-]{36}\?created=1$/);
   await expect(toast(page)).toBeVisible();
 
-  const id = page.url().split("/").pop()!;
+  const id = new URL(page.url()).pathname.split("/").pop()!;
   const saved = await api(request, "GET", `/admin/products/${id}`);
   const bySku = new Map(
     (saved.body.variants as Array<Record<string, unknown>>).map((variant) => [variant.sku, variant]),
@@ -367,8 +374,8 @@ test("linked price: 12 USD at 1,550 → 18,750 (round up to 250); rate only vs p
     await expect(page.getByTestId("variant-rounding-0")).toContainText("250");
     await expect(page.getByTestId("variant-local-price-0")).toHaveAttribute("data-value", "18000");
     await page.getByTestId("product-save").click();
-    await page.waitForURL(/\/catalog\/products\/[0-9a-f-]{36}$/);
-    const productId = page.url().split("/").pop()!;
+    await page.waitForURL(/\/catalog\/products\/[0-9a-f-]{36}\?created=1$/);
+    const productId = new URL(page.url()).pathname.split("/").pop()!;
     const variantOf = async () => {
       const product = await api(request, "GET", `/admin/products/${productId}`);
       return product.body.variants[0] as { id: string; published_price: number; awaiting_rate_id: string | null };

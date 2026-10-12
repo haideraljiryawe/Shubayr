@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { ArrowRight } from "lucide-react";
-import { PageHeader } from "@/components/ui";
+import { ArrowRight, Copy, PackagePlus, Plus } from "lucide-react";
+import { buttonClasses, Card, PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { loadAllBrands, loadCategoryTree, loadPricingContext } from "@/lib/api/catalog-server";
 import { loadPermissions } from "@/lib/api/inventory-server";
 import { load, serverApi } from "@/lib/api/server";
+import { ADMIN_MODULES } from "@/lib/config";
 import { stockTotals, type StockTotals } from "@/lib/inventory";
+import { parseModules } from "@/lib/modules";
+import type { RawSearchParams } from "@/lib/table-params";
 import { ProductEditor } from "../product-editor";
 import { VariantStock } from "../variant-stock";
 
@@ -17,8 +20,15 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("editTitle") };
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<RawSearchParams>;
+}) {
   const { id } = await params;
+  const created = (await searchParams).created === "1";
   const t = await getTranslations("products");
   const api = await serverApi();
   const product = await load(api.GET("/admin/products/{id}", { params: { path: { id } } }));
@@ -36,6 +46,9 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const name = product.data.name_ar || product.data.name_en;
   const variants = product.data.variants ?? [];
   const totals = permissions.includes("inventory.view") ? await variantTotals(api, variants.map((variant) => variant.id ?? "")) : null;
+  const stockEnabled = parseModules(ADMIN_MODULES).includes("stock");
+  const canOpenStock = stockEnabled && permissions.includes("inventory.manage");
+  const openingHref = `/inventory/openings/new?product=${product.data.id}`;
 
   return (
     <>
@@ -46,7 +59,52 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("backToList")}
       </Link>
-      <PageHeader title={name} description={t("editDescription")} />
+      <PageHeader
+        title={name}
+        description={t("editDescription")}
+        actions={
+          <>
+            {canOpenStock ? (
+              <Link href={openingHref} className={buttonClasses({ variant: "secondary" })} data-testid="product-opening-stock">
+                <PackagePlus className="size-4" aria-hidden />
+                {t("openingStock")}
+              </Link>
+            ) : null}
+            <Link href={`/catalog/products/new?from=${product.data.id}`} className={buttonClasses({ variant: "secondary" })} data-testid="product-duplicate">
+              <Copy className="size-4" aria-hidden />
+              {t("duplicate")}
+            </Link>
+          </>
+        }
+      />
+      {created ? (
+        <Card className="mb-6 flex flex-col gap-3 border-success/40" data-testid="product-next-steps">
+          <p className="font-bold">{t("nextSteps.title")}</p>
+          <p className="text-sm text-text-muted">
+            {product.data.status === "active" ? t("nextSteps.published") : t("nextSteps.hidden")}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {canOpenStock ? (
+              <Link href={openingHref} className={buttonClasses({ size: "sm" })} data-testid="next-opening-stock">
+                <PackagePlus className="size-4" aria-hidden />
+                {t("nextSteps.openingStock")}
+              </Link>
+            ) : null}
+            <Link
+              href={`/catalog/products/new?category=${product.data.category_id}${product.data.brand_id ? `&brand=${product.data.brand_id}` : ""}`}
+              className={buttonClasses({ size: "sm", variant: "secondary" })}
+              data-testid="next-new-product"
+            >
+              <Plus className="size-4" aria-hidden />
+              {t("nextSteps.another")}
+            </Link>
+            <Link href={`/catalog/products/new?from=${product.data.id}`} className={buttonClasses({ size: "sm", variant: "secondary" })}>
+              <Copy className="size-4" aria-hidden />
+              {t("nextSteps.duplicate")}
+            </Link>
+          </div>
+        </Card>
+      ) : null}
       <VariantStock variants={variants} totals={totals} />
       <ProductEditor
         // A save refreshes the page; remounting adopts what the server now
@@ -54,6 +112,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         key={[
           product.data.id,
           product.data.updated_at,
+          ...(product.data.images ?? []).map((image) => image.id),
           ...(product.data.variants ?? []).map(
             (variant) => `${variant.id}:${variant.published_price}:${variant.awaiting_rate_id}`,
           ),
@@ -62,6 +121,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         tree={tree.data}
         brands={brands.ok ? brands.data : []}
         pricing={pricing}
+        canCreateBrand={permissions.includes("catalog.brands")}
       />
     </>
   );

@@ -19,7 +19,8 @@ npm run dev            # http://localhost:3000
 | `npm run lint` | ESLint (flat config, `eslint-config-next`) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run gen:api` | Regenerate `src/types/api.d.ts` from `../api/openapi.yaml` |
-| `npm test` | Catalog browser/data tests and mobile/desktop screenshots |
+| `npm test` | Catalog browser/data tests; screenshots go to `test-results/screenshots` (ignored) |
+| `npm run docs:screenshots` | Re-capture the committed mobile/desktop screenshots in `docs/screenshots` |
 
 ## Stack
 
@@ -421,6 +422,11 @@ VALUES (gen_random_uuid(), 'SHUBAYR10', 'percentage', 10, 1000, 0,
 Run `node scripts/check-contrast.mjs` to check `text-text-muted` against
 `bg-card` and `bg-background` (WCAG AA, at least 4.5:1). The script composites
 alpha before calculating luminance, including transparent ancestor surfaces.
+
+`npm test` never rewrites the committed screenshots: the specs save theirs to
+`test-results/screenshots`. To refresh the ones below after a deliberate UI
+change, run `npm run docs:screenshots` (the screenshot specs only, with
+`DOCS_SCREENSHOTS=1`) and commit the PNGs that changed.
 
 Account screenshots: [wishlist](docs/screenshots/wishlist-desktop.png),
 [points](docs/screenshots/points-desktop.png),

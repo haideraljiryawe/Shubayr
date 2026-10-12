@@ -173,6 +173,8 @@ services:
       API_URL: http://api:8000/api/v1
       ADMIN_ORIGIN: ${ADMIN_ORIGIN:-http://localhost:3200}
       ADMIN_COOKIE_SECURE: ${ADMIN_COOKIE_SECURE:-true}
+      # Admin modules shown (admin/src/lib/modules.ts); empty = all.
+      ADMIN_MODULES: ${ADMIN_MODULES:-}
     profiles: ["full"]
 
 volumes:
