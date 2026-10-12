@@ -2,13 +2,14 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { assertDifferentActor } from '../../common/access/separation-of-duties';
 import { PrismaService } from '../../database/prisma.service';
+import { conflict, invalid } from '../../common/http/api-error';
+import { actorDisplayName, actorSelect } from '../../common/users/actor-name';
 import { AuditService } from '../audit/audit.service';
 import { businessDateText, parseBusinessDate } from '../finance/business-date';
 import { DateRulesService } from '../finance/date-rules.service';
@@ -16,11 +17,17 @@ import { DocumentNumberService } from '../finance/document-number.service';
 import { LedgerService, type PostingLine } from '../finance/ledger.service';
 import { OperationService } from '../finance/operation.service';
 import { DeliveriesService } from './deliveries.service';
+import { CustodyExceptionsService } from './custody-exceptions.service';
+import { ExternalDriverTripHistoryService } from './external-driver-trip-history.service';
 import {
   AddExternalDriverTripOrderDto,
   CloseExternalDriverTripDto,
   CreateExternalDriverTripDto,
   ExternalDriverTripQueryDto,
+  ExternalDriverTripDeliveredDto,
+  ExternalDriverTripDoorReturnDto,
+  ExternalDriverTripFailedDto,
+  ExternalDriverTripLossDto,
   StartExternalDriverTripDto,
 } from './dto/external-driver-trip.dto';
 
@@ -28,6 +35,9 @@ type Tx = Prisma.TransactionClient;
 type Actor = Pick<AuthenticatedRequestUser, 'id' | 'permissions'>;
 
 const tripInclude = {
+  creator: { select: actorSelect },
+  starter: { select: actorSelect },
+  closer: { select: actorSelect },
   driver_party: {
     select: {
       id: true,
@@ -116,6 +126,7 @@ const tripInclude = {
     orderBy: [{ handed_over_at: 'asc' as const }, { id: 'asc' as const }],
   },
   events: {
+    include: { recorder: { select: actorSelect } },
     orderBy: [{ event_at: 'asc' as const }, { id: 'asc' as const }],
   },
   settlement_allocations: {
@@ -142,6 +153,8 @@ export class ExternalDriverTripsService {
     private readonly ledger: LedgerService,
     private readonly audit: AuditService,
     private readonly deliveries: DeliveriesService,
+    private readonly exceptions: CustodyExceptionsService,
+    private readonly history: ExternalDriverTripHistoryService,
   ) {}
 
   async create(actor: Actor, input: CreateExternalDriverTripDto) {
@@ -229,7 +242,8 @@ export class ExternalDriverTripsService {
         if (!trip)
           throw new NotFoundException('External driver trip not found');
         if (trip.status !== 'open') {
-          throw new ConflictException(
+          throw conflict(
+            'TRIP_NOT_OPEN_FOR_ORDER',
             'Orders can be added only to an open trip',
           );
         }
@@ -239,22 +253,24 @@ export class ExternalDriverTripsService {
         });
         if (!order) throw new NotFoundException('Order not found');
         if (!order.delivery || order.delivery.status !== 'assigned') {
-          throw new ConflictException(
+          throw conflict(
+            'TRIP_ORDER_NOT_ASSIGNED',
             'Trip handover requires the current assigned delivery',
           );
         }
         if (trip.fare_bearer === 'customer_direct') {
-          if (!order.delivery_fee.isZero()) {
-            throw new ConflictException({
-              status: 409,
-              code: 'DOUBLE_DELIVERY_CHARGE',
-              message:
-                'A customer-direct driver fare requires the store delivery fee to be zero',
-              errors: [],
-            });
+          if (
+            !order.delivery_fee.isZero() &&
+            !share.equals(order.delivery_fee)
+          ) {
+            throw conflict(
+              'TRIP_FARE_SHARE_MISMATCH',
+              'A fee-carrying customer-paid trip order must use its delivery fee as the fare share',
+            );
           }
           if (!input.customer_acceptance_note?.trim()) {
-            throw new UnprocessableEntityException(
+            throw invalid(
+              'CUSTOMER_ACCEPTANCE_NOTE_REQUIRED',
               'customer_acceptance_note is required for a customer-direct fare',
             );
           }
@@ -291,7 +307,7 @@ export class ExternalDriverTripsService {
             handed_over_at: eventAt,
           },
         });
-        await this.event(tx, {
+        await this.history.record(tx, {
           actorId: actor.id,
           operationId: input.operation_id,
           tripId: trip.id,
@@ -335,17 +351,24 @@ export class ExternalDriverTripsService {
         if (!trip)
           throw new NotFoundException('External driver trip not found');
         if (trip.status !== 'open') {
-          throw new ConflictException('Only an open trip can be started');
+          throw conflict(
+            'TRIP_NOT_OPEN_FOR_START',
+            'Only an open trip can be started',
+          );
         }
         if (!trip.orders.length) {
-          throw new ConflictException('A trip requires at least one order');
+          throw conflict(
+            'TRIP_HAS_NO_ORDERS',
+            'A trip requires at least one order',
+          );
         }
         const shares = trip.orders.reduce(
           (sum, row) => sum.plus(row.fare_share_iqd),
           new Prisma.Decimal(0),
         );
         if (!shares.equals(trip.fare_amount_iqd)) {
-          throw new ConflictException(
+          throw conflict(
+            'TRIP_FARE_SHARES_MISMATCH',
             'Trip order fare shares must equal the one trip fare',
           );
         }
@@ -357,7 +380,7 @@ export class ExternalDriverTripsService {
             started_at: eventAt,
           },
         });
-        await this.event(tx, {
+        await this.history.record(tx, {
           actorId: actor.id,
           operationId: input.operation_id,
           tripId: trip.id,
@@ -376,6 +399,121 @@ export class ExternalDriverTripsService {
         return this.detailTx(tx, trip.id);
       },
     });
+  }
+
+  recordDelivered(
+    actor: Actor,
+    tripId: string,
+    orderId: string,
+    input: ExternalDriverTripDeliveredDto,
+  ) {
+    const eventAt = new Date(input.event_at);
+    return this.operations.execute({
+      userId: actor.id,
+      operationId: input.operation_id,
+      endpoint: `POST /admin/external-driver-trips/${tripId}/orders/${orderId}/delivered`,
+      payload: input,
+      responseStatus: 200,
+      work: async (tx) => {
+        const delivery = await this.tripOrderDeliveryTx(tx, tripId, orderId);
+        return this.deliveries.transitionStatus(
+          actor.id,
+          delivery.id,
+          {
+            status: 'delivered',
+            order_version: input.order_version,
+            operation_id: input.operation_id,
+            collection_confirmation: input.collection_confirmation,
+            collected_amount: input.collected_amount,
+            source: input.source,
+            event_at: input.event_at,
+          },
+          false,
+          false,
+          tx,
+          eventAt,
+          { expectedTripId: tripId },
+        );
+      },
+    });
+  }
+
+  recordFailed(
+    actor: Actor,
+    tripId: string,
+    orderId: string,
+    input: ExternalDriverTripFailedDto,
+  ) {
+    const eventAt = new Date(input.event_at);
+    return this.operations.execute({
+      userId: actor.id,
+      operationId: input.operation_id,
+      endpoint: `POST /admin/external-driver-trips/${tripId}/orders/${orderId}/failed`,
+      payload: input,
+      responseStatus: 200,
+      work: async (tx) => {
+        const delivery = await this.tripOrderDeliveryTx(tx, tripId, orderId);
+        return this.deliveries.transitionStatus(
+          actor.id,
+          delivery.id,
+          {
+            status: 'failed',
+            order_version: input.order_version,
+            reason: input.reason,
+            operation_id: input.operation_id,
+            source: input.source,
+            event_at: input.event_at,
+          },
+          false,
+          false,
+          tx,
+          eventAt,
+          { expectedTripId: tripId },
+        );
+      },
+    });
+  }
+
+  async recordDoorReturn(
+    actor: Actor,
+    tripId: string,
+    orderId: string,
+    input: ExternalDriverTripDoorReturnDto,
+  ) {
+    const delivery = await this.tripOrderDelivery(tripId, orderId);
+    return this.exceptions.recordDoorReturn(actor, delivery.id, input, {
+      endpoint: `POST /admin/external-driver-trips/${tripId}/orders/${orderId}/return-at-door`,
+      expectedTripId: tripId,
+      requireTripInProgress: true,
+    });
+  }
+
+  recordLoss(
+    actor: Actor,
+    tripId: string,
+    orderId: string,
+    input: ExternalDriverTripLossDto,
+  ) {
+    return this.exceptions.recordGoodsLoss(
+      actor,
+      {
+        operation_id: input.operation_id,
+        order_id: orderId,
+        liability_bearer: input.liability_bearer,
+        reason: input.reason,
+        lines: input.lines,
+        document_date: input.document_date,
+        accounting_date: input.accounting_date,
+        backdate_reason: input.backdate_reason,
+      },
+      {
+        endpoint: `POST /admin/external-driver-trips/${tripId}/orders/${orderId}/lost`,
+        expectedTripId: tripId,
+        requireTripInProgress: true,
+        source: input.source,
+        eventAt: new Date(input.event_at),
+      },
+    );
   }
 
   async close(actor: Actor, tripId: string, input: CloseExternalDriverTripDto) {
@@ -420,12 +558,16 @@ export class ExternalDriverTripsService {
         if (!trip)
           throw new NotFoundException('External driver trip not found');
         if (trip.status !== 'in_progress') {
-          throw new ConflictException('Only an in-progress trip can be closed');
+          throw conflict(
+            'TRIP_NOT_IN_PROGRESS',
+            'Only an in-progress trip can be closed',
+          );
         }
         assertDifferentActor(
           actor.id,
           trip.created_by,
           'A user cannot approve and close their own trip',
+          'SELF_TRIP_CLOSE_FORBIDDEN',
         );
         const unresolved = trip.orders.filter(
           (row) =>
@@ -502,7 +644,8 @@ export class ExternalDriverTripsService {
           } else if (trip.fare_settlement_method === 'driver_keeps') {
             const available = expected.minus(received);
             if (trip.fare_amount_iqd.gt(available)) {
-              throw new ConflictException(
+              throw conflict(
+                'TRIP_FARE_EXCEEDS_UNSETTLED_CASH',
                 'The driver cannot keep more fare than unsettled collected cash',
               );
             }
@@ -538,7 +681,8 @@ export class ExternalDriverTripsService {
               }
             }
             if (left.gt(0)) {
-              throw new ConflictException(
+              throw conflict(
+                'TRIP_FARE_NETTING_INCOMPLETE',
                 'Trip fare netting could not be fully allocated',
               );
             }
@@ -575,7 +719,7 @@ export class ExternalDriverTripsService {
             fare_netting_journal_entry_id: fareNettingId,
           },
         });
-        await this.event(tx, {
+        await this.history.record(tx, {
           actorId: actor.id,
           operationId: input.operation_id,
           tripId: trip.id,
@@ -606,7 +750,8 @@ export class ExternalDriverTripsService {
 
   async list(query: ExternalDriverTripQueryDto) {
     if (query.date_from && query.date_to && query.date_from > query.date_to) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'DATE_RANGE_INVALID',
         'date_from must be on or before date_to',
       );
     }
@@ -659,6 +804,140 @@ export class ExternalDriverTripsService {
     });
     if (!row) throw new NotFoundException('External driver trip not found');
     return this.present(row);
+  }
+
+  async closePreview(id: string) {
+    const trip = await this.prisma.externalDriverTrip.findUnique({
+      where: { id },
+      include: {
+        orders: {
+          include: {
+            order: {
+              include: {
+                delivery_collection: {
+                  include: {
+                    cash_receipt_allocations: {
+                      where: {
+                        batch: { voucher: { reversal: { is: null } } },
+                      },
+                    },
+                    trip_settlement_allocations: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!trip) throw new NotFoundException('External driver trip not found');
+    const blockingOrders = trip.orders.flatMap((row) => {
+      const collectionStatus = row.order.delivery_collection?.status ?? null;
+      const resolvedStatus = [
+        'ready_for_dispatch',
+        'delivered',
+        'returned',
+        'cancelled',
+      ].includes(row.order.status);
+      if (resolvedStatus && collectionStatus !== 'unconfirmed') return [];
+      return [
+        {
+          order_id: row.order.id,
+          order_number: row.order.order_number,
+          order_status: row.order.status,
+          collection_status: collectionStatus,
+          reason:
+            collectionStatus === 'unconfirmed'
+              ? 'collection_unconfirmed'
+              : 'order_unresolved',
+        },
+      ];
+    });
+    const collections = trip.orders.flatMap((row) =>
+      row.order.delivery_collection ? [row.order.delivery_collection] : [],
+    );
+    const expected = collections.reduce(
+      (sum, collection) =>
+        sum.plus(collection.collected_amount ?? new Prisma.Decimal(0)),
+      new Prisma.Decimal(0),
+    );
+    const received = collections.reduce(
+      (sum, collection) =>
+        collection.cash_receipt_allocations.reduce(
+          (inner, allocation) => inner.plus(allocation.amount_iqd),
+          sum,
+        ),
+      new Prisma.Decimal(0),
+    );
+    const available = expected.minus(received);
+    const wantsNetting =
+      trip.fare_bearer === 'store' &&
+      trip.fare_settlement_method === 'driver_keeps' &&
+      trip.fare_amount_iqd.gt(0);
+    const fareBlocker =
+      wantsNetting && trip.fare_amount_iqd.gt(available)
+        ? 'TRIP_FARE_EXCEEDS_UNSETTLED_CASH'
+        : null;
+    const netted =
+      wantsNetting && !fareBlocker
+        ? trip.fare_amount_iqd
+        : new Prisma.Decimal(0);
+    const difference = expected.minus(received).minus(netted);
+    const postings: Array<{
+      event: string;
+      debit_account_code: string;
+      credit_account_code: string;
+      amount_iqd: number;
+    }> = [];
+    if (trip.fare_bearer === 'store' && trip.fare_amount_iqd.gt(0)) {
+      postings.push({
+        event: 'fare_accrual',
+        debit_account_code: '5040',
+        credit_account_code: '2020',
+        amount_iqd: Number(trip.fare_amount_iqd),
+      });
+      if (trip.fare_settlement_method === 'cash_account') {
+        const cash = await this.cashAccount(
+          this.prisma,
+          trip.fare_cash_account_id!,
+        );
+        postings.push({
+          event: 'fare_payment',
+          debit_account_code: '2020',
+          credit_account_code: cash.ledger_account.code,
+          amount_iqd: Number(trip.fare_amount_iqd),
+        });
+      } else if (wantsNetting && !fareBlocker) {
+        postings.push({
+          event: 'fare_netting',
+          debit_account_code: '2020',
+          credit_account_code: '1020',
+          amount_iqd: Number(trip.fare_amount_iqd),
+        });
+      }
+    }
+    return {
+      trip_id: trip.id,
+      trip_status: trip.status,
+      can_close:
+        trip.status === 'in_progress' &&
+        blockingOrders.length === 0 &&
+        !fareBlocker,
+      expected_cash_iqd: Number(expected),
+      received_cash_iqd: Number(received),
+      netted_fare_iqd: Number(netted),
+      difference_iqd: Number(difference),
+      settlement_result: difference.isZero() ? 'settled' : 'settlement_open',
+      fare: {
+        bearer: trip.fare_bearer,
+        amount_iqd: Number(trip.fare_amount_iqd),
+        settlement_method: trip.fare_settlement_method,
+        outside_store_accounts: trip.fare_bearer === 'customer_direct',
+        blocker_code: fareBlocker,
+      },
+      postings,
+      blocking_orders: blockingOrders,
+    };
   }
 
   private async detailTx(tx: Tx, id: string) {
@@ -769,15 +1048,21 @@ export class ExternalDriverTripsService {
           amount_iqd: Number(exception.amount_iqd),
         })),
       })),
-      events: row.events,
+      events: row.events.map(({ recorder, ...event }) => ({
+        ...event,
+        recorded_by_name: actorDisplayName(recorder),
+      })),
       document_date: businessDateText(row.document_date),
       accounting_date: businessDateText(row.accounting_date),
       backdate_reason: row.backdate_reason,
       created_by: row.created_by,
+      created_by_name: actorDisplayName(row.creator),
       created_at: row.created_at,
       started_by: row.started_by,
+      started_by_name: row.starter ? actorDisplayName(row.starter) : null,
       started_at: row.started_at,
       closed_by: row.closed_by,
+      closed_by_name: row.closer ? actorDisplayName(row.closer) : null,
       closed_at: row.closed_at,
     };
   }
@@ -787,7 +1072,8 @@ export class ExternalDriverTripsService {
       input.fare_bearer === 'customer_direct' &&
       input.fare_settlement_method !== 'customer_direct'
     ) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'CUSTOMER_DIRECT_SETTLEMENT_REQUIRED',
         'A customer-direct fare must use customer_direct settlement',
       );
     }
@@ -795,7 +1081,8 @@ export class ExternalDriverTripsService {
       input.fare_bearer === 'store' &&
       input.fare_settlement_method === 'customer_direct'
     ) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'STORE_FARE_CUSTOMER_DIRECT_FORBIDDEN',
         'A store-paid fare cannot use customer_direct settlement',
       );
     }
@@ -803,57 +1090,69 @@ export class ExternalDriverTripsService {
       input.fare_settlement_method !== 'cash_account' &&
       input.fare_cash_account_id
     ) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'TRIP_CASH_ACCOUNT_NOT_ALLOWED',
         'fare_cash_account_id is only valid for cash-account settlement',
       );
     }
   }
 
-  private async cashAccount(tx: Tx, id: string) {
+  private async cashAccount(tx: Tx | PrismaService, id: string) {
     const row = await tx.cashAccount.findUnique({
       where: { id },
       include: { ledger_account: { select: { code: true } } },
     });
     if (!row) throw new NotFoundException('Cash account not found');
     if (!row.is_active || row.currency_code !== 'IQD') {
-      throw new ConflictException(
+      throw conflict(
+        'TRIP_FARE_ACCOUNT_INVALID',
         'Trip fare requires an active IQD cash account',
       );
     }
     return row;
   }
 
-  private event(
-    tx: Tx,
-    input: {
-      actorId: string;
-      operationId: string;
-      tripId: string;
-      orderId?: string;
-      type: 'handover' | 'started' | 'closed';
-      source: string;
-      note?: string;
-      eventAt: Date;
-    },
+  private async tripOrderDelivery(tripId: string, orderId: string) {
+    return this.tripOrderDeliveryTx(this.prisma, tripId, orderId);
+  }
+
+  private async tripOrderDeliveryTx(
+    tx: Tx | PrismaService,
+    tripId: string,
+    orderId: string,
   ) {
-    return tx.externalDriverTripEvent.create({
-      data: {
-        trip_id: input.tripId,
-        order_id: input.orderId,
-        operation_id: input.operationId,
-        type: input.type,
-        source: input.source.trim(),
-        note: input.note?.trim() || null,
-        event_at: input.eventAt,
-        recorded_by: input.actorId,
+    const row = await tx.externalDriverTripOrder.findUnique({
+      where: { order_id: orderId },
+      include: {
+        trip: { select: { status: true } },
+        order: { include: { delivery: true } },
       },
     });
+    if (!row || row.trip_id !== tripId) {
+      throw conflict(
+        'TRIP_ORDER_NOT_FOUND',
+        'Order is not part of this external-driver trip',
+      );
+    }
+    if (row.trip.status !== 'in_progress') {
+      throw conflict(
+        'TRIP_NOT_IN_PROGRESS',
+        'Trip order events require an in-progress trip',
+      );
+    }
+    if (!row.order.delivery) {
+      throw conflict(
+        'TRIP_ORDER_HAS_NO_DELIVERY',
+        'Trip order has no delivery',
+      );
+    }
+    return row.order.delivery;
   }
 
   private nonNegative(value: string, field: string) {
     const amount = new Prisma.Decimal(value);
     if (!amount.isFinite() || amount.lt(0)) {
-      throw new UnprocessableEntityException(`${field} must be non-negative`);
+      throw invalid('AMOUNT_NEGATIVE', `${field} must be non-negative`);
     }
     return amount;
   }

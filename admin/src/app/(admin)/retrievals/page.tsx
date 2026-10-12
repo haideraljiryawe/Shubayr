@@ -6,6 +6,7 @@ import { PageError } from "@/components/shell/page-error";
 import { OrdersTabs } from "@/components/orders/orders-tabs";
 import { loadPermissions } from "@/lib/api/inventory-server";
 import { loadQueueCounts } from "@/lib/api/orders-server";
+import { loadPartyChoice } from "@/lib/api/parties-server";
 import { load, serverApi } from "@/lib/api/server";
 import { lastPage } from "@/lib/list-queries";
 import { UUID } from "@/lib/inventory";
@@ -39,7 +40,8 @@ export default async function RetrievalsPage({ searchParams }: { searchParams: P
   const [first, counts, parties] = await Promise.all([
     load(api.GET("/admin/retrievals", { params: { query: query(params.page) } })),
     permissions.includes("orders.view") ? loadQueueCounts(api) : Promise.resolve(undefined),
-    canListParties ? load(api.GET("/admin/delivery-parties", { params: { query: { per_page: 100 } } })) : Promise.resolve(null),
+    // The filtered party by name; the filter itself searches the server (13.4).
+    canListParties ? loadPartyChoice(api, params.filters.party_id) : Promise.resolve(null),
   ]);
   let page = first;
   if (page.ok && page.data.data.length === 0 && page.data.total > 0 && params.page > 1) {
@@ -64,7 +66,8 @@ export default async function RetrievalsPage({ searchParams }: { searchParams: P
       <RetrievalsTable
         rows={page.data.data}
         state={{ page: page.data.page, perPage: page.data.per_page, total: page.data.total, sort: "document_date", dir: "desc" }}
-        parties={parties && parties.ok ? parties.data.data.map((party) => ({ id: party.id, label: `${party.name} · ${party.phone}` })) : null}
+        canFilterParty={canListParties}
+        party={parties}
       />
     </>
   );

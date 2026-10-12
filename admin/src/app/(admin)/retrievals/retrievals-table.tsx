@@ -5,17 +5,21 @@ import { useFormatter, useTranslations } from "next-intl";
 import { Badge } from "@/components/ui";
 import { DataTable, TableFilter, type Column, type TableState } from "@/components/table/data-table";
 import { DateFilter } from "@/components/finance/date-filter";
+import { PartySearchFilter, type PartyChoice } from "@/components/parties/party-search";
 import { RETRIEVAL_STATUSES, type RetrievalListItem } from "@/lib/retrievals";
 
 export function RetrievalsTable({
   rows,
   state,
-  parties,
+  canFilterParty,
+  party,
 }: {
   rows: RetrievalListItem[];
   state: TableState;
-  /** Delivery parties to filter by, or null without a permission to list them. */
-  parties: Array<{ id: string; label: string }> | null;
+  /** Delivery parties can be listed (and so searched) by this user. */
+  canFilterParty: boolean;
+  /** The party the URL filters on, by name. */
+  party: PartyChoice | null;
 }) {
   const t = useTranslations("retrievals");
   const tl = useTranslations("retrievals.list");
@@ -81,13 +85,7 @@ export function RetrievalsTable({
             label={tl("columns.status")}
             options={[{ value: "", label: tl("allStatuses") }, ...RETRIEVAL_STATUSES.map((status) => ({ value: status, label: t(`statuses.${status}`) }))]}
           />
-          {parties ? (
-            <TableFilter
-              name="party_id"
-              label={tl("columns.party")}
-              options={[{ value: "", label: tl("allParties") }, ...parties.map((party) => ({ value: party.id, label: party.label }))]}
-            />
-          ) : null}
+          {canFilterParty ? <PartySearchFilter name="party_id" label={tl("columns.party")} current={party} /> : null}
           <DateFilter name="from" label={tl("from")} />
           <DateFilter name="to" label={tl("to")} />
         </>

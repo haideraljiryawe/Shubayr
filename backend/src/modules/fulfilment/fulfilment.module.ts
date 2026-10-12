@@ -18,14 +18,16 @@ import { CustodyExceptionsController } from './custody-exceptions.controller';
 import { CustodyExceptionsService } from './custody-exceptions.service';
 import { ExternalDriverTripsController } from './external-driver-trips.controller';
 import { ExternalDriverTripsService } from './external-driver-trips.service';
+import { ExternalDriverTripHistoryService } from './external-driver-trip-history.service';
 
 @Module({
   imports: [LoyaltyModule, InventoryModule, FinanceModule],
   controllers: [
+    // Register literal /deliveries/custody before /deliveries/:id.
+    AgentCustodyController,
     DeliveriesController,
     AdminDeliveriesController,
     DeliveryAgentsController,
-    AgentCustodyController,
     DeliveryPartiesController,
     ExternalDriversController,
     CustodyExceptionsController,
@@ -35,6 +37,7 @@ import { ExternalDriverTripsService } from './external-driver-trips.service';
     DeliveriesService,
     DeliveryPartiesService,
     CustodyExceptionsService,
+    ExternalDriverTripHistoryService,
     ExternalDriverTripsService,
   ],
 })

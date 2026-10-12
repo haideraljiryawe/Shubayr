@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsISO8601,
   Max,
   MaxLength,
   Min,
@@ -60,6 +61,31 @@ export class CreateReturnAgainstUncollectedDto extends FinancialDocumentDto {
   @MinLength(3)
   @MaxLength(500)
   reason!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CustodyReturnLineDto)
+  lines!: CustodyReturnLineDto[];
+}
+
+export class ReturnAtDoorDto extends FinancialDocumentDto {
+  @IsInt()
+  @Min(1)
+  order_version!: number;
+
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  reason!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  source!: string;
+
+  @IsISO8601({ strict: true })
+  event_at!: string;
 
   @IsArray()
   @ArrayMinSize(1)

@@ -11,7 +11,8 @@ import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { CollectionFields, CollectionSummary } from "@/components/orders/collection-fields";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
-import { DataTable, TableFilter, useTableUrl, type Column, type TableState } from "@/components/table/data-table";
+import { PartySearchFilter, type PartyChoice } from "@/components/parties/party-search";
+import { DataTable, type Column, type TableState } from "@/components/table/data-table";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { CollectionOperation, type DeliveryCollection } from "@/lib/collection";
@@ -29,14 +30,14 @@ export function UnconfirmedView({
   rows,
   state,
   canConfirm,
-  parties,
+  party,
   ignored,
 }: {
   rows: DeliveryCollection[];
   state: TableState;
   canConfirm: boolean;
-  /** The party filter's choices. */
-  parties: Array<{ value: string; label: string }>;
+  /** The party the URL filters on, by name. */
+  party: PartyChoice | null;
   ignored: Array<"dates" | "amounts">;
 }) {
   const t = useTranslations("collections");
@@ -49,15 +50,6 @@ export function UnconfirmedView({
   const [done, setDone] = useState<DeliveryCollection | null>(null);
   const operation = useRef(new CollectionOperation("admin-collection"));
   const money = (row: DeliveryCollection) => formatMoney(row.due_amount, row.currency, locale);
-  const { searchParams } = useTableUrl();
-  // A party from the URL that isn't among the choices (beyond the first 100,
-  // or from a party page) is still shown as chosen.
-  const chosen = searchParams.get("party_id");
-  const named = rows.find((row) => row.party_id === chosen)?.party;
-  const partyOptions =
-    chosen && !parties.some((party) => party.value === chosen)
-      ? [...parties, { value: chosen, label: named ? named.name : chosen.slice(0, 8) }]
-      : parties;
 
   const columns: Column<DeliveryCollection>[] = [
     {
@@ -136,7 +128,7 @@ export function UnconfirmedView({
         emptyLabel={t("queue.empty")}
         toolbar={
           <>
-            <TableFilter name="party_id" label={t("filters.party")} options={[{ value: "", label: t("filters.anyParty") }, ...partyOptions]} />
+            <PartySearchFilter name="party_id" label={t("filters.party")} current={party} />
             <DateFilter name="date_from" label={t("filters.from")} />
             <DateFilter name="date_to" label={t("filters.to")} />
             <AmountFilter name="amount_min" label={t("filters.amountMin")} />

@@ -1,13 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { conflict, forbidden } from '../../common/http/api-error';
 import { ProductsService } from '../catalog/products.service';
 import { AuditService } from '../audit/audit.service';
 import { assertDifferentActor } from '../../common/access/separation-of-duties';
@@ -149,7 +149,8 @@ export class OrdersService {
         });
         if (prior) {
           if (prior.idempotency_fingerprint !== fingerprint) {
-            throw new ConflictException(
+            throw conflict(
+              'IDEMPOTENCY_KEY_REUSED',
               'Idempotency-Key was used with a different checkout request',
             );
           }
@@ -164,7 +165,7 @@ export class OrdersService {
         where: { user_id: userId },
         include: { items: true, coupon: true },
       });
-      if (!cart?.items.length) throw new ConflictException('Cart is empty');
+      if (!cart?.items.length) throw conflict('CART_EMPTY', 'Cart is empty');
       // Product locks serialize competing checkouts before reading sellable stock.
       const productIds = [
         ...new Set(cart.items.map((item) => item.product_id)),
@@ -203,14 +204,17 @@ export class OrdersService {
           requestedQuantity <= 0 ||
           requestedQuantity > MAX_CART_ITEM_QUANTITY
         ) {
-          throw new ConflictException('Cart quantity is invalid');
+          throw conflict('CART_QUANTITY_INVALID', 'Cart quantity is invalid');
         }
         let visible;
         try {
           visible = await this.products.getPublic(item.product_id);
         } catch (error) {
           if (error instanceof NotFoundException)
-            throw new ConflictException('A cart product is unavailable');
+            throw conflict(
+              'CART_PRODUCT_UNAVAILABLE',
+              'A cart product is unavailable',
+            );
           throw error;
         }
         const product = await tx.product.findUnique({
@@ -221,15 +225,23 @@ export class OrdersService {
           },
         });
         if (!product || !visible)
-          throw new ConflictException('A cart product is unavailable');
+          throw conflict(
+            'CART_PRODUCT_UNAVAILABLE',
+            'A cart product is unavailable',
+          );
         const variant = item.variant_id
           ? product.variants.find((entry) => entry.id === item.variant_id)
           : null;
         if (item.variant_id && !variant)
-          throw new ConflictException('A cart variant is unavailable');
-        if (!variant) throw new ConflictException('A cart SKU is unavailable');
+          throw conflict(
+            'CART_VARIANT_UNAVAILABLE',
+            'A cart variant is unavailable',
+          );
+        if (!variant)
+          throw conflict('CART_SKU_UNAVAILABLE', 'A cart SKU is unavailable');
         if (variant.whole_units_only && !Number.isInteger(requestedQuantity)) {
-          throw new ConflictException(
+          throw conflict(
+            'SKU_WHOLE_UNITS_ONLY',
             'This SKU accepts whole-unit quantities only',
           );
         }
@@ -256,6 +268,8 @@ export class OrdersService {
           unit_price,
           line_total: calculateLineTotal(unit_price, requestedQuantity),
           price_version: priceVersion,
+          base_unit: variant.base_unit,
+          whole_units_only: variant.whole_units_only,
           product_name_ar: product.name_ar,
           product_name_en: product.name_en,
           image_url: product.images[0]?.url ?? null,
@@ -283,14 +297,22 @@ export class OrdersService {
           })
         : null;
       if (code && (!coupon || !activeCoupon(coupon, at)))
-        throw new ConflictException('Coupon is no longer valid');
+        throw conflict('COUPON_INVALID', 'Coupon is no longer valid');
       if (coupon) {
         await tx.$queryRaw`SELECT id FROM coupons WHERE id = ${coupon.id}::uuid FOR UPDATE`;
         const fresh = await tx.coupon.findUnique({ where: { id: coupon.id } });
         if (!activeCoupon(fresh, at))
-          throw new ConflictException('Coupon is no longer valid');
+          throw conflict('COUPON_INVALID', 'Coupon is no longer valid');
       }
-      const totals = calculateCartTotals(lines, coupon, at);
+      const deliveryFeeSetting = await tx.storeSetting.findUnique({
+        where: { key: 'delivery_fee' },
+      });
+      const totals = calculateCartTotals(
+        lines,
+        coupon,
+        at,
+        deliveryFeeSetting?.value ?? 0,
+      );
       const deadlines = await this.acceptanceDeadlines(tx, at);
       const order = await tx.order.create({
         data: {
@@ -458,7 +480,10 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
     if (order.user_id !== userId)
-      throw new ForbiddenException('Order belongs to another customer');
+      throw forbidden(
+        'ORDER_ACCESS_FORBIDDEN',
+        'Order belongs to another customer',
+      );
     return this.toResponse(order);
   }
 
@@ -544,6 +569,86 @@ export class OrdersService {
     return this.toAdminResponse(order);
   }
 
+  async getDeliveredGoods(id: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        order_number: true,
+        status: true,
+        currency_code: true,
+        items: {
+          orderBy: { id: 'asc' },
+          select: {
+            id: true,
+            product_id: true,
+            variant_id: true,
+            product_name_ar: true,
+            product_name_en: true,
+            quantity: true,
+            unit_price: true,
+            custody_holdings: {
+              where: { status: 'sold' },
+              select: { quantity: true },
+            },
+            return_items: {
+              where: { return: { status: 'completed' } },
+              select: { approved_quantity: true },
+            },
+            custody_exception_lines: {
+              where: {
+                exception: {
+                  type: 'return_against_uncollected',
+                  reversal: { is: null },
+                },
+              },
+              select: { quantity: true },
+            },
+          },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    return {
+      order_id: order.id,
+      order_number: order.order_number,
+      order_status: order.status,
+      currency_code: order.currency_code,
+      lines: order.items.flatMap((item) => {
+        const delivered = item.custody_holdings.reduce(
+          (sum, row) => sum.plus(row.quantity),
+          new Prisma.Decimal(0),
+        );
+        if (!delivered.gt(0)) return [];
+        const returned = item.return_items.reduce(
+          (sum, row) => sum.plus(row.approved_quantity),
+          new Prisma.Decimal(0),
+        );
+        const refused = item.custody_exception_lines.reduce(
+          (sum, row) => sum.plus(row.quantity),
+          new Prisma.Decimal(0),
+        );
+        return [
+          {
+            order_item_id: item.id,
+            product_id: item.product_id,
+            variant_id: item.variant_id,
+            product_name_ar: item.product_name_ar,
+            product_name_en: item.product_name_en,
+            ordered_quantity: Number(item.quantity),
+            delivered_quantity: Number(delivered),
+            returned_quantity: Number(returned),
+            refused_quantity: Number(refused),
+            returnable_quantity: Number(
+              Prisma.Decimal.max(0, delivered.minus(returned).minus(refused)),
+            ),
+            unit_price: Number(item.unit_price),
+          },
+        ];
+      }),
+    };
+  }
+
   async listMonitor(query: MonitorOrderQueryDto) {
     const page = query.page ?? 1;
     const perPage = query.per_page ?? 20;
@@ -574,6 +679,7 @@ export class OrdersService {
       customer_phone: string | null;
       total: Prisma.Decimal;
       payment_method: string;
+      currency_code: string;
       placed_at: Date;
     };
     const [totalRows, counts, rows] = await this.prisma.$transaction([
@@ -585,7 +691,7 @@ export class OrdersService {
         WHERE true ${search} ${from} ${to} GROUP BY o.status`),
       this.prisma.$queryRaw<MonitorListRow[]>(Prisma.sql`
         SELECT o.id, o.order_number, o.status, u.name AS customer_name, u.phone AS customer_phone,
-               o.total, o.payment_method, o.placed_at
+               o.total, o.payment_method, o.currency_code, o.placed_at
         FROM orders o JOIN users u ON u.id = o.user_id
         WHERE true ${search} ${from} ${to} ${status}
         ORDER BY o.placed_at DESC, o.id DESC
@@ -601,7 +707,11 @@ export class OrdersService {
       per_page: perPage,
       total: Number(totalRows[0]?.count ?? 0n),
       status_counts: statusCounts,
-      data: rows.map((row) => ({ ...row, total: Number(row.total) })),
+      data: rows.map(({ currency_code, ...row }) => ({
+        ...row,
+        total: Number(row.total),
+        currency: currency_code,
+      })),
     };
   }
 
@@ -636,6 +746,8 @@ export class OrdersService {
         product_name_ar: item.product_name_ar,
         product_name_en: item.product_name_en,
         quantity: Number(item.quantity),
+        base_unit: item.base_unit,
+        whole_units_only: item.whole_units_only,
         unit_price: Number(item.unit_price),
         line_total: Number(item.line_total),
         currency: item.currency_code,
@@ -679,7 +791,10 @@ export class OrdersService {
       const order = await tx.order.findUnique({ where: { id } });
       if (!order) throw new NotFoundException('Order not found');
       if (order.user_id !== userId)
-        throw new ForbiddenException('Order belongs to another customer');
+        throw forbidden(
+          'ORDER_ACCESS_FORBIDDEN',
+          'Order belongs to another customer',
+        );
       await this.cancelOrder(
         tx,
         order,
@@ -725,7 +840,10 @@ export class OrdersService {
         data: { status: 'rejected', version: { increment: 1 } },
       });
       if (!updated.count) {
-        throw new ConflictException('Only a pending order can be rejected');
+        throw conflict(
+          'ORDER_NOT_PENDING',
+          'Only a pending order can be rejected',
+        );
       }
       const now = new Date();
       await tx.orderStatusEvent.create({
@@ -766,7 +884,10 @@ export class OrdersService {
       const order = await tx.order.findUnique({ where: { id } });
       if (!order) throw new NotFoundException('Order not found');
       if (order.user_id !== userId)
-        throw new ForbiddenException('Order belongs to another customer');
+        throw forbidden(
+          'ORDER_ACCESS_FORBIDDEN',
+          'Order belongs to another customer',
+        );
       if (order.version !== input.version)
         throw staleOrder(order.status, order.version);
       if (
@@ -778,14 +899,16 @@ export class OrdersService {
           'failed',
         ].includes(order.status)
       ) {
-        throw new ConflictException(
+        throw conflict(
+          'CANCELLATION_REQUEST_NOT_ALLOWED',
           order.status === 'pending'
             ? 'A pending order can be cancelled directly'
             : 'This order cannot receive a cancellation request',
         );
       }
       if (order.cancellation_request_status === 'pending')
-        throw new ConflictException(
+        throw conflict(
+          'CANCELLATION_REQUEST_ALREADY_PENDING',
           'A cancellation request is already pending',
         );
       const now = new Date();
@@ -826,7 +949,10 @@ export class OrdersService {
       if (order.version !== input.version)
         throw staleOrder(order.status, order.version);
       if (order.cancellation_request_status !== 'pending')
-        throw new ConflictException('No cancellation request is pending');
+        throw conflict(
+          'CANCELLATION_REQUEST_NOT_PENDING',
+          'No cancellation request is pending',
+        );
       assertDifferentActor(
         actorId,
         order.user_id,
@@ -860,7 +986,8 @@ export class OrdersService {
         );
       } else if (['dispatched', 'failed'].includes(order.status)) {
         if (!permissions.includes('orders.cancel_after_dispatch')) {
-          throw new ForbiddenException(
+          throw forbidden(
+            'ORDERS_CANCEL_AFTER_DISPATCH_REQUIRED',
             'Missing orders.cancel_after_dispatch permission',
           );
         }
@@ -905,7 +1032,10 @@ export class OrdersService {
           now.toISOString(),
         );
       } else {
-        throw new ConflictException('This order can no longer be cancelled');
+        throw conflict(
+          'ORDER_CANCELLATION_NOT_ALLOWED',
+          'This order can no longer be cancelled',
+        );
       }
       await this.notifications?.record(
         tx,
@@ -941,7 +1071,8 @@ export class OrdersService {
       if (order.version !== input.version)
         throw staleOrder(order.status, order.version);
       if (order.status !== 'preparing' || !order.inventory_attention_required)
-        throw new ConflictException(
+        throw conflict(
+          'ORDER_SHORTAGE_NOT_FOUND',
           'Order does not have a preparation shortage',
         );
       if (input.action === 'cancel_order') {
@@ -1033,13 +1164,17 @@ export class OrdersService {
       const order = await tx.order.findUnique({ where: { id } });
       if (!order) throw new NotFoundException('Order not found');
       if (order.user_id !== userId)
-        throw new ForbiddenException('Order belongs to another customer');
+        throw forbidden(
+          'ORDER_ACCESS_FORBIDDEN',
+          'Order belongs to another customer',
+        );
       if (order.version !== input.version)
         throw staleOrder(order.status, order.version);
       const attention = this.attentionDetails(order.attention_details);
       const proposal = attention.reduction_proposal;
       if (!proposal || proposal.status !== 'pending')
-        throw new ConflictException(
+        throw conflict(
+          'QUANTITY_REDUCTION_NOT_PENDING',
           'No quantity reduction is awaiting acceptance',
         );
       const item = await tx.orderItem.findFirst({
@@ -1221,7 +1356,10 @@ export class OrdersService {
         null;
       if (input.status === 'dispatched') {
         if (!order.delivery_id) {
-          throw new ConflictException('Order has no current delivery');
+          throw conflict(
+            'ORDER_DELIVERY_MISSING',
+            'Order has no current delivery',
+          );
         }
         await tx.$queryRaw`SELECT id FROM deliveries WHERE id = ${order.delivery_id}::uuid FOR UPDATE`;
         delivery = await tx.delivery.findUnique({
@@ -1233,7 +1371,8 @@ export class OrdersService {
           delivery.status !== 'assigned' ||
           !delivery.agent_id
         ) {
-          throw new ConflictException(
+          throw conflict(
+            'DELIVERY_AGENT_NOT_ASSIGNED',
             'Dispatch requires the current delivery to have an assigned agent',
           );
         }
@@ -1338,7 +1477,10 @@ export class OrdersService {
       where: { order_id: id, method: 'cod', status: 'paid' },
     });
     if (paidCod) {
-      throw new ConflictException('A paid COD order cannot be cancelled');
+      throw conflict(
+        'PAID_COD_CANCELLATION_FORBIDDEN',
+        'A paid COD order cannot be cancelled',
+      );
     }
     assertOrderTransition(
       order.status,
@@ -1366,7 +1508,10 @@ export class OrdersService {
       },
     });
     if (!updated.count)
-      throw new ConflictException('Order status transition is not allowed');
+      throw conflict(
+        'ORDER_TRANSITION_NOT_ALLOWED',
+        'Order status transition is not allowed',
+      );
     const now = new Date();
     await tx.orderStatusEvent.create({
       data: { order_id: id, status: 'cancelled', note: reason, at: now },
@@ -1493,6 +1638,8 @@ export class OrdersService {
         product_name_en: item.product_name_en,
         image_url: item.image_url,
         quantity: Number(item.quantity),
+        base_unit: item.base_unit,
+        whole_units_only: item.whole_units_only,
         unit_price: Number(item.unit_price),
         price_version: item.price_version,
         line_total: Number(item.line_total),

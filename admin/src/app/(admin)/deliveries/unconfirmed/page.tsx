@@ -7,7 +7,7 @@ import { loadPermissions } from "@/lib/api/inventory-server";
 import { loadQueueCounts } from "@/lib/api/orders-server";
 import { load, serverApi } from "@/lib/api/server";
 import { collectionListQuery, QUEUE_FILTER_KEYS } from "@/lib/collection";
-import { partyLabel } from "@/lib/delivery-parties";
+import { loadPartyChoice } from "@/lib/api/parties-server";
 import { lastPage } from "@/lib/list-queries";
 import { parseTableParams, type RawSearchParams } from "@/lib/table-params";
 import { UnconfirmedView } from "./unconfirmed-view";
@@ -33,14 +33,12 @@ export default async function UnconfirmedCollectionsPage({ searchParams }: { sea
   });
   const api = await serverApi();
   const { query: filtered, ignored } = collectionListQuery(params.filters, params.page, params.perPage);
-  const query = (page: number) => ({ ...filtered, page });
-  // The party filter's choices: the first 100 parties, active or not (an
-  // inactive driver can still owe cash). The page needs deliveries.manage,
-  // which also lists parties.
-  const [first, permissions, parties] = await Promise.all([
+  // Oldest first, as the queue says (the API defaults to newest first since 13.4).
+  const query = (page: number) => ({ ...filtered, page, sort_by: "date" as const, sort_direction: "asc" as const });
+  const [first, permissions, party] = await Promise.all([
     load(api.GET("/admin/deliveries/unconfirmed", { params: { query: query(params.page) } })),
     loadPermissions(api),
-    load(api.GET("/admin/delivery-parties", { params: { query: { per_page: 100 } } })),
+    loadPartyChoice(api, params.filters.party_id),
   ]);
   let page = first;
   if (page.ok && page.data.data.length === 0 && page.data.total > 0 && params.page > 1) {
@@ -59,7 +57,7 @@ export default async function UnconfirmedCollectionsPage({ searchParams }: { sea
         rows={page.data.data}
         state={{ page: page.data.page, perPage: page.data.per_page, total: page.data.total, sort: "delivered_at", dir: "asc" }}
         canConfirm={permissions.includes("orders.deliver")}
-        parties={parties.ok ? parties.data.data.map((party) => ({ value: party.id, label: partyLabel(party) })) : []}
+        party={party}
         ignored={ignored}
       />
     </>

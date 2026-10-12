@@ -322,7 +322,7 @@ export function reservationShortfall(counted: number | string | null, reserved: 
 
 /** The API refusing a count whose scope moved after its snapshot (409). */
 export function isStaleCount(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 409 && /after the snapshot/i.test(error.message);
+  return error instanceof ApiError && error.code === "STOCK_COUNT_SNAPSHOT_STALE";
 }
 
 export function isWholeUnitsError(error: unknown): boolean {

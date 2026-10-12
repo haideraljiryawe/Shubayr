@@ -115,8 +115,11 @@ effective preferences, and token locale (Arabic fallback), then records each
 attempt as `queued`, `sent`, `skipped`, or `failed`. Queue keys are scoped to
 the database name, so disposable acceptance runs cannot consume dev jobs.
 `NOTIFICATION_PROVIDER=dev` logs push/SMS without network calls; production
-defaults to `disabled` and records failed attempts until real gateways are
-configured. Provider classes are the integration seam for those gateways.
+defaults to `disabled`. Set it to `fcm` with the secret-managed service-account
+configuration documented in `../docs/deploy/push-notifications.md` to send
+Android and iOS push through FCM HTTP v1. Invalid registrations are
+automatically deactivated. SMS remains disabled in FCM mode until its separate
+gateway is configured.
 
 It also creates eight bilingual departments and their subcategories, 32
 stocked products with variants and ordered images, active/future discounts,

@@ -3,11 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
-import { PageHeader } from "@/components/ui";
+import { buttonClasses, PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { loadPermissions } from "@/lib/api/inventory-server";
 import { load, serverApi } from "@/lib/api/server";
 import { collectionListQuery, PARTY_COLLECTION_FILTER_KEYS } from "@/lib/collection";
+import { EXCEPTION_PERMISSION, EXCEPTION_TYPES } from "@/lib/finance/custody-exceptions";
 import { STATEMENT_FILTER_KEYS, statementQuery } from "@/lib/delivery-parties";
 import { UUID } from "@/lib/inventory";
 import { lastPage } from "@/lib/list-queries";
@@ -49,10 +50,13 @@ export default async function DeliveryPartyPage({
   });
   const api = await serverApi();
   const query = (page: number) => statementQuery(table.filters, page, table.perPage);
-  const [custody, held, first, permissions] = await Promise.all([
+  const [custody, held, first, cashActivity, permissions] = await Promise.all([
     load(api.GET("/admin/delivery-parties/{id}/custody", { params: { path: { id } } })),
     load(api.GET("/admin/delivery-parties/{id}/orders", { params: { path: { id } } })),
     load(api.GET("/admin/delivery-parties/{id}/statement", { params: { path: { id }, query: query(table.page) } })),
+    load(api.GET("/admin/delivery-parties/{id}/cash-activity", {
+      params: { path: { id }, query: statementQuery(table.filters, 1, 100) },
+    })),
     loadPermissions(api),
   ]);
   if (!custody.ok) {
@@ -60,6 +64,7 @@ export default async function DeliveryPartyPage({
     return <PageError error={custody.error} />;
   }
   if (!held.ok) return <PageError error={held.error} />;
+  if (!cashActivity.ok) return <PageError error={cashActivity.error} />;
   let statement = first;
   if (statement.ok && statement.data.data.length === 0 && statement.data.total > 0 && table.page > 1) {
     statement = await load(
@@ -78,15 +83,44 @@ export default async function DeliveryPartyPage({
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("backToList")}
       </Link>
-      <PageHeader title={<span data-testid="party-name">{party.name}</span>} description={t("detail.description")} />
+      <PageHeader
+        title={<span data-testid="party-name">{party.name}</span>}
+        description={t("detail.description")}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/finance/cash-receipts?party_id=${id}`} className={buttonClasses({ variant: "secondary" })} data-testid="party-receipts">
+              {t("cash.receipts")}
+            </Link>
+            {permissions.includes("custody_exceptions.view") ? (
+              <Link href={`/finance/custody-exceptions?party_id=${id}`} className={buttonClasses({ variant: "secondary" })} data-testid="party-exceptions">
+                {t("cash.exceptions")}
+              </Link>
+            ) : null}
+            {permissions.includes("trips.manage") && party.kind === "external_driver" && party.is_active ? (
+              <Link href={`/deliveries/trips/new?driver_party_id=${id}`} className={buttonClasses({ variant: "secondary" })} data-testid="party-new-trip">
+                {t("cash.newTrip")}
+              </Link>
+            ) : null}
+            {/* Only when there is cash to hand in: no dead buttons. */}
+            {permissions.includes("cash_receipts.receive") && party.is_active && custody.data.cash.amount > 0 ? (
+              <Link href={`/finance/cash-receipts/new?party_id=${id}`} className={buttonClasses()} data-testid="party-receive">
+                {t("cash.receive")}
+              </Link>
+            ) : null}
+          </div>
+        }
+      />
       <PartyTabs partyId={id} active="custody" />
       <PartyView
         custody={custody.data}
         held={held.data.data}
         statement={statement.data.data}
+        cashActivity={{ total: cashActivity.data.total, data: cashActivity.data.data }}
         statementState={{ page: statement.data.page, perPage: statement.data.per_page, total: statement.data.total, sort: "occurred_at", dir: "asc" }}
         orderFilter={orderId}
         canViewCost={permissions.includes("cost.view")}
+        canRecordException={EXCEPTION_TYPES.some((type) => permissions.includes(EXCEPTION_PERMISSION[type]))}
+        trips={statement.data.trips}
       />
     </>
   );

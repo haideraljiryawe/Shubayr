@@ -232,18 +232,21 @@ function orderItem(
   quantity: number,
 ): NonNullable<Order["items"]>[number] {
   const product = demoProducts.find((item) => item.id === productId);
+  const variant = product?.variants?.[0];
   // Orders capture effective_price at placement, per the contract.
   const unit = product?.effective_price ?? 0;
   return {
     id: `oi-${productId}`,
     product_id: productId,
-    variant_id: product?.variants?.[0]?.id ?? `variant-${productId}`,
+    variant_id: variant?.id ?? `variant-${productId}`,
     // Name and image are snapshots taken when the order was placed, so a
     // later rename or re-photograph never rewrites order history.
     product_name_ar: product?.name_ar ?? "",
     product_name_en: product?.name_en ?? "",
     image_url: product ? primaryImageUrl(product) : null,
     quantity,
+    base_unit: variant?.base_unit ?? "piece",
+    whole_units_only: variant?.whole_units_only ?? true,
     unit_price: unit,
     line_total: unit * quantity,
   };
@@ -579,7 +582,14 @@ let returns: Return[] = [
     status: "approved",
     reason: "المقاس غير مناسب",
     created_at: isoAgo(26),
-    items: [{ order_item_id: "oi-p7", quantity: 1 }],
+    items: [
+      {
+        order_item_id: "oi-p7",
+        quantity: 1,
+        base_unit: "piece",
+        whole_units_only: true,
+      },
+    ],
   },
 ];
 
@@ -609,17 +619,20 @@ export function createMockReturn(body: ReturnRequest): Return {
   // it does that arithmetic here — the page still only ever renders what it
   // is given.
   const order = orders.find((entry) => entry.id === body.order_id);
-  const unitPrices = new Map(
-    (order?.items ?? []).map((item) => [item.id ?? "", item.unit_price ?? 0]),
+  const orderItems = new Map(
+    (order?.items ?? []).map((item) => [item.id ?? "", item]),
   );
 
-  created.items = body.items.map((item, index) => {
-    const unit = unitPrices.get(item.order_item_id) ?? 0;
+  const createdItems = body.items.map((item, index) => {
+    const orderItem = orderItems.get(item.order_item_id);
+    const unit = orderItem?.unit_price ?? 0;
     return {
       id: `${created.id}-item-${index + 1}`,
       order_item_id: item.order_item_id,
       quantity: item.quantity,
       approved_quantity: 0,
+      base_unit: orderItem?.base_unit ?? "piece",
+      whole_units_only: orderItem?.whole_units_only ?? true,
       customer_reason: item.reason,
       unit_price: unit,
       expected_refund: unit * item.quantity,
@@ -629,7 +642,8 @@ export function createMockReturn(body: ReturnRequest): Return {
       batch_id: null,
     };
   });
-  created.expected_refund = created.items.reduce(
+  created.items = createdItems;
+  created.expected_refund = createdItems.reduce(
     (sum, item) => sum + (item.expected_refund ?? 0),
     0,
   );

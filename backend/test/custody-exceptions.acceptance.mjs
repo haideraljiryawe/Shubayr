@@ -410,7 +410,7 @@ const selfReversal = await request(
 );
 check(
   selfReversal.code,
-  'SEPARATION_OF_DUTIES_VIOLATION',
+  'SELF_REVERSAL_FORBIDDEN',
   'standard separation of duties refuses a creator reversal',
 );
 const lossReversalInput = {
@@ -730,11 +730,11 @@ check(
 );
 
 const statement = await request(
-  `/admin/delivery-parties/${externalParty.id}/statement?per_page=100`,
+  `/admin/delivery-parties/${externalParty.id}/cash-activity?per_page=100`,
   { token: adminToken },
 );
 check(
-  statement.cash_activity.data.some(
+  statement.data.some(
     (entry) => entry.voucher_document_number === doorReturn.document_number,
   ),
   true,

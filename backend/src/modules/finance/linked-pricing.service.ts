@@ -3,10 +3,11 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { conflict, invalid } from '../../common/http/api-error';
+import { actorDisplayName, actorSelect } from '../../common/users/actor-name';
 import { AuditService } from '../audit/audit.service';
 import {
   LinkedPriceApplyDto,
@@ -39,7 +40,8 @@ export class LinkedPricingService {
       where: { code: currencyCode },
     });
     if (!currency?.enabled || currency.is_base) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'FOREIGN_CURRENCY_REQUIRED',
         'An enabled foreign currency is required',
       );
     }
@@ -48,7 +50,11 @@ export class LinkedPricingService {
       this.rounding(this.prisma),
       this.prisma.currency.findFirst({ where: { is_base: true } }),
     ]);
-    if (!base) throw new ConflictException('No base currency is configured');
+    if (!base)
+      throw conflict(
+        'BASE_CURRENCY_NOT_CONFIGURED',
+        'No base currency is configured',
+      );
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     const record = await this.prisma.linkedPricePreview.create({
       data: {
@@ -121,7 +127,7 @@ export class LinkedPricingService {
     query: PricePublishApprovalQueryDto,
   ) {
     if (query.from && query.to && query.from > query.to) {
-      throw new UnprocessableEntityException('from must be on or before to');
+      throw invalid('DATE_RANGE_INVALID', 'from must be on or before to');
     }
     const canApprove = permissions.includes('sell_below_cost.approve');
     const page = query.page ?? 1;
@@ -141,8 +147,8 @@ export class LinkedPricingService {
       ...(!canApprove ? { proposed_by: actorId } : {}),
     };
     const include = {
-      proposer: { select: { id: true, name: true } },
-      decider: { select: { id: true, name: true } },
+      proposer: { select: actorSelect },
+      decider: { select: actorSelect },
     } satisfies Prisma.PricePublishApprovalInclude;
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.pricePublishApproval.count({ where }),
@@ -173,8 +179,8 @@ export class LinkedPricingService {
     const row = await this.prisma.pricePublishApproval.findFirst({
       where: { id, ...(!canApprove ? { proposed_by: actorId } : {}) },
       include: {
-        proposer: { select: { id: true, name: true } },
-        decider: { select: { id: true, name: true } },
+        proposer: { select: actorSelect },
+        decider: { select: actorSelect },
       },
     });
     if (!row) throw new NotFoundException('Price publish approval not found');
@@ -193,17 +199,24 @@ export class LinkedPricingService {
     if (!pending)
       throw new NotFoundException('Price publish approval not found');
     if (pending.status !== 'pending') {
-      throw new ConflictException('Price publish approval is already decided');
+      throw conflict(
+        'APPROVAL_ALREADY_DECIDED',
+        'Price publish approval is already decided',
+      );
     }
     assertDifferentActor(
       actorId,
       pending.proposed_by,
       'The price proposer cannot approve or reject their own request',
+      'SELF_APPROVAL_FORBIDDEN',
     );
     if (input.decision === 'approve') {
       if (pending.kind === 'fixed') {
         if (!this.products) {
-          throw new ConflictException('Fixed-price approvals are unavailable');
+          throw conflict(
+            'FIXED_PRICE_APPROVALS_UNAVAILABLE',
+            'Fixed-price approvals are unavailable',
+          );
         }
         await this.prisma.$transaction(async (tx) => {
           await tx.$queryRaw`SELECT id FROM price_publish_approvals WHERE id = ${id}::uuid FOR UPDATE`;
@@ -211,7 +224,8 @@ export class LinkedPricingService {
             where: { id },
           });
           if (!fresh || fresh.status !== 'pending') {
-            throw new ConflictException(
+            throw conflict(
+              'APPROVAL_ALREADY_DECIDED',
               'Price publish approval is already decided',
             );
           }
@@ -257,7 +271,8 @@ export class LinkedPricingService {
         await this.products.refreshSearch(pending.product_id!);
       } else {
         if (!pending.preview_id) {
-          throw new ConflictException(
+          throw conflict(
+            'PRICE_PREVIEW_UNAVAILABLE',
             'Price publish preview is no longer available',
           );
         }
@@ -281,7 +296,8 @@ export class LinkedPricingService {
           },
         });
         if (!updated.count) {
-          throw new ConflictException(
+          throw conflict(
+            'APPROVAL_ALREADY_DECIDED',
             'Price publish approval is already decided',
           );
         }
@@ -376,7 +392,10 @@ export class LinkedPricingService {
           tx.currency.findFirst({ where: { is_base: true } }),
         ]);
         if (!base)
-          throw new ConflictException('No base currency is configured');
+          throw conflict(
+            'BASE_CURRENCY_NOT_CONFIGURED',
+            'No base currency is configured',
+          );
         rounding = configuredRounding;
         nextPrices = state.variants.map((variant) => ({
           variant_id: variant.id,
@@ -435,6 +454,7 @@ export class LinkedPricingService {
           actorId,
           approval.proposed_by,
           'The price proposer cannot approve their own request',
+          'SELF_APPROVAL_FORBIDDEN',
         );
       }
       const rate = await tx.exchangeRate.create({
@@ -545,8 +565,8 @@ export class LinkedPricingService {
   private approvalResponse(
     row: Prisma.PricePublishApprovalGetPayload<{
       include: {
-        proposer: { select: { id: true; name: true } };
-        decider: { select: { id: true; name: true } };
+        proposer: { select: typeof actorSelect };
+        decider: { select: typeof actorSelect };
       };
     }>,
     canViewCost: boolean,
@@ -582,9 +602,13 @@ export class LinkedPricingService {
       product_id: row.product_id,
       price_version_id: row.price_version_id,
       proposed_by: row.proposed_by,
-      proposer: row.proposer,
+      proposed_by_name: actorDisplayName(row.proposer),
+      proposer: { id: row.proposer.id, name: row.proposer.name },
       decided_by: row.decided_by,
-      decider: row.decider,
+      decided_by_name: row.decider ? actorDisplayName(row.decider) : null,
+      decider: row.decider
+        ? { id: row.decider.id, name: row.decider.name }
+        : null,
       proposal_reason: row.proposal_reason,
       decision_reason: row.decision_reason,
       sku_list: row.sku_list,

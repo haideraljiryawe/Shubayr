@@ -48,6 +48,7 @@ import { PeriodService } from './period.service';
 import {
   AllocateCashReceiptDto,
   CashReceiptQueryDto,
+  CashReceiptReconciliationQueryDto,
   CashReceiptSuggestionQueryDto,
   CreateCashReceiptDto,
   ReverseCashReceiptDto,
@@ -362,6 +363,12 @@ export class CashReceiptsController {
   @AdminPolicy('cash_receipts.allocate')
   suggestions(@Query() query: CashReceiptSuggestionQueryDto) {
     return this.receipts.suggestions(query);
+  }
+
+  @Get('reconciliation')
+  @AdminPolicy('deliveries.manage')
+  reconciliation(@Query() query: CashReceiptReconciliationQueryDto) {
+    return this.receipts.reconciliation(query);
   }
 
   @Get(':id')

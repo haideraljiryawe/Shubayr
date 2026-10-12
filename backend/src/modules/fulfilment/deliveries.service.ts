@@ -38,6 +38,7 @@ import {
   type DeliveryPostingAmounts,
   type DeliveryPostingScenario,
 } from '../finance/posting-scenarios';
+import { ExternalDriverTripHistoryService } from './external-driver-trip-history.service';
 
 const transitions: Record<string, readonly string[]> = {
   assigned: ['out_for_delivery'],
@@ -46,6 +47,12 @@ const transitions: Record<string, readonly string[]> = {
   failed: ['out_for_delivery'],
   returned: [],
 };
+
+const deliveryContactStatuses = new Set([
+  'assigned',
+  'out_for_delivery',
+  'failed',
+]);
 
 @Injectable()
 export class DeliveriesService {
@@ -57,6 +64,7 @@ export class DeliveriesService {
     private readonly inventory: InventoryService = undefined as unknown as InventoryService,
     private readonly ledger: LedgerService = undefined as unknown as LedgerService,
     private readonly operations: OperationService = undefined as unknown as OperationService,
+    private readonly tripHistory?: ExternalDriverTripHistoryService,
   ) {}
 
   listAssigned(agentId: string, query: AssignedDeliveriesQueryDto) {
@@ -65,6 +73,81 @@ export class DeliveriesService {
 
   listAll(query: AssignedDeliveriesQueryDto) {
     return this.list({}, query);
+  }
+
+  getAssignedDetail(agentUserId: string, id: string) {
+    return this.getDeliveryDetail(id, agentUserId, false);
+  }
+
+  getDetailForStaff(id: string) {
+    return this.getDeliveryDetail(id, undefined, true);
+  }
+
+  private async getDeliveryDetail(
+    id: string,
+    agentUserId: string | undefined,
+    staff: boolean,
+  ) {
+    const delivery = await this.prisma.delivery.findFirst({
+      where: {
+        id,
+        ...(agentUserId ? { party: { is: { user_id: agentUserId } } } : {}),
+      },
+      include: {
+        order: {
+          include: {
+            user: { select: { name: true } },
+            items: {
+              include: {
+                variant: { select: { sku: true, attributes: true } },
+              },
+              orderBy: { id: 'asc' },
+            },
+          },
+        },
+      },
+    });
+    if (!delivery) throw new NotFoundException('Delivery not found');
+
+    const discloseContact =
+      staff || deliveryContactStatuses.has(delivery.status);
+    const order = delivery.order;
+    return {
+      id: delivery.id,
+      order_id: order.id,
+      order_number: order.order_number,
+      order_version: order.version,
+      status: delivery.status,
+      currency: order.currency_code,
+      amount_due: Number(order.total),
+      recipient_name: discloseContact ? order.user.name : null,
+      recipient_phone: discloseContact ? order.delivery_contact_phone : null,
+      shipping_address: discloseContact
+        ? {
+            label: order.delivery_address_label,
+            city: order.delivery_city,
+            area: order.delivery_area,
+            street: order.delivery_street,
+            details: order.delivery_details,
+            lat: order.delivery_lat,
+            lng: order.delivery_lng,
+          }
+        : null,
+      items: order.items.map((item) => ({
+        id: item.id,
+        product_name_ar: item.product_name_ar,
+        product_name_en: item.product_name_en,
+        variant_id: item.variant_id,
+        variant_sku: item.variant.sku,
+        variant_attributes: item.variant.attributes,
+        quantity: Number(item.quantity),
+        base_unit: item.base_unit,
+        whole_units_only: item.whole_units_only,
+        unit_price: Number(item.unit_price),
+        line_total: Number(item.line_total),
+        currency: item.currency_code,
+      })),
+    };
   }
 
   async listAgents(query: DeliveryAgentsQueryDto) {
@@ -301,6 +384,7 @@ export class DeliveriesService {
     retryOnlyForDispatch = false,
     transaction?: Prisma.TransactionClient,
     recordedAt?: Date,
+    tripEvent: { record?: boolean; expectedTripId?: string } = {},
   ) {
     const work = async (tx: Prisma.TransactionClient) => {
       const initial = await tx.delivery.findUnique({ where: { id } });
@@ -311,7 +395,13 @@ export class DeliveriesService {
       const delivery = await tx.delivery.findUnique({
         where: { id },
         include: {
-          order: true,
+          order: {
+            include: {
+              external_driver_trip_order: {
+                include: { trip: { select: { fare_bearer: true } } },
+              },
+            },
+          },
           party: { select: { user_id: true } },
         },
       });
@@ -446,10 +536,35 @@ export class DeliveriesService {
             'COD delivery posting currently requires IQD',
           );
         }
-        const due = new PrismaRuntime.Decimal(delivery.order.total);
-        const deliveryFee = new PrismaRuntime.Decimal(
+        const customerDue = new PrismaRuntime.Decimal(delivery.order.total);
+        const configuredDeliveryFee = new PrismaRuntime.Decimal(
           delivery.order.delivery_fee,
         );
+        const tripOrder = delivery.order.external_driver_trip_order;
+        const customerPaidTrip =
+          tripOrder?.trip.fare_bearer === 'customer_direct';
+        const passThroughFare = customerPaidTrip
+          ? configuredDeliveryFee
+          : new PrismaRuntime.Decimal(0);
+        if (
+          customerPaidTrip &&
+          !configuredDeliveryFee.isZero() &&
+          !new PrismaRuntime.Decimal(tripOrder.fare_share_iqd).equals(
+            configuredDeliveryFee,
+          )
+        ) {
+          throw new ConflictException({
+            status: 409,
+            code: 'TRIP_FARE_SHARE_MISMATCH',
+            message:
+              'A fee-carrying customer-paid trip order must use its delivery fee as the fare share',
+            errors: [],
+          });
+        }
+        const due = customerDue.minus(passThroughFare);
+        const deliveryFee = customerPaidTrip
+          ? new PrismaRuntime.Decimal(0)
+          : configuredDeliveryFee;
         const goodsRevenue = due.minus(deliveryFee);
         if (due.lt(0) || goodsRevenue.lt(0)) {
           throw new ConflictException('Order delivery amount is invalid');
@@ -463,15 +578,23 @@ export class DeliveriesService {
             'collected_amount must be omitted while collection is unconfirmed',
           );
         }
-        const collected =
+        const customerCollected =
           confirmation === 'confirmed'
             ? new PrismaRuntime.Decimal(input.collected_amount!)
             : new PrismaRuntime.Decimal(0);
-        if (collected.lt(0) || collected.gt(due)) {
+        if (
+          confirmation === 'confirmed' &&
+          (customerCollected.lt(passThroughFare) ||
+            customerCollected.gt(customerDue))
+        ) {
           throw new UnprocessableEntityException(
-            'collected_amount must be between zero and the order amount due',
+            `collected_amount must be between ${passThroughFare.toString()} and the customer order total`,
           );
         }
+        const collected =
+          confirmation === 'confirmed'
+            ? customerCollected.minus(passThroughFare)
+            : new PrismaRuntime.Decimal(0);
         const shortfall = due.minus(collected);
         const scenario: DeliveryPostingScenario =
           confirmation === 'unconfirmed'
@@ -549,6 +672,7 @@ export class DeliveriesService {
             party_id: delivery.agent_id,
             source:
               'source' in input && input.source ? input.source : 'agent_app',
+            customer_paid_fare_iqd: passThroughFare.toString(),
           },
         });
         await this.loyalty.earnDelivered(tx, delivery.order_id, actorId);
@@ -669,6 +793,33 @@ export class DeliveriesService {
         before: { status: delivery.status },
         after: { status: input.status },
       });
+      if (
+        this.tripHistory &&
+        tripEvent.record !== false &&
+        (input.status === 'delivered' || input.status === 'failed')
+      ) {
+        const suppliedOperationId =
+          'operation_id' in input && input.operation_id
+            ? input.operation_id
+            : null;
+        await this.tripHistory.recordForOrder(tx, {
+          actorId,
+          operationId:
+            suppliedOperationId ??
+            `delivery-${id}-${input.order_version}-${input.status}`,
+          orderId: delivery.order_id,
+          expectedTripId: tripEvent.expectedTripId,
+          type: input.status,
+          source:
+            'source' in input && input.source
+              ? input.source
+              : assignedAgentOnly
+                ? 'agent_app'
+                : 'admin_delivery',
+          note: input.status === 'failed' ? input.reason : undefined,
+          eventAt: now,
+        });
+      }
       return updated;
     };
     const row = transaction

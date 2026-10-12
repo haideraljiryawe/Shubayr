@@ -76,6 +76,7 @@ export class ReturnsService {
       throw new ForbiddenException('Customer account required');
     const documentDate = businessDate();
     const id = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
       const initial = await tx.order.findUnique({
         where: { id: input.order_id },
       });
@@ -85,11 +86,7 @@ export class ReturnsService {
       const order = await tx.order.findUnique({
         where: { id: input.order_id },
         include: {
-          items: {
-            include: {
-              variant: { select: { whole_units_only: true } },
-            },
-          },
+          items: true,
         },
       });
       if (!order || order.status !== 'delivered') {
@@ -113,7 +110,7 @@ export class ReturnsService {
         const item = orderItems.get(entry.order_item_id);
         if (!item)
           throw new UnprocessableEntityException('Item is not on this order');
-        this.requireQuantityUnit(entry.quantity, item.variant.whole_units_only);
+        this.requireQuantityUnit(entry.quantity, item.whole_units_only);
         const reserved = previous
           .filter((prior) => prior.order_item_id === item.id)
           .reduce(
@@ -139,6 +136,8 @@ export class ReturnsService {
           quantity: entry.quantity,
           customer_reason: entry.reason,
           unit_price: item.unit_price,
+          base_unit: item.base_unit,
+          whole_units_only: item.whole_units_only,
         };
       });
       const created = await tx.return.create({
@@ -187,15 +186,7 @@ export class ReturnsService {
         const current = await tx.return.findUnique({
           where: { id },
           include: {
-            items: {
-              include: {
-                order_item: {
-                  include: {
-                    variant: { select: { whole_units_only: true } },
-                  },
-                },
-              },
-            },
+            items: { include: { order_item: true } },
           },
         });
         if (!current) throw new NotFoundException('Return not found');
@@ -235,10 +226,7 @@ export class ReturnsService {
           const decision =
             input.decision === 'approve' ? decisions.get(item.id) : undefined;
           const approved = decision?.approved_quantity ?? 0;
-          this.requireQuantityUnit(
-            approved,
-            item.order_item.variant.whole_units_only,
-          );
+          this.requireQuantityUnit(approved, item.whole_units_only);
           if (approved > Number(item.quantity)) {
             throw new UnprocessableEntityException(
               'Approved quantity exceeds request',
@@ -506,6 +494,8 @@ export class ReturnsService {
         approved_quantity: Number(item.approved_quantity),
         customer_reason: item.customer_reason,
         unit_price: Number(item.unit_price),
+        base_unit: item.base_unit,
+        whole_units_only: item.whole_units_only,
         currency: item.currency_code,
         expected_refund: calculateLineTotal(
           item.unit_price,

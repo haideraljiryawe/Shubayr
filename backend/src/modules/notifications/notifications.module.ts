@@ -10,6 +10,7 @@ import {
   DevPushProvider,
   DevSmsProvider,
   DisabledNotificationProvider,
+  FcmPushProvider,
   PUSH_PROVIDER,
   SMS_PROVIDER,
 } from './notification-provider';
@@ -50,18 +51,26 @@ import {
     {
       provide: PUSH_PROVIDER,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) =>
-        config.get<string>('NOTIFICATION_PROVIDER') === 'disabled'
+      useFactory: (config: ConfigService) => {
+        const provider = config.get<string>('NOTIFICATION_PROVIDER');
+        if (provider === 'fcm') {
+          return new FcmPushProvider(
+            config.getOrThrow<string>('FCM_SERVICE_ACCOUNT_JSON_BASE64'),
+            config.getOrThrow<string>('FCM_PROJECT_ID'),
+          );
+        }
+        return provider === 'disabled'
           ? new DisabledNotificationProvider()
-          : new DevPushProvider(),
+          : new DevPushProvider();
+      },
     },
     {
       provide: SMS_PROVIDER,
       inject: [ConfigService],
       useFactory: (config: ConfigService) =>
-        config.get<string>('NOTIFICATION_PROVIDER') === 'disabled'
-          ? new DisabledNotificationProvider()
-          : new DevSmsProvider(),
+        config.get<string>('NOTIFICATION_PROVIDER') === 'dev'
+          ? new DevSmsProvider()
+          : new DisabledNotificationProvider(),
     },
   ],
   exports: [NotificationsService],

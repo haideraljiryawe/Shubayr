@@ -7,6 +7,7 @@ import { load, serverApi } from "@/lib/api/server";
 import { PARTY_FILTER_KEYS, partyListQuery } from "@/lib/delivery-parties";
 import { lastPage } from "@/lib/list-queries";
 import { parseTableParams, type RawSearchParams } from "@/lib/table-params";
+import { PartiesTabs } from "./parties-tabs";
 import { PartiesView } from "./parties-view";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -43,6 +44,7 @@ export default async function DeliveryPartiesPage({ searchParams }: { searchPara
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
+      {permissions.includes("deliveries.manage") ? <PartiesTabs active="parties" /> : null}
       <PartiesView
         rows={page.data.data}
         state={{ page: page.data.page, perPage: page.data.per_page, total: page.data.total, sort: "name", dir: "asc" }}

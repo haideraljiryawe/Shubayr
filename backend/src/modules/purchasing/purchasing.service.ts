@@ -1,6 +1,4 @@
 import {
-  ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -13,6 +11,12 @@ import {
 } from '../../common/access/separation-of-duties';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../database/prisma.service';
+import { conflict, forbidden } from '../../common/http/api-error';
+import {
+  actorDisplayName,
+  actorSelect,
+  type ActorNameSource,
+} from '../../common/users/actor-name';
 import { CurrencyService } from '../finance/currency.service';
 import { DateRulesService } from '../finance/date-rules.service';
 import { DocumentNumberService } from '../finance/document-number.service';
@@ -285,7 +289,10 @@ export class PurchasingService {
       include: { warehouse: true },
     });
     if (!defaultLocation?.is_active || !defaultLocation.warehouse.is_active)
-      throw new ConflictException('The default receiving location is inactive');
+      throw conflict(
+        'RECEIVING_LOCATION_INACTIVE',
+        'The default receiving location is inactive',
+      );
     if (input.supplier_invoice_number) {
       const duplicate = await tx.purchaseInvoice.findFirst({
         where: {
@@ -294,7 +301,8 @@ export class PurchasingService {
         },
       });
       if (duplicate)
-        throw new ConflictException(
+        throw conflict(
+          'SUPPLIER_INVOICE_NUMBER_DUPLICATE',
           'The supplier invoice number is already used',
         );
     }
@@ -324,7 +332,10 @@ export class PurchasingService {
         include: { warehouse: true },
       });
       if (!location?.is_active || !location.warehouse.is_active)
-        throw new ConflictException('A receiving location is inactive');
+        throw conflict(
+          'RECEIVING_LOCATION_INACTIVE',
+          'A receiving location is inactive',
+        );
       const purchaseQuantity = this.positive(source.quantity, 'quantity');
       const packSize = this.positive(source.pack_size ?? '1', 'pack_size');
       const quantity = purchaseQuantity.times(packSize);
@@ -569,6 +580,7 @@ export class PurchasingService {
       this.prisma.purchaseInvoice.findMany({
         where,
         include: {
+          creator: { select: actorSelect },
           supplier: true,
           payment_allocations: true,
           credit_allocations: true,
@@ -617,7 +629,7 @@ export class PurchasingService {
           where: { id: input.cash_account_id },
         });
         if (!cash?.is_active)
-          throw new ConflictException('Cash account is inactive');
+          throw conflict('CASH_ACCOUNT_INACTIVE', 'Cash account is inactive');
         if (cash.currency_code !== input.currency_code)
           throw new UnprocessableEntityException(
             'Payment currency must match the cash account',
@@ -664,7 +676,10 @@ export class PurchasingService {
           });
         }
         if (allocatedPaymentCurrency.gt(amount))
-          throw new ConflictException('Allocations exceed the payment amount');
+          throw conflict(
+            'PAYMENT_ALLOCATION_EXCEEDS_AMOUNT',
+            'Allocations exceed the payment amount',
+          );
         const foreignCurrencies = new Set(
           [
             input.currency_code,
@@ -701,7 +716,8 @@ export class PurchasingService {
             .div(invoiceRate)
             .toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP);
           if (applied.gt(allocation.remaining))
-            throw new ConflictException(
+            throw conflict(
+              'PAYMENT_ALLOCATION_EXCEEDS_INVOICE',
               'Allocation exceeds the invoice balance',
             );
           const carrying = applied.times(
@@ -843,10 +859,17 @@ export class PurchasingService {
             },
           });
         }
-        return tx.supplierPayment.findUniqueOrThrow({
-          where: { id: payment.id },
-          include: { allocations: true, credits: true, journal_entry: true },
-        });
+        return tx.supplierPayment
+          .findUniqueOrThrow({
+            where: { id: payment.id },
+            include: {
+              creator: { select: actorSelect },
+              allocations: true,
+              credits: true,
+              journal_entry: true,
+            },
+          })
+          .then((row) => this.presentPayment(row));
       },
     });
   }
@@ -913,7 +936,8 @@ export class PurchasingService {
             'A purchase creator cannot approve its supplier return',
           );
           if (input.invoice_id && item.invoice_id !== input.invoice_id)
-            throw new ConflictException(
+            throw conflict(
+              'RETURN_WRONG_INVOICE',
               'Return line belongs to another invoice',
             );
           if (
@@ -922,7 +946,8 @@ export class PurchasingService {
               rate === undefined ||
               !item.invoice.exchange_rate.equals(rate))
           )
-            throw new ConflictException(
+            throw conflict(
+              'RETURN_TERMS_MISMATCH',
               'Return lines must use the same currency and exchange rate',
             );
           const balance = await tx.batchStock.findUnique({
@@ -935,7 +960,8 @@ export class PurchasingService {
           });
           const quantity = this.positive(source.quantity, 'quantity');
           if (!balance || quantity.gt(balance.quantity.minus(balance.reserved)))
-            throw new ConflictException(
+            throw conflict(
+              'SUPPLIER_RETURN_EXCEEDS_STOCK',
               'Return exceeds unreserved on-hand quantity',
             );
           const amount = quantity.times(batch.purchase_cost);
@@ -1149,7 +1175,10 @@ export class PurchasingService {
             .minus(custodyQty)
             .minus(returnedQty);
           if (soldQty.lt(0))
-            throw new ConflictException('Lot quantity history is inconsistent');
+            throw conflict(
+              'LOT_QUANTITY_INCONSISTENT',
+              'Lot quantity history is inconsistent',
+            );
           const inventory = warehouseQty.times(difference);
           const custody = custodyQty.times(difference);
           const cogs = soldQty.times(difference);
@@ -1401,14 +1430,20 @@ export class PurchasingService {
     });
   }
 
-  payments(query: PurchasingQueryDto) {
-    return this.prisma.supplierPayment.findMany({
+  async payments(query: PurchasingQueryDto) {
+    const rows = await this.prisma.supplierPayment.findMany({
       where: query.supplier_id ? { supplier_id: query.supplier_id } : undefined,
-      include: { supplier: true, allocations: true, credits: true },
+      include: {
+        creator: { select: actorSelect },
+        supplier: true,
+        allocations: true,
+        credits: true,
+      },
       orderBy: [{ document_date: 'desc' }, { id: 'desc' }],
       take: query.per_page ?? 50,
       skip: ((query.page ?? 1) - 1) * (query.per_page ?? 50),
     });
+    return rows.map((row) => this.presentPayment(row));
   }
 
   credits(query: PurchasingQueryDto) {
@@ -1467,14 +1502,16 @@ export class PurchasingService {
             ),
           );
         if (invoiceAmount.gt(invoice.total_cost.minus(alreadySettled)))
-          throw new ConflictException(
+          throw conflict(
+            'CREDIT_ALLOCATION_EXCEEDS_INVOICE',
             'Credit allocation exceeds the invoice balance',
           );
         const amountIqd = invoiceAmount.times(invoice.exchange_rate);
         const creditRate = credit.amount_iqd.div(credit.amount_currency);
         const creditAmount = amountIqd.div(creditRate);
         if (creditAmount.gt(credit.remaining_currency))
-          throw new ConflictException(
+          throw conflict(
+            'CREDIT_ALLOCATION_EXCEEDS_CREDIT',
             'Credit allocation exceeds the remaining credit',
           );
         const allocation = await tx.supplierCreditAllocation.create({
@@ -1574,7 +1611,8 @@ export class PurchasingService {
       !rate.equals(defaultRate) &&
       !permissions.includes('purchases.override_rate')
     )
-      throw new ForbiddenException(
+      throw forbidden(
+        'PURCHASE_RATE_OVERRIDE_REQUIRED',
         'Editing the purchase exchange rate requires purchases.override_rate',
       );
     return rate;
@@ -1584,7 +1622,7 @@ export class PurchasingService {
     const supplier = await tx.supplier.findUnique({ where: { id } });
     if (!supplier) throw new NotFoundException('Supplier not found');
     if (!supplier.is_active)
-      throw new ConflictException('Supplier is inactive');
+      throw conflict('SUPPLIER_INACTIVE', 'Supplier is inactive');
     return supplier;
   }
 
@@ -1669,7 +1707,8 @@ export class PurchasingService {
     const quantity = current.book_quantity.plus(quantityDelta);
     const value = current.book_value_iqd.plus(valueDelta);
     if (quantity.lt(0) || value.lt(0))
-      throw new ConflictException(
+      throw conflict(
+        'INVENTORY_COST_NEGATIVE',
         'Inventory cost balance would become negative',
       );
     await tx.skuCost.update({
@@ -1708,6 +1747,7 @@ export class PurchasingService {
     const row = await tx.purchaseInvoice.findUnique({
       where: { id },
       include: {
+        creator: { select: actorSelect },
         supplier: true,
         default_location: { include: { warehouse: true } },
         items: { include: { variant: true, location: true, lot: true } },
@@ -1728,6 +1768,7 @@ export class PurchasingService {
     canViewCost: boolean,
   ): T | Record<string, unknown> {
     const source = row as T & {
+      creator?: ActorNameSource;
       total_cost?: Prisma.Decimal;
       payment_allocations?: Array<{ amount_invoice_currency: Prisma.Decimal }>;
       credit_allocations?: Array<{ amount_invoice_currency: Prisma.Decimal }>;
@@ -1749,6 +1790,9 @@ export class PurchasingService {
       );
     const result = {
       ...row,
+      ...(source.creator
+        ? { created_by_name: actorDisplayName(source.creator) }
+        : {}),
       ...(source.total_cost
         ? {
             remaining_currency: Prisma.Decimal.max(
@@ -1763,6 +1807,7 @@ export class PurchasingService {
           }
         : {}),
     } as Record<string, unknown>;
+    delete result.creator;
     if (canViewCost) return result;
     for (const key of [
       'exchange_rate',
@@ -1794,5 +1839,10 @@ export class PurchasingService {
       });
     }
     return result;
+  }
+
+  private presentPayment<T extends { creator: ActorNameSource }>(row: T) {
+    const { creator, ...payment } = row;
+    return { ...payment, created_by_name: actorDisplayName(creator) };
   }
 }

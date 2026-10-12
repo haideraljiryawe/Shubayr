@@ -50,10 +50,5 @@ export function resolveOutcome<T = FinancialDocument>(outcome: OperationOutcome 
 
 /** The API's refusal to post into a closed month (409). */
 export function isClosedPeriod(error: unknown): boolean {
-  return (
-    error instanceof ApiError &&
-    error.status === 409 &&
-    (error.code === "PERIOD_CLOSED" ||
-      /accounting period(?: \d{4}-\d{2})? is closed/i.test(error.message))
-  );
+  return error instanceof ApiError && error.code === "PERIOD_CLOSED";
 }

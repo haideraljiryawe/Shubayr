@@ -481,16 +481,16 @@ export function agingTotals(lines: ReadonlyArray<{ bucket: AgingBucket; currency
 
 /** The server's refusals worth their own message. */
 export function isSeparationOfDuties(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 403 && /cannot approve/i.test(error.message);
+  return error instanceof ApiError && error.code === "SEPARATION_OF_DUTIES_VIOLATION";
 }
 
 export function isRateOverrideForbidden(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 403 && /override_rate/.test(error.message);
+  return error instanceof ApiError && error.code === "PURCHASE_RATE_OVERRIDE_REQUIRED";
 }
 
-/** 422 EXCHANGE_RATE_NOT_FOUND (declared since API 10.0.1), or the older message. */
+/** 422 EXCHANGE_RATE_NOT_FOUND (declared since API 10.0.1). */
 export function isMissingRate(error: unknown): boolean {
-  return error instanceof ApiError && (error.code === "EXCHANGE_RATE_NOT_FOUND" || /No exchange rate exists/i.test(error.message));
+  return error instanceof ApiError && error.code === "EXCHANGE_RATE_NOT_FOUND";
 }
 
 /** Where a purchasing source type has a page of its own in the admin. */

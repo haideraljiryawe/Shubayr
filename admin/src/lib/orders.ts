@@ -310,7 +310,7 @@ export function belowCostBreaches(error: unknown): BelowCostBreach[] | null {
 }
 
 export function isSelfApprovalRefused(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 403 && /cannot approve their own/i.test(error.message);
+  return error instanceof ApiError && error.code === "SEPARATION_OF_DUTIES_VIOLATION";
 }
 
 export function needsAttentionRefusal(error: unknown): boolean {

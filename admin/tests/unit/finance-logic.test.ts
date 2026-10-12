@@ -226,7 +226,7 @@ describe("operations — posting exactly once", () => {
   });
 
   it("recognises the closed-period refusal", () => {
-    expect(isClosedPeriod(new ApiError(409, "The accounting period is closed"))).toBe(true);
+    expect(isClosedPeriod(new ApiError(409, "Translated", "PERIOD_CLOSED"))).toBe(true);
     expect(
       isClosedPeriod(
         new ApiError(

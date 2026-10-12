@@ -21,6 +21,8 @@ import type { AuthenticatedRequestUser } from '../../common/guards/permissions.g
 import { DeliveriesService } from './deliveries.service';
 import { AssignedDeliveriesQueryDto } from './dto/assigned-deliveries-query.dto';
 import { DeliveryAgentsQueryDto } from './dto/delivery-agents-query.dto';
+import { ReturnAtDoorDto } from './dto/custody-exception.dto';
+import { CustodyExceptionsService } from './custody-exceptions.service';
 import {
   AssignDeliveryDto,
   ConfirmDeliveryCollectionDto,
@@ -49,6 +51,15 @@ export class DeliveriesController {
     @Query() query: AssignedDeliveriesQueryDto,
   ) {
     return this.deliveries.listAssigned(request.user.id, query);
+  }
+
+  @Get(':id')
+  @AppPolicy('delivery_agent')
+  detail(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+  ) {
+    return this.deliveries.getAssignedDetail(request.user.id, id);
   }
 
   @Patch(':id/assign')
@@ -84,12 +95,23 @@ export class DeliveriesController {
 
 @Controller('admin/deliveries')
 export class AdminDeliveriesController {
-  constructor(private readonly deliveries: DeliveriesService) {}
+  constructor(
+    private readonly deliveries: DeliveriesService,
+    private readonly exceptions: CustodyExceptionsService,
+  ) {}
 
   @Get('unconfirmed')
   @AdminPolicy('deliveries.manage')
   listUnconfirmed(@Query() query: UnconfirmedDeliveriesQueryDto) {
     return this.deliveries.listUnconfirmed(query);
+  }
+
+  @Get(':id')
+  @AdminPolicy('deliveries.manage')
+  detail(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+  ) {
+    return this.deliveries.getDetailForStaff(id);
   }
 
   @Post(':id/collection-confirmation')
@@ -101,6 +123,16 @@ export class AdminDeliveriesController {
     @Body() input: ConfirmDeliveryCollectionDto,
   ) {
     return this.deliveries.confirmCollection(request.user.id, id, input);
+  }
+
+  @Post(':id/return-at-door')
+  @AdminPolicy('custody_exceptions.return_uncollected')
+  returnAtDoor(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: ReturnAtDoorDto,
+  ) {
+    return this.exceptions.recordDoorReturn(request.user, id, input);
   }
 
   @Patch(':id/status')

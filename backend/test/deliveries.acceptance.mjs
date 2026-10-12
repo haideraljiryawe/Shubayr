@@ -111,6 +111,58 @@ check(
   true,
   'agent B lists assigned delivery',
 );
+const assignedDetail = await request(`/deliveries/${assigned.delivery_id}`, {
+  token: token(agentA),
+});
+check(
+  assignedDetail.order_number,
+  assigned.order_number,
+  'agent detail has order number',
+);
+check(
+  Boolean(assignedDetail.recipient_name),
+  true,
+  'active agent detail has recipient name',
+);
+check(
+  Boolean(assignedDetail.recipient_phone),
+  true,
+  'active agent detail has recipient phone',
+);
+check(
+  Boolean(assignedDetail.shipping_address?.city),
+  true,
+  'active agent detail has shipping address',
+);
+check(assignedDetail.amount_due, assigned.total, 'agent detail has amount due');
+check(assignedDetail.items.length > 0, true, 'agent detail has order items');
+check(
+  Boolean(assignedDetail.items[0].variant_sku),
+  true,
+  'agent detail has variant SKU',
+);
+check(
+  Boolean(assignedDetail.items[0].base_unit),
+  true,
+  'agent detail has unit snapshot',
+);
+check(
+  typeof assignedDetail.items[0].whole_units_only,
+  'boolean',
+  'agent detail has quantity rule snapshot',
+);
+await request(`/deliveries/${assigned.delivery_id}`, {
+  token: token(agentB),
+  expected: 404,
+});
+const staffDetail = await request(`/admin/deliveries/${assigned.delivery_id}`, {
+  token: token(admin),
+});
+check(
+  staffDetail.recipient_phone,
+  assignedDetail.recipient_phone,
+  'staff reads any delivery contact',
+);
 await request(`/deliveries/${second.delivery_id}`, {
   token: token(agentA),
   method: 'PATCH',
@@ -185,6 +237,34 @@ const delivered = await request(`/deliveries/${assigned.delivery_id}`, {
 });
 check(delivered.status, 'delivered', 'legal delivered transition');
 check(Boolean(delivered.delivered_at), true, 'delivery timestamp stamped');
+const completedAgentDetail = await request(
+  `/deliveries/${assigned.delivery_id}`,
+  { token: token(agentA) },
+);
+check(
+  completedAgentDetail.recipient_name,
+  null,
+  'completed detail hides recipient name',
+);
+check(
+  completedAgentDetail.recipient_phone,
+  null,
+  'completed detail hides recipient phone',
+);
+check(
+  completedAgentDetail.shipping_address,
+  null,
+  'completed detail hides shipping address',
+);
+const completedStaffDetail = await request(
+  `/admin/deliveries/${assigned.delivery_id}`,
+  { token: token(admin) },
+);
+check(
+  Boolean(completedStaffDetail.recipient_phone),
+  true,
+  'staff retains completed delivery contact',
+);
 const afterDelivery = await request(`/orders/${assigned.id}`, {
   token: token(customer),
 });

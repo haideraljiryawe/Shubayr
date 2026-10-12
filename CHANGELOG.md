@@ -1,5 +1,70 @@
 # Changelog
 
+## 14.2.0 - 2026-10-12
+
+### Added
+
+- Assignment-scoped delivery details for agents, including the recipient,
+  shipping snapshot, items, quantity units and amount due, with staff access
+  through a separate permission-protected route.
+- Customer self-service account deletion with blocker codes, transactional
+  anonymization, session revocation, audit history and later phone reuse.
+- Production push delivery through FCM HTTP v1 using secret-managed Firebase
+  service-account credentials, including automatic invalid-token deactivation.
+
+### Changed
+
+- Order and return items now preserve `base_unit` and `whole_units_only` as
+  immutable order-time snapshots.
+- Monitor order-list rows now identify their currency, and public settings now
+  return the already-declared low-stock threshold and sale-rounding multiple.
+- The API contract is version 14.2.0. This is an additive, non-breaking minor
+  release; no existing fields or routes were removed.
+
+## 14.1.0 - 2026-10-10
+
+### Added
+
+- One replay-safe return-at-the-door operation that delivers short, posts the
+  uncollected return, restores stock at original issue cost, and reduces party
+  cash expectation atomically.
+- External-driver trip routes for delivered, failed, returned-at-door and lost
+  outcomes, complete trip event history, and a read-only close preview.
+- A staff order-goods read with delivered, returned, refused and remaining
+  returnable quantities.
+
+### Changed
+
+- On customer-paid trips, an order's configured delivery fee is its fare share:
+  the driver collects and keeps it as a pass-through, and it never enters store
+  revenue, expense, cash custody or trip netting. Fare shares must still sum to
+  the trip's agreed fare.
+- The API contract is version 14.1.0. This is an additive, non-breaking minor
+  release; existing delivery and custody-exception routes remain available.
+
+## 14.0.0 - 2026-10-09
+
+### Added
+
+- Stable, route-declared refusal codes for cash receipts, allocations,
+  reversals, custody exceptions, trips, and audited order, purchasing,
+  inventory, product, and approval workflows.
+- Independent paginated party cash activity and an overall/per-party
+  unallocated-receipt subledger reconciliation.
+- Actor display names beside actor IDs on staff financial and operational
+  documents.
+
+### Changed
+
+- Voucher and unallocated-receipt lists sort by date or amount in either
+  direction and default to newest first.
+- Party goods statements no longer embed cash activity; staff use the separate
+  cash-activity endpoint. Admin callers and generated web/admin types are
+  updated together.
+- The API contract is version 14.0.0. The major bump covers the removed
+  embedded staff field and clients switching from generic/message-matched
+  refusals to stable codes. Successful mobile workflow shapes are unchanged.
+
 ## 13.4.0 - 2026-10-08
 
 ### Added

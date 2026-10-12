@@ -216,8 +216,8 @@ describe("counts", () => {
   });
 
   it("recognizes the API's stale-count refusal, and only that", () => {
-    expect(isStaleCount(new ApiError(409, "Stock moved within the count scope after the snapshot", "CONFLICT"))).toBe(true);
-    expect(isStaleCount(new ApiError(409, "Stock count is already approved", "CONFLICT"))).toBe(false);
+    expect(isStaleCount(new ApiError(409, "Translated", "STOCK_COUNT_SNAPSHOT_STALE"))).toBe(true);
+    expect(isStaleCount(new ApiError(409, "Translated", "STOCK_COUNT_ALREADY_APPROVED"))).toBe(false);
     expect(isStaleCount(new ApiError(422, "after the snapshot"))).toBe(false);
     expect(isWholeUnitsError(new ApiError(422, "x", "SKU_WHOLE_UNITS_ONLY"))).toBe(true);
   });

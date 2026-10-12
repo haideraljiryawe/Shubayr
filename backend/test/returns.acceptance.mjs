@@ -142,8 +142,8 @@ try {
       ],
     );
     await db.query(
-      `INSERT INTO order_items (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total)
-      VALUES ($1,$2,$3,$4,'Test product A','Test product A',3,10080,30240),($5,$2,$6,$7,'Test product B','Test product B',1,5550,5550)`,
+      `INSERT INTO order_items (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,base_unit,whole_units_only)
+      VALUES ($1,$2,$3,$4,'Test product A','Test product A',3,10080,30240,'piece',true),($5,$2,$6,$7,'Test product B','Test product B',1,5550,5550,'piece',true)`,
       [firstId, orderId, productA, variantA, secondId, productB, variantB],
     );
     await db.query(
@@ -194,11 +194,23 @@ try {
   await open([line(firstId, 1)], 404, orderId, other);
   await open([line(firstId, 4)], 422);
   await open([line(firstId, 2.5)], 422);
+  await db.query(`UPDATE products SET status='hidden' WHERE id=$1`, [productA]);
   const first = await open([
     line(firstId, 1),
     line(secondId, 1, 'Damaged in transit'),
   ]);
+  await db.query(`UPDATE products SET status='active' WHERE id=$1`, [productA]);
   check(first.status, 'requested', 'return begins requested');
+  check(
+    first.items[0].base_unit,
+    'piece',
+    'return keeps the order-time base unit',
+  );
+  check(
+    first.items[0].whole_units_only,
+    true,
+    'return keeps the order-time quantity rule',
+  );
   check(
     first.expected_refund,
     15630,

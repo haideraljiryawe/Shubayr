@@ -351,6 +351,46 @@ export interface paths {
         };
         trace?: never;
     };
+    "/me/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete and anonymize the current customer account
+         * @description Customer app sessions only. Refuses while an order is open, a return is pending, or a customer/order amount remains unsettled. Otherwise removes direct identity, addresses, device registrations and authentication sessions while retaining anonymized order, return, audit and financial records required for immutable history. The released phone may register later as a new customer account.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Account anonymized and all sessions revoked */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/media/images": {
         parameters: {
             query?: never;
@@ -3655,7 +3695,35 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read one delivery assigned to the current agent
+         * @description Another agent's delivery returns 404. Recipient identity, phone and shipping address are disclosed only while the delivery is assigned, out for delivery, or awaiting retry after failure. Delivered and returned records remain readable by their assigned agent but those contact fields are null. Staff use the admin delivery-detail route.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Assignment-scoped delivery details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryDetail"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -3689,7 +3757,7 @@ export interface paths {
                          * @enum {string}
                          */
                         collection_confirmation?: "confirmed" | "unconfirmed";
-                        /** @description Required only for a confirmed collection; must be at most the amount due. */
+                        /** @description Required only for a confirmed collection. For a customer-paid trip */
                         collected_amount?: string;
                     };
                 };
@@ -3753,7 +3821,7 @@ export interface paths {
                          * @enum {string}
                          */
                         collection_confirmation?: "confirmed" | "unconfirmed";
-                        /** @description Required only for a confirmed collection; must be at most the amount due. */
+                        /** @description Required only for a confirmed collection. For a customer-paid trip */
                         collected_amount?: string;
                         /**
                          * Format: date-time
@@ -3781,6 +3849,99 @@ export interface paths {
                 422: components["responses"]["Validation"];
             };
         };
+        trace?: never;
+    };
+    "/admin/deliveries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one delivery with recipient and order details as staff
+         * @description Authorized operations staff may read any delivery, including its retained immutable shipping snapshot.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Staff delivery details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryDetail"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/deliveries/{id}/return-at-door": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Atomically deliver short and restock goods refused at the door
+         * @description For the current out-for-delivery order, recognizes the delivered sale, records a confirmed short collection equal to the refused goods' sale value, posts return_against_uncollected, and restocks the refused goods at their original issue cost in one transaction and one operation id. For a customer-paid trip, collected_amount includes the pass-through fare; only the goods amount enters store cash custody.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReturnAtDoorInput"];
+                };
+            };
+            responses: {
+                /** @description Atomic return-against-uncollected exception */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustodyException"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/admin/deliveries/unconfirmed": {
@@ -3845,7 +4006,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm the amount collected for an unconfirmed delivery
-         * @description Posts only the later full or later short confirmation map; sale revenue and COGS are never repeated.
+         * @description Posts only the later full or later short confirmation map; sale revenue and COGS are never repeated. For a customer-paid trip the pass-through fare was already excluded, so collected_amount is the amount held for the store.
          */
         post: {
             parameters: {
@@ -4830,6 +4991,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/delivery-parties/{id}/cash-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a party's separately paginated cash-custody activity
+         * @description Cash collections, receipts, receipt reversals, party liabilities, liability reversals, and trip-fare netting are paginated independently from the goods statement.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                    order_id?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated cash-custody activity with a running balance */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPartyCashActivityPage"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/delivery-parties/{id}/orders": {
         parameters: {
             query?: never;
@@ -5187,6 +5399,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/external-driver-trips/{id}/close-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview the exact operational and accounting effect of trip close
+         * @description Read-only; returns expected and received cash, fare treatment, difference, proposed journal postings, and every blocking order without changing state.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Current trip close preview */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverTripClosePreview"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/external-driver-trips/{id}/orders": {
         parameters: {
             query?: never;
@@ -5198,7 +5455,7 @@ export interface paths {
         put?: never;
         /**
          * Add and hand over one ready order to the trip driver
-         * @description Atomically reuses the delivery handover and goods-custody posting. For customer-direct fares the store delivery fee must be zero and documented customer acceptance is required.
+         * @description Atomically reuses the delivery handover and goods-custody posting. For customer-paid fares a nonzero order delivery fee is its pass-through fare share; a legacy zero-fee order may retain its separately accepted direct-fare share. Documented customer acceptance is required, and all shares must sum to the agreed trip fare before start.
          */
         post: {
             parameters: {
@@ -5285,6 +5542,197 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/external-driver-trips/{id}/orders/{orderId}/delivered": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record a delivered order through its external-driver trip
+         * @description Reuses the staff delivery posting. For customer-paid trips, collected_amount is the customer's total payment including the fare that the driver keeps; the fare is excluded from store revenue and cash custody.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                    orderId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalDriverTripDeliveredInput"];
+                };
+            };
+            responses: {
+                /** @description Updated delivery; trip history is recorded atomically */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Delivery"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/external-driver-trips/{id}/orders/{orderId}/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a failed order through its external-driver trip */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                    orderId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalDriverTripFailedInput"];
+                };
+            };
+            responses: {
+                /** @description Updated failed delivery; trip history is recorded atomically */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Delivery"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/external-driver-trips/{id}/orders/{orderId}/return-at-door": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Atomically record goods refused at the door through a trip */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                    orderId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReturnAtDoorInput"];
+                };
+            };
+            responses: {
+                /** @description Atomic return exception; trip history is recorded */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustodyException"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/external-driver-trips/{id}/orders/{orderId}/lost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record lost goods through an external-driver trip */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                    orderId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalDriverTripLossInput"];
+                };
+            };
+            responses: {
+                /** @description Goods-loss exception; trip history is recorded */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustodyException"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/external-driver-trips/{id}/close": {
         parameters: {
             query?: never;
@@ -5360,6 +5808,47 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["AdminOrder"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/orders/{id}/goods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read delivered order lines and quantities already returned or refused */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Delivered goods and remaining returnable quantities */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrderGoods"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -8317,6 +8806,8 @@ export interface paths {
                     date_from?: string;
                     date_to?: string;
                     status?: "active" | "reversed";
+                    sort_by?: "date" | "amount";
+                    sort_direction?: "asc" | "desc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -8393,6 +8884,8 @@ export interface paths {
                     cash_account_id?: string;
                     date_from?: string;
                     date_to?: string;
+                    sort_by?: "date" | "amount";
+                    sort_direction?: "asc" | "desc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -8455,6 +8948,49 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cash-receipts/reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reconcile the unallocated-receipt subledger
+         * @description Proves total receipts minus active allocations minus full reversed receipts equals total unallocated, overall and per delivery party. No separate GL account is introduced.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    party_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Overall and per-party receipt subledger reconciliation */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReceiptReconciliation"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -10686,6 +11222,10 @@ export interface components {
              */
             image_url?: string | null;
             quantity?: number;
+            /** @description SKU base unit captured when the order is created. */
+            base_unit: string;
+            /** @description SKU fractional-quantity rule captured when the order is created. */
+            whole_units_only: boolean;
             /** @description The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order. */
             unit_price?: components["schemas"]["Money"];
             price_version?: string;
@@ -10917,6 +11457,7 @@ export interface components {
             customer_name: string | null;
             customer_phone: string;
             total: components["schemas"]["Money"];
+            currency: string;
             /** @enum {string} */
             payment_method: "cod";
             /** Format: date-time */
@@ -10959,6 +11500,8 @@ export interface components {
                 product_name_ar: string;
                 product_name_en: string;
                 quantity: number;
+                base_unit: string;
+                whole_units_only: boolean;
                 unit_price: components["schemas"]["Money"];
                 line_total: components["schemas"]["Money"];
                 currency: string;
@@ -11130,6 +11673,9 @@ export interface components {
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
+            created_by?: string;
+            created_by_name?: string;
+            /** Format: uuid */
             supplier_id?: string;
             invoice_number?: string | null;
             total_cost?: number;
@@ -11289,6 +11835,10 @@ export interface components {
             }[];
         };
         PurchasingDocument: {
+            /** Format: uuid */
+            created_by?: string;
+            created_by_name?: string;
+        } & {
             [key: string]: unknown;
         };
         SupplierBalance: {
@@ -11763,6 +12313,10 @@ export interface components {
             order_item_id?: string;
             quantity?: number;
             approved_quantity?: number;
+            /** @description Order-time SKU base-unit snapshot. */
+            base_unit: string;
+            /** @description Order-time SKU fractional-quantity rule. */
+            whole_units_only: boolean;
             customer_reason?: string;
             /** @description Immutable order-line unit price. */
             unit_price?: components["schemas"]["Money"];
@@ -11845,6 +12399,29 @@ export interface components {
             data: (components["schemas"]["DeliveryParty"] & {
                 custody_summary: components["schemas"]["DeliveryPartyCustodySummary"];
             })[];
+        };
+        AdminOrderGoods: {
+            /** Format: uuid */
+            order_id: string;
+            order_number: string;
+            order_status: components["schemas"]["OrderStatus"];
+            currency_code: string;
+            lines: {
+                /** Format: uuid */
+                order_item_id: string;
+                /** Format: uuid */
+                product_id: string;
+                /** Format: uuid */
+                variant_id: string;
+                product_name_ar: string;
+                product_name_en: string;
+                ordered_quantity: number;
+                delivered_quantity: number;
+                returned_quantity: number;
+                refused_quantity: number;
+                returnable_quantity: number;
+                unit_price: number;
+            }[];
         };
         ExternalDriverCreate: {
             name: string;
@@ -11931,6 +12508,34 @@ export interface components {
             /** Format: date-time */
             event_at: string;
         };
+        ExternalDriverTripDeliveredInput: {
+            operation_id: string;
+            order_version: number;
+            /** @enum {string} */
+            collection_confirmation: "confirmed" | "unconfirmed";
+            /** @description Required when confirmed. For customer-paid trips this is the total paid by the customer */
+            collected_amount?: string;
+            source: string;
+            /** Format: date-time */
+            event_at: string;
+        };
+        ExternalDriverTripFailedInput: {
+            operation_id: string;
+            order_version: number;
+            reason: string;
+            source: string;
+            /** Format: date-time */
+            event_at: string;
+        };
+        ExternalDriverTripLossInput: components["schemas"]["FinancialDocumentInput"] & {
+            /** @enum {string} */
+            liability_bearer: "store" | "party";
+            reason: string;
+            source: string;
+            /** Format: date-time */
+            event_at: string;
+            lines: components["schemas"]["CustodyExceptionQuantityInput"][];
+        };
         ExternalDriverTripClose: {
             operation_id: string;
             /** Format: date */
@@ -11941,6 +12546,46 @@ export interface components {
             source: string;
             /** Format: date-time */
             event_at: string;
+        };
+        ExternalDriverTripClosePreview: {
+            /** Format: uuid */
+            trip_id: string;
+            /** @enum {string} */
+            trip_status: "open" | "in_progress" | "closed";
+            can_close: boolean;
+            expected_cash_iqd: number;
+            received_cash_iqd: number;
+            netted_fare_iqd: number;
+            difference_iqd: number;
+            /** @enum {string} */
+            settlement_result: "settled" | "settlement_open";
+            fare: {
+                /** @enum {string} */
+                bearer: "store" | "customer_direct";
+                amount_iqd: number;
+                /** @enum {string} */
+                settlement_method: "payable" | "cash_account" | "driver_keeps" | "customer_direct";
+                outside_store_accounts: boolean;
+                /** @enum {string|null} */
+                blocker_code: "TRIP_FARE_EXCEEDS_UNSETTLED_CASH" | null;
+            };
+            postings: {
+                /** @enum {string} */
+                event: "fare_accrual" | "fare_payment" | "fare_netting";
+                debit_account_code: string;
+                credit_account_code: string;
+                amount_iqd: number;
+            }[];
+            blocking_orders: {
+                /** Format: uuid */
+                order_id: string;
+                order_number: string;
+                order_status: components["schemas"]["OrderStatus"];
+                /** @enum {string|null} */
+                collection_status: "confirmed_full" | "confirmed_short" | "unconfirmed" | null;
+                /** @enum {string} */
+                reason: "collection_unconfirmed" | "order_unresolved";
+            }[];
         };
         ExternalDriverTrip: {
             /** Format: uuid */
@@ -11998,14 +12643,17 @@ export interface components {
             backdate_reason: string | null;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: date-time */
             created_at: string;
             /** Format: uuid */
             started_by: string | null;
+            started_by_name: string | null;
             /** Format: date-time */
             started_at: string | null;
             /** Format: uuid */
             closed_by: string | null;
+            closed_by_name: string | null;
             /** Format: date-time */
             closed_at: string | null;
         };
@@ -12084,13 +12732,14 @@ export interface components {
             order_id: string | null;
             operation_id: string;
             /** @enum {string} */
-            type: "handover" | "started" | "closed";
+            type: "handover" | "started" | "delivered" | "failed" | "return_at_door" | "lost" | "closed";
             source: string;
             note: string | null;
             /** Format: date-time */
             event_at: string;
             /** Format: uuid */
             recorded_by: string;
+            recorded_by_name: string;
             /** Format: date-time */
             recorded_at: string;
         };
@@ -12114,8 +12763,17 @@ export interface components {
             order_count: number;
             /** Format: date */
             document_date: string;
+            /** Format: uuid */
+            created_by: string;
+            created_by_name: string;
+            /** Format: uuid */
+            started_by: string | null;
+            started_by_name: string | null;
             /** Format: date-time */
             started_at: string | null;
+            /** Format: uuid */
+            closed_by: string | null;
+            closed_by_name: string | null;
             /** Format: date-time */
             closed_at: string | null;
         };
@@ -12196,10 +12854,6 @@ export interface components {
         DeliveryPartyStatementPage: components["schemas"]["Pagination"] & {
             party: components["schemas"]["DeliveryParty"];
             data: components["schemas"]["DeliveryPartyStatementEntry"][];
-            cash_activity: {
-                total: number;
-                data: components["schemas"]["DeliveryPartyCashStatementEntry"][];
-            };
             trips: components["schemas"]["ExternalDriverTripStatement"][];
         };
         DeliveryPartyCashStatementEntry: {
@@ -12228,6 +12882,10 @@ export interface components {
                 amount_iqd: number;
             }[];
             running_cash_iqd: number;
+        };
+        DeliveryPartyCashActivityPage: components["schemas"]["Pagination"] & {
+            party: components["schemas"]["DeliveryParty"];
+            data: components["schemas"]["DeliveryPartyCashStatementEntry"][];
         };
         DeliveryPartyHeldOrders: {
             party: components["schemas"]["DeliveryParty"];
@@ -12379,6 +13037,51 @@ export interface components {
             retry_count?: number;
             attempts?: components["schemas"]["DeliveryAttempt"][];
             collection?: components["schemas"]["DeliveryCollection"] | null;
+        };
+        DeliveryDetail: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            order_id: string;
+            order_number: string;
+            order_version: number;
+            /** @enum {string} */
+            status: "assigned" | "out_for_delivery" | "delivered" | "failed" | "returned";
+            currency: string;
+            amount_due: components["schemas"]["Money"];
+            /** @description Null for terminal deliveries on the agent route. */
+            recipient_name: string | null;
+            /** @description Null for terminal deliveries on the agent route. */
+            recipient_phone: string | null;
+            shipping_address: null | {
+                label: string | null;
+                city: string;
+                area: string | null;
+                street: string | null;
+                details: string | null;
+                /** Format: double */
+                lat: number | null;
+                /** Format: double */
+                lng: number | null;
+            };
+            items: {
+                /** Format: uuid */
+                id: string;
+                product_name_ar: string;
+                product_name_en: string;
+                /** Format: uuid */
+                variant_id: string;
+                variant_sku: string;
+                variant_attributes: {
+                    [key: string]: unknown;
+                } | null;
+                quantity: number;
+                base_unit: string;
+                whole_units_only: boolean;
+                unit_price: components["schemas"]["Money"];
+                line_total: components["schemas"]["Money"];
+                currency: string;
+            }[];
         };
         CustomerDeliveryAttempt: {
             /** Format: uuid */
@@ -12874,6 +13577,7 @@ export interface components {
             status: "pending" | "approved" | "rejected";
             /** Format: uuid */
             proposed_by: string;
+            proposed_by_name: string;
             proposer: {
                 /** Format: uuid */
                 id: string;
@@ -12881,6 +13585,7 @@ export interface components {
             };
             /** Format: uuid */
             decided_by: string | null;
+            decided_by_name: string | null;
             decider: null | {
                 /** Format: uuid */
                 id: string;
@@ -13137,6 +13842,7 @@ export interface components {
             backdate_reason: string | null;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: date-time */
             created_at: string;
             /** @description False when the parent voucher has been reversed. */
@@ -13157,6 +13863,7 @@ export interface components {
             accounting_date: string;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: uuid */
             journal_entry_id: string;
             /** Format: date-time */
@@ -13192,6 +13899,7 @@ export interface components {
             notes: string | null;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: uuid */
             journal_entry_id: string;
             /** Format: date-time */
@@ -13201,6 +13909,27 @@ export interface components {
         };
         CashReceiptPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["CashReceiptVoucher"][];
+        };
+        CashReceiptReconciliationTotals: {
+            total_receipts_iqd: number;
+            total_allocations_iqd: number;
+            total_reversals_iqd: number;
+            total_unallocated_iqd: number;
+        };
+        CashReceiptPartyReconciliation: components["schemas"]["CashReceiptReconciliationTotals"] & {
+            party: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                kind: "internal_agent" | "external_driver";
+                name: string;
+            };
+        };
+        CashReceiptReconciliation: {
+            /** @constant */
+            currency: "IQD";
+            overall: components["schemas"]["CashReceiptReconciliationTotals"];
+            parties: components["schemas"]["CashReceiptPartyReconciliation"][];
         };
         CashReceiptSuggestions: {
             party: {
@@ -13247,6 +13976,14 @@ export interface components {
             /** Format: uuid */
             order_id: string;
             reason: string;
+            lines: components["schemas"]["CustodyExceptionReturnLineInput"][];
+        };
+        ReturnAtDoorInput: components["schemas"]["FinancialDocumentInput"] & {
+            order_version: number;
+            reason: string;
+            source: string;
+            /** Format: date-time */
+            event_at: string;
             lines: components["schemas"]["CustodyExceptionReturnLineInput"][];
         };
         DeliveryFeeRefundInput: components["schemas"]["FinancialDocumentInput"] & {
@@ -13325,6 +14062,7 @@ export interface components {
             accounting_date: string;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: date-time */
             created_at: string;
             postings: components["schemas"]["CustodyExceptionReversalPosting"][];
@@ -13363,6 +14101,7 @@ export interface components {
             backdate_reason: string | null;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: date-time */
             created_at: string;
             party: components["schemas"]["DeliveryPartySummary"];
