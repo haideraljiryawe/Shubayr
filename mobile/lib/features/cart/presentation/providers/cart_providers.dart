@@ -249,7 +249,27 @@ class CartController extends AsyncNotifier<Cart> {
         if (requireFreshSnapshot && generation == _loadGeneration) {
           state = AsyncError(error, stack);
         }
-        // Ordinary line mutations retain the last valid cart (C02).
+        if (error is AppFailure && error.requiresCartRefresh) {
+          // Stay inside the mutation lane. A newer account/refresh owns its
+          // own snapshot; no rejected write is retried as part of recovery.
+          try {
+            final fresh = await repository.fetchCart();
+            if (_owns(owner) && generation == _loadGeneration) {
+              state = AsyncData(fresh);
+            }
+          } catch (refreshError, refreshStack) {
+            if (_owns(owner) && generation == _loadGeneration) {
+              state = AsyncError(
+                actionFailure(refreshError, refreshStack),
+                refreshStack,
+              );
+            }
+          }
+          if (!_owns(owner)) {
+            return const CartMutationResult(CartMutationStatus.superseded);
+          }
+        }
+        // Other ordinary line failures retain the last valid cart (C02).
         return CartMutationResult(
           CartMutationStatus.failed,
           error: actionFailure(error, stack),

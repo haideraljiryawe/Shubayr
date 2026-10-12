@@ -195,7 +195,16 @@
     }
   },
   "productReviewsPreview": "Showing {shown} of {total} reviews — preview",
-  "@productReviewsPreview": {"placeholders": {"shown": {"type": "String"}, "total": {"type": "String"}}},
+  "@productReviewsPreview": {
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "productReviews": "Reviews",
   "productNoReviews": "No reviews yet",
   "productReviewsCount": "{count} reviews",
@@ -761,5 +770,18 @@
         "type": "String"
       }
     }
-  }
+  },
+  "errorCheckoutIdentity": "This checkout conflicts with a previous request. Resolve the previous checkout before trying again.",
+  "errorCartEmpty": "Your cart is empty. Add items before checking out.",
+  "errorCartQuantity": "A cart quantity is invalid. Review and update your quantities.",
+  "errorCartUnavailable": "An item is no longer available. Review your cart and remove or replace it.",
+  "errorStockShortage": "The requested quantity is no longer available. Review the updated stock and choose a smaller quantity.",
+  "errorWholeUnits": "This item is sold in whole units. Enter a whole-number quantity.",
+  "errorCouponInvalid": "This coupon cannot be used. Remove it or enter another code.",
+  "errorPriceChanged": "Prices have changed. Review the latest prices before confirming your order.",
+  "errorOrderAccess": "This order is not available to your account. Return to your orders list.",
+  "errorCancellationNotAllowed": "Cancellation is not available in the current order state. Review the updated order.",
+  "errorCancellationPending": "A cancellation request is already pending for this order.",
+  "errorReductionResolved": "This quantity proposal is no longer pending. Review the updated order.",
+  "errorPaidCancellation": "This paid order cannot be cancelled here. Contact the store for help."
 }

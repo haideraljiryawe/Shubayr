@@ -1865,4 +1865,55 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get orderDecisionSaved => 'تم حفظ ردك.';
+
+  @override
+  String get errorCheckoutIdentity =>
+      'يتعارض إتمام الطلب مع طلب سابق. تحقّق من نتيجة الطلب السابق قبل المحاولة مجددًا.';
+
+  @override
+  String get errorCartEmpty => 'سلتك فارغة. أضف منتجات قبل إتمام الطلب.';
+
+  @override
+  String get errorCartQuantity =>
+      'إحدى كميات السلة غير صالحة. راجع الكميات وعدّلها.';
+
+  @override
+  String get errorCartUnavailable =>
+      'أحد المنتجات لم يعد متاحًا. راجع سلتك واحذفه أو استبدله.';
+
+  @override
+  String get errorStockShortage =>
+      'الكمية المطلوبة لم تعد متاحة. راجع التوفر المحدّث واختر كمية أقل.';
+
+  @override
+  String get errorWholeUnits =>
+      'يُباع هذا المنتج بوحدات كاملة. أدخل كمية بعدد صحيح.';
+
+  @override
+  String get errorCouponInvalid =>
+      'لا يمكن استخدام هذه القسيمة. احذفها أو أدخل رمزًا آخر.';
+
+  @override
+  String get errorPriceChanged =>
+      'تغيّرت الأسعار. راجع الأسعار الجديدة قبل تأكيد طلبك.';
+
+  @override
+  String get errorOrderAccess =>
+      'هذا الطلب غير متاح لحسابك. ارجع إلى قائمة طلباتك.';
+
+  @override
+  String get errorCancellationNotAllowed =>
+      'الإلغاء غير متاح في حالة الطلب الحالية. راجع الطلب المحدّث.';
+
+  @override
+  String get errorCancellationPending =>
+      'يوجد طلب إلغاء قيد الانتظار لهذا الطلب.';
+
+  @override
+  String get errorReductionResolved =>
+      'مقترح تعديل الكمية لم يعد قيد الانتظار. راجع الطلب المحدّث.';
+
+  @override
+  String get errorPaidCancellation =>
+      'لا يمكن إلغاء هذا الطلب المدفوع من هنا. تواصل مع المتجر للمساعدة.';
 }

@@ -398,7 +398,7 @@ void main() {
         expect(container.read(cartControllerProvider).requireValue.id, 'valid');
         expect(find.text(l10n.cartAdded), findsNothing);
         expect(
-          find.text(l10n.stateErrorTitle),
+          find.text(l10n.errorNetwork),
           switchSession ? findsNothing : findsOneWidget,
         );
         await tester.pump(const Duration(seconds: 4));

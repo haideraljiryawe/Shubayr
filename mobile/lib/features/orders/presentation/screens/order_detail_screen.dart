@@ -109,7 +109,8 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
         showAppSnackBarMessage(
           context,
           message: error is AppFailure
-              ? (error.statusCode == 409
+              ? (error.statusCode == 409 &&
+                        (error.code == null || error.code == 'CONFLICT')
                     ? l10n.orderStateConflict
                     : error.localizedMessage(l10n))
               : l10n.stateErrorTitle,
