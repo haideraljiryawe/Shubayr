@@ -158,6 +158,8 @@ export function CheckoutFlow() {
       product_id: line.product_id,
       variant_id: line.variant_id ?? undefined,
       quantity: line.quantity,
+      base_unit: line.base_unit ?? "piece",
+      whole_units_only: line.whole_units_only ?? true,
       unit_price: line.unit_price,
       line_total: line.line_total,
     }));

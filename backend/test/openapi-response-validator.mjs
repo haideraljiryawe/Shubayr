@@ -112,7 +112,11 @@ if (api) {
       return undefined;
     }
     const path = url.pathname.slice(base.pathname.length) || '/';
-    for (const [template, pathItem] of Object.entries(document.paths)) {
+    const pathsBySpecificity = Object.entries(document.paths).sort(
+      ([left], [right]) =>
+        (left.match(/\{/g)?.length ?? 0) - (right.match(/\{/g)?.length ?? 0),
+    );
+    for (const [template, pathItem] of pathsBySpecificity) {
       const pattern = new RegExp(
         `^${template
           .split('/')

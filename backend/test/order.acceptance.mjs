@@ -232,6 +232,16 @@ check(placed.status, 'pending', 'new COD order starts pending');
 check(placed.items[0].unit_price, 15075, 'checkout snaps current server price');
 check(placed.items[0].line_total, 30150, 'checkout snaps line total');
 check(
+  placed.items[0].base_unit,
+  variant.base_unit,
+  'checkout snapshots the SKU base unit',
+);
+check(
+  placed.items[0].whole_units_only,
+  variant.whole_units_only,
+  'checkout snapshots the SKU quantity rule',
+);
+check(
   placed.total,
   couponCart.total,
   'checkout recomputes coupon-inclusive total',

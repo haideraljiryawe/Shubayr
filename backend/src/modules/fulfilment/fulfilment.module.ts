@@ -23,10 +23,11 @@ import { ExternalDriverTripHistoryService } from './external-driver-trip-history
 @Module({
   imports: [LoyaltyModule, InventoryModule, FinanceModule],
   controllers: [
+    // Register literal /deliveries/custody before /deliveries/:id.
+    AgentCustodyController,
     DeliveriesController,
     AdminDeliveriesController,
     DeliveryAgentsController,
-    AgentCustodyController,
     DeliveryPartiesController,
     ExternalDriversController,
     CustodyExceptionsController,
