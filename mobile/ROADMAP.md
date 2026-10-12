@@ -1,7 +1,10 @@
 # Shubayr Mobile — Customer Release 1 Roadmap
 
-Reviewed **12 October 2026 (Asia/Baghdad)** against fetched `origin/main` at
-`179c0ca5f74c32fbe080c8ad9152dc10394eeba6`. **Not production-ready.**
+Reviewed **12 October 2026 (Asia/Baghdad)**; updated with the account holder's
+physical-iPhone results and completed local navigation verification from that date.
+**Not production-ready.** The prior contract/integration review baseline remains
+`origin/main` at `179c0ca5f74c32fbe080c8ad9152dc10394eeba6` (API 14.2.0); remote
+contract, PR and console status were not rechecked for this documentation update.
 This replaces the old API 8/11 roadmap and preserves the original 21-item numbering
 from the [readiness report](docs/release-1-readiness.md#exact-21-item-coverage).
 
@@ -13,11 +16,11 @@ from the [readiness report](docs/release-1-readiness.md#exact-21-item-coverage).
 | Product scope | Guest browsing and **customer-only Release 1**. Delivery-agent code is preserved but disabled in profile/release. Order-monitor development is frozen; non-customer sessions are excluded from profile/release. Web Admin remains separate. |
 | Completed capabilities | Remote browsing/search/offers, customer OTP/session isolation, cart/addresses, wishlist/reviews, COD checkout and recovery, versioned order decisions, order snapshots/history, stock recovery, bilingual errors, server availability, two-level categories, unavailable-product state, historical return quantities, account deletion and customer-only access. |
 | Integration | #109 and #115–#128 are present in fetched main's merge history. GitHub confirms [#128 merged](https://github.com/haideraljiryawe/Shubayr/pull/128) at `179c0ca`. No repeat integration or reimplementation is planned. |
-| Automated evidence | **2,061 Flutter tests passed; 5 existing skips; analyzer clean**, recorded in the readiness report and #128 handoff. Before this edit, current `mobile/` differs from verified source baseline `1476aa5` only in the readiness report. Tests were **not rerun** for this documentation task. |
+| Automated evidence | Historical baseline: **2,061 Flutter tests passed; 5 existing skips; analyzer clean**, recorded in the readiness report and #128 handoff. On 12 October, **142 relevant notification/navigation/session tests passed; Flutter analysis clean; `git diff --check` passed** for the Firebase Back-navigation fix. These are separate runs, not additive totals. The implementation remains uncommitted on `mobile`; tests were **not rerun** for this documentation update. |
 | GitHub evidence | Final #128 head `60dfaa0`: [CI](https://github.com/haideraljiryawe/Shubayr/actions/runs/38262204304) and [Secret scan](https://github.com/haideraljiryawe/Shubayr/actions/runs/38262204285) completed successfully, rechecked through GitHub. This is PR-head evidence, not a fresh release/deployment test. |
-| Native evidence | Previously recorded unsigned iOS release compilation passed. Android AAB packaging stopped at the production-signing guard because signing configuration was absent. Neither is a verified distribution release. |
-| Remaining Release 1 scope | D1 integration (13–16), real Firebase/APNs delivery (17), official privacy/support destinations (19), signing/store preparation (20), and deployed bilingual/device acceptance (21). |
-| Developer accounts | Developer reports active, recently created **individual Apple Developer and personal Google Play Console accounts**, and has informed the lead. Publishing through them is currently expected. Console eligibility, identifiers, signing, testing and approval have not been independently verified. |
+| Native evidence | Apple Development signing and physical-iPhone Firebase initialization, permission, APNs/FCM tokens, API registration (HTTP 201), Console push delivery, background/lock-screen notifications, sound, foreground Snackbar and notification taps succeeded. Previously recorded unsigned iOS release compilation passed; Android AAB packaging stopped at the production-signing guard. Development-device results do not verify distribution signing, Android delivery or Backend-originated push. |
+| Remaining Release 1 scope | D1 integration (13–16), Backend-originated push and full Android/iOS lifecycle acceptance (17), official privacy/support destinations (19), distribution signing/store preparation (20), and deployed bilingual/device acceptance (21). |
+| Developer accounts | Account holder confirms **Apple Developer account verification and iOS development signing**, plus **Google Play Console account and application registration**. Firebase project `shubayr-38835` and Android/iOS apps (`com.shubayr.app`) are registered; APNs Development and Production credentials are configured. Distribution signing, full console prerequisites, testing eligibility and store approval remain open. |
 
 ### Status meanings and counts
 
@@ -68,18 +71,19 @@ is performed once under item 21, not scheduled as new feature implementation.
 | 14 | [ ] Zone delivery fees and DELIVERY_ZONE_NOT_SERVED | BLOCKED | B prices; M presents | Integrate server fees/refusal after D1. | Published zone pricing and route error schema. | Served address uses server fee; unserved address prevents checkout with actionable feedback. |
 | 15 | [ ] Automatic goods discounts and RTL progress | BLOCKED | B calculates; M presents | Integrate discount/next-tier display after D1. | Published tier/progress schema, rounding and coupon rules. | Server totals retained; goods-only automatic discount versus coupon follows approved larger-benefit rule; Arabic/English/RTL progress works. |
 | 16 | [ ] Adjusted delivery fees/totals after phone confirmation | BLOCKED | B/staff workflow; M refreshes | Integrate adjustment/notification after D1; existing server fee/total display retained. | Published adjustment and notification behavior. | Customer sees revised server fee/total after staff confirmation; no new customer acceptance step. |
-| 17 | [ ] Native Firebase push | PARTIAL | M + B; Apple/Firebase setup | Configure existing integration; complete device matrix. | Firebase options, APNs, deployed FCM sender, physical devices. | Receipt/taps in foreground/background/cold start, permission changes and token/account lifecycle pass on both platforms. |
+| 17 | [ ] Native Firebase push | PARTIAL | M + B | iPhone setup/Console delivery and Mobile Back-navigation fix complete; finish Backend-originated delivery and full device/lifecycle matrix. | Enabled matching Backend sender, Android physical-device verification, normally terminated delivery and remaining lifecycle evidence. | Receipt/taps in foreground/background/cold start, permission changes and token/account lifecycle pass on both platforms; Firebase entry returns Home without changing normal Home/Account navigation. |
 | 18 | [x] Account deletion and private-state cleanup | DONE | M; B for live acceptance | No coding; verify success/blockers in 21. | Deployed deletion workflow. | `DELETE /me/account` 204 clears credentials/journals and resets push; blockers retain session; other accounts remain isolated. |
 | 19 | [ ] Functional official privacy and support links | PARTIAL | L publishes; M configures | Set real `PRIVACY_POLICY_URL`/`SUPPORT_DESTINATION`; test opening. | Approved policy/contact not supplied in verified release configuration. | Published policy and approved HTTPS/mailto/tel support open on Android/iOS; no placeholder/unavailable fallback at launch. |
-| 20 | [ ] Signed Android AAB, iOS distribution archive, stable localization | BLOCKED | M/account holder; P processes | Prepare signing, distribute builds and finish store setup; localization generation already verified. | Upload key, distribution identity/profiles, actual configuration and console requirements. | Signed AAB and archive/export accepted by stores; installed test builds work; localization remains reproducible. |
-| 21 | [ ] Deployed API and bilingual/RTL device testing | BLOCKED | M + B + L/QA | Execute section 8 on intended release candidate. | HTTPS deployment/URL, accounts/data, D1 and platform configuration. | Physical Android/iOS Arabic/English/RTL journeys pass; evidence and team approval recorded. |
+| 20 | [ ] Signed Android AAB, iOS distribution archive, stable localization | BLOCKED | M/account holder; P processes | Apple development signing and Play app registration complete; finish distribution signing, store uploads/testing and remaining setup; localization generation already verified. | Upload key, distribution identity/profiles, actual configuration and console requirements. | Signed AAB and archive/export accepted by stores; installed test builds work; localization remains reproducible. |
+| 21 | [ ] Deployed API and bilingual/RTL device testing | BLOCKED | M + B + L/QA | iPhone Console push scenarios recorded; complete section 8 on intended release candidate. | HTTPS deployment/URL, accounts/data, D1 and platform configuration. | Physical Android/iOS Arabic/English/RTL journeys pass; evidence and team approval recorded. |
 
 ## 3. Mobile Developer — Independent Action Plan
 
-These are future checklists, not actions performed during this documentation task.
-Account ownership is user-reported. Active membership does not prove production
-access, identifier availability, signing readiness or store approval. Preparation
-can start without D1; later steps identify where another party is needed.
+Checked milestones below record completed work from 12 October; this documentation
+update performs no setup or testing. Console/device results are account-holder
+confirmed; navigation regression results were recorded locally. Composite steps
+remain unchecked when any acceptance criterion is outstanding. Development signing
+and Console push success do not establish distribution or store approval.
 
 ### Individual-account implications
 
@@ -106,19 +110,22 @@ can start without D1; later steps identify where another party is needed.
 
 1. [ ] Verify individual membership/expiry, two-factor authentication, account-holder
    permissions, pending agreements, Certificates/Identifiers/Profiles access and
-   App Store Connect access. Record status without credentials.
-2. [ ] Verify availability/ownership of explicit App ID **`com.shubayr.app`**, the
-   existing iOS bundle identifier. Resolve collisions with L before requesting
-   any identifier change.
-3. [ ] Enable Push Notifications on that App ID. Check Xcode capabilities against
-   [Firebase Apple setup](https://firebase.google.com/docs/cloud-messaging/flutter/get-started):
-   Push Notifications and background modes. Source already declares remote
-   notifications and APNs entitlements; verify Background fetch as directed by
-   the platform guide during integration. Keep method swizzling enabled.
+   App Store Connect access. Record status without credentials. **Partial:** Apple
+   account verification and working development signing confirmed on 12 October;
+   the full expiry/2FA/agreements/access checklist is not recorded as complete.
+2. [x] Verify availability/ownership of explicit App ID **`com.shubayr.app`**, the
+   existing iOS bundle identifier. Confirmed by the registered app and successful
+   signed physical-iPhone installation; no identifier change required.
+3. [x] Enable Push Notifications on that App ID and verify the development app
+   capabilities: remote-notification background mode, APNs entitlements and method
+   swizzling retained. APNs/FCM acquisition and real delivery succeeded. Background
+   fetch was not required for the verified implementation; no unrelated capability
+   was enabled. [Firebase Apple setup](https://firebase.google.com/docs/cloud-messaging/flutter/get-started).
 4. [ ] Select the intended Apple team and prepare an Apple Distribution identity
    and App Store distribution profile, or verify Xcode-managed equivalents.
    Regenerate profiles after enabling Push; verify bundle ID and production APNs
-   entitlement. Local development signing alone does not satisfy distribution.
+   entitlement. **Partial:** team `2C54WHGQ29` and Apple Development signing work;
+   distribution identity/profile and signed distribution artifact remain unverified.
 5. [ ] Create the App Store Connect record with matching bundle ID, approved name,
    primary language and recorded internal SKU. Check agreements and applicable
    tax/banking requirements for the chosen distribution model.
@@ -146,10 +153,14 @@ can start without D1; later steps identify where another party is needed.
 1. [ ] Verify personal account identity/contact status, owner permissions, country
    and pending Dashboard tasks. Complete required device verification using the
    Play Console app on a non-rooted Android 10+ device if pending.
+   **Partial:** account registration is complete; remaining Dashboard/device
+   verification and publishing eligibility are not recorded as complete.
    [Device verification](https://support.google.com/googleplay/android-developer/answer/14316361?hl=en).
 2. [ ] Confirm **`com.shubayr.app`** in Android source and the intended Play app;
    verify availability/ownership through the console/upload process. Prepare
    app record, default language, approved name, category and distribution choices.
+   **Partial:** Play application registration is complete for `com.shubayr.app`;
+   final listing/distribution choices and signed-upload validation remain open.
    Do not silently change the application ID.
 3. [ ] Draft Arabic/English short/full descriptions, icon, feature graphic,
    screenshots, support contact and privacy link; obtain L's final assets/approval.
@@ -185,21 +196,21 @@ Backend delivery can be completed independently.
 
 | Step | Action | Owner / prerequisite | Completion evidence |
 | --- | --- | --- | --- |
-| 1 | [ ] Create a Firebase project for Shubayr after agreeing ownership/environment with B/L; first check that the intended project does not already exist. | M executes; shared decision. | Project ID and access owners recorded; correct Backend environment selected. |
-| 2 | [ ] Register Android application. | M alone; project access. | Firebase Android package is `com.shubayr.app`. |
-| 3 | [ ] Register iOS application. | M alone; project access. | Firebase Apple bundle is `com.shubayr.app`. |
-| 4 | [ ] Cross-check native identifiers and each platform's distinct Firebase app ID. | M alone. | Source, Apple/Play and Firebase registrations agree. |
-| 5 | [ ] Obtain public client API key, app ID, sender ID and project ID from actual Firebase app configuration. | M alone. | Values mapped to the exact four keys in section 4. |
-| 6 | [ ] Prepare external per-platform build files and use `--dart-define-from-file`; retain explicit `FirebaseOptions` initialization. | M; API/policy/support supplied separately. | Correct project initializes; no replacement generated configuration architecture. |
+| 1 | [ ] Create a Firebase project for Shubayr after agreeing ownership/environment with B/L; first check that the intended project does not already exist. | M executes; shared decision. | **Partial:** project `shubayr-38835` created. Shared access/ownership records and intended Backend environment alignment remain to be confirmed. |
+| 2 | [x] Register Android application. | M alone; project access. | Firebase Android package is `com.shubayr.app`. |
+| 3 | [x] Register iOS application. | M alone; project access. | Firebase Apple bundle is `com.shubayr.app`. |
+| 4 | [x] Cross-check native identifiers and each platform's distinct Firebase app ID. | M alone. | Native/registered identifiers are `com.shubayr.app`; external configuration validation confirmed distinct Android/iOS Firebase app IDs. |
+| 5 | [x] Obtain public client API key, app ID, sender ID and project ID from actual Firebase app configuration. | M alone. | Values mapped to the exact four keys in section 4. |
+| 6 | [x] Prepare external per-platform build files and use `--dart-define-from-file`; retain explicit `FirebaseOptions` initialization. | M; API/policy/support supplied separately. | External `shubayr-android.json` and `shubayr-ios.json` prepared/validated; real iPhone initializes `shubayr-38835` through the existing options architecture. Android runtime verification remains in steps 7 and 11–17. |
 | 7 | [ ] Verify Android `POST_NOTIFICATIONS` and Account enable action; test Android 13+ allow/deny/revoke. | M; physical device/configured app. | No automatic permission prompt; registration respects permission and verified customer ownership. |
-| 8 | [ ] Verify Apple Push/background capabilities, entitlements and regenerated provisioning. | M alone; Apple access. | Distribution build has production APNs entitlement; source Debug uses development, Profile/Release production. |
-| 9 | [ ] Generate/select APNs authentication key or supported certificate; securely record Team ID/key ID. | M alone; Apple permissions. | Valid credential with correct scope; private material secured. |
-| 10 | [ ] Link APNs credential to the correct Firebase iOS app in Cloud Messaging settings. | M; Apple/Firebase access; shared project. | Signed bundle and APNs/Firebase setup match; no private key in app/Git. |
-| 11 | [ ] Verify real Firebase Messaging token retrieval after login/permission; wait for actual APNs token on iOS. | M; platform setup and working login API. | Existing `getToken()` lifecycle obtains real token; no synthetic token or shared-log exposure. |
-| 12 | [ ] Verify API registration/reactivation. | M + B; deployed authenticated API. | `POST /devices/token` returns 201 for `{token, platform, locale}`; correct owner/platform/locale stored. |
-| 13 | [ ] Send real customer event while foregrounded. | M + B; FCM worker enabled. | Inbox/badge refresh; generic localized notice opens current customer's inbox. |
-| 14 | [ ] Test background and normally terminated delivery on both platforms. | M + B; FCM/APNs and OS permission. | OS notification appears; background handler does not navigate/mutate account state; record force-stop limitations separately. |
-| 15 | [ ] Test notification taps from background and cold start. | M + B. | Waits for verified customer/startup readiness, then opens inbox; no arbitrary push URL/order route. |
+| 8 | [ ] Verify Apple Push/background capabilities, entitlements and regenerated provisioning. | M alone; Apple access. | **Partial:** development signing, remote-notification mode, APNs entitlement and iPhone delivery verified. Distribution provisioning/production entitlement remains unverified. Source Profile/Release requests production; actual signed entitlement must match provisioning, not an assumed build-mode environment. |
+| 9 | [ ] Generate/select APNs authentication key or supported certificate; securely record Team ID/key ID. | M alone; Apple permissions. | **Partial:** Development and Production APNs credentials configured; secure custody/recovery and key-identification records are not documented here as complete. |
+| 10 | [x] Link APNs credential to the correct Firebase iOS app in Cloud Messaging settings. | M; Apple/Firebase access; shared project. | Development and Production credentials configured for the matching Firebase iOS app; development-device delivery verified. No private key in app/Git; production-distribution delivery remains a separate check. |
+| 11 | [ ] Verify real Firebase Messaging token retrieval after login/permission; wait for actual APNs token on iOS. | M; platform setup and working login API. | **Partial:** physical iPhone permission, APNs token then FCM token acquisition verified through the existing lifecycle. Android verification remains; no token values recorded here. |
+| 12 | [ ] Verify API registration/reactivation. | M + B; deployed authenticated API. | **Partial:** physical-iPhone `POST /devices/token` returned HTTP 201. Reactivation, persisted owner/platform/locale checks and Android verification remain. |
+| 13 | [ ] Send real customer event while foregrounded. | M + B; FCM worker enabled. | **Partial:** Console foreground delivery and Snackbar action verified on iPhone; Back-to-Home fix regression-tested. Backend event, persisted inbox/badge and Android acceptance remain. |
+| 14 | [ ] Test background and normally terminated delivery on both platforms. | M + B; FCM/APNs and OS permission. | **Partial:** iPhone Console background/lock-screen delivery and sound passed. Android and normally terminated delivery remain; verify background handler isolation and record force-stop limitations separately. |
+| 15 | [ ] Test notification taps from background and cold start. | M + B. | **Partial:** iPhone notification taps succeeded; Home-backed navigation, startup/session guards and cold-entry routing passed automated tests. Physical cold-start and Android tap acceptance remain; no arbitrary push URL/order route. |
 | 16 | [ ] Test rotation, locale, resume, permission revocation, online/offline logout and reconnect. | M + B checks server state. | Correct token retires/reactivates; FCM reset on logout; offline server cleanup is not assumed. |
 | 17 | [ ] Test rapid account switching, deletion success/blockers and sign-in after deletion. | M + B; two test customers. | No stale-account content/navigation; correct token ownership; deletion resets FCM without relying on revoked API credentials. |
 
@@ -209,6 +220,31 @@ steps 12–17 through Backend events before closing item 17. Distinguish normal
 background/terminated behavior from OS force-stop restrictions using the
 [Firebase message guide](https://firebase.google.com/docs/cloud-messaging/flutter/receive-messages).
 This documentation task creates no projects, keys or credentials.
+
+### 12 October 2026 — completed milestones within items 17, 20 and 21
+
+- [x] Apple Developer account verification and development-signed physical-iPhone launch.
+- [x] Google Play Console account and Shubayr application registration.
+- [x] Firebase project `shubayr-38835` creation and Android/iOS app registration.
+- [x] External per-platform Firebase configuration prepared without replacing `FirebaseOptions`.
+- [x] APNs Development and Production credentials configured in Firebase.
+- [x] Physical iPhone: Firebase initialization, notification authorization, APNs/FCM
+  acquisition and Backend device registration (HTTP 201).
+- [x] Physical iPhone: Firebase Console delivery, background and lock-screen
+  notifications, audible sound, foreground Snackbar handling and notification taps.
+- [x] Mobile Firebase Back-navigation fix: `/home/notifications` supplies Home
+  beneath the existing inbox on the root Navigator. Normal `/notifications` pushes
+  still return to their Home/Account caller. Existing AppBar/RTL design is reused.
+- [x] **142 relevant tests passed; Flutter analysis clean; diff whitespace check
+  passed** for the navigation fix. Real-router tests cover Android system Back,
+  iOS completed/cancelled swipes, Arabic/English, repeated events, cold-entry
+  processing, private routes, stale sessions and notification detail navigation.
+
+Physical-device results above are account-holder confirmed. The new Back fix is
+verified by automated tests; post-fix real-device confirmation remains open.
+Normal terminated-state delivery, physical Android acceptance, Backend-originated
+push and the complete token/permission/account lifecycle are **not complete**.
+Requirement **17 remains PARTIAL**; these milestones do not close 20 or 21.
 
 ### D. Signing and distribution
 
@@ -225,7 +261,9 @@ This documentation task creates no projects, keys or credentials.
    development context and does not prove distribution readiness.
 4. [ ] Obtain real HTTPS API, policy/support destinations and per-platform Firebase
    options. Profile/release reject local, IP-literal, placeholder and development
-   hosts; do not bypass validation to make a test release.
+   hosts; do not bypass validation to make a test release. **Partial:** real
+   per-platform Firebase options are prepared; production API and official links
+   remain outstanding.
 5. [ ] Verify the Android SDK/JDK and supported Xcode/CocoaPods toolchains on the
    signing machine. Run final checks and build signed AAB and iOS archive/export.
    Current version is `1.0.1+2`; inspect prior store uploads before selecting
@@ -309,7 +347,11 @@ resets local FCM without attempting DELETE with revoked credentials.
 Backend source currently sends `notification: {title, body}` without push navigation
 data. Foreground receipt refreshes inbox/badge and shows generic localized feedback;
 the OS presents background messages. Taps open the authenticated inbox after
-startup. Existing API inbox entries retain role-checked destinations. Do not invent
+startup. Firebase entry now uses `/home/notifications`, a Home child displayed on
+the root Navigator; Back returns Home without duplicate Home routes. Normal
+Home/Account entry still pushes `/notifications` and returns to its caller. This
+fix retains startup/customer/session-revision guards and passed real-router tests.
+Existing API inbox entries retain role-checked destinations. Do not invent
 push `order_id`/deep-link fields, direct routes or a new token protocol for setup.
 Source behavior is not proof that the deployed sender is active.
 
@@ -369,15 +411,16 @@ Prerequisite: access to existing personal accounts and repository.
 
 | Order | Action | Who | Expected result / completion check |
 | --- | --- | --- | --- |
-| A1 | [ ] Audit membership, identity, permissions, agreements, public identity and pending console tasks. | M | Dated account-status record with actual blockers; no assumed approval. |
-| A2 | [ ] Check `com.shubayr.app` availability/ownership; prepare secure signing storage. | M | Identifier mapping and signing checklist; resolve collisions before changes. |
+| A1 | [ ] Audit membership, identity, permissions, agreements, public identity and pending console tasks. | M | **Partial:** Apple account verification and Play account/app registration complete; remaining agreements, public-identity review, console gates and publishing eligibility still need a full record. |
+| A2 | [ ] Check `com.shubayr.app` availability/ownership; prepare secure signing storage. | M | **Partial:** `com.shubayr.app` registrations and iOS development signing verified; secure distribution-signing storage/checklist remain open. |
 | A3 | [ ] Draft metadata and data inventory; prepare dependency request from sections 5–6. | M | Reviewable drafts and named missing deliverables; no fabricated URLs/legal claims. |
 | A4 | [ ] Recruit at least 12 prospective closed testers; prepare device matrix, opt-in instructions and scenarios. | M; testers later | Roster/test plan ready; qualifying clock not yet claimed. |
-| A5 | [ ] Prepare exact build-config key inventory, signing checklist and acceptance cases for completed requirements. | M | Configuration/evidence templates ready; no speculative D1 or repeated feature work. |
+| A5 | [ ] Prepare exact build-config key inventory, signing checklist and acceptance cases for completed requirements. | M | **Partial:** Firebase four-key inventory/external files and push navigation regressions complete; full signing and release acceptance templates remain open. |
 
-**Recommended first milestone: A1–A2 — verify both personal accounts and app
-identifiers, then list remaining signing/console gates.** No D1 or production API
-is needed for that audit. Begin tester recruitment alongside it.
+**Next milestones:** finish the remaining A1–A2 console/distribution-signing gates,
+coordinate Backend FCM delivery and complete Android/iOS lifecycle acceptance.
+Do not repeat the completed account registration, Firebase setup or iPhone Console
+tests as new implementation work. Tester recruitment can proceed alongside this.
 
 ### PHASE B — Firebase and platform integration
 
@@ -386,9 +429,9 @@ API for token tests, and approved configuration for signed release builds.
 
 | Order | Action | Who | Expected result / completion check |
 | --- | --- | --- | --- |
-| B1 | [ ] Agree project/environment ownership; execute section 3C steps 1–6. | M + B/L | Both platform client options match intended Backend project. |
-| B2 | [ ] Configure APNs/capabilities/signing and verify permissions/token retrieval. | M | Steps 7–11 pass; distribution identities/entitlements verified. |
-| B3 | [ ] Enable Backend FCM; test API registration, delivery and full token/account lifecycle. | B + M | Steps 12–17 pass with redacted evidence; item 17 can close. |
+| B1 | [ ] Agree project/environment ownership; execute section 3C steps 1–6. | M + B/L | **Partial:** project/apps, distinct options and external files complete; iPhone initialization verified. B/L ownership and intended Backend sender/environment alignment remain open. |
+| B2 | [ ] Configure APNs/capabilities/signing and verify permissions/token retrieval. | M | **Partial:** APNs Development/Production setup, iOS development signing, permission and tokens complete; Android permission/token tests and distribution identities/entitlements remain. |
+| B3 | [ ] Enable Backend FCM; test API registration, delivery and full token/account lifecycle. | B + M | **Partial:** iOS registration HTTP 201, Console delivery/sound/taps and Back-navigation fix complete; Backend delivery, physical cold-start/Android and full lifecycle acceptance still required to close 17. |
 | B4 | [ ] Configure official links; upload usable signed test builds and begin required testing. | M; L/B supplies values; P processes | Item 19 live checks pass; internal/TestFlight installs work; qualifying closed test starts when eligible. |
 
 D1 need not delay account preparation or eligible platform testing. Retest the
@@ -414,9 +457,9 @@ review access and physical Android/iOS devices.
 
 | Order | Action | Who | Expected result / completion check |
 | --- | --- | --- | --- |
-| D.1 | [ ] Run final analysis/tests/localization guard and real GitHub CI. | M; CI owners | Evidence tied to candidate commit; no reliance solely on #128. |
+| D.1 | [ ] Run final analysis/tests/localization guard and real GitHub CI. | M; CI owners | **Partial:** 142 relevant local tests and clean analysis recorded for the uncommitted Back fix; final candidate suite/localization and real GitHub CI remain outstanding. |
 | D.2 | [ ] Build signed AAB and iOS archive/export; upload/install through store test tracks. | M; P processes | Item 20 artifacts, processing and entitlements verified; guards retained. |
-| D.3 | [ ] Execute section 8 customer, money, push and bilingual/RTL matrix. | M + B + L/QA | Item 21 acceptance record with devices, build/API and resolved findings. |
+| D.3 | [ ] Execute section 8 customer, money, push and bilingual/RTL matrix. | M + B + L/QA | **Partial:** dated physical-iPhone Console push evidence recorded; full deployed customer/money/push/bilingual matrix and final-candidate acceptance remain. |
 | D.4 | [ ] Finish Play testing/production-access application, metadata/declarations and review access. | M + L/B; P decides | Actual console eligibility/review outcomes recorded. |
 | D.5 | [ ] Obtain team approval, submit, resolve reviews and verify published build/configuration after approval. | L approves; M submits; P reviews | Approved release and publication smoke evidence; support/rollback owner identified. |
 
@@ -442,7 +485,10 @@ database, drop it afterward and stop containers they started, per root guidance.
   no development host or placeholder configuration.
 - [ ] Real Firebase/APNs verified on physical Android/iPhone: foreground, background,
   cold start/taps, denial/revocation, rotation, resume/locale, logout/offline reconnect,
-  switching and deletion.
+  switching and deletion. **Partial:** iPhone Console foreground/Snackbar, background,
+  lock-screen, sound and taps passed; navigation fix has automated coverage. Backend
+  events, Android, physical cold start, complete lifecycle and post-fix device
+  navigation confirmation remain open.
 - [ ] Signed Android AAB accepted/installed through Play testing with correct
   package/version, upload identity and release network policy; no debug fallback.
 - [ ] iOS distribution archive/export accepted by App Store Connect/TestFlight with
@@ -495,5 +541,5 @@ database, drop it afterward and stop containers they started, per root guidance.
    Links above were reviewed for this roadmap; account-specific status remains
    unverified until the account holder completes the checks.
 5. Follow [root](../AGENTS.md) and [Mobile](AGENTS.md) Git rules for future tasks.
-   This one-time permission to edit only this roadmap on `main` does not authorize
-   future implementation on `main`.
+   This update changes only the roadmap on `mobile`; existing uncommitted work is
+   preserved. No commit, push, merge or branch creation is part of this task.
