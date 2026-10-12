@@ -48,6 +48,14 @@ class AuthRepositoryMock implements AuthRepository {
   }
 
   @override
+  Future<void> deleteAccount() async {
+    final user = _signedIn;
+    if (user == null) throw const AppFailure.unauthorized();
+    _profiles.remove(user.phone);
+    _signedIn = null;
+  }
+
+  @override
   Future<void> logout(String refreshToken) async {
     _signedIn = null;
   }

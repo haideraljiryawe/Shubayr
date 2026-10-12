@@ -636,7 +636,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileDeleteMessage =>
-      'Your account and its data will be permanently deleted. This cannot be undone.';
+      'Your personal details, addresses and sign-in sessions will be removed. Anonymized order and financial records are retained as required. This cannot be undone.';
 
   @override
   String galleryCounter(String current, String total) {
@@ -1912,4 +1912,80 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pushReceived => 'You have a new notification.';
+
+  @override
+  String get errorCheckoutIdentity =>
+      'This checkout conflicts with a previous request. Resolve the previous checkout before trying again.';
+
+  @override
+  String get errorCartEmpty =>
+      'Your cart is empty. Add items before checking out.';
+
+  @override
+  String get errorCartQuantity =>
+      'A cart quantity is invalid. Review and update your quantities.';
+
+  @override
+  String get errorCartUnavailable =>
+      'An item is no longer available. Review your cart and remove or replace it.';
+
+  @override
+  String get errorStockShortage =>
+      'The requested quantity is no longer available. Review the updated stock and choose a smaller quantity.';
+
+  @override
+  String get errorWholeUnits =>
+      'This item is sold in whole units. Enter a whole-number quantity.';
+
+  @override
+  String get errorCouponInvalid =>
+      'This coupon cannot be used. Remove it or enter another code.';
+
+  @override
+  String get errorPriceChanged =>
+      'Prices have changed. Review the latest prices before confirming your order.';
+
+  @override
+  String get errorOrderAccess =>
+      'This order is not available to your account. Return to your orders list.';
+
+  @override
+  String get errorCancellationNotAllowed =>
+      'Cancellation is not available in the current order state. Review the updated order.';
+
+  @override
+  String get errorCancellationPending =>
+      'A cancellation request is already pending for this order.';
+
+  @override
+  String get errorReductionResolved =>
+      'This quantity proposal is no longer pending. Review the updated order.';
+
+  @override
+  String get errorPaidCancellation =>
+      'This paid order cannot be cancelled here. Contact the store for help.';
+
+  @override
+  String get privacyPolicyUnavailable =>
+      'The privacy policy has not been published yet. Please try again after the app is configured.';
+
+  @override
+  String get privacyPolicyOpenFailed =>
+      'Could not open the privacy policy. Please try again.';
+
+  @override
+  String get accountDeletionBlocked =>
+      'Your account cannot be deleted while orders, returns or amounts remain unresolved.';
+
+  @override
+  String get accountDeletionOpenOrders =>
+      'Complete or cancel your open orders before deleting your account.';
+
+  @override
+  String get accountDeletionPendingReturns =>
+      'Wait for your pending returns to be resolved before deleting your account.';
+
+  @override
+  String get accountDeletionUnsettled =>
+      'Settle outstanding amounts before deleting your account.';
 }

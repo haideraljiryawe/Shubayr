@@ -1289,7 +1289,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileDeleteMessage.
   ///
   /// In en, this message translates to:
-  /// **'Your account and its data will be permanently deleted. This cannot be undone.'**
+  /// **'Your personal details, addresses and sign-in sessions will be removed. Anonymized order and financial records are retained as required. This cannot be undone.'**
   String get profileDeleteMessage;
 
   /// Image position in the full-screen product gallery, e.g. '1 of 5'. Digits are passed as strings so they stay Western Arabic numerals like the rest of the app.
@@ -3697,6 +3697,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You have a new notification.'**
   String get pushReceived;
+
+  /// No description provided for @errorCheckoutIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'This checkout conflicts with a previous request. Resolve the previous checkout before trying again.'**
+  String get errorCheckoutIdentity;
+
+  /// No description provided for @errorCartEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Your cart is empty. Add items before checking out.'**
+  String get errorCartEmpty;
+
+  /// No description provided for @errorCartQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'A cart quantity is invalid. Review and update your quantities.'**
+  String get errorCartQuantity;
+
+  /// No description provided for @errorCartUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'An item is no longer available. Review your cart and remove or replace it.'**
+  String get errorCartUnavailable;
+
+  /// No description provided for @errorStockShortage.
+  ///
+  /// In en, this message translates to:
+  /// **'The requested quantity is no longer available. Review the updated stock and choose a smaller quantity.'**
+  String get errorStockShortage;
+
+  /// No description provided for @errorWholeUnits.
+  ///
+  /// In en, this message translates to:
+  /// **'This item is sold in whole units. Enter a whole-number quantity.'**
+  String get errorWholeUnits;
+
+  /// No description provided for @errorCouponInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This coupon cannot be used. Remove it or enter another code.'**
+  String get errorCouponInvalid;
+
+  /// No description provided for @errorPriceChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices have changed. Review the latest prices before confirming your order.'**
+  String get errorPriceChanged;
+
+  /// No description provided for @errorOrderAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'This order is not available to your account. Return to your orders list.'**
+  String get errorOrderAccess;
+
+  /// No description provided for @errorCancellationNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation is not available in the current order state. Review the updated order.'**
+  String get errorCancellationNotAllowed;
+
+  /// No description provided for @errorCancellationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'A cancellation request is already pending for this order.'**
+  String get errorCancellationPending;
+
+  /// No description provided for @errorReductionResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'This quantity proposal is no longer pending. Review the updated order.'**
+  String get errorReductionResolved;
+
+  /// No description provided for @errorPaidCancellation.
+  ///
+  /// In en, this message translates to:
+  /// **'This paid order cannot be cancelled here. Contact the store for help.'**
+  String get errorPaidCancellation;
+
+  /// No description provided for @privacyPolicyUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The privacy policy has not been published yet. Please try again after the app is configured.'**
+  String get privacyPolicyUnavailable;
+
+  /// No description provided for @privacyPolicyOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the privacy policy. Please try again.'**
+  String get privacyPolicyOpenFailed;
+
+  /// No description provided for @accountDeletionBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account cannot be deleted while orders, returns or amounts remain unresolved.'**
+  String get accountDeletionBlocked;
+
+  /// No description provided for @accountDeletionOpenOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete or cancel your open orders before deleting your account.'**
+  String get accountDeletionOpenOrders;
+
+  /// No description provided for @accountDeletionPendingReturns.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for your pending returns to be resolved before deleting your account.'**
+  String get accountDeletionPendingReturns;
+
+  /// No description provided for @accountDeletionUnsettled.
+  ///
+  /// In en, this message translates to:
+  /// **'Settle outstanding amounts before deleting your account.'**
+  String get accountDeletionUnsettled;
 }
 
 class _AppLocalizationsDelegate
