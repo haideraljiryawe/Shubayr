@@ -3811,6 +3811,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settle outstanding amounts before deleting your account.'**
   String get accountDeletionUnsettled;
+
+  /// No description provided for @productUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Product unavailable'**
+  String get productUnavailableTitle;
+
+  /// No description provided for @productUnavailableMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This product is no longer available. Please browse the catalog for other products.'**
+  String get productUnavailableMessage;
 }
 
 class _AppLocalizationsDelegate

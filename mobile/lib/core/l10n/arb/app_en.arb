@@ -798,5 +798,7 @@
   "accountDeletionBlocked": "Your account cannot be deleted while orders, returns or amounts remain unresolved.",
   "accountDeletionOpenOrders": "Complete or cancel your open orders before deleting your account.",
   "accountDeletionPendingReturns": "Wait for your pending returns to be resolved before deleting your account.",
-  "accountDeletionUnsettled": "Settle outstanding amounts before deleting your account."
+  "accountDeletionUnsettled": "Settle outstanding amounts before deleting your account.",
+  "productUnavailableTitle": "Product unavailable",
+  "productUnavailableMessage": "This product is no longer available. Please browse the catalog for other products."
 }

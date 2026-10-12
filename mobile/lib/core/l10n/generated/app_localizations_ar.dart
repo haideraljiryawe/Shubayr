@@ -1970,4 +1970,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get accountDeletionUnsettled =>
       'يرجى تسوية المبالغ المعلقة قبل حذف حسابك.';
+
+  @override
+  String get productUnavailableTitle => 'المنتج غير متاح';
+
+  @override
+  String get productUnavailableMessage =>
+      'هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.';
 }
