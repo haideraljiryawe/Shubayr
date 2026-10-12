@@ -2,6 +2,7 @@ import '../../../notifications/presentation/push_permission_tile.dart';
 import '../../../../core/error/response_decode.dart';
 import '../../../../core/storage/session_credentials.dart';
 import '../providers/privacy_policy_provider.dart';
+import '../providers/support_provider.dart';
 import '../../../notifications/presentation/notification_button.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -488,16 +489,13 @@ class _PreferencesCard extends ConsumerWidget {
   }
 }
 
-/// Support links. The destinations arrive in a later phase; the rows exist now
-/// so the settings structure (help, privacy, …) is in place.
+/// Official external destinations are supplied at build time.
 class _SupportCard extends ConsumerWidget {
   const _SupportCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    void soon() =>
-        showAppSnackBarMessage(context, message: l10n.comingSoonTitle);
     return AppCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -506,7 +504,18 @@ class _SupportCard extends ConsumerWidget {
             leading: const Icon(Icons.help_outline),
             title: Text(l10n.accountHelp),
             trailing: const Icon(Icons.chevron_right),
-            onTap: soon,
+            onTap: () async {
+              try {
+                await ref.read(openSupportProvider)();
+              } catch (error, stack) {
+                if (context.mounted) {
+                  showAppSnackBarMessage(
+                    context,
+                    message: actionFailure(error, stack).localizedMessage(l10n),
+                  );
+                }
+              }
+            },
           ),
           const Divider(height: 1),
           ListTile(

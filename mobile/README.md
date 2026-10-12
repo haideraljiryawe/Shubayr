@@ -289,3 +289,14 @@ feedback. Publishing and verifying this URL is a release blocker, not a
 completed integration check. The production API URL, policy URL and Firebase
 project are currently **pending production configuration**. Never substitute
 localhost/LAN, sample domains or invented production identifiers.
+
+
+### Official support destination
+
+Supply `SUPPORT_DESTINATION` externally at build time after Hiader provides the
+actual customer contact. Supported forms are a production HTTPS link, one
+`mailto:` address without query recipients, or an international `tel:` number.
+No default contact is bundled. Missing/invalid configuration and unavailable
+OS handlers show localized Arabic/English feedback. The existing Help row opens
+the destination using the system handler. **Live support verification is pending**;
+unit-test contact values are fixtures, not production configuration.

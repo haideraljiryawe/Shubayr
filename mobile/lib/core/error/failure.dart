@@ -83,6 +83,8 @@ class AppFailure implements Exception {
       return l10n.privacyPolicyOpenFailed;
     }
     return switch (code) {
+      'SUPPORT_UNAVAILABLE' => l10n.supportUnavailable,
+      'SUPPORT_OPEN_FAILED' => l10n.supportOpenFailed,
       'IDEMPOTENCY_KEY_REUSED' => l10n.errorCheckoutIdentity,
       'CART_EMPTY' => l10n.errorCartEmpty,
       'CART_QUANTITY_INVALID' => l10n.errorCartQuantity,

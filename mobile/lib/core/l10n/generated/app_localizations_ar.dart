@@ -1979,31 +1979,12 @@ class AppLocalizationsAr extends AppLocalizations {
       'هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.';
 
   @override
-  String get errorWorkAccountShopping =>
-      'التسوق متاح لحسابات العملاء. سجّل الدخول بحساب عميل.';
+  String get supportUnavailable =>
+      'بيانات التواصل مع خدمة العملاء غير متاحة حالياً. يرجى المحاولة لاحقاً.';
 
   @override
-  String get errorAppRoleForbidden => 'دور حسابك لا يسمح بتنفيذ هذا الإجراء.';
-
-  @override
-  String get errorAuthSurfaceForbidden =>
-      'جلسة الدخول هذه لا يمكن استخدامها في تطبيق العملاء. سجّل الدخول مجدداً من التطبيق.';
-
-  @override
-  String get stockShortageTitle => 'الكمية غير متاحة';
-
-  @override
-  String stockAvailableQuantity(String quantity) {
-    return 'الكمية المتاحة: $quantity';
-  }
-
-  @override
-  String stockRequestedQuantity(String quantity) {
-    return 'الكمية المطلوبة: $quantity';
-  }
-
-  @override
-  String get stockCorrectCart => 'تعديل السلة';
+  String get supportOpenFailed =>
+      'تعذر فتح وسيلة التواصل مع خدمة العملاء. يرجى المحاولة مجدداً.';
 
   @override
   String get orderRequestDate => 'تاريخ الطلب';
@@ -2043,4 +2024,31 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get orderReductionDenied => 'تم رفض تعديل الكمية';
+
+  @override
+  String get errorWorkAccountShopping =>
+      'التسوق متاح لحسابات العملاء. سجّل الدخول بحساب عميل.';
+
+  @override
+  String get errorAppRoleForbidden => 'دور حسابك لا يسمح بتنفيذ هذا الإجراء.';
+
+  @override
+  String get errorAuthSurfaceForbidden =>
+      'جلسة الدخول هذه لا يمكن استخدامها في تطبيق العملاء. سجّل الدخول مجدداً من التطبيق.';
+
+  @override
+  String get stockShortageTitle => 'الكمية غير متاحة';
+
+  @override
+  String stockAvailableQuantity(String quantity) {
+    return 'الكمية المتاحة: $quantity';
+  }
+
+  @override
+  String stockRequestedQuantity(String quantity) {
+    return 'الكمية المطلوبة: $quantity';
+  }
+
+  @override
+  String get stockCorrectCart => 'تعديل السلة';
 }

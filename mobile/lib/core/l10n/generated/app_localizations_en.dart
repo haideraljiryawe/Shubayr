@@ -1997,32 +1997,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'This product is no longer available. Please browse the catalog for other products.';
 
   @override
-  String get errorWorkAccountShopping =>
-      'Shopping is available to customer accounts. Sign in with a customer account.';
+  String get supportUnavailable =>
+      'Customer support contact details are not available yet. Please try again later.';
 
   @override
-  String get errorAppRoleForbidden =>
-      'Your account role cannot perform this action.';
-
-  @override
-  String get errorAuthSurfaceForbidden =>
-      'This sign-in cannot be used in the customer app. Sign in again through the app.';
-
-  @override
-  String get stockShortageTitle => 'Quantity unavailable';
-
-  @override
-  String stockAvailableQuantity(String quantity) {
-    return 'Available quantity: $quantity';
-  }
-
-  @override
-  String stockRequestedQuantity(String quantity) {
-    return 'Requested quantity: $quantity';
-  }
-
-  @override
-  String get stockCorrectCart => 'Correct cart';
+  String get supportOpenFailed =>
+      'Could not open customer support. Please try again.';
 
   @override
   String get orderRequestDate => 'Requested';
@@ -2062,4 +2042,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orderReductionDenied => 'Quantity change declined';
+
+  @override
+  String get errorWorkAccountShopping =>
+      'Shopping is available to customer accounts. Sign in with a customer account.';
+
+  @override
+  String get errorAppRoleForbidden =>
+      'Your account role cannot perform this action.';
+
+  @override
+  String get errorAuthSurfaceForbidden =>
+      'This sign-in cannot be used in the customer app. Sign in again through the app.';
+
+  @override
+  String get stockShortageTitle => 'Quantity unavailable';
+
+  @override
+  String stockAvailableQuantity(String quantity) {
+    return 'Available quantity: $quantity';
+  }
+
+  @override
+  String stockRequestedQuantity(String quantity) {
+    return 'Requested quantity: $quantity';
+  }
+
+  @override
+  String get stockCorrectCart => 'Correct cart';
 }
