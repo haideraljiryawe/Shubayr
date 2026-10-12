@@ -57,10 +57,8 @@ void main() {
   test(
     'logout cleanup can read tokens and persists after disposal invalidation',
     () async {
-      final store = InMemoryTokenStore(
-        accessToken: 'old',
-        refreshToken: 'refresh',
-      );
+      final store = InMemoryTokenStore();
+      await store.save(accessToken: 'old', refreshToken: 'refresh');
       final credentials = SessionCredentials(store);
       final owner = credentials.beginTransition();
       final gate = Completer<void>();
