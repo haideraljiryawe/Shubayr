@@ -114,8 +114,20 @@ Widget _host(
         items:
             items ??
             const [
-              OrderItem(id: 'i1', productId: 'p1', quantity: 3),
-              OrderItem(id: 'i2', productId: 'p2', quantity: 1),
+              OrderItem(
+                baseUnit: 'kg',
+                wholeUnitsOnly: false,
+                id: 'i1',
+                productId: 'p1',
+                quantity: 3,
+              ),
+              OrderItem(
+                baseUnit: 'kg',
+                wholeUnitsOnly: false,
+                id: 'i2',
+                productId: 'p2',
+                quantity: 1,
+              ),
             ],
       ),
     ),
@@ -242,6 +254,8 @@ void main() {
     'product_id': 'p1',
     'product_name_en': 'Coffee',
     'quantity': .5,
+    'base_unit': 'kg',
+    'whole_units_only': false,
     'reviewed': ?reviewed,
   });
   AfterSalesRepository history({
@@ -353,7 +367,7 @@ void main() {
       await tester.pumpAndSettle();
       if (quantity == .125) {
         expect(
-          find.text('Quantity available to request: 0.375'),
+          find.text('Quantity available to request: 0.375 kg'),
           findsOneWidget,
         );
       } else {
@@ -473,6 +487,58 @@ void main() {
     expect(find.text('Request reference: return-1'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+  for (final locale in ['en', 'ar']) {
+    testWidgets(
+      'whole-unit historical return rejects fractions without catalog rules $locale',
+      (tester) async {
+        final repo = _Repository();
+        await tester.pumpWidget(
+          _host(
+            const ReturnOrderScreen(orderId: 'o1'),
+            repo,
+            locale: locale,
+            items: const [
+              OrderItem(
+                id: 'i1',
+                productId: 'hidden',
+                quantity: 2,
+                baseUnit: 'box',
+                wholeUnitsOnly: true,
+                productNameEn: 'Saved box',
+                productNameAr: 'صندوق محفوظ',
+                imageSnapshotProvided: true,
+              ),
+            ],
+            catalogLookup: (_) async =>
+                throw const AppFailure(FailureKind.notFound),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(ReturnOrderScreen)),
+        );
+        expect(find.text(l10n.returnAvailable('2 box')), findsOneWidget);
+        await tester.tap(find.text('0').first);
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextFormField), '0.5');
+        await tester.tap(find.text(l10n.actionSave));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(repo.returns, 0);
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(ReturnOrderScreen)),
+        );
+        (container.read(sessionControllerProvider.notifier) as TestSession)
+            .setSession(
+              const Session.signedIn(User(id: 'B', role: 'customer')),
+            );
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(repo.returns, 0);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   testWidgets('fractional historical return clamps shortcuts and sends .125', (
     tester,
   ) async {
@@ -483,6 +549,8 @@ void main() {
         repository,
         items: const [
           OrderItem(
+            baseUnit: 'kg',
+            wholeUnitsOnly: false,
             id: 'i1',
             productId: 'p1',
             quantity: 0.5,
@@ -493,7 +561,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Quantity available to request: 0.5'), findsOneWidget);
+    expect(find.text('Quantity available to request: 0.5 kg'), findsOneWidget);
     await tester.tap(find.byTooltip('Increase return quantity'));
     await tester.pump();
     expect(find.text('0.5'), findsOneWidget);
@@ -511,7 +579,7 @@ void main() {
     await tester.tap(find.text('Submit return request'));
     await tester.pumpAndSettle();
     expect(repository.lines.single.quantity, 0.125);
-    expect(find.text('Qty: 0.125'), findsOneWidget);
+    expect(find.text('Qty: 0.125 kg'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -526,6 +594,8 @@ void main() {
           repository,
           items: const [
             OrderItem(
+              baseUnit: 'kg',
+              wholeUnitsOnly: false,
               id: 'i1',
               productId: 'p1',
               variantId: 'v1',
@@ -575,6 +645,8 @@ void main() {
             repository,
             items: [
               OrderItem(
+                baseUnit: 'kg',
+                wholeUnitsOnly: false,
                 id: 'i1',
                 productId: 'p1',
                 productNameEn: saved ? 'Purchase name' : null,
@@ -611,6 +683,8 @@ void main() {
             repository,
             items: [
               OrderItem(
+                baseUnit: 'kg',
+                wholeUnitsOnly: false,
                 id: 'i1',
                 productId: 'p1',
                 quantity: 3,
@@ -647,11 +721,18 @@ void main() {
         _Repository(),
         items: const [
           OrderItem(
+            baseUnit: 'kg',
+            wholeUnitsOnly: false,
             id: 'i1',
             productId: 'p1',
             productNameEn: 'Purchase coffee',
           ),
-          OrderItem(id: 'i2', productId: 'p2'),
+          OrderItem(
+            baseUnit: 'kg',
+            wholeUnitsOnly: false,
+            id: 'i2',
+            productId: 'p2',
+          ),
         ],
       ),
     );

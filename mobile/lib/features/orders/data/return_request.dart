@@ -40,11 +40,17 @@ class ReturnRequestItem {
     required this.quantity,
     this.approvedQuantity,
     this.reason,
+    this.baseUnit,
+    this.wholeUnitsOnly,
   });
 
   @JsonKey(name: 'order_item_id')
   final String orderItemId;
   final num quantity;
+  @JsonKey(name: 'base_unit', includeIfNull: false)
+  final String? baseUnit;
+  @JsonKey(name: 'whole_units_only', includeIfNull: false)
+  final bool? wholeUnitsOnly;
   @JsonKey(name: 'approved_quantity', includeIfNull: false)
   final num? approvedQuantity;
   @JsonKey(name: 'customer_reason', includeIfNull: false)

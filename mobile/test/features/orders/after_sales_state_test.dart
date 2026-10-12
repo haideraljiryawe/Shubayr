@@ -43,7 +43,16 @@ Order order({bool? reviewed = false}) => Order(
   version: 1,
   id: 'o',
   status: 'delivered',
-  items: [OrderItem(id: 'i', productId: 'p', quantity: .5, reviewed: reviewed)],
+  items: [
+    OrderItem(
+      baseUnit: 'kg',
+      wholeUnitsOnly: false,
+      id: 'i',
+      productId: 'p',
+      quantity: .5,
+      reviewed: reviewed,
+    ),
+  ],
 );
 
 class Repository implements AfterSalesRepository {
@@ -124,6 +133,88 @@ void main() {
   void watchReviews() => c.listen(reviewEligibilityProvider('o'), (_, _) {});
   void watchReturns() => c.listen(returnEligibilityProvider('o'), (_, _) {});
 
+  test('historical unit snapshots survive order and return decoding', () {
+    final item = OrderItem.fromJson({
+      'id': 'i',
+      'product_id': 'p',
+      'quantity': .625,
+      'base_unit': 'kg',
+      'whole_units_only': false,
+    });
+    expect(item.baseUnit, 'kg');
+    expect(item.wholeUnitsOnly, false);
+    expect(OrderItem.fromJson(item.toJson()).quantity, .625);
+    final returned = ReturnRequestItem.fromJson({
+      'order_item_id': 'i',
+      'quantity': .125,
+      'base_unit': 'kg',
+      'whole_units_only': false,
+    });
+    expect(ReturnRequestItem.fromJson(returned.toJson()).wholeUnitsOnly, false);
+    expect(returned.baseUnit, 'kg');
+  });
+  test(
+    'whole-unit snapshot rejects fractional submissions even if caller claims fractional',
+    () async {
+      serverOrder = const Order(
+        id: 'o',
+        status: 'delivered',
+        items: [
+          OrderItem(
+            id: 'i',
+            productId: 'p',
+            quantity: 2,
+            baseUnit: 'box',
+            wholeUnitsOnly: true,
+          ),
+        ],
+      );
+      watchReturns();
+      await c.read(returnEligibilityProvider('o').future);
+      var writes = 0;
+      repo.onSubmitReturn = () async {
+        writes++;
+        return returned(quantity: 1);
+      };
+      final controller = c.read(returnEligibilityProvider('o').notifier);
+      await expectLater(
+        controller.submit(
+          items: [
+            const ReturnRequestItem(
+              orderItemId: 'i',
+              quantity: .5,
+              wholeUnitsOnly: false,
+            ),
+          ],
+        ),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(writes, 0);
+      await controller.submit(
+        items: [const ReturnRequestItem(orderItemId: 'i', quantity: 1)],
+      );
+      expect(writes, 1);
+      expect(
+        c.read(returnEligibilityProvider('o')).requireValue.remaining['i'],
+        1,
+      );
+    },
+  );
+  test(
+    'missing snapshot blocks return eligibility rather than guessing from catalog',
+    () async {
+      serverOrder = const Order(
+        id: 'o',
+        status: 'delivered',
+        items: [OrderItem(id: 'i', productId: 'p', quantity: 2)],
+      );
+      watchReturns();
+      await expectLater(
+        c.read(returnEligibilityProvider('o').future),
+        throwsA(isA<AppFailure>()),
+      );
+    },
+  );
   test(
     'duplicate review is suppressed, failure releases guard and retains eligibility',
     () async {

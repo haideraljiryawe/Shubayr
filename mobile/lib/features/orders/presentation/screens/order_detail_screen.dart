@@ -483,7 +483,10 @@ class _OrderItemTile extends ConsumerWidget {
                 ],
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  l10n.orderLineQuantity(formatQuantity(item.quantity)),
+                  l10n.orderLineQuantity(
+                    '${formatQuantity(item.quantity)} ${item.baseUnit ?? ''}'
+                        .trim(),
+                  ),
                   style: context.text.bodySmall?.copyWith(
                     color: colors.textSecondary,
                   ),

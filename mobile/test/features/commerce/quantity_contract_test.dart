@@ -60,7 +60,15 @@ void main() {
       const Order(
         id: "o",
         status: "delivered",
-        items: [OrderItem(id: "i", productId: "p", quantity: 1)],
+        items: [
+          OrderItem(
+            id: "i",
+            productId: "p",
+            quantity: 1,
+            baseUnit: "kg",
+            wholeUnitsOnly: false,
+          ),
+        ],
       ),
       [
         for (final q in [0.1, 0.2])
