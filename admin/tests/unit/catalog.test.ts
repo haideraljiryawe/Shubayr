@@ -231,7 +231,7 @@ describe("variant editor", () => {
     const result = variantInput({
       ...emptyDraft(),
       sku: "",
-      attributes: "oops",
+      attributes: [{ name: "", value: "oops" }],
       selling_price: "12.5",
       low_stock_threshold: "1.2345",
     });

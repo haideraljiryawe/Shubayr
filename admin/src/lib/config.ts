@@ -17,3 +17,10 @@ export const ADMIN_ORIGIN =
 
 /** Secure cookies unless explicitly turned off for plain-HTTP dev hosts. */
 export const COOKIE_SECURE = process.env.ADMIN_COOKIE_SECURE !== "false";
+
+/**
+ * Which admin modules this installation shows (src/lib/modules.ts). Unset or
+ * "all" shows everything; e.g. "catalog,stock,orders,settings,users" for a
+ * launch without the delivery add-ons.
+ */
+export const ADMIN_MODULES = process.env.ADMIN_MODULES ?? "";

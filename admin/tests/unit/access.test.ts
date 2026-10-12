@@ -51,10 +51,11 @@ describe("visibleNav", () => {
       "dashboard",
       "currencies",
     ]);
+    // The launch core (catalog, stock, orders, settings, users) comes first.
     expect(visibleNav(["cash_accounts.view", "settings.manage"]).map((item) => item.key)).toEqual([
       "dashboard",
-      "cashAccounts",
       "settings",
+      "cashAccounts",
     ]);
     expect(visibleNav(["audit.view"]).map((item) => item.key)).toEqual([
       "dashboard",

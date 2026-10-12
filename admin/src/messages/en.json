@@ -152,7 +152,7 @@
   },
   "dashboard": {
     "welcome": "Welcome, {name}",
-    "body": "Manage staff, their permissions and work phones from here.",
+    "body": "Everything you need to run the store: products, stock, orders, settings and staff.",
     "section": {
       "staff": "Create, edit and deactivate staff accounts, and reset passwords.",
       "presets": "Ready-made permission sets you assign to staff.",
@@ -183,9 +183,34 @@
       "custodyExceptions": "Goods lost or damaged in custody, returns at the door and delivery-fee refunds.",
       "trips": "External drivers' trips: handover, outcomes, fare and the cash to settle."
     },
-    "comingTitle": "Coming next",
-    "comingBody": "Orders, catalog, stock and accounting arrive with the next backend phases.",
-    "noSections": "Your current permissions don't open any sections yet."
+    "noSections": "Your current permissions don't open any sections yet.",
+    "firstDay": {
+      "title": "Set up your store",
+      "body": "Four steps to prepare the catalog and get your products into the store. You can come back to any step later.",
+      "progress": "{done} of {total}",
+      "stepNumber": "{number}.",
+      "optional": "(optional)",
+      "done": "done",
+      "needsLocation": "Add a sellable location under Warehouses first, then enter opening stock.",
+      "steps": {
+        "categories": {
+          "title": "Add categories",
+          "body": "A department (such as “Electronics”) with subcategories (such as “Phones”). Products go into subcategories."
+        },
+        "brands": {
+          "title": "Add brands",
+          "body": "Such as “Samsung” or “Apple”. You can also add a brand while creating a product."
+        },
+        "product": {
+          "title": "Add your products",
+          "body": "Name, category, price and pictures, and the product's variants (sizes or colours), each with its own code."
+        },
+        "stock": {
+          "title": "Enter opening stock",
+          "body": "How much of each variant you have now and what it cost, so the product shows as available."
+        }
+      }
+    }
   },
   "purchasing": {
     "title": "Purchasing & suppliers",
@@ -1536,7 +1561,7 @@
       "nameAr": "Arabic name",
       "nameEn": "English name",
       "slug": "URL slug",
-      "slugHint": "Lowercase letters, digits and dashes; suggested from the English name if left empty.",
+      "slugHint": "Lowercase English letters, digits and hyphens. Made from the name when left empty.",
       "sortOrder": "Display order",
       "parent": "Parent",
       "visible": "Visible to customers",
@@ -1544,7 +1569,9 @@
       "brandNameEn": "Brand name (English)",
       "brandSlug": "Brand URL slug",
       "target": "Subcategory the products move to",
-      "brandVisible": "Brand visible to customers"
+      "brandVisible": "Brand visible to customers",
+      "nameEnOptional": "English name (optional)",
+      "nameEnHint": "Left empty, the Arabic name is used."
     },
     "errors": {
       "nameAr": "Enter the Arabic name.",
@@ -1568,7 +1595,8 @@
       "effectAudit": "The conversion is recorded with your name and the time.",
       "targetHint": "A subcategory only — products never sit in a department.",
       "chooseTarget": "Choose the subcategory"
-    }
+    },
+    "advanced": "Advanced (link and order)"
   },
   "brands": {
     "title": "Brands",
@@ -1604,54 +1632,58 @@
       "nameAr": "Arabic name",
       "nameEn": "English name",
       "slug": "URL slug",
-      "slugHint": "Lowercase letters, digits and dashes; suggested from the English name.",
+      "slugHint": "Lowercase English letters, digits and hyphens. Made from the name when left empty.",
       "sortOrder": "Display order",
-      "logo": "Logo URL",
-      "logoHint": "An image uploaded to the store (optional).",
-      "visible": "Visible to customers"
+      "logo": "Logo",
+      "logoHint": "Optional. Shown on the brand's page in the store.",
+      "visible": "Visible to customers",
+      "nameEnOptional": "English name (optional)",
+      "nameEnHint": "Left empty, the Arabic name is used."
     },
     "errors": {
       "nameAr": "Enter the Arabic name.",
-      "nameEn": "Enter the English name.",
       "slug": "Use lowercase letters, digits and dashes only.",
-      "logo": "Enter a URL starting with http or https.",
-      "sortOrder": "Enter a whole number, 0 or more."
-    }
+      "sortOrder": "Enter a whole number, 0 or more.",
+      "logoBusy": "Wait for the logo to finish uploading.",
+      "logoFailed": "The logo was not uploaded. Retry or remove it."
+    },
+    "advanced": "Advanced (link and order)"
   },
   "products": {
     "title": "Products",
-    "description": "Every product, hidden and archived included. Each has one or more SKUs with their own price and unit.",
+    "description": "Every product, hidden and archived included. Search and filter by category, brand, status and stock, and select several products to change them together.",
     "new": "New product",
     "columns": {
       "name": "Product",
       "category": "Category",
       "brand": "Brand",
-      "skus": "SKUs",
+      "skus": "Variants",
       "price": "Price",
-      "status": "Status"
+      "status": "Status",
+      "stock": "Stock",
+      "actions": "Actions"
     },
-    "skuCount": "{count, plural, one {# SKU} other {# SKUs}}",
+    "skuCount": "{count, plural, one {# variant} other {# variants}}",
     "linkedBadge": "Linked price",
     "from": "From",
     "status": {
-      "active": "Active",
+      "active": "In the store",
       "hidden": "Hidden",
       "archived": "Archived"
     },
     "published": "Published",
-    "unpublished": "Not published",
+    "unpublished": "Awaiting publish",
     "empty": "No products match.",
     "search": "Search by product name",
     "allCategories": "All categories",
     "allBrands": "All brands",
     "newTitle": "New product",
-    "newDescription": "A product sits in a subcategory and links to its brand separately.",
+    "newDescription": "Fill in the basics, add pictures and variants, then choose whether the product shows in the store.",
     "backToList": "Back to products",
     "editTitle": "Edit product",
-    "editDescription": "Basics, and the SKUs with their prices and units.",
+    "editDescription": "Basics, pictures, and variants with their prices and units.",
     "errors": {
       "nameAr": "Enter the Arabic name.",
-      "nameEn": "Enter the English name.",
       "category": "Choose a subcategory.",
       "price": "Enter the price as a whole number, 0 or more."
     },
@@ -1659,7 +1691,7 @@
       "skuRequired": "Enter the SKU.",
       "skuTooLong": "A SKU is at most 80 characters.",
       "skuDuplicate": "This SKU is repeated in the product.",
-      "attributes": "One attribute per line, as “name: value”.",
+      "attributes": "Give each attribute both a name and a value (such as Colour = Red), without repeating a name.",
       "unitRequired": "Choose the unit.",
       "sellingPrice": "Enter a whole-number price, or leave it empty to use the product price.",
       "threshold": "Enter 0 or more, with at most three decimals.",
@@ -1670,28 +1702,32 @@
     "created": "Product created",
     "sections": {
       "basics": "Basics",
-      "variants": "SKUs",
-      "variantsHint": "Each SKU has its own unit, low-stock threshold and price: fixed in local currency, or linked to a foreign reference price."
+      "variants": "Variants and prices",
+      "variantsHint": "Each variant (size, colour, weight…) has its own stock code (SKU), unit and price. A product without variants keeps a single one.",
+      "images": "Pictures",
+      "imagesHint": "Add several pictures at once. The first one is the main picture.",
+      "visibility": "Visibility in the store"
     },
     "fields": {
       "nameAr": "Arabic name",
       "nameEn": "English name",
       "category": "Subcategory",
-      "categoryHint": "Products sit in a subcategory only.",
+      "categoryHint": "Products go into a subcategory of a department.",
       "brand": "Brand",
-      "price": "Product price ({currency})",
-      "priceHint": "Inherited by every SKU without a price of its own.",
-      "status": "Status",
+      "price": "Selling price ({currency})",
+      "priceHint": "Every variant without its own price uses this one.",
       "description": "Description",
-      "statusHint": "“Active” means published to customers and needs complete data and an approved price on every SKU; adding stock alone never publishes a product. “Hidden” is a draft customers don't see."
+      "nameEnOptional": "English name (optional)",
+      "nameEnHint": "Left empty, the Arabic name is used.",
+      "descriptionHint": "Optional: specifications, sizes, how to use it."
     },
     "chooseCategory": "Choose the subcategory",
     "noBrand": "— No brand —",
     "hiddenBrand": "hidden",
-    "addVariant": "Add SKU",
+    "addVariant": "Add variant",
     "save": "Save product",
     "create": "Create product",
-    "variantTitle": "SKU {number}",
+    "variantTitle": "Variant {number}",
     "units": {
       "piece": "Piece",
       "kg": "Kilogram",
@@ -1702,7 +1738,7 @@
       "cm": "Centimetre"
     },
     "variant": {
-      "sku": "SKU",
+      "sku": "Stock code (SKU)",
       "baseUnit": "Base unit",
       "threshold": "Low-stock threshold ({unit})",
       "thresholdDefault": "Empty = the store default ({value}).",
@@ -1710,22 +1746,29 @@
       "wholeOnly": "Whole units only",
       "wholeForced": "Pieces always sell in whole numbers.",
       "wholeOptional": "Unticked, fractions up to three decimals are accepted ({unit}).",
-      "attributes": "Attributes",
-      "attributesHint": "One per line, e.g. “color: black”.",
+      "attributes": "What makes this variant different",
+      "attributesHint": "Such as Colour = Red, Size = XL. Leave empty if the product has no variants.",
       "pricingMode": "Pricing",
       "mode": {
         "fixed": "Fixed local price",
         "linked": "Linked to a foreign currency"
       },
-      "sellingPrice": "Price for this SKU ({currency})",
+      "sellingPrice": "Own price for this variant ({currency})",
       "inheritsPrice": "Empty = the product price, {price}.",
       "inheritsPriceUnknown": "Empty = the product price.",
-      "removeHint": "A SKU with stock or order history cannot be removed.",
-      "remove": "Remove SKU",
+      "removeHint": "A variant with stock or past orders cannot be removed.",
+      "remove": "Remove variant",
       "referenceCurrency": "Reference currency",
       "chooseCurrency": "Choose the currency",
       "referencePrice": "Reference selling price ({currency})",
-      "referenceHint": "Includes the desired markup; the local price is always worked out from it."
+      "referenceHint": "Includes the desired markup; the local price is always worked out from it.",
+      "skuHint": "A unique code for this variant, such as its barcode. Leave it and press “Fill in empty codes” to make one.",
+      "attributeName": "Attribute",
+      "attributeValue": "Value",
+      "attributeNamePlaceholder": "e.g. Colour",
+      "attributeValuePlaceholder": "e.g. Red",
+      "attributeRemove": "Remove attribute",
+      "attributeAdd": "Another attribute"
     },
     "linked": {
       "chooseCurrency": "Choose a reference currency to see the local price.",
@@ -1751,7 +1794,72 @@
     "approvalPendingTitle": "Price change waiting for approval",
     "approvalPendingBody": "The live price was not changed. Another user with below-cost approval permission must approve or reject this request.",
     "approvalPendingToast": "The below-cost price change is pending approval.",
-    "openApproval": "Open approval request"
+    "openApproval": "Open approval request",
+    "copyTitle": "Copy of a product",
+    "copySuffix": "(copy)",
+    "copyNotice": "This is a copy of “{name}” with its pictures, variants and prices. Change what differs and save; variant codes were moved on by one to stay unique, and the copy starts hidden.",
+    "noImage": "No picture",
+    "duplicate": "Duplicate",
+    "duplicateNamed": "Duplicate “{name}”",
+    "openingStock": "Opening stock",
+    "filters": {
+      "allStatuses": "All statuses",
+      "allStock": "All stock states",
+      "stock": {
+        "in_stock": "In stock",
+        "low_stock": "Low stock",
+        "out_of_stock": "Out of stock"
+      },
+      "truncated": "Only the first {limit} matching products are shown. Narrow the search by name, category or brand to see the rest."
+    },
+    "bulk": {
+      "label": "Change the selected products",
+      "selectPage": "Select every product on this page",
+      "selectOne": "Select “{name}”",
+      "selected": "{count, plural, one {# product selected} other {# products selected}}",
+      "running": "Working: {done} of {total}…",
+      "publish": "Show in store",
+      "hide": "Hide",
+      "moveTo": "Move to category…",
+      "brandTo": "Change brand…",
+      "apply": "Apply",
+      "clear": "Clear selection",
+      "done": "{count, plural, =0 {No product changed.} one {# product changed.} other {# products changed.}}",
+      "failed": "{count, plural, one {# product could not be changed (still selected):} other {# products could not be changed (still selected):}}",
+      "failedUnknown": "Could not be saved."
+    },
+    "createdNext": "Product created. Add the next one.",
+    "statusChoice": {
+      "active": {
+        "title": "In the store",
+        "body": "Customers see it and can order it once it has stock. Needs an approved price on every variant."
+      },
+      "hidden": {
+        "title": "Hidden (draft)",
+        "body": "Customers don't see it. Right for a product that isn't finished; show it later here or from the product list."
+      },
+      "archived": {
+        "title": "Archived",
+        "body": "Discontinued: not shown to customers, kept in records and past orders."
+      }
+    },
+    "noCategories": "There are no subcategories yet, and a product needs one.",
+    "openCategories": "Add categories",
+    "newBrand": "New brand",
+    "brandCreated": "Brand “{name}” added and selected",
+    "imagesBusy": "Wait for the pictures to finish uploading, then save.",
+    "imagesFailed": "Some pictures were not uploaded. Retry or remove them, then save.",
+    "imagesUploading": "Uploading pictures…",
+    "fillSkus": "Fill in empty codes",
+    "createAndAnother": "Create and add another",
+    "nextSteps": {
+      "title": "Product created. What next?",
+      "published": "The product is in the store and can be ordered once it has stock.",
+      "hidden": "The product is hidden for now. Show it under “Visibility in the store” below when it is ready.",
+      "openingStock": "Enter opening stock",
+      "another": "Add another product in the same category",
+      "duplicate": "Duplicate this product"
+    }
   },
   "linkedPrices": {
     "preview": "Preview the price effect",
@@ -2015,7 +2123,8 @@
     "opening": {
       "description": "Bring existing stock into the system: each line creates a lot at a unit cost and the whole document posts once.",
       "value": "Total value:",
-      "post": "Post opening stock"
+      "post": "Post opening stock",
+      "forProduct": "The quantities of “{name}” you have now, with their unit cost. The whole document posts at once."
     },
     "reviewTitle": "Review before posting",
     "lotAutomatic": "(no lot number)",
@@ -2107,7 +2216,8 @@
       "title": "Stock",
       "body": "Read-only. Stock changes only through inventory documents — opening stock, transfers, counts and write-downs.",
       "view": "Stock view"
-    }
+    },
+    "backToProduct": "Back to the product"
   },
   "retrievals": {
     "title": "Retrieval",
@@ -2950,6 +3060,43 @@
       "failReason": "What happened",
       "failReasonRequired": "Say what happened (at least 3 characters).",
       "confirmFailed": "Mark failed"
+    }
+  },
+  "modules": {
+    "disabledTitle": "This section is not enabled",
+    "disabledBody": "This part of the back office is not switched on for this store yet.",
+    "disabledHint": "It can be enabled later as an add-on without affecting anything you have entered. Ask your system administrator.",
+    "backHome": "Back to the dashboard"
+  },
+  "images": {
+    "dropTitle": "Add product pictures",
+    "dropTitleSingle": "Add a logo",
+    "dropHint": "Drop pictures here or choose them from your device. Up to {max}; they are shrunk before uploading.",
+    "dropHintSingle": "One JPG, PNG or WebP picture; it is shrunk before uploading.",
+    "pick": "Choose pictures",
+    "replace": "Change picture",
+    "tooMany": "At most {max} pictures; only the first ones were added.",
+    "orderHint": "The first picture is the main one shown in the store. Drag a picture by its handle to reorder, or use the arrows.",
+    "listLabel": "Product pictures in order",
+    "imageAlt": "Picture {number}",
+    "main": "Main",
+    "processing": "Preparing…",
+    "uploading": "Uploading {progress}%",
+    "retry": "Retry",
+    "drag": "Drag to reorder",
+    "earlier": "Move earlier",
+    "later": "Move later",
+    "makeMain": "Make main picture",
+    "isMain": "Main picture",
+    "remove": "Remove picture",
+    "empty": "No pictures yet. Products with clear pictures sell faster.",
+    "emptySingle": "No logo.",
+    "failure": {
+      "type": "Unsupported format. Use JPG, PNG, WebP or AVIF.",
+      "tooLarge": "The picture is too large (over 8 MB even after shrinking).",
+      "upload": "The picture could not be uploaded. Check the connection and retry.",
+      "forbidden": "You don't have permission to upload pictures.",
+      "decode": "This picture could not be read. Try another one."
     }
   }
 }

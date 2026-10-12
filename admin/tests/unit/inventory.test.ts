@@ -262,7 +262,7 @@ describe("posting and navigation", () => {
 
   it("shows the inventory screens to inventory.view only", () => {
     const keys = visibleNav(["inventory.view"]).map((item) => item.key);
-    expect(keys).toEqual(["dashboard", "stock", "movements", "warehouses", "openings", "transfers", "counts", "writeDowns"]);
+    expect(keys).toEqual(["dashboard", "stock", "openings", "movements", "warehouses", "transfers", "counts", "writeDowns"]);
     expect(visibleNav(["catalog.products"]).map((item) => item.key)).not.toContain("stock");
   });
 });
