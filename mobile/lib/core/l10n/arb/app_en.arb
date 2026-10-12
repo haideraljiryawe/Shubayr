@@ -798,5 +798,27 @@
   "accountDeletionBlocked": "Your account cannot be deleted while orders, returns or amounts remain unresolved.",
   "accountDeletionOpenOrders": "Complete or cancel your open orders before deleting your account.",
   "accountDeletionPendingReturns": "Wait for your pending returns to be resolved before deleting your account.",
-  "accountDeletionUnsettled": "Settle outstanding amounts before deleting your account."
+  "accountDeletionUnsettled": "Settle outstanding amounts before deleting your account.",
+  "orderRequestDate": "Requested",
+  "orderResolutionDate": "Resolved",
+  "orderResolutionNote": "Resolution note",
+  "orderAcceptedPrices": "Accepted price changes",
+  "orderStockAttention": "Order quantity shortage",
+  "orderShortageQuantities": "Requested: {requested} · Allocated: {allocated} · Short: {short}",
+  "orderPaidOnDelivery": "Paid on delivery",
+  "orderStillOwed": "Still owed",
+  "orderCollectionUnconfirmed": "Payment is awaiting confirmation",
+  "@orderShortageQuantities": {
+    "placeholders": {
+      "requested": {
+        "type": "String"
+      },
+      "allocated": {
+        "type": "String"
+      },
+      "short": {
+        "type": "String"
+      }
+    }
+  }
 }

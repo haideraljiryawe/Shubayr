@@ -59,6 +59,7 @@ Widget _host(
   Future<Product> Function()? fetchProduct,
   String locale = 'en',
   bool dark = false,
+  Future<OrderTracking> Function()? fetchTracking,
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
@@ -66,7 +67,9 @@ Widget _host(
     unreadCountProvider.overrideWith((ref) async => 0),
     dataSourceProvider.overrideWithValue(DataSource.mock),
     orderProvider('o1').overrideWith((ref) async => order),
-    orderTrackingProvider('o1').overrideWith((ref) async => _tracking),
+    orderTrackingProvider('o1').overrideWith(
+      (ref) async => fetchTracking == null ? _tracking : await fetchTracking(),
+    ),
     productProvider('p1').overrideWith(
       (ref) async => fetchProduct == null ? _product : await fetchProduct(),
     ),
@@ -84,6 +87,149 @@ Widget _host(
 );
 
 void main() {
+  Map<String, dynamic> details({bool confirmed = true}) => {
+    'id': 'o1',
+    'status': 'cancelled',
+    'currency': 'USD',
+    'total': 777,
+    'timeline': [
+      {
+        'status': 'confirmed',
+        'note': 'Inline server event',
+        'at': '2026-10-12T10:00:00Z',
+      },
+    ],
+    'cancellation_request': {
+      'status': 'denied',
+      'reason': 'Requested by customer',
+      'resolution_note': 'Store resolution',
+      'requested_at': '2026-10-12T11:00:00Z',
+      'resolved_at': '2026-10-12T12:00:00Z',
+    },
+    'price_change_info': {
+      'accepted_at': '2026-10-12T09:00:00Z',
+      'lines': [
+        {
+          'variant_id': 'v',
+          'unit_price': 12.75,
+          'price_version': 'version-saved',
+        },
+      ],
+    },
+    'attention_details': {
+      'short_lines': [
+        {
+          'order_item_id': 'i',
+          'variant_id': 'v',
+          'requested': '0.625',
+          'allocated': '0.5',
+          'short': '0.125',
+        },
+      ],
+    },
+    'collection': {
+      'result': confirmed ? 'short' : 'unconfirmed',
+      'confirmation_state': confirmed ? 'confirmed' : 'unconfirmed',
+      'amount_collected': confirmed ? 95000 : null,
+      'shortfall': confirmed ? 10000 : null,
+      'currency': 'IQD',
+    },
+  };
+  test('order response retains published historical details', () {
+    final order = Order.fromJson(details());
+    expect(order.timeline!.single.note, 'Inline server event');
+    expect(order.cancellationRequest!.resolutionNote, 'Store resolution');
+    expect(order.priceChangeInfo!.lines.single.priceVersion, 'version-saved');
+    expect(order.attentionDetails!.shortLines.single.short, .125);
+    expect(Order.fromJson(order.toJson()).collection!.amountCollected, 95000);
+    expect(
+      Order.fromJson(order.toJson()).priceChangeInfo!.acceptedAt,
+      DateTime.utc(2026, 10, 12, 9),
+    );
+  });
+  for (final locale in ['en', 'ar']) {
+    testWidgets(
+      'inline timeline, resolution, prices and collection use server snapshots $locale',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 4000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        var trackingReads = 0;
+        await tester.pumpWidget(
+          _host(
+            Order.fromJson(details()),
+            locale: locale,
+            fetchTracking: () async {
+              trackingReads++;
+              return _tracking;
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(OrderDetailScreen)),
+        );
+        expect(trackingReads, 0);
+        expect(find.text('Inline server event'), findsOneWidget);
+        expect(find.textContaining('Store resolution'), findsOneWidget);
+        expect(find.textContaining('Requested by customer'), findsOneWidget);
+        expect(find.text(l10n.orderPaidOnDelivery), findsOneWidget);
+        expect(find.text(l10n.orderStillOwed), findsOneWidget);
+        expect(
+          find.text(
+            formatMoney(95000, currencyCode: 'IQD', localeCode: locale),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            formatMoney(10000, currencyCode: 'IQD', localeCode: locale),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            formatMoney(12.75, currencyCode: 'USD', localeCode: locale),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(l10n.orderShortageQuantities('0.625', '0.5', '0.125')),
+          findsOneWidget,
+        );
+        expect(
+          Directionality.of(tester.element(find.text(l10n.orderStillOwed))),
+          locale == 'ar' ? TextDirection.rtl : TextDirection.ltr,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+    testWidgets(
+      'unconfirmed collection never invents zero paid or balance $locale',
+      (tester) async {
+        await tester.pumpWidget(
+          _host(
+            Order.fromJson({
+              ...details(confirmed: false),
+              'price_change_info': null,
+              'attention_details': null,
+              'cancellation_request': null,
+            }),
+            locale: locale,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(OrderDetailScreen)),
+        );
+        await tester.ensureVisible(find.text(l10n.orderCollectionUnconfirmed));
+        expect(find.text(l10n.orderPaidOnDelivery), findsNothing);
+        expect(find.text(l10n.orderStillOwed), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   for (final locale in ['ar', 'en']) {
     testWidgets(
       'order and tracking timestamps use local Western dates $locale',

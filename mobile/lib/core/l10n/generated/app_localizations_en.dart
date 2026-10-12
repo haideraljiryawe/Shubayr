@@ -1988,4 +1988,37 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get accountDeletionUnsettled =>
       'Settle outstanding amounts before deleting your account.';
+
+  @override
+  String get orderRequestDate => 'Requested';
+
+  @override
+  String get orderResolutionDate => 'Resolved';
+
+  @override
+  String get orderResolutionNote => 'Resolution note';
+
+  @override
+  String get orderAcceptedPrices => 'Accepted price changes';
+
+  @override
+  String get orderStockAttention => 'Order quantity shortage';
+
+  @override
+  String orderShortageQuantities(
+    String requested,
+    String allocated,
+    String short,
+  ) {
+    return 'Requested: $requested · Allocated: $allocated · Short: $short';
+  }
+
+  @override
+  String get orderPaidOnDelivery => 'Paid on delivery';
+
+  @override
+  String get orderStillOwed => 'Still owed';
+
+  @override
+  String get orderCollectionUnconfirmed => 'Payment is awaiting confirmation';
 }

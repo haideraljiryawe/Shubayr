@@ -1970,4 +1970,37 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get accountDeletionUnsettled =>
       'يرجى تسوية المبالغ المعلقة قبل حذف حسابك.';
+
+  @override
+  String get orderRequestDate => 'تاريخ الطلب';
+
+  @override
+  String get orderResolutionDate => 'تاريخ البت';
+
+  @override
+  String get orderResolutionNote => 'ملاحظة البت';
+
+  @override
+  String get orderAcceptedPrices => 'تغييرات الأسعار المقبولة';
+
+  @override
+  String get orderStockAttention => 'نقص في كميات الطلب';
+
+  @override
+  String orderShortageQuantities(
+    String requested,
+    String allocated,
+    String short,
+  ) {
+    return 'المطلوب: $requested · المخصص: $allocated · النقص: $short';
+  }
+
+  @override
+  String get orderPaidOnDelivery => 'المدفوع عند التسليم';
+
+  @override
+  String get orderStillOwed => 'المبلغ المتبقي';
+
+  @override
+  String get orderCollectionUnconfirmed => 'الدفع بانتظار التأكيد';
 }
