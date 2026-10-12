@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
+    "docs:screenshots": "node scripts/docs-screenshots.mjs",
     "gen:api": "openapi-typescript ../api/openapi.yaml -o src/types/api.d.ts",
     "test:live": "playwright test --config playwright.live.config.ts",
     "test:prod": "playwright test --config playwright.prod.config.ts"

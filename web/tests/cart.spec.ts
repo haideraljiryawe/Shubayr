@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import { SCREENSHOT_DIR } from "./screenshots";
 
 /**
  * Cart page. Runs against the mock-backed dev server from playwright.config.ts,
@@ -157,7 +158,7 @@ for (const [name, width, height] of [
     page,
   }) => {
     await page.setViewportSize({ width, height });
-    await mkdir("docs/screenshots", { recursive: true });
+    await mkdir(SCREENSHOT_DIR, { recursive: true });
 
     await page.goto(PRODUCT);
     await addToCart(page).click();
@@ -182,7 +183,7 @@ for (const [name, width, height] of [
     await page.evaluate(() => document.fonts.ready);
     await page.waitForLoadState("networkidle");
     await page.screenshot({
-      path: `docs/screenshots/cart-${name}.png`,
+      path: `${SCREENSHOT_DIR}/cart-${name}.png`,
       fullPage: true,
       caret: "initial",
       style: "nextjs-portal { display: none !important; }",
