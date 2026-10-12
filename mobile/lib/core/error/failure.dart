@@ -57,40 +57,62 @@ class AppFailure implements Exception {
     'COUPON_INVALID',
   }.contains(code);
 
-  String localizedMessage(AppLocalizations l10n) => switch (code) {
-    'IDEMPOTENCY_KEY_REUSED' => l10n.errorCheckoutIdentity,
-    'CART_EMPTY' => l10n.errorCartEmpty,
-    'CART_QUANTITY_INVALID' => l10n.errorCartQuantity,
-    'CART_PRODUCT_UNAVAILABLE' ||
-    'CART_VARIANT_UNAVAILABLE' ||
-    'CART_SKU_UNAVAILABLE' => l10n.errorCartUnavailable,
-    'REQUESTED_QUANTITY_UNAVAILABLE' => l10n.errorStockShortage,
-    'SKU_WHOLE_UNITS_ONLY' => l10n.errorWholeUnits,
-    'COUPON_INVALID' => l10n.errorCouponInvalid,
-    'PRICE_CHANGED' => l10n.errorPriceChanged,
-    'ORDER_ACCESS_FORBIDDEN' => l10n.errorOrderAccess,
-    'CANCELLATION_REQUEST_NOT_ALLOWED' ||
-    'ORDER_TRANSITION_NOT_ALLOWED' => l10n.errorCancellationNotAllowed,
-    'CANCELLATION_REQUEST_ALREADY_PENDING' => l10n.errorCancellationPending,
-    'QUANTITY_REDUCTION_NOT_PENDING' => l10n.errorReductionResolved,
-    'PAID_COD_CANCELLATION_FORBIDDEN' => l10n.errorPaidCancellation,
-    'STALE_ORDER_STATE' => l10n.orderStateConflict,
-    'PENDING_REQUEST' => l10n.pendingRequestMessage,
-    'INVALID_COLLECTION_AMOUNT' => l10n.deliveryInvalidAmount,
-    'INVALID_API_CONFIGURATION' => l10n.startupConfigurationError,
-    _ => switch (kind) {
-      FailureKind.network => l10n.errorNetwork,
-      FailureKind.timeout => l10n.errorTimeout,
-      FailureKind.unauthorized => l10n.errorUnauthorized,
-      FailureKind.forbidden => l10n.adminNoAccess,
-      FailureKind.notFound => l10n.errorNotFound,
-      FailureKind.validation => l10n.errorValidation,
-      FailureKind.conflict => l10n.errorConflict,
-      FailureKind.rateLimited => l10n.errorRateLimited,
-      FailureKind.server => l10n.errorServer,
-      FailureKind.unknown => l10n.errorUnknown,
-    },
-  };
+  String localizedMessage(AppLocalizations l10n) {
+    if (code == 'ACCOUNT_DELETION_BLOCKED') {
+      final blockers = <String>{
+        for (final error in errors)
+          if (error.code == 'OPEN_ORDERS')
+            l10n.accountDeletionOpenOrders
+          else if (error.code == 'PENDING_RETURNS')
+            l10n.accountDeletionPendingReturns
+          else if (error.code == 'UNSETTLED_AMOUNTS')
+            l10n.accountDeletionUnsettled,
+      };
+      return blockers.isEmpty
+          ? l10n.accountDeletionBlocked
+          : blockers.join('\n');
+    }
+    if (code == 'PRIVACY_POLICY_UNAVAILABLE') {
+      return l10n.privacyPolicyUnavailable;
+    }
+    if (code == 'PRIVACY_POLICY_OPEN_FAILED') {
+      return l10n.privacyPolicyOpenFailed;
+    }
+    return switch (code) {
+      'IDEMPOTENCY_KEY_REUSED' => l10n.errorCheckoutIdentity,
+      'CART_EMPTY' => l10n.errorCartEmpty,
+      'CART_QUANTITY_INVALID' => l10n.errorCartQuantity,
+      'CART_PRODUCT_UNAVAILABLE' ||
+      'CART_VARIANT_UNAVAILABLE' ||
+      'CART_SKU_UNAVAILABLE' => l10n.errorCartUnavailable,
+      'REQUESTED_QUANTITY_UNAVAILABLE' => l10n.errorStockShortage,
+      'SKU_WHOLE_UNITS_ONLY' => l10n.errorWholeUnits,
+      'COUPON_INVALID' => l10n.errorCouponInvalid,
+      'PRICE_CHANGED' => l10n.errorPriceChanged,
+      'ORDER_ACCESS_FORBIDDEN' => l10n.errorOrderAccess,
+      'CANCELLATION_REQUEST_NOT_ALLOWED' ||
+      'ORDER_TRANSITION_NOT_ALLOWED' => l10n.errorCancellationNotAllowed,
+      'CANCELLATION_REQUEST_ALREADY_PENDING' => l10n.errorCancellationPending,
+      'QUANTITY_REDUCTION_NOT_PENDING' => l10n.errorReductionResolved,
+      'PAID_COD_CANCELLATION_FORBIDDEN' => l10n.errorPaidCancellation,
+      'STALE_ORDER_STATE' => l10n.orderStateConflict,
+      'PENDING_REQUEST' => l10n.pendingRequestMessage,
+      'INVALID_COLLECTION_AMOUNT' => l10n.deliveryInvalidAmount,
+      'INVALID_API_CONFIGURATION' => l10n.startupConfigurationError,
+      _ => switch (kind) {
+        FailureKind.network => l10n.errorNetwork,
+        FailureKind.timeout => l10n.errorTimeout,
+        FailureKind.unauthorized => l10n.errorUnauthorized,
+        FailureKind.forbidden => l10n.adminNoAccess,
+        FailureKind.notFound => l10n.errorNotFound,
+        FailureKind.validation => l10n.errorValidation,
+        FailureKind.conflict => l10n.errorConflict,
+        FailureKind.rateLimited => l10n.errorRateLimited,
+        FailureKind.server => l10n.errorServer,
+        FailureKind.unknown => l10n.errorUnknown,
+      },
+    };
+  }
 
   @override
   String toString() =>

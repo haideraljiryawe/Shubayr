@@ -629,7 +629,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileDeleteMessage =>
-      'سيتم حذف حسابك وبياناته نهائيًا. لا يمكن التراجع عن هذا الإجراء.';
+      'ستُحذف بياناتك الشخصية وعناوينك وجلسات تسجيل الدخول. تُحفظ سجلات الطلبات والسجلات المالية دون بيانات هويتك حسب المتطلبات. لا يمكن التراجع عن الحذف.';
 
   @override
   String galleryCounter(String current, String total) {
@@ -1926,4 +1926,28 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get productLowStockLabel => 'الكمية محدودة';
+
+  @override
+  String get privacyPolicyUnavailable =>
+      'لم تُنشر سياسة الخصوصية بعد. يرجى المحاولة بعد إعداد التطبيق.';
+
+  @override
+  String get privacyPolicyOpenFailed =>
+      'تعذر فتح سياسة الخصوصية. يرجى المحاولة مجددًا.';
+
+  @override
+  String get accountDeletionBlocked =>
+      'لا يمكن حذف حسابك قبل تسوية الطلبات أو المرتجعات أو المبالغ المعلقة.';
+
+  @override
+  String get accountDeletionOpenOrders =>
+      'أكمل طلباتك المفتوحة أو ألغها قبل حذف حسابك.';
+
+  @override
+  String get accountDeletionPendingReturns =>
+      'انتظر تسوية المرتجعات المعلقة قبل حذف حسابك.';
+
+  @override
+  String get accountDeletionUnsettled =>
+      'يرجى تسوية المبالغ المعلقة قبل حذف حسابك.';
 }
