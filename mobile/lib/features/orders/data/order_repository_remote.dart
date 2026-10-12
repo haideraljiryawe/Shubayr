@@ -22,6 +22,7 @@ class OrderRepositoryRemote implements OrderRepository {
 
   @override
   Future<Order> placeOrder({
+    required String idempotencyKey,
     required String addressId,
     String? couponCode,
     List<({String variantId, String priceVersion})> acceptedPriceVersions =
@@ -30,6 +31,7 @@ class OrderRepositoryRemote implements OrderRepository {
     () async => Order.fromJson(
       await _api.post<Map<String, dynamic>>(
         '/orders',
+        headers: {'Idempotency-Key': idempotencyKey},
         body: {
           'address_id': addressId,
           'coupon_code': ?couponCode,

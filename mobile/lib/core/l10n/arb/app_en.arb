@@ -195,7 +195,16 @@
     }
   },
   "productReviewsPreview": "Showing {shown} of {total} reviews — preview",
-  "@productReviewsPreview": {"placeholders": {"shown": {"type": "String"}, "total": {"type": "String"}}},
+  "@productReviewsPreview": {
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "productReviews": "Reviews",
   "productNoReviews": "No reviews yet",
   "productReviewsCount": "{count} reviews",
@@ -739,6 +748,8 @@
   "deliveryInvalidAmount": "Enter an amount from zero up to the amount due (at most 6 decimal places).",
   "pendingDeliveryRetry": "The previous result is unknown. Retry the same collection; its amount cannot be changed until the result is known.",
   "pendingRequestMessage": "A previous request is unresolved. Retry with the same selection and amount or quantity.",
+  "checkoutPendingRecovery": "A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.",
+  "checkoutResolvePending": "Resolve previous checkout",
   "orderRequestCancellation": "Request cancellation",
   "orderCancellationReason": "Reason for cancellation",
   "orderCancellationRequestSent": "Cancellation request sent to the store.",

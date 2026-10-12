@@ -1824,6 +1824,13 @@ class AppLocalizationsAr extends AppLocalizations {
       'نتيجة الطلب السابق لم تُحسم. أعد المحاولة بنفس الاختيار والمبلغ أو الكمية.';
 
   @override
+  String get checkoutPendingRecovery =>
+      'نتيجة عملية الشراء السابقة غير معروفة. تحقق منها قبل إنشاء طلب جديد. ستتم إعادة المحاولة بالطلب الأصلي حتى إذا أصبحت السلة فارغة.';
+
+  @override
+  String get checkoutResolvePending => 'التحقق من عملية الشراء السابقة';
+
+  @override
   String get orderRequestCancellation => 'طلب إلغاء الطلب';
 
   @override

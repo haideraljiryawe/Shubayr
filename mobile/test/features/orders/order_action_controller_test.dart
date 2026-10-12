@@ -1,3 +1,4 @@
+import 'package:shubayr/core/storage/pending_request_store.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +42,9 @@ void main() {
     c = ProviderContainer(
       retry: (_, _) => null,
       overrides: [
+        pendingRequestStoreProvider.overrideWith(
+          (ref) => PendingRequestStore.memory(),
+        ),
         sessionControllerProvider.overrideWith(TestSession.new),
         cartRepositoryProvider.overrideWithValue(carts),
         orderRepositoryProvider.overrideWithValue(orders),
@@ -180,7 +184,10 @@ void main() {
         } else {
           orders.onCancel = () async => const Order(version: 1, id: 'retry');
         }
-        expect((await run()).status, OrderActionStatus.succeeded);
+        final retry = checkout
+            ? await c.read(checkoutControllerProvider.notifier).recover()
+            : await run();
+        expect(retry.status, OrderActionStatus.succeeded);
       },
     );
     for (final fail in [true, false]) {
