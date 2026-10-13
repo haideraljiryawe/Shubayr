@@ -46,6 +46,7 @@ Or with the whole stack: `docker compose --profile full up -d` (service
 | `npm test` | Unit tests (Vitest) |
 | `npm run test:live` | Playwright against a real, seeded API (see below) |
 | `npm run gen:api` | Regenerate `src/types/api.d.ts` from `../api/openapi.yaml` |
+| `npm run docs:screenshots` | Re-take the owner guide pictures (`docs/owner-guide/images`) against a throwaway API (`ADMIN_DOCS_API`) |
 
 ## Stack
 

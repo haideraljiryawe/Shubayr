@@ -5,7 +5,7 @@ import {
   fieldErrorMap,
   toApiError,
 } from "@/lib/api/errors";
-import { NAV_ITEMS, isNavActive, visibleNav } from "@/lib/nav";
+import { NAV_ITEMS, activeNavKey, isNavActive, visibleNav } from "@/lib/nav";
 import {
   groupPermissions,
   keysFromPresets,
@@ -106,6 +106,16 @@ describe("visibleNav", () => {
     expect(isNavActive(staff, "/staffing")).toBe(false);
     expect(isNavActive(dashboard, "/staff")).toBe(false);
     expect(isNavActive(dashboard, "/")).toBe(true);
+  });
+
+  it("highlights only the most specific of nested entries", () => {
+    expect(activeNavKey(NAV_ITEMS, "/settings")).toBe("settings");
+    expect(activeNavKey(NAV_ITEMS, "/settings/delivery-zones")).toBe("deliveryZones");
+    expect(activeNavKey(NAV_ITEMS, "/settings/discounts")).toBe("discountTiers");
+    // The governorates tab has no entry of its own: Store settings stays lit.
+    expect(activeNavKey(NAV_ITEMS, "/settings/governorates")).toBe("settings");
+    expect(activeNavKey(NAV_ITEMS, "/")).toBe("dashboard");
+    expect(activeNavKey(NAV_ITEMS, "/nowhere")).toBeNull();
   });
 });
 
