@@ -5089,7 +5089,7 @@ components:
     ExchangeRateValidation: { description: "Invalid request data (`VALIDATION_FAILED`) or no applicable currency rate (`EXCHANGE_RATE_NOT_FOUND`), HTTP 422", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     PricingRateValidation: { description: "Invalid request data (`VALIDATION_FAILED`) or no applicable linked-pricing rate (`PRICING_RATE_REQUIRED`), HTTP 422", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     RateLimited: { description: Too many requests (`RATE_LIMITED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-    PayloadTooLarge: { description: Uploaded workbook, archive, image, or row count exceeds the declared limit, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    PayloadTooLarge: { description: "Uploaded workbook, archive, image, or row count exceeds the declared limit", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     UnsupportedMediaType: { description: Uploaded image bytes are not a supported image format, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Forbidden: { description: Missing permission (`FORBIDDEN`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
   schemas:

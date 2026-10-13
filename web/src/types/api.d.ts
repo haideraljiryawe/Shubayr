@@ -15432,7 +15432,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Uploaded workbook */
+        /** @description Uploaded workbook, archive, image, or row count exceeds the declared limit */
         PayloadTooLarge: {
             headers: {
                 [name: string]: unknown;
