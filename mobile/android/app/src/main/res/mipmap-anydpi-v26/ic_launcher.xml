@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background" />
-    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <foreground>
+        <!-- Android crops a 108dp layer to a 72dp viewport. Scale by 2/3 to
+             match the iOS/legacy logo size and stay inside the 66dp safe circle.
+             Fractional insets keep the same proportions at every icon size. -->
+        <inset
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:insetLeft="16.666667%"
+            android:insetTop="16.666667%"
+            android:insetRight="16.666667%"
+            android:insetBottom="16.666667%" />
+    </foreground>
 </adaptive-icon>

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import { SCREENSHOT_DIR } from "./screenshots";
 
 /**
  * Phone-OTP sign-in and the account spine, against the mock-backed dev server.
@@ -479,7 +480,7 @@ for (const [name, width, height] of [
 ] as const) {
   test(`account screenshots: ${name}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await mkdir("docs/screenshots", { recursive: true });
+    await mkdir(SCREENSHOT_DIR, { recursive: true });
 
     const shoot = async (screen: string) => {
       await expect(
@@ -493,7 +494,7 @@ for (const [name, width, height] of [
         ),
       ).toBe(true);
       await page.screenshot({
-        path: `docs/screenshots/${screen}-${name}.png`,
+        path: `${SCREENSHOT_DIR}/${screen}-${name}.png`,
         fullPage: true,
         caret: "initial",
         style: "nextjs-portal { display: none !important; }",

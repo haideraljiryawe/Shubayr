@@ -1,3 +1,4 @@
+import '../../../../core/error/failure.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import '../widgets/product_promotion.dart';
@@ -12,7 +13,7 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
-import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -20,6 +21,7 @@ import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/product.dart';
 import '../../data/product_availability.dart';
+import '../../data/stock_availability.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/product_gallery.dart';
 import '../widgets/reviews_section.dart';
@@ -39,11 +41,23 @@ class ProductDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(actions: [WishlistButton(productId: productId)]),
-      body: AsyncValueView(
-        value: product,
-        loading: const _DetailSkeleton(),
-        onRetry: () => ref.invalidate(productProvider(productId)),
-        builder: (context, p) => _Detail(product: p),
+      body: ResponsiveContent.page(
+        child: product.when(
+          skipLoadingOnRefresh: false,
+          loading: () => const _DetailSkeleton(),
+          error: (error, _) =>
+              error is AppFailure && error.kind == FailureKind.notFound
+              ? AppEmptyView(
+                  icon: Icons.inventory_2_outlined,
+                  title: context.l10n.productUnavailableTitle,
+                  message: context.l10n.productUnavailableMessage,
+                )
+              : AppErrorView(
+                  error: error,
+                  onRetry: () => ref.invalidate(productProvider(productId)),
+                ),
+          data: (p) => _Detail(product: p),
+        ),
       ),
     );
   }
@@ -59,6 +73,7 @@ class _DetailSkeleton extends StatelessWidget {
     padding: EdgeInsets.zero,
     children: [
       ResponsiveSections(
+        singleColumn: true,
         stackedSpacing: 0,
         children: [
           Skeleton(
@@ -98,7 +113,13 @@ class _DetailSkeleton extends StatelessWidget {
 }
 
 /// Stock resolved for what the shopper currently has selected.
-typedef _Stock = ({bool inStock, int qty});
+typedef _Stock = ({
+  bool inStock,
+  num qty,
+  bool wholeUnitsOnly,
+  String? baseUnit,
+  StockAvailability? availability,
+});
 
 class _Detail extends ConsumerStatefulWidget {
   const _Detail({required this.product});
@@ -111,7 +132,7 @@ class _Detail extends ConsumerStatefulWidget {
 
 class _DetailState extends ConsumerState<_Detail> {
   String? _selectedVariantId;
-  int _quantity = 1;
+  num _quantity = 1;
 
   @override
   void initState() {
@@ -133,12 +154,24 @@ class _DetailState extends ConsumerState<_Detail> {
   /// product's own computed values so the badge never blanks out.
   _Stock _resolveStock(ProductAvailability? a, ProductVariant? selected) {
     final product = widget.product;
-    if (a == null) return (inStock: product.inStock, qty: product.availableQty);
-    if (selected != null) {
-      final va = a.forVariant(selected.id);
-      if (va != null) return (inStock: va.inStock, qty: va.availableQty);
-    }
-    return (inStock: a.inStock, qty: a.availableQty);
+    final row = a?.forVariant(selected?.id);
+    final qty =
+        row?.availableQty ??
+        selected?.availableQty ??
+        (selected == null ? a?.availableQty ?? product.availableQty : 0);
+    final whole = row?.wholeUnitsOnly ?? selected?.wholeUnitsOnly ?? true;
+    return (
+      inStock:
+          (row?.inStock ?? selected?.inStock ?? product.inStock) &&
+          qty >= (whole ? 1 : 0.001),
+      qty: qty,
+      wholeUnitsOnly: whole,
+      baseUnit: row?.baseUnit ?? selected?.baseUnit,
+      availability:
+          row?.availability ??
+          selected?.availability ??
+          (selected == null ? a?.availability ?? product.availability : null),
+    );
   }
 
   @override
@@ -152,11 +185,24 @@ class _DetailState extends ConsumerState<_Detail> {
 
     final selectedVariant = _selectedVariant;
     final price = formatMoney(
-      product.salePrice + (selectedVariant?.priceDelta ?? 0),
-      currencyCode: brand.currencyCode,
+      selectedVariant?.effectivePrice ?? product.effectivePrice,
+      currencyCode:
+          selectedVariant?.currencyCode ??
+          selectedVariant?.currency ??
+          product.currency ??
+          brand.currencyCode,
       localeCode: lang,
     );
     final stock = _resolveStock(availability, selectedVariant);
+    final max = (stock.wholeUnitsOnly ? stock.qty.floor() : stock.qty).clamp(
+      0,
+      99,
+    );
+    final min = stock.wholeUnitsOnly ? 1 : 0.001;
+    // A new SKU or a live stock reduction must not leave an invalid selection.
+    final quantity = stock.inStock
+        ? (stock.wholeUnitsOnly ? _quantity.ceil() : _quantity).clamp(min, max)
+        : _quantity;
 
     return Column(
       children: [
@@ -165,12 +211,10 @@ class _DetailState extends ConsumerState<_Detail> {
             padding: const EdgeInsets.only(bottom: AppSpacing.xl),
             children: [
               ResponsiveSections(
+                singleColumn: true,
                 stackedSpacing: 0,
                 children: [
-                  ProductGallery(
-                    images: product.images,
-                    media: product.mockImages,
-                  ),
+                  ProductGallery(images: product.images),
                   Padding(
                     padding: AppLayout.pageInsets(context),
                     child: Column(
@@ -198,15 +242,13 @@ class _DetailState extends ConsumerState<_Detail> {
                               ),
                               const SizedBox(width: AppSpacing.md),
                             ],
-                            if (product.isNegotiable) _NegotiableBadge(),
                           ],
                         ),
                         const SizedBox(height: AppSpacing.md),
                         if (product.isOnSale) ...[
                           ProductPromotion(
                             product: product,
-                            showBasePrice:
-                                (selectedVariant?.priceDelta ?? 0) != 0,
+                            showBasePrice: selectedVariant != null,
                           ),
                           const SizedBox(height: AppSpacing.xs),
                         ],
@@ -219,13 +261,13 @@ class _DetailState extends ConsumerState<_Detail> {
                         const SizedBox(height: AppSpacing.sm),
                         _AvailabilityBadge(
                           inStock: stock.inStock,
-                          qty: stock.qty,
+                          availability: stock.availability,
                         ),
                         if (product.variants.isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.lg),
                           Text(
                             l10n.productVariants,
-                            style: context.text.titleSmall,
+                            style: context.sectionTitle,
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           _VariantSelector(
@@ -246,7 +288,11 @@ class _DetailState extends ConsumerState<_Detail> {
                               ),
                               const Spacer(),
                               QuantityStepper(
-                                quantity: _quantity,
+                                showRange: false,
+                                quantity: quantity,
+                                wholeUnitsOnly: stock.wholeUnitsOnly,
+                                max: max,
+                                baseUnit: stock.baseUnit,
                                 onChanged: (q) => setState(() => _quantity = q),
                               ),
                             ],
@@ -256,7 +302,7 @@ class _DetailState extends ConsumerState<_Detail> {
                           const SizedBox(height: AppSpacing.lg),
                           Text(
                             l10n.productDescription,
-                            style: context.text.titleSmall,
+                            style: context.sectionTitle,
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
@@ -284,7 +330,7 @@ class _DetailState extends ConsumerState<_Detail> {
           child: _AddToCartBar(
             productId: product.id,
             variantId: _selectedVariantId,
-            quantity: _quantity,
+            quantity: quantity,
             inStock: stock.inStock,
           ),
         ),
@@ -295,27 +341,26 @@ class _DetailState extends ConsumerState<_Detail> {
 
 /// In-stock / low-stock / out-of-stock indicator for the current selection.
 class _AvailabilityBadge extends StatelessWidget {
-  const _AvailabilityBadge({required this.inStock, required this.qty});
+  const _AvailabilityBadge({required this.inStock, required this.availability});
 
   final bool inStock;
-  final int qty;
-
-  static const int _lowStockThreshold = 5;
+  final StockAvailability? availability;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final colors = context.colors;
-    final (Color color, IconData icon, String label) = switch ((inStock, qty)) {
-      (false, _) => (
+    final (Color color, IconData icon, String label) = switch (availability ??
+        (inStock ? StockAvailability.inStock : StockAvailability.outOfStock)) {
+      StockAvailability.outOfStock => (
         colors.textMuted,
         Icons.remove_circle_outline,
         l10n.commonOutOfStock,
       ),
-      (true, final q) when q <= _lowStockThreshold => (
+      StockAvailability.lowStock => (
         colors.warning,
         Icons.timelapse,
-        l10n.productLowStock('$q'),
+        l10n.productLowStockLabel,
       ),
       _ => (colors.success, Icons.check_circle_outline, l10n.productInStock),
     };
@@ -328,7 +373,7 @@ class _AvailabilityBadge extends StatelessWidget {
           label,
           style: context.text.labelMedium?.copyWith(
             color: color,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
@@ -360,7 +405,11 @@ class _VariantSelector extends StatelessWidget {
           Builder(
             builder: (context) {
               final va = availability?.forVariant(v.id);
-              final outOfStock = va != null && !va.inStock;
+              final qty = va?.availableQty ?? v.availableQty;
+              final whole = va?.wholeUnitsOnly ?? v.wholeUnitsOnly;
+              final outOfStock =
+                  (va?.inStock ?? v.inStock) == false ||
+                  (qty != null && qty < (whole ? 1 : 0.001));
               final label = v.attributes.values.isNotEmpty
                   ? v.attributes.values.join(' · ')
                   : v.sku;
@@ -381,29 +430,6 @@ class _VariantSelector extends StatelessWidget {
   }
 }
 
-class _NegotiableBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.accentSoft,
-        borderRadius: AppRadii.pillAll,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: 4,
-        ),
-        child: Text(
-          context.l10n.productNegotiable,
-          style: context.text.labelMedium?.copyWith(color: colors.textPrimary),
-        ),
-      ),
-    );
-  }
-}
-
 class _AddToCartBar extends ConsumerStatefulWidget {
   const _AddToCartBar({
     required this.productId,
@@ -414,7 +440,7 @@ class _AddToCartBar extends ConsumerStatefulWidget {
 
   final String productId;
   final String? variantId;
-  final int quantity;
+  final num quantity;
   final bool inStock;
 
   @override
@@ -446,7 +472,7 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     }
 
     setState(() => _busy = true);
-    await ref
+    final result = await ref
         .read(cartControllerProvider.notifier)
         .add(
           productId: widget.productId,
@@ -456,10 +482,21 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     if (!mounted) return;
     setState(() => _busy = false);
 
-    if (ref.read(cartControllerProvider).hasError) {
-      showAppSnackBarMessage(context, message: l10n.stateErrorTitle);
+    if (result.status == CartMutationStatus.failed) {
+      final error = result.error;
+      if (error is AppFailure && error.requiresCartRefresh) {
+        ref.invalidate(availabilityProvider(widget.productId));
+        ref.invalidate(productProvider(widget.productId));
+      }
+      showAppSnackBarMessage(
+        context,
+        message: error is AppFailure
+            ? error.localizedMessage(l10n)
+            : l10n.stateErrorTitle,
+      );
       return;
     }
+    if (result.status != CartMutationStatus.succeeded) return;
     // The positive "added" state gets its own dark-green confirmation surface
     // (a design-system token), distinct from the neutral error/prompt snackbars.
     final colors = context.colors;

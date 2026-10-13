@@ -1,5 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import 'stock_availability.dart';
+
 part 'product_availability.g.dart';
 
 /// Live availability for a product, computed by the API at read time. Shapes
@@ -10,18 +12,21 @@ class ProductAvailability {
   const ProductAvailability({
     required this.productId,
     required this.inStock,
+    this.availability,
     required this.availableQty,
     this.variants = const [],
   });
 
   @JsonKey(name: 'product_id')
   final String productId;
+  @JsonKey(includeIfNull: false)
+  final StockAvailability? availability;
   @JsonKey(name: 'in_stock')
   final bool inStock;
 
   /// Total sellable across variants.
   @JsonKey(name: 'available_qty')
-  final int availableQty;
+  final num availableQty;
 
   final List<VariantAvailability> variants;
 
@@ -44,17 +49,30 @@ class VariantAvailability {
   const VariantAvailability({
     this.variantId,
     this.sku = '',
+    this.baseUnit,
+    this.wholeUnitsOnly,
+    this.lowStockThreshold,
     required this.availableQty,
     required this.inStock,
+    this.availability,
   });
 
   @JsonKey(name: 'variant_id')
   final String? variantId;
   final String sku;
   @JsonKey(name: 'available_qty')
-  final int availableQty;
+  final num availableQty;
+  @JsonKey(includeIfNull: false)
+  final StockAvailability? availability;
   @JsonKey(name: 'in_stock')
   final bool inStock;
+
+  @JsonKey(name: 'base_unit', includeIfNull: false)
+  final String? baseUnit;
+  @JsonKey(name: 'whole_units_only', includeIfNull: false)
+  final bool? wholeUnitsOnly;
+  @JsonKey(name: 'low_stock_threshold', includeIfNull: false)
+  final num? lowStockThreshold;
 
   factory VariantAvailability.fromJson(Map<String, dynamic> json) =>
       _$VariantAvailabilityFromJson(json);

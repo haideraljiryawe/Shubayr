@@ -98,12 +98,6 @@ abstract class AppLocalizations {
     Locale('en'),
   ];
 
-  /// No description provided for @homeBrandName.
-  ///
-  /// In en, this message translates to:
-  /// **'Shubayr'**
-  String get homeBrandName;
-
   /// Neutral brand name used before store settings load.
   ///
   /// In en, this message translates to:
@@ -203,7 +197,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorNetwork.
   ///
   /// In en, this message translates to:
-  /// **'No internet connection. Check your network and try again.'**
+  /// **'Could not connect to the server. Check your connection and try again.'**
   String get errorNetwork;
 
   /// No description provided for @errorTimeout.
@@ -878,6 +872,12 @@ abstract class AppLocalizations {
   /// **'Delivery failed'**
   String get orderStatusFailedDelivery;
 
+  /// No description provided for @orderStatusRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get orderStatusRejected;
+
   /// No description provided for @orderStatusCancelled.
   ///
   /// In en, this message translates to:
@@ -895,6 +895,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Returned'**
   String get orderStatusReturned;
+
+  /// No description provided for @deliveryFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get deliveryFilterAll;
+
+  /// No description provided for @deliveryFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No deliveries with this status'**
+  String get deliveryFilterEmpty;
+
+  /// No description provided for @deliveryStatusConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'The current state does not allow this action. Check the delivery and order status before trying again.'**
+  String get deliveryStatusConflict;
 
   /// No description provided for @deliveryTitle.
   ///
@@ -997,6 +1015,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Only {count} left'**
   String productLowStock(String count);
+
+  /// No description provided for @productReviewsPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total} reviews — preview'**
+  String productReviewsPreview(String shown, String total);
 
   /// No description provided for @productReviews.
   ///
@@ -1265,7 +1289,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileDeleteMessage.
   ///
   /// In en, this message translates to:
-  /// **'Your account and its data will be permanently deleted. This cannot be undone.'**
+  /// **'Your personal details, addresses and sign-in sessions will be removed. Anonymized order and financial records are retained as required. This cannot be undone.'**
   String get profileDeleteMessage;
 
   /// Image position in the full-screen product gallery, e.g. '1 of 5'. Digits are passed as strings so they stay Western Arabic numerals like the rest of the app.
@@ -1331,7 +1355,7 @@ abstract class AppLocalizations {
   /// No description provided for @reviewAllSubmitted.
   ///
   /// In en, this message translates to:
-  /// **'You have submitted reviews for all items in this session.'**
+  /// **'You have already reviewed all items in this order.'**
   String get reviewAllSubmitted;
 
   /// No description provided for @returnOrderTitle.
@@ -1367,7 +1391,7 @@ abstract class AppLocalizations {
   /// No description provided for @returnReason.
   ///
   /// In en, this message translates to:
-  /// **'Reason for return (optional)'**
+  /// **'Reason for all selected items (required)'**
   String get returnReason;
 
   /// No description provided for @returnSubmit.
@@ -1397,7 +1421,7 @@ abstract class AppLocalizations {
   /// No description provided for @returnAllRequested.
   ///
   /// In en, this message translates to:
-  /// **'All item quantities have been requested for return in this session.'**
+  /// **'There are no remaining quantities available to request for return.'**
   String get returnAllRequested;
 
   /// No description provided for @routeNotFoundTitle.
@@ -3311,8 +3335,618 @@ abstract class AppLocalizations {
   /// No description provided for @adminRetainedProductCategory.
   ///
   /// In en, this message translates to:
-  /// **'The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it.'**
+  /// **'The current category is retained but unavailable for new assignments. Keep it for this product or choose another category to change it.'**
   String get adminRetainedProductCategory;
+
+  /// No description provided for @adminDiscountType.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount type'**
+  String get adminDiscountType;
+
+  /// No description provided for @adminDiscountNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No discount'**
+  String get adminDiscountNone;
+
+  /// No description provided for @adminDiscountPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Percentage'**
+  String get adminDiscountPercentage;
+
+  /// No description provided for @adminDiscountAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed amount'**
+  String get adminDiscountAmount;
+
+  /// No description provided for @adminDiscountValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount value'**
+  String get adminDiscountValue;
+
+  /// No description provided for @adminDiscountStartsAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount starts'**
+  String get adminDiscountStartsAt;
+
+  /// No description provided for @adminDiscountEndsAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount ends'**
+  String get adminDiscountEndsAt;
+
+  /// No description provided for @adminDiscountDateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional; UTC example: 2026-10-01T09:00:00Z'**
+  String get adminDiscountDateHint;
+
+  /// No description provided for @adminDiscountDateInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid date and time with timezone, e.g. 2026-10-01T09:00:00Z'**
+  String get adminDiscountDateInvalid;
+
+  /// No description provided for @adminCategorySlug.
+  ///
+  /// In en, this message translates to:
+  /// **'Category URL slug'**
+  String get adminCategorySlug;
+
+  /// No description provided for @addressInternationalPhoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use an international number starting with + and country code; no country code is added automatically.'**
+  String get addressInternationalPhoneHint;
+
+  /// No description provided for @mediaUploadHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Images upload when saved. JPEG, PNG, WebP or AVIF, up to 8 MiB per image.'**
+  String get mediaUploadHint;
+
+  /// No description provided for @orderStatusReadyForDispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready for dispatch'**
+  String get orderStatusReadyForDispatch;
+
+  /// No description provided for @roleMonitor.
+  ///
+  /// In en, this message translates to:
+  /// **'Order monitor'**
+  String get roleMonitor;
+
+  /// No description provided for @monitorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order monitoring'**
+  String get monitorTitle;
+
+  /// No description provided for @notificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsTitle;
+
+  /// No description provided for @notificationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet'**
+  String get notificationsEmpty;
+
+  /// No description provided for @actionLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get actionLoadMore;
+
+  /// No description provided for @quantityInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a quantity within the limits, with up to 3 decimal places.'**
+  String get quantityInvalid;
+
+  /// No description provided for @quantityWholeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole quantity within the limits.'**
+  String get quantityWholeInvalid;
+
+  /// No description provided for @checkoutPricesChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices changed'**
+  String get checkoutPricesChanged;
+
+  /// No description provided for @checkoutPricesChangedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the new unit prices before placing your order. The server will calculate the final total.'**
+  String get checkoutPricesChangedMessage;
+
+  /// No description provided for @checkoutAcceptPrices.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept prices and place order'**
+  String get checkoutAcceptPrices;
+
+  /// No description provided for @cartPricesChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Some prices changed. You will be asked to review and accept them at checkout.'**
+  String get cartPricesChanged;
+
+  /// No description provided for @deliveryFailureReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for failed delivery'**
+  String get deliveryFailureReason;
+
+  /// No description provided for @deliveryRetryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry count'**
+  String get deliveryRetryCount;
+
+  /// No description provided for @orderStateConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This order changed or can no longer be cancelled. Please review its latest status.'**
+  String get orderStateConflict;
+
+  /// No description provided for @errorConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This action conflicts with the current state. Refresh and review before trying again.'**
+  String get errorConflict;
+
+  /// No description provided for @startupConfigurationError.
+  ///
+  /// In en, this message translates to:
+  /// **'This build has an invalid production API configuration. Contact support for a corrected build.'**
+  String get startupConfigurationError;
+
+  /// No description provided for @deliveryAmountDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount due'**
+  String get deliveryAmountDue;
+
+  /// No description provided for @deliveryCollectionConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment collection'**
+  String get deliveryCollectionConfirmation;
+
+  /// No description provided for @deliveryCollectionConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment collected'**
+  String get deliveryCollectionConfirmed;
+
+  /// No description provided for @deliveryCollectionUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount not confirmed'**
+  String get deliveryCollectionUnconfirmed;
+
+  /// No description provided for @deliveryCollectionUnconfirmedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The order is delivered now; the store confirms the amount later.'**
+  String get deliveryCollectionUnconfirmedHint;
+
+  /// No description provided for @deliveryCollectedAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount collected'**
+  String get deliveryCollectedAmount;
+
+  /// No description provided for @deliveryInvalidAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount from zero up to the amount due (at most 6 decimal places).'**
+  String get deliveryInvalidAmount;
+
+  /// No description provided for @pendingDeliveryRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'The previous result is unknown. Retry the same collection; its amount cannot be changed until the result is known.'**
+  String get pendingDeliveryRetry;
+
+  /// No description provided for @pendingRequestMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'A previous request is unresolved. Retry with the same selection and amount or quantity.'**
+  String get pendingRequestMessage;
+
+  /// No description provided for @checkoutPendingRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.'**
+  String get checkoutPendingRecovery;
+
+  /// No description provided for @checkoutResolvePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve previous checkout'**
+  String get checkoutResolvePending;
+
+  /// No description provided for @orderRequestCancellation.
+  ///
+  /// In en, this message translates to:
+  /// **'Request cancellation'**
+  String get orderRequestCancellation;
+
+  /// No description provided for @orderCancellationReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for cancellation'**
+  String get orderCancellationReason;
+
+  /// No description provided for @orderCancellationRequestSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation request sent to the store.'**
+  String get orderCancellationRequestSent;
+
+  /// No description provided for @orderCancellationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation request pending'**
+  String get orderCancellationPending;
+
+  /// No description provided for @orderCancellationApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation request approved'**
+  String get orderCancellationApproved;
+
+  /// No description provided for @orderCancellationDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation request declined'**
+  String get orderCancellationDenied;
+
+  /// No description provided for @orderReductionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity change proposed'**
+  String get orderReductionTitle;
+
+  /// No description provided for @orderReductionQuantities.
+  ///
+  /// In en, this message translates to:
+  /// **'Original quantity: {oldQuantity}. Proposed quantity: {newQuantity}.'**
+  String orderReductionQuantities(String oldQuantity, String newQuantity);
+
+  /// No description provided for @orderReductionAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept reduced quantity'**
+  String get orderReductionAccept;
+
+  /// No description provided for @orderReductionDecline.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline reduced quantity'**
+  String get orderReductionDecline;
+
+  /// No description provided for @orderReductionAcceptConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept the displayed reduced quantity? The store will update the order totals.'**
+  String get orderReductionAcceptConfirm;
+
+  /// No description provided for @orderReductionDeclineConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline this quantity change? The store will review your order.'**
+  String get orderReductionDeclineConfirm;
+
+  /// No description provided for @orderDecisionSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Your response has been saved.'**
+  String get orderDecisionSaved;
+
+  /// No description provided for @productLowStockLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Low stock'**
+  String get productLowStockLabel;
+
+  /// No description provided for @pushEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable push notifications'**
+  String get pushEnable;
+
+  /// No description provided for @pushEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications are enabled.'**
+  String get pushEnabled;
+
+  /// No description provided for @pushDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are disabled. Allow them in your device settings, then try again.'**
+  String get pushDenied;
+
+  /// No description provided for @pushPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Device registration is not ready yet. Please try again shortly.'**
+  String get pushPending;
+
+  /// No description provided for @pushUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications are not configured for this build yet.'**
+  String get pushUnavailable;
+
+  /// No description provided for @pushReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'You have a new notification.'**
+  String get pushReceived;
+
+  /// No description provided for @errorCheckoutIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'This checkout conflicts with a previous request. Resolve the previous checkout before trying again.'**
+  String get errorCheckoutIdentity;
+
+  /// No description provided for @errorCartEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Your cart is empty. Add items before checking out.'**
+  String get errorCartEmpty;
+
+  /// No description provided for @errorCartQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'A cart quantity is invalid. Review and update your quantities.'**
+  String get errorCartQuantity;
+
+  /// No description provided for @errorCartUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'An item is no longer available. Review your cart and remove or replace it.'**
+  String get errorCartUnavailable;
+
+  /// No description provided for @errorStockShortage.
+  ///
+  /// In en, this message translates to:
+  /// **'The requested quantity is no longer available. Review the updated stock and choose a smaller quantity.'**
+  String get errorStockShortage;
+
+  /// No description provided for @errorWholeUnits.
+  ///
+  /// In en, this message translates to:
+  /// **'This item is sold in whole units. Enter a whole-number quantity.'**
+  String get errorWholeUnits;
+
+  /// No description provided for @errorCouponInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This coupon cannot be used. Remove it or enter another code.'**
+  String get errorCouponInvalid;
+
+  /// No description provided for @errorPriceChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices have changed. Review the latest prices before confirming your order.'**
+  String get errorPriceChanged;
+
+  /// No description provided for @errorOrderAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'This order is not available to your account. Return to your orders list.'**
+  String get errorOrderAccess;
+
+  /// No description provided for @errorCancellationNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation is not available in the current order state. Review the updated order.'**
+  String get errorCancellationNotAllowed;
+
+  /// No description provided for @errorCancellationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'A cancellation request is already pending for this order.'**
+  String get errorCancellationPending;
+
+  /// No description provided for @errorReductionResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'This quantity proposal is no longer pending. Review the updated order.'**
+  String get errorReductionResolved;
+
+  /// No description provided for @errorPaidCancellation.
+  ///
+  /// In en, this message translates to:
+  /// **'This paid order cannot be cancelled here. Contact the store for help.'**
+  String get errorPaidCancellation;
+
+  /// No description provided for @privacyPolicyUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The privacy policy has not been published yet. Please try again after the app is configured.'**
+  String get privacyPolicyUnavailable;
+
+  /// No description provided for @privacyPolicyOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the privacy policy. Please try again.'**
+  String get privacyPolicyOpenFailed;
+
+  /// No description provided for @accountDeletionBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account cannot be deleted while orders, returns or amounts remain unresolved.'**
+  String get accountDeletionBlocked;
+
+  /// No description provided for @accountDeletionOpenOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete or cancel your open orders before deleting your account.'**
+  String get accountDeletionOpenOrders;
+
+  /// No description provided for @accountDeletionPendingReturns.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for your pending returns to be resolved before deleting your account.'**
+  String get accountDeletionPendingReturns;
+
+  /// No description provided for @accountDeletionUnsettled.
+  ///
+  /// In en, this message translates to:
+  /// **'Settle outstanding amounts before deleting your account.'**
+  String get accountDeletionUnsettled;
+
+  /// No description provided for @productUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Product unavailable'**
+  String get productUnavailableTitle;
+
+  /// No description provided for @productUnavailableMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This product is no longer available. Please browse the catalog for other products.'**
+  String get productUnavailableMessage;
+
+  /// No description provided for @supportUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer support contact details are not available yet. Please try again later.'**
+  String get supportUnavailable;
+
+  /// No description provided for @supportOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open customer support. Please try again.'**
+  String get supportOpenFailed;
+
+  /// No description provided for @orderRequestDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested'**
+  String get orderRequestDate;
+
+  /// No description provided for @orderResolutionDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved'**
+  String get orderResolutionDate;
+
+  /// No description provided for @orderResolutionNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolution note'**
+  String get orderResolutionNote;
+
+  /// No description provided for @orderAcceptedPrices.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted price changes'**
+  String get orderAcceptedPrices;
+
+  /// No description provided for @orderStockAttention.
+  ///
+  /// In en, this message translates to:
+  /// **'Order quantity shortage'**
+  String get orderStockAttention;
+
+  /// No description provided for @orderShortageQuantities.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested: {requested} · Allocated: {allocated} · Short: {short}'**
+  String orderShortageQuantities(
+    String requested,
+    String allocated,
+    String short,
+  );
+
+  /// No description provided for @orderPaidOnDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid on delivery'**
+  String get orderPaidOnDelivery;
+
+  /// No description provided for @orderStillOwed.
+  ///
+  /// In en, this message translates to:
+  /// **'Still owed'**
+  String get orderStillOwed;
+
+  /// No description provided for @orderCollectionUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment is awaiting confirmation'**
+  String get orderCollectionUnconfirmed;
+
+  /// No description provided for @orderReductionAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity change accepted'**
+  String get orderReductionAccepted;
+
+  /// No description provided for @orderReductionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity change declined'**
+  String get orderReductionDenied;
+
+  /// No description provided for @errorWorkAccountShopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Shopping is available to customer accounts. Sign in with a customer account.'**
+  String get errorWorkAccountShopping;
+
+  /// No description provided for @errorAppRoleForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account role cannot perform this action.'**
+  String get errorAppRoleForbidden;
+
+  /// No description provided for @errorAuthSurfaceForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'This sign-in cannot be used in the customer app. Sign in again through the app.'**
+  String get errorAuthSurfaceForbidden;
+
+  /// No description provided for @stockShortageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity unavailable'**
+  String get stockShortageTitle;
+
+  /// No description provided for @stockAvailableQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Available quantity: {quantity}'**
+  String stockAvailableQuantity(String quantity);
+
+  /// No description provided for @stockRequestedQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested quantity: {quantity}'**
+  String stockRequestedQuantity(String quantity);
+
+  /// No description provided for @stockCorrectCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct cart'**
+  String get stockCorrectCart;
 }
 
 class _AppLocalizationsDelegate

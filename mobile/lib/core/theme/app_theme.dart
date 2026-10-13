@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import 'app_colors.dart';
 import 'brand.dart';
@@ -31,6 +32,9 @@ abstract final class AppTheme {
       canvasColor: c.background,
       splashFactory: InkSparkle.splashFactory,
       fontFamily: AppTypography.fontFamily,
+      cupertinoOverrideTheme: CupertinoThemeData(
+        textTheme: AppTypography.cupertinoTextTheme(c.primary),
+      ),
       textTheme: text,
       primaryTextTheme: text,
       iconTheme: IconThemeData(color: c.textSecondary, size: 22),
@@ -41,11 +45,11 @@ abstract final class AppTheme {
       dividerTheme: SurfaceThemes.divider(c),
       listTileTheme: SurfaceThemes.listTile(c, text),
       elevatedButtonTheme: ButtonThemes.elevated(c, text),
+      filledButtonTheme: ButtonThemes.filled,
       outlinedButtonTheme: ButtonThemes.outlined(c, text),
       textButtonTheme: ButtonThemes.text_(c, text),
       inputDecorationTheme: InputTheme.build(c, text),
       navigationBarTheme: NavigationThemes.navigationBar(c, text),
-      navigationRailTheme: NavigationThemes.navigationRail(c, text),
       chipTheme: NavigationThemes.chip(c, text),
       snackBarTheme: NavigationThemes.snackBar(c, text),
       tabBarTheme: NavigationThemes.tabBar(c, text),

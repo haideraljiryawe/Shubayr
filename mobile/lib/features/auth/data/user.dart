@@ -2,11 +2,8 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'user.g.dart';
 
-/// `User` as defined in `api/openapi.yaml`.
-///
-/// [role] selects which application *area* the user enters (see [UserRole]);
-/// [permissions] are the flattened RBAC keys the contract now exposes, used for
-/// fine-grained gating *within* an area (e.g. hiding actions a manager lacks).
+/// The app identity returned by API v6. App permissions are always empty;
+/// access comes from the server-assigned role and app surface.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class User {
   const User({
@@ -15,6 +12,7 @@ class User {
     this.phone,
     this.email,
     this.role,
+    this.surface = 'app',
     this.permissions = const [],
   });
 
@@ -24,6 +22,7 @@ class User {
     phone: phone,
     email: clearEmail ? null : email ?? this.email,
     role: role,
+    surface: surface,
     permissions: permissions,
   );
 
@@ -34,11 +33,13 @@ class User {
   final String? phone;
   final String? email;
 
-  /// Raw role string from the API, e.g. `customer`, `delivery`, `admin`.
+  /// `customer`, `delivery_agent`, or `order_monitor`.
   final String? role;
 
-  /// Flattened permission keys granted to the user's role, e.g.
-  /// `orders.confirm`. Empty for customers and guests.
+  @JsonKey(defaultValue: '')
+  final String surface;
+
+  /// Retained for contract decoding; always empty on the app surface.
   @JsonKey(defaultValue: <String>[])
   final List<String> permissions;
 

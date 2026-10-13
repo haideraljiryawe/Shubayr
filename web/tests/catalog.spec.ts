@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import { SCREENSHOT_DIR } from "./screenshots";
 
 /**
  * The grid that is actually on screen.
@@ -33,7 +34,7 @@ for (const [name, width, height] of [
 ] as const) {
   test(`catalog screenshots and navigation: ${name}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await mkdir("docs/screenshots", { recursive: true });
+    await mkdir(SCREENSHOT_DIR, { recursive: true });
     await page.goto("/categories");
     await expect(
       page.getByRole("heading", { name: "الأقسام", exact: true }),
@@ -43,7 +44,7 @@ for (const [name, width, height] of [
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
     await page.waitForLoadState("networkidle");
     await page.screenshot({
-      path: `docs/screenshots/categories-${name}.png`,
+      path: `${SCREENSHOT_DIR}/categories-${name}.png`,
       fullPage: true,
       caret: "initial",
       style: "nextjs-portal { display: none !important; }",
@@ -68,7 +69,7 @@ for (const [name, width, height] of [
       ].every((img) => img.complete && img.naturalWidth > 0),
     );
     await page.screenshot({
-      path: `docs/screenshots/electronics-${name}.png`,
+      path: `${SCREENSHOT_DIR}/electronics-${name}.png`,
       fullPage: true,
       caret: "initial",
       style: "nextjs-portal { display: none !important; }",

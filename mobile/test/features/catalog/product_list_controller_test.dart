@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
@@ -22,7 +24,7 @@ class _FakeCatalog implements CatalogRepository {
       categoryId: i.isEven ? 'a' : 'b',
       nameEn: i == 0 ? 'Special Widget' : 'Item $i',
       nameAr: 'منتج $i',
-      salePrice: (i + 1) * 1000,
+      effectivePrice: (i + 1) * 1000,
       ratingAvg: (i % 5) + 1,
       availableQty: 5,
     ),
@@ -93,6 +95,9 @@ const _q = ProductQuery();
   final c = ProviderContainer(
     retry: (retryCount, error) => null,
     overrides: [
+      notificationSyncProvider.overrideWith((ref) {}),
+      unreadCountProvider.overrideWith((ref) async => 0),
+      dataSourceProvider.overrideWithValue(DataSource.mock),
       catalogRepositoryProvider.overrideWithValue(_FakeCatalog(count: count)),
     ],
   );

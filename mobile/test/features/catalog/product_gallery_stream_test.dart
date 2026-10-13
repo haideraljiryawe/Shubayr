@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -49,6 +51,9 @@ Future<List<StreamController<ui.Codec>>> mountDetails(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        notificationSyncProvider.overrideWith((ref) {}),
+        unreadCountProvider.overrideWith((ref) async => 0),
+        dataSourceProvider.overrideWithValue(DataSource.mock),
         catalogRepositoryProvider.overrideWithValue(repository),
         brandProvider.overrideWithValue(const Brand.bundled()),
       ],

@@ -1,6 +1,5 @@
 {
   "@@locale": "en",
-  "homeBrandName": "Shubayr",
   "storeFallbackName": "Store",
   "@storeFallbackName": {
     "description": "Neutral brand name used before store settings load."
@@ -20,7 +19,7 @@
   "stateEmptyTitle": "Nothing here yet",
   "stateEmptyMessage": "Once there is something to show, it will appear here.",
   "stateErrorTitle": "Something went wrong",
-  "errorNetwork": "No internet connection. Check your network and try again.",
+  "errorNetwork": "Could not connect to the server. Check your connection and try again.",
   "errorTimeout": "The request took too long. Please try again.",
   "errorServer": "The server could not complete the request.",
   "errorUnauthorized": "Your session has expired. Please sign in again.",
@@ -163,9 +162,13 @@
   "orderStatusOutForDelivery": "Out for delivery",
   "orderStatusDelivered": "Delivered",
   "orderStatusFailedDelivery": "Delivery failed",
+  "orderStatusRejected": "Rejected",
   "orderStatusCancelled": "Cancelled",
   "orderStatusReturnRequested": "Return requested",
   "orderStatusReturned": "Returned",
+  "deliveryFilterAll": "All",
+  "deliveryFilterEmpty": "No deliveries with this status",
+  "deliveryStatusConflict": "The current state does not allow this action. Check the delivery and order status before trying again.",
   "deliveryTitle": "Deliveries",
   "adminTitle": "Dashboard",
   "comingSoonTitle": "Coming soon",
@@ -187,6 +190,17 @@
     "description": "Low-stock hint on product detail; count is passed as a string so it stays Western-Arabic.",
     "placeholders": {
       "count": {
+        "type": "String"
+      }
+    }
+  },
+  "productReviewsPreview": "Showing {shown} of {total} reviews — preview",
+  "@productReviewsPreview": {
+    "placeholders": {
+      "shown": {
+        "type": "String"
+      },
+      "total": {
         "type": "String"
       }
     }
@@ -267,7 +281,7 @@
   "profileSaved": "Changes saved.",
   "profileDeleteAccount": "Delete account",
   "profileDeleteTitle": "Delete account?",
-  "profileDeleteMessage": "Your account and its data will be permanently deleted. This cannot be undone.",
+  "profileDeleteMessage": "Your personal details, addresses and sign-in sessions will be removed. Anonymized order and financial records are retained as required. This cannot be undone.",
   "galleryCounter": "{current} of {total}",
   "@galleryCounter": {
     "description": "Image position in the full-screen product gallery, e.g. '1 of 5'. Digits are passed as strings so they stay Western Arabic numerals like the rest of the app.",
@@ -296,7 +310,7 @@
   "reviewComment": "Comment (optional)",
   "reviewSubmit": "Submit review",
   "reviewSubmitted": "Review submitted. Publication is subject to review.",
-  "reviewAllSubmitted": "You have submitted reviews for all items in this session.",
+  "reviewAllSubmitted": "You have already reviewed all items in this order.",
   "returnOrderTitle": "Request a return",
   "returnOrderHint": "Choose quantities to return. Leave items you want to keep at 0.",
   "returnAvailable": "Quantity available to request: {count}",
@@ -309,7 +323,7 @@
   },
   "returnIncrease": "Increase return quantity",
   "returnDecrease": "Decrease return quantity",
-  "returnReason": "Reason for return (optional)",
+  "returnReason": "Reason for all selected items (required)",
   "returnSubmit": "Submit return request",
   "returnSubmitted": "Return request submitted.",
   "returnReference": "Request reference: {id}",
@@ -321,7 +335,7 @@
     }
   },
   "returnRequestOnly": "This is a request, not an approval or a refund. The store will review it.",
-  "returnAllRequested": "All item quantities have been requested for return in this session.",
+  "returnAllRequested": "There are no remaining quantities available to request for return.",
   "routeNotFoundTitle": "Page not found",
   "deliveryAssigned": "Assigned",
   "deliveryOutForDelivery": "Out for delivery",
@@ -695,5 +709,143 @@
   "mediaMainCategoryGuidance": "Use a landscape photo with the subject in the center. The crop ratio changes with the card width.",
   "mediaSubcategoryGuidance": "Saved for future use. Current subcategory tiles show the icon, so no photo ratio is required yet.",
   "adminViewSubcategories": "View subcategories",
-  "adminRetainedProductCategory": "The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it."
+  "adminRetainedProductCategory": "The current category is retained but unavailable for new assignments. Keep it for this product or choose another category to change it.",
+  "adminDiscountType": "Discount type",
+  "adminDiscountNone": "No discount",
+  "adminDiscountPercentage": "Percentage",
+  "adminDiscountAmount": "Fixed amount",
+  "adminDiscountValue": "Discount value",
+  "adminDiscountStartsAt": "Discount starts",
+  "adminDiscountEndsAt": "Discount ends",
+  "adminDiscountDateHint": "Optional; UTC example: 2026-10-01T09:00:00Z",
+  "adminDiscountDateInvalid": "Enter a valid date and time with timezone, e.g. 2026-10-01T09:00:00Z",
+  "adminCategorySlug": "Category URL slug",
+  "addressInternationalPhoneHint": "Use an international number starting with + and country code; no country code is added automatically.",
+  "mediaUploadHint": "Images upload when saved. JPEG, PNG, WebP or AVIF, up to 8 MiB per image.",
+  "orderStatusReadyForDispatch": "Ready for dispatch",
+  "roleMonitor": "Order monitor",
+  "monitorTitle": "Order monitoring",
+  "notificationsTitle": "Notifications",
+  "notificationsEmpty": "No notifications yet",
+  "actionLoadMore": "Load more",
+  "quantityInvalid": "Enter a quantity within the limits, with up to 3 decimal places.",
+  "quantityWholeInvalid": "Enter a whole quantity within the limits.",
+  "checkoutPricesChanged": "Prices changed",
+  "checkoutPricesChangedMessage": "Review the new unit prices before placing your order. The server will calculate the final total.",
+  "checkoutAcceptPrices": "Accept prices and place order",
+  "cartPricesChanged": "Some prices changed. You will be asked to review and accept them at checkout.",
+  "deliveryFailureReason": "Reason for failed delivery",
+  "deliveryRetryCount": "Retry count",
+  "orderStateConflict": "This order changed or can no longer be cancelled. Please review its latest status.",
+  "errorConflict": "This action conflicts with the current state. Refresh and review before trying again.",
+  "startupConfigurationError": "This build has an invalid production API configuration. Contact support for a corrected build.",
+  "deliveryAmountDue": "Amount due",
+  "deliveryCollectionConfirmation": "Payment collection",
+  "deliveryCollectionConfirmed": "Payment collected",
+  "deliveryCollectionUnconfirmed": "Amount not confirmed",
+  "deliveryCollectionUnconfirmedHint": "The order is delivered now; the store confirms the amount later.",
+  "deliveryCollectedAmount": "Amount collected",
+  "deliveryInvalidAmount": "Enter an amount from zero up to the amount due (at most 6 decimal places).",
+  "pendingDeliveryRetry": "The previous result is unknown. Retry the same collection; its amount cannot be changed until the result is known.",
+  "pendingRequestMessage": "A previous request is unresolved. Retry with the same selection and amount or quantity.",
+  "checkoutPendingRecovery": "A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.",
+  "checkoutResolvePending": "Resolve previous checkout",
+  "orderRequestCancellation": "Request cancellation",
+  "orderCancellationReason": "Reason for cancellation",
+  "orderCancellationRequestSent": "Cancellation request sent to the store.",
+  "orderCancellationPending": "Cancellation request pending",
+  "orderCancellationApproved": "Cancellation request approved",
+  "orderCancellationDenied": "Cancellation request declined",
+  "orderReductionTitle": "Quantity change proposed",
+  "orderReductionQuantities": "Original quantity: {oldQuantity}. Proposed quantity: {newQuantity}.",
+  "orderReductionAccept": "Accept reduced quantity",
+  "orderReductionDecline": "Decline reduced quantity",
+  "orderReductionAcceptConfirm": "Accept the displayed reduced quantity? The store will update the order totals.",
+  "orderReductionDeclineConfirm": "Decline this quantity change? The store will review your order.",
+  "orderDecisionSaved": "Your response has been saved.",
+  "@orderReductionQuantities": {
+    "placeholders": {
+      "oldQuantity": {
+        "type": "String"
+      },
+      "newQuantity": {
+        "type": "String"
+      }
+    }
+  },
+  "productLowStockLabel": "Low stock",
+  "pushEnable": "Enable push notifications",
+  "pushEnabled": "Push notifications are enabled.",
+  "pushDenied": "Notifications are disabled. Allow them in your device settings, then try again.",
+  "pushPending": "Device registration is not ready yet. Please try again shortly.",
+  "pushUnavailable": "Push notifications are not configured for this build yet.",
+  "pushReceived": "You have a new notification.",
+  "errorCheckoutIdentity": "This checkout conflicts with a previous request. Resolve the previous checkout before trying again.",
+  "errorCartEmpty": "Your cart is empty. Add items before checking out.",
+  "errorCartQuantity": "A cart quantity is invalid. Review and update your quantities.",
+  "errorCartUnavailable": "An item is no longer available. Review your cart and remove or replace it.",
+  "errorStockShortage": "The requested quantity is no longer available. Review the updated stock and choose a smaller quantity.",
+  "errorWholeUnits": "This item is sold in whole units. Enter a whole-number quantity.",
+  "errorCouponInvalid": "This coupon cannot be used. Remove it or enter another code.",
+  "errorPriceChanged": "Prices have changed. Review the latest prices before confirming your order.",
+  "errorOrderAccess": "This order is not available to your account. Return to your orders list.",
+  "errorCancellationNotAllowed": "Cancellation is not available in the current order state. Review the updated order.",
+  "errorCancellationPending": "A cancellation request is already pending for this order.",
+  "errorReductionResolved": "This quantity proposal is no longer pending. Review the updated order.",
+  "errorPaidCancellation": "This paid order cannot be cancelled here. Contact the store for help.",
+  "privacyPolicyUnavailable": "The privacy policy has not been published yet. Please try again after the app is configured.",
+  "privacyPolicyOpenFailed": "Could not open the privacy policy. Please try again.",
+  "accountDeletionBlocked": "Your account cannot be deleted while orders, returns or amounts remain unresolved.",
+  "accountDeletionOpenOrders": "Complete or cancel your open orders before deleting your account.",
+  "accountDeletionPendingReturns": "Wait for your pending returns to be resolved before deleting your account.",
+  "accountDeletionUnsettled": "Settle outstanding amounts before deleting your account.",
+  "productUnavailableTitle": "Product unavailable",
+  "productUnavailableMessage": "This product is no longer available. Please browse the catalog for other products.",
+  "supportUnavailable": "Customer support contact details are not available yet. Please try again later.",
+  "supportOpenFailed": "Could not open customer support. Please try again.",
+  "orderRequestDate": "Requested",
+  "orderResolutionDate": "Resolved",
+  "orderResolutionNote": "Resolution note",
+  "orderAcceptedPrices": "Accepted price changes",
+  "orderStockAttention": "Order quantity shortage",
+  "orderShortageQuantities": "Requested: {requested} · Allocated: {allocated} · Short: {short}",
+  "orderPaidOnDelivery": "Paid on delivery",
+  "orderStillOwed": "Still owed",
+  "orderCollectionUnconfirmed": "Payment is awaiting confirmation",
+  "@orderShortageQuantities": {
+    "placeholders": {
+      "requested": {
+        "type": "String"
+      },
+      "allocated": {
+        "type": "String"
+      },
+      "short": {
+        "type": "String"
+      }
+    }
+  },
+  "orderReductionAccepted": "Quantity change accepted",
+  "orderReductionDenied": "Quantity change declined",
+  "errorWorkAccountShopping": "Shopping is available to customer accounts. Sign in with a customer account.",
+  "errorAppRoleForbidden": "Your account role cannot perform this action.",
+  "errorAuthSurfaceForbidden": "This sign-in cannot be used in the customer app. Sign in again through the app.",
+  "stockShortageTitle": "Quantity unavailable",
+  "stockAvailableQuantity": "Available quantity: {quantity}",
+  "stockRequestedQuantity": "Requested quantity: {quantity}",
+  "stockCorrectCart": "Correct cart",
+  "@stockAvailableQuantity": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "@stockRequestedQuantity": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -19,7 +19,8 @@ npm run dev            # http://localhost:3000
 | `npm run lint` | ESLint (flat config, `eslint-config-next`) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run gen:api` | Regenerate `src/types/api.d.ts` from `../api/openapi.yaml` |
-| `npm test` | Catalog browser/data tests and mobile/desktop screenshots |
+| `npm test` | Catalog browser/data tests; screenshots go to `test-results/screenshots` (ignored) |
+| `npm run docs:screenshots` | Re-capture the committed mobile/desktop screenshots in `docs/screenshots` |
 
 ## Stack
 
@@ -33,8 +34,15 @@ Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · next-intl · lucide-
   (`/en`, `/en/style-guide`).
 - `localeDetection` is **off** on purpose: Arabic is the brand default, so an
   `en-US` browser still lands on Arabic and switches via the AR/EN control.
-- `src/middleware.ts` resolves the locale. It must stay in `src/` — a middleware
-  file at the package root is silently ignored when a `src` directory exists.
+- `src/proxy.ts` (Next 16's name for middleware) resolves the locale. It must
+  stay in `src/` — a proxy file at the package root is silently ignored when a
+  `src` directory exists.
+- **Opening soon:** `STORE_PUBLIC=false` (run time) turns every store page
+  into a branded, unindexed "opening soon" page; `/preview?t=<STORE_PREVIEW_TOKEN>`
+  lets the owner see the real store (cookie, 30 days, "preview" banner) and
+  `/preview?exit=1` ends it. See `src/lib/store-gate.ts` and
+  docs/deploy/web-and-admin.md. `npm run test:prod` checks it on a second,
+  closed server.
 - Layout uses **logical** properties (`ms-`, `pe-`, `start-`, `end-`) so RTL
   mirrors automatically. Add `rtl-flip` to glyphs that encode direction.
 
@@ -422,6 +430,11 @@ Run `node scripts/check-contrast.mjs` to check `text-text-muted` against
 `bg-card` and `bg-background` (WCAG AA, at least 4.5:1). The script composites
 alpha before calculating luminance, including transparent ancestor surfaces.
 
+`npm test` never rewrites the committed screenshots: the specs save theirs to
+`test-results/screenshots`. To refresh the ones below after a deliberate UI
+change, run `npm run docs:screenshots` (the screenshot specs only, with
+`DOCS_SCREENSHOTS=1`) and commit the PNGs that changed.
+
 Account screenshots: [wishlist](docs/screenshots/wishlist-desktop.png),
 [points](docs/screenshots/points-desktop.png),
 [return request](docs/screenshots/return-request-desktop.png),
@@ -554,5 +567,5 @@ src/
 ├─ lib/                   api · mock-data · format · color · cn
 │                         notification-center (stream) · use-latest-request
 ├─ messages/              ar.json · en.json
-└─ middleware.ts          locale resolution
+└─ proxy.ts               locale, CSP nonce, "opening soon" gate
 ```

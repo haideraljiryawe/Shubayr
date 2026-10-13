@@ -1,3 +1,4 @@
+import '../../../../core/layout/app_layout.dart';
 import '../../data/media/catalog_image.dart';
 import 'catalog_image_view.dart';
 import 'package:flutter/material.dart';
@@ -192,29 +193,31 @@ class _FullScreenGalleryState extends State<_FullScreenGallery> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          PhotoViewGallery.builder(
-            pageController: _controller,
-            itemCount: total,
-            onPageChanged: (i) => setState(() => _current = i),
-            backgroundDecoration: const BoxDecoration(color: Colors.black),
-            loadingBuilder: (context, _) => const Center(
-              child: SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
+          ResponsiveContent.page(
+            child: PhotoViewGallery.builder(
+              pageController: _controller,
+              itemCount: total,
+              onPageChanged: (i) => setState(() => _current = i),
+              backgroundDecoration: const BoxDecoration(color: Colors.black),
+              loadingBuilder: (context, _) => const Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-            ),
-            builder: (context, i) => PhotoViewGalleryPageOptions(
-              imageProvider: catalogImageProvider(widget.images[i]),
-              errorBuilder: (context, _, _) =>
-                  const Center(child: _GalleryPlaceholder(size: 28)),
-              // Fits the image, then lets it zoom to 2.5× on pinch/double-tap.
-              minScale: PhotoViewComputedScale.contained,
-              maxScale: PhotoViewComputedScale.covered * 2.5,
-              initialScale: PhotoViewComputedScale.contained,
+              builder: (context, i) => PhotoViewGalleryPageOptions(
+                imageProvider: catalogImageProvider(widget.images[i]),
+                errorBuilder: (context, _, _) =>
+                    const Center(child: _GalleryPlaceholder(size: 28)),
+                // Fits the image, then lets it zoom to 2.5× on pinch/double-tap.
+                minScale: PhotoViewComputedScale.contained,
+                maxScale: PhotoViewComputedScale.covered * 2.5,
+                initialScale: PhotoViewComputedScale.contained,
+              ),
             ),
           ),
           SafeArea(
@@ -274,7 +277,7 @@ class _Counter extends StatelessWidget {
         context.l10n.galleryCounter('$current', '$total'),
         style: context.text.labelLarge?.copyWith(
           color: Colors.white,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
         ),
       ),
     );

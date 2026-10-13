@@ -5,16 +5,28 @@ import '../data/order_tracking.dart';
 /// Checkout and orders. On checkout the server builds the order from the user's
 /// current cart, so placing only needs the delivery address and an optional
 /// coupon. The rest read and manage placed orders.
+enum ShortageDecision { accepted, denied }
+
 abstract interface class OrderRepository {
   /// `POST /coupons/validate` — throws [AppFailure] (notFound) when invalid.
   Future<Coupon> validateCoupon(String code);
 
   /// `POST /orders` — places a COD order from the current cart.
-  Future<Order> placeOrder({required String addressId, String? couponCode});
+  Future<Order> placeOrder({
+    required String idempotencyKey,
+    required String addressId,
+    String? couponCode,
+    List<({String variantId, String priceVersion})> acceptedPriceVersions =
+        const [],
+  });
 
   /// `GET /orders` — the customer's orders, newest first. [status] filters by
   /// a single [OrderStatus] value when given.
-  Future<OrderPage> fetchOrders({String? status, int page = 1, int perPage = 20});
+  Future<OrderPage> fetchOrders({
+    String? status,
+    int page = 1,
+    int perPage = 20,
+  });
 
   /// `GET /orders/{id}` — a single order with its items.
   Future<Order> fetchOrder(String id);
@@ -23,5 +35,16 @@ abstract interface class OrderRepository {
   Future<OrderTracking> fetchTracking(String id);
 
   /// `POST /orders/{id}/cancel` — cancels the order and returns the updated one.
-  Future<Order> cancelOrder(String id);
+  Future<Order> cancelOrder(String id, {required int version});
+
+  Future<Order> requestCancellation(
+    String id, {
+    required int version,
+    required String reason,
+  });
+  Future<Order> respondToShortage(
+    String id, {
+    required int version,
+    required ShortageDecision decision,
+  });
 }

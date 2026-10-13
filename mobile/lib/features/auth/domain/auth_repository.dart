@@ -10,6 +10,11 @@ abstract interface class AuthRepository {
   /// `POST /auth/verify-otp`
   Future<AuthResult> verifyOtp({required String phone, required String code});
 
+  /// DELETE /me/account; customer-only, 204 on successful anonymization.
+  Future<void> deleteAccount();
+
+  Future<void> logout(String refreshToken);
+
   /// `GET /me`
   Future<User> currentUser();
 

@@ -9,9 +9,6 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get homeBrandName => 'Shubayr';
-
-  @override
   String get storeFallbackName => 'Store';
 
   @override
@@ -62,7 +59,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorNetwork =>
-      'No internet connection. Check your network and try again.';
+      'Could not connect to the server. Check your connection and try again.';
 
   @override
   String get errorTimeout => 'The request took too long. Please try again.';
@@ -417,6 +414,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orderStatusFailedDelivery => 'Delivery failed';
 
   @override
+  String get orderStatusRejected => 'Rejected';
+
+  @override
   String get orderStatusCancelled => 'Cancelled';
 
   @override
@@ -424,6 +424,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orderStatusReturned => 'Returned';
+
+  @override
+  String get deliveryFilterAll => 'All';
+
+  @override
+  String get deliveryFilterEmpty => 'No deliveries with this status';
+
+  @override
+  String get deliveryStatusConflict =>
+      'The current state does not allow this action. Check the delivery and order status before trying again.';
 
   @override
   String get deliveryTitle => 'Deliveries';
@@ -476,6 +486,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String productLowStock(String count) {
     return 'Only $count left';
+  }
+
+  @override
+  String productReviewsPreview(String shown, String total) {
+    return 'Showing $shown of $total reviews — preview';
   }
 
   @override
@@ -621,7 +636,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileDeleteMessage =>
-      'Your account and its data will be permanently deleted. This cannot be undone.';
+      'Your personal details, addresses and sign-in sessions will be removed. Anonymized order and financial records are retained as required. This cannot be undone.';
 
   @override
   String galleryCounter(String current, String total) {
@@ -662,7 +677,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewAllSubmitted =>
-      'You have submitted reviews for all items in this session.';
+      'You have already reviewed all items in this order.';
 
   @override
   String get returnOrderTitle => 'Request a return';
@@ -683,7 +698,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get returnDecrease => 'Decrease return quantity';
 
   @override
-  String get returnReason => 'Reason for return (optional)';
+  String get returnReason => 'Reason for all selected items (required)';
 
   @override
   String get returnSubmit => 'Submit return request';
@@ -702,7 +717,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get returnAllRequested =>
-      'All item quantities have been requested for return in this session.';
+      'There are no remaining quantities available to request for return.';
 
   @override
   String get routeNotFoundTitle => 'Page not found';
@@ -1692,5 +1707,367 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminRetainedProductCategory =>
-      'The current category is retained but unavailable for new assignments. Keep it for this product or choose a subcategory to change it.';
+      'The current category is retained but unavailable for new assignments. Keep it for this product or choose another category to change it.';
+
+  @override
+  String get adminDiscountType => 'Discount type';
+
+  @override
+  String get adminDiscountNone => 'No discount';
+
+  @override
+  String get adminDiscountPercentage => 'Percentage';
+
+  @override
+  String get adminDiscountAmount => 'Fixed amount';
+
+  @override
+  String get adminDiscountValue => 'Discount value';
+
+  @override
+  String get adminDiscountStartsAt => 'Discount starts';
+
+  @override
+  String get adminDiscountEndsAt => 'Discount ends';
+
+  @override
+  String get adminDiscountDateHint =>
+      'Optional; UTC example: 2026-10-01T09:00:00Z';
+
+  @override
+  String get adminDiscountDateInvalid =>
+      'Enter a valid date and time with timezone, e.g. 2026-10-01T09:00:00Z';
+
+  @override
+  String get adminCategorySlug => 'Category URL slug';
+
+  @override
+  String get addressInternationalPhoneHint =>
+      'Use an international number starting with + and country code; no country code is added automatically.';
+
+  @override
+  String get mediaUploadHint =>
+      'Images upload when saved. JPEG, PNG, WebP or AVIF, up to 8 MiB per image.';
+
+  @override
+  String get orderStatusReadyForDispatch => 'Ready for dispatch';
+
+  @override
+  String get roleMonitor => 'Order monitor';
+
+  @override
+  String get monitorTitle => 'Order monitoring';
+
+  @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String get notificationsEmpty => 'No notifications yet';
+
+  @override
+  String get actionLoadMore => 'Load more';
+
+  @override
+  String get quantityInvalid =>
+      'Enter a quantity within the limits, with up to 3 decimal places.';
+
+  @override
+  String get quantityWholeInvalid =>
+      'Enter a whole quantity within the limits.';
+
+  @override
+  String get checkoutPricesChanged => 'Prices changed';
+
+  @override
+  String get checkoutPricesChangedMessage =>
+      'Review the new unit prices before placing your order. The server will calculate the final total.';
+
+  @override
+  String get checkoutAcceptPrices => 'Accept prices and place order';
+
+  @override
+  String get cartPricesChanged =>
+      'Some prices changed. You will be asked to review and accept them at checkout.';
+
+  @override
+  String get deliveryFailureReason => 'Reason for failed delivery';
+
+  @override
+  String get deliveryRetryCount => 'Retry count';
+
+  @override
+  String get orderStateConflict =>
+      'This order changed or can no longer be cancelled. Please review its latest status.';
+
+  @override
+  String get errorConflict =>
+      'This action conflicts with the current state. Refresh and review before trying again.';
+
+  @override
+  String get startupConfigurationError =>
+      'This build has an invalid production API configuration. Contact support for a corrected build.';
+
+  @override
+  String get deliveryAmountDue => 'Amount due';
+
+  @override
+  String get deliveryCollectionConfirmation => 'Payment collection';
+
+  @override
+  String get deliveryCollectionConfirmed => 'Payment collected';
+
+  @override
+  String get deliveryCollectionUnconfirmed => 'Amount not confirmed';
+
+  @override
+  String get deliveryCollectionUnconfirmedHint =>
+      'The order is delivered now; the store confirms the amount later.';
+
+  @override
+  String get deliveryCollectedAmount => 'Amount collected';
+
+  @override
+  String get deliveryInvalidAmount =>
+      'Enter an amount from zero up to the amount due (at most 6 decimal places).';
+
+  @override
+  String get pendingDeliveryRetry =>
+      'The previous result is unknown. Retry the same collection; its amount cannot be changed until the result is known.';
+
+  @override
+  String get pendingRequestMessage =>
+      'A previous request is unresolved. Retry with the same selection and amount or quantity.';
+
+  @override
+  String get checkoutPendingRecovery =>
+      'A previous checkout has an unknown result. Resolve it before placing another order. This retries the original request, even if your cart is now empty.';
+
+  @override
+  String get checkoutResolvePending => 'Resolve previous checkout';
+
+  @override
+  String get orderRequestCancellation => 'Request cancellation';
+
+  @override
+  String get orderCancellationReason => 'Reason for cancellation';
+
+  @override
+  String get orderCancellationRequestSent =>
+      'Cancellation request sent to the store.';
+
+  @override
+  String get orderCancellationPending => 'Cancellation request pending';
+
+  @override
+  String get orderCancellationApproved => 'Cancellation request approved';
+
+  @override
+  String get orderCancellationDenied => 'Cancellation request declined';
+
+  @override
+  String get orderReductionTitle => 'Quantity change proposed';
+
+  @override
+  String orderReductionQuantities(String oldQuantity, String newQuantity) {
+    return 'Original quantity: $oldQuantity. Proposed quantity: $newQuantity.';
+  }
+
+  @override
+  String get orderReductionAccept => 'Accept reduced quantity';
+
+  @override
+  String get orderReductionDecline => 'Decline reduced quantity';
+
+  @override
+  String get orderReductionAcceptConfirm =>
+      'Accept the displayed reduced quantity? The store will update the order totals.';
+
+  @override
+  String get orderReductionDeclineConfirm =>
+      'Decline this quantity change? The store will review your order.';
+
+  @override
+  String get orderDecisionSaved => 'Your response has been saved.';
+
+  @override
+  String get productLowStockLabel => 'Low stock';
+
+  @override
+  String get pushEnable => 'Enable push notifications';
+
+  @override
+  String get pushEnabled => 'Push notifications are enabled.';
+
+  @override
+  String get pushDenied =>
+      'Notifications are disabled. Allow them in your device settings, then try again.';
+
+  @override
+  String get pushPending =>
+      'Device registration is not ready yet. Please try again shortly.';
+
+  @override
+  String get pushUnavailable =>
+      'Push notifications are not configured for this build yet.';
+
+  @override
+  String get pushReceived => 'You have a new notification.';
+
+  @override
+  String get errorCheckoutIdentity =>
+      'This checkout conflicts with a previous request. Resolve the previous checkout before trying again.';
+
+  @override
+  String get errorCartEmpty =>
+      'Your cart is empty. Add items before checking out.';
+
+  @override
+  String get errorCartQuantity =>
+      'A cart quantity is invalid. Review and update your quantities.';
+
+  @override
+  String get errorCartUnavailable =>
+      'An item is no longer available. Review your cart and remove or replace it.';
+
+  @override
+  String get errorStockShortage =>
+      'The requested quantity is no longer available. Review the updated stock and choose a smaller quantity.';
+
+  @override
+  String get errorWholeUnits =>
+      'This item is sold in whole units. Enter a whole-number quantity.';
+
+  @override
+  String get errorCouponInvalid =>
+      'This coupon cannot be used. Remove it or enter another code.';
+
+  @override
+  String get errorPriceChanged =>
+      'Prices have changed. Review the latest prices before confirming your order.';
+
+  @override
+  String get errorOrderAccess =>
+      'This order is not available to your account. Return to your orders list.';
+
+  @override
+  String get errorCancellationNotAllowed =>
+      'Cancellation is not available in the current order state. Review the updated order.';
+
+  @override
+  String get errorCancellationPending =>
+      'A cancellation request is already pending for this order.';
+
+  @override
+  String get errorReductionResolved =>
+      'This quantity proposal is no longer pending. Review the updated order.';
+
+  @override
+  String get errorPaidCancellation =>
+      'This paid order cannot be cancelled here. Contact the store for help.';
+
+  @override
+  String get privacyPolicyUnavailable =>
+      'The privacy policy has not been published yet. Please try again after the app is configured.';
+
+  @override
+  String get privacyPolicyOpenFailed =>
+      'Could not open the privacy policy. Please try again.';
+
+  @override
+  String get accountDeletionBlocked =>
+      'Your account cannot be deleted while orders, returns or amounts remain unresolved.';
+
+  @override
+  String get accountDeletionOpenOrders =>
+      'Complete or cancel your open orders before deleting your account.';
+
+  @override
+  String get accountDeletionPendingReturns =>
+      'Wait for your pending returns to be resolved before deleting your account.';
+
+  @override
+  String get accountDeletionUnsettled =>
+      'Settle outstanding amounts before deleting your account.';
+
+  @override
+  String get productUnavailableTitle => 'Product unavailable';
+
+  @override
+  String get productUnavailableMessage =>
+      'This product is no longer available. Please browse the catalog for other products.';
+
+  @override
+  String get supportUnavailable =>
+      'Customer support contact details are not available yet. Please try again later.';
+
+  @override
+  String get supportOpenFailed =>
+      'Could not open customer support. Please try again.';
+
+  @override
+  String get orderRequestDate => 'Requested';
+
+  @override
+  String get orderResolutionDate => 'Resolved';
+
+  @override
+  String get orderResolutionNote => 'Resolution note';
+
+  @override
+  String get orderAcceptedPrices => 'Accepted price changes';
+
+  @override
+  String get orderStockAttention => 'Order quantity shortage';
+
+  @override
+  String orderShortageQuantities(
+    String requested,
+    String allocated,
+    String short,
+  ) {
+    return 'Requested: $requested · Allocated: $allocated · Short: $short';
+  }
+
+  @override
+  String get orderPaidOnDelivery => 'Paid on delivery';
+
+  @override
+  String get orderStillOwed => 'Still owed';
+
+  @override
+  String get orderCollectionUnconfirmed => 'Payment is awaiting confirmation';
+
+  @override
+  String get orderReductionAccepted => 'Quantity change accepted';
+
+  @override
+  String get orderReductionDenied => 'Quantity change declined';
+
+  @override
+  String get errorWorkAccountShopping =>
+      'Shopping is available to customer accounts. Sign in with a customer account.';
+
+  @override
+  String get errorAppRoleForbidden =>
+      'Your account role cannot perform this action.';
+
+  @override
+  String get errorAuthSurfaceForbidden =>
+      'This sign-in cannot be used in the customer app. Sign in again through the app.';
+
+  @override
+  String get stockShortageTitle => 'Quantity unavailable';
+
+  @override
+  String stockAvailableQuantity(String quantity) {
+    return 'Available quantity: $quantity';
+  }
+
+  @override
+  String stockRequestedQuantity(String quantity) {
+    return 'Requested quantity: $quantity';
+  }
+
+  @override
+  String get stockCorrectCart => 'Correct cart';
 }

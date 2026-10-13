@@ -13,6 +13,14 @@ import { defineConfig } from "@playwright/test";
  * headers, metadata and documents are what a real deployment serves.
  */
 const port = Number(process.env.PLAYWRIGHT_PROD_PORT ?? 3102);
+// The same build, served a second time before opening day: STORE_PUBLIC=false
+// with a preview token (tests/prod/coming-soon.spec.ts).
+const closedPort = port + 1;
+process.env.PLAYWRIGHT_CLOSED_ORIGIN = `http://localhost:${closedPort}`;
+// Shared with the spec through the environment: the Docker build context has
+// no tests/ folder, and this file is type-checked by `next build`.
+const CLOSED_PREVIEW_TOKEN = "prod-test-preview-token-0123456789";
+process.env.PLAYWRIGHT_CLOSED_PREVIEW_TOKEN = CLOSED_PREVIEW_TOKEN;
 
 export default defineConfig({
   testDir: "./tests/prod",
@@ -23,10 +31,19 @@ export default defineConfig({
     headless: true,
   },
   workers: 1,
-  webServer: {
-    command: `npx next start --port ${port}`,
-    url: `http://localhost:${port}/api/health`,
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: `npx next start --port ${port}`,
+      url: `http://localhost:${port}/api/health`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+    {
+      command: `npx next start --port ${closedPort}`,
+      url: `http://localhost:${closedPort}/api/health`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: { STORE_PUBLIC: "false", STORE_PREVIEW_TOKEN: CLOSED_PREVIEW_TOKEN },
+    },
+  ],
 });

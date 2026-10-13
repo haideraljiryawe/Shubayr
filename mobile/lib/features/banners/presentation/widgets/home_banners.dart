@@ -52,8 +52,8 @@ class HomeBanners extends ConsumerWidget {
   );
 }
 
-/// Sentinel pages duplicate the last/first image. Once scrolling settles we
-/// jump to its identical real page, keeping both directions visually continuous.
+/// Virtual pages repeat the supplied banners, including both visible neighbors.
+/// Recenter after scrolling settles; no banner records are duplicated.
 class HomeBannerDeck extends StatefulWidget {
   const HomeBannerDeck({super.key, required this.banners, this.onOpen});
   final List<HomeBanner> banners;
@@ -78,7 +78,10 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
   bool _resumed = true;
 
   bool get _multiple => widget.banners.length > 1;
-  int _index(int page) => _multiple ? (page - 1) % widget.banners.length : 0;
+  // Leave ample virtual pages before the starting cycle for backward drags.
+  // The builder has no forward boundary and creates only visible children.
+  int get _firstPage => _multiple ? widget.banners.length * 1000 : 0;
+  int _index(int page) => _multiple ? page % widget.banners.length : 0;
 
   @override
   void initState() {
@@ -90,15 +93,15 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
     _replaceController();
   }
 
-  void _replaceController() {
+  void _replaceController({double? viewportFraction}) {
     final index = widget.banners.indexWhere((b) => b.id == _selectedId);
     final selected = math.max(0, index);
     _selectedId = widget.banners.isEmpty ? null : widget.banners[selected].id;
-    _page = _multiple ? selected + 1 : 0;
+    _page = _multiple ? _firstPage + selected : 0;
     _controller = PageController(
       initialPage: _page,
       keepPage: false,
-      viewportFraction: 1.0,
+      viewportFraction: viewportFraction ?? AppLayout.homeBannerCompactFraction,
     );
   }
 
@@ -120,7 +123,7 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
       _timer?.cancel();
       final previous = _controller;
       _generation++;
-      _replaceController();
+      _replaceController(viewportFraction: previous.viewportFraction);
       // Dispose only after the old PageView detaches. Old scroll notifications
       // are ignored by generation, including a refresh during an animation.
       WidgetsBinding.instance.addPostFrameCallback((_) => previous.dispose());
@@ -176,8 +179,9 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
           _controller.position.isScrollingNotifier.value) {
         return;
       }
-      if (_multiple && (_page == 0 || _page == widget.banners.length + 1)) {
-        _page = _page == 0 ? widget.banners.length : 1;
+      if (_multiple &&
+          (_page < _firstPage || _page >= _firstPage + widget.banners.length)) {
+        _page = _firstPage + _index(_page);
         _controller.jumpToPage(_page);
       }
       _schedule();
@@ -195,15 +199,31 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
   @override
   Widget build(BuildContext context) {
     if (widget.banners.isEmpty) return const SizedBox.shrink();
-    final generation = _generation;
     final rtl = Directionality.of(context) == TextDirection.rtl;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final imageWidth = math.min(
-          constraints.maxWidth - AppLayout.pageHorizontal(context) * 2,
-          AppLayout.detailWidth,
+        final fraction = AppLayout.homeBannerViewportFraction(
+          constraints.maxWidth,
         );
-        final height = _bannerHeight(context, imageWidth, widget.banners);
+        const gap = AppLayout.homeBannerGap;
+        if (_controller.viewportFraction != fraction) {
+          final previous = _controller;
+          _generation++;
+          _replaceController(viewportFraction: fraction);
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => previous.dispose(),
+          );
+          _schedule();
+        }
+        final generation = _generation;
+        final imageWidth = constraints.maxWidth * fraction - gap;
+        final height = _bannerHeight(
+          context,
+          AppLayout.homeBannerHeightMeasurementWidth(constraints.maxWidth),
+          widget.banners,
+          artworkHeight: AppLayout.homeBannerHeight(constraints.maxWidth),
+        );
         return MouseRegion(
           onEnter: (_) {
             _hovering = true;
@@ -280,7 +300,10 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
                           physics: _multiple
                               ? const PageScrollPhysics()
                               : const NeverScrollableScrollPhysics(),
-                          itemCount: _multiple ? widget.banners.length + 2 : 1,
+                          padEnds: true,
+                          pageSnapping: true,
+                          clipBehavior: Clip.hardEdge,
+                          itemCount: _multiple ? null : 1,
                           onPageChanged: (page) {
                             if (generation != _generation) return;
                             setState(() {
@@ -288,21 +311,57 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
                               _selectedId = widget.banners[_index(page)].id;
                             });
                           },
-                          itemBuilder: (context, page) => Padding(
-                            padding: AppLayout.pageInsets(
-                              context,
-                              top: 0,
-                              bottom: 0,
-                            ),
-                            child: ResponsiveContent(
-                              maxWidth: AppLayout.detailWidth,
-                              child: ClipRRect(
+                          itemBuilder: (context, page) => ExcludeSemantics(
+                            excluding: page != _page,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: gap / 2,
+                              ),
+                              // Scale only the artwork; the slot retains its
+                              // layout height and horizontal gap while dragging.
+                              child: SizedBox.expand(
                                 key: ValueKey('banner-page-$page'),
-                                borderRadius: AppRadii.bannerAll,
-                                child: SizedBox.expand(
-                                  child: _BannerImageSlide(
-                                    banner: widget.banners[_index(page)],
-                                    onOpen: widget.onOpen,
+                                child: AnimatedBuilder(
+                                  animation: _controller,
+                                  builder: (context, child) {
+                                    final position =
+                                        _controller.hasClients &&
+                                            _controller
+                                                .position
+                                                .hasContentDimensions
+                                        ? _controller.page ??
+                                              _controller.initialPage.toDouble()
+                                        : _controller.initialPage.toDouble();
+                                    final distance = page - position;
+                                    final scale = reduceMotion
+                                        ? AppLayout.homeBannerActiveScale
+                                        : AppLayout.homeBannerScale(distance);
+                                    // Close only the extra gap introduced by
+                                    // shrinking the edge facing the center.
+                                    final shift =
+                                        (rtl ? 1 : -1) *
+                                        distance.sign *
+                                        imageWidth *
+                                        (AppLayout.homeBannerActiveScale -
+                                            scale) /
+                                        2;
+                                    return Transform(
+                                      transform: Matrix4.diagonal3Values(
+                                        scale,
+                                        scale,
+                                        1,
+                                      )..setEntry(0, 3, shift),
+                                      alignment: Alignment.center,
+                                      child: child,
+                                    );
+                                  },
+                                  child: ClipRRect(
+                                    key: ValueKey('banner-artwork-$page'),
+                                    borderRadius: AppRadii.bannerAll,
+                                    child: _BannerImageSlide(
+                                      banner: widget.banners[_index(page)],
+                                      onOpen: widget.onOpen,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -316,8 +375,8 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
                     Padding(
                       padding: EdgeInsetsDirectional.only(
                         top: AppSpacing.sm,
-                        start: AppLayout.pageHorizontal(context),
-                        end: AppLayout.pageHorizontal(context),
+                        start: AppLayout.horizontalScrollInset(context),
+                        end: AppLayout.horizontalScrollInset(context),
                       ),
                       child: Semantics(
                         label: context.l10n.bannerPosition(
@@ -378,8 +437,9 @@ class _HomeBannerDeckState extends State<HomeBannerDeck>
 double _bannerHeight(
   BuildContext context,
   double width,
-  List<HomeBanner> banners,
-) {
+  List<HomeBanner> banners, {
+  required double artworkHeight,
+}) {
   double measure(String value, TextStyle? style) {
     if (value.trim().isEmpty) return 0;
     final painter = TextPainter(
@@ -392,7 +452,7 @@ double _bannerHeight(
     return height;
   }
 
-  var height = width / AppLayout.homeBannerAspectRatio(width);
+  var height = artworkHeight;
   for (final banner in banners) {
     final title = measure(banner.title, context.text.titleLarge);
     final subtitle = measure(banner.subtitle ?? '', context.text.bodyMedium);
@@ -497,20 +557,28 @@ class HomeBannerSkeleton extends StatelessWidget {
   const HomeBannerSkeleton({super.key});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: EdgeInsetsDirectional.fromSTEB(
-      AppLayout.pageHorizontal(context),
-      AppSpacing.lg,
-      AppLayout.pageHorizontal(context),
-      0,
-    ),
-    child: ResponsiveContent(
-      maxWidth: AppLayout.detailWidth,
-      child: LayoutBuilder(
-        builder: (context, constraints) => Skeleton(
-          height: _bannerHeight(context, constraints.maxWidth, const []),
-          borderRadius: AppRadii.bannerAll,
-        ),
-      ),
+    padding: const EdgeInsets.only(top: AppSpacing.lg),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final width =
+            constraints.maxWidth *
+                AppLayout.homeBannerViewportFraction(constraints.maxWidth) -
+            AppLayout.homeBannerGap;
+        return Center(
+          child: SizedBox(
+            width: width,
+            child: Skeleton(
+              height: _bannerHeight(
+                context,
+                width,
+                const [],
+                artworkHeight: AppLayout.homeBannerHeight(constraints.maxWidth),
+              ),
+              borderRadius: AppRadii.bannerAll,
+            ),
+          ),
+        );
+      },
     ),
   );
 }

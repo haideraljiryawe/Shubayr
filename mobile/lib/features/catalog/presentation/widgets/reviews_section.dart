@@ -1,6 +1,9 @@
+import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/widgets/skeleton.dart';
+import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/display_date.dart';
 
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
@@ -29,23 +32,22 @@ class ReviewsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.productReviews, style: context.text.titleSmall),
+        Text(l10n.productReviews, style: context.sectionTitle),
         const SizedBox(height: AppSpacing.sm),
-        reviews.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-            child: Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
+        AsyncValueView<ReviewPage>(
+          value: reviews,
+          loading: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Skeleton.line(),
+              SizedBox(height: AppSpacing.md),
+              Skeleton.line(),
+              SizedBox(height: AppSpacing.sm),
+              Skeleton.line(),
+            ],
           ),
-          error: (_, _) => _InlineError(
-            onRetry: () => ref.invalidate(productReviewsProvider(productId)),
-          ),
-          data: (page) {
+          onRetry: () => ref.invalidate(productReviewsProvider(productId)),
+          builder: (context, page) {
             if (page.data.isEmpty) {
               return Text(
                 l10n.productNoReviews,
@@ -58,6 +60,16 @@ class ReviewsSection extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _Summary(ratingAvg: ratingAvg, total: page.total),
+                if (page.total > page.data.length) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    l10n.productReviewsPreview(
+                      '${page.data.length}',
+                      '${page.total}',
+                    ),
+                    style: context.text.bodySmall,
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 for (var i = 0; i < page.data.length; i++) ...[
                   if (i > 0) const Divider(height: AppSpacing.lg),
@@ -80,12 +92,13 @@ class _Summary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.xs,
       children: [
         Text(ratingAvg.toStringAsFixed(1), style: context.text.headlineSmall),
-        const SizedBox(width: AppSpacing.sm),
         _Stars(rating: ratingAvg.round(), size: 18),
-        const SizedBox(width: AppSpacing.sm),
         Text(
           context.l10n.productReviewsCount('$total'),
           style: context.text.bodySmall?.copyWith(
@@ -106,19 +119,16 @@ class _ReviewTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     // Numeric date: locale-agnostic and Western-Arabic, like the rest of the app.
-    final date = DateFormat('yyyy/MM/dd').format(review.createdAt);
+    final date = DisplayDate.localDate(review.createdAt);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            _Stars(rating: review.rating, size: 16),
-            const Spacer(),
-            Text(
-              date,
-              style: context.text.labelSmall?.copyWith(color: colors.textMuted),
-            ),
-          ],
+        ResponsiveValueRow(
+          label: _Stars(rating: review.rating, size: 16),
+          value: Text(
+            date,
+            style: context.text.labelSmall?.copyWith(color: colors.textMuted),
+          ),
         ),
         if (review.verifiedPurchase) ...[
           const SizedBox(height: AppSpacing.xs),
@@ -151,7 +161,7 @@ class _VerifiedBadge extends StatelessWidget {
           context.l10n.productVerifiedPurchase,
           style: context.text.labelSmall?.copyWith(
             color: colors.success,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],
@@ -178,31 +188,6 @@ class _Stars extends StatelessWidget {
             size: size,
             color: i <= rating ? colors.accent : colors.textMuted,
           ),
-      ],
-    );
-  }
-}
-
-class _InlineError extends StatelessWidget {
-  const _InlineError({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          context.l10n.stateErrorTitle,
-          style: context.text.bodyMedium?.copyWith(
-            color: context.colors.textMuted,
-          ),
-        ),
-        const Spacer(),
-        TextButton(
-          onPressed: onRetry,
-          child: Text(context.l10n.actionRetry),
-        ),
       ],
     );
   }

@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/l10n/l10n_context.dart';
+import '../../../../core/error/failure.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
@@ -20,10 +22,12 @@ import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../data/cart.dart';
 import '../providers/cart_providers.dart';
+import '../widgets/stock_shortage_dialog.dart';
+import '../../../orders/presentation/providers/pending_checkout_provider.dart';
 
 /// The cart: each line looks its product up from the catalog for name/image
-/// (the API's cart item carries only ids, a quantity and a unit price). Quantity
-/// steppers and remove act on the server cart; a footer shows the subtotal.
+/// (the API supplies line totals and current availability). Quantity steppers
+/// and remove act on the server cart; the footer shows its authoritative total.
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
 
@@ -31,43 +35,146 @@ class CartScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final cart = ref.watch(cartControllerProvider);
+    final pending = ref.watch(pendingCheckoutProvider);
+    if (pending.asData?.value != null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.cartTitle)),
+        body: ResponsiveContent.page(
+          child: ListView(
+            padding: AppLayout.pageInsets(context),
+            children: [
+              Text(l10n.checkoutPendingRecovery),
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                label: l10n.checkoutResolvePending,
+                onPressed: () => context.pushNamed(AppRoutes.checkoutName),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.cartTitle)),
-      body: AsyncValueView(
-        value: cart,
-        loading: Padding(
-          padding: AppLayout.pageInsets(context),
-          child: SkeletonList(),
-        ),
-        onRetry: () => ref.invalidate(cartControllerProvider),
-        builder: (context, c) {
-          if (c.isEmpty) {
-            return AppEmptyView(
-              icon: Icons.shopping_bag_outlined,
-              title: l10n.cartEmptyTitle,
-              message: l10n.cartEmptyMessage,
+      body: ResponsiveContent.page(
+        child: AsyncValueView(
+          value: cart,
+          loading: Padding(
+            padding: AppLayout.pageInsets(context),
+            child: SkeletonList(),
+          ),
+          onRetry: () => ref.invalidate(cartControllerProvider),
+          builder: (context, c) {
+            if (c.isEmpty) {
+              return AppEmptyView(
+                icon: Icons.shopping_bag_outlined,
+                title: l10n.cartEmptyTitle,
+                message: l10n.cartEmptyMessage,
+              );
+            }
+            final bottomInset = BottomNavigationInset.of(context);
+            if (bottomInset > 0) {
+              // Keep checkout reachable while the whole cart scrolls behind the
+              // floating bar. Clearance scrolls with the content, not a footer.
+              return CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: AppLayout.pageInsets(context),
+                    sliver: SliverList.separated(
+                      itemCount: c.items.length,
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: AppSpacing.xl),
+                      itemBuilder: (_, i) => _CartLine(
+                        key: ValueKey((c.id, c.items[i].id)),
+                        item: c.items[i],
+                      ),
+                    ),
+                  ),
+                  if (c.items.any((item) => item.priceChanged))
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: AppLayout.pageInsets(context),
+                        child: Text(l10n.cartPricesChanged),
+                      ),
+                    ),
+                  SliverToBoxAdapter(
+                    child: MediaQuery.removePadding(
+                      context: context,
+                      removeBottom: true,
+                      child: _CartFooter(
+                        total: c.total,
+                        currency: c.currency,
+                        canCheckout: c.canCheckout,
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
+                ],
+              );
+            }
+            return Column(
+              children: [
+                Expanded(
+                  child: ListView.separated(
+                    padding: AppLayout.pageInsets(context),
+                    itemCount: c.items.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: AppSpacing.xl),
+                    itemBuilder: (_, i) => _CartLine(
+                      key: ValueKey((c.id, c.items[i].id)),
+                      item: c.items[i],
+                    ),
+                  ),
+                ),
+                if (c.items.any((item) => item.priceChanged))
+                  Padding(
+                    padding: AppLayout.pageInsets(context),
+                    child: Text(l10n.cartPricesChanged),
+                  ),
+                _CartFooter(
+                  total: c.total,
+                  currency: c.currency,
+                  canCheckout: c.canCheckout,
+                ),
+              ],
             );
-          }
-          return ResponsiveBodyWithAside(
-            body: ListView.separated(
-              padding: AppLayout.pageInsets(context),
-              itemCount: c.items.length,
-              separatorBuilder: (_, _) => const Divider(height: AppSpacing.xl),
-              itemBuilder: (_, i) => _CartLine(item: c.items[i]),
-            ),
-            aside: _CartFooter(subtotal: c.subtotal),
-          );
-        },
+          },
+        ),
       ),
     );
   }
 }
 
 class _CartLine extends ConsumerWidget {
-  const _CartLine({required this.item});
+  const _CartLine({super.key, required this.item});
 
   final CartItem item;
+
+  Future<void> _showResult(
+    BuildContext context,
+    WidgetRef ref,
+    Future<CartMutationResult> operation,
+  ) async {
+    final identity = ref.read(cartSessionIdentityProvider);
+    final result = await operation;
+    if (!context.mounted ||
+        ref.read(cartSessionIdentityProvider) != identity ||
+        result.status != CartMutationStatus.failed) {
+      return;
+    }
+    final error = result.error;
+    if (error is AppFailure && error.isStockShortage) {
+      await showStockShortageDialog(context, ref, error, affectedItem: item);
+      return;
+    }
+    showAppSnackBarMessage(
+      context,
+      message: error is AppFailure
+          ? error.localizedMessage(context.l10n)
+          : context.l10n.stateErrorTitle,
+    );
+  }
 
   String? _variantLabel(Product? product) {
     final variantId = item.variantId;
@@ -90,9 +197,24 @@ class _CartLine extends ConsumerWidget {
     final brand = ref.watch(brandProvider);
     final product = ref.watch(productProvider(item.productId)).value;
     final variantLabel = _variantLabel(product);
+    final variant = product?.variants
+        .where((v) => v.id == item.variantId)
+        .firstOrNull;
+    final availability = ref.watch(availabilityProvider(item.productId)).value;
+    final row = availability?.forVariant(item.variantId);
+    final whole = row?.wholeUnitsOnly ?? variant?.wholeUnitsOnly ?? true;
+    final available =
+        item.availableQty ?? row?.availableQty ?? variant?.availableQty;
+    final max =
+        (available == null
+                ? 99
+                : whole
+                ? available.floor()
+                : available)
+            .clamp(0, 99);
     final lineTotal = formatMoney(
       item.lineTotal,
-      currencyCode: brand.currencyCode,
+      currencyCode: item.currency ?? brand.currencyCode,
       localeCode: lang,
     );
 
@@ -115,18 +237,35 @@ class _CartLine extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   variantLabel,
-                  style: context.text.labelMedium?.copyWith(
+                  style: context.text.labelLarge?.copyWith(
                     color: colors.textMuted,
+                  ),
+                ),
+              ],
+              if (item.available == false) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  l10n.commonOutOfStock,
+                  style: context.text.labelMedium?.copyWith(
+                    color: colors.danger,
                   ),
                 ),
               ],
               const SizedBox(height: AppSpacing.sm),
               ResponsiveValueRow(
                 label: QuantityStepper(
+                  showRange: false,
                   quantity: item.quantity,
-                  onChanged: (q) => ref
-                      .read(cartControllerProvider.notifier)
-                      .setQuantity(item.id, q),
+                  wholeUnitsOnly: whole,
+                  max: max,
+                  baseUnit: row?.baseUnit ?? variant?.baseUnit,
+                  onChanged: (q) => _showResult(
+                    context,
+                    ref,
+                    ref
+                        .read(cartControllerProvider.notifier)
+                        .setQuantity(item.id, q),
+                  ),
                 ),
                 value: Text(
                   lineTotal,
@@ -140,8 +279,11 @@ class _CartLine extends ConsumerWidget {
         ),
         IconButton(
           icon: Icon(Icons.close, size: 20, color: colors.textMuted),
-          onPressed: () =>
-              ref.read(cartControllerProvider.notifier).remove(item.id),
+          onPressed: () => _showResult(
+            context,
+            ref,
+            ref.read(cartControllerProvider.notifier).remove(item.id),
+          ),
           tooltip: l10n.cartRemove,
         ),
       ],
@@ -180,9 +322,15 @@ class _Thumb extends StatelessWidget {
 }
 
 class _CartFooter extends ConsumerWidget {
-  const _CartFooter({required this.subtotal});
+  const _CartFooter({
+    required this.total,
+    this.currency,
+    required this.canCheckout,
+  });
 
-  final num subtotal;
+  final num total;
+  final bool canCheckout;
+  final String? currency;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -190,9 +338,9 @@ class _CartFooter extends ConsumerWidget {
     final colors = context.colors;
     final lang = Localizations.localeOf(context).languageCode;
     final brand = ref.watch(brandProvider);
-    final total = formatMoney(
-      subtotal,
-      currencyCode: brand.currencyCode,
+    final formattedTotal = formatMoney(
+      total,
+      currencyCode: currency ?? brand.currencyCode,
       localeCode: lang,
     );
 
@@ -209,9 +357,9 @@ class _CartFooter extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ResponsiveValueRow(
-                label: Text(l10n.cartSubtotal, style: context.text.titleSmall),
+                label: Text(l10n.checkoutTotal, style: context.text.titleSmall),
                 value: Text(
-                  total,
+                  formattedTotal,
                   style: context.text.titleLarge?.copyWith(
                     color: colors.primaryDark,
                   ),
@@ -220,7 +368,9 @@ class _CartFooter extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               AppButton(
                 label: l10n.cartCheckout,
-                onPressed: () => context.pushNamed(AppRoutes.checkoutName),
+                onPressed: canCheckout
+                    ? () => context.pushNamed(AppRoutes.checkoutName)
+                    : null,
               ),
             ],
           ),

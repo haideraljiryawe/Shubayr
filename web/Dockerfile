@@ -11,7 +11,7 @@
 # arguments, and the build refuses to run without the two required ones.
 # Every variable is documented in docs/deploy/web-and-admin.md.
 
-FROM node:20-bookworm-slim AS dependencies
+FROM node:22-bookworm-slim AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -34,7 +34,7 @@ RUN npm run build
 
 # The self-contained server only: no dev dependencies, no sources, no shell
 # tooling beyond the base image, running as the unprivileged `node` user.
-FROM node:20-bookworm-slim AS production
+FROM node:22-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000 \

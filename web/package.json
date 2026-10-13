@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.12.0 <23"
   },
-  "description": "Shubayr \u2014 public Arabic-first storefront (Next.js App Router).",
+  "description": "Shubayr — public Arabic-first storefront (Next.js App Router).",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
+    "docs:screenshots": "node scripts/docs-screenshots.mjs",
     "gen:api": "openapi-typescript ../api/openapi.yaml -o src/types/api.d.ts",
     "test:live": "playwright test --config playwright.live.config.ts",
     "test:prod": "playwright test --config playwright.prod.config.ts"
@@ -20,7 +21,7 @@
   "dependencies": {
     "clsx": "2.1.1",
     "lucide-react": "1.41.0",
-    "next": "16.3.4",
+    "next": "16.3.8",
     "next-intl": "4.14.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -33,7 +34,7 @@
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.1",
     "eslint": "9.39.0",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.3.8",
     "openapi-typescript": "7.13.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3"

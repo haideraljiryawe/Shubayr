@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
@@ -31,56 +31,61 @@ class AddressesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.addressesTitle)),
+      floatingActionButtonLocation: AppLayout.pageEndFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.pushNamed(AppRoutes.addressFormName),
         icon: const Icon(Icons.add),
         label: Text(l10n.addressAdd),
       ),
-      body: AsyncValueView(
-        value: addresses,
-        skipLoadingOnReload: ref
-            .read(addressesControllerProvider.notifier)
-            .isRefreshing,
-        loading: Padding(
-          padding: AppLayout.pageInsets(context),
-          child: SkeletonCardList(
-            itemCount: 3,
-            minItemWidth: AppLayout.cardMinWidth,
+      body: ResponsiveContent.page(
+        child: AsyncValueView(
+          value: addresses,
+          skipLoadingOnReload: ref
+              .read(addressesControllerProvider.notifier)
+              .isRefreshing,
+          loading: Padding(
+            padding: AppLayout.pageInsets(context),
+            child: SkeletonCardList(
+              itemCount: 3,
+              minItemWidth: AppLayout.cardMinWidth,
+            ),
           ),
-        ),
-        onRetry: () => ref.read(addressesControllerProvider.notifier).refresh(),
-        builder: (context, list) {
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(addressesControllerProvider.notifier).refresh(),
-            child: list.isEmpty
-                ? CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    slivers: [
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: AppEmptyView(
-                          icon: Icons.location_off_outlined,
-                          title: l10n.addressEmptyTitle,
-                          message: l10n.addressEmptyMessage,
+          onRetry: () =>
+              ref.read(addressesControllerProvider.notifier).refresh(),
+          builder: (context, list) {
+            return RefreshIndicator(
+              onRefresh: () =>
+                  ref.read(addressesControllerProvider.notifier).refresh(),
+              child: list.isEmpty
+                  ? CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: AppEmptyView(
+                            icon: Icons.location_off_outlined,
+                            title: l10n.addressEmptyTitle,
+                            message: l10n.addressEmptyMessage,
+                          ),
                         ),
+                      ],
+                    )
+                  : ResponsiveCardList(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsetsDirectional.fromSTEB(
+                        AppLayout.pageHorizontal(context),
+                        AppSpacing.screenH,
+                        AppLayout.pageHorizontal(context),
+                        // Room so the last card clears the floating button.
+                        96,
                       ),
-                    ],
-                  )
-                : ResponsiveCardList(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsetsDirectional.fromSTEB(
-                      AppLayout.pageHorizontal(context),
-                      AppSpacing.screenH,
-                      AppLayout.pageHorizontal(context),
-                      // Room so the last card clears the floating button.
-                      96,
+                      itemCount: list.length,
+                      itemKeyBuilder: (i) => list[i].id,
+                      itemBuilder: (_, i) => _AddressCard(address: list[i]),
                     ),
-                    itemCount: list.length,
-                    itemBuilder: (_, i) => _AddressCard(address: list[i]),
-                  ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -131,7 +136,7 @@ class _AddressCard extends ConsumerWidget {
                     Flexible(
                       child: Text(
                         title,
-                        style: context.text.titleSmall,
+                        style: context.text.titleMedium,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -144,7 +149,7 @@ class _AddressCard extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   _lines(),
-                  style: context.text.bodySmall?.copyWith(
+                  style: context.text.bodyMedium?.copyWith(
                     color: colors.textSecondary,
                   ),
                 ),
@@ -159,7 +164,7 @@ class _AddressCard extends ConsumerWidget {
                           ? context.l10n.addressContactUnavailable
                           : Validators.foldDigits(phone),
                       textDirection: phone == null ? null : TextDirection.ltr,
-                      style: context.text.bodySmall,
+                      style: context.text.bodyMedium,
                     ),
                     if (isPrimary)
                       DecoratedBox(
@@ -174,7 +179,7 @@ class _AddressCard extends ConsumerWidget {
                           ),
                           child: Text(
                             context.l10n.addressPrimaryPhoneBadge,
-                            style: context.text.labelSmall?.copyWith(
+                            style: context.text.labelMedium?.copyWith(
                               color: colors.textPrimary,
                             ),
                           ),
@@ -210,7 +215,7 @@ class _DefaultBadge extends StatelessWidget {
         ),
         child: Text(
           context.l10n.addressDefault,
-          style: context.text.labelSmall?.copyWith(
+          style: context.text.labelMedium?.copyWith(
             color: colors.primaryDark,
             fontWeight: FontWeight.w700,
           ),
@@ -231,9 +236,9 @@ class _AddressMenu extends ConsumerWidget {
   ) async {
     try {
       await operation();
-    } catch (error) {
+    } catch (error, stack) {
       if (!context.mounted) return;
-      final failure = error is AppFailure ? error : const AppFailure.unknown();
+      final failure = actionFailure(error, stack);
       showAppSnackBarMessage(
         context,
         message: failure.localizedMessage(context.l10n),

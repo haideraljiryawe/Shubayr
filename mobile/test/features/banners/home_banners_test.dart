@@ -1,4 +1,6 @@
-import 'package:shubayr/core/theme/tokens/app_spacing.dart';
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
+import 'package:shubayr/core/layout/app_layout.dart';
 import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -49,6 +51,9 @@ Widget _host(
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    notificationSyncProvider.overrideWith((ref) {}),
+    unreadCountProvider.overrideWith((ref) async => 0),
+    dataSourceProvider.overrideWithValue(DataSource.mock),
     if (repo != null) bannerRepositoryProvider.overrideWithValue(repo),
     if (launch != null) bannerLinkLauncherProvider.overrideWithValue(launch),
   ],
@@ -68,7 +73,411 @@ Widget _host(
     home: Scaffold(body: SingleChildScrollView(child: child)),
   ),
 );
+double _bannerScale(WidgetTester tester, int page) => tester
+    .widget<Transform>(
+      find
+          .descendant(
+            of: find.byKey(ValueKey('banner-page-$page')),
+            matching: find.byType(Transform),
+          )
+          .first,
+    )
+    .transform
+    .entry(0, 0);
+
+Rect _paintedBannerRect(WidgetTester tester, int page) {
+  final box = tester.renderObject<RenderBox>(
+    find.byKey(ValueKey('banner-artwork-$page')),
+  );
+  return MatrixUtils.transformRect(
+    box.getTransformTo(null),
+    Offset.zero & box.size,
+  );
+}
+
+void _expectVisibleGaps(WidgetTester tester, int page) {
+  final artwork = [
+    for (final index in [page - 1, page, page + 1])
+      _paintedBannerRect(tester, index),
+  ]..sort((a, b) => a.left.compareTo(b.left));
+  expect(artwork[1].left - artwork[0].right, closeTo(6, .001));
+  expect(artwork[2].left - artwork[1].right, closeTo(6, .001));
+}
+
+// Verify layout slots as well as the transformed artwork visible at each edge.
+void _expectPeeks(WidgetTester tester, double width, int count) {
+  final pager = find.byType(PageView);
+  final view = tester.getRect(pager);
+  final controller = tester.widget<PageView>(pager).controller!;
+  final page = controller.page!.round();
+  final cards = [
+    for (final index in [page - 1, page, page + 1])
+      tester.getRect(find.byKey(ValueKey('banner-page-$index'))),
+  ]..sort((a, b) => a.left.compareTo(b.left));
+  final fraction = width < 600 ? 0.88 : 0.86;
+  const gap = 6.0;
+  final peek = width * (1 - fraction) / 2 - gap / 2;
+  expect(view.left, 0);
+  expect(view.width, width);
+  expect(controller.viewportFraction, fraction);
+  expect(cards[1].center.dx, closeTo(view.center.dx, 0.001));
+  expect(cards[1].width, closeTo(width * fraction - gap, 0.001));
+  expect(cards[1].left - cards[0].right, closeTo(gap, 0.001));
+  expect(cards[2].left - cards[1].right, closeTo(gap, 0.001));
+  expect(cards[0].intersect(view).width, closeTo(peek, 0.001));
+  expect(cards[2].intersect(view).width, closeTo(peek, 0.001));
+  expect(peek, greaterThanOrEqualTo(width < 600 ? 12 : 24 - 0.001));
+  for (final index in [page - 1, page, page + 1]) {
+    final scale = index == page ? 1.00 : 0.96;
+    expect(_bannerScale(tester, index), closeTo(scale, .000001));
+    final artwork = _paintedBannerRect(tester, index);
+    final slot = tester.getRect(find.byKey(ValueKey('banner-page-$index')));
+    if (index == page) {
+      expect(artwork.center.dx, closeTo(slot.center.dx, .001));
+    } else {
+      // Neighbors move inward by exactly the extra inset created by scaling.
+      final inward = (view.center.dx - slot.center.dx).sign;
+      expect(
+        artwork.center.dx,
+        closeTo(slot.center.dx + inward * slot.width * (1 - scale) / 2, .001),
+      );
+    }
+    expect(artwork.center.dy, closeTo(slot.center.dy, .001));
+    expect(artwork.width, closeTo(slot.width * scale, .001));
+    expect(artwork.height, closeTo(slot.height * scale, .001));
+    expect(artwork.intersect(view).width, greaterThan(0));
+  }
+  _expectVisibleGaps(tester, page);
+  expect(
+    find.byKey(ValueKey('banner-dot-${page % count}-true')),
+    findsOneWidget,
+  );
+}
+
 void main() {
+  const third = HomeBanner(id: 'c', title: 'Third campaign', imageUrl: '');
+  for (final lang in ['ar', 'en']) {
+    for (final width in [390.0, 834.0]) {
+      testWidgets(
+        'scale follows drag without shifting layout or resetting on rebuild $width $lang',
+        (tester) async {
+          tester.view.physicalSize = Size(width, 1500);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+          Widget host() => _host(
+            const HomeBannerDeck(banners: [first, second, third]),
+            lang: lang,
+          );
+          await tester.pumpWidget(host());
+          await tester.pumpAndSettle();
+          final pager = find.byType(PageView);
+          final controller = tester.widget<PageView>(pager).controller!;
+          final initial = controller.page!.round();
+          final height = tester.getSize(pager).height;
+          double dotTop() => tester
+              .getTopLeft(
+                find
+                    .byWidgetPredicate(
+                      (w) =>
+                          w.key is ValueKey<String> &&
+                          (w.key! as ValueKey<String>).value.startsWith(
+                            'banner-dot-',
+                          ),
+                    )
+                    .first,
+              )
+              .dy;
+          final initialDotTop = dotTop();
+          final gesture = await tester.startGesture(tester.getCenter(pager));
+          final direction = lang == 'ar' ? 1.0 : -1.0;
+          await gesture.moveBy(Offset(direction * 40, 0));
+          await tester.pump();
+          var previousScale = 1.0;
+          for (var step = 0; step < 3; step++) {
+            await gesture.moveBy(Offset(direction * width * .12, 0));
+            await tester.pump(const Duration(milliseconds: 16));
+            final position = controller.page!;
+            expect(
+              position,
+              inExclusiveRange(initial.toDouble(), initial + 1.0),
+            );
+            final scale = _bannerScale(tester, initial);
+            expect(scale, closeTo(1 - .04 * (position - initial), .000001));
+            expect(scale, lessThan(previousScale));
+            expect(
+              _bannerScale(tester, initial + 1),
+              closeTo(.96 + .04 * (position - initial), .000001),
+            );
+            // The pair crossing the center retains the actual 6dp painted gap
+            // throughout the drag, including fractional controller positions.
+            final pair = [
+              _paintedBannerRect(tester, initial),
+              _paintedBannerRect(tester, initial + 1),
+            ]..sort((a, b) => a.left.compareTo(b.left));
+            expect(pair[1].left - pair[0].right, closeTo(6, .001));
+            expect(tester.getSize(pager).height, height);
+            expect(dotTop(), initialDotTop);
+            // An ordinary parent rebuild must preserve fractional position and scale.
+            await tester.pumpWidget(host());
+            await tester.pump();
+            expect(tester.widget<PageView>(pager).controller, same(controller));
+            expect(controller.page, position);
+            expect(_bannerScale(tester, initial), scale);
+            previousScale = scale;
+          }
+          await gesture.moveBy(Offset(direction * width * .3, 0));
+          await gesture.up();
+          await tester.pumpAndSettle();
+          _expectPeeks(tester, width, 3);
+          expect(
+            find.byKey(const ValueKey('banner-dot-1-true')),
+            findsOneWidget,
+          );
+          expect(tester.getSize(pager).height, height);
+          expect(dotTop(), initialDotTop);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    testWidgets(
+      'system reduced motion removes scaling and keeps every banner reachable $lang',
+      (tester) async {
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+        addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+        final semantics = tester.ensureSemantics();
+        try {
+          await tester.pumpWidget(
+            _host(
+              const HomeBannerDeck(banners: [first, second, third]),
+              lang: lang,
+            ),
+          );
+          await tester.pumpAndSettle();
+          final pager = find.byType(PageView);
+          final controller = tester.widget<PageView>(pager).controller!;
+          final height = tester.getSize(pager).height;
+          for (var step = 0; step < 4; step++) {
+            final page = controller.page!.round();
+            for (final index in [page - 1, page, page + 1]) {
+              expect(_bannerScale(tester, index), 1.0);
+            }
+            _expectVisibleGaps(tester, page);
+            expect(
+              find.byKey(ValueKey('banner-dot-${step % 3}-true')),
+              findsOneWidget,
+            );
+            final gesture = await tester.startGesture(tester.getCenter(pager));
+            final direction = lang == 'ar' ? 1.0 : -1.0;
+            await gesture.moveBy(Offset(direction * 40, 0));
+            await tester.pump();
+            await gesture.moveBy(Offset(direction * 250, 0));
+            await tester.pump(const Duration(milliseconds: 16));
+            expect(_bannerScale(tester, page), 1.0);
+            expect(_bannerScale(tester, page + 1), 1.0);
+            await gesture.moveBy(Offset(direction * 350, 0));
+            await gesture.up();
+            await tester.pumpAndSettle();
+            expect(tester.getSize(pager).height, height);
+            expect(tester.takeException(), isNull);
+          }
+          // A live settings change updates the effect without replacing the pager.
+          final position = controller.page;
+          tester.platformDispatcher.accessibilityFeaturesTestValue =
+              const FakeAccessibilityFeatures(disableAnimations: false);
+          await tester.pumpAndSettle();
+          expect(tester.widget<PageView>(pager).controller, same(controller));
+          expect(controller.page, position);
+          expect(_bannerScale(tester, position!.round()), 1.0);
+          expect(_bannerScale(tester, position.round() + 1), .96);
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
+  }
+
+  for (final lang in ['ar', 'en']) {
+    for (final count in [2, 3]) {
+      testWidgets(
+        'centered bilateral peek at every responsive boundary: $count $lang',
+        (tester) async {
+          addTearDown(tester.view.reset);
+          addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+          tester.view.devicePixelRatio = 1;
+          final semantics = tester.ensureSemantics();
+          try {
+            for (final width in [
+              320.0,
+              390.0,
+              599.0,
+              600.0,
+              601.0,
+              834.0,
+              1194.0,
+              1920.0,
+            ]) {
+              tester.view.physicalSize = Size(width, 2000);
+              await tester.pumpWidget(
+                _host(
+                  HomeBannerDeck(
+                    banners: [first, second, if (count == 3) third],
+                    onOpen: (_) async {},
+                  ),
+                  lang: lang,
+                ),
+              );
+              await tester.pumpAndSettle();
+              _expectPeeks(tester, width, count);
+              // Decorative copies do not repeat buttons or labels for screen readers.
+              expect(
+                find.bySemanticsLabel(RegExp(RegExp.escape(first.title))),
+                findsOneWidget,
+              );
+              expect(
+                find.bySemanticsLabel(RegExp(RegExp.escape(second.title))),
+                findsNothing,
+              );
+              expect(tester.takeException(), isNull);
+            }
+          } finally {
+            semantics.dispose();
+          }
+        },
+      );
+
+      testWidgets(
+        'both neighbors survive manual and automatic cycles: $count $lang',
+        (tester) async {
+          tester.view.physicalSize = const Size(390, 1400);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+          await tester.pumpWidget(
+            _host(
+              HomeBannerDeck(banners: [first, second, if (count == 3) third]),
+              lang: lang,
+            ),
+          );
+          await tester.pumpAndSettle();
+          var index = 0;
+          for (final direction in [1, 1, 1, 1, -1, -1, -1, -1]) {
+            await tester.drag(
+              find.byType(PageView),
+              Offset((lang == 'ar' ? 280 : -280) * direction.toDouble(), 0),
+            );
+            await tester.pumpAndSettle();
+            index = (index + direction) % count;
+            expect(
+              find.byKey(ValueKey('banner-dot-$index-true')),
+              findsOneWidget,
+            );
+            _expectPeeks(tester, 390, count);
+          }
+          for (var step = 0; step < count * 2; step++) {
+            await tester.pump(const Duration(seconds: 5));
+            await tester.pumpAndSettle();
+            index = (index + 1) % count;
+            expect(
+              find.byKey(ValueKey('banner-dot-$index-true')),
+              findsOneWidget,
+            );
+            _expectPeeks(tester, 390, count);
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    testWidgets(
+      'resize retains selection, resumes autoplay and detaches controllers in $lang',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 1600);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+        await tester.pumpWidget(
+          _host(
+            const HomeBannerDeck(banners: [first, second, third]),
+            lang: lang,
+          ),
+        );
+        await tester.pumpAndSettle();
+        PageController controller() =>
+            tester.widget<PageView>(find.byType(PageView)).controller!;
+        final phoneController = controller();
+        await tester.drag(
+          find.byType(PageView),
+          Offset(lang == 'ar' ? 280 : -280, 0),
+        );
+        await tester.pumpAndSettle();
+        tester.view.physicalSize = const Size(834, 1194);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('banner-dot-1-true')), findsOneWidget);
+        expect(phoneController.hasClients, isFalse);
+        _expectPeeks(tester, 834, 3);
+        final tabletController = controller();
+        tester.view.physicalSize = const Size(1194, 834);
+        await tester.pumpAndSettle();
+        expect(controller(), same(tabletController));
+        _expectPeeks(tester, 1194, 3);
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pump(const Duration(milliseconds: 200));
+        // Resize during the animation, retaining the currently selected entity.
+        final selected = controller().page!.round() % 3;
+        tester.view.physicalSize = const Size(390, 1600);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(ValueKey('banner-dot-$selected-true')),
+          findsOneWidget,
+        );
+        expect(tabletController.hasClients, isFalse);
+        _expectPeeks(tester, 390, 3);
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(ValueKey('banner-dot-${(selected + 1) % 3}-true')),
+          findsOneWidget,
+        );
+        final lastController = controller();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(seconds: 30));
+        expect(lastController.hasClients, isFalse);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'fraction is based on the local slot, independent of window width',
+    (tester) async {
+      addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+      await tester.pumpWidget(
+        _host(
+          const Center(
+            child: SizedBox(
+              width: 320,
+              child: HomeBannerDeck(banners: [first, second]),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final pager = tester.widget<PageView>(find.byType(PageView));
+      expect(tester.getSize(find.byType(PageView)).width, 320);
+      expect(
+        pager.controller!.viewportFraction,
+        AppLayout.homeBannerCompactFraction,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'banner proportions stay horizontal across viewport sizes with matching loading geometry',
     (tester) async {
@@ -104,15 +513,18 @@ void main() {
         final size = tester.getSize(
           find.byKey(const ValueKey('banner-page-0')),
         );
-        // Current artwork starts at 2:1 and becomes panoramic on wider layouts.
-        final aspectRatio = size.width / size.height;
-        expect(aspectRatio, inInclusiveRange(2.0, 4.0));
-        if (width <= 390) expect(aspectRatio, closeTo(2.0, 0.001));
-        if (width <= 390) {
-          expect(size.height, (width - AppSpacing.screenMobileH * 2) / 2);
-        }
-        // The current wide layout caps artwork at 1440px with a 4:1 ratio.
-        if (width == 1920) expect(size, const Size(1440, 360));
+        // Narrower wide artwork retains the previous container height.
+        final heightFraction = width < 600 ? 0.88 : 0.90;
+        final oldHeight = (width * heightFraction - (width < 600 ? 8 : 12)) / 2;
+        expect(size.height, closeTo(oldHeight, .001));
+        expect(_bannerScale(tester, 0), 1.00);
+        final fraction = width < 600 ? 0.88 : 0.86;
+        const gap = 6.0;
+        expect(size.width, closeTo(width * fraction - gap, 0.001));
+        expect(
+          tester.getCenter(find.byKey(const ValueKey('banner-page-0'))).dx,
+          closeTo(width / 2, 0.001),
+        );
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(_host(const HomeBannerSkeleton()));
         await tester.pump();
@@ -124,7 +536,7 @@ void main() {
   for (final width in [390.0, 1920.0]) {
     for (final lang in ['ar', 'en']) {
       testWidgets(
-        'full viewport slow drag tracks both inset images before release at $width $lang',
+        'full viewport slow drag tracks both peek images before release at $width $lang',
         (tester) async {
           tester.view.physicalSize = Size(width, 1600);
           tester.view.devicePixelRatio = 1;
@@ -136,28 +548,35 @@ void main() {
           await tester.pumpAndSettle();
           final pager = find.byType(PageView);
           final viewport = tester.getRect(pager);
-          final current = find.byKey(const ValueKey('banner-page-1'));
-          final adjacent = find.byKey(const ValueKey('banner-page-2'));
+          final controller = tester.widget<PageView>(pager).controller!;
+          final initialPage = controller.page!.round();
+          final current = find.byKey(ValueKey('banner-page-$initialPage'));
+          final adjacent = find.byKey(
+            ValueKey('banner-page-${initialPage + 1}'),
+          );
           final initial = tester.getRect(current);
-          expect(viewport.left, 0);
+          expect(viewport.center.dx, width / 2);
           expect(viewport.width, width);
           expect(
             tester.widget<PageView>(pager).controller!.viewportFraction,
-            1,
+            width < 600 ? 0.88 : 0.86,
           );
           expect(
             initial.width,
-            width == 390 ? width - AppSpacing.screenMobileH * 2 : 1440,
+            closeTo(width * controller.viewportFraction - 6, 0.001),
           );
-          expect(initial.center.dx, viewport.center.dx);
-          expect(adjacent.hitTestable(), findsNothing);
+          expect(initial.center.dx, closeTo(viewport.center.dx, 0.001));
+          expect(
+            tester.getRect(adjacent).intersect(viewport).width,
+            greaterThan(12),
+          );
           final direction = lang == 'ar' ? 1.0 : -1.0;
           final gesture = await tester.startGesture(viewport.center);
           // Cross Flutter's normal touch slop to win the drag gesture, then
           // measure frame-by-frame motion while the finger is still down.
           await gesture.moveBy(Offset(direction * 40, 0));
           await tester.pump(const Duration(milliseconds: 16));
-          await gesture.moveBy(Offset(direction * width * 0.3, 0));
+          await gesture.moveBy(Offset(direction * viewport.width * 0.3, 0));
           await tester.pump(const Duration(milliseconds: 100));
           final before = tester.getRect(current);
           expect(before.left, isNot(closeTo(initial.left, 1)));
@@ -165,15 +584,15 @@ void main() {
             tester.getRect(adjacent).intersect(viewport).width,
             greaterThan(0),
           );
-          // Both images extend into the screen margins during the drag.
+          // Both images extend into the pager margins during the drag.
           // No rounded clip outside PageView can hide those moving edges.
           expect(
             find.ancestor(of: pager, matching: find.byType(ClipRRect)),
             findsNothing,
           );
           for (final entry in [
-            (current, lang == 'ar' ? width - 4 : 4.0),
-            (adjacent, lang == 'ar' ? 4.0 : width - 4),
+            (current, lang == 'ar' ? viewport.right - 4 : viewport.left + 4),
+            (adjacent, lang == 'ar' ? viewport.left + 4 : viewport.right - 4),
           ]) {
             expect(
               tester
@@ -194,7 +613,7 @@ void main() {
             tester.getRect(adjacent).left - neighborBefore.left,
             closeTo(direction * 30, 0.1),
           );
-          await gesture.moveBy(Offset(direction * width * 0.3, 0));
+          await gesture.moveBy(Offset(direction * viewport.width * 0.3, 0));
           await tester.pump(const Duration(milliseconds: 100));
           // The logical indicator changes during the drag, before pointer-up.
           final active = find.byKey(const ValueKey('banner-dot-1-true'));
@@ -210,7 +629,8 @@ void main() {
           expect(tester.getRect(adjacent), held);
           await gesture.up();
           await tester.pumpAndSettle();
-          expect(tester.getRect(adjacent), initial);
+          expect(tester.getRect(adjacent).left, closeTo(initial.left, 0.001));
+          expect(tester.getRect(adjacent).size, initial.size);
           expect(tester.takeException(), isNull);
         },
       );
@@ -313,18 +733,27 @@ void main() {
     final controller = tester
         .widget<PageView>(find.byType(PageView))
         .controller!;
+    final initialPage = controller.page!;
     await tester.pump(const Duration(seconds: 4));
-    expect(controller.page, 1);
+    expect(controller.page, initialPage);
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(controller.page, greaterThan(1));
-    expect(controller.page, lessThan(2));
+    expect(controller.page, greaterThan(initialPage));
+    expect(controller.page, lessThan(initialPage + 1));
+    expect(
+      _bannerScale(tester, initialPage.round()),
+      inExclusiveRange(.96, 1.0),
+    );
+    expect(
+      _bannerScale(tester, initialPage.round() + 1),
+      inExclusiveRange(.96, 1.0),
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('banner-dot-1-true')), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('banner-dot-0-true')), findsOneWidget);
-    expect(controller.page, 1); // Invisible sentinel recenter completed.
+    expect(controller.page, initialPage); // Invisible cycle recenter completed.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 30));
     expect(tester.takeException(), isNull);
@@ -387,6 +816,37 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('banner-dot-1-true')), findsOneWidget);
+  });
+
+  testWidgets('leaving the route pauses autoplay and returning resumes it', (
+    tester,
+  ) async {
+    addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+    await tester.pumpWidget(
+      _host(const HomeBannerDeck(banners: [first, second]), lang: 'en'),
+    );
+    await tester.pumpAndSettle();
+    final controller = tester
+        .widget<PageView>(find.byType(PageView))
+        .controller!;
+    final initialPage = controller.page;
+    final navigator = Navigator.of(tester.element(find.byType(HomeBannerDeck)));
+    unawaited(
+      navigator.push(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('Another page')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 12));
+    expect(controller.page, initialPage);
+    navigator.pop();
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('banner-dot-1-true')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('mouse hover pauses, mouse dragging and keyboard can navigate', (
@@ -654,6 +1114,9 @@ void main() {
       ProviderScope(
         retry: (retryCount, error) => null,
         overrides: [
+          notificationSyncProvider.overrideWith((ref) {}),
+          unreadCountProvider.overrideWith((ref) async => 0),
+          dataSourceProvider.overrideWithValue(DataSource.mock),
           bannerRepositoryProvider.overrideWithValue(repo),
           brandProvider.overrideWithValue(const Brand.bundled()),
           categoriesProvider.overrideWith((ref) async => []),
@@ -715,7 +1178,11 @@ void main() {
           expect(opened, Uri.parse(first.linkUrl!));
           await tester.drag(
             find.byType(PageView),
-            Offset(lang == 'ar' ? width * 0.8 : -width * 0.8, 0),
+            Offset(
+              tester.getSize(find.byType(PageView)).width *
+                  (lang == 'ar' ? 0.8 : -0.8),
+              0,
+            ),
           );
           await tester.pumpAndSettle();
           expect(find.text('Second banner').hitTestable(), findsOneWidget);

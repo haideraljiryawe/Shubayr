@@ -1,170 +1,499 @@
-# Flutter — Living Execution Roadmap
+# Shubayr Mobile — Customer Release 1 Roadmap
 
-## Current status and reviewed baseline
+Reviewed **12 October 2026 (Asia/Baghdad)** against fetched `origin/main` at
+`179c0ca5f74c32fbe080c8ad9152dc10394eeba6`. **Not production-ready.**
+This replaces the old API 8/11 roadmap and preserves the original 21-item numbering
+from the [readiness report](docs/release-1-readiness.md#exact-21-item-coverage).
 
-- Last reviewed: **2026-09-11**. Integration branch: `mobile`; latest completed increment: R2 promotions (customer/admin), manually accepted on 2026-09-11. Earlier committed baseline: `174e3ea` (admin orders).
-- Shared contract: `api/openapi.yaml` synchronized byte-for-byte from `origin/main` at `f458690` (latest contract-changing commit: `89c9120`). OpenAPI still reports **1.1.0**, so the commit is part of the baseline; version alone does not identify the reviewed changes.
-- Current focus: **R3 — Home banners, implemented with mock data; manual acceptance pending**. R2 customer/admin promotions are complete and manually accepted on 2026-09-11. R1 order-item snapshots are complete and manually accepted on 2026-09-10. B3a name/email editing is complete and manually accepted on 2026-09-10. Phase 3 admin foundation still awaits manual/design acceptance; admin orders are complete.
-- Delivery status Chips **B11** is ready; own name/email editing **B3a** is complete and manually accepted. R1 is complete and manually accepted; R2 is complete and manually accepted; **R3 home** is implemented with manual acceptance pending; **R3 admin and R4** remain ready client adaptations. Contract receipt alone does not complete them.
-- Main remaining dependencies: B1, B2, B3b, B4, B5, B6, B7, B8, B10, B12 and B13. The B9 CI fix is incorporated; verification of the integrated branch and branch protection remains.
-- Source changes, scope of synchronization and per-item decisions: [contract synchronization log](docs/contract-sync-log.md). No backend/web code, database migration, CI change or new UI feature was applied during this documentation sync.
+## 1. Current project status
 
-## Reading and maintaining task status
+| Area | Verified position |
+| --- | --- |
+| Authoritative contract | **API 14.2.0**, read from `origin/main:api/openapi.yaml` after `git fetch origin main`. [Contract on main](https://github.com/haideraljiryawe/Shubayr/blob/main/api/openapi.yaml). |
+| Product scope | Guest browsing and **customer-only Release 1**. Delivery-agent code is preserved but disabled in profile/release. Order-monitor development is frozen; non-customer sessions are excluded from profile/release. Web Admin remains separate. |
+| Completed capabilities | Remote browsing/search/offers, customer OTP/session isolation, cart/addresses, wishlist/reviews, COD checkout and recovery, versioned order decisions, order snapshots/history, stock recovery, bilingual errors, server availability, two-level categories, unavailable-product state, historical return quantities, account deletion and customer-only access. |
+| Integration | #109 and #115–#128 are present in fetched main's merge history. GitHub confirms [#128 merged](https://github.com/haideraljiryawe/Shubayr/pull/128) at `179c0ca`. No repeat integration or reimplementation is planned. |
+| Automated evidence | **2,061 Flutter tests passed; 5 existing skips; analyzer clean**, recorded in the readiness report and #128 handoff. Before this edit, current `mobile/` differs from verified source baseline `1476aa5` only in the readiness report. Tests were **not rerun** for this documentation task. |
+| GitHub evidence | Final #128 head `60dfaa0`: [CI](https://github.com/haideraljiryawe/Shubayr/actions/runs/38262204304) and [Secret scan](https://github.com/haideraljiryawe/Shubayr/actions/runs/38262204285) completed successfully, rechecked through GitHub. This is PR-head evidence, not a fresh release/deployment test. |
+| Native evidence | Previously recorded unsigned iOS release compilation passed. Android AAB packaging stopped at the production-signing guard because signing configuration was absent. Neither is a verified distribution release. |
+| Remaining Release 1 scope | D1 integration (13–16), real Firebase/APNs delivery (17), official privacy/support destinations (19), signing/store preparation (20), and deployed bilingual/device acceptance (21). |
+| Developer accounts | Developer reports active, recently created **individual Apple Developer and personal Google Play Console accounts**, and has informed the lead. Publishing through them is currently expected. Console eligibility, identifiers, signing, testing and approval have not been independently verified. |
 
-| Marker | Meaning |
-|---|---|
-| `[x]` | Implemented and technically/manually accepted within its stated scope. Does not mean live integration or production readiness. |
-| `[ ]` | Not implemented yet. The stated mock/client scope is ready unless an explicit integration or release prerequisite is named. |
-| `[~]` | Implemented work still awaiting verification/design acceptance, or an explicitly described partial increment. |
-| `[!]` | Deferred or blocked; the linked B entry states the remaining dependency and resumption condition. |
+### Status meanings and counts
 
-**Contract readiness and application completion are separate.** A received API change normally moves a task from `[!]` to `[ ]`, never directly to `[x]`. Split a partially resolved item, as with B3a/B3b, while preserving its original B identifier and history.
+| Status | Meaning |
+| --- | --- |
+| DONE | Mobile implementation and recorded automated verification complete; live acceptance remains in item 21. |
+| PARTIAL | Implementation exists; configuration or real-world verification remains. |
+| BLOCKED | A named prerequisite prevents completion; independent preparation may still proceed. |
+| NOT STARTED | Actionable work with no completion evidence yet. Unchecked preparation steps below use this baseline unless another status is stated. |
+| POST-LAUNCH | Explicitly outside customer Release 1. |
 
-### Ready work index
+**21-item totals: 13 DONE, 2 PARTIAL, 6 BLOCKED, 0 NOT STARTED, 0 POST-LAUNCH.**
+Post-launch work is counted separately in section 9. These are readiness categories,
+not a production completion percentage.
 
-This is an index into the phase tasks, not a second checklist. It does not select the next task automatically.
+References: [Mobile guidance](AGENTS.md), [build/configuration guide](README.md),
+[readiness evidence and tests](docs/release-1-readiness.md),
+[push integration](docs/push-notifications-release-1.md), and
+[migration notes](../docs/mobile/). Reviewed notes through 14.2 cover customer
+order decisions, snapshots, specific errors, deletion and FCM. Historical “to do”
+labels describe older Mobile snapshots and do not reopen completed work. Latest
+notes: [14.0](../docs/mobile/contract-changes-v13.4-to-v14.md),
+[14.1](../docs/mobile/contract-changes-v14-to-v14.1.md),
+[14.2](../docs/mobile/contract-changes-v14.1-to-v14.2.md).
 
-| Area | Ready scope | Phase / reference |
-|---|---|---|
-| Delivery | Status Chips with server-side filtering before pagination | 2 / B11, newly unblocked |
-| Banners | Permission-aware admin management; home display awaits manual acceptance | 3 / R3 (home: 1 / R3) |
-| Catalog | Verify bilingual-name validation/fallback against the revised contract | 1 and 3 / R4 |
-| Reports | Sales and top products, with date selection | 3 |
-| Inventory reads | Paginated batches and movements with supported filters | 3 |
-| Purchasing | Create and receive a new invoice in the same session | 3; resuming old invoices still depends on B6 |
-| Customer / shared | Loyalty balance/ledger, automatic tracking refresh, session-token refresh | 1 and 4; points operations remain deferred under B10 |
+## 2. Release 1 requirements — authoritative 21-item checklist
 
-## 0 — Shared foundation: implemented
+M = Mobile developer; B = Backend team; L = project lead/client; P = platform/store.
+Checked requirements mean implementation complete, not release approval. Detailed
+source/test links remain in the readiness report. Live verification of DONE items
+is performed once under item 21, not scheduled as new feature implementation.
 
-- [x] App startup, Arabic/English and RTL, theme and branding loaded from settings, navigation and role/permission guards, and shared components including the corrected snackbar animation.
-- [x] Mock/remote separation, networking and error layers, OTP sign-in, session restoration, and secure storage. Token refresh is not included; see phase 4.
+| # | Requirement | Status | Responsible party | Remaining action | Dependency / blocker | Verification criteria |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | [x] Checkout idempotency | DONE | M; B for live acceptance | No coding; test recovery in 21. | Deployed API for 21; no implementation blocker. | Identical persisted body/key returns the same order after timeout/restart; changed body cannot reuse key; account/API isolation holds. |
+| 2 | [x] Direct cancellation only while pending | DONE | M | No coding; verify transitions in 21. | Deployed order fixtures. | Pending-only action sends version; stale state reloads without automatic write retry. |
+| 3 | [x] Reasoned cancellation requests, states and resolution note | DONE | M; B for staff resolution | No coding; test approved/denied cases in 21. | Deployed customer/staff workflow. | Reason, pending/approved/denied state, timestamps and resolution note display correctly. |
+| 4 | [x] Accept/decline reduced-quantity proposals | DONE | M; B for proposals | No coding; verify both decisions in 21. | Backend proposal fixtures. | Versioned `shortage-response`; resolved history remains without action buttons. |
+| 5 | [x] Stock-shortage recovery | DONE | M; B owns error contract | Retain implementation; verify real refusals in 21. | B reconciles route declarations; section 5. | Both stock refusals refresh without write retry; quantities/SKU shown only from structured response or safely identified refreshed cart data. |
+| 6 | [x] Specific bilingual API errors | DONE | M | No coding; verify deployed mapping in 21. | Real refusal scenarios. | Requested cart/SKU/coupon/order/role/surface/idempotency codes have Arabic/English feedback; raw server messages hidden. |
+| 7 | [x] Complete customer order details | DONE | M | No coding; compare live snapshots in 21. | Representative order histories. | Timeline, cancellation, accepted prices, shortage outcomes and collection match server data; unknown collection is not presented as paid. |
+| 8 | [x] Server availability labels; no browsing stock counts | DONE | M | No coding; check catalog/cart in 21. | Live stock-label cases. | Server labels retained; browsing/quantity controls hide inventory counts; numeric refusal detail limited to item 5. |
+| 9 | [x] Strict department → subcategory tree | DONE | M | No coding; check production catalog in 21. | Catalog fixtures. | Active/sorted two-level tree; grandchildren excluded without breaking navigation. |
+| 10 | [x] Remove negotiation fields | DONE | M | No further implementation work. | None. | Product serialization does not retain/emit `is_negotiable`, `floor_price`, `points_price`; regression evidence retained. |
+| 11 | [x] Dedicated unavailable-product 404 state | DONE | M | No coding; test removed product in 21. | Real unavailable product. | Localized unavailable state for 404; transport failures retain retry. |
+| 12 | [x] Whole-unit returns from historical snapshots | DONE | M | No coding; test returns in 21. | Historical order/return fixtures. | Saved `base_unit`/`whole_units_only` govern hidden-product returns; missing snapshots block unsafe returns; switching accounts closes stale dialogs. |
+| 13 | [ ] Required governorate and completion of legacy addresses | BLOCKED | B publishes; M integrates | Implement selection/legacy completion after D1. | Unmerged D1 address/governorate contract and migration. | New addresses require published field; legacy completion gates checkout; localized errors. |
+| 14 | [ ] Zone delivery fees and DELIVERY_ZONE_NOT_SERVED | BLOCKED | B prices; M presents | Integrate server fees/refusal after D1. | Published zone pricing and route error schema. | Served address uses server fee; unserved address prevents checkout with actionable feedback. |
+| 15 | [ ] Automatic goods discounts and RTL progress | BLOCKED | B calculates; M presents | Integrate discount/next-tier display after D1. | Published tier/progress schema, rounding and coupon rules. | Server totals retained; goods-only automatic discount versus coupon follows approved larger-benefit rule; Arabic/English/RTL progress works. |
+| 16 | [ ] Adjusted delivery fees/totals after phone confirmation | BLOCKED | B/staff workflow; M refreshes | Integrate adjustment/notification after D1; existing server fee/total display retained. | Published adjustment and notification behavior. | Customer sees revised server fee/total after staff confirmation; no new customer acceptance step. |
+| 17 | [ ] Native Firebase push | PARTIAL | M + B; Apple/Firebase setup | Configure existing integration; complete device matrix. | Firebase options, APNs, deployed FCM sender, physical devices. | Receipt/taps in foreground/background/cold start, permission changes and token/account lifecycle pass on both platforms. |
+| 18 | [x] Account deletion and private-state cleanup | DONE | M; B for live acceptance | No coding; verify success/blockers in 21. | Deployed deletion workflow. | `DELETE /me/account` 204 clears credentials/journals and resets push; blockers retain session; other accounts remain isolated. |
+| 19 | [ ] Functional official privacy and support links | PARTIAL | L publishes; M configures | Set real `PRIVACY_POLICY_URL`/`SUPPORT_DESTINATION`; test opening. | Approved policy/contact not supplied in verified release configuration. | Published policy and approved HTTPS/mailto/tel support open on Android/iOS; no placeholder/unavailable fallback at launch. |
+| 20 | [ ] Signed Android AAB, iOS distribution archive, stable localization | BLOCKED | M/account holder; P processes | Prepare signing, distribute builds and finish store setup; localization generation already verified. | Upload key, distribution identity/profiles, actual configuration and console requirements. | Signed AAB and archive/export accepted by stores; installed test builds work; localization remains reproducible. |
+| 21 | [ ] Deployed API and bilingual/RTL device testing | BLOCKED | M + B + L/QA | Execute section 8 on intended release candidate. | HTTPS deployment/URL, accounts/data, D1 and platform configuration. | Physical Android/iOS Arabic/English/RTL journeys pass; evidence and team approval recorded. |
 
-- [~] Cross-platform responsive layout: central breakpoints/content sizing, adaptive catalog and management card grids, multi-column forms, adjacent detail/summary regions, matching loading states and resize-state protection are implemented. Formatting, analysis, all 364 tests and the mock Web build passed; final visual/manual acceptance pending. See [responsive layout progress](docs/responsive-layout-progress.md).
+## 3. Mobile Developer — Independent Action Plan
 
-- [~] Native/Flutter startup experience: local logo, localized Zain wordmark/tagline, indeterminate progress, adaptive native backgrounds and responsive Flutter startup are implemented within the existing initialization/role routing. Initial analysis, all 493 tests, unsigned iOS and mock Web builds passed. The latest refinement uses a background-only native launch, prepares logo/font before Flutter, centers progress below the tagline, and holds Flutter Startup for at least two seconds alongside session restoration; 32 focused Startup/Home/localization/router tests and analysis passed, with simulator Debug cold start/Hot Restart verified after correcting generated native artifacts. Visual acceptance remains pending; Android SDK is unavailable. See [simulator diagnosis](docs/startup-debug-diagnosis.md) for evidence and the remaining non-blocking SdkRoot tooling diagnostic. See [startup experience progress](docs/startup-experience-progress.md).
+These are future checklists, not actions performed during this documentation task.
+Account ownership is user-reported. Active membership does not prove production
+access, identifier availability, signing readiness or store approval. Preparation
+can start without D1; later steps identify where another party is needed.
 
-## 1 — Guest / Customer: partial, working with mock data
+### Individual-account implications
 
-- [x] Browsing, departments, search, filtering and product pagination, details, images, variants, availability, and reading reviews; display of points and negotiability information. New promotion and bilingual-contract adaptations are tracked separately under R2/R4.
-- [x] Guest → sign-in → original destination journey, with correct back navigation and no automatic replay of add or purchase actions.
-- [x] Cart, wishlist and address operations, and cash-on-delivery checkout with an address and coupon; mock and remote repositories exist.
-- [x] Order details, status timeline and cancellation, and product reviews and partial returns after delivery. Mock reviews are `pending`, and returns produce receipts only; no approval, refund, or stock adjustment. New order-item snapshots are a separate R1 increment.
-- [x] Order-history pagination and repository-level status filtering with mock data; technical checks and Ahmed’s final manual verification passed. See the [order-history progress record](docs/order-history-mock-progress.md).
-- [x] Wishlist pagination, complete later-page membership, retry/mutation/session protection and stock-badge direction correction; technical checks and manual verification passed. See the [wishlist progress record](docs/wishlist-mock-progress.md).
-- [x] Address pagination, including later-page default selection in checkout, refresh/retry and mutation/session protection; technical checks and manual verification passed. See the [address progress record](docs/address-mock-progress.md).
-- [x] **B3a — Own profile name/email:** implemented `PATCH /me` through mock/remote auth repositories, partial name/email updates and explicit email clearing; session updates only after success with stale-response protection. Responsive form supports validation and failure/retry without losing drafts. All 384 tests, analysis and mock Web build passed; Ahmed confirmed manual acceptance on 2026-09-10. Mock persistence lasts for the repository lifetime. Phone/photo/deletion remain outside this operation. See [profile self-update progress](docs/profile-self-update-progress.md).
-- [x] **R1 — Order-item snapshots:** implemented `product_name_ar`, `product_name_en` and nullable `image_url` in models and customer/admin order mocks. Order details use the purchase-time name/image; review/return labels use the saved name. Legacy orders fall back to the catalog, then the product ID/placeholder if unavailable. Explicit null images remain image-free. Analysis, all 407 tests and mock Web build passed; Ahmed confirmed manual acceptance on 2026-09-10. This does not supply customer/address/delivery linkage or resolve B1/B5. See [order-item snapshots progress](docs/order-item-snapshots-progress.md).
-- [x] **R2 — Promotions:** optional original price and read-only discount percentage are implemented in models, mock/remote reads, shared product cards and details. Offers Chip passes `on_sale` through the repository before pagination, combined with existing filters; append retry, stale-response protection and wide-viewport paging are verified. No promotion when the original price is missing or no greater than sale price. Analysis, all 425 tests and mock Web build passed; Ahmed confirmed manual acceptance on 2026-09-11. Admin editing is below; points operations remain B10. See [promotions progress](docs/promotions-progress.md).
-- [~] **R3 — Home banners:** public `GET /banners` mock/remote reads, active schedule filtering and ascending display order, responsive wide-banner proportions and a full-viewport image carousel with per-page insets and a below-image pill indicator with bidirectional looping, five-second autoplay and whole-image actions, refresh/retry and stale-response protection are implemented. Approved `url_launcher` opens external web links with localized failure feedback. No language-specific API fields were added. Analysis, all 481 tests and mock Web build passed; final visual/interactive acceptance is pending. Admin management remains the separate phase-3 scope. See [home banners progress](docs/home-banners-progress.md).
-- [ ] **R4 — Bilingual catalog compatibility:** review reads/mocks and regression coverage for missing, empty and whitespace-only Arabic/English names, following the server's fallback to the other language. Keep existing approved layout values. This is a targeted compatibility task, not a redesign.
-- [ ] Loyalty balance and points ledger via `GET /loyalty`; the contract is available, but the feature is not implemented.
-- [ ] Automatic tracking updates; currently read only on load. The read contract and mock data are sufficient to start, without assuming WebSocket.
-- [!] Delivery rating B1; after-sales history/status retrieval B2; profile photo/account deletion B3b; help and privacy B4.
-- [!] Points negotiation/redemption B10; displaying points does not implement these operations.
+- Apple displays an individual's **personal legal name as seller**, even when the
+  app is branded Shubayr. Confirm the lead/client accepts this public identity.
+  [Apple enrollment](https://developer.apple.com/programs/enroll/).
+- Google allows a developer name distinct from the legal name, but also displays
+  verified legal name, country and developer email. Monetization/regional rules
+  can expose further address/contact details; inspect the actual public profile.
+  [Google account information](https://support.google.com/googleplay/android-developer/answer/13628312?hl=en).
+- Personal-account publishing is the current expectation, **not a verified legal
+  agreement**. Agree on brand rights, publishing authority, renewals, support,
+  credential custody, data disclosures and handover. Google describes organization
+  accounts for business use; confirm the appropriate representation with the lead
+  and platform support if needed, without assuming organization enrollment or a
+  completed conversion. [Account types](https://support.google.com/googleplay/android-developer/answer/10840893?hl=en).
+- Future transfer to client/organization accounts depends on platform eligibility.
+  Preserve identifier/ownership records and plan signing, APNs, Firebase and service
+  access changes; do not promise an automatic transfer or share personal logins.
+  [Apple transfer](https://developer.apple.com/help/app-store-connect/transfer-an-app/overview-of-app-transfer),
+  [Google transfer](https://support.google.com/googleplay/android-developer/answer/6230247?hl=en).
 
-## 2 — Delivery Agent: partial, working with mock data
+### A. Apple Developer
 
-Role-directed sign-in opens the assigned-delivery list. `delivery.assigned` gates reads and updates; account/settings navigation is preserved.
+1. [ ] Verify individual membership/expiry, two-factor authentication, account-holder
+   permissions, pending agreements, Certificates/Identifiers/Profiles access and
+   App Store Connect access. Record status without credentials.
+2. [ ] Verify availability/ownership of explicit App ID **`com.shubayr.app`**, the
+   existing iOS bundle identifier. Resolve collisions with L before requesting
+   any identifier change.
+3. [ ] Enable Push Notifications on that App ID. Check Xcode capabilities against
+   [Firebase Apple setup](https://firebase.google.com/docs/cloud-messaging/flutter/get-started):
+   Push Notifications and background modes. Source already declares remote
+   notifications and APNs entitlements; verify Background fetch as directed by
+   the platform guide during integration. Keep method swizzling enabled.
+4. [ ] Select the intended Apple team and prepare an Apple Distribution identity
+   and App Store distribution profile, or verify Xcode-managed equivalents.
+   Regenerate profiles after enabling Push; verify bundle ID and production APNs
+   entitlement. Local development signing alone does not satisfy distribution.
+5. [ ] Create the App Store Connect record with matching bundle ID, approved name,
+   primary language and recorded internal SKU. Check agreements and applicable
+   tax/banking requirements for the chosen distribution model.
+   [App Store Connect workflow](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-workflow).
+6. [ ] Draft Arabic/English name, subtitle, description, keywords, category, icon,
+   screenshots, support URL, privacy URL, copyright and review contact. L approves
+   final text/assets. Complete age rating, content rights, territories, export
+   compliance and privacy answers from actual app/SDK behavior; check current
+   SDK/submission requirements before upload.
+   [App information](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information),
+   [App privacy](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy).
+7. [ ] Prepare TestFlight groups, feedback contact and testing instructions. Once
+   the configured signed build exists, upload, resolve processing/compliance issues
+   and test internally. External testing needs the applicable TestFlight review;
+   the first external build receives a full review.
+   [TestFlight](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/),
+   [external testing](https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers/).
+8. [ ] With B/L, provide reliable customer OTP review access, working backend,
+   review instructions, deletion behavior and reachable support/privacy pages.
+   Submit after section 8 and team approval; TestFlight approval is not App Store
+   approval. [Apple review preparation](https://developer.apple.com/app-store/review/).
 
-- [x] Unfiltered delivery list and status updates with mock data via `GET /deliveries/assigned` and `PATCH /deliveries/{id}`: pagination, all five read statuses, three permitted update values, confirmation, refresh/retry and stale-response protection. Technical checks and final manual verification passed. See the [delivery-agent progress record](docs/delivery-agent-mock-progress.md).
-- [ ] **B11 — Delivery status Chips, now ready:** implement All plus `assigned`, `out_for_delivery`, `delivered`, `failed`, `returned` using the newly documented optional `status` parameter. Omit it for All; filter within the current agent before pagination, return matching totals, and use `dispatched_at DESC, id DESC`. Reset to page one when the status changes and retain it on append/refresh/retry. Acceptance: 45 matches yield 20/20/5, matching total, no other statuses/agents, and correct empty results. **Contract dependency resolved by `dc5df9b`; client implementation remains pending.**
-- [!] Order details, address, map, and cash-collection confirmation B5.
+### B. Google Play Console
 
-## 3 — Store Admin / Staff: mock foundation and orders implemented; foundation acceptance pending
+1. [ ] Verify personal account identity/contact status, owner permissions, country
+   and pending Dashboard tasks. Complete required device verification using the
+   Play Console app on a non-rooted Android 10+ device if pending.
+   [Device verification](https://support.google.com/googleplay/android-developer/answer/14316361?hl=en).
+2. [ ] Confirm **`com.shubayr.app`** in Android source and the intended Play app;
+   verify availability/ownership through the console/upload process. Prepare
+   app record, default language, approved name, category and distribution choices.
+   Do not silently change the application ID.
+3. [ ] Draft Arabic/English short/full descriptions, icon, feature graphic,
+   screenshots, support contact and privacy link; obtain L's final assets/approval.
+4. [ ] Configure **Play App Signing**, keeping the Google-managed app signing key
+   distinct from the local **upload key**. Prepare/back up the upload keystore
+   securely and record public certificate fingerprints. Match the AAB upload
+   certificate to Play's record.
+   [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756?hl=en).
+5. [ ] Prepare internal testers, closed-test group and opt-in instructions now.
+   Upload/test the signed configured build when ready. Internal testing does not
+   satisfy the personal-account closed-testing requirement.
+6. [ ] Plan **at least 12 testers continuously opted in to a closed test for the
+   preceding 14 days** before applying for production access. Confirm the actual
+   Dashboard requirement; collect meaningful usage/feedback and resolve findings.
+   Recruitment can start now; the qualifying period begins with the eligible test.
+7. [ ] Apply for production access once eligible, answering questions about testing,
+   feedback and readiness. Await Google's decision and any further requirements;
+   tester count/time alone is not approval.
+   [Personal-account testing and production access](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en).
+8. [ ] Complete current App content declarations: Data safety, privacy, account/data
+   deletion, app access/OTP instructions, ads, target audience, content rating and
+   applicable permissions. Check current target API/SDK/bundle requirements before
+   submission. B/L must confirm actual collection, sharing, retention and deletion.
+   Provide the required external account-deletion request URL in addition to the
+   implemented in-app flow.
+   [Account deletion requirements](https://support.google.com/googleplay/android-developer/answer/13327111?hl=en).
 
-The permission-aware grid opens catalog and user/role management, suppliers, warehouse/location selection, and admin orders. Other operational sections remain placeholders. This phase includes Flutter Web inside `mobile/`, not the `web/` project.
+### C. Firebase — practical setup sequence
 
-- [~] Catalog, user and role management; supplier read/create and warehouse/location selection: mock/remote repositories, supported pagination/search/filtering, forms, permission guards and retry/session protection are implemented. Technical verification passed; final manual/design acceptance remains pending. See the [admin foundation progress record](docs/admin-foundation-mock-progress.md).
-- [x] **R2 — Admin promotion price:** optional `compare_at_price` create/edit input and explicit null clearing are implemented with existing permissions/validation. Mock calculates and updates `discount_percent`; write payloads exclude this read-only field. Selling prices/cart charges remain unchanged. Technical checks passed with customer R2; Ahmed confirmed manual acceptance on 2026-09-11. See [promotions progress](docs/promotions-progress.md).
-- [ ] **R3 — Admin banners:** implement paginated list, detail, create, edit and delete using `/admin/banners` and `/admin/banners/{id}` under `catalog.manage`, including active state, display order and optional start/end scheduling. This is separate from customer banner display.
-- [ ] **R4 — Admin bilingual validation review:** existing forms already require trimmed Arabic/English names. Verify mock/remote create and update behavior and field-level validation handling against the new non-whitespace requirements; change only identified gaps and add regression coverage.
-- [!] Complete admin visibility of hidden/archived products and inactive categories B12; supplier update/delete and warehouse/location writes B13.
-- [ ] Create a **new** purchase invoice and receive it into selected locations in the same session using existing POST contracts. Resuming an older invoice is excluded until B6 provides reads.
-- [ ] Display paginated inventory batches and movements: batches support `product_id`; movements support `batch_id` and `type`. Do not label `qty_received` as current stock or invent an expiry query parameter from an endpoint summary.
-- [!] Complete stock adjustments/transfers with per-location balance guidance, purchase-invoice resumption and batch/location-guided picking B6. Write endpoints exist, but they do not supply the missing reads and links.
-- [x] Admin order list, confirmation and status updates with mock data: nine status Chips plus All, repository search/status/date filtering before pagination, confirmation, `orders.view` / `orders.update` guards, refresh/retry and stale-response protection. Changes restart page one to avoid skipping rows. Technical checks and Ahmed’s manual verification passed on 2026-09-09. Picking remains B6. See the [admin orders progress record](docs/admin-orders-mock-progress.md).
-- [!] Returns access, approval, inspection and restocking/quarantine B2; an inspection contract does not complete the journey.
-- [ ] Sales and top-products reports via `GET /admin/reports/sales`, with date range, totals, daily breakdown and `top_products` from `SalesReport`.
-- [!] Low-stock reporting and saving store settings B7.
+Use the [existing integration guide](docs/push-notifications-release-1.md).
+“M alone” assumes access to the relevant account/project. It does not imply that
+Backend delivery can be completed independently.
 
-## 4 — Integration and completion of shared journeys
+| Step | Action | Owner / prerequisite | Completion evidence |
+| --- | --- | --- | --- |
+| 1 | [ ] Create a Firebase project for Shubayr after agreeing ownership/environment with B/L; first check that the intended project does not already exist. | M executes; shared decision. | Project ID and access owners recorded; correct Backend environment selected. |
+| 2 | [ ] Register Android application. | M alone; project access. | Firebase Android package is `com.shubayr.app`. |
+| 3 | [ ] Register iOS application. | M alone; project access. | Firebase Apple bundle is `com.shubayr.app`. |
+| 4 | [ ] Cross-check native identifiers and each platform's distinct Firebase app ID. | M alone. | Source, Apple/Play and Firebase registrations agree. |
+| 5 | [ ] Obtain public client API key, app ID, sender ID and project ID from actual Firebase app configuration. | M alone. | Values mapped to the exact four keys in section 4. |
+| 6 | [ ] Prepare external per-platform build files and use `--dart-define-from-file`; retain explicit `FirebaseOptions` initialization. | M; API/policy/support supplied separately. | Correct project initializes; no replacement generated configuration architecture. |
+| 7 | [ ] Verify Android `POST_NOTIFICATIONS` and Account enable action; test Android 13+ allow/deny/revoke. | M; physical device/configured app. | No automatic permission prompt; registration respects permission and verified customer ownership. |
+| 8 | [ ] Verify Apple Push/background capabilities, entitlements and regenerated provisioning. | M alone; Apple access. | Distribution build has production APNs entitlement; source Debug uses development, Profile/Release production. |
+| 9 | [ ] Generate/select APNs authentication key or supported certificate; securely record Team ID/key ID. | M alone; Apple permissions. | Valid credential with correct scope; private material secured. |
+| 10 | [ ] Link APNs credential to the correct Firebase iOS app in Cloud Messaging settings. | M; Apple/Firebase access; shared project. | Signed bundle and APNs/Firebase setup match; no private key in app/Git. |
+| 11 | [ ] Verify real Firebase Messaging token retrieval after login/permission; wait for actual APNs token on iOS. | M; platform setup and working login API. | Existing `getToken()` lifecycle obtains real token; no synthetic token or shared-log exposure. |
+| 12 | [ ] Verify API registration/reactivation. | M + B; deployed authenticated API. | `POST /devices/token` returns 201 for `{token, platform, locale}`; correct owner/platform/locale stored. |
+| 13 | [ ] Send real customer event while foregrounded. | M + B; FCM worker enabled. | Inbox/badge refresh; generic localized notice opens current customer's inbox. |
+| 14 | [ ] Test background and normally terminated delivery on both platforms. | M + B; FCM/APNs and OS permission. | OS notification appears; background handler does not navigate/mutate account state; record force-stop limitations separately. |
+| 15 | [ ] Test notification taps from background and cold start. | M + B. | Waits for verified customer/startup readiness, then opens inbox; no arbitrary push URL/order route. |
+| 16 | [ ] Test rotation, locale, resume, permission revocation, online/offline logout and reconnect. | M + B checks server state. | Correct token retires/reactivates; FCM reset on logout; offline server cleanup is not assumed. |
+| 17 | [ ] Test rapid account switching, deletion success/blockers and sign-in after deletion. | M + B; two test customers. | No stale-account content/navigation; correct token ownership; deletion resets FCM without relying on revoked API credentials. |
 
-Integration of a ready feature can be brought forward when a live environment is available, without waiting for all roles to be complete.
+A Firebase Console test can isolate platform delivery after obtaining a token;
+it does not verify Backend recipient selection, persistence or events. Complete
+steps 12–17 through Backend events before closing item 17. Distinguish normal
+background/terminated behavior from OS force-stop restrictions using the
+[Firebase message guide](https://firebase.google.com/docs/cloud-messaging/flutter/receive-messages).
+This documentation task creates no projects, keys or credentials.
 
-- [ ] Session refresh via `POST /auth/refresh`; the contract exists, but the app ends the session on 401. Ready for implementation, not waiting for an API change.
-- [ ] Verify managed accounts/custom roles and session permission refresh against real authentication. Admin mock changes records only; existing phone-based mock login fixtures are unchanged.
-- [ ] Verify live purchase → confirmation/picking → delivery/cash collection → points/review → return journeys as their dependencies are resolved. Mock acceptance does not establish server effects or cross-role synchronization.
-- [!] Order-status notifications via FCM remain deferred to integration B8; no notification service is implemented.
-- [ ] Keep run instructions and this roadmap aligned with each accepted increment; the old missing-feature list in README is not a valid backlog.
+### D. Signing and distribution
 
-## 5 — Release readiness
+1. [ ] Prepare encrypted credential storage and recovery access outside the checkout.
+   Separate public client configuration from passwords, private keys and Backend
+   credentials. Never place secrets in source control, build defines or shared logs.
+2. [ ] Prepare/back up Android upload keystore outside Git. Existing packaging reads
+   ignored `android/key.properties` with exactly `storeFile` (absolute path),
+   `storePassword`, `keyAlias`, `keyPassword`. Provision privately on the signing
+   machine/CI; retain the fail-closed release-signing guard and no debug fallback.
+3. [ ] Prepare Apple distribution identity/private key in Keychain or approved
+   signing service, matching profiles and recovery material. Verify team, bundle
+   and APNs environment. [Local iOS signing](docs/ios-local-signing.md) describes
+   development context and does not prove distribution readiness.
+4. [ ] Obtain real HTTPS API, policy/support destinations and per-platform Firebase
+   options. Profile/release reject local, IP-literal, placeholder and development
+   hosts; do not bypass validation to make a test release.
+5. [ ] Verify the Android SDK/JDK and supported Xcode/CocoaPods toolchains on the
+   signing machine. Run final checks and build signed AAB and iOS archive/export.
+   Current version is `1.0.1+2`; inspect prior store uploads before selecting
+   future build numbers or requesting a version change.
+6. [ ] Validate signatures/entitlements, upload to Play internal testing and
+   App Store Connect/TestFlight, then install through those tracks on devices.
+   Record build numbers, configuration identity and results without secrets.
+7. [ ] Complete required closed/external testing and resolve findings before release
+   approval. Upload acceptance alone is not production publishing approval.
 
-- [x] Isolate personal iOS signing-team selection in a local setting excluded from Git; this is development configuration, not proof of release readiness.
-- [ ] Prepare Android/iOS releases, distribution signing, and approved publishing metadata; Android release currently uses debug signing.
-- [ ] Acceptance of critical journeys on physical devices and Flutter Web using release builds; no `integration_test` tests currently exist.
-- [~] **B9 — Verify the integrated CI gate:** `c550044` removes `|| true` from Flutter analysis/tests and is now incorporated into the integration branch. Verify the integrated checks pass and that failing checks block the required merge/release gate; branch-protection enforcement remains unverified.
+Future commands from `mobile/`, with dependencies/toolchains already prepared and
+real external configuration selected; **not run in this documentation task**:
 
-## Dependency and decision register
+```sh
+flutter analyze --no-pub
+flutter test --no-pub
+dart run tool/check_localizations.dart
+flutter build appbundle --release --no-pub --dart-define-from-file="$SHUBAYR_ANDROID_CONFIG"
+flutter build ipa --release --no-pub --dart-define-from-file="$SHUBAYR_IOS_CONFIG"
+```
 
-Keep resolved and partially resolved IDs for traceability. The application task remains in its phase until implemented and accepted.
+The two shell variables are operator-selected paths to real external client files,
+not production values. Check export method/team in Xcode Organizer as appropriate.
+Unsigned iOS compilation cannot satisfy archive/export acceptance. See
+[release configuration](README.md#production-release-configuration) for existing guards.
 
-| ID | Dependency status after this review | Current scope / remaining requirement | Evidence or resumption condition |
-|---|---|---|---|
-| B1 — Delivery rating | Blocked, unchanged | No `delivery_id` or customer-permitted alternative read in order/tracking data. | Provide link/read permission; order-item snapshots do not resolve this. |
-| B2 — After-sales | Blocked, unchanged | No return history/detail or review-status reads, and no return-approval operation. | Provide reads, permissions and approval transitions; server remains authoritative. |
-| B3 — Account | **Partially resolved** | **B3a complete, manually accepted:** name/email through `PATCH /me`. **B3b blocked:** photo and account deletion. Phone change needs OTP and has no new dedicated change flow here. | `89c9120` resolved B3a's contract gap; implementation and 384-test evidence are in the profile progress record. Obtain the remaining contracts for B3b. |
-| B4 — Help/privacy | Deferred, unchanged | Approved content/destinations are not established. | Product owner supplies approved text/links. |
-| B5 — Delivery journey | Blocked, unchanged | Delivery lacks address; permitted order/address reads and cash-collection semantics remain unclear. | Document data access/collection behavior and map approach; B11 only fixes list filtering. |
-| B6 — Warehouse continuity | Blocked, unchanged | Invoice reads, pick-list list/order link and per-location batch balances are missing. Admin orders and warehouse selection are implemented foundations only. | Add reads/links/balances; `qty_received` is not a current balance. New invoice creation/receiving and inventory read lists can proceed separately. |
-| B7 — Reports/settings | Partially available, unchanged | Sales/top products available; low-stock report and settings-save contract absent. | Agree low-stock semantics/response and settings-write permission. Do not hold up sales reports. |
-| B8 — FCM | Deferred to integration | Firebase setup, payload/destination approval and server sending integration pending. | Supply configuration and approved payload, then verify receipt. |
-| B9 — Release gate | **CI fix incorporated; verification pending** | Flutter analysis/tests no longer suppress failures. Integrated CI and branch protection still need verification. | `c550044`; require a passing integrated run before merging and confirm branch-protection enforcement separately. |
-| B10 — Points operations | Deferred, unchanged | Operational negotiation/redemption contract/product approval absent. | Approved product decision and contracts; balance display and promotion prices are separate tasks. |
-| B11 — Delivery filtering | **Contract blocker resolved; client ready** | Optional status, agent scoping, filtered total, stable ordering and examples are documented. Chips/filtering remain unimplemented in Flutter. | `dc5df9b`; implement phase-2 task with mock, then verify remote when available. |
-| B12 — Admin catalog visibility | Blocked, unchanged; previously unnumbered | Public product/category reads still do not explicitly guarantee hidden/archived/inactive records for admins. | Confirm visibility or add admin reads. New name fallback does not resolve visibility. |
-| B13 — Supplier/location writes | Blocked, unchanged; previously unnumbered | Supplier edit/delete and warehouse/location creation/edit/delete are absent. | Add relevant write contracts/permissions if these extensions are required. Existing read/create/select scope stays valid. |
+## 4. Push notifications architecture
 
-## Ongoing synchronization with Haider
+```text
+Flutter Mobile
+    |
+    | Authenticated device token registration / unregistration
+    v
+Shubayr Backend API + notification worker
+    |
+    | FCM server credentials; OAuth-authenticated HTTP v1 delivery
+    v
+Firebase Cloud Messaging
+    |
+    +--> Android device
+    |
+    +--> APNs --> iPhone
+```
 
-Use this sequence whenever Ahmed asks to review a new contract delivery or starts a task affected by one. This is a repeatable review process, not an automatic background watcher, commit or push.
+| Owner | Responsibilities and existing boundary |
+| --- | --- |
+| MOBILE | Firebase initialization, explicit permissions, token lifecycle, API registration/unregistration, presentation/navigation and session/account isolation. Existing [Firebase client](lib/features/notifications/data/firebase_push_client.dart), [lifecycle](lib/features/notifications/domain/push_lifecycle.dart), [registration](lib/features/notifications/data/device_registration.dart) and [navigation bridge](lib/app/push_notification_bridge.dart). |
+| BACKEND | Secure account-owned token storage, recipient selection, event generation, FCM authentication/delivery, invalid-token handling and notification persistence. [FCM provider](../backend/src/modules/notifications/notification-provider.ts) and [configuration](../backend/src/modules/notifications/notifications.module.ts) exist; production setup/delivery remain unverified. |
+| SHARED | Coordinate Firebase project/environment, push payload contract, configuration, test users and end-to-end tests; verify token retirement/reactivation/reassignment and account privacy together. |
 
-1. Fetch current upstream references and compare with the **last reviewed commit** in the synchronization log. Record the date, source branch/commit, author and exact changed files; a commit title, message or schema table alone does not prove API readiness.
-2. Inspect the actual operations, fields, permissions, filters, pagination, examples and links. Compare them with Flutter code as well as the request originally sent to the team.
-3. Import approved contract/document changes within the requested scope. Preserve local work; do not overwrite the roadmap with an older upstream copy or silently import unrelated backend/web/CI/branch-policy changes.
-4. Update the matching phase task and stable B ID in the **same edit**. Fully resolved dependency → `[ ]`; partial resolution → separate ready/blocked scopes; implemented but awaiting acceptance → `[~]`; `[x]` only after implementation and required verification. Keep completed increments and add new adaptation tasks instead of erasing their history.
-5. Append a synchronization record with source commit, received change, mobile gap, status transition and the precise remaining request to Haider. Distinguish received, imported, implemented and verified. For revisions that do not change an item, keep its status unchanged.
-6. After implementation, record technical evidence and Ahmed's manual acceptance. Review related B entries again; do not close adjacent dependencies by association.
+### Exact existing configuration and credential boundaries
 
-The upstream short-lived-branch convention from `c550044` is incorporated. The current `mobile` branch is retained only for this integration check and is deleted after the verified merge, leaving `main` as the sole long-lived branch.
+| Value / asset | Location | Meaning |
+| --- | --- | --- |
+| `FIREBASE_API_KEY` | Public Mobile build configuration | Matching Firebase client API key; not server authorization. |
+| `FIREBASE_APP_ID` | Public Mobile build configuration; platform-specific | Firebase app ID, not package/bundle ID. |
+| `FIREBASE_MESSAGING_SENDER_ID` | Public Mobile build configuration | Messaging sender/project number. |
+| `FIREBASE_PROJECT_ID` | Public Mobile build configuration | Project identifier; match Backend `FCM_PROJECT_ID`. |
+| `com.shubayr.app` | Native/Apple/Play/Firebase registrations | Current package/bundle; explicit `iosBundleId` in Mobile `FirebaseOptions`. |
+| `API_URL`, `PRIVACY_POLICY_URL`, `SUPPORT_DESTINATION` | Public external build configuration | Actual production API and approved destinations; separate from Firebase. |
+| `NOTIFICATION_PROVIDER=fcm`, `FCM_PROJECT_ID` | Backend deployment configuration | Select real sender and matching project. Production defaults to disabled without configuration. |
+| `FCM_SERVICE_ACCOUNT_JSON_BASE64` | **Backend secret manager only** | Service-account JSON with private signing material; Base64 is not encryption. Never bundle in Mobile. |
+| APNs `.p8` key/certificate and private key | **Secure Apple/Firebase administration only** | Connect Firebase to APNs. Team/key IDs identify it but are not additional Dart define fields. |
+| Keystore/passwords and Apple private signing keys | **Secure signing environment only** | Authenticate distribution; never commit or put in client defines. |
 
-## Status evidence and verification limits
+The app initializes from explicit `FirebaseOptions` using the four Firebase keys.
+Missing any leaves push unavailable without blocking independent features. This
+architecture does not require generating `firebase_options.dart` or introducing
+`google-services.json`/`GoogleService-Info.plist` as an alternative configuration.
+Public Firebase identifiers may be bundled; restrict API keys to intended services
+and never reuse privileged API keys.
+[Firebase API-key guidance](https://firebase.google.com/docs/projects/api-keys).
 
-- Sources: `lib/` and `test/`, [API](../api/openapi.yaml), [Flutter requirements](../prompts/MOBILE_CLAUDE_FULL.md), [Architecture](../docs/ARCHITECTURE.md), [Database schema](../infra/db/schema.sql). A table's existence does not prove API availability.
-- The [customer progress record](docs/customer-mock-progress.md) documents 115 passing tests, successful analysis, and simulator checks of selected journeys; these are previous results, not rerun during the planning task. `[x]` does not imply production or comprehensive visual verification.
-- Completed increment, including checkout-to-pending navigation, dark snackbar contrast, and responsive product cards with two-line name slots: all 176 Flutter tests passed; `flutter analyze` reports no issues. Widget coverage includes repository filters, later-page loading/retry, refresh, empty states, Arabic/English layouts, light/dark modes, and enlarged text. Ahmed confirmed manual acceptance on 2026-09-07; no live backend was contacted.
-- Wishlist increment, 2026-09-08: formatting completed, `flutter analyze` reports no issues, and all 200 Flutter tests passed after the shared product-card stock-badge direction correction. Coverage includes later-page membership, retry without partial data, mutation failures, refresh sequencing, session changes, narrow Arabic layouts in light/dark modes, and badge placement opposite the wishlist heart in both languages. Ahmed confirmed final manual acceptance on 2026-09-08; no live backend was contacted.
-- Address increment, 2026-09-08: formatting completed, `flutter analyze` reports no issues, all 30 focused address/checkout tests and all 224 Flutter tests passed. Coverage includes 105 addresses beyond the old limit, later-page default selection and checkout submission, retry, mutations, session changes, empty refresh, and 320-pixel Arabic/English layouts in light/dark modes. Ahmed confirmed final manual acceptance on 2026-09-08; no live backend was contacted.
-- Delivery-agent increment, 2026-09-08: generated model/localizations and formatting completed, `flutter analyze` reports no issues, all 41 focused delivery/router tests and all 255 Flutter tests passed. Coverage includes pagination and retries, status confirmation and failed writes, read/write sequencing, stale-session responses, permission denial, empty refresh, and 320-pixel Arabic/English layouts in light/dark modes with 2× text. Ahmed confirmed final manual acceptance on 2026-09-08; status Chips/filtering are tracked separately under B11. No live backend was contacted.
-- Deployed backend and SMS/FCM readiness, successful remote operation against a live server, and store-release approval are **unverified**; this does not mean the team's work does not exist.
-- Update when a feature/phase is completed or a significant dependency changes: status, next objective, and completion evidence or blocking condition. Execution rules belong in [AGENTS.md](AGENTS.md), not this roadmap.
+FCM auto-initialization starts disabled. Token retrieval/registration requires
+permission and a verified customer. Login/resume/locale/rotation use a serialized
+lifecycle with session revisions. `DELETE /devices/token` sends `{token}` in the
+body, not a URL. Logout attempts cleanup before removing credentials and resets
+FCM; offline cleanup cannot prove server deactivation. Successful account deletion
+resets local FCM without attempting DELETE with revoked credentials.
 
-- Admin-foundation increment, 2026-09-08: formatting and localization generation completed; `flutter analyze` reports no issues, all 31 focused admin tests and all 286 Flutter tests passed, and `flutter build web --dart-define=DATA_SOURCE=mock` succeeded. Coverage includes catalog/user/role CRUD, contract payloads, filtered pagination, permission/session changes, failed-save retry, confirmed deletion, second-page location selection, and Arabic/English layouts at 320/402/1280 pixels in light/dark modes. Final manual verification remains pending; no live backend was contacted.
+Backend source currently sends `notification: {title, body}` without push navigation
+data. Foreground receipt refreshes inbox/badge and shows generic localized feedback;
+the OS presents background messages. Taps open the authenticated inbox after
+startup. Existing API inbox entries retain role-checked destinations. Do not invent
+push `order_id`/deep-link fields, direct routes or a new token protocol for setup.
+Source behavior is not proof that the deployed sender is active.
 
-- Admin-order increment, 2026-09-09: formatting and localization generation completed; `flutter analyze` reports no issues, all 33 focused admin-order tests and all 319 Flutter tests passed, and `flutter build web --dart-define=DATA_SOURCE=mock` succeeded. Coverage includes combined repository filtering, pagination, confirmation/cancellation, read-only access, failed writes and reloads, stale filters/sessions, queued read/write consistency, and 320-pixel Arabic/English light/dark layouts with 2× text. Ahmed confirmed final manual acceptance on 2026-09-09; B6 picking and live backend integration remain outside this increment.
+## 5. Backend team dependencies
 
-- Contract/document synchronization, 2026-09-10: imported the exact upstream API contract from `f458690`; reconciled B3/B9/B11, assigned B12/B13 and added R1–R4. Checked source equality, Markdown links and status consistency. No Flutter source changed or runtime checks rerun. See the [synchronization log](docs/contract-sync-log.md).
+[D1 PR #114](https://github.com/haideraljiryawe/Shubayr/pull/114) was rechecked:
+**open draft, not merged**, head `3c36fd5`. Implementation, contract/types and tests
+remain unchecked; planned **14.3.0** is not the authoritative version. Main has no
+D1 governorate/zone/next-tier contract or newer migration note. Do not implement
+D1 wire behavior from proposed field names or a draft PR description.
 
-- Responsive-layout increment, 2026-09-10: central breakpoint/content layout policy and adaptive operational screens are implemented. Formatting completed; `flutter analyze` reports no issues; all 364 tests passed; `flutter build web --dart-define=DATA_SOURCE=mock` succeeded. The new 38-case widget matrix covers 29 screen/form configurations at 390–1920 pixels, including both sides of every breakpoint, Arabic/light and English/dark, plus 2× text at five widths. Additional regressions protect draft/focus/validation, full-width append retry and delivery confirmation across resizing. Final visual/manual acceptance remains pending; no Simulator/Emulator was started. See [responsive layout progress](docs/responsive-layout-progress.md).
+| Dependency | Responsible party | Required deliverable | Mobile impact | Verified status | Unblocking condition |
+| --- | --- | --- | --- | --- | --- |
+| D1 governorate/address contract | B; L confirms rules | Catalog, required field, legacy completion/error rules and migration note. | Item 13 address/checkout changes. | BLOCKED; 14.2 still uses `city`, no governorate field. | Merged versioned OpenAPI, migration guide and working endpoints/fixtures. |
+| Zone-based delivery fees | B | Authoritative quote/checkout fees and address-dependent repricing. | Item 14 display. | BLOCKED; D1 unmerged. | Published schemas and deployed served-zone cases. |
+| `DELIVERY_ZONE_NOT_SERVED` | B | Code/status/details on every affected route. | Item 14 localized refusal. | BLOCKED; absent from current contract. | Route declarations and reproducible unserved-zone response. |
+| Automatic cart discounts | B; L confirms policy | Goods-only discount versus coupon, larger benefit, rounding/allocation and snapshots. | Item 15 totals; no client calculation. | BLOCKED; no D1 discount contract. | Server-owned amounts/rules with boundary/coupon cases. |
+| Next-tier progress | B | Tier/progress shape, eligibility and no-next-tier behavior. | Item 15 Arabic/English/RTL display. | BLOCKED; no published shape. | Contract examples and endpoint data; no guessed fields/formulas. |
+| Staff-adjusted delivery fees | B/Web Admin; L workflow | Authorized/audited phone-confirmation adjustment, totals and notification behavior. | Item 16 refresh; no extra acceptance. | BLOCKED; generic server fee/total display already exists. | Published adjustment outcome/event and staff-to-customer test. |
+| Production API deployment/URL | B/operations + L | HTTPS base URL including API path, matching migrations, TLS/media, real OTP and isolated test users/orders. | Items 17, 19–21 and review access. | BLOCKED; no supplied URL or verified deployment. | Customer journeys work on intended deployment; health check alone insufficient. |
+| Backend FCM service | B/operations; M shares public project ID | Enable `NOTIFICATION_PROVIDER=fcm`, secure matching service account, FCM HTTP v1 access and queue/worker. | Item 17 delivery. | PARTIAL; provider exists, deployment unverified. | Authenticated worker delivery and invalid-token deactivation verified. |
+| Push events/payloads | B + M | Recipients, locale, persisted inbox and title/body payload; publish D1 additions. | Items 16–17. | PARTIAL; baseline source exists, no live evidence. | Real order/cancellation/shortage events and lifecycle matrix pass on both platforms. |
+| Stock-refusal route declaration | B owns contract; M retains recovery | Reconcile `INSUFFICIENT_STOCK` with `/orders` `x-error-codes`; document actual detail availability. | Items 5–6 live validation; no repeat Mobile implementation. | Open follow-up; route omits code; cart refusal can omit quantity details. | Declarations match actual responses; detail-present/absent cases verified without invented quantities. |
 
-- B3a profile increment, 2026-09-10: name/email editing through mock/remote `PATCH /me`, partial updates/null email clearing, validation/retry and stale-session protection are implemented. User/localization generation and formatting completed; analysis clean; all 21 focused profile tests and all 384 Flutter tests passed; mock Web build succeeded. Ahmed confirmed manual acceptance on 2026-09-10; live-backend verification remains pending and phone/photo/deletion scope is unchanged. See [profile self-update progress](docs/profile-self-update-progress.md).
-- R1 order-item snapshots, 2026-09-10: purchase-time names/image URLs, mock capture, historical display and legacy/deleted-catalog compatibility are implemented. JSON generation and formatting completed; analysis clean; all 75 focused order tests and all 407 Flutter tests passed; mock Web build succeeded. Ahmed confirmed manual acceptance on 2026-09-10; live integration remains pending. See [order-item snapshots progress](docs/order-item-snapshots-progress.md).
+When D1 publishes, fetch main, read its actual `info.version` and new migration
+notes, then inspect affected operations/schemas before integration. Backend
+financial acceptance retains phase-3 posting/idempotency, currency precision and
+Asia/Baghdad business-date rules. Mobile displays authoritative server totals.
 
-- R2 promotions increment, 2026-09-11: customer offer display/filtering and admin original-price editing/removal implemented with mock data and remote contract support. Generation/formatting completed; analysis clean; all 425 Flutter tests passed, including responsive, paging/retry/stale-response, pricing and form regressions; mock Web build succeeded. Ahmed confirmed manual acceptance on 2026-09-11; live integration remains pending. See [promotions progress](docs/promotions-progress.md).
+## 6. Project lead / client dependencies
 
-- R3 home banners increment, 2026-09-11: public active reads, mock scheduling/order, responsive banner content and external actions, local loading/error/retry and refresh protection are implemented. Formatting completed; analysis clean; all 36 focused tests and all 460 Flutter tests passed; mock Web build succeeded. Approved url_launcher and its iOS dependency lock are installed. Final manual acceptance is pending; no Simulator/Emulator or live backend was used. Admin R3 remains unimplemented. See [home banners progress](docs/home-banners-progress.md).
+| Needed information or decision | Owner | Required outcome / current gap |
+| --- | --- | --- |
+| Official privacy policy URL | L/client; B confirms practices | Real production HTTPS policy covering account/order/contact/token data, sharing, retention and deletion; URL not supplied. |
+| Official support destination and contacts | L/client | Approved production HTTPS, single mailto recipient or international tel destination for Mobile; store support email/contact and Apple support URL as required. They need not be identical fields. |
+| External deletion request page | L/client + B | Working, discoverable Play deletion request path naming app/developer and explaining retained data; API deletion alone does not supply this URL. |
+| Production API URL and review access | B/operations + L | Intended deployment, reliable OTP review procedure and isolated customer test data; no invented host or hard-coded review bypass. |
+| Store name/descriptions/assets | L/client approves; M prepares | Arabic/English copy, category, icon, screenshots and promotional assets; confirm brand/media rights. |
+| Privacy disclosures | B + L; M inventories app/SDKs | Accurate collection/sharing/security/retention answers for Apple App Privacy and Play Data safety; disabled analytics does not mean no data collection. |
+| Store ownership/publishing agreement | Developer + L/client | Document personal-account authority, public identity, costs/renewals, updates/support, recovery, ownership and future handover. Lead informed; final agreement unverified. |
+| Business/legal/distribution details | L/client + account holder | Rights holder, copyright, business/contact information, launch territories and applicable trader/tax/identity declarations. Do not invent an organization or assume approval. |
+| Testers and release acceptance | M recruits; L/client participates | Required Play participation, devices, customer/staff scenarios and named sign-off owner. |
 
-- R3 image-carousel refinement, 2026-09-11: replaced card/CTA/arrows/counter with image overlays, swipe looping and in-image dots. SDK PageView, interaction-aware five-second autoplay, lifecycle/disposal handling and ID-preserving refresh are covered. Missing/null banner titles render as empty; repository and scheduling semantics are unchanged. Analysis clean; all 46 focused tests, all 470 Flutter tests and mock Web build passed. Visual/interactive acceptance remains pending; no commit/push. See [home banners progress](docs/home-banners-progress.md).
+Personal accounts remain the expected publishing route. A future transfer must
+meet Apple/Google criteria and preserve Firebase/APNs/backend access separately;
+a store listing transfer does not automatically transfer connected services.
 
-- R3 paging correction, 2026-09-11: full-viewport PageView with `viewportFraction: 1.0`, per-page image margins/rounded clipping and a below-image brand pill indicator. Slow-drag tests verify both images track the pointer before release and settle in the original position. Analysis, all 51 focused tests, all 475 tests and mock Web build passed. Data/timer/looping behavior is unchanged; manual acceptance remains pending. See [home banners progress](docs/home-banners-progress.md).
+## 7. Execution order
 
-- Design refinement, 2026-09-11: responsive wide Home banners (2.25:1 to 4.5:1 with content-fit protection), removal of Home's department heading, and centralized ChoiceChip/FilterChip shape/selected primary border/subtle shadow are implemented. Carousel behavior, indicator, data and filters remain unchanged. Analysis, all 97 focused tests, all 481 Flutter tests and mock Web build passed; final visual acceptance is pending. See [home banners and chip refinement](docs/home-banners-progress.md).
+Complete small milestones and record evidence before checking them off. Platform
+preparation can proceed alongside Backend D1. This roadmap update performs no
+provisioning, dependency installation, builds or application changes.
+
+### PHASE A — Can start immediately
+
+Prerequisite: access to existing personal accounts and repository.
+
+| Order | Action | Who | Expected result / completion check |
+| --- | --- | --- | --- |
+| A1 | [ ] Audit membership, identity, permissions, agreements, public identity and pending console tasks. | M | Dated account-status record with actual blockers; no assumed approval. |
+| A2 | [ ] Check `com.shubayr.app` availability/ownership; prepare secure signing storage. | M | Identifier mapping and signing checklist; resolve collisions before changes. |
+| A3 | [ ] Draft metadata and data inventory; prepare dependency request from sections 5–6. | M | Reviewable drafts and named missing deliverables; no fabricated URLs/legal claims. |
+| A4 | [ ] Recruit at least 12 prospective closed testers; prepare device matrix, opt-in instructions and scenarios. | M; testers later | Roster/test plan ready; qualifying clock not yet claimed. |
+| A5 | [ ] Prepare exact build-config key inventory, signing checklist and acceptance cases for completed requirements. | M | Configuration/evidence templates ready; no speculative D1 or repeated feature work. |
+
+**Recommended first milestone: A1–A2 — verify both personal accounts and app
+identifiers, then list remaining signing/console gates.** No D1 or production API
+is needed for that audit. Begin tester recruitment alongside it.
+
+### PHASE B — Firebase and platform integration
+
+Prerequisites: account/project access, B/L project ownership decision, real login
+API for token tests, and approved configuration for signed release builds.
+
+| Order | Action | Who | Expected result / completion check |
+| --- | --- | --- | --- |
+| B1 | [ ] Agree project/environment ownership; execute section 3C steps 1–6. | M + B/L | Both platform client options match intended Backend project. |
+| B2 | [ ] Configure APNs/capabilities/signing and verify permissions/token retrieval. | M | Steps 7–11 pass; distribution identities/entitlements verified. |
+| B3 | [ ] Enable Backend FCM; test API registration, delivery and full token/account lifecycle. | B + M | Steps 12–17 pass with redacted evidence; item 17 can close. |
+| B4 | [ ] Configure official links; upload usable signed test builds and begin required testing. | M; L/B supplies values; P processes | Item 19 live checks pass; internal/TestFlight installs work; qualifying closed test starts when eligible. |
+
+D1 need not delay account preparation or eligible platform testing. Retest the
+final D1-integrated candidate before submission.
+
+### PHASE C — Waiting for D1
+
+Prerequisites: D1 actually merged, authoritative version/migration notes published,
+and matching endpoints/fixtures available. A planned version is insufficient.
+
+| Order | Action | Who | Expected result / completion check |
+| --- | --- | --- | --- |
+| C1 | [ ] Fetch main; inspect version, schemas/errors and migration notes; map changes to 13–16. | M; B publishes | Compatibility checklist based on merged contract. |
+| C2 | [ ] Implement governorates and legacy address completion. | M | Item 13 focused tests and live new/legacy cases pass. |
+| C3 | [ ] Integrate zone fees and unserved-zone handling. | M + B | Item 14 served/unserved/address-change cases pass using server totals. |
+| C4 | [ ] Integrate automatic discounts and next-tier RTL progress. | M + B | Item 15 boundary/coupon/currency/RTL cases pass. |
+| C5 | [ ] Integrate staff fee adjustment refresh/notifications; verify complete D1 journey. | M + B/Web Admin | Updated fee/total without customer acceptance; 13–16 evidence recorded. |
+
+### PHASE D — Release verification
+
+Prerequisites: D1 integration, intended deployment, approved links, signing/Firebase,
+review access and physical Android/iOS devices.
+
+| Order | Action | Who | Expected result / completion check |
+| --- | --- | --- | --- |
+| D.1 | [ ] Run final analysis/tests/localization guard and real GitHub CI. | M; CI owners | Evidence tied to candidate commit; no reliance solely on #128. |
+| D.2 | [ ] Build signed AAB and iOS archive/export; upload/install through store test tracks. | M; P processes | Item 20 artifacts, processing and entitlements verified; guards retained. |
+| D.3 | [ ] Execute section 8 customer, money, push and bilingual/RTL matrix. | M + B + L/QA | Item 21 acceptance record with devices, build/API and resolved findings. |
+| D.4 | [ ] Finish Play testing/production-access application, metadata/declarations and review access. | M + L/B; P decides | Actual console eligibility/review outcomes recorded. |
+| D.5 | [ ] Obtain team approval, submit, resolve reviews and verify published build/configuration after approval. | L approves; M submits; P reviews | Approved release and publication smoke evidence; support/rollback owner identified. |
+
+The [previous readiness estimate](docs/release-1-readiness.md#revised-remaining-effort--all-incomplete-items)
+is **8.5–17 Mobile person-days after prerequisites**, not a new delivery promise.
+It excludes Backend effort, external waiting, qualifying Play testing elapsed time
+and store review. Re-estimate after D1 publication and the account/configuration audit.
+
+## 8. Release acceptance checklist
+
+Record candidate commit, API version/deployment, build numbers, device/OS, locale,
+date, tester and result. Use approved test customers/orders; coordinate money cases
+with B/L. Local acceptance suites must use a unique throwaway `shubayr_*_verify`
+database, drop it afterward and stop containers they started, per root guidance.
+
+- [ ] All **21 customer requirements** complete with no unresolved D1/configuration/
+  distribution blocker; completed implementation stays DONE while live evidence
+  is recorded here.
+- [ ] Customer-only profile/release access verified for OTP, restored sessions, deep
+  links and notification navigation; agent/monitor areas inaccessible; developer
+  routes absent and no fixture fallback.
+- [ ] Correct real HTTPS API, matching migrations/version, media and OTP verified;
+  no development host or placeholder configuration.
+- [ ] Real Firebase/APNs verified on physical Android/iPhone: foreground, background,
+  cold start/taps, denial/revocation, rotation, resume/locale, logout/offline reconnect,
+  switching and deletion.
+- [ ] Signed Android AAB accepted/installed through Play testing with correct
+  package/version, upload identity and release network policy; no debug fallback.
+- [ ] iOS distribution archive/export accepted by App Store Connect/TestFlight with
+  correct team, bundle, profiles and production APNs entitlement.
+- [ ] Arabic and English verified across browsing, OTP, shopping, account, history,
+  returns, support and notifications.
+- [ ] RTL, physical keyboards/input normalization, Western digits, narrow/large-text
+  layouts, light/dark and supported tablet layouts verified on devices.
+- [ ] Real checkout/idempotent recovery, explicit price-change consent, stock/quantity
+  refusals, cancellation/proposals, governorates/zones and discounts verified;
+  no blind write retries or invented client-side money values.
+- [ ] Server money/snapshots retained: IQD precision 0, USD where enabled, historical
+  units, adjusted fees, collection/amount owed and returns. B verifies posting/
+  reversal and Asia/Baghdad business-date behavior where applicable.
+- [ ] Account deletion success/blockers tested; credentials, journals, tokens and
+  private state cleared/isolated correctly; external deletion path and retention
+  disclosures verified.
+- [ ] Official privacy/support links functional on both platforms and reach approved
+  content/contact; no missing-config fallback; external deletion link functional.
+- [ ] Store metadata/screenshots, rights, privacy/data declarations, contact and
+  reliable OTP review access complete and approved by L/client.
+- [ ] Required Play closed testing and production-access decision complete;
+  applicable TestFlight review/testing complete; store approval not assumed.
+- [ ] Actual GitHub CI/secret scans green for final candidate, with final Flutter
+  analysis/tests/localization evidence recorded.
+- [ ] Team approval and personal-account publishing agreement recorded; platform
+  review approval obtained before publication; published build smoke-tested.
+
+## 9. Post-launch — explicitly outside Release 1
+
+| Status | Deferred scope |
+| --- | --- |
+| POST-LAUNCH | Delivery-agent activation, newer delivery/collection/custody/detail migrations and separate acceptance. Preserve source; do not enable in customer release. |
+| POST-LAUNCH | SSE notifications; existing inbox polling and native push remain Release 1 mechanisms. |
+| POST-LAUNCH | Notification preferences and notification-type filtering. |
+| POST-LAUNCH | Brand filters/facet counts. |
+| POST-LAUNCH | Additional per-SKU “from” price presentation. |
+| POST-LAUNCH | Additional order-monitor development and monitor-specific contract work; monitor stays frozen. |
+| POST-LAUNCH | Previously deferred loyalty balance/history, Retry-After improvements, coupon-currency presentation and guest-cart merge UI if later approved; no implied addition to the 21 items. |
+
+### Maintaining this roadmap
+
+1. Update review date, fetched main SHA and API version together; read new migration
+   notes before changing contract-dependent status.
+2. Preserve numbers 1–21; record implementation/test evidence when status changes
+   and retain separate signed-build, deployment and device evidence.
+3. Keep blocked owners/deliverables explicit and counts current. Do not reopen
+   completed work solely because historical migration notes say “to do”.
+4. Recheck official platform rules and actual console requirements before submission.
+   Links above were reviewed for this roadmap; account-specific status remains
+   unverified until the account holder completes the checks.
+5. Follow [root](../AGENTS.md) and [Mobile](AGENTS.md) Git rules for future tasks.
+   This one-time permission to edit only this roadmap on `main` does not authorize
+   future implementation on `main`.

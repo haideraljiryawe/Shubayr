@@ -105,6 +105,8 @@ class OrderRepositoryMock implements OrderRepository {
             imageUrl: product?.primaryImage,
             imageSnapshotProvided: true,
             quantity: qty,
+            baseUnit: 'piece',
+            wholeUnitsOnly: true,
             unitPrice: unit,
             lineTotal: unit * qty,
           );
@@ -113,6 +115,7 @@ class OrderRepositoryMock implements OrderRepository {
     final subtotal = items.fold<num>(0, (s, i) => s + i.lineTotal);
     return Order(
       id: 'order-$number',
+      version: 1,
       orderNumber: 'SH-$number',
       status: status,
       paymentMethod: 'cod',
@@ -138,8 +141,11 @@ class OrderRepositoryMock implements OrderRepository {
 
   @override
   Future<Order> placeOrder({
+    required String idempotencyKey,
     required String addressId,
     String? couponCode,
+    List<({String variantId, String priceVersion})> acceptedPriceVersions =
+        const [],
   }) async {
     await Future<void>.delayed(delay);
     final cart = await _cart.fetchCart();
@@ -154,6 +160,7 @@ class OrderRepositoryMock implements OrderRepository {
     final number = _seq++;
     final order = Order(
       id: 'order-$number',
+      version: 1,
       orderNumber: 'SH-$number',
       status: 'pending',
       paymentMethod: 'cod',
@@ -174,6 +181,18 @@ class OrderRepositoryMock implements OrderRepository {
           imageUrl: product?.primaryImage,
           imageSnapshotProvided: true,
           quantity: i.quantity,
+          baseUnit:
+              product?.variants
+                  .where((v) => v.id == i.variantId)
+                  .firstOrNull
+                  ?.baseUnit ??
+              'piece',
+          wholeUnitsOnly:
+              product?.variants
+                  .where((v) => v.id == i.variantId)
+                  .firstOrNull
+                  ?.wholeUnitsOnly ??
+              true,
           unitPrice: i.unitPrice,
           lineTotal: i.lineTotal,
         );
@@ -255,10 +274,17 @@ class OrderRepositoryMock implements OrderRepository {
   }
 
   @override
-  Future<Order> cancelOrder(String id) async {
+  Future<Order> cancelOrder(String id, {required int version}) async {
     await Future<void>.delayed(delay);
     final index = _orders.indexWhere((o) => o.id == id);
     if (index < 0) throw const AppFailure(FailureKind.notFound);
+    if (_orders[index].version != version) {
+      throw const AppFailure(
+        FailureKind.validation,
+        statusCode: 409,
+        code: 'STALE_ORDER_STATE',
+      );
+    }
     final cancelled = _copyWithStatus(_orders[index], 'cancelled');
     _orders[index] = cancelled;
     return cancelled;
@@ -267,6 +293,7 @@ class OrderRepositoryMock implements OrderRepository {
   Order _copyWithStatus(Order o, String status) => Order(
     id: o.id,
     orderNumber: o.orderNumber,
+    version: (o.version ?? 0) + 1,
     status: status,
     paymentMethod: o.paymentMethod,
     addressId: o.addressId,
@@ -277,4 +304,40 @@ class OrderRepositoryMock implements OrderRepository {
     placedAt: o.placedAt,
     items: o.items,
   );
+
+  @override
+  Future<Order> requestCancellation(
+    String id, {
+    required int version,
+    required String reason,
+  }) async {
+    final order = await fetchOrder(id);
+    if (order.version != version) {
+      throw const AppFailure(
+        FailureKind.conflict,
+        statusCode: 409,
+        code: 'STALE_ORDER_STATE',
+      );
+    }
+    final updated = Order.fromJson({
+      ...order.toJson(),
+      'version': version + 1,
+      'cancellation_request': {'status': 'pending', 'reason': reason},
+    });
+    _orders[_orders.indexWhere((o) => o.id == id)] = updated;
+    return updated;
+  }
+
+  @override
+  Future<Order> respondToShortage(
+    String id, {
+    required int version,
+    required ShortageDecision decision,
+  }) async {
+    throw const AppFailure(
+      FailureKind.conflict,
+      statusCode: 409,
+      code: 'QUANTITY_REDUCTION_NOT_PENDING',
+    );
+  }
 }

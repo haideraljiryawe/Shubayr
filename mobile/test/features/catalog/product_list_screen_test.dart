@@ -1,3 +1,5 @@
+import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
+import 'package:shubayr/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,7 +37,7 @@ class _Catalog extends CatalogRepositoryMock {
           categoryId: 'c',
           nameEn: 'Product $i with a long name',
           nameAr: 'منتج $i',
-          salePrice: 50000,
+          effectivePrice: 50000,
           ratingAvg: 4.5,
         ),
     ];
@@ -71,6 +73,9 @@ void main() {
         ProviderScope(
           retry: (retryCount, error) => null,
           overrides: [
+            notificationSyncProvider.overrideWith((ref) {}),
+            unreadCountProvider.overrideWith((ref) async => 0),
+            dataSourceProvider.overrideWithValue(DataSource.mock),
             catalogRepositoryProvider.overrideWithValue(repository),
             brandProvider.overrideWithValue(const Brand.bundled()),
           ],

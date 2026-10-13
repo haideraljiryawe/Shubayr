@@ -3,11 +3,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Persists the bearer token issued by `POST /auth/verify-otp`.
 ///
-/// The refresh token is stored too, but nothing consumes it yet:
-/// `api/openapi.yaml` defines no refresh endpoint, so no refresh flow is
-/// implemented.
+/// Refresh tokens rotate through /auth/refresh and are revoked at sign-out.
 abstract interface class TokenStore {
   Future<String?> readAccessToken();
+  Future<String?> readRefreshToken();
   Future<void> save({required String accessToken, String? refreshToken});
   Future<void> clear();
 }
@@ -24,10 +23,15 @@ class SecureTokenStore implements TokenStore {
   Future<String?> readAccessToken() => _storage.read(key: _accessKey);
 
   @override
+  Future<String?> readRefreshToken() => _storage.read(key: _refreshKey);
+
+  @override
   Future<void> save({required String accessToken, String? refreshToken}) async {
     await _storage.write(key: _accessKey, value: accessToken);
     if (refreshToken != null) {
       await _storage.write(key: _refreshKey, value: refreshToken);
+    } else {
+      await _storage.delete(key: _refreshKey);
     }
   }
 
@@ -50,6 +54,9 @@ class InMemoryTokenStore implements TokenStore {
 
   @override
   Future<String?> readAccessToken() async => _accessToken;
+
+  @override
+  Future<String?> readRefreshToken() async => _refreshToken;
 
   @override
   Future<void> save({required String accessToken, String? refreshToken}) async {

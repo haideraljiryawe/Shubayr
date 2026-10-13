@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Clock, Plus, Trash2 } from "lucide-react";
+import { Clock, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
 import { BelowCostPanel } from "@/components/orders/lifecycle-panels";
+import { BrandQuickCreate } from "@/components/catalog/brand-quick-create";
+import { ImageManager } from "@/components/catalog/image-manager";
 import { belowCostBreaches, type BelowCostBreach } from "@/lib/orders";
 import { NumberInput } from "@/components/forms/number-input";
 import { useApiForm } from "@/components/forms/use-api-form";
@@ -18,13 +20,18 @@ import { ApiError } from "@/lib/api/errors";
 import type { PricingContext } from "@/lib/api/catalog-server";
 import {
   BASE_UNITS,
+  copySku,
   draftFromVariant,
   emptyDraft,
+  englishOrArabic,
   isPiece,
   linkedLocalPrice,
+  nextDraft,
   subcategories,
+  suggestSkus,
   variantErrorPath,
   variantInput,
+  type AttributeRow,
   type Brand,
   type Category,
   type Product,
@@ -32,61 +39,118 @@ import {
   type ProductVariantInput,
   type VariantDraft,
 } from "@/lib/catalog";
+import {
+  creationImages,
+  draftsFromImages,
+  imagesSettled,
+  mediaOperations,
+  type ImageDraft,
+} from "@/lib/product-images";
 import { decimalPlaces, formatAmount, formatRate } from "@/lib/finance/money";
 import { parseLocalizedDecimal } from "@/lib/number";
 
 type Status = "active" | "hidden" | "archived";
 type FieldMessages = Partial<Record<keyof VariantDraft, string>>;
 
+/** Where a new product starts: blank, a copy of another, or a category/brand already chosen. */
+export interface ProductSeed {
+  /** "Duplicate": the product this one copies. */
+  template?: Product;
+  categoryId?: string;
+  brandId?: string;
+}
+
+/** The SKU rows a copy starts with: same settings, codes moved on by one, no ids. */
+function copiedDrafts(template: Product): VariantDraft[] {
+  return (template.variants ?? []).map((variant) => {
+    const draft = draftFromVariant(variant);
+    return { ...draft, key: `copy-${draft.key}`, id: undefined, sku: copySku(draft.sku) };
+  });
+}
+
+/** A copy's pictures: the same stored files, attached to the new product on save. */
+function copiedImages(template: Product): ImageDraft[] {
+  return draftsFromImages(template.images).map((image) => ({ ...image, key: `copy-${image.key}`, imageId: undefined }));
+}
+
 /**
- * One product and its SKUs. Products live in a subcategory (never a
- * department) and link to a brand separately. Each SKU carries its own base
- * unit, whole-units rule, low-stock threshold and price — a fixed local price
- * (or the product's), or a price linked to a foreign reference that the
- * server converts at the pricing rate and rounds by the store's rule. The
- * local price that will be published is shown before saving.
+ * One product, its pictures and its SKUs. Products live in a subcategory
+ * (never a department) and link to a brand separately. Each SKU carries its
+ * own base unit, whole-units rule, low-stock threshold and price — a fixed
+ * local price (or the product's), or a price linked to a foreign reference
+ * that the server converts at the pricing rate and rounds by the store's
+ * rule. The local price that will be published is shown before saving.
+ *
+ * Built for entering a catalog quickly: the English name may stay empty (the
+ * Arabic one is sent for both), a new SKU row starts like the one before it,
+ * empty SKU codes can be filled in from the name and attributes, a brand can
+ * be added on the spot, and "save and add another" keeps the category and
+ * brand for the next product.
  */
 export function ProductEditor({
   product,
+  seed,
   tree,
-  brands,
+  brands: initialBrands,
   pricing,
+  canCreateBrand = false,
 }: {
   product: Product | null;
+  seed?: ProductSeed;
   tree: Category[];
   brands: Brand[];
   pricing: PricingContext;
+  canCreateBrand?: boolean;
 }) {
   const t = useTranslations("products");
   const locale = useLocale();
   const router = useRouter();
   const toast = useToast();
   const api = useApiForm();
+  const template = product ? undefined : seed?.template;
+  const source = product ?? template ?? null;
   /** A price the server refused as below the protected cost (API 10.0). */
   const [belowCost, setBelowCost] = useState<BelowCostBreach[] | null>(null);
   const [pendingApprovalId, setPendingApprovalId] = useState<string | null>(null);
+  const [brands, setBrands] = useState(initialBrands);
+  const [brandDialog, setBrandDialog] = useState(false);
   const groups = subcategories(tree);
   const nameOf = (item: { name_ar?: string; name_en?: string }) =>
     (locale === "ar" ? item.name_ar : item.name_en) || item.name_en || item.name_ar || "";
-
-  const [nameAr, setNameAr] = useState(product?.name_ar ?? "");
-  const [nameEn, setNameEn] = useState(product?.name_en ?? "");
-  const [description, setDescription] = useState(product?.description ?? "");
-  const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
-  const [brandId, setBrandId] = useState(product?.brand_id ?? "");
-  const [price, setPrice] = useState<number | null>(product?.price ?? null);
+  // Each name is marked as a copy in its own language.
+  const [nameAr, setNameAr] = useState(
+    product ? (product.name_ar ?? "") : template?.name_ar ? `${template.name_ar} (نسخة)` : "",
+  );
+  // A stored English name equal to the Arabic one was the "same as Arabic"
+  // default; it stays empty here so it keeps following the Arabic name.
+  const [nameEn, setNameEn] = useState(() => {
+    const source = product ?? template;
+    if (!source?.name_en || source.name_en === source.name_ar) return "";
+    return product ? source.name_en : `${source.name_en} (copy)`;
+  });
+  const [description, setDescription] = useState(source?.description ?? "");
+  const [categoryId, setCategoryId] = useState(source?.category_id ?? seed?.categoryId ?? "");
+  const [brandId, setBrandId] = useState(source?.brand_id ?? seed?.brandId ?? "");
+  const [price, setPrice] = useState<number | null>(source?.price ?? null);
   // The API ties publishing to status: an active product is published (and
   // must pass the publishing checks); hidden and archived ones are not. A new
-  // product starts hidden, so nothing reaches customers half-made.
+  // product — a copy too — starts hidden, so nothing reaches customers half-made.
   const [status, setStatus] = useState<Status>(product?.status ?? "hidden");
+  const [images, setImages] = useState<ImageDraft[]>(() =>
+    product ? draftsFromImages(product.images) : template ? copiedImages(template) : [],
+  );
   const [drafts, setDrafts] = useState<VariantDraft[]>(() =>
     product?.variants?.length
       ? product.variants.map(draftFromVariant)
-      : [emptyDraft(pricing.foreign[0]?.code ?? "", "new-0")],
+      : template?.variants?.length
+        ? copiedDrafts(template)
+        : [emptyDraft(pricing.foreign[0]?.code ?? "", "new-0")],
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [variantErrors, setVariantErrors] = useState<Record<string, FieldMessages>>({});
+  const [imageProblem, setImageProblem] = useState<"busy" | "failed" | null>(null);
   const stored = new Map((product?.variants ?? []).map((variant) => [variant.id, variant]));
+  const settled = imagesSettled(images);
 
   function change(key: string, patch: Partial<VariantDraft>) {
     setDrafts((current) => current.map((draft) => (draft.key === key ? { ...draft, ...patch } : draft)));
@@ -98,10 +162,16 @@ export function ProductEditor({
     });
   }
 
-  async function submit() {
+  function fillSkus() {
+    setDrafts((current) => suggestSkus(current, nameEn, nameAr));
+    setVariantErrors((current) =>
+      Object.fromEntries(Object.entries(current).map(([key, fields]) => [key, { ...fields, sku: undefined }])),
+    );
+  }
+
+  async function submit(then: "open" | "another") {
     const found: Record<string, string> = {};
     if (!nameAr.trim()) found.name_ar = t("errors.nameAr");
-    if (!nameEn.trim()) found.name_en = t("errors.nameEn");
     if (!categoryId) found.category_id = t("errors.category");
     if (price === null || price < 0 || !Number.isInteger(price)) found.price = t("errors.price");
 
@@ -125,7 +195,8 @@ export function ProductEditor({
     }
     setErrors(found);
     setVariantErrors(perVariant);
-    if (Object.keys(found).length || Object.keys(perVariant).length) {
+    setImageProblem(settled === "ready" ? null : settled);
+    if (Object.keys(found).length || Object.keys(perVariant).length || settled !== "ready") {
       api.setFieldErrors({});
       return;
     }
@@ -134,7 +205,7 @@ export function ProductEditor({
       category_id: categoryId,
       brand_id: brandId || null,
       name_ar: nameAr.trim(),
-      name_en: nameEn.trim(),
+      name_en: englishOrArabic(nameEn, nameAr),
       description: description.trim() || null,
       price: price ?? 0,
       status,
@@ -145,15 +216,29 @@ export function ProductEditor({
     setPendingApprovalId(null);
     const saved = await api.run(async () => {
       try {
-        // An edit leaves the stored discount and expiry tracking alone; a new
-        // product starts without a discount (set elsewhere, not in this form).
-        return product?.id
-          ? await unwrap(browserApi.PATCH("/admin/products/{id}", { params: { path: { id: product.id } }, body }))
-          : await unwrap(
-              browserApi.POST("/admin/products", {
-                body: { ...body, discount_type: null, tracks_expiry: false },
-              }),
-            );
+        if (product?.id) {
+          // An edit leaves the stored discount and expiry tracking alone, and
+          // sends the pictures only as the changes that reach the new order.
+          const operations = mediaOperations(product.images, images);
+          return await unwrap(
+            browserApi.PATCH("/admin/products/{id}", {
+              params: { path: { id: product.id } },
+              body: { ...body, ...(operations.length ? { media_operations: operations } : {}) },
+            }),
+          );
+        }
+        // A new product (a copy too) starts without a discount — set
+        // elsewhere, not in this form — and with the pictures in screen order.
+        return await unwrap(
+          browserApi.POST("/admin/products", {
+            body: {
+              ...body,
+              discount_type: null,
+              tracks_expiry: template?.tracks_expiry ?? false,
+              images: creationImages(images),
+            },
+          }),
+        );
       } catch (cause) {
         const breaches = belowCostBreaches(cause);
         if (breaches) setBelowCost(breaches);
@@ -179,137 +264,295 @@ export function ProductEditor({
     if (product?.id) {
       toast(t("saved"));
       router.refresh();
+    } else if (then === "another") {
+      toast(t("createdNext"));
+      const next = new URLSearchParams({ category: categoryId, ...(brandId ? { brand: brandId } : {}) });
+      // A fresh editor (not this one, reset): the page remounts it.
+      router.push(`/catalog/products/new?${next.toString()}&n=${Date.now().toString(36)}`);
     } else {
       toast(t("created"));
-      router.push(`/catalog/products/${saved.id}`);
+      router.push(`/catalog/products/${saved.id}?created=1`);
     }
   }
 
   const error = (name: string) => errors[name] ?? api.fieldErrors[name] ?? null;
+  const missingSkus = drafts.some((draft) => !draft.sku.trim());
 
   return (
-    <form
-      className="flex flex-col gap-6"
-      noValidate
-      data-testid="product-editor"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void submit();
-      }}
-    >
-      <Card className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold">{t("sections.basics")}</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label={t("fields.nameAr")} name="name_ar" error={error("name_ar")}>
-            <Input value={nameAr} dir="rtl" onChange={(e) => setNameAr(e.target.value)} data-testid="product-name-ar" />
-          </Field>
-          <Field label={t("fields.nameEn")} name="name_en" error={error("name_en")}>
-            <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="product-name-en" />
-          </Field>
-          <Field label={t("fields.category")} name="category_id" error={error("category_id")} hint={t("fields.categoryHint")}>
-            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} data-testid="product-category">
-              <option value="">{t("chooseCategory")}</option>
-              {groups.map((group) => (
-                <optgroup key={group.department.id} label={nameOf(group.department)}>
-                  {group.children.map((child) => (
-                    <option key={child.id} value={child.id}>
-                      {nameOf(child)}
+    <>
+      <form
+        className="flex flex-col gap-6 pb-24"
+        noValidate
+        data-testid="product-editor"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit("open");
+        }}
+      >
+        {template ? (
+          <Alert tone="info" data-testid="product-copy-notice">
+            {t("copyNotice", { name: nameOf(template) })}
+          </Alert>
+        ) : null}
+
+        <Card className="flex flex-col gap-4">
+          <h2 className="text-lg font-bold">{t("sections.basics")}</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("fields.nameAr")} name="name_ar" error={error("name_ar")}>
+              <Input value={nameAr} dir="rtl" onChange={(e) => setNameAr(e.target.value)} data-testid="product-name-ar" />
+            </Field>
+            <Field label={t("fields.nameEnOptional")} name="name_en" error={error("name_en")} hint={t("fields.nameEnHint")}>
+              <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="product-name-en" />
+            </Field>
+            <Field label={t("fields.category")} name="category_id" error={error("category_id")} hint={groups.length ? t("fields.categoryHint") : undefined}>
+              <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} data-testid="product-category">
+                <option value="">{t("chooseCategory")}</option>
+                {groups.map((group) => (
+                  <optgroup key={group.department.id} label={nameOf(group.department)}>
+                    {group.children.map((child) => (
+                      <option key={child.id} value={child.id}>
+                        {nameOf(child)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("fields.brand")} name="brand_id" error={error("brand_id")}>
+              <div className="flex gap-2">
+                <Select className="min-w-0 flex-1" value={brandId} onChange={(e) => setBrandId(e.target.value)} data-testid="product-brand">
+                  <option value="">{t("noBrand")}</option>
+                  {brands.map((brand) => (
+                    <option key={brand.id} value={brand.id}>
+                      {nameOf(brand)}
+                      {brand.is_visible ? "" : ` (${t("hiddenBrand")})`}
                     </option>
                   ))}
-                </optgroup>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t("fields.brand")} name="brand_id" error={error("brand_id")}>
-            <Select value={brandId} onChange={(e) => setBrandId(e.target.value)} data-testid="product-brand">
-              <option value="">{t("noBrand")}</option>
-              {brands.map((brand) => (
-                <option key={brand.id} value={brand.id}>
-                  {nameOf(brand)}
-                  {brand.is_visible ? "" : ` (${t("hiddenBrand")})`}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field
-            label={t("fields.price", { currency: pricing.baseCode })}
-            name="price"
-            error={error("price")}
-            hint={t("fields.priceHint")}
-          >
-            <NumberInput value={price} parse={{ integer: true, min: 0 }} onValueChange={setPrice} data-testid="product-price" />
-          </Field>
-          <Field label={t("fields.status")} name="status" error={error("status")} hint={t("fields.statusHint")}>
-            <Select value={status} onChange={(e) => setStatus(e.target.value as Status)} data-testid="product-status">
-              {(["active", "hidden", "archived"] as const).map((value) => (
-                <option key={value} value={value}>
-                  {t(`status.${value}`)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-        <Field label={t("fields.description")} name="description" error={error("description")}>
-          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} data-testid="product-description" />
-        </Field>
-      </Card>
-
-      <Card className="flex flex-col gap-4" data-testid="variants-section">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold">{t("sections.variants")}</h2>
-            <p className="text-sm text-text-muted">{t("sections.variantsHint")}</p>
+                </Select>
+                {canCreateBrand ? (
+                  <Button variant="secondary" onClick={() => setBrandDialog(true)} data-testid="product-brand-new" aria-label={t("newBrand")}>
+                    <Plus className="size-4" aria-hidden />
+                    <span className="hidden sm:inline">{t("newBrand")}</span>
+                  </Button>
+                ) : null}
+              </div>
+            </Field>
+            <Field
+              label={t("fields.price", { currency: pricing.baseCode })}
+              name="price"
+              error={error("price")}
+              hint={t("fields.priceHint")}
+            >
+              <NumberInput value={price} parse={{ integer: true, min: 0 }} onValueChange={setPrice} data-testid="product-price" />
+            </Field>
           </div>
-          <Button
-            variant="secondary"
-            onClick={() => setDrafts((current) => [...current, emptyDraft(pricing.foreign[0]?.code ?? "")])}
-            data-testid="variant-add"
-          >
-            <Plus className="size-4" aria-hidden />
-            {t("addVariant")}
+          {groups.length === 0 ? (
+            <Alert tone="info" data-testid="product-no-categories">
+              {t("noCategories")}{" "}
+              <Link href="/catalog/categories" className="font-semibold underline">
+                {t("openCategories")}
+              </Link>
+            </Alert>
+          ) : null}
+          <Field label={t("fields.description")} name="description" error={error("description")} hint={t("fields.descriptionHint")}>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} data-testid="product-description" />
+          </Field>
+        </Card>
+
+        <Card className="flex flex-col gap-4" data-testid="images-section">
+          <div>
+            <h2 className="text-lg font-bold">{t("sections.images")}</h2>
+            <p className="text-sm text-text-muted">{t("sections.imagesHint")}</p>
+          </div>
+          <ImageManager images={images} onChange={setImages} testId="product-images" />
+          {imageProblem && settled !== "ready" ? (
+            <Alert data-testid="images-not-ready">{t(imageProblem === "busy" ? "imagesBusy" : "imagesFailed")}</Alert>
+          ) : null}
+        </Card>
+
+        <Card className="flex flex-col gap-4" data-testid="variants-section">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold">{t("sections.variants")}</h2>
+              <p className="text-sm text-text-muted">{t("sections.variantsHint")}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {missingSkus ? (
+                <Button variant="ghost" onClick={fillSkus} data-testid="variant-fill-skus">
+                  <Sparkles className="size-4" aria-hidden />
+                  {t("fillSkus")}
+                </Button>
+              ) : null}
+              <Button
+                variant="secondary"
+                onClick={() => setDrafts((current) => [...current, nextDraft(current.at(-1), pricing.foreign[0]?.code ?? "")])}
+                data-testid="variant-add"
+              >
+                <Plus className="size-4" aria-hidden />
+                {t("addVariant")}
+              </Button>
+            </div>
+          </div>
+          {drafts.map((draft, index) => (
+            <VariantCard
+              key={draft.key}
+              index={index}
+              draft={draft}
+              stored={draft.id ? stored.get(draft.id) : undefined}
+              productPrice={price}
+              pricing={pricing}
+              errors={variantErrors[draft.key] ?? {}}
+              canRemove={drafts.length > 1}
+              onChange={(patch) => change(draft.key, patch)}
+              onRemove={() => setDrafts((current) => current.filter((item) => item.key !== draft.key))}
+            />
+          ))}
+        </Card>
+
+        <Card className="flex flex-col gap-3" data-testid="visibility-section">
+          <h2 className="text-lg font-bold">{t("sections.visibility")}</h2>
+          <div className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label={t("sections.visibility")} data-testid="product-status">
+            {(["active", "hidden", ...(product ? (["archived"] as const) : [])] as const).map((value) => (
+              <label
+                key={value}
+                className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+              >
+                <input
+                  type="radio"
+                  name="product-status"
+                  className="mt-1"
+                  checked={status === value}
+                  onChange={() => setStatus(value)}
+                  data-testid={`product-status-${value}`}
+                />
+                <span className="flex flex-col">
+                  <span className="font-semibold">{t(`statusChoice.${value}.title`)}</span>
+                  <span className="text-xs text-text-muted">{t(`statusChoice.${value}.body`)}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </Card>
+
+        {pendingApprovalId ? (
+          <Alert tone="info" data-testid="fixed-price-approval-pending" data-request={pendingApprovalId}>
+            <p className="font-semibold">{t("approvalPendingTitle")}</p>
+            <p className="mt-1 text-sm">{t("approvalPendingBody")}</p>
+            <Link href={`/finance/price-approvals/${pendingApprovalId}`} className="mt-2 inline-block text-sm font-semibold underline" data-testid="fixed-price-approval-link">
+              {t("openApproval")}
+            </Link>
+          </Alert>
+        ) : belowCost ? (
+          <BelowCostPanel
+            breaches={belowCost}
+            currency={product?.currency ?? "IQD"}
+            canApprove={false}
+            selfRefused={false}
+            note={t("belowCostNote")}
+          />
+        ) : (
+          <FormError kind={api.formError} detail={api.formErrorDetail} />
+        )}
+
+        {/* The save row stays in reach on a long form and on a tablet. */}
+        <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur lg:-mx-8 lg:px-8 print:hidden">
+          {settled === "busy" ? (
+            <span className="me-auto text-sm text-text-muted" aria-live="polite">
+              {t("imagesUploading")}
+            </span>
+          ) : null}
+          {product ? null : (
+            <Button variant="secondary" pending={api.pending} onClick={() => void submit("another")} data-testid="product-save-another">
+              {t("createAndAnother")}
+            </Button>
+          )}
+          <Button type="submit" pending={api.pending} data-testid="product-save">
+            {product ? t("save") : t("create")}
           </Button>
         </div>
-        {drafts.map((draft, index) => (
-          <VariantCard
-            key={draft.key}
-            index={index}
-            draft={draft}
-            stored={draft.id ? stored.get(draft.id) : undefined}
-            productPrice={price}
-            pricing={pricing}
-            errors={variantErrors[draft.key] ?? {}}
-            canRemove={drafts.length > 1}
-            onChange={(patch) => change(draft.key, patch)}
-            onRemove={() => setDrafts((current) => current.filter((item) => item.key !== draft.key))}
-          />
-        ))}
-      </Card>
+      </form>
 
-      {pendingApprovalId ? (
-        <Alert tone="info" data-testid="fixed-price-approval-pending" data-request={pendingApprovalId}>
-          <p className="font-semibold">{t("approvalPendingTitle")}</p>
-          <p className="mt-1 text-sm">{t("approvalPendingBody")}</p>
-          <Link href={`/finance/price-approvals/${pendingApprovalId}`} className="mt-2 inline-block text-sm font-semibold underline" data-testid="fixed-price-approval-link">
-            {t("openApproval")}
-          </Link>
-        </Alert>
-      ) : belowCost ? (
-        <BelowCostPanel
-          breaches={belowCost}
-          currency={product?.currency ?? "IQD"}
-          canApprove={false}
-          selfRefused={false}
-          note={t("belowCostNote")}
+      {/* Outside the product form: the dialog is a form of its own. */}
+      {canCreateBrand ? (
+        <BrandQuickCreate
+          open={brandDialog}
+          existing={brands}
+          onClose={() => setBrandDialog(false)}
+          onCreated={(brand) => {
+            setBrands((current) => [...current, brand]);
+            setBrandId(brand.id);
+            setBrandDialog(false);
+            toast(t("brandCreated", { name: nameOf(brand) }));
+          }}
         />
-      ) : (
-        <FormError kind={api.formError} detail={api.formErrorDetail} />
-      )}
-      <div className="flex justify-end">
-        <Button type="submit" pending={api.pending} data-testid="product-save">
-          {product ? t("save") : t("create")}
+      ) : null}
+    </>
+  );
+}
+
+/** The attribute rows of one SKU: «اللون» = «أحمر», one pair per row. */
+function AttributeRows({
+  index,
+  rows,
+  error,
+  onChange,
+}: {
+  index: number;
+  rows: AttributeRow[];
+  error?: string;
+  onChange: (rows: AttributeRow[]) => void;
+}) {
+  const t = useTranslations("products.variant");
+  const shown = rows.length ? rows : [{ name: "", value: "" }];
+  const set = (at: number, patch: Partial<AttributeRow>) =>
+    onChange(shown.map((row, i) => (i === at ? { ...row, ...patch } : row)));
+  return (
+    <fieldset className="flex flex-col gap-2" data-testid={`variant-attributes-${index}`}>
+      <legend className="mb-1 text-sm font-semibold">{t("attributes")}</legend>
+      {shown.map((row, at) => (
+        <div key={at} className="flex items-center gap-2">
+          <Input
+            className="min-w-0 flex-1"
+            value={row.name}
+            dir="auto"
+            placeholder={t("attributeNamePlaceholder")}
+            aria-label={t("attributeName")}
+            onChange={(e) => set(at, { name: e.target.value })}
+            data-testid={`variant-attr-name-${index}-${at}`}
+          />
+          <Input
+            className="min-w-0 flex-1"
+            value={row.value}
+            dir="auto"
+            placeholder={t("attributeValuePlaceholder")}
+            aria-label={t("attributeValue")}
+            onChange={(e) => set(at, { value: e.target.value })}
+            data-testid={`variant-attr-value-${index}-${at}`}
+          />
+          <button
+            type="button"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-card disabled:opacity-40"
+            aria-label={t("attributeRemove")}
+            disabled={shown.length === 1 && !row.name && !row.value}
+            onClick={() => onChange(shown.filter((_, i) => i !== at))}
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-text-muted">{t("attributesHint")}</p>
+        <Button size="sm" variant="ghost" onClick={() => onChange([...shown, { name: "", value: "" }])} data-testid={`variant-attr-add-${index}`}>
+          <Plus className="size-4" aria-hidden />
+          {t("attributeAdd")}
         </Button>
       </div>
-    </form>
+      {error ? (
+        <p className="text-xs font-semibold text-error-dark" data-testid="error-attributes">
+          {error}
+        </p>
+      ) : null}
+    </fieldset>
   );
 }
 
@@ -346,11 +589,13 @@ function VariantCard({
   const unitLabel = (unit: string) =>
     BASE_UNITS.includes(unit as (typeof BASE_UNITS)[number]) ? t(`units.${unit}`) : unit;
   const id = (name: string) => `variant-${name}-${index}`;
+  const label = draft.attributes.map((row) => row.value.trim()).filter(Boolean).join(" · ");
 
   return (
     <fieldset className="flex flex-col gap-4 rounded-md border border-border p-4" data-testid={`variant-${index}`}>
       <legend className="px-1 text-sm font-bold">
         {t("variantTitle", { number: index + 1 })}
+        {label ? <span className="ms-2 font-normal">{label}</span> : null}
         {draft.sku ? (
           <code dir="ltr" className="ms-2 font-normal text-text-muted">
             {draft.sku}
@@ -358,8 +603,15 @@ function VariantCard({
         ) : null}
       </legend>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Field label={t("variant.sku")} name="sku" error={errors.sku}>
+      <AttributeRows
+        index={index}
+        rows={draft.attributes}
+        error={errors.attributes}
+        onChange={(attributes) => onChange({ attributes })}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Field label={t("variant.sku")} name="sku" error={errors.sku} hint={draft.sku ? undefined : t("variant.skuHint")}>
           <Input value={draft.sku} dir="ltr" onChange={(e) => onChange({ sku: e.target.value })} data-testid={id("sku")} />
         </Field>
         <Field label={t("variant.baseUnit")} name="base_unit" error={errors.base_unit}>
@@ -380,6 +632,26 @@ function VariantCard({
             ))}
           </Select>
         </Field>
+        {draft.pricing_mode === "fixed" ? (
+          <Field
+            label={t("variant.sellingPrice", { currency: base })}
+            name="selling_price"
+            error={errors.selling_price}
+            hint={
+              productPrice !== null
+                ? t("variant.inheritsPrice", { price: money(productPrice) })
+                : t("variant.inheritsPriceUnknown")
+            }
+          >
+            <Input
+              value={draft.selling_price}
+              dir="ltr"
+              inputMode="numeric"
+              onChange={(e) => onChange({ selling_price: e.target.value })}
+              data-testid={id("price")}
+            />
+          </Field>
+        ) : null}
         <Field
           label={t("variant.threshold", { unit: unitLabel(draft.base_unit) })}
           name="low_stock_threshold"
@@ -400,29 +672,21 @@ function VariantCard({
         </Field>
       </div>
 
-      <label className="flex items-center gap-2 text-sm font-semibold">
-        <input
-          type="checkbox"
-          checked={piece ? true : draft.whole_units_only}
-          disabled={piece}
-          onChange={(e) => onChange({ whole_units_only: e.target.checked })}
-          data-testid={id("whole")}
-        />
-        {t("variant.wholeOnly")}
-      </label>
-      <p className="-mt-3 text-xs text-text-muted" data-testid={id("whole-hint")}>
-        {piece ? t("variant.wholeForced") : t("variant.wholeOptional", { unit: unitLabel(draft.base_unit) })}
-      </p>
-
-      <Field label={t("variant.attributes")} name="attributes" error={errors.attributes} hint={t("variant.attributesHint")}>
-        <Textarea
-          value={draft.attributes}
-          dir="auto"
-          className="min-h-14"
-          onChange={(e) => onChange({ attributes: e.target.value })}
-          data-testid={id("attributes")}
-        />
-      </Field>
+      <div className="flex flex-col gap-1">
+        <label className="flex items-center gap-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            checked={piece ? true : draft.whole_units_only}
+            disabled={piece}
+            onChange={(e) => onChange({ whole_units_only: e.target.checked })}
+            data-testid={id("whole")}
+          />
+          {t("variant.wholeOnly")}
+        </label>
+        <p className="text-xs text-text-muted" data-testid={id("whole-hint")}>
+          {piece ? t("variant.wholeForced") : t("variant.wholeOptional", { unit: unitLabel(draft.base_unit) })}
+        </p>
+      </div>
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-sm font-semibold">{t("variant.pricingMode")}</legend>
@@ -442,28 +706,9 @@ function VariantCard({
         </div>
       </fieldset>
 
-      {draft.pricing_mode === "fixed" ? (
-        <Field
-          label={t("variant.sellingPrice", { currency: base })}
-          name="selling_price"
-          error={errors.selling_price}
-          hint={
-            productPrice !== null
-              ? t("variant.inheritsPrice", { price: money(productPrice) })
-              : t("variant.inheritsPriceUnknown")
-          }
-        >
-          <Input
-            value={draft.selling_price}
-            dir="ltr"
-            inputMode="numeric"
-            onChange={(e) => onChange({ selling_price: e.target.value })}
-            data-testid={id("price")}
-          />
-        </Field>
-      ) : (
+      {draft.pricing_mode === "linked" ? (
         <LinkedPricing draft={draft} stored={stored} pricing={pricing} errors={errors} onChange={onChange} index={index} />
-      )}
+      ) : null}
 
       {canRemove ? (
         <div className="flex flex-wrap items-center justify-end gap-2">

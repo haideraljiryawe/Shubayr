@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
+
 import '../../features/auth/domain/user_role.dart';
 import 'app_routes.dart';
 
@@ -9,18 +11,19 @@ enum SessionStatus { restoring, signedOut, signedIn }
 /// Pure functions, deliberately independent of go_router and Flutter so they
 /// can be unit tested directly.
 ///
-/// This layer gates on **role** — which *area* (customer / delivery / staff) a
-/// session may enter. Fine-grained gating *within* an area (e.g. hiding an
-/// action a manager lacks) is permission-based and done in-screen via
-/// `Session.can(...)` / `PermissionGate`, now that the contract exposes
-/// `User.permissions`.
+/// Phone sessions never enter Web Admin, even when the same person owns a
+/// staff account. Unknown roles are denied instead of receiving shopping access.
 abstract final class RoleGuard {
   /// Where each role lands after sign-in.
-  static String homeFor(UserRole role) => switch (role) {
-    UserRole.customer => AppRoutes.home,
-    UserRole.delivery => AppRoutes.delivery,
-    UserRole.staff => AppRoutes.admin,
-  };
+  static String homeFor(UserRole role, {bool customerOnly = !kDebugMode}) =>
+      customerOnly && role != UserRole.customer
+      ? AppRoutes.signIn
+      : switch (role) {
+          UserRole.customer => AppRoutes.home,
+          UserRole.delivery => AppRoutes.delivery,
+          UserRole.monitor => AppRoutes.monitor,
+          UserRole.unsupported => AppRoutes.signIn,
+        };
 
   /// Catalog browsing is public in the contract (`/categories`, `/products`
   /// are `security: []`), so a signed-out visitor may browse home and the
@@ -36,11 +39,21 @@ abstract final class RoleGuard {
       location.startsWith(AppRoutes.productsPrefix) ||
       location.startsWith(AppRoutes.signIn);
 
-  static bool allows(UserRole role, String location) {
+  static bool allows(
+    UserRole role,
+    String location, {
+    bool customerOnly = !kDebugMode,
+  }) {
+    if (customerOnly && role != UserRole.customer) return false;
     // Cross-area pages any signed-in user may open regardless of their area:
     // the shared app-settings page and their own profile editor.
-    const shared = [AppRoutes.settings, AppRoutes.profile];
-    if (shared.any(location.startsWith)) return true;
+    if (role == UserRole.unsupported) return false;
+    const shared = [
+      AppRoutes.settings,
+      AppRoutes.profile,
+      AppRoutes.notifications,
+    ];
+    if (shared.contains(location)) return true;
 
     final area = switch (role) {
       UserRole.customer => const [
@@ -55,12 +68,15 @@ abstract final class RoleGuard {
         AppRoutes.checkout,
         AppRoutes.wishlist,
       ],
-      // Delivery and staff reach the account controls from a sheet inside
+      // Delivery agents and monitors reach the account controls from a sheet inside
       // their own area, so they never enter the customer shell.
       UserRole.delivery => const [AppRoutes.delivery],
-      UserRole.staff => const [AppRoutes.admin],
+      UserRole.monitor => const [AppRoutes.monitor],
+      UserRole.unsupported => const <String>[],
     };
-    return area.any((path) => location.startsWith(path));
+    return area.any(
+      (path) => location == path || location.startsWith('$path/'),
+    );
   }
 
   /// Returns the location to redirect to, or `null` to stay put.
@@ -68,6 +84,7 @@ abstract final class RoleGuard {
     required SessionStatus status,
     required UserRole role,
     required String location,
+    bool customerOnly = !kDebugMode,
   }) {
     final atSplash = location == AppRoutes.splash;
 
@@ -81,10 +98,16 @@ abstract final class RoleGuard {
       return isPublic(location) ? null : AppRoutes.signIn;
     }
 
+    if (customerOnly && role != UserRole.customer) {
+      return location.startsWith(AppRoutes.signIn) ? null : AppRoutes.signIn;
+    }
+
     // Signed in: never leave the user on the splash or the sign-in flow.
     if (atSplash || location.startsWith(AppRoutes.signIn)) {
-      return homeFor(role);
+      return homeFor(role, customerOnly: customerOnly);
     }
-    return allows(role, location) ? null : homeFor(role);
+    return allows(role, location, customerOnly: customerOnly)
+        ? null
+        : homeFor(role, customerOnly: customerOnly);
   }
 }

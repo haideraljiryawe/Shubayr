@@ -1,3 +1,4 @@
+import 'package:photo_view/photo_view_gallery.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
@@ -60,4 +61,29 @@ void main() {
 
     expect(find.text('1 من 3'), findsOneWidget);
   });
+  for (final language in ['ar', 'en']) {
+    testWidgets('full-page photo bounds preserve edge close action $language', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1024, 1000);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(host(images, locale: Locale(language)));
+      await tester.pump();
+      await openViewer(tester);
+      final photo = tester.getRect(find.byType(PhotoViewGallery));
+      expect(photo.width, 760);
+      expect(photo.center.dx, 512);
+      final close = tester.getRect(find.byIcon(Icons.close));
+      expect(
+        language == 'ar' ? close.left > photo.right : close.right < photo.left,
+        isTrue,
+      );
+      expect(find.byIcon(Icons.close).hitTestable(), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      expect(find.byType(PhotoViewGallery), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

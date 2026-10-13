@@ -1,3 +1,4 @@
+import '../../../core/utils/quantity.dart';
 import '../../../core/error/failure.dart';
 import '../../catalog/data/review.dart';
 import '../domain/after_sales_repository.dart';
@@ -17,6 +18,30 @@ class AfterSalesRepositoryMock implements AfterSalesRepository {
   final Duration delay;
   final List<Review> _reviews = [];
   final List<ReturnRequest> _returns = [];
+
+  @override
+  Future<ReviewPage> fetchOwnReviews({int page = 1, int perPage = 100}) async {
+    await Future<void>.delayed(delay);
+    if (userId == null) throw const AppFailure.unauthorized();
+    return ReviewPage(
+      page: page,
+      perPage: perPage,
+      total: _reviews.length,
+      data: _reviews.reversed.skip((page - 1) * perPage).take(perPage).toList(),
+    );
+  }
+
+  @override
+  Future<ReturnPage> fetchReturns({int page = 1, int perPage = 100}) async {
+    await Future<void>.delayed(delay);
+    if (userId == null) throw const AppFailure.unauthorized();
+    return ReturnPage(
+      page: page,
+      perPage: perPage,
+      total: _returns.length,
+      data: _returns.reversed.skip((page - 1) * perPage).take(perPage).toList(),
+    );
+  }
 
   @override
   Future<Review> submitReview({
@@ -88,10 +113,10 @@ class AfterSalesRepositoryMock implements AfterSalesRepository {
           .where((r) => r.orderId == orderId)
           .expand((r) => r.items)
           .where((i) => i.orderItemId == item.orderItemId)
-          .fold<int>(0, (sum, i) => sum + i.quantity);
+          .fold<num>(0, (sum, i) => addQuantity(sum, i.quantity));
       if (purchased.isEmpty ||
-          item.quantity < 1 ||
-          item.quantity + requested > purchased.first.quantity) {
+          !isValidQuantity(item.quantity) ||
+          addQuantity(item.quantity, requested) > purchased.first.quantity) {
         throw const AppFailure(FailureKind.validation);
       }
     }

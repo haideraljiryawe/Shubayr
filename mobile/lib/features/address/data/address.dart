@@ -30,10 +30,8 @@ class Address {
   final String street;
   final String? details;
 
-  /// Product requirement supported by Mock only until the contract adds
-  /// `contact_phone`. Null represents an unsupported legacy remote response,
-  /// never an implicit reference to the account phone.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  /// The independently saved delivery contact. Never inferred from the account phone.
+  @JsonKey(name: 'contact_phone')
   final String? contactPhone;
   final num? lat;
   final num? lng;
@@ -74,7 +72,7 @@ class Address {
   Map<String, dynamic> toJson() => _$AddressToJson(this);
 }
 
-/// Create/update payload with a Mock-only contact phone extension.
+/// Create/update payload matching the address contract.
 @JsonSerializable(createFactory: false)
 class AddressInput {
   const AddressInput({
@@ -95,10 +93,8 @@ class AddressInput {
   final String street;
   final String? details;
 
-  /// Product requirement supported by Mock only until the contract adds
-  /// `contact_phone`. Null supports the current contact-less remote payload,
-  /// never an implicit reference to the account phone.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  /// Remote writes require an explicit international delivery contact.
+  @JsonKey(name: 'contact_phone')
   final String? contactPhone;
   final num? lat;
   final num? lng;

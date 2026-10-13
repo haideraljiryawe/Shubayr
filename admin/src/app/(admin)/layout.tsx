@@ -4,6 +4,8 @@ import { AdminShell } from "@/components/shell/admin-shell";
 import { PageError } from "@/components/shell/page-error";
 import { ERROR_CODES } from "@/lib/api/errors";
 import { load, serverApi } from "@/lib/api/server";
+import { ADMIN_MODULES } from "@/lib/config";
+import { parseModules } from "@/lib/modules";
 
 /**
  * Every signed-in screen renders inside this layout.
@@ -31,5 +33,9 @@ export default async function AdminLayout({
     );
   }
 
-  return <AdminShell initialUser={me.data}>{children}</AdminShell>;
+  return (
+    <AdminShell initialUser={me.data} modules={parseModules(ADMIN_MODULES)}>
+      {children}
+    </AdminShell>
+  );
 }

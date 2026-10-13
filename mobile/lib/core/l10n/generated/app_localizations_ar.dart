@@ -9,9 +9,6 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get homeBrandName => 'شُبَيّر';
-
-  @override
   String get storeFallbackName => 'المتجر';
 
   @override
@@ -61,7 +58,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorNetwork =>
-      'لا يوجد اتصال بالإنترنت. تحقّق من الشبكة وحاول مرة أخرى.';
+      'تعذّر الاتصال بالخادم. تحقّق من الاتصال وحاول مرة أخرى.';
 
   @override
   String get errorTimeout => 'استغرق الطلب وقتًا طويلًا. حاول مرة أخرى.';
@@ -410,6 +407,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get orderStatusFailedDelivery => 'تعذّر التوصيل';
 
   @override
+  String get orderStatusRejected => 'مرفوض';
+
+  @override
   String get orderStatusCancelled => 'ملغى';
 
   @override
@@ -417,6 +417,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get orderStatusReturned => 'مُرجَع';
+
+  @override
+  String get deliveryFilterAll => 'الكل';
+
+  @override
+  String get deliveryFilterEmpty => 'لا توجد توصيلات بهذه الحالة';
+
+  @override
+  String get deliveryStatusConflict =>
+      'لا تسمح الحالة الحالية بتنفيذ هذا الإجراء. تحقّق من حالة التوصيل والطلب وحاول مرة أخرى.';
 
   @override
   String get deliveryTitle => 'التوصيل';
@@ -469,6 +479,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String productLowStock(String count) {
     return 'باقٍ $count';
+  }
+
+  @override
+  String productReviewsPreview(String shown, String total) {
+    return 'عرض $shown من أصل $total تقييم — معاينة';
   }
 
   @override
@@ -614,7 +629,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileDeleteMessage =>
-      'سيتم حذف حسابك وبياناته نهائيًا. لا يمكن التراجع عن هذا الإجراء.';
+      'ستُحذف بياناتك الشخصية وعناوينك وجلسات تسجيل الدخول. تُحفظ سجلات الطلبات والسجلات المالية دون بيانات هويتك حسب المتطلبات. لا يمكن التراجع عن الحذف.';
 
   @override
   String galleryCounter(String current, String total) {
@@ -652,8 +667,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get reviewSubmitted => 'تم إرسال التقييم. يخضع النشر للمراجعة.';
 
   @override
-  String get reviewAllSubmitted =>
-      'أرسلت تقييمات لجميع المنتجات خلال هذه الجلسة.';
+  String get reviewAllSubmitted => 'سبق أن قيّمت جميع منتجات هذا الطلب.';
 
   @override
   String get returnOrderTitle => 'طلب إرجاع';
@@ -674,7 +688,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get returnDecrease => 'تقليل كمية الإرجاع';
 
   @override
-  String get returnReason => 'سبب الإرجاع (اختياري)';
+  String get returnReason => 'سبب إرجاع جميع العناصر المحددة (مطلوب)';
 
   @override
   String get returnSubmit => 'إرسال طلب الإرجاع';
@@ -692,7 +706,7 @@ class AppLocalizationsAr extends AppLocalizations {
       'هذا طلب إرجاع وليس موافقة أو استردادًا للمبلغ. سيراجعه المتجر.';
 
   @override
-  String get returnAllRequested => 'طلبت إرجاع جميع الكميات خلال هذه الجلسة.';
+  String get returnAllRequested => 'لا توجد كميات متبقية متاحة لطلب الإرجاع.';
 
   @override
   String get routeNotFoundTitle => 'الصفحة غير موجودة';
@@ -1679,5 +1693,362 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminRetainedProductCategory =>
-      'التصنيف الحالي محفوظ، لكنه غير متاح للإسناد الجديد. يمكنك إبقاؤه لهذا المنتج أو اختيار قسم فرعي لتغييره.';
+      'التصنيف الحالي محفوظ، لكنه غير متاح للإسناد الجديد. يمكنك إبقاؤه لهذا المنتج أو اختيار قسم آخر لتغييره.';
+
+  @override
+  String get adminDiscountType => 'نوع الخصم';
+
+  @override
+  String get adminDiscountNone => 'بدون خصم';
+
+  @override
+  String get adminDiscountPercentage => 'نسبة مئوية';
+
+  @override
+  String get adminDiscountAmount => 'مبلغ ثابت';
+
+  @override
+  String get adminDiscountValue => 'قيمة الخصم';
+
+  @override
+  String get adminDiscountStartsAt => 'بداية الخصم';
+
+  @override
+  String get adminDiscountEndsAt => 'نهاية الخصم';
+
+  @override
+  String get adminDiscountDateHint =>
+      'اختياري؛ مثال بتوقيت UTC: 2026-10-01T09:00:00Z';
+
+  @override
+  String get adminDiscountDateInvalid =>
+      'أدخل تاريخًا ووقتًا صالحين مع المنطقة الزمنية، مثل 2026-10-01T09:00:00Z';
+
+  @override
+  String get adminCategorySlug => 'معرّف رابط القسم';
+
+  @override
+  String get addressInternationalPhoneHint =>
+      'أدخل رقمًا دوليًا يبدأ بـ + ورمز البلد؛ لا يُضاف رمز البلد تلقائيًا.';
+
+  @override
+  String get mediaUploadHint =>
+      'تُرفع الصور عند الحفظ. JPEG وPNG وWebP وAVIF، بحد أقصى 8 MiB للصورة.';
+
+  @override
+  String get orderStatusReadyForDispatch => 'جاهز للإرسال';
+
+  @override
+  String get roleMonitor => 'متابع الطلبات';
+
+  @override
+  String get monitorTitle => 'متابعة الطلبات';
+
+  @override
+  String get notificationsTitle => 'الإشعارات';
+
+  @override
+  String get notificationsEmpty => 'لا توجد إشعارات حتى الآن';
+
+  @override
+  String get actionLoadMore => 'تحميل المزيد';
+
+  @override
+  String get quantityInvalid =>
+      'أدخل كمية ضمن الحدود، بثلاث منازل عشرية كحد أقصى.';
+
+  @override
+  String get quantityWholeInvalid => 'أدخل كمية صحيحة ضمن الحدود.';
+
+  @override
+  String get checkoutPricesChanged => 'تغيّرت الأسعار';
+
+  @override
+  String get checkoutPricesChangedMessage =>
+      'راجع أسعار الوحدات الجديدة قبل تأكيد الطلب. سيحسب الخادم الإجمالي النهائي.';
+
+  @override
+  String get checkoutAcceptPrices => 'قبول الأسعار وتأكيد الطلب';
+
+  @override
+  String get cartPricesChanged =>
+      'تغيّرت بعض الأسعار. ستُطلب منك مراجعتها وقبولها عند تأكيد الطلب.';
+
+  @override
+  String get deliveryFailureReason => 'سبب تعذّر التوصيل';
+
+  @override
+  String get deliveryRetryCount => 'عدد محاولات الإعادة';
+
+  @override
+  String get orderStateConflict =>
+      'تغيّر الطلب أو لم يعد إلغاؤه متاحًا. راجع حالته الحالية.';
+
+  @override
+  String get errorConflict =>
+      'تتعارض هذه العملية مع الحالة الحالية. حدّث البيانات وراجعها قبل المحاولة مجددًا.';
+
+  @override
+  String get startupConfigurationError =>
+      'إعداد اتصال هذه النسخة بالخادم غير صالح للإنتاج. تواصل مع الدعم للحصول على نسخة مصحّحة.';
+
+  @override
+  String get deliveryAmountDue => 'المبلغ المستحق';
+
+  @override
+  String get deliveryCollectionConfirmation => 'تحصيل المبلغ';
+
+  @override
+  String get deliveryCollectionConfirmed => 'تم تحصيل المبلغ';
+
+  @override
+  String get deliveryCollectionUnconfirmed => 'المبلغ غير مؤكد';
+
+  @override
+  String get deliveryCollectionUnconfirmedHint =>
+      'يُسجّل الطلب كمُسلّم الآن، ويؤكد المتجر المبلغ لاحقاً.';
+
+  @override
+  String get deliveryCollectedAmount => 'المبلغ المحصل';
+
+  @override
+  String get deliveryInvalidAmount =>
+      'أدخل مبلغاً من صفر إلى المبلغ المستحق (بحد أقصى 6 منازل عشرية).';
+
+  @override
+  String get pendingDeliveryRetry =>
+      'نتيجة المحاولة السابقة غير معروفة. أعد محاولة التحصيل نفسه؛ لا يمكن تغيير المبلغ حتى تتضح النتيجة.';
+
+  @override
+  String get pendingRequestMessage =>
+      'نتيجة الطلب السابق لم تُحسم. أعد المحاولة بنفس الاختيار والمبلغ أو الكمية.';
+
+  @override
+  String get checkoutPendingRecovery =>
+      'نتيجة عملية الشراء السابقة غير معروفة. تحقق منها قبل إنشاء طلب جديد. ستتم إعادة المحاولة بالطلب الأصلي حتى إذا أصبحت السلة فارغة.';
+
+  @override
+  String get checkoutResolvePending => 'التحقق من عملية الشراء السابقة';
+
+  @override
+  String get orderRequestCancellation => 'طلب إلغاء الطلب';
+
+  @override
+  String get orderCancellationReason => 'سبب طلب الإلغاء';
+
+  @override
+  String get orderCancellationRequestSent => 'تم إرسال طلب الإلغاء إلى المتجر.';
+
+  @override
+  String get orderCancellationPending => 'طلب الإلغاء قيد المراجعة';
+
+  @override
+  String get orderCancellationApproved => 'تمت الموافقة على طلب الإلغاء';
+
+  @override
+  String get orderCancellationDenied => 'تم رفض طلب الإلغاء';
+
+  @override
+  String get orderReductionTitle => 'اقتراح تعديل الكمية';
+
+  @override
+  String orderReductionQuantities(String oldQuantity, String newQuantity) {
+    return 'الكمية الأصلية: $oldQuantity. الكمية المقترحة: $newQuantity.';
+  }
+
+  @override
+  String get orderReductionAccept => 'الموافقة على تقليل الكمية';
+
+  @override
+  String get orderReductionDecline => 'رفض تقليل الكمية';
+
+  @override
+  String get orderReductionAcceptConfirm =>
+      'هل توافق على الكمية المخفضة المعروضة؟ سيحدث المتجر إجمالي الطلب.';
+
+  @override
+  String get orderReductionDeclineConfirm =>
+      'هل ترفض تعديل الكمية؟ سيراجع المتجر طلبك.';
+
+  @override
+  String get orderDecisionSaved => 'تم حفظ ردك.';
+
+  @override
+  String get productLowStockLabel => 'الكمية محدودة';
+
+  @override
+  String get pushEnable => 'تفعيل الإشعارات الفورية';
+
+  @override
+  String get pushEnabled => 'تم تفعيل الإشعارات الفورية.';
+
+  @override
+  String get pushDenied =>
+      'الإشعارات معطّلة. اسمح بها في إعدادات جهازك ثم حاول مجددًا.';
+
+  @override
+  String get pushPending =>
+      'تسجيل الجهاز غير جاهز بعد. يرجى المحاولة بعد قليل.';
+
+  @override
+  String get pushUnavailable => 'لم تُضبط الإشعارات الفورية لهذا الإصدار بعد.';
+
+  @override
+  String get pushReceived => 'لديك إشعار جديد.';
+
+  @override
+  String get errorCheckoutIdentity =>
+      'يتعارض إتمام الطلب مع طلب سابق. تحقّق من نتيجة الطلب السابق قبل المحاولة مجددًا.';
+
+  @override
+  String get errorCartEmpty => 'سلتك فارغة. أضف منتجات قبل إتمام الطلب.';
+
+  @override
+  String get errorCartQuantity =>
+      'إحدى كميات السلة غير صالحة. راجع الكميات وعدّلها.';
+
+  @override
+  String get errorCartUnavailable =>
+      'أحد المنتجات لم يعد متاحًا. راجع سلتك واحذفه أو استبدله.';
+
+  @override
+  String get errorStockShortage =>
+      'الكمية المطلوبة لم تعد متاحة. راجع التوفر المحدّث واختر كمية أقل.';
+
+  @override
+  String get errorWholeUnits =>
+      'يُباع هذا المنتج بوحدات كاملة. أدخل كمية بعدد صحيح.';
+
+  @override
+  String get errorCouponInvalid =>
+      'لا يمكن استخدام هذه القسيمة. احذفها أو أدخل رمزًا آخر.';
+
+  @override
+  String get errorPriceChanged =>
+      'تغيّرت الأسعار. راجع الأسعار الجديدة قبل تأكيد طلبك.';
+
+  @override
+  String get errorOrderAccess =>
+      'هذا الطلب غير متاح لحسابك. ارجع إلى قائمة طلباتك.';
+
+  @override
+  String get errorCancellationNotAllowed =>
+      'الإلغاء غير متاح في حالة الطلب الحالية. راجع الطلب المحدّث.';
+
+  @override
+  String get errorCancellationPending =>
+      'يوجد طلب إلغاء قيد الانتظار لهذا الطلب.';
+
+  @override
+  String get errorReductionResolved =>
+      'مقترح تعديل الكمية لم يعد قيد الانتظار. راجع الطلب المحدّث.';
+
+  @override
+  String get errorPaidCancellation =>
+      'لا يمكن إلغاء هذا الطلب المدفوع من هنا. تواصل مع المتجر للمساعدة.';
+
+  @override
+  String get privacyPolicyUnavailable =>
+      'لم تُنشر سياسة الخصوصية بعد. يرجى المحاولة بعد إعداد التطبيق.';
+
+  @override
+  String get privacyPolicyOpenFailed =>
+      'تعذر فتح سياسة الخصوصية. يرجى المحاولة مجددًا.';
+
+  @override
+  String get accountDeletionBlocked =>
+      'لا يمكن حذف حسابك قبل تسوية الطلبات أو المرتجعات أو المبالغ المعلقة.';
+
+  @override
+  String get accountDeletionOpenOrders =>
+      'أكمل طلباتك المفتوحة أو ألغها قبل حذف حسابك.';
+
+  @override
+  String get accountDeletionPendingReturns =>
+      'انتظر تسوية المرتجعات المعلقة قبل حذف حسابك.';
+
+  @override
+  String get accountDeletionUnsettled =>
+      'يرجى تسوية المبالغ المعلقة قبل حذف حسابك.';
+
+  @override
+  String get productUnavailableTitle => 'المنتج غير متاح';
+
+  @override
+  String get productUnavailableMessage =>
+      'هذا المنتج لم يعد متاحاً. يرجى تصفح الكتالوج للاطلاع على منتجات أخرى.';
+
+  @override
+  String get supportUnavailable =>
+      'بيانات التواصل مع خدمة العملاء غير متاحة حالياً. يرجى المحاولة لاحقاً.';
+
+  @override
+  String get supportOpenFailed =>
+      'تعذر فتح وسيلة التواصل مع خدمة العملاء. يرجى المحاولة مجدداً.';
+
+  @override
+  String get orderRequestDate => 'تاريخ الطلب';
+
+  @override
+  String get orderResolutionDate => 'تاريخ البت';
+
+  @override
+  String get orderResolutionNote => 'ملاحظة البت';
+
+  @override
+  String get orderAcceptedPrices => 'تغييرات الأسعار المقبولة';
+
+  @override
+  String get orderStockAttention => 'نقص في كميات الطلب';
+
+  @override
+  String orderShortageQuantities(
+    String requested,
+    String allocated,
+    String short,
+  ) {
+    return 'المطلوب: $requested · المخصص: $allocated · النقص: $short';
+  }
+
+  @override
+  String get orderPaidOnDelivery => 'المدفوع عند التسليم';
+
+  @override
+  String get orderStillOwed => 'المبلغ المتبقي';
+
+  @override
+  String get orderCollectionUnconfirmed => 'الدفع بانتظار التأكيد';
+
+  @override
+  String get orderReductionAccepted => 'تم قبول تعديل الكمية';
+
+  @override
+  String get orderReductionDenied => 'تم رفض تعديل الكمية';
+
+  @override
+  String get errorWorkAccountShopping =>
+      'التسوق متاح لحسابات العملاء. سجّل الدخول بحساب عميل.';
+
+  @override
+  String get errorAppRoleForbidden => 'دور حسابك لا يسمح بتنفيذ هذا الإجراء.';
+
+  @override
+  String get errorAuthSurfaceForbidden =>
+      'جلسة الدخول هذه لا يمكن استخدامها في تطبيق العملاء. سجّل الدخول مجدداً من التطبيق.';
+
+  @override
+  String get stockShortageTitle => 'الكمية غير متاحة';
+
+  @override
+  String stockAvailableQuantity(String quantity) {
+    return 'الكمية المتاحة: $quantity';
+  }
+
+  @override
+  String stockRequestedQuantity(String quantity) {
+    return 'الكمية المطلوبة: $quantity';
+  }
+
+  @override
+  String get stockCorrectCart => 'تعديل السلة';
 }

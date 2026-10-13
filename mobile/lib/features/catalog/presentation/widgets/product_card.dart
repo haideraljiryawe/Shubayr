@@ -1,3 +1,4 @@
+import '../../data/stock_availability.dart';
 import 'catalog_image_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,7 +28,7 @@ class ProductCard extends ConsumerWidget {
     final lang = Localizations.localeOf(context).languageCode;
     final price = formatMoney(
       product.salePrice,
-      currencyCode: brand.currencyCode,
+      currencyCode: product.currency ?? brand.currencyCode,
       localeCode: lang,
     );
 
@@ -38,6 +39,7 @@ class ProductCard extends ConsumerWidget {
       child: InkWell(
         onTap: onTap,
         child: DecoratedBox(
+          position: DecorationPosition.foreground,
           decoration: BoxDecoration(
             borderRadius: AppRadii.productAll,
             border: Border.all(color: colors.border),
@@ -95,9 +97,7 @@ class ProductCardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    double lineHeight(TextStyle style) =>
-        MediaQuery.textScalerOf(context).scale(style.fontSize!) *
-        (style.height ?? 1);
+    double lineHeight(TextStyle style) => context.textLineHeight(style);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,13 +155,17 @@ class _Thumb extends StatelessWidget {
           )
         else
           image,
-        if (!product.inStock)
+        if (product.availability == StockAvailability.lowStock ||
+            product.availability == StockAvailability.outOfStock ||
+            !product.inStock)
           PositionedDirectional(
             top: AppSpacing.sm,
             start: AppSpacing.sm,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: colors.danger,
+                color: product.availability == StockAvailability.lowStock
+                    ? colors.warning
+                    : colors.danger,
                 borderRadius: AppRadii.pillAll,
               ),
               child: Padding(
@@ -170,7 +174,9 @@ class _Thumb extends StatelessWidget {
                   vertical: 2,
                 ),
                 child: Text(
-                  context.l10n.commonOutOfStock,
+                  product.availability == StockAvailability.lowStock
+                      ? context.l10n.productLowStockLabel
+                      : context.l10n.commonOutOfStock,
                   style: context.text.labelSmall?.copyWith(
                     color: colors.onDark,
                   ),

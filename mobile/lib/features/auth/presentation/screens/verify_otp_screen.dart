@@ -1,3 +1,4 @@
+import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/utils/numeric_input_formatters.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
@@ -6,13 +7,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/sign_in_destination.dart';
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
+import '../../../../core/storage/session_credentials.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../providers/auth_providers.dart';
+import '../../domain/session.dart';
 
 /// Step 2 of the OTP flow — `POST /auth/verify-otp`.
 ///
@@ -41,14 +44,20 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
   }
 
   Future<void> _run(Future<void> Function() action) async {
+    if (_isSubmitting) return;
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
+    final credentials = ref.read(sessionCredentialsProvider);
+    var owner = credentials.revision;
     try {
-      await action();
-    } on AppFailure catch (failure) {
-      if (!mounted) return;
+      final pending = action();
+      owner = credentials.revision;
+      await pending;
+    } catch (error, stack) {
+      final failure = actionFailure(error, stack);
+      if (!mounted || !credentials.owns(owner)) return;
       setState(() => _errorMessage = failure.localizedMessage(context.l10n));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -57,14 +66,15 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
 
   Future<void> _verify() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    await _run(
-      () => ref
+    Session? verified;
+    await _run(() async {
+      verified = await ref
           .read(sessionControllerProvider.notifier)
           .verifyOtp(
             phone: widget.phone,
             code: Validators.foldDigits(_codeController.text).trim(),
-          ),
-    );
+          );
+    });
 
     // On success, reset the stack with a clean declarative navigation. The
     // sign-in and verify screens are reached by imperative `push`; letting the
@@ -73,7 +83,9 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
     // to a root page clears those matches before restoring a detail page.
     if (!mounted) return;
     final session = ref.read(sessionControllerProvider).value;
-    if (session != null && session.isSignedIn) {
+    if (verified != null &&
+        identical(session, verified) &&
+        session!.isSignedIn) {
       final router = GoRouter.of(context);
       final destination = SignInDestination.resolve(
         widget.returnTo,
@@ -86,7 +98,7 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
         AppRoutes.cart,
         AppRoutes.orders,
         AppRoutes.delivery,
-        AppRoutes.admin,
+        AppRoutes.monitor,
       };
       if (rootPages.contains(Uri.parse(destination).path)) {
         router.go(destination);
@@ -110,65 +122,70 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.authVerifyTitle)),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: AppLayout.pageInsets(
-              context,
-              top: AppSpacing.xl,
-              bottom: AppSpacing.xl,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: AppLayout.authWidth),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.authVerifySubtitle(widget.phone),
-                      style: context.text.bodyMedium?.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    TextFormField(
-                      controller: _codeController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: const [OtpInputFormatter()],
-                      textDirection: TextDirection.ltr,
-                      autofillHints: const [AutofillHints.oneTimeCode],
-                      decoration: InputDecoration(
-                        labelText: l10n.authCodeLabel,
-                        prefixIcon: const Icon(Icons.lock_outline),
-                      ),
-                      validator: (value) => Validators.isOtp(value ?? '')
-                          ? null
-                          : l10n.authCodeInvalid,
-                      onFieldSubmitted: (_) => _verify(),
-                    ),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: AppSpacing.md),
+      body: ResponsiveContent.page(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: AppLayout.pageInsets(
+                context,
+                top: AppSpacing.xl,
+                bottom: AppSpacing.xl,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppLayout.authWidth,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        _errorMessage!,
-                        style: context.text.bodySmall?.copyWith(
-                          color: colors.danger,
+                        l10n.authVerifySubtitle(widget.phone),
+                        style: context.text.bodyMedium?.copyWith(
+                          color: colors.textSecondary,
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.xl),
+                      TextFormField(
+                        contextMenuBuilder: appTextSelectionToolbar,
+                        controller: _codeController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: const [OtpInputFormatter()],
+                        textDirection: TextDirection.ltr,
+                        autofillHints: const [AutofillHints.oneTimeCode],
+                        decoration: InputDecoration(
+                          labelText: l10n.authCodeLabel,
+                          prefixIcon: const Icon(Icons.lock_outline),
+                        ),
+                        validator: (value) => Validators.isOtp(value ?? '')
+                            ? null
+                            : l10n.authCodeInvalid,
+                        onFieldSubmitted: (_) => _verify(),
+                      ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          _errorMessage!,
+                          style: context.text.bodySmall?.copyWith(
+                            color: colors.danger,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.xl),
+                      AppButton(
+                        label: l10n.authVerify,
+                        isLoading: _isSubmitting,
+                        onPressed: _verify,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      AppButton(
+                        label: l10n.authResendCode,
+                        variant: AppButtonVariant.plain,
+                        onPressed: _isSubmitting ? null : _resend,
+                      ),
                     ],
-                    const SizedBox(height: AppSpacing.xl),
-                    AppButton(
-                      label: l10n.authVerify,
-                      isLoading: _isSubmitting,
-                      onPressed: _verify,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    AppButton(
-                      label: l10n.authResendCode,
-                      variant: AppButtonVariant.plain,
-                      onPressed: _isSubmitting ? null : _resend,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

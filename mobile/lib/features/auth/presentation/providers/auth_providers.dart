@@ -2,12 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/error/response_decode.dart';
 import '../../../../core/network/api_client.dart';
-import '../../../../core/storage/token_store.dart';
+import '../../../../core/storage/session_credentials.dart';
 import '../../data/auth_repository_mock.dart';
 import '../../data/auth_repository_remote.dart';
 import '../../domain/auth_repository.dart';
 import '../../domain/session.dart';
+import '../../domain/session_exit_tasks.dart';
+import '../../domain/user_role.dart';
+import '../../../../core/storage/pending_request_store.dart';
 import '../../domain/profile_update.dart';
 import '../../data/user.dart';
 
@@ -37,65 +41,166 @@ class SessionController extends AsyncNotifier<Session> {
     return true;
   }
 
-  int _sessionRevision = 0;
+  int _owner = 0;
+  SessionCredentials get _credentials => ref.read(sessionCredentialsProvider);
+
+  bool _owns(int owner) => ref.mounted && _credentials.owns(owner);
   int _profileRevision = 0;
+  final _otpRequests = <(int, String), Future<void>>{};
+  final _verifications =
+      <(String, String), ({int owner, Future<Session?> task})>{};
+  int? _profileSubmitting;
+  int? _deleting;
+
   @override
   Future<Session> build() async {
-    _sessionRevision++;
-    ref.onDispose(() => _sessionRevision++);
-    // A 401 ends the session; automatic token refresh is a separate task.
+    final revision = _owner = _credentials.beginTransition();
+    final credentials = _credentials;
+    ref.onDispose(() => credentials.invalidate(_owner));
+    // The interceptor raises this only when token rotation cannot restore access.
     ref.listen(unauthorizedSignalProvider, (previous, next) {
       if (previous != null && next != previous) signOut();
     });
 
-    final token = await ref.read(tokenStoreProvider).readAccessToken();
+    final token = (await _credentials.read()).accessToken;
     if (!ref.mounted) return const Session.signedOut();
+    if (!_owns(revision)) {
+      return await _currentSession();
+    }
     if (token == null || token.isEmpty) return const Session.signedOut();
 
     try {
       final user = await ref.read(authRepositoryProvider).currentUser();
-      return Session.signedIn(user);
-    } on AppFailure {
       if (!ref.mounted) return const Session.signedOut();
-      await ref.read(tokenStoreProvider).clear();
+      if (!_owns(revision)) {
+        return await _currentSession();
+      }
+      final session = Session.signedIn(user);
+      if (!session.isSignedIn) throw const AppFailure.unauthorized();
+      return session;
+    } catch (error) {
+      if (!ref.mounted) return const Session.signedOut();
+      if (!_owns(revision)) {
+        return await _currentSession();
+      }
+      // /me's UNAUTHORIZED reaches here after the interceptor has attempted
+      // recovery. FORBIDDEN is a permission failure, not invalid credentials.
+      // Transport/server (and other unverifiable) failures remain AsyncError:
+      // retain the credentials, authorize nobody, and allow an explicit retry.
+      if (error is! AppFailure || error.kind != FailureKind.unauthorized) {
+        rethrow;
+      }
+      await _credentials.clear(revision);
+      if (!ref.mounted) return const Session.signedOut();
+      if (!_owns(revision)) {
+        return await _currentSession();
+      }
       return const Session.signedOut();
     }
   }
 
+  Future<Session> _currentSession() async {
+    // An obsolete restore must not resolve before the owner's queued cleanup.
+    await _credentials.settled;
+    return ref.mounted
+        ? state.value ?? const Session.signedOut()
+        : const Session.signedOut();
+  }
+
   /// `POST /auth/request-otp`. Errors propagate for the screen to display.
-  Future<void> requestOtp(String phone) =>
-      ref.read(authRepositoryProvider).requestOtp(phone);
+  Future<void> requestOtp(String phone) {
+    final key = (_credentials.revision, phone);
+    final pending = _otpRequests[key];
+    if (pending != null) return pending;
+    final task =
+        Future<void>.sync(
+          () => ref.read(authRepositoryProvider).requestOtp(phone),
+        ).whenComplete(() {
+          _otpRequests.remove(key);
+        });
+    _otpRequests[key] = task;
+    return task;
+  }
 
-  /// `POST /auth/verify-otp` — stores the token and opens the session.
-  Future<void> verifyOtp({required String phone, required String code}) async {
-    _sessionRevision++;
+  /// A null result belongs to an obsolete attempt; callers must not navigate
+  /// or show an error/success for it. Credentials and identity share ownership.
+  Future<Session?> verifyOtp({required String phone, required String code}) {
+    final key = (phone, code);
+    final pending = _verifications[key];
+    if (pending != null && _owns(pending.owner)) return pending.task;
+    // A distinct attempt retains C04's latest-attempt ownership semantics.
+    late final Future<Session?> task;
+    task = _verifyOtp(phone: phone, code: code).whenComplete(() {
+      if (identical(_verifications[key]?.task, task)) {
+        _verifications.remove(key);
+      }
+    });
+    _verifications[key] = (owner: _owner, task: task);
+    return task;
+  }
+
+  Future<Session?> _verifyOtp({
+    required String phone,
+    required String code,
+  }) async {
+    final revision = _owner = _credentials.beginTransition();
     final repository = ref.read(authRepositoryProvider);
-    final result = await repository.verifyOtp(phone: phone, code: code);
-    if (!ref.mounted) return;
-
-    final accessToken = result.accessToken;
-    if (accessToken == null || accessToken.isEmpty) {
-      throw const AppFailure.unauthorized();
+    var persisted = false;
+    try {
+      final result = await repository.verifyOtp(phone: phone, code: code);
+      if (!_owns(revision)) return null;
+      final accessToken = result.accessToken;
+      if (accessToken == null || accessToken.isEmpty) {
+        throw const AppFailure.unauthorized();
+      }
+      // Once replacing credentials, the previous identity no longer authorizes
+      // account data. Ordinary guest OTP flows retain their existing UI state.
+      state = const AsyncData(Session.signedOut());
+      await _endSessionTasks(revision);
+      if (!_owns(revision)) return null;
+      final saved = await _credentials.save(
+        revision,
+        accessToken: accessToken,
+        refreshToken: result.refreshToken,
+      );
+      if (!_owns(revision) || !saved) return null;
+      persisted = true;
+      final user = result.user ?? await repository.currentUser();
+      if (!_owns(revision)) return null;
+      final session = Session.signedIn(user);
+      if (!session.isSignedIn) {
+        await _credentials.clear(revision);
+        if (!_owns(revision)) return null;
+        throw const AppFailure(FailureKind.forbidden);
+      }
+      state = AsyncData(session);
+      return session;
+    } catch (error) {
+      if (!_owns(revision)) return null;
+      // Preserve C03: connectivity failures do not invalidate a credential pair.
+      if (persisted &&
+          error is AppFailure &&
+          error.kind == FailureKind.unauthorized) {
+        await _credentials.clear(revision);
+        if (!_owns(revision)) return null;
+      }
+      rethrow;
     }
-    await ref
-        .read(tokenStoreProvider)
-        .save(accessToken: accessToken, refreshToken: result.refreshToken);
-    if (!ref.mounted) return;
-
-    final user = result.user ?? await repository.currentUser();
-    if (!ref.mounted) return;
-    state = AsyncData(Session.signedIn(user));
   }
 
   /// Commit the server result only to the session that requested this edit.
   /// A stale result returns null so its screen cannot show a false success.
   Future<User?> updateProfile(ProfileUpdate update) async {
     final user = state.value?.user;
-    if (user == null) throw const AppFailure.unauthorized();
-    final sessionRevision = _sessionRevision;
+    if (state.isLoading || state.hasError || user == null) {
+      throw const AppFailure.unauthorized();
+    }
+    final sessionRevision = _credentials.revision;
+    if (_profileSubmitting == sessionRevision) return null;
+    _profileSubmitting = sessionRevision;
     final request = ++_profileRevision;
     bool isCurrent() =>
-        sessionRevision == _sessionRevision &&
+        _owns(sessionRevision) &&
         request == _profileRevision &&
         identical(state.value?.user, user);
     try {
@@ -108,23 +213,104 @@ class SessionController extends AsyncNotifier<Session> {
     } catch (_) {
       if (!isCurrent()) return null;
       rethrow;
+    } finally {
+      if (_profileSubmitting == sessionRevision) _profileSubmitting = null;
+    }
+  }
+
+  /// Confirmation belongs to the exact credential epoch and account that saw it.
+  Future<bool> deleteAccount({
+    required String userId,
+    required int revision,
+  }) async {
+    final session = state.value;
+    if (!_owns(revision) ||
+        state.isLoading ||
+        state.hasError ||
+        session?.user?.id != userId ||
+        session?.role != UserRole.customer ||
+        _deleting == revision) {
+      return false;
+    }
+    _deleting = revision;
+    final repository = ref.read(authRepositoryProvider);
+    final journals = ref.read(pendingRequestStoreProvider);
+    final api = ref.read(appConfigProvider).apiBaseUrl;
+    try {
+      await repository.deleteAccount();
+      if (!_owns(revision)) {
+        await journals.clearAccount(api, userId);
+        return false;
+      }
+      // Immediately revoke authorization; all identity-bound providers discard
+      // private state before asynchronous storage cleanup finishes.
+      final cleanup = _owner = _credentials.beginTransition();
+      state = const AsyncLoading();
+      try {
+        await _credentials.clearAfter(
+          cleanup,
+          () => _endSessionTasks(cleanup, accountDeleted: true),
+        );
+        await journals.clearAccount(api, userId);
+      } catch (error, stack) {
+        if (_owns(cleanup)) {
+          state = AsyncError(actionFailure(error, stack), stack);
+        }
+        rethrow;
+      }
+      if (!_owns(cleanup)) return false;
+      state = const AsyncData(Session.signedOut());
+      return true;
+    } catch (_) {
+      if (!_owns(revision)) return false;
+      rethrow;
+    } finally {
+      if (_deleting == revision) _deleting = null;
+    }
+  }
+
+  Future<void> _endSessionTasks(
+    int revision, {
+    bool accountDeleted = false,
+  }) async {
+    try {
+      await ref
+          .read(sessionExitTasksProvider)
+          .run(revision, accountDeleted: accountDeleted);
+    } catch (error, stack) {
+      actionFailure(error, stack);
     }
   }
 
   Future<void> signOut() async {
-    _sessionRevision++;
-    await ref.read(tokenStoreProvider).clear();
-    if (!ref.mounted) return;
-    state = const AsyncData(Session.signedOut());
+    final revision = _owner = _credentials.beginTransition();
+    final repository = ref.read(authRepositoryProvider);
+    // Revoke local authorization immediately; disk cleanup may be waiting for
+    // a platform write, but it cannot publish over or clear a newer login.
+    state = const AsyncLoading();
+    final StoredCredentials? removed;
+    try {
+      removed = await _credentials.clearAfter(
+        revision,
+        () => _endSessionTasks(revision),
+      );
+    } catch (error, stack) {
+      final failure = actionFailure(error, stack);
+      if (_owns(revision)) state = AsyncError(failure, stack);
+      return;
+    }
+    if (_owns(revision)) state = const AsyncData(Session.signedOut());
+    final refreshToken = removed?.refreshToken;
+    if (refreshToken != null) {
+      try {
+        await repository.logout(refreshToken);
+      } catch (error, stack) {
+        // Local credentials are always removed, including when offline.
+        actionFailure(error, stack);
+      }
+    }
   }
 }
 
 final sessionControllerProvider =
     AsyncNotifierProvider<SessionController, Session>(SessionController.new);
-
-/// The current session's RBAC permission keys (empty for guests and
-/// customers). Screens read this — or use `PermissionGate` — to hide actions
-/// the user's role does not grant.
-final permissionsProvider = Provider<List<String>>(
-  (ref) => ref.watch(sessionControllerProvider).value?.permissions ?? const [],
-);

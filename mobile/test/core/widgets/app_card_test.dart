@@ -19,7 +19,7 @@ void main() {
               body: DefaultTextStyle(
                 style: const TextStyle(
                   fontSize: 27,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w800,
                 ),
                 child: AppCard(
                   child: Column(
@@ -45,7 +45,7 @@ void main() {
           ),
         );
         expect(text.text.style?.fontSize, 27);
-        expect(text.text.style?.fontWeight, FontWeight.w500);
+        expect(text.text.style?.fontWeight, FontWeight.w800);
         await tester.tap(find.text('Action'));
         await tester.pumpAndSettle();
         expect(taps, 1);
