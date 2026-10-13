@@ -54,7 +54,7 @@ are retained only for explicit automated-test overrides. `DATA_SOURCE=mock`
 does not enable a mock application. Use work phones configured by Web Admin;
 the OTP response determines the role.
 
-### VS Code: iOS Simulator and real iPhone
+### VS Code: simulators and physical devices
 
 Both opening the repository root and opening `mobile/` in VS Code provide:
 
@@ -64,14 +64,39 @@ Both opening the repository root and opening `mobile/` in VS Code provide:
   `F58BF179-6ED2-4FCE-BA8B-0CA661CC37EE`, with the same debug mode, API URL,
   and API preflight as the iPhone simulator. If shut down, open this device from
   Simulator's **File > Open Simulator** menu before pressing **F5**.
-- **iPhone Device**: Ahmed's connected physical iPhone, debug mode,
-  with `API_URL` passed to the existing `AppConfig` through Flutter's
-  `--dart-define-from-file`.
+- **iPhone Device**: Ahmed's connected physical iPhone, debug mode, with the
+  shared development API file and external iOS Firebase client file.
+- **Android Device**: the configured Samsung device, debug mode, with the same
+  API file and the external Android Firebase client file.
+
+Both physical-device profiles use the existing explicit `FirebaseOptions`
+implementation. Provision these client-only files once, outside the repository:
+
+- `$HOME/Documents/firebase/shubayr-ios.json`
+- `$HOME/Documents/firebase/shubayr-android.json`
+
+Each must contain exactly four non-empty string keys: `FIREBASE_API_KEY`,
+`FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID`. Obtain
+their real values from the registered Firebase apps for `com.shubayr.app`.
+Use each platform's own App ID; the sender/project must match the intended
+Backend Firebase project. Never put service-account JSON, private keys, auth
+tokens or Backend secrets in these files. The device preflight checks file
+shape, platform/sender consistency and API health without printing client values.
+It does not establish Firebase credentials, APNs or actual delivery.
+
+No values need entering on each F5 launch. Debugging, breakpoints, Hot Reload
+and Hot Restart remain available. Stop and relaunch after changing Dart defines.
+The standard iPhone profile has passed physical launch and Backend registration
+verification (HTTP 201). `Shubayr – iPhone Firebase` remains for compatibility;
+its Flutter arguments match the standard profile, so it is not required for
+normal development. Backend-originated delivery verification remains pending.
+See [Backend push integration and handoff](docs/backend-push-integration.md)
+for the audit, outstanding sender setup, developer tooling and device test plan.
 
 Select the configuration in **Run and Debug**, then press **F5**. No file edits
 are needed to switch environments. The **only Mac IP setting** is `API_URL` in
 [`mobile/.vscode/iphone.json`](.vscode/iphone.json); both launch files and the
-iPhone preflight read that same file. If the Mac IP changes, update it there
+physical-device preflights read that same file. If the Mac IP changes, update it there
 (Wi-Fi address: `ipconfig getifaddr en0`), then stop and relaunch the app because
 Dart defines are build-time values. Keep the backend port and `/api/v1` suffix.
 
@@ -81,6 +106,9 @@ use the same local network as the Mac. Use the existing
 physical device ID so selecting a simulator in the status bar cannot redirect
 it; a replacement phone requires updating `deviceId` in the launch files using
 `flutter devices`.
+Android similarly uses the existing Samsung serial; enable USB debugging and
+authorize the Mac. Use a device with Google Play services and verify its serial
+with `flutter devices`. Its browser must also reach the shared API health URL.
 
 Start the existing backend first. Its server listens on `0.0.0.0:8000` inside
 the container, but Docker must also publish API port 8000 to the Mac's LAN
@@ -105,6 +133,10 @@ metadata in both plist files in sync when changing it. See Apple's
 ### Production release configuration
 
 Profile and release require an explicit `--dart-define=API_URL=https://<production-dns-host>/api/v1`.
+Supply the approved platform-specific Firebase client defines through the same
+external-file mechanism in the build/release environment. The Debug LAN profiles
+are not release configurations. Production Firebase/APNs, distribution signing,
+Backend sending and production OTP require separate verification.
 The app validates this before opening stores, restoring a session, or making
 requests. Missing URLs, HTTP, localhost, IP literals (including loopback/private
 and emulator addresses), single-label hosts, reserved/development host labels,
