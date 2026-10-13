@@ -68,7 +68,10 @@ export function tierProgress(
   return cart.applied_tier ? { kind: "top", percent: cart.applied_tier.percent } : null;
 }
 
-/** A percent as shoppers read it: "5", "7.5". */
+/** A percent as shoppers read it: "5", "7.5" — Latin digits, like every price. */
 export function percentText(percent: number, locale: string): string {
-  return percent.toLocaleString(locale === "ar" ? "ar-IQ" : "en-US", { maximumFractionDigits: 2 });
+  return new Intl.NumberFormat(locale === "ar" ? "ar-IQ" : "en-US", {
+    maximumFractionDigits: 2,
+    numberingSystem: "latn",
+  }).format(percent);
 }

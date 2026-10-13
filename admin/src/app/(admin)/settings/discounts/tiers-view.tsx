@@ -33,7 +33,7 @@ export function TiersView({ tiers, stacking }: { tiers: DiscountTier[]; stacking
   const [toggling, setToggling] = useState<string | null>(null);
   const [rowError, setRowError] = useState<{ id: string; kind: ErrorKind; detail: string } | null>(null);
   const money = (value: number) => formatAmount(value, "IQD", 0, locale);
-  const percent = (value: number) => value.toLocaleString(locale === "ar" ? "ar-IQ" : "en-US", { maximumFractionDigits: 2 });
+  const percent = (value: number) => value.toLocaleString(locale === "ar" ? "ar-IQ" : "en-US", { maximumFractionDigits: 2, numberingSystem: "latn" });
   const warnings = tierWarnings(tiers);
   const close = () => setDialog(null);
 
@@ -164,7 +164,7 @@ function TierForm({ tier, onClose, onSaved }: { tier: DiscountTier | null; onClo
   const [active, setActive] = useState(tier?.is_active ?? true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const money = (value: number) => formatAmount(value, "IQD", 0, locale);
-  const shownPercent = (value: number) => value.toLocaleString(locale === "ar" ? "ar-IQ" : "en-US", { maximumFractionDigits: 2 });
+  const shownPercent = (value: number) => value.toLocaleString(locale === "ar" ? "ar-IQ" : "en-US", { maximumFractionDigits: 2, numberingSystem: "latn" });
   const valid = minimum !== null && minimum >= 0 && percent !== null && percent > 0 && percent <= 50;
 
   async function submit() {
