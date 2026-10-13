@@ -51,7 +51,27 @@
       "flutterMode": "debug",
       "toolArgs": [
         "--dart-define=DATA_SOURCE=remote",
-        "--dart-define-from-file=${workspaceFolder}/mobile/.vscode/iphone.json"
+        "--dart-define-from-file=${workspaceFolder}/mobile/.vscode/iphone.json",
+        "--dart-define-from-file=${env:HOME}/Documents/firebase/shubayr-ios.json"
+      ],
+      "preLaunchTask": "Check device: ios"
+    },
+    {
+      "name": "Shubayr \u2013 iPhone Firebase",
+      "presentation": {
+        "order": 9,
+        "group": "Remote"
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "deviceId": "00008140-001125441AFB001C",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define=DATA_SOURCE=remote",
+        "--dart-define-from-file=${workspaceFolder}/mobile/.vscode/iphone.json",
+        "--dart-define-from-file=${env:HOME}/Documents/firebase/shubayr-ios.json"
       ],
       "preLaunchTask": "Check remote: iphone"
     },
@@ -123,8 +143,10 @@
       "flutterMode": "debug",
       "toolArgs": [
         "--dart-define=DATA_SOURCE=remote",
-        "--dart-define-from-file=${workspaceFolder}/mobile/.vscode/iphone.json"
-      ]
+        "--dart-define-from-file=${workspaceFolder}/mobile/.vscode/iphone.json",
+        "--dart-define-from-file=${env:HOME}/Documents/firebase/shubayr-android.json"
+      ],
+      "preLaunchTask": "Check device: android"
     }
   ],
   "compounds": [

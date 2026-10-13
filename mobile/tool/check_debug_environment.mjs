@@ -2,6 +2,7 @@
 // Never starts Docker, installs dependencies, migrates data or stops processes.
 import { access, readFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
+import { checkFirebaseDebugConfig } from './firebase_debug_config.mjs';
 
 const target = process.argv[2];
 let apiBaseUrl = 'http://localhost:8000/api/v1';
@@ -25,10 +26,15 @@ async function requireFreePort(port) {
 }
 
 try {
-  if (!['ios', 'iphone', 'chrome', 'admin'].includes(target)) {
-    throw new Error('Usage: node check_debug_environment.mjs ios|iphone|chrome|admin');
+  if (!['ios', 'iphone', 'android', 'chrome', 'admin'].includes(target)) {
+    throw new Error('Usage: node check_debug_environment.mjs ios|iphone|android|chrome|admin [Firebase client file]');
   }
-  if (target === 'iphone') {
+  if (target === 'iphone' || target === 'android') {
+    // Legacy iPhone profile can continue using its existing connectivity check.
+    // Standard device tasks pass the exact file used by their Flutter launch.
+    if (process.argv[3]) {
+      await checkFirebaseDebugConfig(process.argv[3], target === 'iphone' ? 'ios' : 'android');
+    }
     const { API_URL } = JSON.parse(await readFile(new URL('../.vscode/iphone.json', import.meta.url), 'utf8'));
     const url = new URL(API_URL);
     if (!['http:', 'https:'].includes(url.protocol) || ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
@@ -59,8 +65,9 @@ try {
   }
   if (!response.ok) throw new Error(`API health returned HTTP ${response.status}. Check the backend before launching.`);
   console.log(`Remote preflight passed (${target}). API: ${apiBaseUrl}`);
-  if (target === 'iphone') {
-    console.log(`This checks the Mac LAN endpoint from the Mac. Also open ${api} in iPhone Safari on the same network.`);
+  if (target === 'iphone' || target === 'android') {
+    console.log(`This checks the Mac LAN endpoint from the Mac. Also open ${api} in the device browser on the same network.`);
+    console.log('Client configuration validation does not verify Firebase project access, Backend FCM credentials or device delivery.');
   }
   console.log('This checks connectivity, not database migrations or account readiness.');
 } catch (error) {
