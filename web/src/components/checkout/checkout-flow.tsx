@@ -162,6 +162,8 @@ export function CheckoutFlow() {
       whole_units_only: line.whole_units_only ?? true,
       unit_price: line.unit_price,
       line_total: line.line_total,
+      discount_share: 0,
+      net_line_total: line.line_total,
     }));
 
     try {

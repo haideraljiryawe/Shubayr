@@ -126,6 +126,7 @@ let addresses: Address[] = [
   {
     id: "addr-1",
     user_id: mockUser.id,
+    governorate_id: "11111111-1111-4111-8111-111111111111",
     label: "المنزل",
     city: "واسط",
     area: "الكوت — حي الزهراء",
@@ -142,6 +143,7 @@ let addresses: Address[] = [
   {
     id: "addr-2",
     user_id: mockUser.id,
+    governorate_id: "22222222-2222-4222-8222-222222222222",
     label: "العمل",
     city: "بغداد",
     area: "الكرادة",
@@ -249,6 +251,8 @@ function orderItem(
     whole_units_only: variant?.whole_units_only ?? true,
     unit_price: unit,
     line_total: unit * quantity,
+    discount_share: 0,
+    net_line_total: unit * quantity,
   };
 }
 
@@ -588,6 +592,8 @@ let returns: Return[] = [
         quantity: 1,
         base_unit: "piece",
         whole_units_only: true,
+        discount_share: 0,
+        net_amount: 0,
       },
     ],
   },
@@ -635,6 +641,8 @@ export function createMockReturn(body: ReturnRequest): Return {
       whole_units_only: orderItem?.whole_units_only ?? true,
       customer_reason: item.reason,
       unit_price: unit,
+      discount_share: 0,
+      net_amount: unit * item.quantity,
       expected_refund: unit * item.quantity,
       approved_refund: 0,
       condition: null,

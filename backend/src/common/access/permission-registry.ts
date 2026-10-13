@@ -16,6 +16,10 @@ export const PERMISSION_REGISTRY = {
   'orders.cancel_after_dispatch': ['orders', 'Cancel an order after dispatch'],
   'orders.shortage.resolve': ['orders', 'Resolve preparation shortages'],
   'orders.assign_agent': ['orders', 'Assign a delivery agent'],
+  'orders.adjust_delivery_fee': [
+    'orders',
+    'Adjust an order delivery fee during confirmation',
+  ],
   'catalog.categories': ['catalog', 'Manage categories'],
   'catalog.brands': ['catalog', 'Manage brands'],
   'catalog.products': ['catalog', 'Manage products and banners'],
@@ -111,6 +115,14 @@ export const PERMISSION_REGISTRY = {
     'Approve documents outside the back-dating window',
   ],
   'settings.manage': ['settings', 'Manage store settings'],
+  'delivery_zones.manage': [
+    'settings',
+    'Manage governorates and delivery zones',
+  ],
+  'discount_tiers.manage': [
+    'settings',
+    'Manage automatic order discount tiers',
+  ],
   'reports.view': ['reports', 'View reports'],
   'period.close': ['accounting', 'Close accounting periods'],
 } as const;
@@ -146,6 +158,7 @@ export const PERMISSION_DEPENDENCIES: Partial<
   'orders.cancel_after_dispatch': ['orders.view'],
   'orders.shortage.resolve': ['orders.view'],
   'orders.assign_agent': ['orders.view'],
+  'orders.adjust_delivery_fee': ['orders.view'],
   'prices.change': ['catalog.products'],
   'prices.publish_linked': ['catalog.products', 'fx_rates.view'],
   'sell_below_cost.approve': ['catalog.products', 'cost.view'],

@@ -111,6 +111,32 @@ export class UpdateOrderStatusDto {
   @IsString()
   @MaxLength(500)
   below_cost_override_reason?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  customer_contacted?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MaxLength(500)
+  customer_contact_note?: string | null;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  adjusted_delivery_fee?: number;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MaxLength(500)
+  delivery_fee_adjustment_reason?: string | null;
 }
 
 export class AdminOrderQueryDto extends OrderQueryDto {

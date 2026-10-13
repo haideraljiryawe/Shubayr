@@ -525,6 +525,391 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/governorates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active Iraqi governorates
+         * @description Includes the 18 governorates and Halabja. is_served is true only when the governorate is attached to an active delivery zone.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Active governorates */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Governorate"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/governorates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all governorates and their zone assignment */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Governorates */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminGovernorate"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/governorates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edit a governorate's localized names or active flag */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GovernoratePatch"];
+                };
+            };
+            responses: {
+                /** @description Updated governorate */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GovernorateRecord"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/delivery-zones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List delivery zones */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Delivery zones */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryZone"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Create a delivery zone */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeliveryZoneCreate"];
+                };
+            };
+            responses: {
+                /** @description Created delivery zone */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryZone"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/delivery-zones/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a delivery zone and unassign its governorates */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update a delivery zone and its governorates */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeliveryZonePatch"];
+                };
+            };
+            responses: {
+                /** @description Updated delivery zone */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryZone"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/discount-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List automatic order discount tiers */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Discount tiers */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DiscountTier"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Create an automatic order discount tier */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscountTierCreate"];
+                };
+            };
+            responses: {
+                /** @description Created discount tier */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DiscountTier"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/discount-tiers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an automatic order discount tier */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update an automatic order discount tier */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscountTierPatch"];
+                };
+            };
+            responses: {
+                /** @description Updated discount tier */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DiscountTier"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
     "/addresses": {
         parameters: {
             query?: never;
@@ -589,6 +974,7 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -1662,6 +2048,14 @@ export interface paths {
                         version: number;
                         note?: string | null;
                         below_cost_override_reason?: string | null;
+                        /** @description Must be true when status is confirmed. */
+                        customer_contacted?: boolean;
+                        /** @description Required when status is confirmed. */
+                        customer_contact_note?: string | null;
+                        /** @description Optional replacement fee during confirmation; requires orders.adjust_delivery_fee. */
+                        adjusted_delivery_fee?: components["schemas"]["Money"];
+                        /** @description Required with adjusted_delivery_fee. */
+                        delivery_fee_adjustment_reason?: string | null;
                     };
                 };
             };
@@ -5898,6 +6292,14 @@ export interface paths {
                         version: number;
                         note?: string | null;
                         below_cost_override_reason?: string | null;
+                        /** @description Must be true when status is confirmed. */
+                        customer_contacted?: boolean;
+                        /** @description Required when status is confirmed. */
+                        customer_contact_note?: string | null;
+                        /** @description Optional replacement fee during confirmation; requires orders.adjust_delivery_fee. */
+                        adjusted_delivery_fee?: components["schemas"]["Money"];
+                        /** @description Required with adjusted_delivery_fee. */
+                        delivery_fee_adjustment_reason?: string | null;
                     };
                 };
             };
@@ -10593,11 +10995,101 @@ export interface components {
             /** Format: email */
             email?: string | null;
         };
+        GovernorateRecord: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name_ar: string;
+            name_en: string;
+            is_active: boolean;
+        };
+        Governorate: components["schemas"]["GovernorateRecord"] & {
+            is_served: boolean;
+        };
+        AdminGovernorate: components["schemas"]["GovernorateRecord"] & {
+            delivery_zone: components["schemas"]["DeliveryZoneSummary"] | null;
+        };
+        GovernoratePatch: {
+            name_ar?: string;
+            name_en?: string;
+            is_active?: boolean;
+        };
+        DeliveryZoneSummary: {
+            /** Format: uuid */
+            id: string;
+            name_ar: string;
+            name_en: string;
+            fee_iqd: components["schemas"]["Money"];
+            is_active: boolean;
+        };
+        DeliveryZone: components["schemas"]["DeliveryZoneSummary"] & {
+            governorates: components["schemas"]["GovernorateRecord"][];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DeliveryZoneCreate: {
+            name_ar: string;
+            name_en: string;
+            fee_iqd: number;
+            /** @default true */
+            is_active: boolean;
+            governorate_ids: string[];
+        };
+        DeliveryZonePatch: {
+            name_ar?: string;
+            name_en?: string;
+            fee_iqd?: number;
+            is_active?: boolean;
+            governorate_ids?: string[];
+        };
+        DiscountTier: {
+            /** Format: uuid */
+            id: string;
+            min_subtotal: components["schemas"]["Money"];
+            percent: number;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DiscountTierCreate: {
+            min_subtotal_iqd: number;
+            percent: number;
+            /** @default true */
+            is_active: boolean;
+        };
+        DiscountTierPatch: {
+            min_subtotal_iqd?: number;
+            percent?: number;
+            is_active?: boolean;
+        };
+        AppliedDiscountTier: {
+            /**
+             * Format: uuid
+             * @description Null only when a historical tier was later deleted; snapshot values remain.
+             */
+            id: string | null;
+            min_subtotal: components["schemas"]["Money"];
+            percent: number;
+        };
+        NextDiscountTier: {
+            min_subtotal: components["schemas"]["Money"];
+            percent: number;
+            amount_remaining: components["schemas"]["Money"];
+        };
         Address: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
             user_id: string;
+            /**
+             * Format: uuid
+             * @description Null only on legacy addresses; checkout returns ADDRESS_GOVERNORATE_REQUIRED until selected.
+             */
+            governorate_id: string | null;
             /** @example Home */
             label?: string | null;
             city: string;
@@ -10615,6 +11107,8 @@ export interface components {
             created_at: string;
         };
         AddressCreate: {
+            /** Format: uuid */
+            governorate_id: string;
             /** @example Home */
             label?: string | null;
             city: string;
@@ -10632,6 +11126,8 @@ export interface components {
         };
         /** @description Omitted fields are unchanged; null clears only nullable fields. contact_phone and city cannot be null. */
         AddressPatch: {
+            /** Format: uuid */
+            governorate_id?: string;
             label?: string | null;
             city?: string;
             area?: string | null;
@@ -11173,8 +11669,15 @@ export interface components {
                 available_qty: number;
             }[];
             subtotal: components["schemas"]["Money"];
-            /** @description Valid coupon discount only; catalog markdown is already in unit_price. */
+            /** @description Applied coupon and/or automatic tier discount; catalog markdown is already in unit_price. */
             discount: components["schemas"]["Money"];
+            coupon_discount: components["schemas"]["Money"];
+            tier_discount: components["schemas"]["Money"];
+            /** @enum {string} */
+            discount_source: "none" | "coupon" | "tier" | "stacked";
+            applied_tier: components["schemas"]["AppliedDiscountTier"] | null;
+            next_tier: components["schemas"]["NextDiscountTier"] | null;
+            /** @description Zero in the cart because the governorate is selected at checkout. */
             delivery_fee: components["schemas"]["Money"];
             total: components["schemas"]["Money"];
         };
@@ -11230,6 +11733,10 @@ export interface components {
             unit_price?: components["schemas"]["Money"];
             price_version?: string;
             line_total?: components["schemas"]["Money"];
+            /** @description Whole-IQD largest-remainder share of the order discount. */
+            discount_share: components["schemas"]["Money"];
+            /** @description line_total minus discount_share; returns refund this snapshot. */
+            net_line_total: components["schemas"]["Money"];
             currency?: string;
             /** @description True when the caller already has a product review for this order item. */
             readonly reviewed?: boolean;
@@ -11291,11 +11798,24 @@ export interface components {
             delivery_id?: string | null;
             subtotal?: components["schemas"]["Money"];
             delivery_fee?: components["schemas"]["Money"];
+            original_delivery_fee?: components["schemas"]["Money"];
+            adjusted_delivery_fee?: number | null;
             discount?: components["schemas"]["Money"];
+            coupon_discount?: components["schemas"]["Money"];
+            tier_discount?: components["schemas"]["Money"];
+            /** @enum {string} */
+            discount_source?: "none" | "coupon" | "tier" | "stacked";
+            applied_tier?: components["schemas"]["AppliedDiscountTier"] | null;
+            next_tier?: components["schemas"]["NextDiscountTier"] | null;
             total?: components["schemas"]["Money"];
             currency?: string;
             /** @description Immutable checkout snapshot. */
             delivery_contact_phone?: string;
+            delivery_governorate?: {
+                code: string;
+                name_ar: string | null;
+                name_en: string | null;
+            } | null;
             /** @description Immutable checkout snapshot. */
             delivery_address_label?: string | null;
             /** @description Immutable checkout snapshot. */
@@ -11381,7 +11901,26 @@ export interface components {
                 details?: string | null;
                 lat?: number | null;
                 lng?: number | null;
+                governorate?: {
+                    code: string;
+                    name_ar: string | null;
+                    name_en: string | null;
+                } | null;
             };
+            confirmation_contact?: {
+                /** @constant */
+                customer_contacted: true;
+                note: string | null;
+            } | null;
+            delivery_fee_adjustment?: {
+                original_fee: components["schemas"]["Money"];
+                adjusted_fee: components["schemas"]["Money"];
+                reason: string | null;
+                /** Format: uuid */
+                adjusted_by: string | null;
+                /** Format: date-time */
+                adjusted_at: string | null;
+            } | null;
             payments: {
                 /** Format: uuid */
                 id?: string;
@@ -12320,6 +12859,10 @@ export interface components {
             customer_reason?: string;
             /** @description Immutable order-line unit price. */
             unit_price?: components["schemas"]["Money"];
+            /** @description Discount share attributed to this requested return quantity. */
+            discount_share: components["schemas"]["Money"];
+            /** @description Exact net refund snapshot for the requested quantity. */
+            net_amount: components["schemas"]["Money"];
             currency?: string;
             expected_refund?: components["schemas"]["Money"];
             approved_refund?: components["schemas"]["Money"];

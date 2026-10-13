@@ -170,6 +170,12 @@ try {
     NODE_OPTIONS:
       `${process.env.NODE_OPTIONS ?? ''} --import=./test/openapi-response-validator.mjs`.trim(),
   };
+  await run('test/delivery-pricing-d1.acceptance.mjs', [], acceptanceEnv);
+  // The D1 pack uses several independent app/admin sessions; reset only the
+  // in-memory throttles before the established acceptance sequence.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
   await run('test/financial-core.acceptance.mjs', [], acceptanceEnv);
   await run('test/catalog-v2.acceptance.mjs', [], acceptanceEnv);
   await run('test/inventory-costing.acceptance.mjs', [], acceptanceEnv);

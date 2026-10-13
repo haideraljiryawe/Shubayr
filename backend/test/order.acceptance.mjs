@@ -68,6 +68,11 @@ function adminLogin() {
 
 const admin = await adminLogin();
 const customer = await login('+9647700000006');
+const baghdadGovernorate = (await request('/governorates')).find(
+  (entry) => entry.code === 'baghdad',
+);
+assert.ok(baghdadGovernorate, 'Baghdad governorate must be seeded');
+assertions += 1;
 const seededOrders = await request('/orders?per_page=100', {
   token: customer.access_token,
 });
@@ -171,7 +176,7 @@ check(couponCart.discount, 3015, '10% coupon uses shared half-away rounding');
 check(
   couponCart.total,
   couponCart.subtotal - couponCart.discount + couponCart.delivery_fee,
-  'checkout preview total includes coupon and configured delivery fee',
+  'cart preview total includes coupon and defers the address-based delivery fee',
 );
 const withoutCoupon = await request('/cart/coupon', {
   method: 'DELETE',
@@ -201,6 +206,7 @@ const address = await request('/addresses', {
   expected: 201,
   body: {
     label: 'Acceptance',
+    governorate_id: baghdadGovernorate.id,
     city: 'Baghdad',
     area: 'Karrada',
     contact_phone: '+9647700080006',
@@ -243,8 +249,8 @@ check(
 );
 check(
   placed.total,
-  couponCart.total,
-  'checkout recomputes coupon-inclusive total',
+  couponCart.total + placed.delivery_fee,
+  'checkout adds the address governorate zone fee to the coupon-inclusive total',
 );
 check(
   placed.delivery_contact_phone,
@@ -371,7 +377,12 @@ await request(`/orders/${placed.id}/track`, {
 const confirmed = await request(`/orders/${placed.id}/status`, {
   method: 'PATCH',
   token: admin.access_token,
-  body: { status: 'confirmed', version: placed.version },
+  body: {
+    status: 'confirmed',
+    version: placed.version,
+    customer_contacted: true,
+    customer_contact_note: 'Customer confirmed the order by phone',
+  },
 });
 check(confirmed.status, 'confirmed', 'admin may advance the order');
 const cancellationRequested = await request(

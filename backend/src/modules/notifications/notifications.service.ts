@@ -75,9 +75,10 @@ export class NotificationsService
     targetRole:
       'customer' | 'delivery_agent' | 'order_monitor' | 'staff' = 'customer',
     deepLinkOverride?: string,
+    contentOverride?: ReturnType<typeof bilingualMessage>,
   ) {
     const eventKey = `${type}:${entityType}:${entityId}:${suffix}`;
-    const content = bilingualMessage(type);
+    const content = contentOverride ?? bilingualMessage(type);
     const deepLink =
       deepLinkOverride ?? this.deepLink(targetRole, entityType, entityId);
     return this.createInboxEvent(tx, {

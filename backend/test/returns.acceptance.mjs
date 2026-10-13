@@ -142,8 +142,8 @@ try {
       ],
     );
     await db.query(
-      `INSERT INTO order_items (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,base_unit,whole_units_only)
-      VALUES ($1,$2,$3,$4,'Test product A','Test product A',3,10080,30240,'piece',true),($5,$2,$6,$7,'Test product B','Test product B',1,5550,5550,'piece',true)`,
+      `INSERT INTO order_items (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,discount_share,net_line_total,base_unit,whole_units_only)
+      VALUES ($1,$2,$3,$4,'Test product A','Test product A',3,10080,30240,0,30240,'piece',true),($5,$2,$6,$7,'Test product B','Test product B',1,5550,5550,0,5550,'piece',true)`,
       [firstId, orderId, productA, variantA, secondId, productB, variantB],
     );
     await db.query(

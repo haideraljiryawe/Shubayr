@@ -98,6 +98,7 @@ export type OrderTracking = Schemas["OrderTracking"];
 export type Address = Schemas["Address"];
 export type AddressCreate = Schemas["AddressCreate"];
 export type AddressPatch = Schemas["AddressPatch"];
+export type Governorate = Schemas["Governorate"];
 export type Order = Schemas["Order"];
 export type OrderItem = Schemas["OrderItem"];
 export type UserSelfUpdate = Schemas["UserSelfUpdate"];
@@ -503,6 +504,30 @@ export const api = {
   async getSettings(init?: RequestInit): Promise<StoreSettings> {
     if (!isLive("catalog")) return mockSettings;
     return request<StoreSettings>("/settings", init);
+  },
+
+  async listGovernorates(init?: RequestInit): Promise<Governorate[]> {
+    if (!isLive("addresses")) {
+      return [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          code: "wasit",
+          name_ar: "واسط",
+          name_en: "Wasit",
+          is_active: true,
+          is_served: true,
+        },
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          code: "baghdad",
+          name_ar: "بغداد",
+          name_en: "Baghdad",
+          is_active: true,
+          is_served: true,
+        },
+      ];
+    }
+    return request<Governorate[]>("/governorates", init);
   },
 
   /** Departments with their subcategories — exactly two levels, see twoLevelTree. */

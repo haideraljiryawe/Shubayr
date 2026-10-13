@@ -945,6 +945,14 @@
       "failBody": "The goods stay in the agent's custody. Retry the delivery later, or bring the goods back with a retrieval.",
       "retry": "Send this order out again? It reuses the goods already in the agent's custody."
     },
+    "confirmation": {
+      "customerContacted": "I phoned the customer and confirmed this order",
+      "contactNote": "Contact note",
+      "contactNoteHint": "Briefly record what the customer confirmed.",
+      "adjustedFee": "Adjusted delivery fee (IQD, optional)",
+      "adjustedFeeHint": "Leave blank to keep the current fee of {amount}.",
+      "adjustmentReason": "Reason for changing the delivery fee"
+    },
     "dispatchBlocked": {
       "noDelivery": "Can't hand over: this order has no delivery.",
       "noAgent": "Assign an agent first, then hand the order over.",

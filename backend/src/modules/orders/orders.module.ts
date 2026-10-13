@@ -10,6 +10,13 @@ import { AdminOrdersController } from './admin-orders.controller';
 import { MonitorOrdersController } from './monitor-orders.controller';
 import { InventoryModule } from '../inventory/inventory.module';
 import { OrderTimeoutService } from './order-timeout.service';
+import {
+  AdminGovernoratesController,
+  DeliveryZonesController,
+  DiscountTiersController,
+  GovernoratesController,
+} from './delivery-pricing.controller';
+import { DeliveryPricingService } from './delivery-pricing.service';
 
 @Module({
   imports: [CatalogModule, InventoryModule],
@@ -20,12 +27,17 @@ import { OrderTimeoutService } from './order-timeout.service';
     AdminOrdersController,
     MonitorOrdersController,
     AddressesController,
+    GovernoratesController,
+    AdminGovernoratesController,
+    DeliveryZonesController,
+    DiscountTiersController,
   ],
   providers: [
     CartService,
     OrdersService,
     AddressesService,
     OrderTimeoutService,
+    DeliveryPricingService,
   ],
   exports: [CartService],
 })

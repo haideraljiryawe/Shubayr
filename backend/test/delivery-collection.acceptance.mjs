@@ -143,8 +143,8 @@ async function fixture(label, partyId) {
     );
     await db.query(
       `INSERT INTO order_items
-        (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total)
-       VALUES ($1,$2,$3,$4,'C5 fixture','C5 fixture',1,100000,100000)`,
+        (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,discount_share,net_line_total)
+       VALUES ($1,$2,$3,$4,'C5 fixture','C5 fixture',1,100000,100000,0,100000)`,
       [orderItemId, orderId, stock.product_id, stock.variant_id],
     );
     await db.query(

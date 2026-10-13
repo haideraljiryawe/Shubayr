@@ -24,6 +24,7 @@ const check = (actual, expected, message) => {
 };
 const scalar = async (sql, values = []) =>
   (await db.query(sql, values)).rows[0]?.value;
+let baghdadGovernorateId;
 async function request(
   path,
   { token, method = 'GET', body, headers = {}, expected = 200 } = {},
@@ -57,6 +58,7 @@ async function customer(phone) {
     expected: 201,
     body: {
       label: 'Inventory acceptance',
+      governorate_id: baghdadGovernorateId,
       city: 'Baghdad',
       area: 'Karrada',
       contact_phone: phone,
@@ -72,6 +74,11 @@ try {
     body: { username: 'admin', password: 'Shubayr-Dev-Admin!2026' },
   });
   const admin = session.access_token;
+  baghdadGovernorateId = (await request('/governorates')).find(
+    (entry) => entry.code === 'baghdad',
+  )?.id;
+  assert.ok(baghdadGovernorateId, 'Baghdad governorate must be seeded');
+  assertions += 1;
   const warehouses = await request('/admin/inventory/warehouses', {
     token: admin,
   });

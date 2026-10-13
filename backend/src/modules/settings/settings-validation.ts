@@ -152,7 +152,9 @@ export function validateSettingsUpdate(
     ) {
       positiveInteger(value, field, errors);
     } else if (
-      key === 'auto_cancel_enabled' &&
+      ['auto_cancel_enabled', 'discount_tier_coupon_stacking_enabled'].includes(
+        key,
+      ) &&
       !['true', 'false'].includes(value ?? '')
     ) {
       errors.push(

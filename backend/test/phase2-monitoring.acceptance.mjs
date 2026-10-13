@@ -131,8 +131,8 @@ try {
   }
   await db.query(
     `INSERT INTO order_items
-     (id,order_id,product_id,variant_id,product_name_ar,product_name_en,image_url,quantity,unit_price,line_total)
-     VALUES ($1,$2,$3,$4,'دواء تجريبي','Monitor item','https://example.test/secret.jpg',2,5,10)`,
+     (id,order_id,product_id,variant_id,product_name_ar,product_name_en,image_url,quantity,unit_price,line_total,discount_share,net_line_total)
+     VALUES ($1,$2,$3,$4,'دواء تجريبي','Monitor item','https://example.test/secret.jpg',2,5,10,0,10)`,
     [
       randomUUID(),
       ids[0],

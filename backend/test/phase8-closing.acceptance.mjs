@@ -377,12 +377,18 @@ check(
   'supplier payment returns its actor display name',
 );
 
+const baghdadGovernorate = (await request('/governorates')).find(
+  (entry) => entry.code === 'baghdad',
+);
+assert.ok(baghdadGovernorate, 'Baghdad governorate must be seeded');
+assertions += 1;
 const address = await request('/addresses', {
   token: customer,
   method: 'POST',
   expected: 201,
   body: {
     label: `C9 ${suffix}`,
+    governorate_id: baghdadGovernorate.id,
     city: 'Baghdad',
     area: 'Karrada',
     street: 'Closing acceptance route',
@@ -468,7 +474,16 @@ async function ready(order) {
     current = await request(`/admin/orders/${order.id}/status`, {
       token: admin,
       method: 'PATCH',
-      body: { status, version: current.version },
+      body: {
+        status,
+        version: current.version,
+        ...(status === 'confirmed'
+          ? {
+              customer_contacted: true,
+              customer_contact_note: 'Customer confirmed by phone',
+            }
+          : {}),
+      },
     });
   }
   return current;
@@ -899,14 +914,31 @@ check(
   'receipt reversal returns its actor display name',
 );
 
-// Keep one legacy zero-fee direct-fare order to prove existing calls remain
-// compatible alongside C10b's fee-carrying pass-through acceptance scenario.
+// Keep one zero-fee direct-fare order to prove existing calls remain compatible
+// alongside C10b's fee-carrying pass-through acceptance scenario. Delivery
+// pricing now comes from the governorate zone, not the legacy store setting.
+const closingZones = await request('/admin/delivery-zones', { token: admin });
+const closingBaghdadZone = closingZones.find((zone) =>
+  zone.governorates.some((entry) => entry.id === baghdadGovernorate.id),
+);
+assert.ok(closingBaghdadZone, 'Baghdad must have a delivery zone');
+assertions += 1;
 await request('/admin/settings', {
   token: admin,
   method: 'PUT',
   body: { settings: { delivery_fee: '0' } },
 });
+await request(`/admin/delivery-zones/${closingBaghdadZone.id}`, {
+  token: admin,
+  method: 'PATCH',
+  body: { fee_iqd: 0 },
+});
 let tripOrder = await ready(await placeOrder('external-trip', usdSku, 1));
+await request(`/admin/delivery-zones/${closingBaghdadZone.id}`, {
+  token: admin,
+  method: 'PATCH',
+  body: { fee_iqd: closingBaghdadZone.fee_iqd },
+});
 await request('/admin/settings', {
   token: admin,
   method: 'PUT',

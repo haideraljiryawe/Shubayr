@@ -25,6 +25,7 @@ async function signIn(page: Page) {
 }
 
 async function fillAddress(page: Page) {
+  await page.getByTestId("address-governorate").selectOption({ index: 1 });
   await page.getByTestId("address-name").fill("أحمد علي");
   await page.getByTestId("address-phone").fill("07701234567");
   await page.getByTestId("address-city").fill("واسط");
@@ -36,7 +37,9 @@ async function fillAddress(page: Page) {
 test("an empty cart cannot be checked out", async ({ page }) => {
   await page.goto("/checkout");
   await expect(page.getByTestId("checkout-empty")).toBeVisible();
-  await expect(page.getByRole("link", { name: "العودة إلى السلة" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "العودة إلى السلة" }),
+  ).toBeVisible();
 });
 
 test("the address step refuses to advance while it is invalid", async ({
@@ -47,7 +50,9 @@ test("the address step refuses to advance while it is invalid", async ({
   await page.goto("/checkout");
 
   await page.getByTestId("address-submit").click();
-  await expect(page.getByText("يرجى تصحيح الحقول المميّزة أدناه.")).toBeVisible();
+  await expect(
+    page.getByText("يرجى تصحيح الحقول المميّزة أدناه."),
+  ).toBeVisible();
   // Still on the address step.
   await expect(page.getByTestId("place-order")).toHaveCount(0);
 
@@ -107,7 +112,9 @@ test("review shows the order, then placing it confirms and clears the cart", asy
   await expect(page.getByTestId("cart-empty")).toBeVisible();
 });
 
-test("a coupon applied in the cart carries into the order", async ({ page }) => {
+test("a coupon applied in the cart carries into the order", async ({
+  page,
+}) => {
   await page.goto(PRODUCT);
   await addToCart(page).click();
   await page.goto("/cart");

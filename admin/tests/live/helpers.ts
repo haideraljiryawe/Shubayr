@@ -44,6 +44,38 @@ export function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
+export async function servedAddressId(
+  request: APIRequestContext,
+  headers: Record<string, string>,
+  phone: string,
+): Promise<string> {
+  const addresses = await (
+    await request.get(`${API}/addresses`, { headers })
+  ).json();
+  const address = (addresses.data ?? addresses)?.find(
+    (row: { governorate_id?: string | null }) => Boolean(row.governorate_id),
+  ) as { id: string } | undefined;
+  if (address) return address.id;
+
+  const governorates = (await (
+    await request.get(`${API}/governorates`)
+  ).json()) as Array<{ id: string; is_served: boolean }>;
+  const governorateId = governorates.find((row) => row.is_served)?.id;
+  expect(governorateId).toBeTruthy();
+  const created = await request.post(`${API}/addresses`, {
+    headers,
+    data: {
+      governorate_id: governorateId,
+      label: "Live",
+      city: "واسط",
+      area: "الكوت",
+      contact_phone: phone,
+    },
+  });
+  expect(created.ok(), await created.text()).toBe(true);
+  return ((await created.json()) as { id: string }).id;
+}
+
 /**
  * The gate every live spec opens with: under playwright.live.config.ts an
  * unreachable API fails the run. Any HTTP status — a 429 included — means the
@@ -94,7 +126,9 @@ export async function awaitHeadroom(
     const reset = Number(
       headers["retry-after"] ?? headers["x-ratelimit-reset"] ?? "5",
     );
-    const seconds = Number.isFinite(reset) ? Math.min(Math.max(reset, 1), 60) : 5;
+    const seconds = Number.isFinite(reset)
+      ? Math.min(Math.max(reset, 1), 60)
+      : 5;
     // Extend BEFORE waiting: the wait runs inside the test's own timeout.
     test.info().setTimeout(test.info().timeout + seconds * 1000 + 1000);
     await new Promise((resolve) => setTimeout(resolve, seconds * 1000 + 500));
@@ -135,11 +169,17 @@ export async function apiLogin(
       data: { username, password },
     });
     const body = (await response.json()) as Record<string, unknown>;
-    if (response.status() !== 429 || body.code === "ACCOUNT_LOCKED" || attempt === 3) {
+    if (
+      response.status() !== 429 ||
+      body.code === "ACCOUNT_LOCKED" ||
+      attempt === 3
+    ) {
       return { status: response.status(), body };
     }
     const retryAfter = Number(response.headers()["retry-after"] ?? "20");
-    const seconds = Number.isFinite(retryAfter) ? Math.min(Math.max(retryAfter, 1), 60) : 20;
+    const seconds = Number.isFinite(retryAfter)
+      ? Math.min(Math.max(retryAfter, 1), 60)
+      : 20;
     // Extend BEFORE waiting: the wait runs inside the test's own timeout.
     test.info().setTimeout(test.info().timeout + seconds * 1000 + 1000);
     await new Promise((resolve) => setTimeout(resolve, seconds * 1000 + 500));
@@ -159,7 +199,9 @@ interface CachedToken {
 }
 
 function fresh(cached: CachedToken | null | undefined): string | null {
-  return cached && Date.now() - cached.at < TOKEN_REUSE_MS ? cached.value : null;
+  return cached && Date.now() - cached.at < TOKEN_REUSE_MS
+    ? cached.value
+    : null;
 }
 
 let adminToken: CachedToken | null = null;
@@ -317,7 +359,11 @@ export async function uiLogin(
  * on timing (how warm the dev server was, i.e. which spec ran first), so the
  * page must be off the app when the cookies go.
  */
-export async function switchUser(page: Page, username: string, password: string): Promise<void> {
+export async function switchUser(
+  page: Page,
+  username: string,
+  password: string,
+): Promise<void> {
   await page.goto("about:blank");
   await page.context().clearCookies();
   await uiLogin(page, username, password);
@@ -377,18 +423,7 @@ export async function placeOrder(
 ): Promise<PlacedOrder> {
   const token = await phoneToken(request, phone);
   const headers = bearer(token);
-  const addresses = await (
-    await request.get(`${API}/addresses`, { headers })
-  ).json();
-  let addressId = (addresses.data ?? addresses)?.[0]?.id as string | undefined;
-  if (!addressId) {
-    const created = await request.post(`${API}/addresses`, {
-      headers,
-      data: { label: "Live", city: "واسط", area: "الكوت", contact_phone: phone },
-    });
-    expect(created.ok(), await created.text()).toBe(true);
-    addressId = (await created.json()).id;
-  }
+  const addressId = await servedAddressId(request, headers, phone);
   const cart = await (await request.get(`${API}/cart`, { headers })).json();
   for (const item of cart.items ?? []) {
     await request.delete(`${API}/cart/items/${item.id}`, { headers });
@@ -424,7 +459,16 @@ export async function advanceOrder(
   for (const status of statuses) {
     const moved = await request.patch(`${API}/admin/orders/${orderId}/status`, {
       headers: bearer(token),
-      data: { status, version },
+      data: {
+        status,
+        version,
+        ...(status === "confirmed"
+          ? {
+              customer_contacted: true,
+              customer_contact_note: "Customer confirmed by phone",
+            }
+          : {}),
+      },
     });
     expect(moved.ok(), `${status}: ${await moved.text()}`).toBe(true);
     version = ((await moved.json()) as { version: number }).version;

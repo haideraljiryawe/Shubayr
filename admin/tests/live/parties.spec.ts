@@ -11,6 +11,7 @@ import {
   phoneToken,
   randomWorkPhone,
   requireLiveApi,
+  servedAddressId,
   switchUser,
   uiLoginAsAdmin,
 } from "./helpers";
@@ -29,22 +30,42 @@ test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
 });
 
-const run = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
+const run =
+  `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
 const CATEGORY = "30000000-0000-4000-8000-000000000023";
 const LOCATION = "90000000-0000-4000-8000-000000000002";
-const state: { driver?: { id: string; name: string }; orderNumber?: string } = {};
+const state: { driver?: { id: string; name: string }; orderNumber?: string } =
+  {};
 
-async function api(request: APIRequestContext, method: "GET" | "POST" | "PATCH" | "DELETE", path: string, data?: unknown) {
-  const response = await request.fetch(`${API}${path}`, { method, headers: bearer(await adminApiToken(request)), data });
-  return { status: response.status(), body: await response.json().catch(() => null) };
+async function api(
+  request: APIRequestContext,
+  method: "GET" | "POST" | "PATCH" | "DELETE",
+  path: string,
+  data?: unknown,
+) {
+  const response = await request.fetch(`${API}${path}`, {
+    method,
+    headers: bearer(await adminApiToken(request)),
+    data,
+  });
+  return {
+    status: response.status(),
+    body: await response.json().catch(() => null),
+  };
 }
 
 function today(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(new Date());
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(
+    new Date(),
+  );
 }
 
 /** A published one-SKU product with opening stock on the seeded shelf. */
-async function stocked(request: APIRequestContext, key: string, quantity: number) {
+async function stocked(
+  request: APIRequestContext,
+  key: string,
+  quantity: number,
+) {
   const sku = `PTY-${run}-${key}`;
   const created = await api(request, "POST", "/admin/products", {
     category_id: CATEGORY,
@@ -55,32 +76,48 @@ async function stocked(request: APIRequestContext, key: string, quantity: number
     tracks_expiry: false,
     status: "active",
     published: true,
-    variants: [{ sku, base_unit: "piece", whole_units_only: true, pricing_mode: "fixed" }],
+    variants: [
+      {
+        sku,
+        base_unit: "piece",
+        whole_units_only: true,
+        pricing_mode: "fixed",
+      },
+    ],
   });
   expect(created.status, JSON.stringify(created.body)).toBe(201);
   const variant = created.body.variants[0].id as string;
   const opening = await api(request, "POST", "/admin/inventory/openings", {
     operation_id: `pty-open-${run}-${key}`,
     document_date: today(),
-    lines: [{ variant_id: variant, location_id: LOCATION, quantity: String(quantity), unit_cost_iqd: "1000" }],
+    lines: [
+      {
+        variant_id: variant,
+        location_id: LOCATION,
+        quantity: String(quantity),
+        unit_cost_iqd: "1000",
+      },
+    ],
   });
   expect(opening.status, JSON.stringify(opening.body)).toBe(201);
   return { id: created.body.id as string, variant };
 }
 
 /** One COD order holding one piece of each item. */
-async function order(request: APIRequestContext, items: Array<{ id: string; variant: string }>) {
+async function order(
+  request: APIRequestContext,
+  items: Array<{ id: string; variant: string }>,
+) {
   const headers = bearer(await phoneToken(request, CUSTOMER_PHONE));
-  const addresses = await (await request.get(`${API}/addresses`, { headers })).json();
-  let addressId = (addresses.data ?? addresses)?.[0]?.id as string | undefined;
-  if (!addressId) {
-    const created = await request.post(`${API}/addresses`, { headers, data: { label: "Live", city: "واسط", area: "الكوت", contact_phone: CUSTOMER_PHONE } });
-    addressId = (await created.json()).id;
-  }
+  const addressId = await servedAddressId(request, headers, CUSTOMER_PHONE);
   const cart = await (await request.get(`${API}/cart`, { headers })).json();
-  for (const row of cart.items ?? []) await request.delete(`${API}/cart/items/${row.id}`, { headers });
+  for (const row of cart.items ?? [])
+    await request.delete(`${API}/cart/items/${row.id}`, { headers });
   for (const item of items) {
-    const added = await request.post(`${API}/cart/items`, { headers, data: { product_id: item.id, variant_id: item.variant, quantity: 1 } });
+    const added = await request.post(`${API}/cart/items`, {
+      headers,
+      data: { product_id: item.id, variant_id: item.variant, quantity: 1 },
+    });
     expect(added.ok(), await added.text()).toBe(true);
   }
   const placed = await request.post(`${API}/orders`, {
@@ -88,19 +125,39 @@ async function order(request: APIRequestContext, items: Array<{ id: string; vari
     data: { address_id: addressId, payment_method: "cod" },
   });
   expect(placed.ok(), await placed.text()).toBe(true);
-  return (await placed.json()) as { id: string; order_number: string; delivery_id: string };
+  return (await placed.json()) as {
+    id: string;
+    order_number: string;
+    delivery_id: string;
+  };
 }
 
-async function move(request: APIRequestContext, id: string, statuses: string[]) {
+async function move(
+  request: APIRequestContext,
+  id: string,
+  statuses: string[],
+) {
   for (const status of statuses) {
     const { body } = await api(request, "GET", `/admin/orders/${id}`);
-    const moved = await api(request, "PATCH", `/admin/orders/${id}/status`, { status, version: body.version });
+    const moved = await api(request, "PATCH", `/admin/orders/${id}/status`, {
+      status,
+      version: body.version,
+      ...(status === "confirmed"
+        ? {
+            customer_contacted: true,
+            customer_contact_note: "Customer confirmed by phone",
+          }
+        : {}),
+    });
     expect(moved.status, `${status}: ${JSON.stringify(moved.body)}`).toBe(200);
   }
 }
 
 async function createDriver(request: APIRequestContext, name: string) {
-  const created = await api(request, "POST", "/admin/external-drivers", { name, phone: randomWorkPhone() });
+  const created = await api(request, "POST", "/admin/external-drivers", {
+    name,
+    phone: randomWorkPhone(),
+  });
   expect(created.status, JSON.stringify(created.body)).toBe(201);
   return { id: created.body.id as string, name };
 }
@@ -118,7 +175,10 @@ async function confirm(page: Page) {
   await expect(page.locator("dialog[open]")).toHaveCount(0);
 }
 
-test("an external driver is added, edited and deactivated; a repeated phone warns; an unused driver is deleted", async ({ page, request }) => {
+test("an external driver is added, edited and deactivated; a repeated phone warns; an unused driver is deleted", async ({
+  page,
+  request,
+}) => {
   const name = `Ext ${run}`;
   const phone = randomWorkPhone();
   await uiLoginAsAdmin(page);
@@ -132,8 +192,14 @@ test("an external driver is added, edited and deactivated; a repeated phone warn
   await expect(page.getByTestId("party-notice")).toHaveCount(0);
 
   let row = await findParty(page, name);
-  await expect(row.getByTestId("party-kind")).toHaveAttribute("data-kind", "external_driver");
-  await expect(row.getByTestId("party-status")).toHaveAttribute("data-active", "true");
+  await expect(row.getByTestId("party-kind")).toHaveAttribute(
+    "data-kind",
+    "external_driver",
+  );
+  await expect(row.getByTestId("party-status")).toHaveAttribute(
+    "data-active",
+    "true",
+  );
   await expect(row).toContainText("KUT-1");
 
   // Edit.
@@ -149,33 +215,63 @@ test("an external driver is added, edited and deactivated; a repeated phone warn
   await page.getByTestId("driver-name").fill(twin);
   await page.getByTestId("driver-phone").fill(phone);
   await page.getByTestId("driver-submit").click();
-  await expect(page.getByTestId("party-notice")).toHaveAttribute("data-kind", "duplicatePhone");
+  await expect(page.getByTestId("party-notice")).toHaveAttribute(
+    "data-kind",
+    "duplicatePhone",
+  );
 
   // Deactivate the first: kept, inactive.
   row = await findParty(page, name);
   await row.getByTestId("driver-deactivate").click();
   await confirm(page);
-  await expect(row.getByTestId("party-status")).toHaveAttribute("data-active", "false");
+  await expect(row.getByTestId("party-status")).toHaveAttribute(
+    "data-active",
+    "false",
+  );
   await expect(row.getByTestId("driver-activate")).toBeVisible();
-  const { body } = await api(request, "GET", `/admin/delivery-parties?q=${encodeURIComponent(name)}`);
+  const { body } = await api(
+    request,
+    "GET",
+    `/admin/delivery-parties?q=${encodeURIComponent(name)}`,
+  );
   expect(body.data[0].is_active).toBe(false);
 
   // The unused twin is deleted outright.
   const twinRow = await findParty(page, twin);
   await twinRow.getByTestId("driver-remove").click();
   await confirm(page);
-  await expect(page.getByTestId("party-notice")).toHaveAttribute("data-kind", "deleted");
-  await expect(page.locator('[data-testid="table-row"]', { hasText: twin })).toHaveCount(0);
-  expect((await api(request, "GET", `/admin/delivery-parties?q=${encodeURIComponent(twin)}`)).body.total).toBe(0);
+  await expect(page.getByTestId("party-notice")).toHaveAttribute(
+    "data-kind",
+    "deleted",
+  );
+  await expect(
+    page.locator('[data-testid="table-row"]', { hasText: twin }),
+  ).toHaveCount(0);
+  expect(
+    (
+      await api(
+        request,
+        "GET",
+        `/admin/delivery-parties?q=${encodeURIComponent(twin)}`,
+      )
+    ).body.total,
+  ).toBe(0);
 });
 
-test("an order dispatched to an external driver is in that driver's custody; removing a used driver keeps them inactive", async ({ page, request }) => {
+test("an order dispatched to an external driver is in that driver's custody; removing a used driver keeps them inactive", async ({
+  page,
+  request,
+}) => {
   const driver = await createDriver(request, `Courier ${run}`);
   state.driver = driver;
   const item = await stocked(request, "ONE", 2);
   const placed = await order(request, [item]);
   state.orderNumber = placed.order_number;
-  await move(request, placed.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+  await move(request, placed.id, [
+    "confirmed",
+    "preparing",
+    "ready_for_dispatch",
+  ]);
 
   await uiLoginAsAdmin(page);
   await page.goto(`/orders/${placed.id}`);
@@ -187,22 +283,39 @@ test("an order dispatched to an external driver is in that driver's custody; rem
   await option.click();
   await page.getByTestId("assign-submit").click();
   await expect(page.getByTestId("delivery-agent")).toHaveText(driver.name);
-  await expect(page.getByTestId("delivery-agent")).toHaveAttribute("data-kind", "external_driver");
+  await expect(page.getByTestId("delivery-agent")).toHaveAttribute(
+    "data-kind",
+    "external_driver",
+  );
   // An external driver has no agent account, and dispatch is still open.
   await page.getByTestId("order-action-dispatch").click();
   await page.locator("dialog[open]").getByTestId("confirm-submit").click();
-  await expect(page.getByTestId("order-detail")).toHaveAttribute("data-status", "dispatched");
+  await expect(page.getByTestId("order-detail")).toHaveAttribute(
+    "data-status",
+    "dispatched",
+  );
 
   // From the list to the driver's custody.
   const row = await findParty(page, driver.name);
   await row.getByTestId("party-custody-link").click();
   await page.waitForURL(new RegExp(`/delivery-parties/${driver.id}`));
   await expect(page.getByTestId("party-name")).toHaveText(driver.name);
-  await expect(page.locator(`[data-testid="custody-line"][data-order="${placed.order_number}"]`)).toHaveCount(1);
-  await expect(page.locator(`[data-testid="held-order"][data-order="${placed.order_number}"]`)).toHaveCount(1);
+  await expect(
+    page.locator(
+      `[data-testid="custody-line"][data-order="${placed.order_number}"]`,
+    ),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(
+      `[data-testid="held-order"][data-order="${placed.order_number}"]`,
+    ),
+  ).toHaveCount(1);
   await expect(page.getByTestId("custody-goods-quantity")).toHaveText("1");
   await expect(page.getByTestId("custody-goods-age")).not.toBeEmpty();
-  await expect(page.getByTestId("statement-event").first()).toHaveAttribute("data-event", "issue_to_custody");
+  await expect(page.getByTestId("statement-event").first()).toHaveAttribute(
+    "data-event",
+    "issue_to_custody",
+  );
   // The admin has cost.view: lot cost and values are shown.
   await expect(page.getByTestId("custody-line-cost")).toContainText("1,000");
   await expect(page.getByTestId("custody-goods-value")).toBeVisible();
@@ -211,24 +324,47 @@ test("an order dispatched to an external driver is in that driver's custody; rem
   const again = await findParty(page, driver.name);
   await again.getByTestId("driver-remove").click();
   await confirm(page);
-  await expect(page.getByTestId("party-notice")).toHaveAttribute("data-kind", "deactivated");
-  await expect(again.getByTestId("party-status")).toHaveAttribute("data-active", "false");
+  await expect(page.getByTestId("party-notice")).toHaveAttribute(
+    "data-kind",
+    "deactivated",
+  );
+  await expect(again.getByTestId("party-status")).toHaveAttribute(
+    "data-active",
+    "false",
+  );
 });
 
-test("the custody statement pages, filters by date and by order on the server", async ({ page, request }) => {
+test("the custody statement pages, filters by date and by order on the server", async ({
+  page,
+  request,
+}) => {
   test.setTimeout(240_000);
   // One order of eleven SKUs handed to a driver: eleven statement lines, more
   // than a page of ten.
   await awaitHeadroom(request, 80);
   const driver = await createDriver(request, `Pager ${run}`);
   const items = [];
-  for (let index = 1; index <= 11; index += 1) items.push(await stocked(request, `P${index}`, 1));
+  for (let index = 1; index <= 11; index += 1)
+    items.push(await stocked(request, `P${index}`, 1));
   const placed = await order(request, items);
-  await move(request, placed.id, ["confirmed", "preparing", "ready_for_dispatch"]);
-  const assigned = await api(request, "PATCH", `/deliveries/${placed.delivery_id}/assign`, { party_id: driver.id });
+  await move(request, placed.id, [
+    "confirmed",
+    "preparing",
+    "ready_for_dispatch",
+  ]);
+  const assigned = await api(
+    request,
+    "PATCH",
+    `/deliveries/${placed.delivery_id}/assign`,
+    { party_id: driver.id },
+  );
   expect(assigned.status, JSON.stringify(assigned.body)).toBe(200);
   await move(request, placed.id, ["dispatched"]);
-  const { body: statement } = await api(request, "GET", `/admin/delivery-parties/${driver.id}/statement?per_page=100`);
+  const { body: statement } = await api(
+    request,
+    "GET",
+    `/admin/delivery-parties/${driver.id}/statement?per_page=100`,
+  );
   expect(statement.total).toBe(11);
 
   await awaitHeadroom(request);
@@ -247,53 +383,101 @@ test("the custody statement pages, filters by date and by order on the server", 
   await expect(page.getByTestId("custody-goods-quantity")).toHaveText("11");
 
   // Date: a past month is empty; today has all of it.
-  await page.goto(`/delivery-parties/${driver.id}?from=2001-01-01&to=2001-01-31`);
+  await page.goto(
+    `/delivery-parties/${driver.id}?from=2001-01-01&to=2001-01-31`,
+  );
   await expect(rows).toHaveCount(0);
-  await page.goto(`/delivery-parties/${driver.id}?from=${today()}&to=${today()}&per_page=50`);
+  await page.goto(
+    `/delivery-parties/${driver.id}?from=${today()}&to=${today()}&per_page=50`,
+  );
   await expect(rows).toHaveCount(11);
   // Order: from a row, only that order's movements.
   await rows.first().getByTestId("statement-order").click();
   await expect(page).toHaveURL(new RegExp(`order_id=${placed.id}`));
-  await expect(page.getByTestId("statement-order-filter")).toContainText(placed.order_number);
+  await expect(page.getByTestId("statement-order-filter")).toContainText(
+    placed.order_number,
+  );
   await expect(rows).toHaveCount(11);
-  await expect(table.getByTestId("statement-order").filter({ hasNotText: placed.order_number })).toHaveCount(0);
+  await expect(
+    table
+      .getByTestId("statement-order")
+      .filter({ hasNotText: placed.order_number }),
+  ).toHaveCount(0);
 
   // Delivered with the cash collected (12.0): the goods leave custody and
   // the cash enters it.
-  const { body: current } = await api(request, "GET", `/admin/orders/${placed.id}`);
-  const delivered = await api(request, "PATCH", `/admin/deliveries/${placed.delivery_id}/status`, {
-    status: "delivered",
-    order_version: current.version,
-    operation_id: `pty-deliver-${placed.delivery_id}`,
-    collection_confirmation: "confirmed",
-    collected_amount: String(current.total),
-    source: "admin live test",
-  });
+  const { body: current } = await api(
+    request,
+    "GET",
+    `/admin/orders/${placed.id}`,
+  );
+  const delivered = await api(
+    request,
+    "PATCH",
+    `/admin/deliveries/${placed.delivery_id}/status`,
+    {
+      status: "delivered",
+      order_version: current.version,
+      operation_id: `pty-deliver-${placed.delivery_id}`,
+      collection_confirmation: "confirmed",
+      collected_amount: String(current.total),
+      source: "admin live test",
+    },
+  );
   expect(delivered.status, JSON.stringify(delivered.body)).toBe(200);
-  const { body: custody } = await api(request, "GET", `/admin/delivery-parties/${driver.id}/custody`);
+  const { body: custody } = await api(
+    request,
+    "GET",
+    `/admin/delivery-parties/${driver.id}/custody`,
+  );
   expect(custody.cash.amount).toBeGreaterThan(0);
   await page.goto(`/delivery-parties/${driver.id}?per_page=50`);
   await expect(rows).toHaveCount(22);
-  await expect(rows.last().getByTestId("statement-event")).toHaveAttribute("data-event", "custody_to_sold");
+  await expect(rows.last().getByTestId("statement-event")).toHaveAttribute(
+    "data-event",
+    "custody_to_sold",
+  );
   await expect(rows.last().getByTestId("statement-running")).toHaveText("0");
   await expect(page.getByTestId("custody-empty")).toBeVisible();
-  await expect(page.getByTestId("custody-cash-amount")).toContainText(new Intl.NumberFormat("en-US").format(custody.cash.amount));
+  await expect(page.getByTestId("custody-cash-amount")).toContainText(
+    new Intl.NumberFormat("en-US").format(custody.cash.amount),
+  );
   await expect(page.getByTestId("custody-cash-age")).not.toHaveText("—");
 });
 
-test("lot cost and values are hidden from a user without cost.view", async ({ page, request }) => {
-  const viewer = await activateStaff(request, await createStaff(request, { permissionKeys: ["deliveries.manage"], prefix: "custody" }));
+test("lot cost and values are hidden from a user without cost.view", async ({
+  page,
+  request,
+}) => {
+  const viewer = await activateStaff(
+    request,
+    await createStaff(request, {
+      permissionKeys: ["deliveries.manage"],
+      prefix: "custody",
+    }),
+  );
   await uiLoginAsAdmin(page);
   await switchUser(page, viewer.username, viewer.password);
   await page.goto(`/delivery-parties/${state.driver!.id}`);
-  await expect(page.locator(`[data-testid="custody-line"][data-order="${state.orderNumber}"]`)).toHaveCount(1);
+  await expect(
+    page.locator(
+      `[data-testid="custody-line"][data-order="${state.orderNumber}"]`,
+    ),
+  ).toHaveCount(1);
   await expect(page.getByTestId("custody-line-cost")).toHaveCount(0);
   await expect(page.getByTestId("custody-goods-value")).toHaveCount(0);
   await expect(page.getByTestId("statement-running-value")).toHaveCount(0);
   // The API itself leaves the values out for this user.
-  const login = await request.post(`${API}/admin/auth/login`, { data: { username: viewer.username, password: viewer.password } });
+  const login = await request.post(`${API}/admin/auth/login`, {
+    data: { username: viewer.username, password: viewer.password },
+  });
   const token = (await login.json()).access_token as string;
-  const custody = await (await request.get(`${API}/admin/delivery-parties/${state.driver!.id}/custody`, { headers: bearer(token) })).json();
+  const custody = await (
+    await request.get(
+      `${API}/admin/delivery-parties/${state.driver!.id}/custody`,
+      { headers: bearer(token) },
+    )
+  ).json();
   expect(custody.goods.value_iqd).toBeUndefined();
   expect(custody.goods.lines[0].unit_cost_iqd).toBeUndefined();
 });

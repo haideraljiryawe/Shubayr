@@ -1672,3 +1672,6 @@ ON CONFLICT DO NOTHING;
 -- C3 permission dependencies, separation of duties and price approvals use
 -- the production migration as the single DDL source.
 \ir ../../backend/prisma/migrations/20261003140000_permission_sod_price_approvals/migration.sql
+
+-- Task D1 delivery pricing uses the production migration as its single DDL source.
+\ir ../../backend/prisma/migrations/20261012180000_delivery_zones_tier_discounts/migration.sql

@@ -276,7 +276,7 @@ export class CartService {
 
   private async toResponse(cart: CartRow) {
     const at = new Date();
-    const [items, deliveryFeeSetting] = await Promise.all([
+    const [items, tiers, stackingSetting] = await Promise.all([
       Promise.all(
         cart.items.map(async (item) => {
           const currentUnitPrice = skuUnitPrice(item.product, item.variant, at);
@@ -320,7 +320,13 @@ export class CartService {
           };
         }),
       ),
-      this.prisma.storeSetting.findUnique({ where: { key: 'delivery_fee' } }),
+      this.prisma.discountTier.findMany({
+        where: { is_active: true },
+        orderBy: [{ min_subtotal_iqd: 'asc' }, { id: 'asc' }],
+      }),
+      this.prisma.storeSetting.findUnique({
+        where: { key: 'discount_tier_coupon_stacking_enabled' },
+      }),
     ]);
     const coupon = activeCoupon(cart.coupon, at) ? cart.coupon : null;
     return {
@@ -335,7 +341,9 @@ export class CartService {
         })),
         coupon,
         at,
-        deliveryFeeSetting?.value ?? 0,
+        0,
+        tiers,
+        stackingSetting?.value === 'true',
       ),
     };
   }

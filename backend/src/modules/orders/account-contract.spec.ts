@@ -12,6 +12,7 @@ describe('account contract DTOs', () => {
     );
 
     const valid = plainToInstance(AddressCreateDto, {
+      governorate_id: '11111111-1111-4111-8111-111111111111',
       city: 'Baghdad',
       contact_phone: '+9647800000000',
     });

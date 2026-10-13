@@ -25,6 +25,47 @@ model StoreSetting {
   @@map("store_settings")
 }
 
+model DeliveryZone {
+  id           String        @id(map: "delivery_zones_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name_ar      String        @db.VarChar(120)
+  name_en      String        @db.VarChar(120)
+  fee_iqd      Decimal       @db.Decimal(20, 6)
+  is_active    Boolean       @default(true)
+  created_at   DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime      @default(now()) @db.Timestamptz(6)
+  governorates Governorate[]
+
+  @@map("delivery_zones")
+}
+
+model Governorate {
+  id               String        @id(map: "governorates_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code             String        @unique(map: "governorates_code_key") @db.VarChar(32)
+  name_ar          String        @db.VarChar(120)
+  name_en          String        @db.VarChar(120)
+  is_active        Boolean       @default(true)
+  delivery_zone_id String?       @db.Uuid
+  created_at       DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime      @default(now()) @db.Timestamptz(6)
+  delivery_zone    DeliveryZone? @relation(fields: [delivery_zone_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "governorates_delivery_zone_id_fkey")
+  addresses        Address[]
+
+  @@index([delivery_zone_id], map: "idx_governorates_delivery_zone")
+  @@map("governorates")
+}
+
+model DiscountTier {
+  id               String   @id(map: "discount_tiers_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  min_subtotal_iqd Decimal  @unique(map: "discount_tiers_min_subtotal_key") @db.Decimal(20, 6)
+  percent          Decimal  @db.Decimal(5, 2)
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  orders           Order[]
+
+  @@map("discount_tiers")
+}
+
 model Currency {
   code               String           @id(map: "currencies_pkey") @db.Char(3)
   name_ar            String           @db.VarChar(120)
@@ -349,6 +390,7 @@ model User {
   permission_grants                    UserPermissionGrant[]           @relation("UserAccessGrants")
   assigned_permission_grants           UserPermissionGrant[]           @relation("UserAccessGrantActors")
   addresses                            Address[]
+  adjusted_delivery_fees               Order[]                         @relation("OrderDeliveryFeeAdjuster")
   purchase_invoices                    PurchaseInvoice[]               @relation("PurchaseInvoiceCreatedBy")
   stock_movements                      StockMovement[]                 @relation("StockMovementUser")
   inventory_openings                   InventoryOpening[]              @relation("InventoryOpeningCreator")
@@ -537,21 +579,24 @@ model MediaObject {
 }
 
 model Address {
-  id            String   @id(map: "addresses_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id       String   @db.Uuid
-  label         String?  @db.VarChar(80)
-  city          String   @db.VarChar(80)
-  area          String?  @db.VarChar(120)
-  street        String?  @db.VarChar(160)
-  details       String?  @db.Text
-  contact_phone String   @db.VarChar(32)
-  lat           Float?   @db.DoublePrecision
-  lng           Float?   @db.DoublePrecision
-  is_default    Boolean  @default(false)
-  created_at    DateTime @default(now()) @db.Timestamptz(6)
-  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "addresses_user_id_fkey")
-  orders        Order[]
+  id             String       @id(map: "addresses_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String       @db.Uuid
+  governorate_id String?      @db.Uuid
+  label          String?      @db.VarChar(80)
+  city           String       @db.VarChar(80)
+  area           String?      @db.VarChar(120)
+  street         String?      @db.VarChar(160)
+  details        String?      @db.Text
+  contact_phone  String       @db.VarChar(32)
+  lat            Float?       @db.DoublePrecision
+  lng            Float?       @db.DoublePrecision
+  is_default     Boolean      @default(false)
+  created_at     DateTime     @default(now()) @db.Timestamptz(6)
+  user           User         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "addresses_user_id_fkey")
+  governorate    Governorate? @relation(fields: [governorate_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "addresses_governorate_id_fkey")
+  orders         Order[]
 
+  @@index([governorate_id], map: "idx_addresses_governorate")
   @@map("addresses")
 }
 
@@ -1429,65 +1474,86 @@ model Coupon {
 }
 
 model Order {
-  id                           String                    @id(map: "orders_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                      String                    @db.Uuid
-  address_id                   String?                   @db.Uuid
-  delivery_id                  String?                   @unique(map: "orders_delivery_id_key") @db.Uuid
-  coupon_id                    String?                   @db.Uuid
-  order_number                 String                    @unique(map: "orders_order_number_key") @db.VarChar(40)
-  idempotency_key              String?                   @db.VarChar(128)
-  idempotency_fingerprint      String?                   @db.VarChar(64)
-  status                       String                    @default("pending") @db.VarChar(30)
-  version                      Int                       @default(1)
-  payment_method               String                    @default("cod") @db.VarChar(20)
-  subtotal                     Decimal                   @default(0) @db.Decimal(20, 6)
-  delivery_fee                 Decimal                   @default(0) @db.Decimal(20, 6)
-  discount                     Decimal                   @default(0) @db.Decimal(20, 6)
-  total                        Decimal                   @default(0) @db.Decimal(20, 6)
-  currency_code                String                    @default("IQD") @db.Char(3)
-  document_date                DateTime                  @db.Date
-  accounting_date              DateTime                  @db.Date
-  delivery_contact_phone       String                    @db.VarChar(32)
-  delivery_address_label       String?                   @db.VarChar(80)
-  delivery_city                String                    @db.VarChar(80)
-  delivery_area                String?                   @db.VarChar(120)
-  delivery_street              String?                   @db.VarChar(160)
-  delivery_details             String?                   @db.Text
-  delivery_lat                 Float?                    @db.DoublePrecision
-  delivery_lng                 Float?                    @db.DoublePrecision
-  placed_at                    DateTime                  @default(now()) @db.Timestamptz(6)
-  acceptance_deadline          DateTime?                 @db.Timestamptz(6)
-  auto_cancel_deadline         DateTime?                 @db.Timestamptz(6)
-  late_for_acceptance          Boolean                   @default(false)
-  acceptance_alerted_at        DateTime?                 @db.Timestamptz(6)
-  cancellation_request_status  String?                   @db.VarChar(20)
-  cancellation_request_reason  String?                   @db.VarChar(500)
-  cancellation_requested_at    DateTime?                 @db.Timestamptz(6)
-  cancellation_resolved_at     DateTime?                 @db.Timestamptz(6)
-  cancellation_resolved_by     String?                   @db.Uuid
-  cancellation_resolution_note String?                   @db.VarChar(500)
-  price_change_info            Json?                     @db.JsonB
-  attention_details            Json?                     @db.JsonB
-  inventory_attention_required Boolean                   @default(false)
-  user                         User                      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_user_id_fkey")
-  address                      Address?                  @relation(fields: [address_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_address_id_fkey")
-  delivery                     Delivery?                 @relation("OrderCurrentDelivery", fields: [delivery_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_delivery_id_fkey")
-  coupon                       Coupon?                   @relation(fields: [coupon_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_coupon_id_fkey")
-  items                        OrderItem[]
-  payments                     Payment[]
-  stock_reservations           StockReservation[]
-  pick_lists                   PickList[]
-  deliveries                   Delivery[]                @relation("OrderDeliveryHistory")
-  delivery_collection          DeliveryCollection?
-  returns                      Return[]
-  refund_ledger_entries        RefundLedgerEntry[]
-  loyalty_ledger               LoyaltyLedger[]
-  status_events                OrderStatusEvent[]
-  custody_holdings             CustodyHolding[]
-  retrievals                   Retrieval[]
-  custody_exceptions           CustodyException[]
-  external_driver_trip_order   ExternalDriverTripOrder?
-  external_driver_trip_events  ExternalDriverTripEvent[]
+  id                                  String                    @id(map: "orders_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                             String                    @db.Uuid
+  address_id                          String?                   @db.Uuid
+  delivery_id                         String?                   @unique(map: "orders_delivery_id_key") @db.Uuid
+  coupon_id                           String?                   @db.Uuid
+  order_number                        String                    @unique(map: "orders_order_number_key") @db.VarChar(40)
+  idempotency_key                     String?                   @db.VarChar(128)
+  idempotency_fingerprint             String?                   @db.VarChar(64)
+  status                              String                    @default("pending") @db.VarChar(30)
+  version                             Int                       @default(1)
+  payment_method                      String                    @default("cod") @db.VarChar(20)
+  subtotal                            Decimal                   @default(0) @db.Decimal(20, 6)
+  delivery_fee                        Decimal                   @default(0) @db.Decimal(20, 6)
+  original_delivery_fee               Decimal                   @default(0) @db.Decimal(20, 6)
+  adjusted_delivery_fee               Decimal?                  @db.Decimal(20, 6)
+  delivery_fee_adjustment_reason      String?                   @db.VarChar(500)
+  delivery_fee_adjusted_by            String?                   @db.Uuid
+  delivery_fee_adjusted_at            DateTime?                 @db.Timestamptz(6)
+  discount                            Decimal                   @default(0) @db.Decimal(20, 6)
+  discount_source                     String                    @default("none") @db.VarChar(20)
+  coupon_discount                     Decimal                   @default(0) @db.Decimal(20, 6)
+  tier_discount                       Decimal                   @default(0) @db.Decimal(20, 6)
+  discount_tier_id                    String?                   @db.Uuid
+  discount_tier_min_subtotal          Decimal?                  @db.Decimal(20, 6)
+  discount_tier_percent               Decimal?                  @db.Decimal(5, 2)
+  next_discount_tier_min_subtotal     Decimal?                  @db.Decimal(20, 6)
+  next_discount_tier_percent          Decimal?                  @db.Decimal(5, 2)
+  next_discount_tier_amount_remaining Decimal?                  @db.Decimal(20, 6)
+  total                               Decimal                   @default(0) @db.Decimal(20, 6)
+  currency_code                       String                    @default("IQD") @db.Char(3)
+  document_date                       DateTime                  @db.Date
+  accounting_date                     DateTime                  @db.Date
+  delivery_contact_phone              String                    @db.VarChar(32)
+  delivery_governorate_code           String?                   @db.VarChar(32)
+  delivery_governorate_name_ar        String?                   @db.VarChar(120)
+  delivery_governorate_name_en        String?                   @db.VarChar(120)
+  delivery_address_label              String?                   @db.VarChar(80)
+  delivery_city                       String                    @db.VarChar(80)
+  delivery_area                       String?                   @db.VarChar(120)
+  delivery_street                     String?                   @db.VarChar(160)
+  delivery_details                    String?                   @db.Text
+  delivery_lat                        Float?                    @db.DoublePrecision
+  delivery_lng                        Float?                    @db.DoublePrecision
+  customer_contacted                  Boolean                   @default(false)
+  customer_contact_note               String?                   @db.VarChar(500)
+  placed_at                           DateTime                  @default(now()) @db.Timestamptz(6)
+  acceptance_deadline                 DateTime?                 @db.Timestamptz(6)
+  auto_cancel_deadline                DateTime?                 @db.Timestamptz(6)
+  late_for_acceptance                 Boolean                   @default(false)
+  acceptance_alerted_at               DateTime?                 @db.Timestamptz(6)
+  cancellation_request_status         String?                   @db.VarChar(20)
+  cancellation_request_reason         String?                   @db.VarChar(500)
+  cancellation_requested_at           DateTime?                 @db.Timestamptz(6)
+  cancellation_resolved_at            DateTime?                 @db.Timestamptz(6)
+  cancellation_resolved_by            String?                   @db.Uuid
+  cancellation_resolution_note        String?                   @db.VarChar(500)
+  price_change_info                   Json?                     @db.JsonB
+  attention_details                   Json?                     @db.JsonB
+  inventory_attention_required        Boolean                   @default(false)
+  user                                User                      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_user_id_fkey")
+  address                             Address?                  @relation(fields: [address_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_address_id_fkey")
+  delivery                            Delivery?                 @relation("OrderCurrentDelivery", fields: [delivery_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_delivery_id_fkey")
+  coupon                              Coupon?                   @relation(fields: [coupon_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_coupon_id_fkey")
+  discount_tier                       DiscountTier?             @relation(fields: [discount_tier_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "orders_discount_tier_id_fkey")
+  delivery_fee_adjuster               User?                     @relation("OrderDeliveryFeeAdjuster", fields: [delivery_fee_adjusted_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_delivery_fee_adjusted_by_fkey")
+  items                               OrderItem[]
+  payments                            Payment[]
+  stock_reservations                  StockReservation[]
+  pick_lists                          PickList[]
+  deliveries                          Delivery[]                @relation("OrderDeliveryHistory")
+  delivery_collection                 DeliveryCollection?
+  returns                             Return[]
+  refund_ledger_entries               RefundLedgerEntry[]
+  loyalty_ledger                      LoyaltyLedger[]
+  status_events                       OrderStatusEvent[]
+  custody_holdings                    CustodyHolding[]
+  retrievals                          Retrieval[]
+  custody_exceptions                  CustodyException[]
+  external_driver_trip_order          ExternalDriverTripOrder?
+  external_driver_trip_events         ExternalDriverTripEvent[]
 
   @@unique([user_id, idempotency_key], map: "orders_user_id_idempotency_key_key")
   @@index([user_id], map: "idx_orders_user")
@@ -1511,6 +1577,8 @@ model OrderItem {
   quantity                Decimal                @db.Decimal(20, 3)
   unit_price              Decimal                @db.Decimal(20, 6)
   line_total              Decimal                @db.Decimal(20, 6)
+  discount_share          Decimal                @default(0) @db.Decimal(20, 6)
+  net_line_total          Decimal                @default(0) @db.Decimal(20, 6)
   currency_code           String                 @default("IQD") @db.Char(3)
   base_unit               String                 @default("piece") @db.VarChar(32)
   whole_units_only        Boolean                @default(true)
@@ -2245,6 +2313,8 @@ model ReturnItem {
   approved_quantity Decimal         @default(0) @db.Decimal(20, 3)
   customer_reason   String          @db.Text
   unit_price        Decimal         @db.Decimal(20, 6)
+  discount_share    Decimal         @default(0) @db.Decimal(20, 6)
+  net_amount        Decimal         @default(0) @db.Decimal(20, 6)
   currency_code     String          @default("IQD") @db.Char(3)
   base_unit         String          @default("piece") @db.VarChar(32)
   whole_units_only  Boolean         @default(true)

@@ -127,6 +127,11 @@ try {
 
   const deletablePhone = '+9647700088802';
   const deletable = await login(deletablePhone);
+  const baghdadGovernorate = (await request('/governorates')).find(
+    (entry) => entry.code === 'baghdad',
+  );
+  assert.ok(baghdadGovernorate, 'Baghdad governorate must be seeded');
+  assertions += 1;
   await request('/me', {
     token: deletable.access_token,
     method: 'PATCH',
@@ -138,6 +143,7 @@ try {
     expected: 201,
     body: {
       label: 'Private home',
+      governorate_id: baghdadGovernorate.id,
       city: 'Baghdad',
       details: 'Private notes',
       contact_phone: deletablePhone,
