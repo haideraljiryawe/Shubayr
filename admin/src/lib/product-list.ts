@@ -5,13 +5,8 @@ import type { Product } from "./catalog";
  * The product list for a large catalog: filters, bulk actions and paging,
  * kept pure so they are unit-tested.
  *
- * GET /admin/products filters by name, category and brand on the server.
- * It has no status or stock filter yet (listed for the backend in the PR
- * that added these screens), so when one of those is chosen the admin reads
- * the matching products page by page — up to READ_THROUGH_LIMIT of them —
- * filters them itself and pages the result. The screen says so when the
- * limit cut the list short. Once the API takes `status` and `availability`,
- * productQuery passes them on and the read-through goes away.
+ * GET /admin/products filters and pages in the database. These helpers keep
+ * URL filter parsing and bulk-action presentation deterministic.
  * ------------------------------------------------------------------------- */
 
 export type ProductPatch = components["schemas"]["ProductPatch"];
@@ -22,19 +17,10 @@ export type StatusFilter = (typeof STATUS_FILTERS)[number];
 export const STOCK_FILTERS = ["in_stock", "low_stock", "out_of_stock"] as const;
 export type StockFilter = (typeof STOCK_FILTERS)[number];
 
-/**
- * The most products one filtered view reads through (pages of 100).
- *
- * TODO(D2): when the admin moves to D2's product-list endpoint (status and
- * stock filtered and paged by the API), delete this limit, the read-through in
- * src/app/(admin)/catalog/products/page.tsx, localFilters/matchesLocalFilters/
- * pageOf here, and the "products-truncated" notice.
- */
-export const READ_THROUGH_LIMIT = 2000;
-
 export interface LocalFilters {
   status: StatusFilter | null;
   stock: StockFilter | null;
+  image: "with" | "without" | null;
 }
 
 export function localFilters(filters: Record<string, string>): LocalFilters {
@@ -44,17 +30,22 @@ export function localFilters(filters: Record<string, string>): LocalFilters {
   const stock = (STOCK_FILTERS as readonly string[]).includes(filters.stock ?? "")
     ? (filters.stock as StockFilter)
     : null;
-  return { status, stock };
+  const image = ["with", "without"].includes(filters.image ?? "")
+    ? (filters.image as "with" | "without")
+    : null;
+  return { status, stock, image };
 }
 
 export function hasLocalFilters(filters: LocalFilters): boolean {
-  return filters.status !== null || filters.stock !== null;
+  return filters.status !== null || filters.stock !== null || filters.image !== null;
 }
 
 /** Whether a product passes the status and stock filters. */
 export function matchesLocalFilters(product: Product, filters: LocalFilters): boolean {
   if (filters.status && (product.status ?? "hidden") !== filters.status) return false;
   if (filters.stock && (product.availability ?? "out_of_stock") !== filters.stock) return false;
+  if (filters.image === "with" && !(product.images?.length)) return false;
+  if (filters.image === "without" && product.images?.length) return false;
   return true;
 }
 

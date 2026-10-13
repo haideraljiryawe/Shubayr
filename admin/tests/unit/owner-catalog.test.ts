@@ -274,16 +274,17 @@ const product = (patch: Partial<Product>): Product => ({
 
 describe("product list filters and bulk actions", () => {
   it("reads only known status and stock filters", () => {
-    expect(localFilters({ status: "active", stock: "low_stock" })).toEqual({ status: "active", stock: "low_stock" });
-    expect(localFilters({ status: "draft", stock: "plenty" })).toEqual({ status: null, stock: null });
+    expect(localFilters({ status: "active", stock: "low_stock", image: "with" })).toEqual({ status: "active", stock: "low_stock", image: "with" });
+    expect(localFilters({ status: "draft", stock: "plenty", image: "maybe" })).toEqual({ status: null, stock: null, image: null });
   });
 
   it("matches status and stock", () => {
-    const filters = { status: "active" as const, stock: "in_stock" as const };
+    const filters = { status: "active" as const, stock: "in_stock" as const, image: null };
     expect(matchesLocalFilters(product({ status: "active", availability: "in_stock" }), filters)).toBe(true);
     expect(matchesLocalFilters(product({ status: "hidden", availability: "in_stock" }), filters)).toBe(false);
     expect(matchesLocalFilters(product({ status: "active", availability: "low_stock" }), filters)).toBe(false);
-    expect(matchesLocalFilters(product({}), { status: null, stock: null })).toBe(true);
+    expect(matchesLocalFilters(product({}), { status: null, stock: null, image: null })).toBe(true);
+    expect(matchesLocalFilters(product({ images: [] }), { status: null, stock: null, image: "without" })).toBe(true);
   });
 
   it("pages a filtered list and clamps past the end", () => {

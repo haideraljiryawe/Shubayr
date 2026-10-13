@@ -70,8 +70,23 @@ export class ProductQueryDto {
   on_sale?: boolean;
 
   @IsOptional()
-  @IsIn(['newest', 'price_asc', 'price_desc', 'rating'])
-  sort?: 'newest' | 'price_asc' | 'price_desc' | 'rating';
+  @IsIn([
+    'newest',
+    'price_asc',
+    'price_desc',
+    'rating',
+    'name_asc',
+    'name_desc',
+    'sku_asc',
+  ])
+  sort?:
+    | 'newest'
+    | 'price_asc'
+    | 'price_desc'
+    | 'rating'
+    | 'name_asc'
+    | 'name_desc'
+    | 'sku_asc';
 
   @IsOptional()
   @Type(() => Number)
@@ -85,4 +100,35 @@ export class ProductQueryDto {
   @Min(1)
   @Max(100)
   per_page?: number;
+}
+
+export class AdminProductQueryDto extends ProductQueryDto {
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value)
+      ? value
+      : typeof value === 'string'
+        ? value.split(',').filter(Boolean)
+        : value,
+  )
+  @IsArray()
+  @IsIn(['active', 'hidden', 'archived'], { each: true })
+  status?: Array<'active' | 'hidden' | 'archived'>;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value)
+      ? value
+      : typeof value === 'string'
+        ? value.split(',').filter(Boolean)
+        : value,
+  )
+  @IsArray()
+  @IsIn(['in_stock', 'low_stock', 'out_of_stock'], { each: true })
+  availability?: Array<'in_stock' | 'low_stock' | 'out_of_stock'>;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  has_image?: boolean;
 }

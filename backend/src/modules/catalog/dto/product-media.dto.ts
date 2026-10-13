@@ -39,6 +39,11 @@ export class ProductVariantInputDto {
   sku!: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  barcode?: string | null;
+
+  @IsOptional()
   @IsObject()
   attributes?: Record<string, unknown>;
 

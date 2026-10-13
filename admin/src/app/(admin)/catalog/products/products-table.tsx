@@ -15,7 +15,6 @@ import { availabilityTone } from "@/lib/inventory";
 import {
   STATUS_FILTERS,
   STOCK_FILTERS,
-  bulkPatch,
   bulkTargets,
   primaryImage,
   type BulkAction,
@@ -31,8 +30,8 @@ export function priceText(value: number | null | undefined, currency: string, lo
  * Every product, a page at a time from the server, searched and filtered by
  * category, brand, status and stock. Rows can be selected (this page) for a
  * bulk change — publish, hide, move to a subcategory, change brand — applied
- * product by product with progress; one that the API refuses (publishing
- * without an approved price, say) is reported by name and stays selected.
+ * in one idempotent transaction. A row the API refuses (publishing without an
+ * approved price, say) is reported by name and stays selected.
  */
 export function ProductsTable({
   rows,
@@ -76,28 +75,48 @@ export function ProductsTable({
 
   async function apply(action: BulkAction) {
     const targets = bulkTargets(chosen, action);
-    const failed: BulkOutcome["failed"] = [];
     setOutcome(null);
     setRunning({ done: 0, total: targets.length });
-    const body = bulkPatch(action);
-    // One at a time: each is its own audited change, and the API's rate limit
-    // is shared with the rest of the screen.
-    for (const [index, product] of targets.entries()) {
-      try {
-        await unwrap(browserApi.PATCH("/admin/products/{id}", { params: { path: { id: product.id ?? "" } }, body }));
-      } catch (cause) {
-        failed.push({
-          id: product.id ?? "",
-          name: nameOf(product),
-          message: cause instanceof ApiError ? cause.message : t("bulk.failedUnknown"),
-        });
-      }
-      setRunning({ done: index + 1, total: targets.length });
+    if (targets.length === 0) {
+      setRunning(null);
+      setOutcome({ done: 0, failed: [] });
+      return;
     }
-    setRunning(null);
-    setOutcome({ done: targets.length - failed.length, failed });
-    setSelected(new Set(failed.map((item) => item.id)));
-    router.refresh();
+    const common = {
+      operation_id: crypto.randomUUID(),
+      ids: targets.map((product) => product.id ?? ""),
+    };
+    const body =
+      action.kind === "category"
+        ? { ...common, action: "set_category" as const, category_id: action.categoryId }
+        : action.kind === "brand"
+          ? { ...common, action: "set_brand" as const, brand_id: action.brandId }
+          : { ...common, action: action.kind as "publish" | "hide" };
+    try {
+      const result = await unwrap(browserApi.POST("/admin/products/bulk", { body }));
+      const byId = new Map(targets.map((product) => [product.id ?? "", product]));
+      const failed = result.results.flatMap((item) => {
+        if (item.status !== "error") return [];
+        const product = byId.get(item.id);
+        return [{
+          id: item.id,
+          name: product ? nameOf(product) : item.id,
+          message: item.message ?? item.code ?? t("bulk.failedUnknown"),
+        }];
+      });
+      setRunning(null);
+      setOutcome({ done: result.results.length - failed.length, failed });
+      setSelected(new Set(failed.map((item) => item.id)));
+      router.refresh();
+    } catch (cause) {
+      const failed = targets.map((product) => ({
+        id: product.id ?? "",
+        name: nameOf(product),
+        message: cause instanceof ApiError ? cause.message : t("bulk.failedUnknown"),
+      }));
+      setRunning(null);
+      setOutcome({ done: 0, failed });
+    }
   }
 
   const selectColumn: Column<Product> = {
@@ -395,6 +414,15 @@ export function ProductsTable({
               options={[
                 { value: "", label: t("filters.allStock") },
                 ...STOCK_FILTERS.map((value) => ({ value, label: t(`filters.stock.${value}`) })),
+              ]}
+            />
+            <TableFilter
+              name="image"
+              label={t("filters.image.label")}
+              options={[
+                { value: "", label: t("filters.image.all") },
+                { value: "with", label: t("filters.image.with") },
+                { value: "without", label: t("filters.image.without") },
               ]}
             />
           </>
