@@ -50,7 +50,7 @@ import {
 import type { components } from "@/types/api";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { isNavActive, visibleNav, type NavKey } from "@/lib/nav";
+import { activeNavKey, visibleNav, type NavKey } from "@/lib/nav";
 import type { ModuleKey } from "@/lib/modules";
 import { NotificationBell } from "@/components/inbox/notification-bell";
 import { LocaleSwitch } from "./locale-switch";
@@ -206,13 +206,14 @@ export function AdminShell({
   }
 
   const items = visibleNav(user.permissions, undefined, modules);
+  const current = activeNavKey(items, pathname);
 
   const nav = (
     <nav aria-label={t("label")} data-testid="sidebar-nav">
       <ul className="flex flex-col gap-1">
         {items.map((item) => {
           const Icon = ICONS[item.key];
-          const active = isNavActive(item, pathname);
+          const active = item.key === current;
           return (
             <li key={item.key}>
               <Link

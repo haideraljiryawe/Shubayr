@@ -116,3 +116,16 @@ export function isNavActive(item: NavItem, pathname: string): boolean {
   if (item.href === "/") return pathname === "/";
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
+
+/**
+ * The one entry to highlight: the most specific match. Nested entries share a
+ * prefix (/settings and /settings/delivery-zones), and only the deeper one is
+ * the page the person is on.
+ */
+export function activeNavKey(items: readonly NavItem[], pathname: string): NavKey | null {
+  return (
+    items
+      .filter((item) => isNavActive(item, pathname))
+      .sort((a, b) => b.href.length - a.href.length)[0]?.key ?? null
+  );
+}
