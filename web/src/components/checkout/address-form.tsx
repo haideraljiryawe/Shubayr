@@ -7,8 +7,9 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Info } from "lucide-react";
+import { governorateName } from "@/lib/delivery";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, fieldErrorId } from "@/components/ui/field";
@@ -129,6 +130,7 @@ export function AddressForm({
   children?: ReactNode;
 }) {
   const t = useTranslations("checkout");
+  const locale = useLocale();
   const ids = useId();
   const [errors, setErrors] = useState<DeliveryErrors>({});
   const [submitted, setSubmitted] = useState(false);
@@ -152,6 +154,12 @@ export function AddressForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const found = validateDelivery(values, t);
+    // A governorate no active zone serves cannot be ordered to: said here,
+    // with the name, rather than by a refused order at the very end.
+    const chosen = governorates.find((governorate) => governorate.id === values.governorate_id);
+    if (!found.governorate_id && chosen && !chosen.is_served) {
+      found.governorate_id = t("governorateUnserved", { name: governorateName(chosen, locale) });
+    }
     setErrors(found);
     setSubmitted(true);
 
@@ -241,7 +249,8 @@ export function AddressForm({
             >
               {governorates.map((governorate) => (
                 <option key={governorate.id} value={governorate.id}>
-                  {governorate.name_ar} / {governorate.name_en}
+                  {governorateName(governorate, locale)}
+                  {governorate.is_served ? "" : ` — ${t("governorateNotServedYet")}`}
                 </option>
               ))}
             </Select>

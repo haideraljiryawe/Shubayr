@@ -34,6 +34,8 @@ export type NavKey =
   | "periods"
   | "ledger"
   | "settings"
+  | "deliveryZones"
+  | "discountTiers"
   | "staff"
   | "presets"
   | "workPhones"
@@ -64,6 +66,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "writeDowns", href: "/inventory/write-downs", requires: ["inventory.view"] },
   { key: "orders", href: "/orders", requires: ["orders.view"] },
   { key: "settings", href: "/settings", requires: ["settings.manage"] },
+  // Delivery pricing (API 15.0): zones and governorates, automatic discounts.
+  { key: "deliveryZones", href: "/settings/delivery-zones", requires: ["delivery_zones.manage"] },
+  { key: "discountTiers", href: "/settings/discounts", requires: ["discount_tiers.manage"] },
   { key: "staff", href: "/staff", requires: ["users.manage"] },
   { key: "presets", href: "/presets", requires: ["roles.manage"] },
   { key: "workPhones", href: "/work-phones", requires: ["users.manage"] },

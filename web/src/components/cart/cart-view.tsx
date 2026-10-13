@@ -13,6 +13,7 @@ import { CartRow } from "./cart-row";
 import { CouponForm } from "./coupon-form";
 import { EmptyCart } from "./empty-cart";
 import { OrderSummary } from "./order-summary";
+import { TierProgress } from "./tier-progress";
 
 /** Placeholder rows while localStorage is read — never an empty cart first. */
 function CartSkeleton() {
@@ -43,7 +44,7 @@ function CartSkeleton() {
 export function CartView() {
   const t = useTranslations("cart");
   const showToast = useToast();
-  const { lines, totals, hydrated, isServerBacked, couponCode } = useCart();
+  const { lines, totals, hydrated, isServerBacked, couponCode, tiers } = useCart();
 
   // Checkout refuses the whole order while any line is unavailable, so the
   // cart says which ones and holds the CTA rather than letting the shopper
@@ -145,6 +146,7 @@ export function CartView() {
 
           {/* Sticky on desktop so the totals stay beside a long basket. */}
           <div className="flex flex-col gap-3 lg:sticky lg:top-24">
+            <TierProgress progress={tiers} />
             <OrderSummary
               totals={totals}
               couponCode={couponCode ?? undefined}

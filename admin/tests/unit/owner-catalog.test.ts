@@ -102,6 +102,8 @@ describe("admin modules (ADMIN_MODULES)", () => {
       "writeDowns",
       "orders",
       "settings",
+      "deliveryZones",
+      "discountTiers",
       "staff",
       "presets",
       "workPhones",

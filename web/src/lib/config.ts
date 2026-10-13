@@ -8,22 +8,8 @@
  * here, and they move to /settings the moment it grows one.
  * ------------------------------------------------------------------------- */
 
-function envNumber(raw: string | undefined, fallback: number): number {
-  const parsed = Number(raw);
-  return raw !== undefined && Number.isFinite(parsed) && parsed >= 0
-    ? parsed
-    : fallback;
-}
-
-/**
- * Flat delivery fee added to every order, matching the mockup's «رسوم التوصيل»
- * line. StoreSettings has no delivery_fee field yet; when it does, read it from
- * the theme and delete this.
- */
-export const DELIVERY_FEE = envNumber(
-  process.env.NEXT_PUBLIC_DELIVERY_FEE,
-  5,
-);
+// The delivery fee is no longer a setting here: it is the fee of the zone
+// serving the order's governorate (API 15.0, src/lib/delivery.ts).
 
 /**
  * The store's timezone. GET /monitor/orders reads `date_from`/`date_to` as

@@ -12,9 +12,11 @@ import {
   Truck,
   User,
 } from "lucide-react";
-import { Alert, Badge, Button, Card, Input, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Textarea } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
+import { NumberInput } from "@/components/forms/number-input";
+import { totalWithFee } from "@/lib/delivery-pricing";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
 import {
@@ -104,7 +106,8 @@ export function OrderDetailView({
   const [pending, setPending] = useState<OrderAction | null>(null);
   const [customerContacted, setCustomerContacted] = useState(false);
   const [customerContactNote, setCustomerContactNote] = useState("");
-  const [adjustedDeliveryFee, setAdjustedDeliveryFee] = useState("");
+  /** A new delivery fee agreed on the call (orders.adjust_delivery_fee); null keeps it. */
+  const [adjustedDeliveryFee, setAdjustedDeliveryFee] = useState<number | null>(null);
   const [deliveryFeeAdjustmentReason, setDeliveryFeeAdjustmentReason] =
     useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -132,10 +135,10 @@ export function OrderDetailView({
     return {
       customer_contacted: customerContacted,
       customer_contact_note: customerContactNote.trim(),
-      ...(adjustedDeliveryFee === ""
+      ...(adjustedDeliveryFee === null
         ? {}
         : {
-            adjusted_delivery_fee: Number(adjustedDeliveryFee),
+            adjusted_delivery_fee: adjustedDeliveryFee,
             delivery_fee_adjustment_reason: deliveryFeeAdjustmentReason.trim(),
           }),
     };
@@ -454,7 +457,7 @@ export function OrderDetailView({
                     if (action === "accept") {
                       setCustomerContacted(false);
                       setCustomerContactNote("");
-                      setAdjustedDeliveryFee("");
+                      setAdjustedDeliveryFee(null);
                       setDeliveryFeeAdjustmentReason("");
                     }
                     if (action === "deliver") {
@@ -773,18 +776,35 @@ export function OrderDetailView({
                   })}
                   name="adjusted_delivery_fee"
                 >
-                  <Input
-                    type="number"
-                    min={0}
-                    step={1}
+                  <NumberInput
                     value={adjustedDeliveryFee}
-                    onChange={(event) =>
-                      setAdjustedDeliveryFee(event.target.value)
-                    }
+                    parse={{ integer: true, min: 0 }}
+                    onValueChange={setAdjustedDeliveryFee}
                     data-testid="adjusted-delivery-fee"
                   />
                 </Field>
-                {adjustedDeliveryFee !== "" ? (
+                {adjustedDeliveryFee !== null ? (
+                  <div
+                    className="rounded-md bg-card px-4 py-3 text-sm"
+                    aria-live="polite"
+                    data-testid="delivery-fee-preview"
+                  >
+                    <p>
+                      {t("confirmation.feeChange")}{" "}
+                      <span dir="ltr" className="font-semibold" data-testid="delivery-fee-preview-change">
+                        {money(Number(order.delivery_fee ?? 0))} → {money(adjustedDeliveryFee)}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-base font-bold">
+                      {t("confirmation.newTotal")}{" "}
+                      <span dir="ltr" data-testid="delivery-fee-preview-total">
+                        {money(totalWithFee(order, adjustedDeliveryFee))}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-text-muted">{t("confirmation.customerNotified")}</p>
+                  </div>
+                ) : null}
+                {adjustedDeliveryFee !== null ? (
                   <Field
                     label={t("confirmation.adjustmentReason")}
                     name="delivery_fee_adjustment_reason"

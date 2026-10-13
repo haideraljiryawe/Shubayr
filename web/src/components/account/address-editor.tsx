@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
+import { governorateName } from "@/lib/delivery";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -141,6 +142,7 @@ export function AddressEditor({
   error: string | null;
 }) {
   const t = useTranslations("addresses");
+  const locale = useLocale();
   const ids = useId();
   const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [governorates, setGovernorates] = useState<Governorate[]>([]);
@@ -238,7 +240,8 @@ export function AddressEditor({
             >
               {governorates.map((governorate) => (
                 <option key={governorate.id} value={governorate.id}>
-                  {governorate.name_ar} / {governorate.name_en}
+                  {governorateName(governorate, locale)}
+                  {governorate.is_served ? "" : ` — ${t("governorateNotServedYet")}`}
                 </option>
               ))}
             </Select>

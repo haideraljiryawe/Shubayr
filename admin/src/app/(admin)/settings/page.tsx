@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
+import { SettingsTabs } from "@/components/settings/settings-tabs";
 import { load, serverApi } from "@/lib/api/server";
 import { SettingsForm, type SettingsAudit } from "./settings-form";
 
@@ -48,6 +49,7 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
+      <SettingsTabs active="store" permissions={permissions} />
       <SettingsForm
         settings={settings.data}
         baseCurrency={base?.code ?? settings.data.settings?.currency ?? "IQD"}
