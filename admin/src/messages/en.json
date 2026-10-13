@@ -36,7 +36,9 @@
     "deliveryParties": "Delivery parties",
     "cashReceipts": "Cash receipts",
     "trips": "Driver trips",
-    "custodyExceptions": "Custody exceptions"
+    "custodyExceptions": "Custody exceptions",
+    "deliveryZones": "Delivery zones",
+    "discountTiers": "Automatic discounts"
   },
   "auth": {
     "signIn": "Sign in",
@@ -181,7 +183,9 @@
       "deliveryParties": "Internal agents and external drivers, with the goods, cash and orders in their custody.",
       "cashReceipts": "Cash handed in by delivery parties, and the orders it settles.",
       "custodyExceptions": "Goods lost or damaged in custody, returns at the door and delivery-fee refunds.",
-      "trips": "External drivers' trips: handover, outcomes, fare and the cash to settle."
+      "trips": "External drivers' trips: handover, outcomes, fare and the cash to settle.",
+      "deliveryZones": "Delivery fees by governorate: zones, the governorates in each, and where you don't deliver yet.",
+      "discountTiers": "An automatic discount that grows with the order, such as 5% from 150,000 IQD."
     },
     "noSections": "Your current permissions don't open any sections yet.",
     "firstDay": {
@@ -951,7 +955,10 @@
       "contactNoteHint": "Briefly record what the customer confirmed.",
       "adjustedFee": "Adjusted delivery fee (IQD, optional)",
       "adjustedFeeHint": "Leave blank to keep the current fee of {amount}.",
-      "adjustmentReason": "Reason for changing the delivery fee"
+      "adjustmentReason": "Reason for changing the delivery fee",
+      "feeChange": "Delivery fee:",
+      "newTotal": "New order total:",
+      "customerNotified": "The customer is told the new total after confirmation."
     },
     "dispatchBlocked": {
       "noDelivery": "Can't hand over: this order has no delivery.",
@@ -3108,6 +3115,132 @@
       "upload": "The picture could not be uploaded. Check the connection and retry.",
       "forbidden": "You don't have permission to upload pictures.",
       "decode": "This picture could not be read. Try another one."
+    }
+  },
+  "settingsTabs": {
+    "label": "Settings sections",
+    "store": "Store settings",
+    "zones": "Delivery zones",
+    "governorates": "Governorates",
+    "discounts": "Automatic discounts"
+  },
+  "deliveryZones": {
+    "title": "Delivery zones",
+    "description": "Each zone has a delivery fee and a set of governorates. Customers pay their governorate's zone fee at checkout.",
+    "unservedTitle": "{count, plural, one {# governorate you don't deliver to} other {# governorates you don't deliver to}}",
+    "inInactiveZone": "zone inactive",
+    "unservedHint": "Customers there cannot check out until the governorate is in an active zone.",
+    "allServed": "Every active governorate is in an active delivery zone.",
+    "oneZoneRule": "A governorate belongs to one zone only.",
+    "new": "New zone",
+    "empty": "No delivery zones yet. Add a zone and choose its governorates.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "governorates": "Governorates",
+    "noGovernorates": "This zone has no governorates.",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "delete": "Delete",
+    "activated": "“{name}” activated",
+    "deactivated": "“{name}” deactivated: its governorates are not served until it is active again.",
+    "created": "“{name}” created",
+    "saved": "“{name}” saved",
+    "deleteTitle": "Delete “{name}”?",
+    "deleteBody": "The zone is deleted and its governorates are left without a zone — not served until another zone takes them. Past orders keep their fee.",
+    "deleted": "Zone deleted",
+    "editTitle": "Edit delivery zone",
+    "newTitle": "New delivery zone",
+    "save": "Save",
+    "create": "Create",
+    "errors": {
+      "nameAr": "Enter the zone's Arabic name.",
+      "fee": "Enter a whole-number fee of 0 or more."
+    },
+    "fields": {
+      "nameAr": "Arabic name",
+      "nameEn": "English name (optional)",
+      "nameEnHint": "Left empty, the Arabic name is used.",
+      "fee": "Delivery fee (IQD)",
+      "feeHint": "0 = free delivery for this zone.",
+      "active": "Active (deliver to its governorates)",
+      "governorates": "Governorates"
+    },
+    "selectedCount": "{count, plural, =0 {none selected} one {# governorate} other {# governorates}}",
+    "searchGovernorate": "Search governorates",
+    "governorateInactive": "inactive",
+    "inZone": "In zone: {zone}",
+    "inThisZone": "In this zone",
+    "noZoneYet": "No zone",
+    "conflictWarning": "Some chosen governorates belong to another zone:",
+    "conflictRefused": "Not saved: a governorate can belong to one zone only.",
+    "conflictItem": "{governorate} — in “{zone}”",
+    "conflictHint": "Remove them from that zone first, or unselect them here.",
+    "conflictRefusedStale": "Not saved: a governorate was just added to another zone. Refresh the page and try again."
+  },
+  "governorates": {
+    "title": "Governorates",
+    "description": "The 18 governorates and Halabja. Inactive ones are not offered in customers' addresses.",
+    "columns": {
+      "nameAr": "Arabic name",
+      "nameEn": "English name",
+      "zone": "Delivery zone",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "zoneInactive": "inactive",
+    "noZone": "No zone",
+    "active": "Active",
+    "inactive": "Inactive",
+    "edit": "Edit",
+    "saved": "“{name}” saved",
+    "editTitle": "Edit “{name}”",
+    "save": "Save",
+    "errors": {
+      "nameAr": "Enter the Arabic name.",
+      "nameEn": "Enter the English name."
+    },
+    "activeLabel": "Active (shown to customers)",
+    "activeHint": "An inactive governorate leaves the address forms; saved addresses stay as they are."
+  },
+  "discountTiers": {
+    "title": "Automatic discounts",
+    "description": "A percentage off that grows with the goods in the order. The highest tier an order reaches applies automatically, no coupon needed.",
+    "stackingOff": "Automatic discounts don't combine with coupons: a customer with a coupon gets whichever discount is larger.",
+    "stackingOn": "Automatic discounts currently combine with coupons (store setting).",
+    "noDeliveryFee": "The discount is on the goods only, never the delivery fee.",
+    "new": "New tier",
+    "empty": "No automatic discounts. Add a tier, such as 5% on orders from 150,000 IQD.",
+    "rowTitle": "From {minimum}: {percent}% off",
+    "active": "Active",
+    "inactive": "Inactive",
+    "example": "An order of {subtotal} gets {percent}% = {discount} off.",
+    "exampleEmpty": "Enter the minimum and the percent to see an example.",
+    "notBetter": "This tier is no better than a lower one, so nobody benefits from it.",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "delete": "Delete",
+    "created": "Tier added",
+    "saved": "Tier saved",
+    "deleteTitle": "Delete this tier?",
+    "deleteBody": "New orders stop getting it. Past orders keep their discount.",
+    "deleted": "Tier deleted",
+    "editTitle": "Edit discount tier",
+    "newTitle": "New discount tier",
+    "save": "Save",
+    "create": "Add",
+    "errors": {
+      "minimum": "Enter a whole-number minimum of 0 or more.",
+      "percent": "Enter a percent above 0 and up to 50, with at most two decimals.",
+      "thresholdTaken": "Another tier already uses this minimum."
+    },
+    "fields": {
+      "minimum": "Minimum goods value (IQD)",
+      "minimumHint": "Before the discount, without the delivery fee.",
+      "percent": "Discount (%)",
+      "percentHint": "Up to 50%.",
+      "active": "Active"
     }
   }
 }

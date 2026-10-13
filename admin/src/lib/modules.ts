@@ -49,6 +49,8 @@ export const NAV_MODULE: Record<Exclude<NavKey, "dashboard">, ModuleKey> = {
   writeDowns: "stock",
   orders: "orders",
   settings: "settings",
+  deliveryZones: "settings",
+  discountTiers: "settings",
   staff: "users",
   presets: "users",
   workPhones: "users",

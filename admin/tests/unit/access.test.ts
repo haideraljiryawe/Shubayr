@@ -87,6 +87,8 @@ describe("visibleNav", () => {
         "deliveries.manage",
         "trips.view",
         "custody_exceptions.view",
+        "delivery_zones.manage",
+        "discount_tiers.manage",
       ]),
     ).toHaveLength(NAV_ITEMS.length);
     expect(visibleNav(["deliveries.manage"]).map((item) => item.key)).toEqual([
