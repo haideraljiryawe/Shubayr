@@ -22,7 +22,14 @@ export type StatusFilter = (typeof STATUS_FILTERS)[number];
 export const STOCK_FILTERS = ["in_stock", "low_stock", "out_of_stock"] as const;
 export type StockFilter = (typeof STOCK_FILTERS)[number];
 
-/** The most products one filtered view reads through (pages of 100). */
+/**
+ * The most products one filtered view reads through (pages of 100).
+ *
+ * TODO(D2): when the admin moves to D2's product-list endpoint (status and
+ * stock filtered and paged by the API), delete this limit, the read-through in
+ * src/app/(admin)/catalog/products/page.tsx, localFilters/matchesLocalFilters/
+ * pageOf here, and the "products-truncated" notice.
+ */
 export const READ_THROUGH_LIMIT = 2000;
 
 export interface LocalFilters {

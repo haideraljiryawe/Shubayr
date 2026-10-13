@@ -2922,6 +2922,10 @@
     "events": {
       "handover": "Handed over",
       "started": "Trip started",
+      "delivered": "Order delivered",
+      "failed": "Delivery failed",
+      "return_at_door": "Returned at the door",
+      "lost": "Goods lost or damaged",
       "closed": "Trip closed"
     },
     "refusals": {

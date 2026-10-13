@@ -915,5 +915,12 @@
     "noAssigned": "Nothing assigned to you right now",
     "noParty": "Your account isn't set up for deliveries",
     "noPartyBody": "Ask the store to register your phone as a delivery agent."
+  },
+  "comingSoon": {
+    "title": "Opening soon",
+    "body": "We're getting the store ready for you. Come back soon to shop everything you need in one place.",
+    "otherLanguage": "العربية",
+    "previewBanner": "Store preview — not open to customers yet.",
+    "exitPreview": "End preview"
   }
 }

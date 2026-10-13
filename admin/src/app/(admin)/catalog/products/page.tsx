@@ -51,6 +51,8 @@ function productQuery(params: Params, page: number, perPage: number) {
  * Status and stock are not API filters yet: read the API's own (name,
  * category, brand) result through, 100 at a time, and keep the matches.
  */
+// TODO(D2): remove with the 2,000-product workaround once the list uses D2's
+// product-list endpoint (see READ_THROUGH_LIMIT in src/lib/product-list.ts).
 async function readThrough(
   api: Api,
   params: Params,

@@ -22,7 +22,7 @@ import { blockingOrders, closePreview, orderBlocker, shareTotals, TripEventKey, 
 import type { components } from "@/types/api";
 
 type AdminOrder = components["schemas"]["AdminOrder"];
-type Notice = { kind: "added" | "started" | "delivered" | "failed" | "closed"; number?: string };
+export type Notice = { kind: "added" | "started" | "delivered" | "failed" | "closed"; number?: string };
 
 const STATUS_TONES = { open: "info", in_progress: "warning", closed: "neutral" } as const;
 

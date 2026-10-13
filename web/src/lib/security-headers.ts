@@ -1,7 +1,7 @@
 /* ---------------------------------------------------------------------------
  * Security headers for the storefront.
  *
- * The Content-Security-Policy is built per request in the middleware, around
+ * The Content-Security-Policy is built per request in the proxy (src/proxy.ts), around
  * a fresh nonce: Next.js reads the nonce back from the request's CSP header
  * and puts it on every script it renders, so no inline script runs without
  * it ('strict-dynamic' then trusts what those scripts load). Styles keep
@@ -10,7 +10,7 @@
  * ------------------------------------------------------------------------- */
 
 export function newNonce(): string {
-  // Edge-safe: no Buffer in middleware.
+  // Edge-safe: no Buffer in the proxy.
   return btoa(crypto.randomUUID());
 }
 
