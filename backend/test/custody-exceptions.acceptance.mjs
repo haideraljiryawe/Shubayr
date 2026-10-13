@@ -209,8 +209,8 @@ async function custodyFixture(
     for (const [index, line] of lines.entries()) {
       await db.query(
         `INSERT INTO order_items
-          (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,currency_code)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'IQD')`,
+          (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,discount_share,net_line_total,currency_code)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,0,$9,'IQD')`,
         [
           line.itemId,
           orderId,

@@ -18,6 +18,17 @@ export type CartCoupon = {
   expires_at: Date | null;
 };
 
+export type AutomaticDiscountTier = {
+  id: string;
+  min_subtotal_iqd: Decimalish;
+  percent: Decimalish;
+};
+
+export type DiscountAllocationLine = {
+  key: string;
+  line_total: Decimalish;
+};
+
 export const MAX_CART_ITEM_QUANTITY = 99;
 export const CART_DELIVERY_FEE = 0;
 
@@ -100,6 +111,8 @@ export function calculateCartTotals(
   coupon: CartCoupon | null = null,
   at: Date = new Date(),
   deliveryFee: Decimalish = CART_DELIVERY_FEE,
+  tiers: readonly AutomaticDiscountTier[] = [],
+  stackCouponAndTier = false,
 ) {
   const subtotalMinor = lines.reduce(
     (sum, line) =>
@@ -108,18 +121,139 @@ export function calculateCartTotals(
     0n,
   );
   const subtotal = minorUnitsToMoney(subtotalMinor);
-  const discountMinor = activeCoupon(coupon, at)
+  const couponDiscountMinor = activeCoupon(coupon, at)
     ? coupon!.type === 'percentage'
       ? moneyToMinorUnits(calculatePercentageAmount(subtotal, coupon!.value))
       : moneyToMinorUnits(coupon!.value)
     : 0n;
+  const cappedCouponDiscount =
+    couponDiscountMinor > subtotalMinor ? subtotalMinor : couponDiscountMinor;
+  const qualifyingTiers = tiers
+    .filter((tier) => moneyToMinorUnits(tier.min_subtotal_iqd) <= subtotalMinor)
+    .sort((left, right) =>
+      moneyToMinorUnits(right.min_subtotal_iqd) ===
+      moneyToMinorUnits(left.min_subtotal_iqd)
+        ? left.id.localeCompare(right.id)
+        : moneyToMinorUnits(right.min_subtotal_iqd) >
+            moneyToMinorUnits(left.min_subtotal_iqd)
+          ? 1
+          : -1,
+    );
+  const candidateTier = qualifyingTiers[0] ?? null;
+  const candidateTierDiscount = candidateTier
+    ? moneyToMinorUnits(
+        calculatePercentageAmount(subtotal, candidateTier.percent),
+      )
+    : 0n;
+  const nextTier = tiers
+    .filter((tier) => moneyToMinorUnits(tier.min_subtotal_iqd) > subtotalMinor)
+    .sort((left, right) =>
+      moneyToMinorUnits(left.min_subtotal_iqd) ===
+      moneyToMinorUnits(right.min_subtotal_iqd)
+        ? left.id.localeCompare(right.id)
+        : moneyToMinorUnits(left.min_subtotal_iqd) >
+            moneyToMinorUnits(right.min_subtotal_iqd)
+          ? 1
+          : -1,
+    )[0];
+  const tierWins = candidateTierDiscount > cappedCouponDiscount;
+  const appliedTier =
+    candidateTier && (stackCouponAndTier || tierWins) ? candidateTier : null;
+  const appliedCouponDiscount =
+    stackCouponAndTier || !tierWins ? cappedCouponDiscount : 0n;
+  const appliedTierDiscount = appliedTier ? candidateTierDiscount : 0n;
+  const combinedDiscount = appliedCouponDiscount + appliedTierDiscount;
   const appliedDiscount =
-    discountMinor > subtotalMinor ? subtotalMinor : discountMinor;
+    combinedDiscount > subtotalMinor ? subtotalMinor : combinedDiscount;
   const deliveryMinor = moneyToMinorUnits(deliveryFee);
   return {
     subtotal,
     discount: minorUnitsToMoney(appliedDiscount),
+    coupon_discount: minorUnitsToMoney(
+      appliedCouponDiscount > appliedDiscount
+        ? appliedDiscount
+        : appliedCouponDiscount,
+    ),
+    tier_discount: minorUnitsToMoney(
+      appliedDiscount -
+        (appliedCouponDiscount > appliedDiscount
+          ? appliedDiscount
+          : appliedCouponDiscount),
+    ),
+    discount_source:
+      appliedCouponDiscount > 0n && appliedTierDiscount > 0n
+        ? ('stacked' as const)
+        : appliedTierDiscount > 0n
+          ? ('tier' as const)
+          : appliedCouponDiscount > 0n
+            ? ('coupon' as const)
+            : ('none' as const),
+    applied_tier: appliedTier
+      ? {
+          id: appliedTier.id,
+          min_subtotal: minorUnitsToMoney(
+            moneyToMinorUnits(appliedTier.min_subtotal_iqd),
+          ),
+          percent: Number(appliedTier.percent.toString()),
+        }
+      : null,
+    next_tier: nextTier
+      ? {
+          min_subtotal: minorUnitsToMoney(
+            moneyToMinorUnits(nextTier.min_subtotal_iqd),
+          ),
+          percent: Number(nextTier.percent.toString()),
+          amount_remaining: minorUnitsToMoney(
+            moneyToMinorUnits(nextTier.min_subtotal_iqd) - subtotalMinor,
+          ),
+        }
+      : null,
     delivery_fee: minorUnitsToMoney(deliveryMinor),
     total: minorUnitsToMoney(subtotalMinor - appliedDiscount + deliveryMinor),
   };
+}
+
+/** Allocates a whole-IQD order discount exactly across lines. */
+export function allocateDiscountLargestRemainder(
+  lines: readonly DiscountAllocationLine[],
+  discount: Decimalish,
+) {
+  const prepared = lines.map((line) => ({
+    ...line,
+    minor: moneyToMinorUnits(line.line_total),
+  }));
+  const subtotal = prepared.reduce((sum, line) => sum + line.minor, 0n);
+  const requested = moneyToMinorUnits(discount);
+  const applied = requested > subtotal ? subtotal : requested;
+  if (subtotal === 0n || applied === 0n) {
+    return prepared.map((line) => ({
+      key: line.key,
+      discount_share: 0,
+      net_line_total: minorUnitsToMoney(line.minor),
+    }));
+  }
+  const allocations = prepared.map((line) => {
+    const numerator = applied * line.minor;
+    return {
+      ...line,
+      share: numerator / subtotal,
+      remainder: numerator % subtotal,
+    };
+  });
+  let unitsLeft =
+    applied - allocations.reduce((sum, line) => sum + line.share, 0n);
+  for (const line of [...allocations].sort((left, right) => {
+    if (left.remainder === right.remainder)
+      return left.key.localeCompare(right.key);
+    return left.remainder > right.remainder ? -1 : 1;
+  })) {
+    if (unitsLeft === 0n) break;
+    line.share += 1n;
+    unitsLeft -= 1n;
+  }
+  return allocations.map((line) => ({
+    key: line.key,
+    discount_share: minorUnitsToMoney(line.share),
+    net_line_total: minorUnitsToMoney(line.minor - line.share),
+  }));
 }

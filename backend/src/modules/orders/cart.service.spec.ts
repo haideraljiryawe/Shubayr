@@ -158,6 +158,7 @@ describe('CartService', () => {
   it('keeps the seen price while exposing the current price for explicit acceptance', async () => {
     const prisma = {
       storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+      discountTier: { findMany: jest.fn().mockResolvedValue([]) },
       cart: {
         upsert: jest.fn().mockResolvedValue({ id: 'cart-1' }),
         findUnique: jest.fn().mockResolvedValue({
@@ -209,6 +210,11 @@ describe('CartService', () => {
       ],
       subtotal: 20250,
       discount: 0,
+      coupon_discount: 0,
+      tier_discount: 0,
+      discount_source: 'none',
+      applied_tier: null,
+      next_tier: null,
       delivery_fee: 0,
       total: 20250,
     });
@@ -277,6 +283,7 @@ describe('CartService', () => {
     let applied = false;
     const prisma = {
       storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+      discountTier: { findMany: jest.fn().mockResolvedValue([]) },
       coupon: { findFirst: jest.fn().mockResolvedValue(coupon) },
       cart: {
         upsert: jest.fn().mockResolvedValue({ id: 'cart-1' }),

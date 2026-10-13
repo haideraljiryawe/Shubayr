@@ -25,6 +25,7 @@ const check = (actual, expected, message) => {
 };
 const scalar = async (sql, values = []) =>
   (await db.query(sql, values)).rows[0]?.value;
+let baghdadGovernorateId;
 
 async function request(
   path,
@@ -64,6 +65,7 @@ async function customer(phone) {
     expected: 201,
     body: {
       label: 'Inventory lifecycle',
+      governorate_id: baghdadGovernorateId,
       city: 'Baghdad',
       area: 'Karrada',
       contact_phone: phone,
@@ -105,6 +107,8 @@ async function placeAndDeliver({
         version: current.version,
         ...(status === 'confirmed'
           ? {
+              customer_contacted: true,
+              customer_contact_note: 'Customer confirmed by phone',
               below_cost_override_reason:
                 'Phase 5 lifecycle fixture below-cost approval',
             }
@@ -140,6 +144,11 @@ try {
     })
   ).access_token;
   agent = await appLogin('+9647700000005');
+  baghdadGovernorateId = (await request('/governorates')).find(
+    (entry) => entry.code === 'baghdad',
+  )?.id;
+  assert.ok(baghdadGovernorateId, 'Baghdad governorate must be seeded');
+  assertions += 1;
 
   const variants = (
     await db.query(`
@@ -381,6 +390,8 @@ try {
         version: closedCurrent.version,
         ...(status === 'confirmed'
           ? {
+              customer_contacted: true,
+              customer_contact_note: 'Customer confirmed by phone',
               below_cost_override_reason:
                 'Phase 5 closed-period fixture below-cost approval',
             }

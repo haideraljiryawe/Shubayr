@@ -559,29 +559,50 @@ try {
 
   // ---------------------------------------------------------------- issue 4
   // contact_phone is trimmed and validated on create and on PATCH.
+  const baghdadGovernorate = (await request('/governorates')).find(
+    (entry) => entry.code === 'baghdad',
+  );
+  assert.ok(baghdadGovernorate, 'Baghdad governorate must be seeded');
+  assertions += 1;
   await request('/addresses', {
     token: customer,
     method: 'POST',
     expected: 422,
-    body: { city: 'Baghdad', contact_phone: '   ' },
+    body: {
+      governorate_id: baghdadGovernorate.id,
+      city: 'Baghdad',
+      contact_phone: '   ',
+    },
   });
   await request('/addresses', {
     token: customer,
     method: 'POST',
     expected: 422,
-    body: { city: 'Baghdad', contact_phone: '' },
+    body: {
+      governorate_id: baghdadGovernorate.id,
+      city: 'Baghdad',
+      contact_phone: '',
+    },
   });
   await request('/addresses', {
     token: customer,
     method: 'POST',
     expected: 422,
-    body: { city: 'Baghdad', contact_phone: 'not-a-phone' },
+    body: {
+      governorate_id: baghdadGovernorate.id,
+      city: 'Baghdad',
+      contact_phone: 'not-a-phone',
+    },
   });
   const created = await request('/addresses', {
     token: customer,
     method: 'POST',
     expected: 201,
-    body: { city: 'Baghdad', contact_phone: '  +9647701234567  ' },
+    body: {
+      governorate_id: baghdadGovernorate.id,
+      city: 'Baghdad',
+      contact_phone: '  +9647701234567  ',
+    },
   });
   check(
     created.contact_phone,

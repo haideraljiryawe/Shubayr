@@ -123,19 +123,47 @@ export class ReturnsService {
               ),
             0,
           );
+        const reservedRefund = previous
+          .filter((prior) => prior.order_item_id === item.id)
+          .reduce(
+            (sum, prior) =>
+              sum +
+              moneyToMinorUnits(
+                prior.return.status === 'requested'
+                  ? prior.net_amount
+                  : this.proratedAmount(
+                      prior.net_amount,
+                      Number(prior.approved_quantity),
+                      Number(prior.quantity),
+                    ),
+              ),
+            0n,
+          );
         if (entry.quantity > Number(item.quantity) - reserved) {
           throw new UnprocessableEntityException(
             'Return quantity exceeds eligible quantity',
           );
         }
-        expectedMinor += moneyToMinorUnits(
-          calculateLineTotal(item.unit_price, entry.quantity),
-        );
+        const completesLine =
+          Math.abs(reserved + entry.quantity - Number(item.quantity)) < 0.0005;
+        const netAmount = completesLine
+          ? minorUnitsToMoney(
+              moneyToMinorUnits(item.net_line_total) - reservedRefund,
+            )
+          : this.proratedAmount(
+              item.net_line_total,
+              entry.quantity,
+              Number(item.quantity),
+            );
+        const grossAmount = calculateLineTotal(item.unit_price, entry.quantity);
+        expectedMinor += moneyToMinorUnits(netAmount);
         return {
           order_item_id: item.id,
           quantity: entry.quantity,
           customer_reason: entry.reason,
           unit_price: item.unit_price,
+          discount_share: grossAmount - netAmount,
+          net_amount: netAmount,
           base_unit: item.base_unit,
           whole_units_only: item.whole_units_only,
         };
@@ -291,7 +319,13 @@ export class ReturnsService {
           });
           approvedTotal += approved;
           refundMinor += moneyToMinorUnits(
-            calculateLineTotal(item.unit_price, approved),
+            approved === Number(item.quantity)
+              ? item.net_amount
+              : this.proratedAmount(
+                  item.net_amount,
+                  approved,
+                  Number(item.quantity),
+                ),
           );
         }
         const status =
@@ -494,17 +528,20 @@ export class ReturnsService {
         approved_quantity: Number(item.approved_quantity),
         customer_reason: item.customer_reason,
         unit_price: Number(item.unit_price),
+        discount_share: Number(item.discount_share),
+        net_amount: Number(item.net_amount),
         base_unit: item.base_unit,
         whole_units_only: item.whole_units_only,
         currency: item.currency_code,
-        expected_refund: calculateLineTotal(
-          item.unit_price,
-          Number(item.quantity),
-        ),
-        approved_refund: calculateLineTotal(
-          item.unit_price,
-          Number(item.approved_quantity),
-        ),
+        expected_refund: Number(item.net_amount),
+        approved_refund:
+          Number(item.approved_quantity) === Number(item.quantity)
+            ? Number(item.net_amount)
+            : this.proratedAmount(
+                item.net_amount,
+                Number(item.approved_quantity),
+                Number(item.quantity),
+              ),
         condition: item.condition,
         restock: item.restock,
         batch_id: item.batch_id,
@@ -523,5 +560,19 @@ export class ReturnsService {
           }
         : null,
     };
+  }
+
+  private proratedAmount(
+    amount: number | string | Prisma.Decimal,
+    quantity: number,
+    totalQuantity: number,
+  ) {
+    if (quantity <= 0 || totalQuantity <= 0) return 0;
+    const amountMinor = moneyToMinorUnits(amount);
+    const quantityUnits = BigInt(Math.round(quantity * 1000));
+    const totalUnits = BigInt(Math.round(totalQuantity * 1000));
+    return minorUnitsToMoney(
+      (amountMinor * quantityUnits + totalUnits / 2n) / totalUnits,
+    );
   }
 }

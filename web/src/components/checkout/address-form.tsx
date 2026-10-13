@@ -1,14 +1,27 @@
 "use client";
 
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useTranslations } from "next-intl";
 import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, fieldErrorId } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { isE164, toE164, type AddressCreate } from "@/lib/api";
+import {
+  api,
+  isE164,
+  toE164,
+  type AddressCreate,
+  type Governorate,
+} from "@/lib/api";
 
 /* ---------------------------------------------------------------------------
  * Delivery address.
@@ -21,6 +34,7 @@ import { isE164, toE164, type AddressCreate } from "@/lib/api";
  * ------------------------------------------------------------------------- */
 
 export interface DeliveryDetails {
+  governorate_id: string;
   name: string;
   phone: string;
   city: string;
@@ -32,6 +46,7 @@ export interface DeliveryDetails {
 }
 
 export const EMPTY_DELIVERY: DeliveryDetails = {
+  governorate_id: "",
   name: "",
   phone: "",
   city: "",
@@ -57,6 +72,7 @@ export function validateDelivery(
   t: (key: string) => string,
 ): DeliveryErrors {
   const errors: DeliveryErrors = {};
+  if (!values.governorate_id) errors.governorate_id = t("errRequired");
   if (!values.name.trim()) errors.name = t("errRequired");
   // Accept either the local form or a number already written in E.164 — the
   // server's rule is the E.164 one, so validating the NORMALISED value is what
@@ -80,6 +96,7 @@ export function toAddressCreate(values: DeliveryDetails): AddressCreate {
   const point = values.mapPoint.trim().match(MAP_POINT_PATTERN);
 
   return {
+    governorate_id: values.governorate_id,
     label: values.name.trim(),
     city: values.city.trim(),
     area: values.area.trim(),
@@ -115,6 +132,14 @@ export function AddressForm({
   const ids = useId();
   const [errors, setErrors] = useState<DeliveryErrors>({});
   const [submitted, setSubmitted] = useState(false);
+  const [governorates, setGovernorates] = useState<Governorate[]>([]);
+
+  useEffect(() => {
+    void api
+      .listGovernorates()
+      .then(setGovernorates)
+      .catch(() => setGovernorates([]));
+  }, []);
 
   const fieldId = (name: keyof DeliveryDetails) => `${ids}-${name}`;
 
@@ -170,7 +195,9 @@ export function AddressForm({
         autoComplete={autoComplete}
         value={values[name]}
         invalid={Boolean(errors[name])}
-        aria-describedby={errors[name] ? fieldErrorId(fieldId(name)) : undefined}
+        aria-describedby={
+          errors[name] ? fieldErrorId(fieldId(name)) : undefined
+        }
         placeholder={t(`${name}Placeholder`)}
         onChange={(event) => set(name, event.target.value)}
         data-testid={`address-${name}`}
@@ -199,6 +226,26 @@ export function AddressForm({
         ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={t("governorate")}
+            htmlFor={fieldId("governorate_id")}
+            error={errors.governorate_id}
+          >
+            <Select
+              id={fieldId("governorate_id")}
+              value={values.governorate_id}
+              invalid={Boolean(errors.governorate_id)}
+              placeholder={t("governoratePlaceholder")}
+              onChange={(event) => set("governorate_id", event.target.value)}
+              data-testid="address-governorate"
+            >
+              {governorates.map((governorate) => (
+                <option key={governorate.id} value={governorate.id}>
+                  {governorate.name_ar} / {governorate.name_en}
+                </option>
+              ))}
+            </Select>
+          </Field>
           {text("name", { autoComplete: "name" })}
           {text("phone", {
             type: "tel",

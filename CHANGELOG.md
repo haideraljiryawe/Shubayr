@@ -1,5 +1,29 @@
 # Changelog
 
+## 15.0.0 - 2026-10-12
+
+### Added
+
+- Seeded administration for Iraq's 18 governorates plus Halabja, owner-managed
+  delivery zones, and per-governorate checkout fees.
+- Permissioned confirmation-time delivery-fee adjustment with customer contact
+  evidence, audit history, customer notification, and reconciled collection,
+  revenue, and receipt amounts.
+- Owner-managed automatic discount tiers, cart progress data, coupon comparison
+  with optional stacking, and exact whole-IQD line allocation for returns.
+
+### Changed
+
+- New addresses require a governorate. Legacy addresses remain readable but are
+  refused at checkout with `ADDRESS_GOVERNORATE_REQUIRED` until updated.
+- Order confirmation now requires `customer_contacted: true` and a non-empty
+  contact note because staff phone every customer before accepting an order.
+- The store-wide `delivery_fee` setting is retained for compatibility but is no
+  longer used for cart or checkout pricing; active delivery-zone fees replace it.
+- The API contract is version 15.0.0. This is a breaking major release because
+  address creation and order-confirmation request bodies gained required
+  business data.
+
 ## 14.2.0 - 2026-10-12
 
 ### Added

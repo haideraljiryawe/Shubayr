@@ -42,7 +42,10 @@ export const OTP = process.env.DEV_OTP ?? "000000";
  * agent and monitor are registered as work phones first (`ensureIdentity`).
  */
 const SLOT = Number(process.env.TEST_PARALLEL_INDEX ?? "0") % 10;
-const STAMP = String(Math.floor(Date.now() / 1000) % 10_000_000).padStart(7, "0");
+const STAMP = String(Math.floor(Date.now() / 1000) % 10_000_000).padStart(
+  7,
+  "0",
+);
 
 function workerPhone(role: string): { e164: string; local: string } {
   const national = `7${role}${SLOT}${STAMP}`;
@@ -233,16 +236,28 @@ export async function ensureIdentity(
 let addressId: Promise<string> | null = null;
 
 /** This worker's customer's delivery address, created on first use. */
-export async function customerAddress(request: APIRequestContext): Promise<string> {
+export async function customerAddress(
+  request: APIRequestContext,
+): Promise<string> {
   if (!addressId) {
     addressId = (async () => {
       const headers = bearer(await customerToken(request));
-      const list = await (await request.get(`${API}/addresses`, { headers })).json();
+      const list = await (
+        await request.get(`${API}/addresses`, { headers })
+      ).json();
       const existing = (list.data ?? list)?.[0]?.id as string | undefined;
       if (existing) return existing;
+      const governorates = (await (
+        await request.get(`${API}/governorates`)
+      ).json()) as Array<{ id: string; is_served: boolean }>;
+      const governorateId = governorates.find(
+        (governorate) => governorate.is_served,
+      )?.id;
+      expect(governorateId, "a served governorate is required").toBeTruthy();
       const created = await request.post(`${API}/addresses`, {
         headers,
         data: {
+          governorate_id: governorateId,
           label: "المنزل",
           city: "واسط",
           area: "الكوت",
@@ -307,7 +322,9 @@ export interface PlacedOrder {
  * every active order monitor (`new_order`), which is what the inbox specs
  * lean on.
  */
-export async function placeOrder(request: APIRequestContext): Promise<PlacedOrder> {
+export async function placeOrder(
+  request: APIRequestContext,
+): Promise<PlacedOrder> {
   const customer = await customerToken(request);
   const cart = await (
     await request.get(`${API}/cart`, { headers: bearer(customer) })
@@ -347,7 +364,16 @@ export async function advanceOrder(
   for (const status of statuses) {
     const moved = await request.patch(`${API}/admin/orders/${orderId}/status`, {
       headers: bearer(admin),
-      data: { status, version },
+      data: {
+        status,
+        version,
+        ...(status === "confirmed"
+          ? {
+              customer_contacted: true,
+              customer_contact_note: "Customer confirmed by phone",
+            }
+          : {}),
+      },
     });
     expect(moved.ok(), `${status}: ${await moved.text()}`).toBe(true);
     version = ((await moved.json()) as { version: number }).version;
@@ -369,7 +395,8 @@ export async function stockedProduct(
   quantity = 5,
 ): Promise<{ id: string; variant: string }> {
   const admin = bearer(await staffToken(request));
-  const tag = `${key}-${SLOT}${STAMP}-${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+  const tag =
+    `${key}-${SLOT}${STAMP}-${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
   const created = await request.post(`${API}/admin/products`, {
     headers: admin,
     data: {
@@ -381,19 +408,35 @@ export async function stockedProduct(
       tracks_expiry: false,
       status: "active",
       published: true,
-      variants: [{ sku: `WEB-LIVE-${tag}`, base_unit: "piece", whole_units_only: true, pricing_mode: "fixed" }],
+      variants: [
+        {
+          sku: `WEB-LIVE-${tag}`,
+          base_unit: "piece",
+          whole_units_only: true,
+          pricing_mode: "fixed",
+        },
+      ],
     },
   });
   expect(created.status(), await created.text()).toBe(201);
   const product = await created.json();
   const variant = product.variants[0].id as string;
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(new Date());
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Baghdad",
+  }).format(new Date());
   const opening = await request.post(`${API}/admin/inventory/openings`, {
     headers: admin,
     data: {
       operation_id: `web-live-open-${tag}`,
       document_date: today,
-      lines: [{ variant_id: variant, location_id: SEEDED_LOCATION, quantity: String(quantity), unit_cost_iqd: "5000" }],
+      lines: [
+        {
+          variant_id: variant,
+          location_id: SEEDED_LOCATION,
+          quantity: String(quantity),
+          unit_cost_iqd: "5000",
+        },
+      ],
     },
   });
   expect(opening.status(), await opening.text()).toBe(201);
@@ -410,9 +453,12 @@ export async function assignToAgent(
   const me = await (
     await request.get(`${API}/me`, { headers: bearer(agent) })
   ).json();
-  const assigned = await request.patch(`${API}/deliveries/${deliveryId}/assign`, {
-    headers: bearer(admin),
-    data: { agent_id: me.id },
-  });
+  const assigned = await request.patch(
+    `${API}/deliveries/${deliveryId}/assign`,
+    {
+      headers: bearer(admin),
+      data: { agent_id: me.id },
+    },
+  );
   expect(assigned.ok(), await assigned.text()).toBe(true);
 }

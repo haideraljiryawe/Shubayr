@@ -10,6 +10,7 @@ import {
   Min,
   MinLength,
   IsInt,
+  IsUUID,
   ValidateIf,
 } from 'class-validator';
 
@@ -31,6 +32,9 @@ const trimPhone = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
 export class AddressCreateDto {
+  @IsUUID()
+  governorate_id!: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(80)
@@ -80,6 +84,10 @@ export class AddressCreateDto {
 }
 
 export class AddressPatchDto {
+  @IsOptional()
+  @IsUUID()
+  governorate_id?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(80)

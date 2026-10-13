@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 14.2.0
+  version: 15.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -58,6 +58,7 @@ tags:
   - name: Monitoring
   - name: Admin
   - name: Finance
+  - name: Delivery Pricing
 
 security:
   - bearerAuth: []
@@ -319,6 +320,199 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
 
   # ---------------- ADDRESSES ----------------
+  /governorates:
+    get:
+      tags: [Delivery Pricing]
+      summary: List active Iraqi governorates
+      description: Includes the 18 governorates and Halabja. is_served is true only when the governorate is attached to an active delivery zone.
+      security: []
+      responses:
+        "200":
+          description: Active governorates
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Governorate" }
+
+  /admin/governorates:
+    get:
+      tags: [Delivery Pricing]
+      summary: List all governorates and their zone assignment
+      x-surface: admin
+      x-permission: delivery_zones.manage
+      responses:
+        "200":
+          description: Governorates
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminGovernorate" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /admin/governorates/{id}:
+    patch:
+      tags: [Delivery Pricing]
+      summary: Edit a governorate's localized names or active flag
+      x-surface: admin
+      x-permission: delivery_zones.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GovernoratePatch" }
+      responses:
+        "200":
+          description: Updated governorate
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GovernorateRecord" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/delivery-zones:
+    get:
+      tags: [Delivery Pricing]
+      summary: List delivery zones
+      x-surface: admin
+      x-permission: delivery_zones.manage
+      responses:
+        "200":
+          description: Delivery zones
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DeliveryZone" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Delivery Pricing]
+      summary: Create a delivery zone
+      x-surface: admin
+      x-permission: delivery_zones.manage
+      x-error-codes: [GOVERNORATE_ALREADY_IN_DELIVERY_ZONE]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeliveryZoneCreate" }
+      responses:
+        "201":
+          description: Created delivery zone
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryZone" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/delivery-zones/{id}:
+    patch:
+      tags: [Delivery Pricing]
+      summary: Update a delivery zone and its governorates
+      x-surface: admin
+      x-permission: delivery_zones.manage
+      x-error-codes: [GOVERNORATE_ALREADY_IN_DELIVERY_ZONE]
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeliveryZonePatch" }
+      responses:
+        "200":
+          description: Updated delivery zone
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryZone" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Delivery Pricing]
+      summary: Delete a delivery zone and unassign its governorates
+      x-surface: admin
+      x-permission: delivery_zones.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/discount-tiers:
+    get:
+      tags: [Delivery Pricing]
+      summary: List automatic order discount tiers
+      x-surface: admin
+      x-permission: discount_tiers.manage
+      responses:
+        "200":
+          description: Discount tiers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DiscountTier" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Delivery Pricing]
+      summary: Create an automatic order discount tier
+      x-surface: admin
+      x-permission: discount_tiers.manage
+      x-error-codes: [DISCOUNT_TIER_THRESHOLD_EXISTS]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DiscountTierCreate" }
+      responses:
+        "201":
+          description: Created discount tier
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DiscountTier" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /admin/discount-tiers/{id}:
+    patch:
+      tags: [Delivery Pricing]
+      summary: Update an automatic order discount tier
+      x-surface: admin
+      x-permission: discount_tiers.manage
+      x-error-codes: [DISCOUNT_TIER_THRESHOLD_EXISTS]
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DiscountTierPatch" }
+      responses:
+        "200":
+          description: Updated discount tier
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DiscountTier" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Delivery Pricing]
+      summary: Delete an automatic order discount tier
+      x-surface: admin
+      x-permission: discount_tiers.manage
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /addresses:
     get:
       tags: [Addresses]
@@ -338,6 +532,7 @@ paths:
     post:
       tags: [Addresses]
       summary: Create a delivery address
+      x-error-codes: [GOVERNORATE_NOT_AVAILABLE]
       description: contact_phone is the recipient contact for this address and may equal or differ from the account phone. Creating the first address makes it default regardless of the supplied flag.
       requestBody:
         required: true
@@ -351,6 +546,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Address" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /addresses/{id}:
     get:
@@ -367,7 +563,7 @@ paths:
     patch:
       tags: [Addresses]
       summary: Update an address
-      x-error-codes: [ONLY_DEFAULT_ADDRESS_REQUIRED]
+      x-error-codes: [ONLY_DEFAULT_ADDRESS_REQUIRED, GOVERNORATE_NOT_AVAILABLE]
       description: Only the owner may update it. Setting is_default=true atomically clears the prior default. Clearing the only default while addresses remain returns 409.
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
@@ -739,7 +935,7 @@ paths:
     post:
       tags: [Orders]
       summary: Place a Cash-on-Delivery order
-      x-error-codes: [PRICE_CHANGED, IDEMPOTENCY_KEY_REUSED, CART_EMPTY, CART_QUANTITY_INVALID, CART_PRODUCT_UNAVAILABLE, CART_VARIANT_UNAVAILABLE, CART_SKU_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY, COUPON_INVALID]
+      x-error-codes: [PRICE_CHANGED, IDEMPOTENCY_KEY_REUSED, CART_EMPTY, CART_QUANTITY_INVALID, CART_PRODUCT_UNAVAILABLE, CART_VARIANT_UNAVAILABLE, CART_SKU_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY, COUPON_INVALID, ADDRESS_GOVERNORATE_REQUIRED, DELIVERY_ZONE_NOT_SERVED]
       description: >
         Atomically reprices and consumes the caller's server cart using server-time
         effective prices, creates status=pending, a pending COD payment and a
@@ -853,7 +1049,7 @@ paths:
         preparing: orders.prepare
         ready_for_dispatch: orders.mark_ready
         dispatched: orders.handover
-      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, ORDER_NEEDS_ATTENTION, ORDER_DELIVERY_MISSING, DELIVERY_AGENT_NOT_ASSIGNED, ORDER_TRANSITION_NOT_ALLOWED, ORDER_HAS_NO_STOCK_RESERVATIONS, SKU_COST_NOT_FOUND, INVENTORY_COST_NEGATIVE]
+      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, CUSTOMER_CONTACT_REQUIRED, DELIVERY_FEE_ADJUSTMENT_FORBIDDEN, DELIVERY_FEE_ADJUSTMENT_REASON_REQUIRED, DELIVERY_FEE_ADJUSTMENT_NOT_ALLOWED, ORDER_NEEDS_ATTENTION, ORDER_DELIVERY_MISSING, DELIVERY_AGENT_NOT_ASSIGNED, ORDER_TRANSITION_NOT_ALLOWED, ORDER_HAS_NO_STOCK_RESERVATIONS, SKU_COST_NOT_FOUND, INVENTORY_COST_NEGATIVE]
       description: >
         Supports the same pre-dispatch transitions as
         PATCH /admin/orders/{id}/status. Use the dedicated admin endpoint for
@@ -871,6 +1067,10 @@ paths:
                 version: { type: integer, minimum: 1 }
                 note: { type: [string, "null"], maxLength: 500 }
                 below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
+                customer_contacted: { type: boolean, description: Must be true when status is confirmed. }
+                customer_contact_note: { type: [string, "null"], minLength: 1, maxLength: 500, description: Required when status is confirmed. }
+                adjusted_delivery_fee: { $ref: "#/components/schemas/Money", description: Optional replacement fee during confirmation; requires orders.adjust_delivery_fee. }
+                delivery_fee_adjustment_reason: { type: [string, "null"], minLength: 1, maxLength: 500, description: Required with adjusted_delivery_fee. }
       responses:
         "200":
           description: Updated order
@@ -2790,7 +2990,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Advance an order through its pre-dispatch lifecycle
-      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, ORDER_NEEDS_ATTENTION, ORDER_DELIVERY_MISSING, DELIVERY_AGENT_NOT_ASSIGNED, ORDER_TRANSITION_NOT_ALLOWED, ORDER_HAS_NO_STOCK_RESERVATIONS, SKU_COST_NOT_FOUND, INVENTORY_COST_NEGATIVE]
+      x-error-codes: [STALE_ORDER_STATE, BELOW_COST_BLOCKED, CUSTOMER_CONTACT_REQUIRED, DELIVERY_FEE_ADJUSTMENT_FORBIDDEN, DELIVERY_FEE_ADJUSTMENT_REASON_REQUIRED, DELIVERY_FEE_ADJUSTMENT_NOT_ALLOWED, ORDER_NEEDS_ATTENTION, ORDER_DELIVERY_MISSING, DELIVERY_AGENT_NOT_ASSIGNED, ORDER_TRANSITION_NOT_ALLOWED, ORDER_HAS_NO_STOCK_RESERVATIONS, SKU_COST_NOT_FOUND, INVENTORY_COST_NEGATIVE]
       x-surface: admin
       x-permission-by-status:
         confirmed: orders.accept
@@ -2820,6 +3020,10 @@ paths:
                 version: { type: integer, minimum: 1 }
                 note: { type: [string, "null"], maxLength: 500 }
                 below_cost_override_reason: { type: [string, "null"], maxLength: 500 }
+                customer_contacted: { type: boolean, description: Must be true when status is confirmed. }
+                customer_contact_note: { type: [string, "null"], minLength: 1, maxLength: 500, description: Required when status is confirmed. }
+                adjusted_delivery_fee: { $ref: "#/components/schemas/Money", description: Optional replacement fee during confirmation; requires orders.adjust_delivery_fee. }
+                delivery_fee_adjustment_reason: { type: [string, "null"], minLength: 1, maxLength: 500, description: Required with adjusted_delivery_fee. }
       responses:
         "200":
           description: Updated order detail
@@ -4846,12 +5050,154 @@ components:
         name: { type: string, minLength: 1, maxLength: 120, pattern: '.*\S.*' }
         email: { type: [string, "null"], format: email, maxLength: 160 }
 
+    GovernorateRecord:
+      type: object
+      additionalProperties: false
+      required: [id, code, name_ar, name_en, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, minLength: 1, maxLength: 32 }
+        name_ar: { type: string, minLength: 1, maxLength: 120 }
+        name_en: { type: string, minLength: 1, maxLength: 120 }
+        is_active: { type: boolean }
+
+    Governorate:
+      allOf:
+        - { $ref: "#/components/schemas/GovernorateRecord" }
+        - type: object
+          additionalProperties: false
+          required: [is_served]
+          properties:
+            is_served: { type: boolean }
+
+    AdminGovernorate:
+      allOf:
+        - { $ref: "#/components/schemas/GovernorateRecord" }
+        - type: object
+          additionalProperties: false
+          required: [delivery_zone]
+          properties:
+            delivery_zone:
+              oneOf:
+                - { $ref: "#/components/schemas/DeliveryZoneSummary" }
+                - { type: "null" }
+
+    GovernoratePatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name_ar: { type: string, minLength: 1, maxLength: 120 }
+        name_en: { type: string, minLength: 1, maxLength: 120 }
+        is_active: { type: boolean }
+
+    DeliveryZoneSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name_ar, name_en, fee_iqd, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        name_ar: { type: string, minLength: 1, maxLength: 120 }
+        name_en: { type: string, minLength: 1, maxLength: 120 }
+        fee_iqd: { $ref: "#/components/schemas/Money" }
+        is_active: { type: boolean }
+
+    DeliveryZone:
+      allOf:
+        - { $ref: "#/components/schemas/DeliveryZoneSummary" }
+        - type: object
+          additionalProperties: false
+          required: [governorates, created_at, updated_at]
+          properties:
+            governorates:
+              type: array
+              items: { $ref: "#/components/schemas/GovernorateRecord" }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    DeliveryZoneCreate:
+      type: object
+      additionalProperties: false
+      required: [name_ar, name_en, fee_iqd, governorate_ids]
+      properties:
+        name_ar: { type: string, minLength: 1, maxLength: 120 }
+        name_en: { type: string, minLength: 1, maxLength: 120 }
+        fee_iqd: { type: integer, minimum: 0 }
+        is_active: { type: boolean, default: true }
+        governorate_ids:
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+
+    DeliveryZonePatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name_ar: { type: string, minLength: 1, maxLength: 120 }
+        name_en: { type: string, minLength: 1, maxLength: 120 }
+        fee_iqd: { type: integer, minimum: 0 }
+        is_active: { type: boolean }
+        governorate_ids:
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+
+    DiscountTier:
+      type: object
+      additionalProperties: false
+      required: [id, min_subtotal, percent, is_active, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        min_subtotal: { $ref: "#/components/schemas/Money" }
+        percent: { type: number, exclusiveMinimum: 0, maximum: 50, multipleOf: 0.01 }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    DiscountTierCreate:
+      type: object
+      additionalProperties: false
+      required: [min_subtotal_iqd, percent]
+      properties:
+        min_subtotal_iqd: { type: integer, minimum: 0 }
+        percent: { type: number, exclusiveMinimum: 0, maximum: 50, multipleOf: 0.01 }
+        is_active: { type: boolean, default: true }
+
+    DiscountTierPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        min_subtotal_iqd: { type: integer, minimum: 0 }
+        percent: { type: number, exclusiveMinimum: 0, maximum: 50, multipleOf: 0.01 }
+        is_active: { type: boolean }
+
+    AppliedDiscountTier:
+      type: object
+      additionalProperties: false
+      required: [id, min_subtotal, percent]
+      properties:
+        id: { type: [string, "null"], format: uuid, description: Null only when a historical tier was later deleted; snapshot values remain. }
+        min_subtotal: { $ref: "#/components/schemas/Money" }
+        percent: { type: number, exclusiveMinimum: 0, maximum: 50 }
+
+    NextDiscountTier:
+      type: object
+      additionalProperties: false
+      required: [min_subtotal, percent, amount_remaining]
+      properties:
+        min_subtotal: { $ref: "#/components/schemas/Money" }
+        percent: { type: number, exclusiveMinimum: 0, maximum: 50 }
+        amount_remaining: { $ref: "#/components/schemas/Money" }
+
     Address:
       type: object
-      required: [id, user_id, city, contact_phone, is_default, created_at]
+      required: [id, user_id, governorate_id, city, contact_phone, is_default, created_at]
       properties:
         id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
+        governorate_id: { type: [string, "null"], format: uuid, description: Null only on legacy addresses; checkout returns ADDRESS_GOVERNORATE_REQUIRED until selected. }
         label: { type: [string, "null"], example: Home }
         city: { type: string }
         area: { type: [string, "null"] }
@@ -4866,8 +5212,9 @@ components:
     AddressCreate:
       type: object
       additionalProperties: false
-      required: [city, contact_phone]
+      required: [governorate_id, city, contact_phone]
       properties:
+        governorate_id: { type: string, format: uuid }
         label: { type: [string, "null"], example: Home }
         city: { type: string }
         area: { type: [string, "null"] }
@@ -4884,6 +5231,7 @@ components:
       minProperties: 1
       description: Omitted fields are unchanged; null clears only nullable fields. contact_phone and city cannot be null.
       properties:
+        governorate_id: { type: string, format: uuid }
         label: { type: [string, "null"], maxLength: 80 }
         city: { type: string, minLength: 1, maxLength: 80 }
         area: { type: [string, "null"], maxLength: 120 }
@@ -5361,7 +5709,7 @@ components:
 
     Cart:
       type: object
-      required: [id, items, subtotal, discount, delivery_fee, total, coupon_code, currency]
+      required: [id, items, subtotal, discount, coupon_discount, tier_discount, discount_source, applied_tier, next_tier, delivery_fee, total, coupon_code, currency]
       properties:
         id: { type: string, format: uuid }
         coupon_code: { type: [string, "null"] }
@@ -5386,8 +5734,19 @@ components:
               available: { type: boolean, description: "False when the product is hidden/inactive or available_qty is below quantity. Checkout rejects unavailable lines." }
               available_qty: { type: number, multipleOf: 0.001, minimum: 0 }
         subtotal: { $ref: "#/components/schemas/Money" }
-        discount: { $ref: "#/components/schemas/Money", description: "Valid coupon discount only; catalog markdown is already in unit_price." }
-        delivery_fee: { $ref: "#/components/schemas/Money" }
+        discount: { $ref: "#/components/schemas/Money", description: "Applied coupon and/or automatic tier discount; catalog markdown is already in unit_price." }
+        coupon_discount: { $ref: "#/components/schemas/Money" }
+        tier_discount: { $ref: "#/components/schemas/Money" }
+        discount_source: { type: string, enum: [none, coupon, tier, stacked] }
+        applied_tier:
+          oneOf:
+            - { $ref: "#/components/schemas/AppliedDiscountTier" }
+            - { type: "null" }
+        next_tier:
+          oneOf:
+            - { $ref: "#/components/schemas/NextDiscountTier" }
+            - { type: "null" }
+        delivery_fee: { $ref: "#/components/schemas/Money", description: Zero in the cart because the governorate is selected at checkout. }
         total: { $ref: "#/components/schemas/Money" }
 
     WishlistItem:
@@ -5435,7 +5794,7 @@ components:
 
     OrderItem:
       type: object
-      required: [base_unit, whole_units_only]
+      required: [base_unit, whole_units_only, discount_share, net_line_total]
       properties:
         id: { type: string, format: uuid, description: "order_item_id — reference this from reviews & returns" }
         product_id: { type: string, format: uuid }
@@ -5449,6 +5808,8 @@ components:
         unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order." }
         price_version: { type: string, maxLength: 64 }
         line_total: { $ref: "#/components/schemas/Money" }
+        discount_share: { $ref: "#/components/schemas/Money", description: Whole-IQD largest-remainder share of the order discount. }
+        net_line_total: { $ref: "#/components/schemas/Money", description: line_total minus discount_share; returns refund this snapshot. }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         reviewed: { type: boolean, readOnly: true, description: True when the caller already has a product review for this order item. }
 
@@ -5512,10 +5873,33 @@ components:
         delivery_id: { type: [string, "null"], format: uuid, description: Current delivery reachable by this order's owner. }
         subtotal: { $ref: "#/components/schemas/Money" }
         delivery_fee: { $ref: "#/components/schemas/Money" }
+        original_delivery_fee: { $ref: "#/components/schemas/Money" }
+        adjusted_delivery_fee: { type: [number, "null"], minimum: 0 }
         discount: { $ref: "#/components/schemas/Money" }
+        coupon_discount: { $ref: "#/components/schemas/Money" }
+        tier_discount: { $ref: "#/components/schemas/Money" }
+        discount_source: { type: string, enum: [none, coupon, tier, stacked] }
+        applied_tier:
+          oneOf:
+            - { $ref: "#/components/schemas/AppliedDiscountTier" }
+            - { type: "null" }
+        next_tier:
+          oneOf:
+            - { $ref: "#/components/schemas/NextDiscountTier" }
+            - { type: "null" }
         total: { $ref: "#/components/schemas/Money" }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         delivery_contact_phone: { type: string, description: Immutable checkout snapshot. }
+        delivery_governorate:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [code, name_ar, name_en]
+              properties:
+                code: { type: string }
+                name_ar: { type: [string, "null"] }
+                name_en: { type: [string, "null"] }
+            - { type: "null" }
         delivery_address_label: { type: [string, "null"], description: Immutable checkout snapshot. }
         delivery_city: { type: string, description: Immutable checkout snapshot. }
         delivery_area: { type: [string, "null"], description: Immutable checkout snapshot. }
@@ -5622,6 +6006,37 @@ components:
                 details: { type: [string, "null"] }
                 lat: { type: [number, "null"] }
                 lng: { type: [number, "null"] }
+                governorate:
+                  oneOf:
+                    - type: object
+                      additionalProperties: false
+                      required: [code, name_ar, name_en]
+                      properties:
+                        code: { type: string }
+                        name_ar: { type: [string, "null"] }
+                        name_en: { type: [string, "null"] }
+                    - { type: "null" }
+            confirmation_contact:
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required: [customer_contacted, note]
+                  properties:
+                    customer_contacted: { type: boolean, const: true }
+                    note: { type: [string, "null"], maxLength: 500 }
+                - { type: "null" }
+            delivery_fee_adjustment:
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required: [original_fee, adjusted_fee, reason, adjusted_by, adjusted_at]
+                  properties:
+                    original_fee: { $ref: "#/components/schemas/Money" }
+                    adjusted_fee: { $ref: "#/components/schemas/Money" }
+                    reason: { type: [string, "null"] }
+                    adjusted_by: { type: [string, "null"], format: uuid }
+                    adjusted_at: { type: [string, "null"], format: date-time }
+                - { type: "null" }
             payments:
               type: array
               items:
@@ -6697,7 +7112,7 @@ components:
 
     ReturnItem:
       type: object
-      required: [base_unit, whole_units_only]
+      required: [base_unit, whole_units_only, discount_share, net_amount]
       properties:
         id: { type: string, format: uuid }
         order_item_id: { type: string, format: uuid }
@@ -6707,6 +7122,8 @@ components:
         whole_units_only: { type: boolean, description: "Order-time SKU fractional-quantity rule." }
         customer_reason: { type: string }
         unit_price: { $ref: "#/components/schemas/Money", description: Immutable order-line unit price. }
+        discount_share: { $ref: "#/components/schemas/Money", description: Discount share attributed to this requested return quantity. }
+        net_amount: { $ref: "#/components/schemas/Money", description: Exact net refund snapshot for the requested quantity. }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         expected_refund: { $ref: "#/components/schemas/Money" }
         approved_refund: { $ref: "#/components/schemas/Money" }

@@ -90,8 +90,8 @@ try {
   try {
     await db.query(`INSERT INTO orders (id,user_id,order_number,status,payment_method,subtotal,delivery_fee,discount,total,delivery_contact_phone,delivery_city,document_date,accounting_date)
       VALUES ($1,$2,$3,'delivered','cod',10,0,0,10,'+9647700090006','Baghdad',$4,$4)`, [orderId, customerId, `VERIFY-REVIEW-${orderId.slice(0, 8)}`, businessDate()]);
-    await db.query(`INSERT INTO order_items (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total)
-      VALUES ($1,$2,$3,$4,'Review product','Review product',1,10,10)`, [lineId, orderId, productId, '50000000-0000-4000-8000-000000000007']);
+    await db.query(`INSERT INTO order_items (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,discount_share,net_line_total)
+      VALUES ($1,$2,$3,$4,'Review product','Review product',1,10,10,0,10)`, [lineId, orderId, productId, '50000000-0000-4000-8000-000000000007']);
     await db.query("INSERT INTO deliveries (id,order_id,status,delivery_fee,dispatched_at,delivered_at) VALUES ($1,$2,'delivered',0,now(),now())", [deliveryId, orderId]);
     await db.query('UPDATE orders SET delivery_id=$1 WHERE id=$2', [deliveryId, orderId]);
     await db.query('COMMIT');

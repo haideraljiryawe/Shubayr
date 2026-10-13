@@ -257,6 +257,26 @@ async function main(): Promise<void> {
     });
   }
 
+  // Local/demo data starts with one editable nationwide zone so seeded checkout
+  // journeys remain usable. Production migrations seed only governorates; an
+  // owner must define the production zones and fees explicitly.
+  if ((await prisma.deliveryZone.count()) === 0) {
+    const legacyFee = await prisma.storeSetting.findUnique({
+      where: { key: 'delivery_fee' },
+    });
+    const zone = await prisma.deliveryZone.create({
+      data: {
+        name_ar: 'كل العراق (تجريبي)',
+        name_en: 'All Iraq (development)',
+        fee_iqd: legacyFee?.value ?? '5000',
+      },
+    });
+    await prisma.governorate.updateMany({
+      where: { delivery_zone_id: null },
+      data: { delivery_zone_id: zone.id },
+    });
+  }
+
   const roleIds = new Map<string, string>();
   for (const [name, description] of roles) {
     const role = await prisma.role.upsert({
@@ -1192,6 +1212,8 @@ async function seedPartialReturnDemo(
           quantity: quantities[index],
           unit_price: prices[index],
           line_total: calculateLineTotal(prices[index], quantities[index]),
+          discount_share: 0,
+          net_line_total: calculateLineTotal(prices[index], quantities[index]),
         })),
       },
       payments: {
@@ -1392,6 +1414,8 @@ async function seedPartialReturnDemo(
             approved_quantity: 1,
             customer_reason: 'Unneeded unit',
             unit_price: prices[0],
+            discount_share: 0,
+            net_amount: prices[0],
             condition: 'sellable',
             restock: true,
             batch_id: seedId(7, 1),
@@ -1403,6 +1427,8 @@ async function seedPartialReturnDemo(
             approved_quantity: 1,
             customer_reason: 'Arrived damaged',
             unit_price: prices[1],
+            discount_share: 0,
+            net_amount: prices[1],
             condition: 'damaged',
             restock: false,
           },
@@ -1703,6 +1729,8 @@ async function seedCustomerOrders(
               quantity: sample.quantity,
               unit_price: unitPrice,
               line_total: lineTotal,
+              discount_share: 0,
+              net_line_total: lineTotal,
             },
           },
           payments: {
