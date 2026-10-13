@@ -2,9 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import { cartItemCount, cartTotals, lineTotal, type CartTotals } from "./cart";
-import { DELIVERY_FEE } from "./config";
 import { cartStore, lineId, type CartLine, type CartState } from "./cart-store";
 import { lineUnits } from "./quantity";
+import { tierProgress, type TierProgress } from "./delivery";
 
 /**
  * Subscribe to the raw store. Reading through useSyncExternalStore — rather
@@ -44,6 +44,11 @@ export interface CartView {
   pending: boolean;
   /** The coupon code on the cart, whichever side owns it. */
   couponCode: string | null;
+  /**
+   * The automatic discount's progress bar, from the server cart. Null for a
+   * guest (tiers come only with a signed-in cart) or when no tier applies.
+   */
+  tiers: TierProgress | null;
 }
 
 /**
@@ -74,11 +79,12 @@ export function useCart(): CartView {
         // arithmetic — the only place in the app that still does.
         line_total: lineTotal(line),
       })),
-      totals: cartTotals(basket, state.coupon, DELIVERY_FEE),
+      totals: cartTotals(basket, state.coupon),
       hydrated: state.hydrated,
       isServerBacked: false,
       pending: state.pending,
       couponCode: state.coupon?.code ?? null,
+      tiers: null,
     };
   }
 
@@ -123,13 +129,19 @@ export function useCart(): CartView {
       itemCount: lines.reduce((sum, line) => sum + lineUnits(line.quantity), 0),
       subtotal: server.subtotal ?? 0,
       deliveryFee: server.delivery_fee ?? 0,
+      // The server cart carries no fee until checkout picks the governorate.
+      deliveryPending: lines.length > 0 && !(server.delivery_fee ?? 0),
       discount: server.discount ?? 0,
+      couponDiscount: server.coupon_discount ?? 0,
+      tierDiscount: server.tier_discount ?? 0,
+      tierPercent: server.applied_tier?.percent ?? null,
       total: server.total ?? 0,
     },
     hydrated: state.hydrated,
     isServerBacked: true,
     pending: state.pending,
     couponCode: server.coupon_code ?? null,
+    tiers: lines.length > 0 ? tierProgress(server) : null,
   };
 }
 

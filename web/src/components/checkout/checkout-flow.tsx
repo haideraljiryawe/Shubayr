@@ -1,14 +1,15 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ShoppingCart } from "lucide-react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { ApiError, api, type Address, type Order, type OrderItem } from "@/lib/api";
+import { ApiError, api, type Address, type Governorate, type Order, type OrderItem } from "@/lib/api";
+import { deliveryProblem, governorateName, isAddressRefusal, type DeliveryProblem } from "@/lib/delivery";
 import type { CartTotals } from "@/lib/cart";
 import { cartStore } from "@/lib/cart-store";
 import { useCart, type CartViewLine } from "@/lib/use-cart";
@@ -56,11 +57,12 @@ interface PlacedOrder {
   couponCode: string | null;
 }
 
-function summariseSaved(address: Address): ChosenAddress {
+function summariseSaved(address: Address, governorate: string | null): ChosenAddress {
   return {
     id: address.id ?? null,
     title: address.label ?? "",
     phone: null,
+    governorate,
     lines: [
       [address.city, address.area, address.street].filter(Boolean).join(" — "),
       address.details ?? "",
@@ -68,11 +70,12 @@ function summariseSaved(address: Address): ChosenAddress {
   };
 }
 
-function summariseTyped(delivery: DeliveryDetails): ChosenAddress {
+function summariseTyped(delivery: DeliveryDetails, governorate: string | null): ChosenAddress {
   return {
     id: null,
     title: delivery.name,
     phone: delivery.phone,
+    governorate,
     lines: [
       [delivery.city, delivery.area, delivery.street].filter(Boolean).join(" — "),
       delivery.details,
@@ -83,10 +86,11 @@ function summariseTyped(delivery: DeliveryDetails): ChosenAddress {
 export function CheckoutFlow() {
   const t = useTranslations("checkout");
   const tc = useTranslations("cart");
+  const locale = useLocale();
   const showToast = useToast();
   const router = useRouter();
   const { currency } = useTheme();
-  const { lines, totals, hydrated, couponCode, isServerBacked } = useCart();
+  const { lines, totals, hydrated, couponCode, isServerBacked, tiers } = useCart();
   const { isAuthenticated, user } = useAuth();
 
   const [stage, setStage] = useState<Stage>("address");
@@ -97,6 +101,8 @@ export function CheckoutFlow() {
   const [typingNew, setTypingNew] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The API refused the address at checkout (no governorate, or not served). */
+  const [addressNotice, setAddressNotice] = useState<string | null>(null);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
   /**
    * One key per checkout attempt, minted when the flow mounts.
@@ -124,6 +130,22 @@ export function CheckoutFlow() {
     [isAuthenticated],
   );
   const addressBook = savedAddresses.data ?? [];
+  // The governorates the store lists, with whether a zone serves each one.
+  const governorateList = useResource<Governorate[]>(() => api.listGovernorates(), []);
+  const governorates = new Map((governorateList.data ?? []).map((item) => [item.id, item]));
+  const nameOf = (id: string | null | undefined) => {
+    const governorate = id ? governorates.get(id) : undefined;
+    return governorate ? governorateName(governorate, locale) : null;
+  };
+  /** The message for an address that cannot be delivered to, or null. */
+  const problemText = (problem: DeliveryProblem | null, governorateId: string | null | undefined) =>
+    problem === "missingGovernorate"
+      ? t("delivery.missingGovernorate")
+      : problem === "unserved"
+        ? nameOf(governorateId)
+          ? t("delivery.unserved", { name: nameOf(governorateId)! })
+          : t("delivery.unservedUnknown")
+        : null;
 
   // Derived, not stored: the explicit pick, else the account default, else the
   // first one. No effect has to reconcile a selection with a list that arrives
@@ -143,6 +165,21 @@ export function CheckoutFlow() {
   };
 
   const pickingSaved = isAuthenticated && !typingNew && addressBook.length > 0;
+  // Until the governorates are in, nothing is judged (a slow list is not "unserved").
+  const governoratesReady = governorates.size > 0;
+  const savedProblem = pickingSaved && saved && governoratesReady ? deliveryProblem(saved, governorates) : null;
+  const typedProblem =
+    !pickingSaved && governoratesReady && deliveryValues.governorate_id
+      ? deliveryProblem({ governorate_id: deliveryValues.governorate_id }, governorates)
+      : null;
+  const blocked = problemText(pickingSaved ? savedProblem : typedProblem, pickingSaved ? saved?.governorate_id : deliveryValues.governorate_id);
+
+  async function setGovernorate(address: Address, governorateId: string) {
+    if (!address.id) return;
+    await api.updateAddress(address.id, { governorate_id: governorateId });
+    setAddressNotice(null);
+    savedAddresses.reload();
+  }
 
   async function placeOrder(accepted?: PriceChange[]) {
     setPlacing(true);
@@ -207,15 +244,21 @@ export function CheckoutFlow() {
             return item ? { ...line, unit_price: item.unit_price ?? line.unit_price, line_total: item.line_total ?? line.line_total } : line;
           })
         : snapshot;
-      const placedTotals = accepted
-        ? {
-            ...snapshotTotals,
-            subtotal: order.subtotal ?? snapshotTotals.subtotal,
-            deliveryFee: order.delivery_fee ?? snapshotTotals.deliveryFee,
-            discount: order.discount ?? snapshotTotals.discount,
-            total: order.total ?? snapshotTotals.total,
-          }
-        : snapshotTotals;
+      // The order's own figures are the truth: the delivery fee is only known
+      // once the order has a governorate, and accepted prices may differ.
+      const discount = order.discount ?? snapshotTotals.discount;
+      const tierDiscount = order.tier_discount ?? snapshotTotals.tierDiscount;
+      const placedTotals: CartTotals = {
+        ...snapshotTotals,
+        subtotal: order.subtotal ?? snapshotTotals.subtotal,
+        deliveryFee: order.delivery_fee ?? snapshotTotals.deliveryFee,
+        deliveryPending: order.delivery_fee === undefined,
+        discount,
+        couponDiscount: order.coupon_discount ?? Math.max(0, discount - tierDiscount),
+        tierDiscount,
+        tierPercent: order.applied_tier?.percent ?? snapshotTotals.tierPercent,
+        total: order.total ?? snapshotTotals.total,
+      };
       setPriceChange(null);
       setPlaced({ order, lines: placedLines, totals: placedTotals, couponCode });
       setStage("done");
@@ -228,6 +271,16 @@ export function CheckoutFlow() {
       const changes = priceChanges(cause instanceof ApiError ? cause : null);
       if (changes) {
         setPriceChange(changes);
+        return;
+      }
+      if (cause instanceof ApiError && isAddressRefusal(cause.code)) {
+        // The address, not the basket: back to the address step with the
+        // reason (the governorates or the address changed meanwhile).
+        setPriceChange(null);
+        setAddressNotice(t(`delivery.refusal.${cause.code}`));
+        savedAddresses.reload();
+        governorateList.reload();
+        setStage("address");
         return;
       }
       if (accepted) {
@@ -354,9 +407,11 @@ export function CheckoutFlow() {
           totals={totals}
           address={
             pickingSaved && saved
-              ? summariseSaved(saved)
-              : summariseTyped(deliveryValues)
+              ? summariseSaved(saved, nameOf(saved.governorate_id))
+              : summariseTyped(deliveryValues, nameOf(deliveryValues.governorate_id))
           }
+          tiers={tiers}
+          blocked={blocked}
           error={error}
           placing={placing}
           onEditAddress={() => setStage("address")}
@@ -385,8 +440,19 @@ export function CheckoutFlow() {
   return (
     <Wrapper step="address">
       <div className="mx-auto flex max-w-2xl flex-col gap-5">
+        {addressNotice ? (
+          <p
+            role="alert"
+            data-testid="checkout-address-notice"
+            className="rounded-md border border-error/40 bg-error/8 px-3 py-2 text-sm font-medium text-error-dark"
+          >
+            {addressNotice}
+          </p>
+        ) : null}
         {isAuthenticated && !typingNew ? (
           <SavedAddresses
+            governorates={governorates}
+            onSetGovernorate={setGovernorate}
             addresses={addressBook}
             loading={savedAddresses.loading}
             failed={savedAddresses.failed}
@@ -404,7 +470,7 @@ export function CheckoutFlow() {
               variant="cta"
               size="lg"
               block
-              disabled={!saved}
+              disabled={!saved || Boolean(savedProblem)}
               data-testid="address-submit"
               onClick={() => setStage("review")}
             >

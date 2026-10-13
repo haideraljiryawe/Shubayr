@@ -77,29 +77,31 @@ test("totals add up, and a coupon discounts them", async ({ page }) => {
   await addToCart(page).click();
   await page.goto("/cart");
 
-  // 1 × $89 + $5 delivery.
+  // 1 × $89. Delivery depends on the governorate, chosen at checkout
+  // (API 15.0), so the cart's total is before delivery.
   await expect(page.getByTestId("summary-subtotal")).toHaveText("$89");
-  await expect(page.getByTestId("summary-delivery")).toHaveText("$5");
+  await expect(page.getByTestId("summary-delivery")).toHaveText("حسب المحافظة");
   await expect(page.getByTestId("summary-discount")).toHaveCount(0);
-  await expect(page.getByTestId("summary-total")).toHaveText("$94");
+  await expect(page.getByTestId("cart-summary")).toContainText("الإجمالي قبل التوصيل");
+  await expect(page.getByTestId("summary-total")).toHaveText("$89");
 
-  // Two units: the subtotal and the total move, the fee does not.
+  // Two units: the subtotal and the total move.
   await page.getByRole("button", { name: "زيادة الكمية" }).click();
   await expect(page.getByTestId("summary-subtotal")).toHaveText("$178");
-  await expect(page.getByTestId("summary-delivery")).toHaveText("$5");
-  await expect(page.getByTestId("summary-total")).toHaveText("$183");
+  await expect(page.getByTestId("summary-delivery")).toHaveText("حسب المحافظة");
+  await expect(page.getByTestId("summary-total")).toHaveText("$178");
 
-  // SHUBAYR10 is 10% off the subtotal: $17.8 off $183.
+  // SHUBAYR10 is 10% off the subtotal: $17.8 off $178.
   await page.getByTestId("coupon-input").fill("SHUBAYR10");
   await page.getByTestId("coupon-apply").click();
 
   await expect(page.getByTestId("summary-discount")).toHaveText("−$17.8");
-  await expect(page.getByTestId("summary-total")).toHaveText("$165.2");
+  await expect(page.getByTestId("summary-total")).toHaveText("$160.2");
 
   // Removing it puts the total back.
   await page.getByTestId("coupon-remove").click();
   await expect(page.getByTestId("summary-discount")).toHaveCount(0);
-  await expect(page.getByTestId("summary-total")).toHaveText("$183");
+  await expect(page.getByTestId("summary-total")).toHaveText("$178");
 });
 
 test("an unknown coupon is rejected without changing the totals", async ({
@@ -116,7 +118,7 @@ test("an unknown coupon is rejected without changing the totals", async ({
     page.getByText("رمز الكوبون غير صالح أو منتهي الصلاحية"),
   ).toBeVisible();
   await expect(page.getByTestId("summary-discount")).toHaveCount(0);
-  await expect(page.getByTestId("summary-total")).toHaveText("$94");
+  await expect(page.getByTestId("summary-total")).toHaveText("$89");
 });
 
 test("removing the last item shows the empty state", async ({ page }) => {

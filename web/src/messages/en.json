@@ -255,7 +255,17 @@
     "couponRemoveFailed": "Could not remove the coupon, please try again",
     "unavailableLine": "Out of stock — remove it to place your order",
     "unavailableQty": "More than is available — lower the quantity to place your order",
-    "unavailableBanner": "{count, plural, one {One item in your basket is no longer available in the quantity you chose. Adjust or remove it to continue.} other {# items in your basket are no longer available in the quantities you chose. Adjust or remove them to continue.}}"
+    "unavailableBanner": "{count, plural, one {One item in your basket is no longer available in the quantity you chose. Adjust or remove it to continue.} other {# items in your basket are no longer available in the quantities you chose. Adjust or remove them to continue.}}",
+    "deliveryByGovernorate": "By governorate",
+    "totalBeforeDelivery": "Total before delivery",
+    "tierDiscount": "Automatic discount {percent}%",
+    "tierDiscountPlain": "Automatic discount",
+    "tiers": {
+      "next": "Add {amount} more to get {percent}% off",
+      "top": "You're getting {percent}% off",
+      "current": "You're getting {percent}% off now",
+      "label": "Progress to the next discount"
+    }
   },
   "checkout": {
     "title": "Checkout",
@@ -329,6 +339,18 @@
       "accept": "Accept new prices and order",
       "back": "Back to cart",
       "failed": "The order still could not be placed. Please check your cart."
+    },
+    "governorateUnserved": "We don't deliver to {name} yet. Choose another governorate.",
+    "governorateNotServedYet": "not delivered to yet",
+    "deliveryForGovernorate": "Set by {name}, shown on your order",
+    "delivery": {
+      "missingGovernorate": "Choose this address's governorate so delivery can be priced.",
+      "unserved": "We don't deliver to {name} yet.",
+      "unservedUnknown": "We don't deliver to this address's governorate yet.",
+      "refusal": {
+        "ADDRESS_GOVERNORATE_REQUIRED": "This address has no governorate. Choose one, then place the order.",
+        "DELIVERY_ZONE_NOT_SERVED": "We no longer deliver to this address's governorate. Choose another address."
+      }
     }
   },
   "auth": {
@@ -544,7 +566,13 @@
     "phoneHint": "The number of whoever receives the order here — it may differ from your account number.",
     "errPhone": "Enter a valid phone number, for example 07701234567",
     "errInvalid": "The address could not be saved: check the phone number and the other fields.",
-    "errDefaultConflict": "You cannot unset the default address; make another one default instead."
+    "errDefaultConflict": "You cannot unset the default address; make another one default instead.",
+    "governorateNotServedYet": "not delivered to yet",
+    "unserved": "We don't deliver to {name} yet.",
+    "unservedUnknown": "We don't deliver to this address's governorate yet.",
+    "missingGovernorate": "Add this address's governorate — it sets the delivery fee:",
+    "saveGovernorate": "Save governorate",
+    "saveGovernorateFailed": "Could not save. Try again."
   },
   "wishlist": {
     "title": "Wishlist",

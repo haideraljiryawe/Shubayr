@@ -60,28 +60,44 @@ export interface CartTotals {
   itemCount: number;
   subtotal: number;
   deliveryFee: number;
+  /**
+   * True while the delivery fee is not known yet: it is the fee of the zone
+   * serving the order's governorate (API 15.0), and the cart has no address.
+   * The total is then before delivery.
+   */
+  deliveryPending: boolean;
+  /** Everything taken off the goods: the coupon and/or the automatic tier. */
   discount: number;
+  /** The coupon's share of `discount`. */
+  couponDiscount: number;
+  /** The automatic tier's share of `discount` (server cart only). */
+  tierDiscount: number;
+  /** The tier applied, for its own line ("automatic discount 5%"). */
+  tierPercent: number | null;
   total: number;
 }
 
 /**
- * The totals block, in the mockup's order: المجموع الفرعي · رسوم التوصيل ·
- * الخصم · الإجمالي. An empty cart is charged no delivery fee.
+ * A guest's totals block, in the mockup's order: المجموع الفرعي · رسوم التوصيل ·
+ * الخصم · الإجمالي. The delivery fee depends on the governorate, chosen at
+ * checkout, so the guest total is before delivery.
  */
 export function cartTotals(
   lines: CartLine[],
   coupon: AppliedCoupon | null,
-  deliveryFee: number,
 ): CartTotals {
   const subtotal = cartSubtotal(lines);
-  const fee = lines.length > 0 ? money(deliveryFee) : 0;
   const discount = couponDiscount(subtotal, coupon);
 
   return {
     itemCount: cartItemCount(lines),
     subtotal,
-    deliveryFee: fee,
+    deliveryFee: 0,
+    deliveryPending: lines.length > 0,
     discount,
-    total: money(Math.max(0, subtotal + fee - discount)),
+    couponDiscount: discount,
+    tierDiscount: 0,
+    tierPercent: null,
+    total: money(Math.max(0, subtotal - discount)),
   };
 }

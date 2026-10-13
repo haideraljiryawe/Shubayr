@@ -525,6 +525,15 @@ export const api = {
           is_active: true,
           is_served: true,
         },
+        // In no active delivery zone: checkout must say so.
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          code: "basra",
+          name_ar: "البصرة",
+          name_en: "Basra",
+          is_active: true,
+          is_served: false,
+        },
       ];
     }
     return request<Governorate[]>("/governorates", init);
