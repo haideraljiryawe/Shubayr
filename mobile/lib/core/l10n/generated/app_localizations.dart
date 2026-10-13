@@ -3662,6 +3662,18 @@ abstract class AppLocalizations {
   /// **'Low stock'**
   String get productLowStockLabel;
 
+  /// No description provided for @pushSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Settings'**
+  String get pushSettings;
+
+  /// No description provided for @pushSettingsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open notification settings. Open the app in your device settings.'**
+  String get pushSettingsUnavailable;
+
   /// No description provided for @pushEnable.
   ///
   /// In en, this message translates to:

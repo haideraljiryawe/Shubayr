@@ -1893,6 +1893,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productLowStockLabel => 'Low stock';
 
   @override
+  String get pushSettings => 'Notification Settings';
+
+  @override
+  String get pushSettingsUnavailable =>
+      'Unable to open notification settings. Open the app in your device settings.';
+
+  @override
   String get pushEnable => 'Enable push notifications';
 
   @override

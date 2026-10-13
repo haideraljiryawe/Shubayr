@@ -49,11 +49,21 @@ class _Inbox extends NotificationRepository {
 class _Client implements PushClient {
   final messages = StreamController<PushEvent>.broadcast();
   bool initial = false;
+  PushPermission allowed = PushPermission.authorized;
+  PushPermission requestResult = PushPermission.authorized;
+  int prompts = 0, reads = 0;
   @override
   String get platform => 'ios';
   @override
-  Future<PushPermission> permission({bool request = false}) async =>
-      PushPermission.authorized;
+  Future<PushPermission> permission({bool request = false}) async {
+    reads++;
+    if (request) {
+      prompts++;
+      allowed = requestResult;
+    }
+    return allowed;
+  }
+
   @override
   Future<String?> token() async => 'fixture-token';
   @override
@@ -68,19 +78,28 @@ class _Client implements PushClient {
 
 class _Devices implements DeviceRegistration {
   Completer<void>? gate;
+  int registrations = 0, unregistrations = 0;
   @override
   Future<void> register(
     String token,
     String platform,
     String locale,
     int revision,
-  ) async => await gate?.future;
+  ) async {
+    registrations++;
+    await gate?.future;
+  }
+
   @override
-  Future<void> unregister(String token, int revision) async {}
+  Future<void> unregister(String token, int revision) async {
+    unregistrations++;
+  }
 }
 
 class _Harness {
-  final session = TestSession();
+  _Harness({Session initial = customerSession})
+    : session = TestSession(initial: initial);
+  final TestSession session;
   final events = StreamController<OwnedPushEvent>.broadcast();
   late ProviderContainer container;
   Future<void> mount(
@@ -177,7 +196,109 @@ void _expectHome(_Harness h) {
   expect(h.container.read(routerProvider).canPop(), isFalse);
 }
 
+void _background(WidgetTester tester) {
+  for (final state in [
+    AppLifecycleState.inactive,
+    AppLifecycleState.hidden,
+    AppLifecycleState.paused,
+  ]) {
+    tester.binding.handleAppLifecycleStateChanged(state);
+  }
+}
+
+void _resume(WidgetTester tester) {
+  if (tester.binding.lifecycleState == AppLifecycleState.paused) {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+  }
+  tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+}
+
 void main() {
+  testWidgets('initial permission waits for verified login and ready UI', (
+    tester,
+  ) async {
+    _resume(tester);
+    final client = _Client()..allowed = PushPermission.notDetermined;
+    final devices = _Devices();
+    final h = _Harness(initial: const Session.signedOut());
+    await h.mount(tester, ready: false, client: client, devices: devices);
+    expect(client.reads, 0);
+    h.changeSession(customerSession);
+    await tester.pump();
+    expect(client.prompts, 0);
+    h.ready();
+    await tester.pumpAndSettle();
+    expect(client.prompts, 1);
+    expect(devices.registrations, 1);
+    _expectHome(h);
+  });
+  testWidgets(
+    'background readiness waits for resume; denied permission never repeats',
+    (tester) async {
+      _background(tester);
+      final client = _Client()
+        ..allowed = PushPermission.notDetermined
+        ..requestResult = PushPermission.denied;
+      final devices = _Devices();
+      final h = _Harness();
+      await h.mount(tester, client: client, devices: devices);
+      expect(client.prompts, 0);
+      _resume(tester);
+      await tester.pumpAndSettle();
+      expect(client.prompts, 1);
+      expect(devices.registrations, 0);
+      for (var i = 0; i < 2; i++) {
+        _background(tester);
+        _resume(tester);
+        await tester.pumpAndSettle();
+      }
+      expect(client.prompts, 1);
+      _expectHome(h);
+    },
+  );
+  testWidgets(
+    'resume observes settings grant/revoke and refreshes registration once',
+    (tester) async {
+      _resume(tester);
+      final client = _Client()..allowed = PushPermission.denied;
+      final devices = _Devices();
+      final h = _Harness();
+      await h.mount(tester, client: client, devices: devices);
+      expect(client.prompts, 0);
+      expect(devices.registrations, 0);
+      _background(tester);
+      client.allowed = PushPermission.authorized;
+      _resume(tester);
+      await tester.pumpAndSettle();
+      expect(devices.registrations, 1);
+      _background(tester);
+      _resume(tester);
+      await tester.pumpAndSettle();
+      expect(devices.registrations, 2);
+      _background(tester);
+      client.allowed = PushPermission.denied;
+      _resume(tester);
+      await tester.pumpAndSettle();
+      expect(devices.unregistrations, 1);
+      expect(client.prompts, 0);
+      h.container.read(routerProvider).go(AppRoutes.notifications);
+      await tester.pumpAndSettle();
+      expect(find.byType(NotificationsScreen), findsOneWidget);
+    },
+  );
+  testWidgets('logout before startup readiness never prompts', (tester) async {
+    _resume(tester);
+    final client = _Client()..allowed = PushPermission.notDetermined;
+    final devices = _Devices();
+    final h = _Harness();
+    await h.mount(tester, ready: false, client: client, devices: devices);
+    h.changeSession(const Session.signedOut());
+    h.ready();
+    await tester.pumpAndSettle();
+    expect(client.prompts, 0);
+    expect(devices.registrations, 0);
+  });
   setUpAll(() async {
     await (FontLoader('Zain')
           ..addFont(rootBundle.load('assets/fonts/Zain-Regular.ttf'))

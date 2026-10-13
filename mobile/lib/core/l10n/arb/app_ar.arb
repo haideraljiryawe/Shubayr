@@ -649,6 +649,8 @@
   "orderReductionDeclineConfirm": "هل ترفض تعديل الكمية؟ سيراجع المتجر طلبك.",
   "orderDecisionSaved": "تم حفظ ردك.",
   "productLowStockLabel": "الكمية محدودة",
+  "pushSettings": "إعدادات الإشعارات",
+  "pushSettingsUnavailable": "تعذّر فتح إعدادات الإشعارات. افتح إعدادات التطبيق من إعدادات جهازك.",
   "pushEnable": "تفعيل الإشعارات الفورية",
   "pushEnabled": "تم تفعيل الإشعارات الفورية.",
   "pushDenied": "الإشعارات معطّلة. اسمح بها في إعدادات جهازك ثم حاول مجددًا.",

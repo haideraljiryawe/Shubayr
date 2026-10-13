@@ -26,6 +26,22 @@ class _Messaging extends Fake implements FirebaseMessaging {
   }
 
   @override
+  Future<NotificationSettings> requestPermission({
+    bool alert = true,
+    bool announcement = false,
+    bool badge = true,
+    bool carPlay = false,
+    bool criticalAlert = false,
+    bool provisional = false,
+    bool sound = true,
+    bool providesAppNotificationSettings = false,
+  }) async {
+    calls.add('request');
+    authorization = AuthorizationStatus.authorized;
+    return _Settings(authorization);
+  }
+
+  @override
   Future<void> setAutoInitEnabled(bool enabled) async {
     calls.add('autoInit:$enabled');
     if (enabled) {
@@ -106,6 +122,30 @@ void main() {
     expect(messaging.calls, ['permission', 'autoInit:true', 'apns', 'token']);
     expect(devices.calls, ['register:ios:ar:1']);
   });
+  for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+    for (final status in AuthorizationStatus.values) {
+      test(
+        '$platform initial request only for native notDetermined: $status',
+        () async {
+          debugDefaultTargetPlatformOverride = platform;
+          messaging.authorization = status;
+          messaging.apnsReady = true;
+          await lifecycle.synchronize(_customer, requestPermission: true);
+          expect(
+            messaging.calls.where((c) => c == 'request').length,
+            status == AuthorizationStatus.notDetermined ? 1 : 0,
+          );
+          expect(
+            devices.calls.length,
+            status == AuthorizationStatus.denied ||
+                    status == AuthorizationStatus.deniedPermanently
+                ? 0
+                : 1,
+          );
+        },
+      );
+    }
+  }
 
   test('pending APNs skips FCM token retrieval and can retry', () async {
     expect(

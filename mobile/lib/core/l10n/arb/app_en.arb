@@ -774,6 +774,8 @@
     }
   },
   "productLowStockLabel": "Low stock",
+  "pushSettings": "Notification Settings",
+  "pushSettingsUnavailable": "Unable to open notification settings. Open the app in your device settings.",
   "pushEnable": "Enable push notifications",
   "pushEnabled": "Push notifications are enabled.",
   "pushDenied": "Notifications are disabled. Allow them in your device settings, then try again.",

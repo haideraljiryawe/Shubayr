@@ -1877,6 +1877,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get productLowStockLabel => 'الكمية محدودة';
 
   @override
+  String get pushSettings => 'إعدادات الإشعارات';
+
+  @override
+  String get pushSettingsUnavailable =>
+      'تعذّر فتح إعدادات الإشعارات. افتح إعدادات التطبيق من إعدادات جهازك.';
+
+  @override
   String get pushEnable => 'تفعيل الإشعارات الفورية';
 
   @override
