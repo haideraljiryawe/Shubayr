@@ -103,4 +103,36 @@ describe('CatalogSearchService outage handling', () => {
       },
     });
   });
+
+  it('drains large pending sets in bounded bulk batches', async () => {
+    const firstBatch = Array.from({ length: 500 }, (_, index) => ({
+      ...product,
+      id: `product-${index}`,
+    }));
+    const secondBatch = [{ ...product, id: 'product-500' }];
+    const findMany = jest
+      .fn()
+      .mockResolvedValueOnce(firstBatch)
+      .mockResolvedValueOnce(secondBatch)
+      .mockResolvedValueOnce([]);
+    const updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    const prisma = {
+      product: { findMany, updateMany },
+    } as unknown as PrismaService;
+    const service = new CatalogSearchService(prisma);
+    Object.assign(service, {
+      client: { index: mockIndex, tasks: { waitForTask: mockWaitForTask } },
+    });
+
+    await service.reindexPending();
+
+    const addDocumentCalls = mockAddDocuments.mock.calls as unknown as Array<
+      [unknown[]]
+    >;
+    expect(mockAddDocuments).toHaveBeenCalledTimes(2);
+    expect(addDocumentCalls[0]?.[0]).toHaveLength(500);
+    expect(addDocumentCalls[1]?.[0]).toHaveLength(1);
+    expect(updateMany).toHaveBeenCalledTimes(2);
+    expect(findMany).toHaveBeenCalledTimes(3);
+  });
 });

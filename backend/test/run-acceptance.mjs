@@ -178,6 +178,7 @@ try {
   await waitForApi(apiUrl);
   await run('test/financial-core.acceptance.mjs', [], acceptanceEnv);
   await run('test/catalog-v2.acceptance.mjs', [], acceptanceEnv);
+  await run('test/catalog-import-d2.acceptance.mjs', [], acceptanceEnv);
   await run('test/inventory-costing.acceptance.mjs', [], acceptanceEnv);
   await run('test/purchasing.acceptance.mjs', [], acceptanceEnv);
   await run('test/real-data.acceptance.mjs', [], acceptanceEnv);
