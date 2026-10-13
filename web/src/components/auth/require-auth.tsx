@@ -11,7 +11,7 @@ import { consumeDeliberateSignOut } from "@/lib/auth-store";
  * Gate for the account pages.
  *
  * The session lives in the browser, so this guard is a client redirect rather
- * than middleware — the server cannot know who is signed in. It waits for the
+ * than the proxy — the server cannot know who is signed in. It waits for the
  * store to hydrate before deciding, so a signed-in visitor reloading /account
  * is never bounced to the login page for a frame. The path they wanted is
  * carried in `?next=`, and the login page returns them to it.

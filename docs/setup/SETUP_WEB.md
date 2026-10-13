@@ -6,9 +6,9 @@ You own `web/`, the Next.js public website.
 
 | OS | Required tools |
 |---|---|
-| macOS | Git and Node.js 20+; Docker Desktop is optional for a local API |
-| Windows | Git for Windows and Node.js 20+; Docker Desktop with WSL 2 is optional |
-| Linux | Git and Node.js 20+; Docker Engine with Compose is optional |
+| macOS | Git and Node.js 22 (see `web/.nvmrc`); Docker Desktop is optional for a local API |
+| Windows | Git for Windows and Node.js 22 (see `web/.nvmrc`); Docker Desktop with WSL 2 is optional |
+| Linux | Git and Node.js 22 (see `web/.nvmrc`); Docker Engine with Compose is optional |
 
 Verify:
 
