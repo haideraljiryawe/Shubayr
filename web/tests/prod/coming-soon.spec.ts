@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { CLOSED_PREVIEW_TOKEN } from "./closed-store";
 
 /**
  * Before opening day (STORE_PUBLIC=false), on the production build: every
@@ -10,6 +9,7 @@ import { CLOSED_PREVIEW_TOKEN } from "./closed-store";
  * closes it again.
  */
 const closed = process.env.PLAYWRIGHT_CLOSED_ORIGIN ?? "http://localhost:3103";
+const CLOSED_PREVIEW_TOKEN = process.env.PLAYWRIGHT_CLOSED_PREVIEW_TOKEN ?? "";
 
 test.use({ baseURL: closed });
 
@@ -55,6 +55,7 @@ test("closed store: a wrong preview token is just the opening-soon page", async 
 });
 
 test("closed store: the preview link opens the real store until the preview ends", async ({ page, context }) => {
+  expect(CLOSED_PREVIEW_TOKEN, "set by playwright.prod.config.ts").not.toBe("");
   await page.goto(`/preview?t=${CLOSED_PREVIEW_TOKEN}`);
   await expect(page).toHaveURL(`${closed}/`);
   const cookie = (await context.cookies()).find((entry) => entry.name === "shubayr_store_preview");

@@ -1,5 +1,4 @@
 import { defineConfig } from "@playwright/test";
-import { CLOSED_PREVIEW_TOKEN } from "./tests/prod/closed-store";
 
 /**
  * The PRODUCTION server's output: security headers and the CSP nonce, no CSP
@@ -18,6 +17,10 @@ const port = Number(process.env.PLAYWRIGHT_PROD_PORT ?? 3102);
 // with a preview token (tests/prod/coming-soon.spec.ts).
 const closedPort = port + 1;
 process.env.PLAYWRIGHT_CLOSED_ORIGIN = `http://localhost:${closedPort}`;
+// Shared with the spec through the environment: the Docker build context has
+// no tests/ folder, and this file is type-checked by `next build`.
+const CLOSED_PREVIEW_TOKEN = "prod-test-preview-token-0123456789";
+process.env.PLAYWRIGHT_CLOSED_PREVIEW_TOKEN = CLOSED_PREVIEW_TOKEN;
 
 export default defineConfig({
   testDir: "./tests/prod",
