@@ -28,7 +28,9 @@
     "db:drop-verify": "node scripts/drop-verify-dbs.mjs",
     "catalog:depth-report": "node scripts/category-depth-report.mjs",
     "push:diagnose": "ts-node --transpile-only src/cli/push-diagnostic.ts",
-    "push:test": "ts-node --transpile-only src/cli/push-test.ts"
+    "push:test": "ts-node --transpile-only src/cli/push-test.ts",
+    "bootstrap:reference": "node dist/src/cli/bootstrap-reference.js",
+    "bootstrap:owner": "node dist/src/cli/create-owner.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1135.0",
