@@ -63,6 +63,16 @@ const appAccounts = [
   ['delivery', 'delivery_agent', '+9647700000005', 'Development Delivery'],
   ['monitor', 'order_monitor', '+9647700000008', 'Development Order Monitor'],
   ['customer', 'customer', '+9647700000006', 'Development Customer'],
+  ...(process.env.APP_ENV === 'development'
+    ? ([
+        [
+          'push_test_customer',
+          'customer',
+          '+9647700000066',
+          'Development Push Test Customer',
+        ],
+      ] as const)
+    : []),
 ] as const;
 
 const DEV_ADMIN_PASSWORD = 'Shubayr-Dev-Admin!2026';

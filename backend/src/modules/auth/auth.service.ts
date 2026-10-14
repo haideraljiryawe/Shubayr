@@ -60,6 +60,7 @@ type RefreshPayload = {
   surface: AuthSurface;
   client?: 'mobile' | 'web_store';
   ver: number;
+  sid?: string;
 };
 
 @Injectable()
@@ -339,25 +340,42 @@ export class AuthService {
         payload.client ?? null,
         payload.ver,
         tx,
+        stored.session_id,
       );
     });
   }
 
   async logout(input: RefreshTokenDto): Promise<void> {
     const payload = await this.verifyRefresh(input.refresh_token);
-    const revoked = await this.prisma.refreshToken.updateMany({
-      where: {
-        id: payload.jti,
-        user_id: payload.sub,
-        surface: payload.surface,
-        token_hash: this.hashToken(input.refresh_token),
-        revoked_at: null,
-      },
-      data: { revoked_at: new Date() },
+    await this.prisma.$transaction(async (tx) => {
+      const stored = await tx.refreshToken.findFirst({
+        where: {
+          id: payload.jti,
+          user_id: payload.sub,
+          surface: payload.surface,
+          token_hash: this.hashToken(input.refresh_token),
+          revoked_at: null,
+        },
+      });
+      if (!stored) throw new UnauthorizedException('Invalid refresh token');
+      const now = new Date();
+      await tx.refreshToken.updateMany({
+        where: {
+          user_id: stored.user_id,
+          session_id: stored.session_id,
+          revoked_at: null,
+        },
+        data: { revoked_at: now },
+      });
+      await tx.deviceToken.updateMany({
+        where: {
+          user_id: stored.user_id,
+          session_id: stored.session_id,
+          is_active: true,
+        },
+        data: { is_active: false, deactivated_at: now },
+      });
     });
-    if (revoked.count !== 1) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
   }
 
   private async verifyRefresh(token: string): Promise<RefreshPayload> {
@@ -385,6 +403,7 @@ export class AuthService {
     client: 'mobile' | 'web_store' | null,
     sessionVersion: number,
     database: Pick<PrismaService, 'refreshToken'> = this.prisma,
+    sessionId: string = randomUUID(),
   ) {
     const accessSeconds = this.durationSeconds(
       this.config.get<string>('JWT_ACCESS_TTL', '15m'),
@@ -398,6 +417,7 @@ export class AuthService {
       surface,
       ...(client ? { client } : {}),
       ver: sessionVersion,
+      sid: sessionId,
     };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(
@@ -418,6 +438,7 @@ export class AuthService {
     await database.refreshToken.create({
       data: {
         id: jti,
+        session_id: sessionId,
         user_id: userId,
         token_hash: this.hashToken(refreshToken),
         surface,

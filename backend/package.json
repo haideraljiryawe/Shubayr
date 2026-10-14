@@ -26,7 +26,9 @@
     "seed": "ts-node --transpile-only prisma/seed.ts",
     "test:acceptance": "node test/run-acceptance.mjs",
     "db:drop-verify": "node scripts/drop-verify-dbs.mjs",
-    "catalog:depth-report": "node scripts/category-depth-report.mjs"
+    "catalog:depth-report": "node scripts/category-depth-report.mjs",
+    "push:diagnose": "ts-node --transpile-only src/cli/push-diagnostic.ts",
+    "push:test": "ts-node --transpile-only src/cli/push-test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1135.0",

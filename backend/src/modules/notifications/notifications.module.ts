@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { createHash } from 'node:crypto';
@@ -54,10 +54,14 @@ import {
       useFactory: (config: ConfigService) => {
         const provider = config.get<string>('NOTIFICATION_PROVIDER');
         if (provider === 'fcm') {
-          return new FcmPushProvider(
+          const fcm = new FcmPushProvider(
             config.getOrThrow<string>('FCM_SERVICE_ACCOUNT_JSON_BASE64'),
             config.getOrThrow<string>('FCM_PROJECT_ID'),
           );
+          new Logger('PushConfiguration').log(
+            `FCM HTTP v1 configured for project ${config.getOrThrow<string>('FCM_PROJECT_ID')}; run npm run push:diagnose to authenticate credentials`,
+          );
+          return fcm;
         }
         return provider === 'disabled'
           ? new DisabledNotificationProvider()
