@@ -8,9 +8,7 @@ import { loadAllBrands, loadCategoryTree } from "@/lib/api/catalog-server";
 import { loadPermissions } from "@/lib/api/inventory-server";
 import { load, serverApi } from "@/lib/api/server";
 import { lastPage } from "@/lib/list-queries";
-import {
-  localFilters,
-} from "@/lib/product-list";
+import { SORT_KEYS, productQuery, shownDir } from "@/lib/product-list";
 import { parseTableParams, type RawSearchParams, type TableParams } from "@/lib/table-params";
 import { ProductsTable } from "./products-table";
 import { ReindexButton } from "./reindex-button";
@@ -20,28 +18,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("products") };
 }
 
-const SORT_KEYS = ["newest", "price"] as const;
 type Params = TableParams<(typeof SORT_KEYS)[number]>;
 
-/** The table's URL state as GET /admin/products parameters (what the API filters itself). */
-function productQuery(params: Params, page: number, perPage: number) {
-  const filters = localFilters(params.filters);
-  return {
-    ...(params.q ? { q: params.q } : {}),
-    ...(params.filters.category_id ? { category_id: params.filters.category_id } : {}),
-    ...(params.filters.brand_id ? { brand_id: [params.filters.brand_id] } : {}),
-    ...(filters.status ? { status: [filters.status] } : {}),
-    ...(filters.stock ? { availability: [filters.stock] } : {}),
-    ...(filters.image ? { has_image: filters.image === "with" } : {}),
-    sort:
-      params.sort === "price"
-        ? params.dir === "desc"
-          ? ("price_desc" as const)
-          : ("price_asc" as const)
-        : ("newest" as const),
-    page,
-    per_page: perPage,
-  };
+/** One page of the table's URL state as GET /admin/products parameters (the API filters, sorts and pages). */
+function pageQuery(params: Params, page: number, perPage: number) {
+  return { ...productQuery(params), page, per_page: perPage };
 }
 
 /** Every product, hidden and archived included (catalog.products). */
@@ -57,12 +38,12 @@ export default async function ProductsPage({
     filterKeys: ["category_id", "brand_id", "status", "stock", "image"],
   });
   const api = await serverApi();
-  let products = await load(api.GET("/admin/products", { params: { query: productQuery(params, params.page, params.perPage) } }));
+  let products = await load(api.GET("/admin/products", { params: { query: pageQuery(params, params.page, params.perPage) } }));
   if (!products.ok) return <PageError error={products.error} />;
   if (products.data.data.length === 0 && products.data.total > 0 && params.page > 1) {
     products = await load(
       api.GET("/admin/products", {
-        params: { query: productQuery(params, lastPage(products.data.total, params.perPage), params.perPage) },
+        params: { query: pageQuery(params, lastPage(products.data.total, params.perPage), params.perPage) },
       }),
     );
     if (!products.ok) return <PageError error={products.error} />;
@@ -98,8 +79,9 @@ export default async function ProductsPage({
           perPage: params.perPage,
           total: products.data.total,
           sort: params.sort,
-          dir: params.dir,
+          dir: shownDir(params.sort, params.dir),
         }}
+        query={productQuery(params)}
         tree={tree.ok ? tree.data : []}
         brands={brands.ok ? brands.data : []}
         canBulkEdit={permissions.includes("prices.change")}

@@ -1,15 +1,23 @@
-import type { components } from "@/types/api";
+import type { components, paths } from "@/types/api";
 import type { Product } from "./catalog";
 
 /* ---------------------------------------------------------------------------
- * The product list for a large catalog: filters, bulk actions and paging,
- * kept pure so they are unit-tested.
+ * The product list for a large catalog (API 15.1), kept pure so it is
+ * unit-tested.
  *
- * GET /admin/products filters and pages in the database. These helpers keep
- * URL filter parsing and bulk-action presentation deterministic.
+ * GET /admin/products filters, searches (names, descriptions, SKU and
+ * barcode), sorts and pages in the database; these helpers turn the table's
+ * URL state into its parameters. Bulk changes go through POST
+ * /admin/products/bulk: up to 500 products in one transaction, one result per
+ * product, idempotent by operation id.
  * ------------------------------------------------------------------------- */
 
-export type ProductPatch = components["schemas"]["ProductPatch"];
+export type ProductListQuery = NonNullable<paths["/admin/products"]["get"]["parameters"]["query"]>;
+type ApiSort = NonNullable<ProductListQuery["sort"]>;
+export type BulkInput = components["schemas"]["ProductBulkInput"];
+export type BulkResult = components["schemas"]["ProductBulkResult"];
+/** A bulk request without its operation id (Omit kept per variant of the union). */
+export type BulkRequest = BulkInput extends infer T ? (T extends unknown ? Omit<T, "operation_id"> : never) : never;
 
 export const STATUS_FILTERS = ["active", "hidden", "archived"] as const;
 export type StatusFilter = (typeof STATUS_FILTERS)[number];
@@ -17,13 +25,14 @@ export type StatusFilter = (typeof STATUS_FILTERS)[number];
 export const STOCK_FILTERS = ["in_stock", "low_stock", "out_of_stock"] as const;
 export type StockFilter = (typeof STOCK_FILTERS)[number];
 
-export interface LocalFilters {
+export interface ListFilters {
   status: StatusFilter | null;
   stock: StockFilter | null;
   image: "with" | "without" | null;
 }
 
-export function localFilters(filters: Record<string, string>): LocalFilters {
+/** Only known status, stock and picture filters are read from the URL. */
+export function listFilters(filters: Record<string, string>): ListFilters {
   const status = (STATUS_FILTERS as readonly string[]).includes(filters.status ?? "")
     ? (filters.status as StatusFilter)
     : null;
@@ -36,51 +45,65 @@ export function localFilters(filters: Record<string, string>): LocalFilters {
   return { status, stock, image };
 }
 
-export function hasLocalFilters(filters: LocalFilters): boolean {
-  return filters.status !== null || filters.stock !== null || filters.image !== null;
+/* ------------------------------------------------------------ sorting */
+
+/** The table's sortable columns. */
+export const SORT_KEYS = ["newest", "name", "sku", "price"] as const;
+export type SortKey = (typeof SORT_KEYS)[number];
+
+/**
+ * A column and direction as the API's sort. SKU sorts A→Z only: the API has
+ * no descending SKU order, so the column stays ascending.
+ */
+export function apiSort(sort: SortKey, dir: "asc" | "desc"): ApiSort {
+  switch (sort) {
+    case "price":
+      return dir === "desc" ? "price_desc" : "price_asc";
+    case "name":
+      return dir === "desc" ? "name_desc" : "name_asc";
+    case "sku":
+      return "sku_asc";
+    default:
+      return "newest";
+  }
 }
 
-/** Whether a product passes the status and stock filters. */
-export function matchesLocalFilters(product: Product, filters: LocalFilters): boolean {
-  if (filters.status && (product.status ?? "hidden") !== filters.status) return false;
-  if (filters.stock && (product.availability ?? "out_of_stock") !== filters.stock) return false;
-  if (filters.image === "with" && !(product.images?.length)) return false;
-  if (filters.image === "without" && product.images?.length) return false;
-  return true;
+/** The direction shown on the column header (SKU is always ascending). */
+export function shownDir(sort: SortKey, dir: "asc" | "desc"): "asc" | "desc" {
+  return sort === "sku" ? "asc" : dir;
 }
 
-/** One page of an already filtered list, clamped to the last page. */
-export function pageOf<T>(rows: readonly T[], page: number, perPage: number): { rows: T[]; page: number } {
-  const last = Math.max(1, Math.ceil(rows.length / perPage));
-  const current = Math.min(Math.max(1, page), last);
-  return { rows: rows.slice((current - 1) * perPage, current * perPage), page: current };
+/** The table's URL state as GET /admin/products parameters, without paging. */
+export function productQuery(params: {
+  q?: string;
+  filters: Record<string, string>;
+  sort: SortKey;
+  dir: "asc" | "desc";
+}): ProductListQuery {
+  const filters = listFilters(params.filters);
+  return {
+    ...(params.q ? { q: params.q } : {}),
+    ...(params.filters.category_id ? { category_id: params.filters.category_id } : {}),
+    ...(params.filters.brand_id ? { brand_id: [params.filters.brand_id] } : {}),
+    ...(filters.status ? { status: [filters.status] } : {}),
+    ...(filters.stock ? { availability: [filters.stock] } : {}),
+    ...(filters.image ? { has_image: filters.image === "with" } : {}),
+    sort: apiSort(params.sort, params.dir),
+  };
 }
 
 /* ------------------------------------------------------------ bulk actions */
+
+/** The bulk endpoint takes at most this many products in one change. */
+export const BULK_LIMIT = 500;
+/** The list endpoint's largest page; "select all matching" reads in pages of it. */
+export const MAX_PER_PAGE = 100;
 
 export type BulkAction =
   | { kind: "publish" }
   | { kind: "hide" }
   | { kind: "category"; categoryId: string }
   | { kind: "brand"; brandId: string | null };
-
-/**
- * The PATCH each selected product gets. Publishing goes with status, as in
- * the editor: an active product is published (and must pass the API's
- * publishing checks — an approved price on every SKU), a hidden one is not.
- */
-export function bulkPatch(action: BulkAction): ProductPatch {
-  switch (action.kind) {
-    case "publish":
-      return { status: "active", published: true };
-    case "hide":
-      return { status: "hidden", published: false };
-    case "category":
-      return { category_id: action.categoryId };
-    case "brand":
-      return { brand_id: action.brandId };
-  }
-}
 
 /** Products a bulk action would leave unchanged are not sent. */
 export function bulkTargets(products: readonly Product[], action: BulkAction): Product[] {
@@ -98,9 +121,44 @@ export function bulkTargets(products: readonly Product[], action: BulkAction): P
   });
 }
 
+/** The request body for one bulk change (the caller adds the operation id). */
+export function bulkBody(action: BulkAction, ids: readonly string[]): BulkRequest {
+  const common = { ids: [...ids] };
+  switch (action.kind) {
+    case "category":
+      return { ...common, action: "set_category", category_id: action.categoryId };
+    case "brand":
+      return { ...common, action: "set_brand", brand_id: action.brandId };
+    default:
+      return { ...common, action: action.kind };
+  }
+}
+
+export interface BulkLine {
+  id: string;
+  name: string;
+  ok: boolean;
+  message: string | null;
+}
+
 export interface BulkOutcome {
   done: number;
-  failed: Array<{ id: string; name: string; message: string }>;
+  failed: number;
+  /** One line per product sent, failures first. */
+  lines: BulkLine[];
+}
+
+/** The API's per-product results, named and ordered for the report. */
+export function bulkOutcome(result: BulkResult, nameOf: (id: string) => string, unknown: string): BulkOutcome {
+  const lines = result.results.map((item) => ({
+    id: item.id,
+    name: nameOf(item.id),
+    ok: item.status === "updated",
+    message: item.status === "updated" ? null : (item.message ?? item.code ?? unknown),
+  }));
+  lines.sort((a, b) => Number(a.ok) - Number(b.ok));
+  const failed = lines.filter((line) => !line.ok).length;
+  return { done: lines.length - failed, failed, lines };
 }
 
 /** The primary picture of a product, for the list's thumbnail. */
