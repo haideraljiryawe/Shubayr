@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 15.1.1
+  version: 16.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -3411,10 +3411,10 @@ paths:
   /admin/catalog-imports/{id}/commit:
     post:
       tags: [Admin, Catalog import]
-      summary: Atomically commit all valid preview rows
-      description: The operation id makes double submission return the original result. Valid Stock rows create exactly one posted inventory-opening document in the same transaction.
+      summary: Queue a resumable commit of all valid preview rows
+      description: Product rows are committed by the background worker in batches of at most 250 and progress is exposed on the detail resource. The operation id and durable per-row checkpoints make double submission and worker restart safe. A failed batch leaves earlier batches applied and reports the failed row. Valid Stock rows create exactly one posted inventory-opening document only after all product rows succeed.
       x-permission: catalog.import
-      x-error-codes: [CATALOG_IMPORT_ALREADY_COMMITTED, CATALOG_IMPORT_NOT_READY, CATALOG_IMPORT_NO_VALID_ROWS, CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED, EXCHANGE_RATE_REQUIRED]
+      x-error-codes: [CATALOG_IMPORT_ALREADY_COMMITTED, CATALOG_IMPORT_OPERATION_ID_REUSED, CATALOG_IMPORT_NOT_READY, CATALOG_IMPORT_NO_VALID_ROWS, CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED, CATALOG_IMPORT_QUEUE_UNAVAILABLE, EXCHANGE_RATE_REQUIRED]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -3428,7 +3428,7 @@ paths:
                 operation_id: { type: string, minLength: 8, maxLength: 128 }
       responses:
         "201":
-          description: Committed import result
+          description: Queued/in-progress result, or the completed result on an idempotent replay
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CatalogImportCommitResult" }
@@ -3436,6 +3436,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /admin/catalog-images/bulk:
     post:
       tags: [Admin, Catalog import]
@@ -3483,7 +3484,7 @@ paths:
         - { name: status, in: query, schema: { type: array, items: { type: string, enum: [active, hidden, archived] } }, style: form, explode: true }
         - { name: availability, in: query, schema: { type: array, items: { type: string, enum: [in_stock, low_stock, out_of_stock] } }, style: form, explode: true }
         - { name: has_image, in: query, schema: { type: boolean } }
-        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating, name_asc, name_desc, sku_asc] } }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating, name_asc, name_desc, sku_asc, sku_desc] } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -5094,6 +5095,7 @@ components:
     PayloadTooLarge: { description: "Uploaded workbook, archive, image, or row count exceeds the declared limit", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     UnsupportedMediaType: { description: Uploaded image bytes are not a supported image format, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Forbidden: { description: Missing permission (`FORBIDDEN`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    ServiceUnavailable: { description: Background worker queue is unavailable, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
   schemas:
     Error:
       type: object
@@ -5763,7 +5765,7 @@ components:
     CatalogImportPreviewRow:
       type: object
       additionalProperties: false
-      required: [sheet, row, sku, action, apply_action, issues]
+      required: [sheet, row, sku, action, apply_action, issues, commit_status, commit_error]
       properties:
         sheet: { type: string, enum: ["Products+Variants", Stock] }
         row: { type: integer, minimum: 2 }
@@ -5771,6 +5773,16 @@ components:
         action: { type: string, enum: [create, update, error, warning] }
         apply_action: { type: [string, "null"], enum: [create, update, null] }
         issues: { type: array, items: { $ref: "#/components/schemas/CatalogImportIssue" } }
+        commit_status: { type: string, enum: [pending, applied, failed, skipped] }
+        commit_error:
+          oneOf:
+            - type: "null"
+            - type: object
+              additionalProperties: false
+              required: [code, message]
+              properties:
+                code: { type: string }
+                message: { type: string }
         product: { $ref: "#/components/schemas/CatalogImportProductRow" }
         stock: { $ref: "#/components/schemas/CatalogImportStockRow" }
 
@@ -5794,7 +5806,7 @@ components:
     CatalogImport:
       type: object
       additionalProperties: false
-      required: [id, file_name, create_missing, status, progress, row_count, create_count, update_count, error_count, warning_count, preview, error_report_key, operation_id, opening_id, created_by, committed_by, created_at, updated_at, completed_at]
+      required: [id, file_name, create_missing, status, progress, row_count, create_count, update_count, error_count, warning_count, applied_count, commit_attempt, preview, error_report_key, operation_id, opening_id, created_by, created_by_name, committed_by, created_at, updated_at, completed_at]
       properties:
         id: { type: string, format: uuid }
         file_name: { type: string }
@@ -5806,11 +5818,14 @@ components:
         update_count: { type: integer, minimum: 0 }
         error_count: { type: integer, minimum: 0 }
         warning_count: { type: integer, minimum: 0 }
+        applied_count: { type: integer, minimum: 0 }
+        commit_attempt: { type: integer, minimum: 0 }
         preview: { oneOf: [ { $ref: "#/components/schemas/CatalogImportPreview" }, { type: "null" } ] }
         error_report_key: { type: [string, "null"], description: Internal report availability marker; download through the error-report route. }
         operation_id: { type: [string, "null"] }
         opening_id: { type: [string, "null"], format: uuid }
         created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
         committed_by: { type: [string, "null"], format: uuid }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -5822,19 +5837,48 @@ components:
         - type: object
           required: [data]
           properties:
-            data: { type: array, items: { $ref: "#/components/schemas/CatalogImport" } }
+            data: { type: array, items: { $ref: "#/components/schemas/CatalogImportSummary" } }
+
+    CatalogImportSummary:
+      type: object
+      additionalProperties: false
+      required: [id, file_name, create_missing, status, progress, row_count, create_count, update_count, error_count, warning_count, applied_count, commit_attempt, error_report_key, operation_id, opening_id, created_by, created_by_name, committed_by, created_at, updated_at, completed_at]
+      properties:
+        id: { type: string, format: uuid }
+        file_name: { type: string }
+        create_missing: { type: boolean }
+        status: { type: string, enum: [queued, validating, ready, committing, completed, failed] }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        row_count: { type: integer, minimum: 0 }
+        create_count: { type: integer, minimum: 0 }
+        update_count: { type: integer, minimum: 0 }
+        error_count: { type: integer, minimum: 0 }
+        warning_count: { type: integer, minimum: 0 }
+        applied_count: { type: integer, minimum: 0 }
+        commit_attempt: { type: integer, minimum: 0 }
+        error_report_key: { type: [string, "null"] }
+        operation_id: { type: [string, "null"] }
+        opening_id: { type: [string, "null"], format: uuid }
+        created_by: { type: string, format: uuid }
+        created_by_name: { type: string }
+        committed_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
 
     CatalogImportCommitResult:
       type: object
       additionalProperties: false
-      required: [id, status, operation_id, created, updated, skipped_errors, opening_id]
+      required: [id, status, operation_id, created, updated, skipped_errors, applied_rows, total_rows, opening_id]
       properties:
         id: { type: string, format: uuid }
-        status: { type: string, const: completed }
+        status: { type: string, enum: [committing, completed] }
         operation_id: { type: string }
         created: { type: integer, minimum: 0 }
         updated: { type: integer, minimum: 0 }
         skipped_errors: { type: integer, minimum: 0 }
+        applied_rows: { type: integer, minimum: 0 }
+        total_rows: { type: integer, minimum: 1 }
         opening_id: { type: [string, "null"], format: uuid }
 
     CatalogImageBulkResult:

@@ -91,6 +91,7 @@ function productRow({
   sku,
   price = 10_000,
   status = 'hidden',
+  barcode = '',
 }) {
   return [
     root,
@@ -108,7 +109,7 @@ function productRow({
     '',
     '',
     2,
-    '',
+    barcode,
     status,
     '',
     '',
@@ -126,6 +127,18 @@ async function waitForReady(importId, token, timeoutMs = 60_000) {
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`Catalog import ${importId} did not finish validation`);
+}
+
+async function waitForCommit(importId, token, timeoutMs = 300_000) {
+  const started = performance.now();
+  while (performance.now() - started < timeoutMs) {
+    const value = await request(`/admin/catalog-imports/${importId}`, {
+      token,
+    });
+    if (!['committing'].includes(value.status)) return value;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Catalog import ${importId} did not finish committing`);
 }
 
 const login = await request('/admin/auth/login', {
@@ -284,7 +297,7 @@ try {
       body: { operation_id: operationId },
     },
   );
-  present(committed.opening_id, 'Stock rows produce an opening document');
+  check(committed.status, 'committing', 'commit is queued for the worker');
   const replay = await request(
     `/admin/catalog-imports/${validPreview.id}/commit`,
     {
@@ -295,13 +308,16 @@ try {
     },
   );
   check(replay, committed, 'duplicate commit returns the original result');
+  const completed = await waitForCommit(validPreview.id, token);
+  check(completed.status, 'completed', 'background commit completes');
+  present(completed.opening_id, 'Stock rows produce an opening document');
   const committedRows = await db.query(
     `SELECT
        (SELECT COUNT(*)::int FROM product_variants WHERE sku=$1) AS new_skus,
        (SELECT COUNT(*)::int FROM inventory_openings WHERE id=$2) AS openings,
        (SELECT COUNT(*)::int FROM inventory_opening_lines WHERE opening_id=$2) AS opening_lines,
        (SELECT name_en FROM products WHERE id=$3) AS updated_name`,
-    [newSku, committed.opening_id, existing.id],
+    [newSku, completed.opening_id, existing.id],
   );
   check(committedRows.rows[0].new_skus, 1, 'new SKU is created exactly once');
   check(committedRows.rows[0].openings, 1, 'opening is created exactly once');
@@ -406,6 +422,11 @@ try {
     expected: 201,
     body: { operation_id: `d2-missing-${randomUUID()}` },
   });
+  check(
+    (await waitForCommit(allowedMissing.id, token)).status,
+    'completed',
+    'create-missing import completes in the worker',
+  );
   const taxonomy = await db.query(
     `SELECT
        (SELECT COUNT(*)::int FROM categories WHERE name_en=$1 AND parent_id IS NULL) AS roots,
@@ -459,6 +480,99 @@ try {
     'ZIP images are compressed to WebP',
   );
 
+  const failingBarcode = `D2FAIL${suffix}`.slice(0, 30);
+  const failingRows = Array.from({ length: 750 }, (_, index) =>
+    productRow({
+      root: root.name_en,
+      leaf: leaf.name_en,
+      brand: brand.name_en,
+      name: `D2 Batch Failure ${index}`,
+      sku: `D2-FAIL-${suffix}-${index}`,
+      barcode: index === 500 ? failingBarcode : '',
+    }),
+  );
+  const failingUpload = await multipart(
+    '/admin/catalog-imports/preview?create_missing=false',
+    token,
+    await workbookBuffer(template, failingRows),
+    'batch-failure.xlsx',
+  );
+  const failingReady = await waitForReady(failingUpload.id, token);
+  check(failingReady.status, 'ready', 'batch-failure fixture validates');
+  await db.query('UPDATE product_variants SET barcode=$1 WHERE sku=$2', [
+    failingBarcode,
+    existingSku,
+  ]);
+  const failingOperationId = `d2-failing-${randomUUID()}`;
+  await request(`/admin/catalog-imports/${failingReady.id}/commit`, {
+    token,
+    method: 'POST',
+    expected: 201,
+    body: { operation_id: failingOperationId },
+  });
+  const failedImport = await waitForCommit(failingReady.id, token);
+  check(
+    failedImport.status,
+    'failed',
+    'a failure in batch three stops the import',
+  );
+  check(
+    failedImport.applied_count,
+    500,
+    'the first two batches stay committed',
+  );
+  check(
+    failedImport.preview.rows.find((item) => item.row === 502).commit_status,
+    'failed',
+    'the exact failed workbook row is reported',
+  );
+  check(
+    failedImport.preview.rows.find((item) => item.row === 502).commit_error
+      .code,
+    'CATALOG_IMPORT_UNIQUE_CONFLICT',
+    'the failed row has a clear error code',
+  );
+  check(
+    Number(
+      (
+        await db.query(
+          `SELECT COUNT(*) AS count FROM product_variants WHERE sku LIKE $1`,
+          [`D2-FAIL-${suffix}-%`],
+        )
+      ).rows[0].count,
+    ),
+    500,
+    'failed batch is rolled back while prior batches remain',
+  );
+  await db.query('UPDATE product_variants SET barcode=NULL WHERE sku=$1', [
+    existingSku,
+  ]);
+  await request(`/admin/catalog-imports/${failingReady.id}/commit`, {
+    token,
+    method: 'POST',
+    expected: 201,
+    body: { operation_id: failingOperationId },
+  });
+  const resumedImport = await waitForCommit(failingReady.id, token);
+  check(resumedImport.status, 'completed', 'retry resumes the failed import');
+  check(
+    resumedImport.applied_count,
+    750,
+    'retry completes all durable row checkpoints',
+  );
+  check(
+    Number(
+      (
+        await db.query(
+          `SELECT COUNT(*) AS count FROM product_variants WHERE sku LIKE $1`,
+          [`D2-FAIL-${suffix}-%`],
+        )
+      ).rows[0].count,
+    ),
+    750,
+    'resume does not duplicate either committed batch',
+  );
+
   const largeRows = Array.from({ length: 5_000 }, (_, index) =>
     productRow({
       root: root.name_en,
@@ -486,6 +600,56 @@ try {
     largeMs < 30_000,
     true,
     `5,000-row preview completes in 30 seconds (${largeMs.toFixed(1)} ms)`,
+  );
+  const largeCommitStarted = performance.now();
+  const largeQueued = await request(
+    `/admin/catalog-imports/${largeReady.id}/commit`,
+    {
+      token,
+      method: 'POST',
+      expected: 201,
+      body: { operation_id: `d2-large-${randomUUID()}` },
+    },
+  );
+  check(largeQueued.status, 'committing', '5,000-row commit is queued');
+  const largeCompleted = await waitForCommit(largeReady.id, token);
+  const largeCommitMs = performance.now() - largeCommitStarted;
+  check(largeCompleted.status, 'completed', '5,000-row commit succeeds');
+  check(largeCompleted.applied_count, 5_000, 'all 5,000 rows are checkpointed');
+  check(
+    Number(
+      (
+        await db.query(
+          `SELECT COUNT(*) AS count FROM product_variants WHERE sku LIKE $1`,
+          [`D2-LARGE-${suffix}-%`],
+        )
+      ).rows[0].count,
+    ),
+    5_000,
+    '5,000-row commit creates every SKU exactly once',
+  );
+
+  const historyResponse = await fetch(
+    `${api}/admin/catalog-imports?page=1&per_page=20`,
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  const historyText = await historyResponse.text();
+  check(historyResponse.status, 200, 'import history loads');
+  const history = JSON.parse(historyText);
+  check(
+    history.data.every((item) => !Object.hasOwn(item, 'preview')),
+    true,
+    'import history omits full previews',
+  );
+  check(
+    history.data.every((item) => Boolean(item.created_by_name)),
+    true,
+    'import history includes creator display names',
+  );
+  check(
+    historyText.length < 30_000,
+    true,
+    'import history payload stays small',
   );
 
   await db.query(
@@ -534,6 +698,15 @@ try {
     true,
     `10,000-product filtered list stays under 300 ms (${maxListMs.toFixed(1)} ms)`,
   );
+  const skuDescending = await request(
+    '/admin/products?q=D2-PERF-&status=hidden&sort=sku_desc&page=1&per_page=2',
+    { token },
+  );
+  check(
+    skuDescending.data.map((item) => item.variants[0].sku),
+    ['D2-PERF-10000', 'D2-PERF-09999'],
+    'descending SKU sort is stable',
+  );
   const audit = await db.query(
     `SELECT COUNT(*)::int AS count FROM audit_logs
       WHERE actor_id=$1 AND action IN ('catalog.import.commit','catalog.images.bulk_upload')`,
@@ -544,6 +717,7 @@ try {
   console.log(
     `D2 catalog import acceptance: ${assertions} assertions; ` +
       `5,000-row validation ${largeMs.toFixed(1)} ms; ` +
+      `5,000-row commit ${largeCommitMs.toFixed(1)} ms; ` +
       `10,000-product max ${maxListMs.toFixed(1)} ms`,
   );
 } finally {

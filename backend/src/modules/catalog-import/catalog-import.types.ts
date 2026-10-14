@@ -48,6 +48,8 @@ export type ImportPreviewRow = {
   action: ImportAction;
   apply_action: 'create' | 'update' | null;
   issues: ImportIssue[];
+  commit_status?: 'pending' | 'applied' | 'failed' | 'skipped';
+  commit_error?: { code: string; message: string } | null;
   product?: ParsedProductRow;
   stock?: ParsedStockRow;
 };

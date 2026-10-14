@@ -8,8 +8,15 @@ export class CatalogImportProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<{ importId: string }>) {
-    if (job.name !== 'validate') return;
-    await this.imports.validate(job.data.importId);
+  async process(job: Job<{ importId: string; commitAttempt?: number }>) {
+    if (job.name === 'validate') {
+      await this.imports.validate(job.data.importId);
+      return;
+    }
+    if (job.name === 'commit' && job.data.commitAttempt !== undefined)
+      await this.imports.processCommit(
+        job.data.importId,
+        job.data.commitAttempt,
+      );
   }
 }
