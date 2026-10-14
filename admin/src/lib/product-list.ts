@@ -51,10 +51,7 @@ export function listFilters(filters: Record<string, string>): ListFilters {
 export const SORT_KEYS = ["newest", "name", "sku", "price"] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
 
-/**
- * A column and direction as the API's sort. SKU sorts A→Z only: the API has
- * no descending SKU order, so the column stays ascending.
- */
+/** A column and direction as the API's sort. */
 export function apiSort(sort: SortKey, dir: "asc" | "desc"): ApiSort {
   switch (sort) {
     case "price":
@@ -62,15 +59,10 @@ export function apiSort(sort: SortKey, dir: "asc" | "desc"): ApiSort {
     case "name":
       return dir === "desc" ? "name_desc" : "name_asc";
     case "sku":
-      return "sku_asc";
+      return dir === "desc" ? "sku_desc" : "sku_asc";
     default:
       return "newest";
   }
-}
-
-/** The direction shown on the column header (SKU is always ascending). */
-export function shownDir(sort: SortKey, dir: "asc" | "desc"): "asc" | "desc" {
-  return sort === "sku" ? "asc" : dir;
 }
 
 /** The table's URL state as GET /admin/products parameters, without paging. */

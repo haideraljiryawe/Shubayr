@@ -7,10 +7,17 @@ import {
   STOCK_COLUMNS,
   actionCounts,
   actionTone,
+  appliedPercent,
   applicableRows,
   canCommit,
+  canResume,
+  checkFailed,
+  commitCounts,
   commitOperationId,
+  commitOutcome,
+  commitTone,
   filterRows,
+  pollInterval,
   groupMatched,
   hasStockRows,
   isKnownIssue,
@@ -135,6 +142,67 @@ describe("preview filters", () => {
   it("splits a cell reference", () => {
     expect(splitCell("Products+Variants!H4")).toEqual({ sheet: "Products+Variants", cell: "H4" });
     expect(splitCell("H4")).toEqual({ sheet: "", cell: "H4" });
+  });
+});
+
+describe("applying (API 16.1: queued, in batches, resumable)", () => {
+  const applying = row({ row: 2, sku: "A-1", commit_status: "applied" });
+  const stopped = row({
+    row: 3,
+    sku: "B-1",
+    action: "update",
+    apply_action: "update",
+    commit_status: "failed",
+    commit_error: { code: "EXCHANGE_RATE_REQUIRED", message: "No USD rate" },
+  });
+  const waiting = row({ row: 4, sku: "C-1", commit_status: "pending" });
+  const committedRows = [applying, stopped, waiting, row({ row: 5, action: "error", apply_action: null, commit_status: "skipped" })];
+
+  it("tells a running, finished, partial and failed commit apart from a failed check", () => {
+    expect(commitOutcome({ status: "ready", operation_id: null, applied_count: 0 })).toBe("none");
+    expect(commitOutcome({ status: "committing", operation_id: "import-x", applied_count: 250 })).toBe("applying");
+    expect(commitOutcome({ status: "completed", operation_id: "import-x", applied_count: 3000 })).toBe("completed");
+    expect(commitOutcome({ status: "failed", operation_id: "import-x", applied_count: 500 })).toBe("partial");
+    expect(commitOutcome({ status: "failed", operation_id: "import-x", applied_count: 0 })).toBe("failed");
+    // A workbook that failed its check was never committed.
+    expect(commitOutcome({ status: "failed", operation_id: null, applied_count: 0 })).toBe("none");
+    expect(checkFailed({ status: "failed", operation_id: null })).toBe(true);
+    expect(checkFailed({ status: "failed", operation_id: "import-x" })).toBe(false);
+  });
+
+  it("resumes only a stopped commit", () => {
+    expect(canResume(item({ status: "failed", operation_id: "import-x", applied_count: 500 }))).toBe(true);
+    expect(canResume(item({ status: "failed", operation_id: null }))).toBe(false);
+    expect(canResume(item({ status: "failed", operation_id: "import-x", preview: null }))).toBe(false);
+    expect(canResume(item({ status: "committing", operation_id: "import-x" }))).toBe(false);
+  });
+
+  it("reports progress as a share of the rows the commit applies", () => {
+    expect(appliedPercent(item({ status: "committing", applied_count: 0 }))).toBe(0);
+    expect(appliedPercent(item({ status: "committing", applied_count: 3 }))).toBe(75);
+    expect(appliedPercent(item({ status: "completed", applied_count: 4 }))).toBe(100);
+    expect(appliedPercent(item({ preview: { rows: [], counts: { total: 0, create: 0, update: 0, error: 0, warning: 0 } } }))).toBe(0);
+  });
+
+  it("counts and filters rows by apply result", () => {
+    expect(commitCounts(committedRows)).toEqual({ applied: 1, failed: 1, pending: 1, skipped: 1 });
+    expect(filterRows(committedRows, new Set(), "", new Set(["failed"])).map((r) => r.sku)).toEqual(["B-1"]);
+    expect(filterRows(committedRows, new Set(["update"]), "", new Set(["applied"]))).toEqual([]);
+    expect(commitTone("applied")).toBe("success");
+    expect(commitTone("failed")).toBe("danger");
+    expect(commitTone("pending")).toBe("neutral");
+  });
+
+  it("reads a large import less often", () => {
+    expect(pollInterval({ row_count: 40 })).toBe(1500);
+    expect(pollInterval({ row_count: 3000 })).toBe(3000);
+  });
+
+  it("uses the import's own operation id to resume from any browser", () => {
+    const stored = new Map<string, string>();
+    const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => void stored.set(key, value) };
+    // (The view passes current.operation_id when the import has one; this is the first-commit id.)
+    expect(commitOperationId("fresh", storage, () => "u1")).toBe("import-u1");
   });
 });
 

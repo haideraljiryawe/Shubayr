@@ -4,25 +4,34 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { CheckCircle2, Download, FileSpreadsheet, Upload } from "lucide-react";
+import { CheckCircle2, Download, FileSpreadsheet, RotateCw, Upload } from "lucide-react";
 import { Alert, Badge, Button, buttonClasses, Card, Input } from "@/components/ui";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import {
+  COMMIT_STATUSES,
   IMPORT_ACTIONS,
   actionCounts,
   actionTone,
+  appliedPercent,
   applicableRows,
   canCommit,
+  canResume,
+  checkFailed,
+  commitCounts,
   commitOperationId,
+  commitOutcome,
+  commitTone,
   filterRows,
   hasStockRows,
   isKnownIssue,
   isRunning,
   looksLikeWorkbook,
+  pollInterval,
   statusTone,
   type CatalogImport,
   type CommitResult,
+  type CommitStatus,
   type ImportAction,
   type ImportRow,
 } from "@/lib/catalog-import";
@@ -30,7 +39,6 @@ import { postFile } from "@/lib/file-upload";
 import { documentHref } from "@/lib/inventory";
 
 const PREVIEW_PAGE = 50;
-const POLL_MS = 1500;
 
 function sessionStore(): Storage | null {
   try {
@@ -80,6 +88,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
   const committingNow = useRef(false);
   const [result, setResult] = useState<CommitResult | null>(null);
   const [actions, setActions] = useState<Set<ImportAction>>(new Set());
+  const [applied, setApplied] = useState<Set<CommitStatus>>(new Set());
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
 
@@ -95,12 +104,13 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
       setResult(null);
       setProblem(null);
       setActions(new Set());
+      setApplied(new Set());
       setQuery("");
       setPage(0);
     }
   }
 
-  // A check running in the background is followed until it settles.
+  // A background check, or the worker applying batches, is followed until it settles.
   const running = current ? isRunning(current.status) : false;
   useEffect(() => {
     if (!current || !running) return;
@@ -115,7 +125,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
         // Try again on the next tick.
         if (!stopped) setCurrent({ ...current });
       }
-    }, POLL_MS);
+    }, pollInterval(current));
     return () => {
       stopped = true;
       window.clearTimeout(timer);
@@ -163,8 +173,10 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
     committingNow.current = true;
     setCommitting(true);
     setProblem(null);
-    // The same id for every click and retry of this import: the API applies it once.
-    const operationId = commitOperationId(current.id, sessionStore(), () => crypto.randomUUID());
+    // The same id for every click and retry of this import: the API applies it
+    // once. Resuming a stopped import reuses the id it was committed with
+    // (from any browser), so the worker continues from its checkpoints.
+    const operationId = current.operation_id ?? commitOperationId(current.id, sessionStore(), () => crypto.randomUUID());
     try {
       const done = await unwrap(
         browserApi.POST("/admin/catalog-imports/{id}/commit", {
@@ -197,9 +209,22 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
     setPage(0);
   }
 
+  function toggleApplied(status: CommitStatus) {
+    setApplied((now) => {
+      const next = new Set(now);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+    setPage(0);
+  }
+
   const rows = current?.preview?.rows ?? [];
   const counts = actionCounts(rows);
-  const shown = filterRows(rows, actions, query);
+  const outcome = current ? commitOutcome(current) : "none";
+  const appliedCounts = commitCounts(rows);
+  const failedRows = rows.filter((row) => row.commit_status === "failed");
+  const shown = filterRows(rows, actions, query, applied);
   const pages = Math.max(1, Math.ceil(shown.length / PREVIEW_PAGE));
   const currentPage = Math.min(page, pages - 1);
   const pageRows = shown.slice(currentPage * PREVIEW_PAGE, (currentPage + 1) * PREVIEW_PAGE);
@@ -285,8 +310,12 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
         <Card className="flex flex-col gap-4 p-4" data-testid="import-current" data-id={current.id} data-status={current.status}>
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-lg font-semibold">{t("preview.title")}</h2>
-            <Badge tone={statusTone(current.status)} data-testid="import-status">
-              {t(`status.${current.status}`)}
+            <Badge
+              tone={outcome === "partial" ? "warning" : statusTone(current.status)}
+              data-testid="import-status"
+              data-outcome={outcome}
+            >
+              {outcome === "none" ? t(`status.${current.status}`) : t(`outcome.${outcome}`)}
             </Badge>
             <span className="flex items-center gap-1 text-sm text-text-muted" dir="auto">
               <FileSpreadsheet className="size-4" aria-hidden />
@@ -294,27 +323,85 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
             </span>
           </div>
 
-          {running ? (
+          {outcome === "applying" ? (
+            <div className="flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/5 p-3" data-testid="import-applying">
+              <p className="font-semibold">{t("apply.title")}</p>
+              <Progress value={appliedPercent(current)} label={t("apply.rows")} testId="import-apply-progress" />
+              <p
+                className="text-sm font-medium"
+                data-testid="import-commit-progress"
+                data-applied={current.applied_count}
+                data-batches-done={current.commit_batches_done}
+                data-batches-total={current.commit_batches_total}
+              >
+                {t("progress.applying", {
+                  rowsApplied: current.applied_count,
+                  rowsTotal: applicableRows(current),
+                  batchesDone: current.commit_batches_done,
+                  batchesTotal: current.commit_batches_total,
+                })}
+              </p>
+              <p className="text-sm text-text-muted">{t("apply.background")}</p>
+            </div>
+          ) : running ? (
             <div className="flex flex-col gap-2">
               <Progress value={current.progress} label={t("progress.label")} testId="import-progress" />
-              {current.status === "committing" ? (
-                <p className="text-sm font-medium" data-testid="import-commit-progress">
-                  {t("progress.applying", {
-                    rowsApplied: current.applied_count,
-                    rowsTotal: applicableRows(current),
-                    batchesDone: current.commit_batches_done,
-                    batchesTotal: current.commit_batches_total,
-                  })}
-                </p>
-              ) : null}
               <p className="text-sm text-text-muted">{t("progress.background")}</p>
             </div>
           ) : null}
-          {current.status === "failed" ? <Alert>{t("progress.failed")}</Alert> : null}
+          {checkFailed(current) ? <Alert>{t("progress.failed")}</Alert> : null}
+
+          {outcome === "partial" || outcome === "failed" ? (
+            <Alert data-testid="import-stopped" data-outcome={outcome}>
+              <p className="text-base font-semibold">{outcome === "partial" ? t("apply.partialTitle") : t("apply.failedTitle")}</p>
+              <p className="mt-1" data-testid="import-stopped-counts">
+                {outcome === "partial"
+                  ? t("apply.partialBody", {
+                      applied: current.applied_count,
+                      remaining: Math.max(0, applicableRows(current) - current.applied_count),
+                    })
+                  : t("apply.failedBody")}
+              </p>
+              {failedRows.length ? (
+                <>
+                  <p className="mt-2 font-semibold">{t("apply.failedRows")}</p>
+                  <ul className="mt-1 flex flex-col gap-1" data-testid="import-failed-rows">
+                    {failedRows.map((row) => (
+                      <li key={`${row.sheet}-${row.row}`} className="flex flex-wrap gap-x-2" data-testid="import-failed-row" data-sku={row.sku ?? ""}>
+                        <span className="font-semibold">
+                          {sheetName(row)} · {t("preview.row", { row: row.row })}
+                        </span>
+                        <code dir="ltr" className="text-xs">
+                          {row.sku ?? "—"}
+                        </code>
+                        <span dir="auto">{row.commit_error?.message ?? row.commit_error?.code ?? ""}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {canResume(current) ? (
+                <div className="mt-3 flex flex-col gap-2">
+                  <p className="text-sm">{t("apply.resumeHelp")}</p>
+                  <Button
+                    className="self-start"
+                    variant="secondary"
+                    onClick={() => void commit()}
+                    pending={committing}
+                    disabled={busy}
+                    data-testid="import-resume"
+                  >
+                    <RotateCw className="size-4" aria-hidden />
+                    {committing ? t("apply.resuming") : t("apply.resume")}
+                  </Button>
+                </div>
+              ) : null}
+            </Alert>
+          ) : null}
 
           {current.preview ? (
             <>
-              {!completed ? <Alert tone="info">{t("preview.nothingWritten")}</Alert> : null}
+              {outcome === "none" ? <Alert tone="info">{t("preview.nothingWritten")}</Alert> : null}
               {current.create_missing ? <p className="text-sm text-text-muted">{t("preview.createsTaxonomy")}</p> : null}
 
               <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t("preview.filterLabel")}>
@@ -358,6 +445,24 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                 />
               </div>
 
+              {outcome !== "none" ? (
+                <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t("preview.commitFilterLabel")}>
+                  {COMMIT_STATUSES.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      className={buttonClasses({ variant: applied.has(status) ? "primary" : "secondary", size: "sm" })}
+                      aria-pressed={applied.has(status)}
+                      onClick={() => toggleApplied(status)}
+                      data-testid={`import-applied-${status}`}
+                      data-count={appliedCounts[status]}
+                    >
+                      {t(`preview.commit.${status}`)} <span dir="ltr">({appliedCounts[status]})</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
               <div className="overflow-x-auto rounded-md border border-border">
                 <table className="w-full min-w-[600px] text-sm" data-testid="import-preview">
                   <thead className="bg-card text-text-muted">
@@ -382,6 +487,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                           className="border-t border-border align-top"
                           data-testid="import-row"
                           data-action={row.action}
+                          data-commit={row.commit_status}
                           data-sku={row.sku ?? ""}
                         >
                           <td className="whitespace-nowrap p-2">
@@ -395,6 +501,11 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                             <Badge tone={actionTone(row.action)}>{t(`preview.actions.${row.action}`)}</Badge>
                             {row.action === "warning" && row.apply_action ? (
                               <span className="mt-1 block text-xs text-text-muted">{t(`preview.actions.${row.apply_action}`)}</span>
+                            ) : null}
+                            {outcome !== "none" && row.apply_action ? (
+                              <Badge tone={commitTone(row.commit_status)} className="mt-1" data-testid="import-row-commit">
+                                {t(`preview.commit.${row.commit_status}`)}
+                              </Badge>
                             ) : null}
                           </td>
                           <td className="p-2">

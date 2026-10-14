@@ -15,7 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-const HISTORY_PER_PAGE = 10;
+// The history is a summary (no preview rows since API 16), so a page can be longer.
+const HISTORY_PER_PAGE = 20;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -41,17 +42,6 @@ export default async function CatalogImportPage({
   if (!history.ok) return <PageError error={history.error} />;
   if (opened && !opened.ok) return <PageError error={opened.error} />;
   const permissions = me.ok ? (me.data.permissions ?? []) : [];
-
-  // Imports carry the creator's id only; names come from the staff list for
-  // those who may read it, and "You" for the person's own imports.
-  const people: Record<string, string> = {};
-  if (permissions.includes("users.manage")) {
-    const staff = await load(api.GET("/admin/staff", { params: { query: { per_page: 100 } } }));
-    if (staff.ok) {
-      const users = Array.isArray(staff.data) ? staff.data : staff.data.data;
-      for (const user of users) people[user.id] = user.name || user.username;
-    }
-  }
   const initial: CatalogImport | null = opened?.ok ? opened.data : null;
 
   return (
@@ -79,7 +69,6 @@ export default async function CatalogImportPage({
           perPage={HISTORY_PER_PAGE}
           openedId={initial?.id ?? null}
           meId={me.ok ? me.data.id : null}
-          people={people}
         />
       </div>
     </>
