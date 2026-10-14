@@ -6955,7 +6955,7 @@ export interface paths {
         };
         /**
          * Get preview rows and progress for one import
-         * @description Stock unit cost is omitted unless the caller has cost.view.
+         * @description Stock unit cost is omitted unless the caller has cost.view. While a commit is running, poll this resource for rows applied plus completed/total commit batches.
          */
         get: {
             parameters: {
@@ -7009,7 +7009,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description UTF-8 CSV report */
+                /** @description UTF-8 CSV report with a BOM for correct Arabic display in Excel */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -11932,6 +11932,10 @@ export interface components {
             error_count: number;
             warning_count: number;
             applied_count: number;
+            /** @description Fully committed product batches plus the final Stock batch when applicable. */
+            commit_batches_done: number;
+            /** @description Product batches of at most 250 rows plus one final Stock batch when applicable. */
+            commit_batches_total: number;
             commit_attempt: number;
             preview: components["schemas"]["CatalogImportPreview"] | null;
             /** @description Internal report availability marker; download through the error-report route. */
@@ -11996,6 +12000,8 @@ export interface components {
             skipped_errors: number;
             applied_rows: number;
             total_rows: number;
+            commit_batches_done: number;
+            commit_batches_total: number;
             /** Format: uuid */
             opening_id: string | null;
         };
@@ -12006,6 +12012,8 @@ export interface components {
                 sku: string;
                 /** Format: uuid */
                 product_id: string;
+                product_name_ar: string;
+                product_name_en: string;
                 /** Format: uri */
                 url: string;
             }[];

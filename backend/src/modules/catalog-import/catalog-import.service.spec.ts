@@ -128,8 +128,13 @@ describe('CatalogImportService', () => {
     };
     const deps = dependencies(prisma);
     deps.storage.get.mockResolvedValue(workbook);
+    const arabicName = 'منتجات-جديدة.xlsx';
     const result = await service(deps).preview(
-      { buffer: workbook, size: workbook.length, originalname: 'catalog.xlsx' },
+      {
+        buffer: workbook,
+        size: workbook.length,
+        originalname: Buffer.from(arabicName, 'utf8').toString('latin1'),
+      },
       true,
       actor,
     );
@@ -137,6 +142,14 @@ describe('CatalogImportService', () => {
     expect(prisma.product.create).not.toHaveBeenCalled();
     expect(prisma.inventoryOpening.create).not.toHaveBeenCalled();
     expect(deps.storage.put).toHaveBeenCalledTimes(2); // source + CSV report
+    const createCalls = prisma.catalogImport.create.mock
+      .calls as unknown as Array<[{ data: { file_name: string } }]>;
+    expect(createCalls[0][0].data.file_name).toBe(arabicName);
+    const storageCalls = deps.storage.put.mock.calls as unknown as Array<
+      [string, Buffer, string]
+    >;
+    const report = storageCalls[1][1];
+    expect([...report.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
   });
 
   it('classifies SKU updates and refuses missing taxonomy unless create-missing is selected', async () => {
@@ -306,6 +319,67 @@ describe('CatalogImportService', () => {
       status: 'committing',
       applied_rows: 0,
       total_rows: 2,
+      commit_batches_done: 0,
+      commit_batches_total: 2,
+    });
+  });
+
+  it('reports completed commit batches separately from applied rows', () => {
+    const instance = service(dependencies({}));
+    const product = {
+      sheet: 'Products+Variants' as const,
+      row: 2,
+      sku: 'SKU-1',
+      action: 'create' as const,
+      apply_action: 'create' as const,
+      issues: [],
+      product: {} as ParsedProductRow,
+    };
+    const preview: ImportPreview = {
+      rows: [
+        ...Array.from({ length: 251 }, (_, index) => ({
+          ...product,
+          row: index + 2,
+          sku: `SKU-${index}`,
+        })),
+        {
+          sheet: 'Stock',
+          row: 2,
+          sku: 'SKU-1',
+          action: 'create',
+          apply_action: 'create',
+          issues: [],
+          stock: {
+            sheet: 'Stock',
+            row: 2,
+            sku: 'SKU-1',
+            location_code: 'MAIN',
+            quantity: '1',
+            unit_cost_iqd: '1',
+            expiry: null,
+          },
+        },
+      ],
+      counts: {
+        total: 252,
+        create: 252,
+        update: 0,
+        error: 0,
+        warning: 0,
+      },
+    };
+    const progress = (
+      instance as unknown as {
+        commitBatchProgress(
+          value: ImportPreview,
+          applied: number,
+          status: string,
+        ): { commit_batches_done: number; commit_batches_total: number };
+      }
+    ).commitBatchProgress(preview, 250, 'committing');
+    expect(progress).toEqual({
+      commit_batches_done: 1,
+      commit_batches_total: 3,
     });
   });
 
@@ -353,9 +427,13 @@ describe('CatalogImportService', () => {
     const buffer = await zip.generateAsync({ type: 'nodebuffer' });
     const tx = {
       productVariant: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ sku: 'SKU-1', product_id: 'product-1' }]),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            sku: 'SKU-1',
+            product_id: 'product-1',
+            product: { name_ar: 'منتج', name_en: 'Product' },
+          },
+        ]),
       },
       productImage: {
         aggregate: jest.fn().mockResolvedValue({ _max: { sort_order: 0 } }),
@@ -379,6 +457,10 @@ describe('CatalogImportService', () => {
       'SKU-1.jpg',
     ]);
     expect(result.unmatched).toEqual(['UNKNOWN.jpg']);
+    expect(result.matched[0]).toMatchObject({
+      product_name_ar: 'منتج',
+      product_name_en: 'Product',
+    });
     expect(tx.productImage.create).toHaveBeenCalledTimes(2);
   });
 });

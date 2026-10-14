@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { CircleHelp, ImageOff, Upload } from "lucide-react";
 import { Alert, Button, Card, Input } from "@/components/ui";
 import { ApiError } from "@/lib/api/errors";
@@ -18,6 +18,7 @@ import { OperationKey } from "@/lib/finance/cash-receipts";
  */
 export function BulkImagesView() {
   const t = useTranslations("catalogImages");
+  const locale = useLocale();
   const [file, setFile] = useState<File | null>(null);
   const [upload, setUpload] = useState<{ phase: "uploading" | "processing"; percent: number } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -156,6 +157,9 @@ export function BulkImagesView() {
                       ))}
                     </div>
                     <div className="min-w-0 flex-1 text-sm">
+                      <p className="truncate font-semibold" dir="auto" title={locale === "ar" ? group.productNameAr : group.productNameEn}>
+                        {locale === "ar" ? group.productNameAr : group.productNameEn}
+                      </p>
                       <p className="font-mono text-xs font-semibold" dir="ltr">
                         {group.sku}
                       </p>

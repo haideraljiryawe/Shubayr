@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 16.0.0
+  version: 16.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -3381,7 +3381,7 @@ paths:
     get:
       tags: [Admin, Catalog import]
       summary: Get preview rows and progress for one import
-      description: Stock unit cost is omitted unless the caller has cost.view.
+      description: Stock unit cost is omitted unless the caller has cost.view. While a commit is running, poll this resource for rows applied plus completed/total commit batches.
       x-permission: catalog.import
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
@@ -3401,7 +3401,7 @@ paths:
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "200":
-          description: UTF-8 CSV report
+          description: UTF-8 CSV report with a BOM for correct Arabic display in Excel
           content:
             text/csv:
               schema: { type: string }
@@ -5806,7 +5806,7 @@ components:
     CatalogImport:
       type: object
       additionalProperties: false
-      required: [id, file_name, create_missing, status, progress, row_count, create_count, update_count, error_count, warning_count, applied_count, commit_attempt, preview, error_report_key, operation_id, opening_id, created_by, created_by_name, committed_by, created_at, updated_at, completed_at]
+      required: [id, file_name, create_missing, status, progress, row_count, create_count, update_count, error_count, warning_count, applied_count, commit_batches_done, commit_batches_total, commit_attempt, preview, error_report_key, operation_id, opening_id, created_by, created_by_name, committed_by, created_at, updated_at, completed_at]
       properties:
         id: { type: string, format: uuid }
         file_name: { type: string }
@@ -5819,6 +5819,8 @@ components:
         error_count: { type: integer, minimum: 0 }
         warning_count: { type: integer, minimum: 0 }
         applied_count: { type: integer, minimum: 0 }
+        commit_batches_done: { type: integer, minimum: 0, description: Fully committed product batches plus the final Stock batch when applicable. }
+        commit_batches_total: { type: integer, minimum: 0, description: Product batches of at most 250 rows plus one final Stock batch when applicable. }
         commit_attempt: { type: integer, minimum: 0 }
         preview: { oneOf: [ { $ref: "#/components/schemas/CatalogImportPreview" }, { type: "null" } ] }
         error_report_key: { type: [string, "null"], description: Internal report availability marker; download through the error-report route. }
@@ -5869,7 +5871,7 @@ components:
     CatalogImportCommitResult:
       type: object
       additionalProperties: false
-      required: [id, status, operation_id, created, updated, skipped_errors, applied_rows, total_rows, opening_id]
+      required: [id, status, operation_id, created, updated, skipped_errors, applied_rows, total_rows, commit_batches_done, commit_batches_total, opening_id]
       properties:
         id: { type: string, format: uuid }
         status: { type: string, enum: [committing, completed] }
@@ -5879,6 +5881,8 @@ components:
         skipped_errors: { type: integer, minimum: 0 }
         applied_rows: { type: integer, minimum: 0 }
         total_rows: { type: integer, minimum: 1 }
+        commit_batches_done: { type: integer, minimum: 0 }
+        commit_batches_total: { type: integer, minimum: 1 }
         opening_id: { type: [string, "null"], format: uuid }
 
     CatalogImageBulkResult:
@@ -5892,11 +5896,13 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [file, sku, product_id, url]
+            required: [file, sku, product_id, product_name_ar, product_name_en, url]
             properties:
               file: { type: string }
               sku: { type: string }
               product_id: { type: string, format: uuid }
+              product_name_ar: { type: string }
+              product_name_en: { type: string }
               url: { type: string, format: uri }
         unmatched: { type: array, items: { type: string } }
 

@@ -181,10 +181,31 @@ export function commitOperationId(importId: string, store: KeyStore | null, make
 /** Matched files grouped by product, in product order of first appearance. */
 export function groupMatched(
   matched: ImageResult["matched"],
-): Array<{ productId: string; sku: string; files: ImageResult["matched"] }> {
-  const groups = new Map<string, { productId: string; sku: string; files: ImageResult["matched"] }>();
+): Array<{
+  productId: string;
+  productNameAr: string;
+  productNameEn: string;
+  sku: string;
+  files: ImageResult["matched"];
+}> {
+  const groups = new Map<
+    string,
+    {
+      productId: string;
+      productNameAr: string;
+      productNameEn: string;
+      sku: string;
+      files: ImageResult["matched"];
+    }
+  >();
   for (const item of matched) {
-    const group = groups.get(item.product_id) ?? { productId: item.product_id, sku: item.sku, files: [] };
+    const group = groups.get(item.product_id) ?? {
+      productId: item.product_id,
+      productNameAr: item.product_name_ar,
+      productNameEn: item.product_name_en,
+      sku: item.sku,
+      files: [],
+    };
     group.files.push(item);
     groups.set(item.product_id, group);
   }
