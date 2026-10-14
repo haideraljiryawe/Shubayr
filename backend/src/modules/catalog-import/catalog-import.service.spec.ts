@@ -142,12 +142,13 @@ describe('CatalogImportService', () => {
     expect(prisma.product.create).not.toHaveBeenCalled();
     expect(prisma.inventoryOpening.create).not.toHaveBeenCalled();
     expect(deps.storage.put).toHaveBeenCalledTimes(2); // source + CSV report
-    expect(prisma.catalogImport.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ file_name: arabicName }),
-      }),
-    );
-    const report = deps.storage.put.mock.calls[1][1] as Buffer;
+    const createCalls = prisma.catalogImport.create.mock
+      .calls as unknown as Array<[{ data: { file_name: string } }]>;
+    expect(createCalls[0][0].data.file_name).toBe(arabicName);
+    const storageCalls = deps.storage.put.mock.calls as unknown as Array<
+      [string, Buffer, string]
+    >;
+    const report = storageCalls[1][1];
     expect([...report.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
   });
 
