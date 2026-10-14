@@ -203,6 +203,13 @@ try {
     body: { token: tokenValue, platform: 'web', locale: 'en' },
   });
   check(revived.is_active, true, 're-register reactivates');
+  const aTokenValue = `VERIFY-NOTIFICATION-A-${randomUUID()}`;
+  await request('/devices/token', {
+    token: a,
+    method: 'POST',
+    expected: 201,
+    body: { token: aTokenValue, platform: 'ios', locale: 'ar' },
+  });
 
   const defaults = await request('/me/notification-preferences', { token: b });
   const enabled = (prefs, type, channel) =>

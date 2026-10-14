@@ -26,3 +26,8 @@ ALTER TABLE "notification_logs"
   ADD COLUMN "provider_message_id" VARCHAR(255),
   ADD COLUMN "attempt_count" INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN "lease_until" TIMESTAMPTZ(6);
+
+ALTER TABLE "notification_logs"
+  DROP CONSTRAINT "notification_logs_status_check",
+  ADD CONSTRAINT "notification_logs_status_check"
+    CHECK ("status" IN ('queued', 'sending', 'sent', 'failed', 'skipped'));

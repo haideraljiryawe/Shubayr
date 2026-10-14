@@ -213,6 +213,10 @@ try {
   await run('test/loyalty.acceptance.mjs', [], acceptanceEnv);
   await run('test/reviews.acceptance.mjs', [], acceptanceEnv);
   await run('test/notifications.acceptance.mjs', [], acceptanceEnv);
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
+  await run('test/push-p1.acceptance.mjs', [], acceptanceEnv);
   await run('test/phase2-monitoring.acceptance.mjs', [], acceptanceEnv);
   // Reset the in-memory admin-login throttle before the final packs. The C5
   // delivery collection pack adds another staff session to the combined run.

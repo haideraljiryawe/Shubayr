@@ -1,8 +1,9 @@
 # Mobile impact: backend push hardening P1
 
-OpenAPI remains at **15.1.0**. `POST /devices/token`, `DELETE /devices/token`,
-notification preferences, and inbox/read response shapes are unchanged, so no
-generated Web/Admin type change or Mobile request-model change is required.
+OpenAPI is **15.1.1**. `POST /devices/token`, `DELETE /devices/token`,
+notification preferences, and inbox/read success shapes are unchanged, so no
+Mobile request-model change is required. The patch documents the session-family
+logout behavior and a `403` registration race response.
 
 The backend now binds a registration to the authenticated refresh-family ID
 carried internally in access tokens. Refresh rotation preserves that ID. Logout

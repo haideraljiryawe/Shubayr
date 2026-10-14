@@ -160,7 +160,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Revoke one refresh token on its original surface */
+        /**
+         * Revoke one refresh-session family on its original surface
+         * @description Revokes the rotating refresh lineage and deactivates only device registrations bound to that session. Other sessions and devices for the account are unchanged.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -4536,6 +4539,7 @@ export interface paths {
                         "application/json": components["schemas"]["DeviceToken"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 422: components["responses"]["Validation"];
             };
         };
