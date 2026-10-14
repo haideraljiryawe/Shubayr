@@ -71,7 +71,7 @@ describe('ProductsService', () => {
       has_image: false,
       page: 4,
       per_page: 25,
-      sort: 'sku_asc',
+      sort: 'sku_desc',
     });
     const sql = queryRaw.mock.calls
       .map(([statement]) =>
@@ -82,6 +82,8 @@ describe('ProductsService', () => {
     expect(sql).toContain('search_variant.barcode ILIKE');
     expect(sql).toContain('NOT EXISTS (SELECT 1 FROM product_images');
     expect(sql).toContain("COALESCE(pa.availability, 'out_of_stock')");
+    expect(sql).toContain('MIN(v.sku)');
+    expect(sql).toContain('DESC NULLS LAST');
     expect(result).toMatchObject({ page: 4, per_page: 25, total: 10_000 });
     expect(prisma.product.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: { in: ['product-page-id'] } } }),

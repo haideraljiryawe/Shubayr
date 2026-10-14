@@ -176,7 +176,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
       try {
         setCurrent(await unwrap(browserApi.GET("/admin/catalog-imports/{id}", { params: { path: { id: current.id } } })));
       } catch {
-        setCurrent({ ...current, status: "completed", opening_id: done.opening_id });
+        setCurrent({ ...current, status: done.status, opening_id: done.opening_id });
       }
       router.refresh();
     } catch (cause) {

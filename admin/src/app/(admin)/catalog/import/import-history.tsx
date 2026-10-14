@@ -2,7 +2,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { Download, History } from "lucide-react";
 import { Badge, buttonClasses, Card } from "@/components/ui";
-import { statusTone, type CatalogImport } from "@/lib/catalog-import";
+import { statusTone, type CatalogImportSummary } from "@/lib/catalog-import";
 
 /**
  * Past imports, newest first: when, who, the file, its state and row counts,
@@ -17,7 +17,7 @@ export function ImportHistory({
   meId,
   people,
 }: {
-  rows: CatalogImport[];
+  rows: CatalogImportSummary[];
   page: number;
   total: number;
   perPage: number;
@@ -31,7 +31,8 @@ export function ImportHistory({
   const pages = Math.max(1, Math.ceil(total / perPage));
   const when = (iso: string) =>
     format.dateTime(new Date(iso), { dateStyle: "medium", timeStyle: "short", numberingSystem: "latn" });
-  const who = (id: string) => (id === meId ? t("history.you") : (people[id] ?? "—"));
+  const who = (item: CatalogImportSummary) =>
+    item.created_by === meId ? t("history.you") : item.created_by_name || people[item.created_by] || "—";
   const pageHref = (target: number) => `/catalog/import?page=${target}${openedId ? `&id=${openedId}` : ""}`;
 
   return (
@@ -71,7 +72,7 @@ export function ImportHistory({
                     {item.file_name}
                   </td>
                   <td className="p-2" data-testid="import-history-who">
-                    {who(item.created_by)}
+                    {who(item)}
                   </td>
                   <td className="p-2">
                     <Badge tone={statusTone(item.status)}>{t(`status.${item.status}`)}</Badge>

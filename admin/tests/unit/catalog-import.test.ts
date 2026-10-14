@@ -30,6 +30,8 @@ const row = (patch: Partial<ImportRow>): ImportRow => ({
   action: "create",
   apply_action: "create",
   issues: [],
+  commit_status: "pending",
+  commit_error: null,
   ...patch,
 });
 
@@ -63,11 +65,14 @@ const item = (patch: Partial<CatalogImport>): CatalogImport => ({
   update_count: 1,
   error_count: 1,
   warning_count: 1,
+  applied_count: 0,
+  commit_attempt: 0,
   preview: { rows, counts: { total: 5, create: 3, update: 1, error: 1, warning: 1 } },
   error_report_key: "available",
   operation_id: null,
   opening_id: null,
   created_by: "22222222-2222-4222-8222-222222222222",
+  created_by_name: "Import Owner",
   committed_by: null,
   created_at: "2026-10-14T08:00:00Z",
   updated_at: "2026-10-14T08:00:00Z",
