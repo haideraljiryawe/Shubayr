@@ -62,8 +62,8 @@ final pushLifecycleProvider = Provider<PushLifecycle>((ref) {
   final remove = ref
       .read(sessionExitTasksProvider)
       .register(
-        (revision, deleted) =>
-            lifecycle.endSession(revision, unregister: !deleted),
+        (revision, skipUnregister) =>
+            lifecycle.endSession(revision, unregister: !skipUnregister),
       );
   ref.onDispose(() {
     remove();
@@ -77,6 +77,7 @@ final pushLifecycleProvider = Provider<PushLifecycle>((ref) {
 final pushSyncProvider = Provider<void>((ref) {
   final lifecycle = ref.watch(pushLifecycleProvider);
   void sync({bool refreshRegistration = false}) {
+    if (!ref.read(sessionRevalidationProvider).hasValue) return;
     unawaited(
       lifecycle
           .synchronize(
@@ -88,6 +89,11 @@ final pushSyncProvider = Provider<void>((ref) {
   }
 
   ref.listen(pushOwnerProvider, (_, _) => sync());
+  ref.listen(sessionRevalidationProvider, (previous, next) {
+    if (previous?.hasValue == false && next.hasValue) {
+      sync(refreshRegistration: true);
+    }
+  });
   final observer = AppLifecycleListener(
     onResume: () => sync(refreshRegistration: true),
   );

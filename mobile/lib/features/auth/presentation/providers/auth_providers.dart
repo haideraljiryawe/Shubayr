@@ -15,6 +15,19 @@ import '../../../../core/storage/pending_request_store.dart';
 import '../../domain/profile_update.dart';
 import '../../data/user.dart';
 
+/// Verification visibility is separate from identity: a short resume check
+/// must not discard forms, private caches or the current navigation stack.
+class SessionRevalidation extends Notifier<AsyncValue<void>> {
+  @override
+  AsyncValue<void> build() => const AsyncData(null);
+  void set(AsyncValue<void> value) => state = value;
+}
+
+final sessionRevalidationProvider =
+    NotifierProvider<SessionRevalidation, AsyncValue<void>>(
+      SessionRevalidation.new,
+    );
+
 /// Auth and self-profile operations use the selected repository.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return switch (ref.watch(dataSourceProvider)) {
@@ -51,6 +64,67 @@ class SessionController extends AsyncNotifier<Session> {
       <(String, String), ({int owner, Future<Session?> task})>{};
   int? _profileSubmitting;
   int? _deleting;
+  ({int owner, Future<void> task})? _revalidation;
+  ({int owner, Future<void> task})? _signingOut;
+
+  void _verification(AsyncValue<void> value) =>
+      ref.read(sessionRevalidationProvider.notifier).set(value);
+
+  void requireVerification() {
+    if (state.asData?.value.isSignedIn == true) {
+      _verification(const AsyncLoading());
+    }
+  }
+
+  Future<void> revalidate() {
+    final owner = _credentials.revision;
+    final pending = _revalidation;
+    if (pending?.owner == owner) return pending!.task;
+    final session = state.asData?.value;
+    if (session?.isSignedIn != true) return Future.value();
+    _verification(const AsyncLoading());
+    late final Future<void> task;
+    task = _revalidate(owner, session!).whenComplete(() {
+      if (identical(_revalidation?.task, task)) _revalidation = null;
+    });
+    _revalidation = (owner: owner, task: task);
+    return task;
+  }
+
+  Future<void> _revalidate(int owner, Session session) async {
+    try {
+      final user = await ref.read(authRepositoryProvider).currentUser();
+      if (!_owns(owner)) return;
+      final verified = Session.signedIn(user);
+      if (!verified.isSignedIn || user.id != session.user!.id) {
+        throw const AppFailure.unauthorized();
+      }
+      if (!await _rememberAccount(owner, user) || !_owns(owner)) return;
+      // Keep current profile edits and drafts. A role/surface change, however,
+      // must pass through the existing route and identity guards.
+      if (verified.role != session.role ||
+          user.surface != session.user!.surface) {
+        state = AsyncData(verified);
+      }
+      _verification(const AsyncData(null));
+    } catch (error, stack) {
+      if (!_owns(owner)) return;
+      if (error is AppFailure && error.kind == FailureKind.unauthorized) {
+        await signOut(credentialsRejected: true);
+      } else {
+        _verification(AsyncError(actionFailure(error, stack), stack));
+      }
+    }
+  }
+
+  Future<bool> _rememberAccount(int owner, User user) {
+    final id = user.id;
+    if (id == null || id.isEmpty) return Future.value(true);
+    return _credentials.rememberAccount(owner, (
+      api: ref.read(appConfigProvider).apiBaseUrl,
+      userId: id,
+    ));
+  }
 
   @override
   Future<Session> build() async {
@@ -59,7 +133,9 @@ class SessionController extends AsyncNotifier<Session> {
     ref.onDispose(() => credentials.invalidate(_owner));
     // The interceptor raises this only when token rotation cannot restore access.
     ref.listen(unauthorizedSignalProvider, (previous, next) {
-      if (previous != null && next != previous) signOut();
+      if (previous != null && next != previous) {
+        signOut(credentialsRejected: true);
+      }
     });
 
     final token = (await _credentials.read()).accessToken;
@@ -77,6 +153,9 @@ class SessionController extends AsyncNotifier<Session> {
       }
       final session = Session.signedIn(user);
       if (!session.isSignedIn) throw const AppFailure.unauthorized();
+      if (!await _rememberAccount(revision, user) || !_owns(revision)) {
+        return await _currentSession();
+      }
       return session;
     } catch (error) {
       if (!ref.mounted) return const Session.signedOut();
@@ -90,7 +169,7 @@ class SessionController extends AsyncNotifier<Session> {
       if (error is! AppFailure || error.kind != FailureKind.unauthorized) {
         rethrow;
       }
-      await _credentials.clear(revision);
+      await signOut(credentialsRejected: true);
       if (!ref.mounted) return const Session.signedOut();
       if (!_owns(revision)) {
         return await _currentSession();
@@ -101,6 +180,7 @@ class SessionController extends AsyncNotifier<Session> {
 
   Future<Session> _currentSession() async {
     // An obsolete restore must not resolve before the owner's queued cleanup.
+    await _signingOut?.task;
     await _credentials.settled;
     return ref.mounted
         ? state.value ?? const Session.signedOut()
@@ -173,6 +253,10 @@ class SessionController extends AsyncNotifier<Session> {
         if (!_owns(revision)) return null;
         throw const AppFailure(FailureKind.forbidden);
       }
+      if (!await _rememberAccount(revision, user) || !_owns(revision)) {
+        return null;
+      }
+      _verification(const AsyncData(null));
       state = AsyncData(session);
       return session;
     } catch (error) {
@@ -272,27 +356,61 @@ class SessionController extends AsyncNotifier<Session> {
   Future<void> _endSessionTasks(
     int revision, {
     bool accountDeleted = false,
+    bool credentialsRejected = false,
   }) async {
     try {
       await ref
           .read(sessionExitTasksProvider)
-          .run(revision, accountDeleted: accountDeleted);
+          .run(
+            revision,
+            accountDeleted: accountDeleted,
+            credentialsRejected: credentialsRejected,
+          );
     } catch (error, stack) {
       actionFailure(error, stack);
     }
   }
 
-  Future<void> signOut() async {
+  Future<void> signOut({bool credentialsRejected = false}) {
+    final pending = _signingOut;
+    if (pending?.owner == _credentials.revision) return pending!.task;
+    late final Future<void> task;
+    task = _signOut(credentialsRejected: credentialsRejected).whenComplete(() {
+      if (identical(_signingOut?.task, task)) _signingOut = null;
+    });
+    _signingOut = (owner: _owner, task: task);
+    return task;
+  }
+
+  Future<void> _signOut({required bool credentialsRejected}) async {
+    final userId = state.asData?.value.user?.id;
+    final api = ref.read(appConfigProvider).apiBaseUrl;
+    final journals = ref.read(pendingRequestStoreProvider);
     final revision = _owner = _credentials.beginTransition();
     final repository = ref.read(authRepositoryProvider);
     // Revoke local authorization immediately; disk cleanup may be waiting for
     // a platform write, but it cannot publish over or clear a newer login.
     state = const AsyncLoading();
+    _verification(const AsyncData(null));
     final StoredCredentials? removed;
     try {
+      if (credentialsRejected) {
+        final scope = userId == null
+            ? await _credentials.readAccountScope()
+            : (api: api, userId: userId);
+        if (!_owns(revision)) return;
+        if (scope != null && scope.api == api) {
+          // Enqueue cleanup before any newer session can write its journals.
+          await journals.clearAccount(scope.api, scope.userId);
+          if (!_owns(revision)) return;
+        }
+      }
       removed = await _credentials.clearAfter(
         revision,
-        () => _endSessionTasks(revision),
+        () => _endSessionTasks(
+          revision,
+          credentialsRejected: credentialsRejected,
+        ),
       );
     } catch (error, stack) {
       final failure = actionFailure(error, stack);
@@ -301,7 +419,7 @@ class SessionController extends AsyncNotifier<Session> {
     }
     if (_owns(revision)) state = const AsyncData(Session.signedOut());
     final refreshToken = removed?.refreshToken;
-    if (refreshToken != null) {
+    if (refreshToken != null && !credentialsRejected) {
       try {
         await repository.logout(refreshToken);
       } catch (error, stack) {

@@ -70,8 +70,14 @@ void _pollInForeground(
 
   void tick() {
     final owner = epoch;
-    if (isActive()) sync(() => isActive() && epoch == owner);
+    if (isActive() && ref.read(sessionRevalidationProvider).hasValue) {
+      sync(() => isActive() && epoch == owner);
+    }
   }
+
+  ref.listen(sessionRevalidationProvider, (previous, next) {
+    if (previous?.hasValue == false && next.hasValue) tick();
+  });
 
   bool foreground() =>
       WidgetsBinding.instance.lifecycleState == null ||

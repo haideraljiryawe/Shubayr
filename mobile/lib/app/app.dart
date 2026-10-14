@@ -1,4 +1,5 @@
 import 'push_notification_bridge.dart';
+import 'session_verification_gate.dart';
 import '../core/config/store_identity.dart';
 import '../features/notifications/presentation/notification_providers.dart';
 import '../features/cart/presentation/providers/cart_providers.dart';
@@ -58,8 +59,10 @@ class ShubayrApp extends ConsumerWidget {
           child: SafeArea(
             top: false,
             bottom: false,
-            child: PushNotificationBridge(
-              child: MonitorFrame(router: router, child: child!),
+            child: SessionVerificationGate(
+              child: PushNotificationBridge(
+                child: MonitorFrame(router: router, child: child!),
+              ),
             ),
           ),
         );

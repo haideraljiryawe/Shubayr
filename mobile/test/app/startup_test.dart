@@ -481,7 +481,11 @@ void main() {
         expect(find.byType(AppErrorView), findsOneWidget);
       }
       expect(tokens.reads, 1);
-      expect(auth.reads, ['guest', 'storage-error'].contains(outcome) ? 0 : 1);
+      expect(auth.reads, switch (outcome) {
+        'guest' || 'storage-error' => 0,
+        'offline' => 1,
+        _ => 2, // Resume independently revalidates the existing session.
+      });
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(seconds: 1));
       expect(tester.takeException(), isNull);

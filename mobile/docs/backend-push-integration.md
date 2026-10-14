@@ -1,5 +1,10 @@
 # Release 1 Backend-driven push integration
 
+> **Historical audit (13 October 2026).** For the subsequent Backend fixes,
+> physical iPhone/Android results, multi-device/account-deletion verification and
+> remaining limits, read [the 14 October handoff](session-push-verification-2026-10-14.md).
+> Outstanding-work and runtime statements below describe the older baseline.
+
 Audit date: 13 October 2026. Mobile audit baseline: `mobile`, HEAD `29533c2`, plus
 the reviewed notification UX changes published with this document. Authoritative contract fetched from
 `origin/main` at `67e08a8933b28bf5a2f3860bccaf58360e57c0c1`: **15.0.0**.

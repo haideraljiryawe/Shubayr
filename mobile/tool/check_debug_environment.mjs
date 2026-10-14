@@ -27,7 +27,7 @@ async function requireFreePort(port) {
 
 try {
   if (!['ios', 'iphone', 'android', 'chrome', 'admin'].includes(target)) {
-    throw new Error('Usage: node check_debug_environment.mjs ios|iphone|android|chrome|admin [Firebase client file]');
+    throw new Error('Usage: node check_debug_environment.mjs ios|iphone|android|chrome|admin [Firebase client file] [API URL]');
   }
   if (target === 'iphone' || target === 'android') {
     // Legacy iPhone profile can continue using its existing connectivity check.
@@ -35,10 +35,12 @@ try {
     if (process.argv[3]) {
       await checkFirebaseDebugConfig(process.argv[3], target === 'iphone' ? 'ios' : 'android');
     }
-    const { API_URL } = JSON.parse(await readFile(new URL('../.vscode/iphone.json', import.meta.url), 'utf8'));
+    const API_URL = process.argv[4] ?? JSON.parse(
+      await readFile(new URL('../.vscode/iphone.json', import.meta.url), 'utf8'),
+    ).API_URL;
     const url = new URL(API_URL);
     if (!['http:', 'https:'].includes(url.protocol) || ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
-      throw new Error('Set API_URL in mobile/.vscode/iphone.json to the Mac LAN address, not localhost.');
+      throw new Error('Set the device profile API_URL to the Mac LAN address, not localhost.');
     }
     apiBaseUrl = API_URL.replace(/\/+$/, '');
   }

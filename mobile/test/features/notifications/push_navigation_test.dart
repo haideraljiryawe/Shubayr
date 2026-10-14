@@ -16,6 +16,7 @@ import 'package:shubayr/core/storage/prefs_store.dart';
 import 'package:shubayr/core/storage/session_credentials.dart';
 import 'package:shubayr/core/storage/token_store.dart';
 import 'package:shubayr/features/auth/data/user.dart';
+import 'package:shubayr/features/auth/data/auth_repository_mock.dart';
 import 'package:shubayr/features/auth/domain/session.dart';
 import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart';
 import 'package:shubayr/features/banners/presentation/providers/banner_providers.dart';
@@ -76,6 +77,13 @@ class _Client implements PushClient {
   Future<bool> initiallyOpened() async => initial;
 }
 
+class _CurrentAuth extends AuthRepositoryMock {
+  _CurrentAuth(this.user);
+  final User Function() user;
+  @override
+  Future<User> currentUser() async => user();
+}
+
 class _Devices implements DeviceRegistration {
   Completer<void>? gate;
   int registrations = 0, unregistrations = 0;
@@ -100,6 +108,7 @@ class _Harness {
   _Harness({Session initial = customerSession})
     : session = TestSession(initial: initial);
   final TestSession session;
+  int sessionChecks = 0;
   final events = StreamController<OwnedPushEvent>.broadcast();
   late ProviderContainer container;
   Future<void> mount(
@@ -120,6 +129,12 @@ class _Harness {
         prefsStoreProvider.overrideWithValue(prefs!),
         tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
         sessionControllerProvider.overrideWith(() => session),
+        authRepositoryProvider.overrideWithValue(
+          _CurrentAuth(() {
+            sessionChecks++;
+            return container.read(sessionControllerProvider).requireValue.user!;
+          }),
+        ),
         notificationRepositoryProvider.overrideWithValue(_Inbox()),
         categoriesProvider.overrideWith((ref) async => []),
         homeOffersProvider.overrideWith(
@@ -248,10 +263,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(client.prompts, 1);
       expect(devices.registrations, 0);
+      final initialChecks = h.sessionChecks;
       for (var i = 0; i < 2; i++) {
         _background(tester);
         _resume(tester);
         await tester.pumpAndSettle();
+        expect(h.sessionChecks, initialChecks + i + 1);
       }
       expect(client.prompts, 1);
       _expectHome(h);

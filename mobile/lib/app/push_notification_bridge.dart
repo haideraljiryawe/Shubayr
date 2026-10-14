@@ -7,6 +7,7 @@ import '../features/notifications/domain/push_client.dart';
 import '../features/notifications/domain/push_lifecycle.dart';
 import '../features/notifications/presentation/push_providers.dart';
 import '../features/notifications/presentation/notification_providers.dart';
+import '../features/auth/presentation/providers/auth_providers.dart';
 import 'router/app_router.dart';
 import 'router/app_routes.dart';
 import 'startup_display_controller.dart';
@@ -44,6 +45,7 @@ class _PushNotificationBridgeState
       mounted &&
       ref.read(pushOwnerProvider) == owner &&
       ref.read(startupDisplayReadyProvider) &&
+      ref.read(sessionRevalidationProvider).hasValue &&
       WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
 
   void _requestWhenReady() {
@@ -69,10 +71,15 @@ class _PushNotificationBridgeState
 
   void _openWhenReady() {
     final owner = _pendingOpen;
-    if (owner == null || !ref.read(startupDisplayReadyProvider)) return;
+    if (owner == null ||
+        !ref.read(startupDisplayReadyProvider) ||
+        !ref.read(sessionRevalidationProvider).hasValue) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           _pendingOpen != owner ||
+          !ref.read(sessionRevalidationProvider).hasValue ||
           ref.read(pushOwnerProvider) != owner) {
         return;
       }
@@ -108,6 +115,12 @@ class _PushNotificationBridgeState
   @override
   Widget build(BuildContext context) {
     ref.watch(pushSyncProvider);
+    ref.listen(sessionRevalidationProvider, (_, next) {
+      if (next.hasValue) {
+        _openWhenReady();
+        _requestWhenReady();
+      }
+    });
     ref.listen(pushEventsProvider, (_, next) {
       if (next.hasValue) _event(next.requireValue);
     });

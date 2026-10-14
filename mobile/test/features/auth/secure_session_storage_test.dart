@@ -55,6 +55,10 @@ void main() {
         'mock-refresh-token',
       );
       await storage.write(key: 'unrelated', value: 'keep');
+      expect(await SecureTokenStore(storage).readAccountScope(), (
+        api: original.read(appConfigProvider).apiBaseUrl,
+        userId: 'mock-user',
+      ));
 
       final restored = containerFor(repository);
       final session = await restored.read(sessionControllerProvider.future);
@@ -68,6 +72,7 @@ void main() {
       );
       expect(await storage.read(key: 'auth.access_token'), isNull);
       expect(await storage.read(key: 'auth.refresh_token'), isNull);
+      expect(await storage.read(key: 'auth.account_scope'), isNull);
       expect(await storage.read(key: 'unrelated'), 'keep');
 
       final afterSignOut = containerFor(repository);

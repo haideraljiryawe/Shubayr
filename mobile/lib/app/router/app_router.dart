@@ -39,6 +39,7 @@ import '../startup_display_controller.dart';
 import 'app_routes.dart';
 import 'role_guard.dart';
 import 'sign_in_destination.dart';
+import 'session_navigation_guard.dart';
 
 // Stable navigator keys. Without them go_router derives branch navigator keys
 // implicitly; when `refreshListenable` fires mid-transition (e.g. the session
@@ -80,6 +81,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
+    observers: [SessionNavigationGuard(ref)],
     initialLocation: AppRoutes.splash,
     refreshListenable: refresh,
     redirect: (context, state) {
@@ -193,6 +195,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         branches: [
           StatefulShellBranch(
             navigatorKey: _homeBranchKey,
+            observers: [SessionNavigationGuard(ref)],
             routes: [
               GoRoute(
                 path: AppRoutes.home,
@@ -216,6 +219,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             navigatorKey: _categoriesBranchKey,
+            observers: [SessionNavigationGuard(ref)],
             routes: [
               GoRoute(
                 path: AppRoutes.categories,
@@ -235,6 +239,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             navigatorKey: _cartBranchKey,
+            observers: [SessionNavigationGuard(ref)],
             routes: [
               GoRoute(
                 path: AppRoutes.cart,
@@ -245,6 +250,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             navigatorKey: _ordersBranchKey,
+            observers: [SessionNavigationGuard(ref)],
             routes: [
               GoRoute(
                 path: AppRoutes.orders,
@@ -255,6 +261,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             navigatorKey: _accountBranchKey,
+            observers: [SessionNavigationGuard(ref)],
             routes: [
               GoRoute(
                 path: AppRoutes.account,
