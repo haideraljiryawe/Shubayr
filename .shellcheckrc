@@ -1,0 +1,4 @@
+# deploy/ scripts source their neighbours (lib.sh).
+source-path=SCRIPTDIR
+# psql commands run inside the containers: their $VARS expand there, in single quotes on purpose.
+disable=SC2016
