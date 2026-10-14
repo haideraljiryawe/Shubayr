@@ -8,7 +8,7 @@ import { loadAllBrands, loadCategoryTree } from "@/lib/api/catalog-server";
 import { loadPermissions } from "@/lib/api/inventory-server";
 import { load, serverApi } from "@/lib/api/server";
 import { lastPage } from "@/lib/list-queries";
-import { SORT_KEYS, productQuery, shownDir } from "@/lib/product-list";
+import { SORT_KEYS, productQuery } from "@/lib/product-list";
 import { parseTableParams, type RawSearchParams, type TableParams } from "@/lib/table-params";
 import { ProductsTable } from "./products-table";
 import { ReindexButton } from "./reindex-button";
@@ -79,7 +79,7 @@ export default async function ProductsPage({
           perPage: params.perPage,
           total: products.data.total,
           sort: params.sort,
-          dir: shownDir(params.sort, params.dir),
+          dir: params.dir,
         }}
         query={productQuery(params)}
         tree={tree.ok ? tree.data : []}

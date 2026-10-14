@@ -91,7 +91,7 @@ Add many products at once from Excel, update existing ones, and enter opening st
 6. If categories or brands are missing, either correct the names, or tick **Create missing categories and brands** and check the file again — new ones are created hidden, so you can review them in **Categories** before customers see them.
 7. Press **Apply valid rows**. Rows with errors are skipped; fix them in Excel and import them again. The import is applied once, even if the button is pressed twice. The result shows how many products were added and updated, and links to the opening-stock document when the file had a Stock sheet.
 
-For a large catalog, import it in files of a few hundred rows each.
+One file can hold up to 5,000 rows. A big import is applied on the server in batches, with a bar showing the rows and batches applied so far: you can leave the page or close it and come back to it from **Import history**. If a row fails while applying, the import stops there and says which row and why; the rows already applied stay applied. Fix the cause and press **Resume the import** — it continues from where it stopped.
 
 ![The import preview: results by row, with the cell to fix](images/06-import.en.png)
 

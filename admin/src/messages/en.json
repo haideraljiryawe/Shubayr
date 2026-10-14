@@ -3334,12 +3334,19 @@
       "showing": "{from}–{to} of {total}",
       "previous": "Previous",
       "next": "Next",
-      "createsTaxonomy": "“Create missing” is on: new categories and brands are created hidden."
+      "createsTaxonomy": "“Create missing” is on: new categories and brands are created hidden.",
+      "commitFilterLabel": "Show rows by apply result",
+      "commit": {
+        "applied": "Applied",
+        "failed": "Failed",
+        "pending": "Not applied",
+        "skipped": "Skipped"
+      }
     },
     "commit": {
       "title": "4. Apply the valid rows",
       "button": "Apply {count, plural, one {# valid row} other {# valid rows}}",
-      "applying": "Applying… don't close the page.",
+      "applying": "Starting…",
       "skipped": "{count, plural, one {# row with an error will be skipped.} other {# rows with errors will be skipped.}}",
       "once": "An import is applied once only, even if the button is pressed twice.",
       "stockNote": "The stock rows create one opening-stock document.",
@@ -3375,7 +3382,8 @@
       "counts": "{create} new · {update} updates · {warning} warnings · {error} errors",
       "report": "Report",
       "previous": "Newer",
-      "next": "Older"
+      "next": "Older",
+      "applied": "{count} applied"
     },
     "errors": {
       "CATALOG_IMPORT_FILE_REQUIRED": "Choose a non-empty Excel workbook.",
@@ -3388,7 +3396,9 @@
       "CATALOG_IMPORT_NOT_READY": "The file hasn't finished checking yet.",
       "CATALOG_IMPORT_NO_VALID_ROWS": "There are no valid rows to apply.",
       "tooLarge": "The file is larger than allowed. Split it into smaller files.",
-      "generic": "That didn't work. Try again."
+      "generic": "That didn't work. Try again.",
+      "CATALOG_IMPORT_OPERATION_ID_REUSED": "That operation id belongs to another import. Reload the page and try again.",
+      "CATALOG_IMPORT_QUEUE_UNAVAILABLE": "The import service isn't available right now. Nothing was applied; try again in a minute."
     },
     "help": {
       "title": "How to fill in the workbook",
@@ -3517,6 +3527,25 @@
         "what": "The expiry date can't be read.",
         "fix": "Write it as 2027-12-31."
       }
+    },
+    "outcome": {
+      "applying": "Applying",
+      "completed": "Applied",
+      "partial": "Partly applied",
+      "failed": "Not applied"
+    },
+    "apply": {
+      "title": "Applying the import",
+      "rows": "Rows applied",
+      "background": "It runs on the server: you can leave or close this page and the import carries on. Reopen it any time from the import history.",
+      "partialTitle": "The import stopped part-way",
+      "partialBody": "Rows applied: {applied} (they stay applied). Rows not applied yet: {remaining}.",
+      "failedTitle": "The import could not be applied",
+      "failedBody": "No row was applied.",
+      "failedRows": "Rows that failed",
+      "resume": "Resume the import",
+      "resumeHelp": "Fix the cause first (for example, record a missing exchange rate). Resuming continues where it stopped: rows already applied are not applied again.",
+      "resuming": "Resuming…"
     }
   },
   "catalogImages": {

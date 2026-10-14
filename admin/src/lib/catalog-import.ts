@@ -1,15 +1,18 @@
 import type { components } from "@/types/api";
 
 /* ---------------------------------------------------------------------------
- * The Excel catalog import and the bulk-image ZIP (API 15.1), kept pure so
+ * The Excel catalog import and the bulk-image ZIP (API 16.1), kept pure so
  * the screens' rules are unit-tested.
  *
  * - Preview writes nothing: every workbook row comes back as create, update,
  *   warning or error, each issue with its Excel cell ("Products+Variants!H4").
- * - Commit applies all valid rows at once. Its operation id is fixed per
- *   import — kept in the session — so a double click, a retry or a reload
- *   while it runs replays the same commit instead of starting a second one.
  * - More than 500 rows validate in the background; the screen polls.
+ * - Commit is queued: the worker applies product rows in batches of up to
+ *   250 (then the Stock rows as one opening document), and the import reports
+ *   rows and batches applied as it goes. A failed batch stops the import but
+ *   keeps the batches before it ("partly applied"); committing again with
+ *   the import's own operation id resumes from its checkpoints. The id is
+ *   fixed per import, so a double click or a reload never starts a second one.
  * ------------------------------------------------------------------------- */
 
 export type CatalogImport = components["schemas"]["CatalogImport"];
@@ -18,6 +21,8 @@ export type ImportRow = components["schemas"]["CatalogImportPreviewRow"];
 export type ImportAction = ImportRow["action"];
 export type CommitResult = components["schemas"]["CatalogImportCommitResult"];
 export type ImageResult = components["schemas"]["CatalogImageBulkResult"];
+
+export type CommitStatus = ImportRow["commit_status"];
 
 export const IMPORT_ACTIONS: readonly ImportAction[] = ["create", "update", "warning", "error"];
 
@@ -40,6 +45,63 @@ export function statusTone(status: CatalogImport["status"]): "neutral" | "succes
 /** The badge colour of a preview row's result. */
 export function actionTone(action: ImportAction): "success" | "info" | "warning" | "danger" {
   return action === "create" ? "success" : action === "update" ? "info" : action === "warning" ? "warning" : "danger";
+}
+
+/* ------------------------------------------------------------ applying */
+
+/**
+ * Where an import stands with its commit:
+ * - none: not committed (still checking, ready, or the check itself failed);
+ * - applying: the worker is applying batches;
+ * - completed: every valid row applied;
+ * - partial: a batch failed after earlier batches were applied (they stay);
+ * - failed: the commit failed before any row was applied.
+ */
+export type CommitOutcome = "none" | "applying" | "completed" | "partial" | "failed";
+
+export function commitOutcome(item: Pick<CatalogImport, "status" | "operation_id" | "applied_count">): CommitOutcome {
+  if (item.status === "committing") return "applying";
+  if (item.status === "completed") return "completed";
+  if (item.status === "failed" && item.operation_id) return item.applied_count > 0 ? "partial" : "failed";
+  return "none";
+}
+
+/** The check failed (bad workbook): nothing can be committed; upload again. */
+export function checkFailed(item: Pick<CatalogImport, "status" | "operation_id">): boolean {
+  return item.status === "failed" && !item.operation_id;
+}
+
+/** A stopped commit can be resumed with the import's own operation id. */
+export function canResume(item: CatalogImport): boolean {
+  return item.status === "failed" && !!item.operation_id && !!item.preview;
+}
+
+/** Rows applied so far, as a whole percentage of the rows the commit applies. */
+export function appliedPercent(item: CatalogImport): number {
+  const total = applicableRows(item);
+  return total > 0 ? Math.min(100, Math.floor((item.applied_count / total) * 100)) : 0;
+}
+
+export const COMMIT_STATUSES: readonly CommitStatus[] = ["applied", "failed", "pending", "skipped"];
+
+/** The badge colour of a row's apply result. */
+export function commitTone(status: CommitStatus): "success" | "danger" | "neutral" {
+  return status === "applied" ? "success" : status === "failed" ? "danger" : "neutral";
+}
+
+/** Rows per apply result (for the filter chips once a commit started). */
+export function commitCounts(rows: readonly ImportRow[]): Record<CommitStatus, number> {
+  const counts: Record<CommitStatus, number> = { applied: 0, failed: 0, pending: 0, skipped: 0 };
+  for (const row of rows) counts[row.commit_status] += 1;
+  return counts;
+}
+
+/**
+ * How often to read an import while it works. Each read carries every
+ * preview row, so a large file is read less often.
+ */
+export function pollInterval(item: Pick<CatalogImport, "row_count">): number {
+  return item.row_count > 500 ? 3000 : 1500;
 }
 
 /** Commit is offered once validation is done and something can be applied. */
@@ -70,11 +132,17 @@ export function hasStockRows(item: CatalogImport): boolean {
 }
 
 /** Preview rows shown for the chosen actions (all when none is chosen), and a SKU search. */
-export function filterRows(rows: readonly ImportRow[], actions: ReadonlySet<ImportAction>, query = ""): ImportRow[] {
+export function filterRows(
+  rows: readonly ImportRow[],
+  actions: ReadonlySet<ImportAction>,
+  query = "",
+  applied: ReadonlySet<CommitStatus> = new Set(),
+): ImportRow[] {
   const needle = query.trim().toLowerCase();
   return rows.filter(
     (row) =>
       (actions.size === 0 || actions.has(row.action)) &&
+      (applied.size === 0 || applied.has(row.commit_status)) &&
       (!needle || (row.sku ?? "").toLowerCase().includes(needle) || row.issues.some((issue) => issue.cell.toLowerCase().includes(needle))),
   );
 }

@@ -2,11 +2,12 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { Download, History } from "lucide-react";
 import { Badge, buttonClasses, Card } from "@/components/ui";
-import { statusTone, type CatalogImportSummary } from "@/lib/catalog-import";
+import { commitOutcome, statusTone, type CatalogImportSummary } from "@/lib/catalog-import";
 
 /**
- * Past imports, newest first: when, who, the file, its state and row counts,
- * with links to reopen it and to download its validation report.
+ * Past imports, newest first: when, who, the file, its state (partly applied
+ * when a batch stopped it) and row counts, with links to reopen it and to
+ * download its validation report.
  */
 export function ImportHistory({
   rows,
@@ -15,7 +16,6 @@ export function ImportHistory({
   perPage,
   openedId,
   meId,
-  people,
 }: {
   rows: CatalogImportSummary[];
   page: number;
@@ -23,8 +23,6 @@ export function ImportHistory({
   perPage: number;
   openedId: string | null;
   meId: string | null;
-  /** Staff names by id (empty without users.manage). */
-  people: Record<string, string>;
 }) {
   const t = useTranslations("catalogImport");
   const format = useFormatter();
@@ -32,7 +30,15 @@ export function ImportHistory({
   const when = (iso: string) =>
     format.dateTime(new Date(iso), { dateStyle: "medium", timeStyle: "short", numberingSystem: "latn" });
   const who = (item: CatalogImportSummary) =>
-    item.created_by === meId ? t("history.you") : item.created_by_name || people[item.created_by] || "—";
+    item.created_by === meId ? t("history.you") : item.created_by_name || "—";
+  const statusBadge = (item: CatalogImportSummary) => {
+    const outcome = commitOutcome(item);
+    return (
+      <Badge tone={outcome === "partial" ? "warning" : statusTone(item.status)} data-testid="import-history-status" data-outcome={outcome}>
+        {outcome === "none" ? t(`status.${item.status}`) : t(`outcome.${outcome}`)}
+      </Badge>
+    );
+  };
   const pageHref = (target: number) => `/catalog/import?page=${target}${openedId ? `&id=${openedId}` : ""}`;
 
   return (
@@ -75,7 +81,7 @@ export function ImportHistory({
                     {who(item)}
                   </td>
                   <td className="p-2">
-                    <Badge tone={statusTone(item.status)}>{t(`status.${item.status}`)}</Badge>
+                    {statusBadge(item)}
                   </td>
                   <td className="whitespace-nowrap p-2 text-text-muted" data-testid="import-history-counts">
                     {t("history.counts", {
@@ -84,6 +90,7 @@ export function ImportHistory({
                       warning: item.warning_count,
                       error: item.error_count,
                     })}
+                    {item.operation_id ? <span className="block">{t("history.applied", { count: item.applied_count })}</span> : null}
                   </td>
                   <td className="p-2">
                     <div className="flex items-center justify-end gap-1">

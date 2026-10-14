@@ -341,8 +341,7 @@ for (const locale of LOCALES) {
       await page.goto("/catalog/import");
       await hydrated(page, "import-file");
       await page.getByTestId("import-file").setInputFiles({
-        // An ASCII name: the API decodes multipart file names as Latin-1 (backend gap).
-        name: "new-products.xlsx",
+        name: locale === "ar" ? "منتجات-جديدة.xlsx" : "new-products.xlsx",
         mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         buffer: workbook,
       });
