@@ -23,13 +23,17 @@ import {
   ConvertCategoryToBrandDto,
   UpdateBrandDto,
 } from './dto/brand.dto';
-import { CategoryQueryDto, ProductQueryDto } from './dto/catalog-query.dto';
+import {
+  AdminProductQueryDto,
+  CategoryQueryDto,
+} from './dto/catalog-query.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
 import { CatalogSearchService } from './catalog-search.service';
+import { BulkProductDto } from './dto/bulk-product.dto';
 
 @RequirePermissions('catalog.categories')
 @Controller('admin/categories')
@@ -117,8 +121,17 @@ export class AdminProductsController {
   ) {}
 
   @Get()
-  list(@Query() query: ProductQueryDto) {
+  list(@Query() query: AdminProductQueryDto) {
     return this.products.listAdmin(query);
+  }
+
+  @Post('bulk')
+  @RequirePermissions('catalog.products', 'prices.change')
+  bulk(
+    @Req() request: Request & { user: AuthenticatedRequestUser },
+    @Body() input: BulkProductDto,
+  ) {
+    return this.products.bulk(input, request.user.id);
   }
 
   @Post('reindex')

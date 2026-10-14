@@ -1675,3 +1675,6 @@ ON CONFLICT DO NOTHING;
 
 -- Task D1 delivery pricing uses the production migration as its single DDL source.
 \ir ../../backend/prisma/migrations/20261012180000_delivery_zones_tier_discounts/migration.sql
+
+-- Task D2 catalog import and large-list support use the production migration.
+\ir ../../backend/prisma/migrations/20261013190000_catalog_import_scale/migration.sql

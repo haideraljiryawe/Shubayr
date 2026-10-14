@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomUUID } from 'node:crypto';
+import sharp from 'sharp';
 import { PrismaService } from '../../database/prisma.service';
 import { ObjectStorageService } from './object-storage.service';
 
@@ -125,6 +126,38 @@ export class MediaService {
       await this.storage.remove(objectKey);
       throw error;
     }
+  }
+
+  async uploadCatalogImage(buffer: Buffer, userId: string) {
+    if (!buffer.length) {
+      throw new UnprocessableEntityException('A non-empty image is required');
+    }
+    if (buffer.length > this.maxBytes) {
+      throw new PayloadTooLargeException(
+        `Image must not exceed ${this.maxBytes} bytes`,
+      );
+    }
+    let optimized: Buffer;
+    try {
+      optimized = await sharp(buffer, { failOn: 'error' })
+        .rotate()
+        .resize({
+          width: 1600,
+          height: 1600,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: 82, effort: 4 })
+        .toBuffer();
+    } catch {
+      throw new UnsupportedMediaTypeException(
+        'Catalog image is not a supported image file',
+      );
+    }
+    return this.uploadImage(
+      { buffer: optimized, mimetype: 'image/webp', size: optimized.length },
+      userId,
+    );
   }
 
   async download(id: string) {

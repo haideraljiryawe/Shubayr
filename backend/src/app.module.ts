@@ -12,6 +12,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BannersModule } from './modules/banners/banners.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { CatalogImportModule } from './modules/catalog-import/catalog-import.module';
 import { FulfilmentModule } from './modules/fulfilment/fulfilment.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { HealthModule } from './modules/health/health.module';
@@ -52,6 +53,7 @@ import { TieredThrottlerGuard } from './common/guards/tiered-throttler.guard';
     RbacModule,
     BannersModule,
     CatalogModule,
+    CatalogImportModule,
     PurchasingModule,
     InventoryModule,
     OrdersModule,

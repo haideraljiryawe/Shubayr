@@ -13,6 +13,7 @@ import { ProductsService } from './products.service';
 import { BrandsService } from './brands.service';
 import { CatalogSearchService } from './catalog-search.service';
 import { BelowCostService } from './below-cost.service';
+import { OperationService } from '../finance/operation.service';
 
 @Module({
   imports: [MediaModule],
@@ -28,6 +29,7 @@ import { BelowCostService } from './below-cost.service';
     BrandsService,
     CatalogSearchService,
     BelowCostService,
+    OperationService,
     {
       provide: APP_INTERCEPTOR,
       useClass: BilingualNameFallbackInterceptor,

@@ -363,123 +363,147 @@ export class InventoryService {
       endpoint: 'POST /admin/inventory/openings',
       payload: input,
       responseStatus: 201,
-      work: async (tx) => {
-        const id = randomUUID();
-        let total = D(0);
-        for (const line of input.lines) {
-          const quantity = this.positive(line.quantity, 'quantity');
-          const cost = this.nonNegative(line.unit_cost_iqd, 'unit_cost_iqd');
-          total = total.plus(
-            quantity.times(cost).plus(line.landed_cost_share ?? 0),
-          );
-        }
-        if (!total.gt(0))
-          throw new UnprocessableEntityException(
-            'Opening stock value must be positive',
-          );
-        const entry = await this.ledger.post(tx, {
-          sourceType: 'inventory_opening',
-          sourceId: id,
-          event: 'post',
-          documentDate: dates.documentDate,
-          accountingDate: dates.accountingDate,
-          createdBy: actorId,
-          description: 'Opening inventory',
-          lines: this.posting('1000', '3000', total),
-        });
-        const documentNumber = await this.numbers.issue(
-          tx,
-          'inventory_opening',
-          'INV-OPEN',
-          dates.documentDate,
-        );
-        await tx.inventoryOpening.create({
-          data: {
-            id,
-            document_number: documentNumber,
-            operation_id: input.operation_id,
-            document_date: dates.documentDate,
-            accounting_date: dates.accountingDate,
-            created_by: actorId,
-            journal_entry_id: entry.id,
-          },
-        });
-        for (const line of input.lines) {
-          const quantity = D(line.quantity);
-          const unitCost = D(line.unit_cost_iqd).plus(
-            D(line.landed_cost_share ?? 0).div(quantity),
-          );
-          const location = await tx.warehouseLocation.findUnique({
-            where: { id: line.location_id },
-            include: { warehouse: true },
-          });
-          const variant = await tx.productVariant.findUnique({
-            where: { id: line.variant_id },
-          });
-          if (!location?.is_active || !location.warehouse.is_active)
-            throw conflict(
-              'OPENING_LOCATION_INACTIVE',
-              'Opening location is inactive',
-            );
-          if (!variant)
-            throw new NotFoundException('Product variant not found');
-          this.requireQuantityUnit(quantity, variant.whole_units_only);
-          const lot = await tx.inventoryBatch.create({
-            data: {
-              product_id: variant.product_id,
-              variant_id: variant.id,
-              lot_number: line.lot_number?.trim() ?? null,
-              expiry_date: line.expiry_date
-                ? parseBusinessDate(line.expiry_date)
-                : null,
-              purchase_cost: line.unit_cost_iqd,
-              landed_cost_share: line.landed_cost_share ?? '0',
-              currency_code: 'IQD',
-              qty_received: quantity,
-              source_type: 'inventory_opening',
-              source_id: id,
-            },
-          });
-          await tx.batchStock.create({
-            data: { batch_id: lot.id, location_id: line.location_id, quantity },
-          });
-          await tx.inventoryOpeningLine.create({
-            data: {
-              opening_id: id,
-              variant_id: variant.id,
-              location_id: line.location_id,
-              lot_id: lot.id,
-              quantity,
-              unit_cost_iqd: line.unit_cost_iqd,
-              landed_cost_share: line.landed_cost_share ?? '0',
-              expiry_date: line.expiry_date
-                ? parseBusinessDate(line.expiry_date)
-                : null,
-            },
-          });
-          await tx.stockMovement.create({
-            data: {
-              batch_id: lot.id,
-              type: 'receive',
-              to_location: line.location_id,
-              quantity,
-              unit_cost_iqd: unitCost,
-              reference: documentNumber,
-              source_type: 'inventory_opening',
-              source_id: id,
-              user_id: actorId,
-            },
-          });
-          await this.addValue(tx, variant.id, quantity, unitCost);
-        }
-        return this.getDocumentTx(
-          tx,
-          'opening',
-          id,
-          permissions.includes('cost.view'),
-        );
+      work: (tx) =>
+        this.createOpeningInTransaction(tx, actorId, permissions, input, dates),
+    });
+  }
+
+  /**
+   * Posts an opening inside a caller-owned transaction. Catalog import uses
+   * this so product, stock, journal and audit writes commit atomically.
+   */
+  async createOpeningInTransaction(
+    tx: Tx,
+    actorId: string,
+    permissions: string[],
+    input: CreateOpeningDto,
+    dates?: { documentDate: Date; accountingDate: Date },
+  ) {
+    const resolvedDates =
+      dates ??
+      (await this.dates.validate({
+        documentDate: input.document_date,
+        accountingDate: input.accounting_date,
+        backdateReason: input.backdate_reason,
+        permissions,
+      }));
+    if (!input.lines.length)
+      throw new UnprocessableEntityException(
+        'At least one opening line is required',
+      );
+    const id = randomUUID();
+    let total = D(0);
+    for (const line of input.lines) {
+      const quantity = this.positive(line.quantity, 'quantity');
+      const cost = this.nonNegative(line.unit_cost_iqd, 'unit_cost_iqd');
+      total = total.plus(
+        quantity.times(cost).plus(line.landed_cost_share ?? 0),
+      );
+    }
+    if (!total.gt(0))
+      throw new UnprocessableEntityException(
+        'Opening stock value must be positive',
+      );
+    const entry = await this.ledger.post(tx, {
+      sourceType: 'inventory_opening',
+      sourceId: id,
+      event: 'post',
+      documentDate: resolvedDates.documentDate,
+      accountingDate: resolvedDates.accountingDate,
+      createdBy: actorId,
+      description: 'Opening inventory',
+      lines: this.posting('1000', '3000', total),
+    });
+    const documentNumber = await this.numbers.issue(
+      tx,
+      'inventory_opening',
+      'INV-OPEN',
+      resolvedDates.documentDate,
+    );
+    await tx.inventoryOpening.create({
+      data: {
+        id,
+        document_number: documentNumber,
+        operation_id: input.operation_id,
+        document_date: resolvedDates.documentDate,
+        accounting_date: resolvedDates.accountingDate,
+        created_by: actorId,
+        journal_entry_id: entry.id,
       },
     });
+    for (const line of input.lines) {
+      const quantity = D(line.quantity);
+      const unitCost = D(line.unit_cost_iqd).plus(
+        D(line.landed_cost_share ?? 0).div(quantity),
+      );
+      const location = await tx.warehouseLocation.findUnique({
+        where: { id: line.location_id },
+        include: { warehouse: true },
+      });
+      const variant = await tx.productVariant.findUnique({
+        where: { id: line.variant_id },
+      });
+      if (!location?.is_active || !location.warehouse.is_active)
+        throw conflict(
+          'OPENING_LOCATION_INACTIVE',
+          'Opening location is inactive',
+        );
+      if (!variant) throw new NotFoundException('Product variant not found');
+      this.requireQuantityUnit(quantity, variant.whole_units_only);
+      const lot = await tx.inventoryBatch.create({
+        data: {
+          product_id: variant.product_id,
+          variant_id: variant.id,
+          lot_number: line.lot_number?.trim() ?? null,
+          expiry_date: line.expiry_date
+            ? parseBusinessDate(line.expiry_date)
+            : null,
+          purchase_cost: line.unit_cost_iqd,
+          landed_cost_share: line.landed_cost_share ?? '0',
+          currency_code: 'IQD',
+          qty_received: quantity,
+          source_type: 'inventory_opening',
+          source_id: id,
+        },
+      });
+      await tx.batchStock.create({
+        data: { batch_id: lot.id, location_id: line.location_id, quantity },
+      });
+      await tx.inventoryOpeningLine.create({
+        data: {
+          opening_id: id,
+          variant_id: variant.id,
+          location_id: line.location_id,
+          lot_id: lot.id,
+          quantity,
+          unit_cost_iqd: line.unit_cost_iqd,
+          landed_cost_share: line.landed_cost_share ?? '0',
+          expiry_date: line.expiry_date
+            ? parseBusinessDate(line.expiry_date)
+            : null,
+        },
+      });
+      await tx.stockMovement.create({
+        data: {
+          batch_id: lot.id,
+          type: 'receive',
+          to_location: line.location_id,
+          quantity,
+          unit_cost_iqd: unitCost,
+          reference: documentNumber,
+          source_type: 'inventory_opening',
+          source_id: id,
+          user_id: actorId,
+        },
+      });
+      await this.addValue(tx, variant.id, quantity, unitCost);
+    }
+    return this.getDocumentTx(
+      tx,
+      'opening',
+      id,
+      permissions.includes('cost.view'),
+    );
   }
 
   async createTransfer(

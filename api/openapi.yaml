@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 15.0.0
+  version: 15.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -3318,11 +3318,158 @@ paths:
         "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  /admin/catalog-imports/template:
+    get:
+      tags: [Admin, Catalog import]
+      summary: Download the bilingual Excel catalog-import template
+      x-permission: catalog.import
+      responses:
+        "200":
+          description: Products+Variants, optional Stock, instructions and examples
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/catalog-imports/preview:
+    post:
+      tags: [Admin, Catalog import]
+      summary: Upload and validate an Excel catalog import without changing catalog or stock
+      description: Files with more than 500 rows validate as a background job. Poll the returned import resource for progress. At most 5,000 data rows are accepted.
+      x-permission: catalog.import
+      x-error-codes: [CATALOG_IMPORT_FILE_REQUIRED, CATALOG_IMPORT_FILE_INVALID, CATALOG_IMPORT_HEADERS_INVALID, CATALOG_IMPORT_SHEET_REQUIRED, CATALOG_IMPORT_ROW_LIMIT, CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED]
+      parameters:
+        - { name: create_missing, in: query, schema: { type: boolean, default: false } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: Ready preview, or queued background validation resource
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogImport" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/catalog-imports:
+    get:
+      tags: [Admin, Catalog import]
+      summary: List catalog import history
+      x-permission: catalog.import
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: Import history, newest first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogImportPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/catalog-imports/{id}:
+    get:
+      tags: [Admin, Catalog import]
+      summary: Get preview rows and progress for one import
+      description: Stock unit cost is omitted unless the caller has cost.view.
+      x-permission: catalog.import
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Import resource
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogImport" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/catalog-imports/{id}/error-report:
+    get:
+      tags: [Admin, Catalog import]
+      summary: Download the complete validation report as CSV
+      x-permission: catalog.import
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: UTF-8 CSV report
+          content:
+            text/csv:
+              schema: { type: string }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/catalog-imports/{id}/commit:
+    post:
+      tags: [Admin, Catalog import]
+      summary: Atomically commit all valid preview rows
+      description: The operation id makes double submission return the original result. Valid Stock rows create exactly one posted inventory-opening document in the same transaction.
+      x-permission: catalog.import
+      x-error-codes: [CATALOG_IMPORT_ALREADY_COMMITTED, CATALOG_IMPORT_NOT_READY, CATALOG_IMPORT_NO_VALID_ROWS, CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED, EXCHANGE_RATE_REQUIRED]
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [operation_id]
+              properties:
+                operation_id: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        "201":
+          description: Committed import result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogImportCommitResult" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/catalog-images/bulk:
+    post:
+      tags: [Admin, Catalog import]
+      summary: Upload and attach a ZIP of SKU-named product images
+      description: Accepts SKU.jpg, SKU-2.jpg and later numbered images. Images are resized and compressed to WebP; unmatched files are returned in the report.
+      x-permission: catalog.import
+      x-error-codes: [CATALOG_IMAGE_ZIP_INVALID]
+      parameters:
+        - { name: operation_id, in: query, required: true, schema: { type: string, minLength: 8, maxLength: 128 } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: Matched and unmatched image report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogImageBulkResult" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "422": { $ref: "#/components/responses/Validation" }
+
   /admin/products:
     get:
       tags: [Admin]
       summary: List all products, including hidden and archived products
-      description: Uses the public filters and server-time pricing without public visibility restrictions.
+      description: Uses database-level filtering, stable sorting and pagination without loading the whole catalog into application memory.
       x-permission: catalog.products
       parameters:
         - { name: q, in: query, schema: { type: string } }
@@ -3331,7 +3478,10 @@ paths:
         - { name: min_price, in: query, schema: { type: number } }
         - { name: max_price, in: query, schema: { type: number } }
         - { name: on_sale, in: query, schema: { type: boolean } }
-        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating] } }
+        - { name: status, in: query, schema: { type: array, items: { type: string, enum: [active, hidden, archived] } }, style: form, explode: true }
+        - { name: availability, in: query, schema: { type: array, items: { type: string, enum: [in_stock, low_stock, out_of_stock] } }, style: form, explode: true }
+        - { name: has_image, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, rating, name_asc, name_desc, sku_asc] } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -3345,7 +3495,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create a product
-      x-error-codes: [BELOW_COST_BLOCKED, VARIANT_SKUS_DUPLICATED, VARIANT_SKU_DUPLICATE, BASE_CURRENCY_NOT_CONFIGURED]
+      x-error-codes: [BELOW_COST_BLOCKED, VARIANT_SKUS_DUPLICATED, VARIANT_SKU_DUPLICATE, VARIANT_BARCODES_DUPLICATED, VARIANT_BARCODE_DUPLICATE, BASE_CURRENCY_NOT_CONFIGURED]
       description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
       x-permissions: [catalog.products, prices.change]
       requestBody:
@@ -3361,6 +3511,27 @@ paths:
               schema: { $ref: "#/components/schemas/Product" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/PricingRateValidation" }
+  /admin/products/bulk:
+    post:
+      tags: [Admin]
+      summary: Apply one catalog change to up to 500 products
+      description: Runs in one transaction. Reusing the operation id with the same payload returns the first result; a different payload returns 409.
+      x-permissions: [catalog.products, prices.change]
+      x-error-codes: [PRODUCT_IDS_DUPLICATED, PRODUCT_NOT_READY]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductBulkInput" }
+      responses:
+        "200":
+          description: Per-product result list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductBulkResult" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/products/{id}:
     get:
       tags: [Admin]
@@ -3379,7 +3550,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a product
-      x-error-codes: [BELOW_COST_BLOCKED, VARIANT_SKUS_DUPLICATED, VARIANT_SKU_DUPLICATE, BASE_CURRENCY_NOT_CONFIGURED]
+      x-error-codes: [BELOW_COST_BLOCKED, VARIANT_SKUS_DUPLICATED, VARIANT_SKU_DUPLICATE, VARIANT_BARCODES_DUPLICATED, VARIANT_BARCODE_DUPLICATE, BASE_CURRENCY_NOT_CONFIGURED]
       description: >
         Omitted fields are preserved. Explicit null clears only nullable fields;
         `discount_type: null` clears the complete stored discount definition.
@@ -4918,6 +5089,8 @@ components:
     ExchangeRateValidation: { description: "Invalid request data (`VALIDATION_FAILED`) or no applicable currency rate (`EXCHANGE_RATE_NOT_FOUND`), HTTP 422", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     PricingRateValidation: { description: "Invalid request data (`VALIDATION_FAILED`) or no applicable linked-pricing rate (`PRICING_RATE_REQUIRED`), HTTP 422", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     RateLimited: { description: Too many requests (`RATE_LIMITED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    PayloadTooLarge: { description: "Uploaded workbook, archive, image, or row count exceeds the declared limit", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    UnsupportedMediaType: { description: Uploaded image bytes are not a supported image format, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Forbidden: { description: Missing permission (`FORBIDDEN`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
   schemas:
     Error:
@@ -5394,6 +5567,8 @@ components:
         name_en: { type: string }
         name_ar: { type: string }
         description: { type: [string, "null"] }
+        description_en: { type: [string, "null"] }
+        description_ar: { type: [string, "null"] }
         price: { $ref: "#/components/schemas/Money", multipleOf: 1, description: "Regular selling price in whole IQD." }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         discount_type: { type: [string, "null"], enum: [percentage, amount, null], description: "Discount kind, or null when the product has no discount defined." }
@@ -5523,6 +5698,7 @@ components:
       properties:
         id: { type: string, format: uuid, description: "Existing SKU identity on update." }
         sku: { type: string, minLength: 1, maxLength: 80 }
+        barcode: { type: [string, "null"], maxLength: 80 }
         attributes: { type: object, additionalProperties: true }
         price_delta: { type: integer, deprecated: true, description: "Compatibility input; translated to a fixed selling_price override." }
         base_unit: { type: string, minLength: 1, maxLength: 32, default: piece }
@@ -5532,6 +5708,195 @@ components:
         pricing_mode: { type: string, enum: [fixed, linked], default: fixed }
         reference_currency_code: { type: [string, "null"], pattern: '^[A-Z]{3}$' }
         reference_price: { type: [number, "null"], exclusiveMinimum: 0, multipleOf: 0.000001 }
+
+    CatalogImportIssue:
+      type: object
+      additionalProperties: false
+      required: [severity, code, cell, message]
+      properties:
+        severity: { type: string, enum: [error, warning] }
+        code: { type: string }
+        cell: { type: string, example: "Products+Variants!H4" }
+        message: { type: string }
+
+    CatalogImportProductRow:
+      type: object
+      additionalProperties: false
+      required: [sheet, row, category_level_1, category_level_2, brand, product_name_ar, product_name_en, description_ar, description_en, sku, attributes, base_unit, whole_units_only, price_iqd, reference_currency_code, reference_price, low_stock_threshold, barcode, status, image_urls]
+      properties:
+        sheet: { type: string, const: "Products+Variants" }
+        row: { type: integer, minimum: 2 }
+        category_level_1: { type: string }
+        category_level_2: { type: string }
+        brand: { type: [string, "null"] }
+        product_name_ar: { type: string }
+        product_name_en: { type: string }
+        description_ar: { type: [string, "null"] }
+        description_en: { type: [string, "null"] }
+        sku: { type: string }
+        attributes: { type: object, additionalProperties: { type: string } }
+        base_unit: { type: string }
+        whole_units_only: { type: boolean }
+        price_iqd: { type: [integer, "null"], minimum: 0 }
+        reference_currency_code: { type: [string, "null"], pattern: '^[A-Z]{3}$' }
+        reference_price: { type: [number, "null"], exclusiveMinimum: 0 }
+        low_stock_threshold: { type: [number, "null"], minimum: 0, multipleOf: 0.001 }
+        barcode: { type: [string, "null"] }
+        status: { type: [string, "null"], enum: [active, hidden, archived, null] }
+        image_urls: { type: array, items: { type: string, format: uri } }
+
+    CatalogImportStockRow:
+      type: object
+      additionalProperties: false
+      required: [sheet, row, sku, location_code, quantity, expiry]
+      properties:
+        sheet: { type: string, const: Stock }
+        row: { type: integer, minimum: 2 }
+        sku: { type: string }
+        location_code: { type: string }
+        quantity: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
+        unit_cost_iqd: { type: string, pattern: '^\d+(?:\.\d{1,12})?$', description: Omitted unless the caller has cost.view. }
+        expiry: { type: [string, "null"], format: date }
+
+    CatalogImportPreviewRow:
+      type: object
+      additionalProperties: false
+      required: [sheet, row, sku, action, apply_action, issues]
+      properties:
+        sheet: { type: string, enum: ["Products+Variants", Stock] }
+        row: { type: integer, minimum: 2 }
+        sku: { type: [string, "null"] }
+        action: { type: string, enum: [create, update, error, warning] }
+        apply_action: { type: [string, "null"], enum: [create, update, null] }
+        issues: { type: array, items: { $ref: "#/components/schemas/CatalogImportIssue" } }
+        product: { $ref: "#/components/schemas/CatalogImportProductRow" }
+        stock: { $ref: "#/components/schemas/CatalogImportStockRow" }
+
+    CatalogImportPreview:
+      type: object
+      additionalProperties: false
+      required: [rows, counts]
+      properties:
+        rows: { type: array, items: { $ref: "#/components/schemas/CatalogImportPreviewRow" } }
+        counts:
+          type: object
+          additionalProperties: false
+          required: [total, create, update, error, warning]
+          properties:
+            total: { type: integer, minimum: 0 }
+            create: { type: integer, minimum: 0 }
+            update: { type: integer, minimum: 0 }
+            error: { type: integer, minimum: 0 }
+            warning: { type: integer, minimum: 0 }
+
+    CatalogImport:
+      type: object
+      additionalProperties: false
+      required: [id, file_name, create_missing, status, progress, row_count, create_count, update_count, error_count, warning_count, preview, error_report_key, operation_id, opening_id, created_by, committed_by, created_at, updated_at, completed_at]
+      properties:
+        id: { type: string, format: uuid }
+        file_name: { type: string }
+        create_missing: { type: boolean }
+        status: { type: string, enum: [queued, validating, ready, committing, completed, failed] }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        row_count: { type: integer, minimum: 0 }
+        create_count: { type: integer, minimum: 0 }
+        update_count: { type: integer, minimum: 0 }
+        error_count: { type: integer, minimum: 0 }
+        warning_count: { type: integer, minimum: 0 }
+        preview: { oneOf: [ { $ref: "#/components/schemas/CatalogImportPreview" }, { type: "null" } ] }
+        error_report_key: { type: [string, "null"], description: Internal report availability marker; download through the error-report route. }
+        operation_id: { type: [string, "null"] }
+        opening_id: { type: [string, "null"], format: uuid }
+        created_by: { type: string, format: uuid }
+        committed_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+
+    CatalogImportPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data: { type: array, items: { $ref: "#/components/schemas/CatalogImport" } }
+
+    CatalogImportCommitResult:
+      type: object
+      additionalProperties: false
+      required: [id, status, operation_id, created, updated, skipped_errors, opening_id]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, const: completed }
+        operation_id: { type: string }
+        created: { type: integer, minimum: 0 }
+        updated: { type: integer, minimum: 0 }
+        skipped_errors: { type: integer, minimum: 0 }
+        opening_id: { type: [string, "null"], format: uuid }
+
+    CatalogImageBulkResult:
+      type: object
+      additionalProperties: false
+      required: [operation_id, matched, unmatched]
+      properties:
+        operation_id: { type: string }
+        matched:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [file, sku, product_id, url]
+            properties:
+              file: { type: string }
+              sku: { type: string }
+              product_id: { type: string, format: uuid }
+              url: { type: string, format: uri }
+        unmatched: { type: array, items: { type: string } }
+
+    ProductBulkInput:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [operation_id, ids, action]
+          properties:
+            operation_id: { type: string, minLength: 8, maxLength: 128 }
+            ids: { type: array, minItems: 1, maxItems: 500, uniqueItems: true, items: { type: string, format: uuid } }
+            action: { type: string, enum: [publish, hide] }
+        - type: object
+          additionalProperties: false
+          required: [operation_id, ids, action, category_id]
+          properties:
+            operation_id: { type: string, minLength: 8, maxLength: 128 }
+            ids: { type: array, minItems: 1, maxItems: 500, uniqueItems: true, items: { type: string, format: uuid } }
+            action: { type: string, const: set_category }
+            category_id: { type: string, format: uuid }
+        - type: object
+          additionalProperties: false
+          required: [operation_id, ids, action, brand_id]
+          properties:
+            operation_id: { type: string, minLength: 8, maxLength: 128 }
+            ids: { type: array, minItems: 1, maxItems: 500, uniqueItems: true, items: { type: string, format: uuid } }
+            action: { type: string, const: set_brand }
+            brand_id: { type: [string, "null"], format: uuid }
+
+    ProductBulkResult:
+      type: object
+      additionalProperties: false
+      required: [operation_id, results]
+      properties:
+        operation_id: { type: string }
+        results:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, status]
+            properties:
+              id: { type: string, format: uuid }
+              status: { type: string, enum: [updated, error] }
+              code: { type: string }
+              message: { type: string }
 
     ProductImage:
       type: object
@@ -5638,6 +6003,7 @@ components:
         id: { type: string, format: uuid }
         product_id: { type: string, format: uuid }
         sku: { type: string }
+        barcode: { type: [string, "null"] }
         attributes: { type: [object, "null"], additionalProperties: true }
         price_delta: { type: integer }
         currency: { type: string, pattern: '^[A-Z]{3}$' }

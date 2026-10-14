@@ -28,6 +28,7 @@ INSERT INTO permissions(key, "group", description) VALUES
   ('catalog.categories', 'catalog', 'Manage categories'),
   ('catalog.brands', 'catalog', 'Manage brands'),
   ('catalog.products', 'catalog', 'Manage products and banners'),
+  ('catalog.import', 'catalog', 'Import products, variants and catalog images'),
   ('prices.change', 'catalog', 'Change sale prices'),
   ('cost.view', 'purchasing', 'View product cost'),
   ('suppliers.view', 'purchasing', 'View suppliers'),
@@ -86,7 +87,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO preset_permissions(preset_id, permission_id)
 SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
 WHERE pp.name = 'catalog_editor' AND p.key IN
-  ('catalog.categories','catalog.brands','catalog.products','prices.change')
+  ('catalog.categories','catalog.brands','catalog.products','catalog.import','prices.change')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO preset_permissions(preset_id, permission_id)

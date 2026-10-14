@@ -6812,6 +6812,325 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/catalog-imports/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download the bilingual Excel catalog-import template */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Products+Variants, optional Stock, instructions and examples */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload and validate an Excel catalog import without changing catalog or stock
+         * @description Files with more than 500 rows validate as a background job. Poll the returned import resource for progress. At most 5,000 data rows are accepted.
+         */
+        post: {
+            parameters: {
+                query?: {
+                    create_missing?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Ready preview, or queued background validation resource */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                413: components["responses"]["PayloadTooLarge"];
+                415: components["responses"]["UnsupportedMediaType"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List catalog import history */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Import history, newest first */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImportPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get preview rows and progress for one import
+         * @description Stock unit cost is omitted unless the caller has cost.view.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Import resource */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports/{id}/error-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download the complete validation report as CSV */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description UTF-8 CSV report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": string;
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports/{id}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Atomically commit all valid preview rows
+         * @description The operation id makes double submission return the original result. Valid Stock rows create exactly one posted inventory-opening document in the same transaction.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        operation_id: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Committed import result */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImportCommitResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-images/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload and attach a ZIP of SKU-named product images
+         * @description Accepts SKU.jpg, SKU-2.jpg and later numbered images. Images are resized and compressed to WebP; unmatched files are returned in the report.
+         */
+        post: {
+            parameters: {
+                query: {
+                    operation_id: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Matched and unmatched image report */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImageBulkResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["PostingConflict"];
+                413: components["responses"]["PayloadTooLarge"];
+                415: components["responses"]["UnsupportedMediaType"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/products": {
         parameters: {
             query?: never;
@@ -6821,7 +7140,7 @@ export interface paths {
         };
         /**
          * List all products, including hidden and archived products
-         * @description Uses the public filters and server-time pricing without public visibility restrictions.
+         * @description Uses database-level filtering, stable sorting and pagination without loading the whole catalog into application memory.
          */
         get: {
             parameters: {
@@ -6832,7 +7151,10 @@ export interface paths {
                     min_price?: number;
                     max_price?: number;
                     on_sale?: boolean;
-                    sort?: "newest" | "price_asc" | "price_desc" | "rating";
+                    status?: ("active" | "hidden" | "archived")[];
+                    availability?: ("in_stock" | "low_stock" | "out_of_stock")[];
+                    has_image?: boolean;
+                    sort?: "newest" | "price_asc" | "price_desc" | "rating" | "name_asc" | "name_desc" | "sku_asc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -6884,6 +7206,52 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 422: components["responses"]["PricingRateValidation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/products/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply one catalog change to up to 500 products
+         * @description Runs in one transaction. Reusing the operation id with the same payload returns the first result; a different payload returns 409.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProductBulkInput"];
+                };
+            };
+            responses: {
+                /** @description Per-product result list */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductBulkResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -11276,6 +11644,8 @@ export interface components {
             name_en?: string;
             name_ar?: string;
             description?: string | null;
+            description_en?: string | null;
+            description_ar?: string | null;
             /** @description Regular selling price in whole IQD. */
             price?: components["schemas"]["Money"];
             currency?: string;
@@ -11443,6 +11813,7 @@ export interface components {
              */
             id?: string;
             sku: string;
+            barcode?: string | null;
             attributes?: {
                 [key: string]: unknown;
             };
@@ -11466,6 +11837,163 @@ export interface components {
             pricing_mode: "fixed" | "linked";
             reference_currency_code?: string | null;
             reference_price?: number | null;
+        };
+        CatalogImportIssue: {
+            /** @enum {string} */
+            severity: "error" | "warning";
+            code: string;
+            /** @example Products+Variants!H4 */
+            cell: string;
+            message: string;
+        };
+        CatalogImportProductRow: {
+            /** @constant */
+            sheet: "Products+Variants";
+            row: number;
+            category_level_1: string;
+            category_level_2: string;
+            brand: string | null;
+            product_name_ar: string;
+            product_name_en: string;
+            description_ar: string | null;
+            description_en: string | null;
+            sku: string;
+            attributes: {
+                [key: string]: string;
+            };
+            base_unit: string;
+            whole_units_only: boolean;
+            price_iqd: number | null;
+            reference_currency_code: string | null;
+            reference_price: number | null;
+            low_stock_threshold: number | null;
+            barcode: string | null;
+            /** @enum {string|null} */
+            status: "active" | "hidden" | "archived" | null;
+            image_urls: string[];
+        };
+        CatalogImportStockRow: {
+            /** @constant */
+            sheet: "Stock";
+            row: number;
+            sku: string;
+            location_code: string;
+            quantity: string;
+            /** @description Omitted unless the caller has cost.view. */
+            unit_cost_iqd?: string;
+            /** Format: date */
+            expiry: string | null;
+        };
+        CatalogImportPreviewRow: {
+            /** @enum {string} */
+            sheet: "Products+Variants" | "Stock";
+            row: number;
+            sku: string | null;
+            /** @enum {string} */
+            action: "create" | "update" | "error" | "warning";
+            /** @enum {string|null} */
+            apply_action: "create" | "update" | null;
+            issues: components["schemas"]["CatalogImportIssue"][];
+            product?: components["schemas"]["CatalogImportProductRow"];
+            stock?: components["schemas"]["CatalogImportStockRow"];
+        };
+        CatalogImportPreview: {
+            rows: components["schemas"]["CatalogImportPreviewRow"][];
+            counts: {
+                total: number;
+                create: number;
+                update: number;
+                error: number;
+                warning: number;
+            };
+        };
+        CatalogImport: {
+            /** Format: uuid */
+            id: string;
+            file_name: string;
+            create_missing: boolean;
+            /** @enum {string} */
+            status: "queued" | "validating" | "ready" | "committing" | "completed" | "failed";
+            progress: number;
+            row_count: number;
+            create_count: number;
+            update_count: number;
+            error_count: number;
+            warning_count: number;
+            preview: components["schemas"]["CatalogImportPreview"] | null;
+            /** @description Internal report availability marker; download through the error-report route. */
+            error_report_key: string | null;
+            operation_id: string | null;
+            /** Format: uuid */
+            opening_id: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            committed_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+        };
+        CatalogImportPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["CatalogImport"][];
+        };
+        CatalogImportCommitResult: {
+            /** Format: uuid */
+            id: string;
+            /** @constant */
+            status: "completed";
+            operation_id: string;
+            created: number;
+            updated: number;
+            skipped_errors: number;
+            /** Format: uuid */
+            opening_id: string | null;
+        };
+        CatalogImageBulkResult: {
+            operation_id: string;
+            matched: {
+                file: string;
+                sku: string;
+                /** Format: uuid */
+                product_id: string;
+                /** Format: uri */
+                url: string;
+            }[];
+            unmatched: string[];
+        };
+        ProductBulkInput: {
+            operation_id: string;
+            ids: string[];
+            /** @enum {string} */
+            action: "publish" | "hide";
+        } | {
+            operation_id: string;
+            ids: string[];
+            /** @constant */
+            action: "set_category";
+            /** Format: uuid */
+            category_id: string;
+        } | {
+            operation_id: string;
+            ids: string[];
+            /** @constant */
+            action: "set_brand";
+            /** Format: uuid */
+            brand_id: string | null;
+        };
+        ProductBulkResult: {
+            operation_id: string;
+            results: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                status: "updated" | "error";
+                code?: string;
+                message?: string;
+            }[];
         };
         ProductImage: {
             /** Format: uuid */
@@ -11574,6 +12102,7 @@ export interface components {
             /** Format: uuid */
             product_id?: string;
             sku?: string;
+            barcode?: string | null;
             attributes?: {
                 [key: string]: unknown;
             } | null;
@@ -14896,6 +15425,24 @@ export interface components {
         };
         /** @description Too many requests (`RATE_LIMITED`) */
         RateLimited: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Uploaded workbook, archive, image, or row count exceeds the declared limit */
+        PayloadTooLarge: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Uploaded image bytes are not a supported image format */
+        UnsupportedMediaType: {
             headers: {
                 [name: string]: unknown;
             };

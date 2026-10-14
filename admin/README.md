@@ -169,7 +169,8 @@ core first: catalog, stock, orders, settings, users.
 | `/finance/ledger/entries/[id]` | `ledger.view` | One journal entry (8.1): lines, dates, a direct link to its source document, and to the entry it reverses or the entries that reverse it. Read-only |
 | `/catalog/categories` | `catalog.categories` | Two levels (department → subcategory). The Arabic name is enough: the English one defaults to it, the slug is made from the name (Arabic in Latin letters) and kept unique, under "advanced" with the display order |
 | `/catalog/brands` | `catalog.brands` | Search, create (Arabic name enough, slug generated; a taken one moves on to `-2`…), logo uploaded from the device, hide, delete unused |
-| `/catalog/products` | `catalog.products` (+ `prices.change` for bulk) | Thumbnails; search; category, brand, status and stock filters; server paging. Select a page of rows for bulk publish / hide / move to a subcategory / change brand (one PATCH each, with progress; refusals listed by name and kept selected). Duplicate per row |
+| `/catalog/products` | `catalog.products` (+ `prices.change` for bulk) | Thumbnails; name/SKU/barcode search; category, brand, status, stock and picture filters; database paging. Select up to 500 rows for one transactional, idempotent bulk publish / hide / category / brand operation with per-id results. Duplicate per row |
+| `/catalog/import` | `catalog.import` (+ `inventory.manage` and `cost.view` for Stock) | Download the bilingual Excel template; upload and inspect cell-specific create/update/warning/error results; poll large validations; commit valid rows once; download reports; upload SKU-named image ZIPs; see import history |
 | `/catalog/products/new` (`?from=<id>` duplicate, `?category=&brand=` preset) | `catalog.products`, `prices.change` | Pictures (multi-pick or drop, shrunk in the browser, progress, retry, drag or arrows to reorder, make main), variants with name/value attributes (a new row copies the last one's unit, threshold and attribute names), generated SKU codes, publish or hide, quick brand, "create and add another" |
 | `/catalog/products/[id]` | same | The editor, stock per SKU, Duplicate and Opening stock; after creating, next steps (opening stock, another product, duplicate) |
 | `/inventory/openings/new?product=<id>` | `inventory.manage` | Opening stock with one line per SKU of that product, the only sellable location preselected |
@@ -259,13 +260,6 @@ the build, then boots the API from the same commit on a disposable database
 and runs the live suite against it.
 
 ## Known API gaps (worked around here)
-
-- **`GET /admin/products` has no status or stock filter.** With one chosen,
-  the list reads the API's (name/category/brand-filtered) result through, 100
-  at a time up to 2,000 products, filters and pages it here, and says so when
-  the cap cut it short (`src/lib/product-list.ts`).
-- **Product search does not match SKU codes** (names and description only).
-- **No bulk product endpoint:** bulk actions send one PATCH per product.
 
 - There is no `GET /admin/staff/{id}` or `/admin/presets/{id}`; detail pages
   read the unqueried list (which still answers every row).
