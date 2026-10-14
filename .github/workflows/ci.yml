@@ -555,6 +555,106 @@ jobs:
         if: failure()
         run: docker logs web; docker logs admin
 
+  # The production kit end to end (docs/deploy/production.md): the stack from
+  # docker-compose.prod.yml on a throwaway domain with Caddy's own CA, the
+  # first-run bootstrap, the owner's first sign-in and a product with a picture
+  # through the Web Admin, the store preview, then a backup restored into a
+  # fresh stack and compared.
+  production-stack:
+    name: Production stack (bootstrap, smoke, backup, restore)
+    runs-on: ubuntu-latest
+    needs: detect
+    if: ${{ needs.detect.outputs.backend == 'true' && needs.detect.outputs.web == 'true' && needs.detect.outputs.admin == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+      - name: Lint the deploy scripts
+        run: docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.10.0 -x -S warning deploy/scripts/*.sh deploy/backup/*.sh
+      - name: The compose file is valid with the example settings
+        run: docker compose -f docker-compose.prod.yml --env-file .env.production.example --profile tools config --quiet
+      - name: Test settings (throwaway domain, Caddy's CA, a local off-server folder)
+        run: |
+          dir="$RUNNER_TEMP/d3"; mkdir -p "$dir/offsite" "$dir/shots"
+          env="$dir/test.env"
+          cp .env.production.example "$env"
+          set_value() { sed -i "s|^$1=.*|$1=$2|" "$env"; }
+          hex() { openssl rand -hex "$1"; }
+          set_value SHUBAYR_DOMAIN shubayr.localhost
+          set_value ACME_EMAIL ops@shubayr.localhost
+          set_value CADDY_TLS "tls internal"
+          set_value SHUBAYR_REGISTRY local
+          set_value SHUBAYR_TAG ci
+          set_value POSTGRES_PASSWORD "$(hex 24)"
+          set_value REDIS_PASSWORD "$(hex 24)"
+          set_value MEILI_MASTER_KEY "$(hex 24)"
+          set_value S3_ACCESS_KEY "shubayr$(hex 4)"
+          set_value S3_SECRET_KEY "$(hex 24)"
+          set_value JWT_SECRET "$(hex 32)"
+          set_value JWT_REFRESH_SECRET "$(hex 32)"
+          set_value STORE_PREVIEW_TOKEN "$(hex 24)"
+          set_value SMS_GATEWAY_URL https://sms.invalid/otp
+          set_value SMS_GATEWAY_TOKEN "$(hex 12)"
+          set_value BACKUP_TARGET offsite:/offsite/shubayr-backups
+          set_value BACKUP_RCLONE_CONF "$dir/rclone.conf"
+          echo "OFFSITE_TEST_DIR=$dir/offsite" >> "$env"
+          printf '[offsite]\ntype = local\n' > "$dir/rclone.conf"
+          password="Owner-$(hex 8)-A1!"
+          echo "::add-mask::$password"
+          {
+            echo "SHUBAYR_ENV_FILE=$env"
+            echo "SHUBAYR_COMPOSE_EXTRA=deploy/docker-compose.local-test.yml"
+            echo "OWNER_PASSWORD=$password"
+          } >> "$GITHUB_ENV"
+      - name: Bootstrap (build the images, migrate, reference data, start)
+        run: deploy/scripts/bootstrap.sh --build
+      - name: Reference data only, no demo data
+        run: |
+          source deploy/scripts/lib.sh
+          counts="$(dc exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT (SELECT count(*) FROM users), (SELECT count(*) FROM products), (SELECT count(*) FROM orders), (SELECT count(*) FROM categories), (SELECT count(*) FROM delivery_zones), (SELECT count(*) FROM warehouses), (SELECT count(*) FROM governorates), (SELECT count(*) FROM permission_presets WHERE name = '"'"'super_admin'"'"')"')"
+          echo "users|products|orders|categories|zones|warehouses|governorates|super_admin = $counts"
+          [ "$counts" = "0|0|0|0|0|0|19|1" ]
+      - name: The owner account (and a second run is refused)
+        run: |
+          deploy/scripts/create-owner.sh --username owner --name "Store owner"
+          if deploy/scripts/create-owner.sh --username owner --name "Again" 2>&1 | tee /tmp/again.log; then exit 1; fi
+          grep -q USERNAME_TAKEN /tmp/again.log
+      - name: Smoke (HTTPS, first sign-in, product with a picture, store preview)
+        working-directory: admin
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          preview="$(sed -n 's/^STORE_PREVIEW_TOKEN=//p' "$SHUBAYR_ENV_FILE")"
+          node ../deploy/test/smoke.cjs "$PWD/node_modules/playwright" shubayr.localhost owner "$OWNER_PASSWORD" "Owner-Changed-$(openssl rand -hex 6)-B2!" "$preview" "$RUNNER_TEMP/d3/shots"
+      - name: Backup, then restore it into a fresh stack and compare
+        run: deploy/scripts/test-restore.sh
+      - name: Only 80 and 443 are published
+        run: |
+          published="$(docker ps --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0:' || true)"
+          echo "$published"
+          if echo "$published" | grep -v caddy | grep -q .; then echo "a service other than caddy publishes a port"; exit 1; fi
+          if echo "$published" | grep -oE '0\.0\.0\.0:[0-9]+' | grep -vE ':(80|443)$'; then echo "a port other than 80/443 is published"; exit 1; fi
+      - name: Stack logs
+        if: failure()
+        run: |
+          source deploy/scripts/lib.sh
+          dc logs --tail 200
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: production-stack-diagnostics
+          path: ${{ runner.temp }}/d3/shots
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Tear down
+        if: always()
+        run: |
+          source deploy/scripts/lib.sh
+          dc down -v --remove-orphans || true
+
   mobile:
     name: Mobile (Flutter)
     runs-on: ubuntu-latest

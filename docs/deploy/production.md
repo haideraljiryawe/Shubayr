@@ -366,6 +366,27 @@ Before opening day, check each item on the running server.
 **Release**
 - [ ] The running `SHUBAYR_TAG` is a release tag built by the release workflow from a green `main`; the previous tag is noted for rollback.
 
+## Testing the kit on a workstation
+
+`deploy/docker-compose.local-test.yml` runs this same stack on a developer
+machine at `https://shubayr.localhost` (Caddy's own certificate authority,
+a local folder as the off-server target). Its header lists the differences.
+CI runs exactly this on every pull request (the `Production stack` job):
+
+```bash
+export SHUBAYR_ENV_FILE=/tmp/shubayr-test.env          # a filled-in copy with SHUBAYR_DOMAIN=shubayr.localhost,
+export SHUBAYR_COMPOSE_EXTRA=deploy/docker-compose.local-test.yml   # CADDY_TLS="tls internal", OFFSITE_TEST_DIR=…
+deploy/scripts/bootstrap.sh --build
+OWNER_PASSWORD='Owner-Test-Pass-1!' deploy/scripts/create-owner.sh --username owner --name "Store owner"
+(cd admin && npm ci && node ../deploy/test/smoke.cjs "$PWD/node_modules/playwright" shubayr.localhost owner \
+   'Owner-Test-Pass-1!' 'Owner-New-Pass-2!' "<STORE_PREVIEW_TOKEN>" /tmp/shots)
+deploy/scripts/test-restore.sh
+docker compose -f docker-compose.prod.yml -f deploy/docker-compose.local-test.yml --env-file "$SHUBAYR_ENV_FILE" down -v
+```
+
+On Docker Desktop, Caddy sees every visitor as the Docker gateway
+(`172.30.10.1`); a Linux server with Docker Engine sees real addresses.
+
 ## Troubleshooting
 
 | Symptom | Look at |
