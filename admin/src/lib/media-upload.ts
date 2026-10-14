@@ -1,7 +1,6 @@
 "use client";
 
-import { ApiError, toApiError } from "./api/errors";
-import { hardNavigate } from "./hard-navigate";
+import { postFile } from "./file-upload";
 import {
   IMAGE_QUALITY,
   MAX_UPLOAD_BYTES,
@@ -17,8 +16,7 @@ import {
  * browser cannot write WebP), honouring the camera's orientation, and keeps
  * the original when that is already small enough or the result would not be
  * smaller. uploadImage sends it through the admin's own /api/media/images —
- * the browser holds no token — with upload progress, which fetch cannot
- * report, hence XMLHttpRequest.
+ * the browser holds no token — with upload progress.
  * ------------------------------------------------------------------------- */
 
 export class ImagePrepareError extends Error {
@@ -88,38 +86,5 @@ export function uploadImage(
   onProgress: (percent: number) => void,
   signal?: AbortSignal,
 ): Promise<MediaObject> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const form = new FormData();
-    form.append("file", blob, name);
-    xhr.open("POST", "/api/media/images");
-    xhr.responseType = "text";
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && event.total > 0) {
-        onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
-      }
-    };
-    xhr.onload = () => {
-      let parsed: unknown = null;
-      try {
-        parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null;
-      } catch {
-        parsed = null;
-      }
-      if (xhr.status === 201 || xhr.status === 200) {
-        onProgress(100);
-        resolve(parsed as MediaObject);
-        return;
-      }
-      if (xhr.status === 401) {
-        const next = window.location.pathname + window.location.search;
-        hardNavigate(`/login?expired=1&next=${encodeURIComponent(next)}`);
-      }
-      reject(toApiError(xhr.status, parsed));
-    };
-    xhr.onerror = () => reject(new ApiError(0, "Network error"));
-    xhr.onabort = () => reject(new ApiError(0, "Aborted"));
-    signal?.addEventListener("abort", () => xhr.abort(), { once: true });
-    xhr.send(form);
-  });
+  return postFile<MediaObject>("/api/media/images", blob, name, { onProgress, signal });
 }

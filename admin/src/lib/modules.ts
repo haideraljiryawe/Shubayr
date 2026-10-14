@@ -40,6 +40,8 @@ export const NAV_MODULE: Record<Exclude<NavKey, "dashboard">, ModuleKey> = {
   products: "catalog",
   categories: "catalog",
   brands: "catalog",
+  catalogImport: "catalog",
+  catalogImages: "catalog",
   stock: "stock",
   movements: "stock",
   warehouses: "stock",
