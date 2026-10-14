@@ -366,7 +366,7 @@ export class CatalogImportService implements OnModuleInit {
       });
     }
     const claimed = await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'catalog-import-operation:' + operationId}))`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'catalog-import-operation:' + operationId}))::text`;
       const reused = await tx.catalogImport.findFirst({
         where: { operation_id: operationId, id: { not: id } },
         select: { id: true },

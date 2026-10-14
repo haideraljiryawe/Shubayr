@@ -8,6 +8,7 @@ import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError, toApiError } from "@/lib/api/errors";
 
 type Import = components["schemas"]["CatalogImport"];
+type ImportSummary = components["schemas"]["CatalogImportSummary"];
 type ImageResult = components["schemas"]["CatalogImageBulkResult"];
 
 async function jsonRequest<T>(url: string, file: File): Promise<T> {
@@ -19,7 +20,7 @@ async function jsonRequest<T>(url: string, file: File): Promise<T> {
   return body as T;
 }
 
-export function CatalogImportView({ initialHistory }: { initialHistory: Import[] }) {
+export function CatalogImportView({ initialHistory }: { initialHistory: ImportSummary[] }) {
   const t = useTranslations("products.import");
   const [workbook, setWorkbook] = useState<File | null>(null);
   const [archive, setArchive] = useState<File | null>(null);
@@ -41,10 +42,13 @@ export function CatalogImportView({ initialHistory }: { initialHistory: Import[]
     try {
       const value = await unwrap(browserApi.GET("/admin/catalog-imports/{id}", { params: { path: { id } } }));
       remember(value);
-      if (["queued", "validating"].includes(value.status)) {
+      if (["queued", "validating", "committing"].includes(value.status)) {
         poll.current = setTimeout(() => void refresh(id), 1_000);
       } else {
         setBusy(null);
+        if (value.status === "completed") {
+          setMessage({ tone: "success", text: t("done") });
+        }
       }
     } catch (cause) {
       setBusy(null);
@@ -82,13 +86,23 @@ export function CatalogImportView({ initialHistory }: { initialHistory: Import[]
         params: { path: { id: current.id } },
         body: { operation_id: crypto.randomUUID() },
       }));
-      const value = await unwrap(browserApi.GET("/admin/catalog-imports/{id}", { params: { path: { id: current.id } } }));
+      await refresh(current.id);
+    } catch (cause) {
+      setBusy(null);
+      setMessage({ tone: "danger", text: cause instanceof ApiError ? cause.message : String(cause) });
+    }
+  }
+
+  async function openHistory(id: string) {
+    setMessage(null);
+    try {
+      const value = await unwrap(browserApi.GET("/admin/catalog-imports/{id}", { params: { path: { id } } }));
       remember(value);
-      setMessage({ tone: "success", text: t("done") });
+      if (["queued", "validating", "committing"].includes(value.status)) {
+        poll.current = setTimeout(() => void refresh(id), 1_000);
+      }
     } catch (cause) {
       setMessage({ tone: "danger", text: cause instanceof ApiError ? cause.message : String(cause) });
-    } finally {
-      setBusy(null);
     }
   }
 
@@ -154,7 +168,7 @@ export function CatalogImportView({ initialHistory }: { initialHistory: Import[]
           {current.status === "ready" && counts && counts.create + counts.update > 0 ? <Button onClick={() => void commit()} pending={busy === "commit"}>{busy === "commit" ? t("committing") : t("commit")}</Button> : null}
         </Card>
       ) : null}
-      <Card className="space-y-3"><h2 className="font-bold">{t("history")}</h2>{history.map((row) => <button type="button" className="flex w-full items-center justify-between rounded-md border border-border p-3 text-start hover:bg-card" key={row.id} onClick={() => setCurrent(row)}><span>{row.file_name}</span><Badge>{row.status}</Badge></button>)}</Card>
+      <Card className="space-y-3"><h2 className="font-bold">{t("history")}</h2>{history.map((row) => <button type="button" className="flex w-full items-center justify-between rounded-md border border-border p-3 text-start hover:bg-card" key={row.id} onClick={() => void openHistory(row.id)}><span>{row.file_name}</span><Badge>{row.status}</Badge></button>)}</Card>
     </div>
   );
 }

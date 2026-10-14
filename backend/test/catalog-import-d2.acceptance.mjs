@@ -129,14 +129,19 @@ async function waitForReady(importId, token, timeoutMs = 60_000) {
   throw new Error(`Catalog import ${importId} did not finish validation`);
 }
 
-async function waitForCommit(importId, token, timeoutMs = 300_000) {
+async function waitForCommit(
+  importId,
+  token,
+  timeoutMs = 300_000,
+  pollMs = 250,
+) {
   const started = performance.now();
   while (performance.now() - started < timeoutMs) {
     const value = await request(`/admin/catalog-imports/${importId}`, {
       token,
     });
     if (!['committing'].includes(value.status)) return value;
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
   }
   throw new Error(`Catalog import ${importId} did not finish committing`);
 }
@@ -307,7 +312,23 @@ try {
       body: { operation_id: operationId },
     },
   );
-  check(replay, committed, 'duplicate commit returns the original result');
+  check(
+    replay.operation_id,
+    committed.operation_id,
+    'duplicate commit keeps the original operation',
+  );
+  check(
+    Number(
+      (
+        await db.query(
+          'SELECT commit_attempt FROM catalog_imports WHERE id=$1',
+          [validPreview.id],
+        )
+      ).rows[0].commit_attempt,
+    ),
+    1,
+    'duplicate commit does not start a second attempt',
+  );
   const completed = await waitForCommit(validPreview.id, token);
   check(completed.status, 'completed', 'background commit completes');
   present(completed.opening_id, 'Stock rows produce an opening document');
@@ -612,7 +633,12 @@ try {
     },
   );
   check(largeQueued.status, 'committing', '5,000-row commit is queued');
-  const largeCompleted = await waitForCommit(largeReady.id, token);
+  const largeCompleted = await waitForCommit(
+    largeReady.id,
+    token,
+    300_000,
+    1_000,
+  );
   const largeCommitMs = performance.now() - largeCommitStarted;
   check(largeCompleted.status, 'completed', '5,000-row commit succeeds');
   check(largeCompleted.applied_count, 5_000, 'all 5,000 rows are checkpointed');
