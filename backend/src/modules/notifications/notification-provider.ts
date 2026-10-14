@@ -112,6 +112,8 @@ export class FcmPushProvider implements NotificationProvider {
             message: {
               token: input.recipient,
               notification: { title: input.title, body: input.body },
+              // This sender builds visible notifications; sound is APNs-only.
+              apns: { payload: { aps: { sound: 'default' } } },
             },
           }),
         },
