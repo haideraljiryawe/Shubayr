@@ -7041,8 +7041,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Atomically commit all valid preview rows
-         * @description The operation id makes double submission return the original result. Valid Stock rows create exactly one posted inventory-opening document in the same transaction.
+         * Queue a resumable commit of all valid preview rows
+         * @description Product rows are committed by the background worker in batches of at most 250 and progress is exposed on the detail resource. The operation id and durable per-row checkpoints make double submission and worker restart safe. A failed batch leaves earlier batches applied and reports the failed row. Valid Stock rows create exactly one posted inventory-opening document only after all product rows succeed.
          */
         post: {
             parameters: {
@@ -7061,7 +7061,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Committed import result */
+                /** @description Queued/in-progress result, or the completed result on an idempotent replay */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -7074,6 +7074,7 @@ export interface paths {
                 404: components["responses"]["NotFound"];
                 409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
+                503: components["responses"]["ServiceUnavailable"];
             };
         };
         delete?: never;
@@ -7158,7 +7159,7 @@ export interface paths {
                     status?: ("active" | "hidden" | "archived")[];
                     availability?: ("in_stock" | "low_stock" | "out_of_stock")[];
                     has_image?: boolean;
-                    sort?: "newest" | "price_asc" | "price_desc" | "rating" | "name_asc" | "name_desc" | "sku_asc";
+                    sort?: "newest" | "price_asc" | "price_desc" | "rating" | "name_asc" | "name_desc" | "sku_asc" | "sku_desc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -11898,6 +11899,12 @@ export interface components {
             /** @enum {string|null} */
             apply_action: "create" | "update" | null;
             issues: components["schemas"]["CatalogImportIssue"][];
+            /** @enum {string} */
+            commit_status: "pending" | "applied" | "failed" | "skipped";
+            commit_error: null | {
+                code: string;
+                message: string;
+            };
             product?: components["schemas"]["CatalogImportProductRow"];
             stock?: components["schemas"]["CatalogImportStockRow"];
         };
@@ -11924,6 +11931,8 @@ export interface components {
             update_count: number;
             error_count: number;
             warning_count: number;
+            applied_count: number;
+            commit_attempt: number;
             preview: components["schemas"]["CatalogImportPreview"] | null;
             /** @description Internal report availability marker; download through the error-report route. */
             error_report_key: string | null;
@@ -11932,6 +11941,7 @@ export interface components {
             opening_id: string | null;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: uuid */
             committed_by: string | null;
             /** Format: date-time */
@@ -11942,17 +11952,50 @@ export interface components {
             completed_at: string | null;
         };
         CatalogImportPage: components["schemas"]["Pagination"] & {
-            data: components["schemas"]["CatalogImport"][];
+            data: components["schemas"]["CatalogImportSummary"][];
+        };
+        CatalogImportSummary: {
+            /** Format: uuid */
+            id: string;
+            file_name: string;
+            create_missing: boolean;
+            /** @enum {string} */
+            status: "queued" | "validating" | "ready" | "committing" | "completed" | "failed";
+            progress: number;
+            row_count: number;
+            create_count: number;
+            update_count: number;
+            error_count: number;
+            warning_count: number;
+            applied_count: number;
+            commit_attempt: number;
+            error_report_key: string | null;
+            operation_id: string | null;
+            /** Format: uuid */
+            opening_id: string | null;
+            /** Format: uuid */
+            created_by: string;
+            created_by_name: string;
+            /** Format: uuid */
+            committed_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
         };
         CatalogImportCommitResult: {
             /** Format: uuid */
             id: string;
-            /** @constant */
-            status: "completed";
+            /** @enum {string} */
+            status: "committing" | "completed";
             operation_id: string;
             created: number;
             updated: number;
             skipped_errors: number;
+            applied_rows: number;
+            total_rows: number;
             /** Format: uuid */
             opening_id: string | null;
         };
@@ -15456,6 +15499,15 @@ export interface components {
         };
         /** @description Missing permission (`FORBIDDEN`) */
         Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Background worker queue is unavailable */
+        ServiceUnavailable: {
             headers: {
                 [name: string]: unknown;
             };

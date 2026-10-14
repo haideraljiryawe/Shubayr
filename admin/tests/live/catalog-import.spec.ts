@@ -65,9 +65,15 @@ async function apiPreview(request: APIRequestContext, file: Buffer, createMissin
 }
 
 async function apiImport(request: APIRequestContext, file: Buffer, createMissing = false): Promise<Import> {
-  const item = await apiPreview(request, file, createMissing);
+  let item = await apiPreview(request, file, createMissing);
   const commit = await api(request, "POST", `/admin/catalog-imports/${item.id}/commit`, { operation_id: `seed-${item.id}` });
   expect(commit.status, JSON.stringify(commit.body)).toBe(201);
+  for (let tries = 0; item.status === "ready" || item.status === "committing"; tries += 1) {
+    expect(tries, `import ${item.id} did not finish`).toBeLessThan(240);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    item = (await api(request, "GET", `/admin/catalog-imports/${item.id}`)).body as Import;
+  }
+  expect(item.status).toBe("completed");
   return item;
 }
 

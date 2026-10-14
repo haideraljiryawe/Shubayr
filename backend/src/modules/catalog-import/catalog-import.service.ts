@@ -3,7 +3,9 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
   PayloadTooLargeException,
+  ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -12,6 +14,7 @@ import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import JSZip from 'jszip';
 import { Prisma } from '../../generated/prisma/client';
+import { actorDisplayName, actorSelect } from '../../common/users/actor-name';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { OperationService } from '../finance/operation.service';
@@ -38,12 +41,29 @@ import type {
 
 const MAX_ROWS = 5_000;
 const BACKGROUND_ROWS = 500;
+const COMMIT_BATCH_ROWS = 250;
 const MAX_WORKBOOK_BYTES = 20 * 1024 * 1024;
 const MAX_ZIP_BYTES = 100 * 1024 * 1024;
 const D = (value: string | number | Prisma.Decimal) =>
   new Prisma.Decimal(value);
 
 type Actor = { id: string; permissions: string[] };
+const importWithCreator = {
+  creator: { select: actorSelect },
+} satisfies Prisma.CatalogImportInclude;
+type ImportRecord = Prisma.CatalogImportGetPayload<{
+  include: typeof importWithCreator;
+}>;
+type CommitJob = { importId: string; commitAttempt: number };
+
+class CatalogImportRowError extends Error {
+  constructor(
+    readonly row: ImportPreviewRow | undefined,
+    readonly original: unknown,
+  ) {
+    super('Catalog import row failed');
+  }
+}
 export type CatalogUpload = {
   buffer: Buffer;
   size: number;
@@ -84,7 +104,7 @@ function json(value: unknown): Prisma.InputJsonValue {
 }
 
 @Injectable()
-export class CatalogImportService {
+export class CatalogImportService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: ObjectStorageService,
@@ -94,6 +114,21 @@ export class CatalogImportService {
     private readonly audit: AuditService,
     @InjectQueue('catalog-imports') private readonly queue: Queue,
   ) {}
+
+  async onModuleInit() {
+    const interrupted = await this.prisma.catalogImport.findMany({
+      where: { status: 'committing', operation_id: { not: null } },
+      select: { id: true, commit_attempt: true },
+    });
+    await Promise.all(
+      interrupted.map((record) =>
+        this.enqueueCommit({
+          importId: record.id,
+          commitAttempt: record.commit_attempt,
+        }),
+      ),
+    );
+  }
 
   template() {
     return buildTemplate();
@@ -160,6 +195,7 @@ export class CatalogImportService {
           row_count: rowCount,
           created_by: actor.id,
         },
+        include: importWithCreator,
       });
     } catch (error) {
       await this.storage.remove(objectKey);
@@ -214,6 +250,7 @@ export class CatalogImportService {
           warning_count: preview.counts.warning,
           updated_at: new Date(),
         },
+        include: importWithCreator,
       });
       return this.present(updated, permissions);
     } catch (error) {
@@ -225,10 +262,34 @@ export class CatalogImportService {
     }
   }
 
-  async list(page = 1, perPage = 20, permissions: string[] = []) {
+  async list(page = 1, perPage = 20, _permissions: string[] = []) {
+    void _permissions;
     const [total, data] = await this.prisma.$transaction([
       this.prisma.catalogImport.count(),
       this.prisma.catalogImport.findMany({
+        select: {
+          id: true,
+          file_name: true,
+          create_missing: true,
+          status: true,
+          progress: true,
+          row_count: true,
+          create_count: true,
+          update_count: true,
+          error_count: true,
+          warning_count: true,
+          applied_count: true,
+          commit_attempt: true,
+          error_report_key: true,
+          operation_id: true,
+          opening_id: true,
+          created_by: true,
+          committed_by: true,
+          created_at: true,
+          updated_at: true,
+          completed_at: true,
+          creator: { select: actorSelect },
+        },
         orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * perPage,
         take: perPage,
@@ -238,12 +299,23 @@ export class CatalogImportService {
       page,
       per_page: perPage,
       total,
-      data: data.map((row) => this.present(row, permissions)),
+      data: data.map((row) => this.presentSummary(row)),
     };
   }
 
   async get(id: string, permissions: string[]) {
-    return this.present(await this.require(id), permissions);
+    const record = await this.require(id);
+    const results = await this.prisma.catalogImportRowResult.findMany({
+      where: { import_id: id },
+      select: {
+        sheet: true,
+        row_number: true,
+        status: true,
+        error_code: true,
+        error_message: true,
+      },
+    });
+    return this.present(record, permissions, results);
   }
 
   async errorReportFile(id: string) {
@@ -255,18 +327,10 @@ export class CatalogImportService {
 
   async commit(id: string, operationId: string, actor: Actor) {
     const record = await this.require(id);
-    if (record.status === 'completed') {
-      if (record.operation_id !== operationId) {
-        throw new ConflictException({
-          status: 409,
-          code: 'CATALOG_IMPORT_ALREADY_COMMITTED',
-          message:
-            'This import was already committed with another operation id',
-          errors: [],
-        });
-      }
-    }
-    if (!record.preview || !['ready', 'completed'].includes(record.status)) {
+    if (
+      !record.preview ||
+      !['ready', 'committing', 'completed', 'failed'].includes(record.status)
+    ) {
       throw new ConflictException({
         status: 409,
         code: 'CATALOG_IMPORT_NOT_READY',
@@ -301,183 +365,637 @@ export class CatalogImportService {
         errors: [],
       });
     }
-    return this.operations.execute({
-      userId: actor.id,
-      operationId,
-      endpoint: `POST /admin/catalog-imports/${id}/commit`,
-      payload: { import_id: id, operation_id: operationId },
-      responseStatus: 201,
-      work: async (tx) => {
-        await tx.$queryRaw`SELECT id FROM catalog_imports WHERE id = ${id}::uuid FOR UPDATE`;
-        const fresh = await tx.catalogImport.findUnique({ where: { id } });
-        if (!fresh) throw new NotFoundException('Catalog import not found');
-        if (fresh.operation_id && fresh.operation_id !== operationId) {
-          throw new ConflictException({
-            status: 409,
-            code: 'CATALOG_IMPORT_ALREADY_COMMITTED',
-            message: 'This import was already committed',
-            errors: [],
-          });
-        }
-        await tx.catalogImport.update({
-          where: { id },
-          data: {
-            status: 'committing',
-            operation_id: operationId,
-            progress: 95,
-          },
+    const claimed = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'catalog-import-operation:' + operationId}))::text`;
+      const reused = await tx.catalogImport.findFirst({
+        where: { operation_id: operationId, id: { not: id } },
+        select: { id: true },
+      });
+      if (reused) {
+        throw new ConflictException({
+          status: 409,
+          code: 'CATALOG_IMPORT_OPERATION_ID_REUSED',
+          message: 'This operation id belongs to another catalog import',
+          errors: [],
         });
-        const skuVariants = new Map<string, string>();
-        const groupedProducts = new Map<string, string>();
-        for (const item of applicable.filter((row) => row.product)) {
-          const row = item.product!;
-          const ids = await this.resolveTaxonomy(tx, row, fresh.create_missing);
-          const existing = await tx.productVariant.findUnique({
-            where: { sku: row.sku },
-            include: { product: true },
+      }
+      await tx.$queryRaw`SELECT id FROM catalog_imports WHERE id = ${id}::uuid FOR UPDATE`;
+      const fresh = await tx.catalogImport.findUnique({
+        where: { id },
+        include: importWithCreator,
+      });
+      if (!fresh) throw new NotFoundException('Catalog import not found');
+      if (fresh.operation_id && fresh.operation_id !== operationId) {
+        throw new ConflictException({
+          status: 409,
+          code: 'CATALOG_IMPORT_ALREADY_COMMITTED',
+          message:
+            'This import was already committed with another operation id',
+          errors: [],
+        });
+      }
+      if (fresh.status === 'completed' || fresh.status === 'committing')
+        return fresh;
+      if (!['ready', 'failed'].includes(fresh.status)) {
+        throw new ConflictException({
+          status: 409,
+          code: 'CATALOG_IMPORT_NOT_READY',
+          message: 'The import validation preview is not ready',
+          errors: [],
+        });
+      }
+      return tx.catalogImport.update({
+        where: { id },
+        data: {
+          status: 'committing',
+          operation_id: operationId,
+          committed_by: actor.id,
+          commit_attempt: { increment: 1 },
+          progress: this.commitProgress(fresh.applied_count, applicable.length),
+          updated_at: new Date(),
+        },
+        include: importWithCreator,
+      });
+    });
+    if (claimed.status === 'committing') {
+      try {
+        await this.enqueueCommit({
+          importId: id,
+          commitAttempt: claimed.commit_attempt,
+        });
+      } catch {
+        await this.prisma.catalogImport.updateMany({
+          where: {
+            id,
+            status: 'committing',
+            commit_attempt: claimed.commit_attempt,
+          },
+          data: { status: 'failed', updated_at: new Date() },
+        });
+        throw new ServiceUnavailableException({
+          status: 503,
+          code: 'CATALOG_IMPORT_QUEUE_UNAVAILABLE',
+          message: 'The catalog import worker is unavailable; retry the commit',
+          errors: [],
+        });
+      }
+    }
+    return this.commitResult(claimed, preview);
+  }
+
+  private async enqueueCommit(job: CommitJob) {
+    const jobId = `commit-${job.importId}-${job.commitAttempt}`;
+    const existing = await this.queue.getJob(jobId);
+    if (existing) {
+      const state = await existing.getState();
+      if (state === 'failed' || state === 'completed') await existing.remove();
+    }
+    await this.queue.add('commit', job, {
+      jobId,
+      attempts: 1,
+      removeOnComplete: 100,
+      removeOnFail: 100,
+    });
+  }
+
+  async processCommit(importId: string, commitAttempt: number) {
+    const record = await this.require(importId);
+    if (
+      record.status !== 'committing' ||
+      record.commit_attempt !== commitAttempt ||
+      !record.preview ||
+      !record.operation_id ||
+      !record.committed_by
+    )
+      return;
+    const preview = record.preview as unknown as ImportPreview;
+    const applicable = preview.rows.filter(
+      (row) =>
+        row.apply_action &&
+        !row.issues.some((issue) => issue.severity === 'error'),
+    );
+    const productRows = applicable.filter((row) => row.product);
+    const stockRows = applicable.filter((row) => row.stock);
+    const applied = await this.prisma.catalogImportRowResult.findMany({
+      where: { import_id: importId, status: 'applied' },
+      select: { sheet: true, row_number: true, result: true },
+    });
+    const groupedProducts = new Map<string, string>();
+    for (const item of applied) {
+      if (item.sheet !== 'Products+Variants' || !item.result) continue;
+      const result = item.result as { group_key?: string; product_id?: string };
+      if (result.group_key && result.product_id)
+        groupedProducts.set(result.group_key, result.product_id);
+    }
+    for (
+      let offset = 0;
+      offset < productRows.length;
+      offset += COMMIT_BATCH_ROWS
+    ) {
+      const batch = productRows.slice(offset, offset + COMMIT_BATCH_ROWS);
+      await this.applyProductBatch(
+        record,
+        preview,
+        batch,
+        groupedProducts,
+        commitAttempt,
+      );
+    }
+    await this.finishCommit(record, preview, stockRows, commitAttempt);
+  }
+
+  private async applyProductBatch(
+    record: ImportRecord,
+    preview: ImportPreview,
+    batch: ImportPreviewRow[],
+    groupedProducts: Map<string, string>,
+    commitAttempt: number,
+  ) {
+    let failingRow = batch[0];
+    try {
+      const committedGroups = await this.prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT id FROM catalog_imports WHERE id = ${record.id}::uuid FOR UPDATE`;
+          const fresh = await tx.catalogImport.findUnique({
+            where: { id: record.id },
+            select: {
+              status: true,
+              commit_attempt: true,
+              create_missing: true,
+            },
           });
-          const price = await this.price(tx, row);
-          let productId = existing?.product_id;
-          if (!productId) {
-            const groupKey = [
-              ids.categoryId,
-              ids.brandId ?? '',
-              normalize(row.product_name_en),
-              normalize(row.product_name_ar),
-            ].join('|');
-            productId = groupedProducts.get(groupKey);
-            if (!productId) {
-              const product = await tx.product.create({
-                data: {
-                  category_id: ids.categoryId,
-                  brand_id: ids.brandId,
-                  name_en: row.product_name_en.trim(),
-                  name_ar: row.product_name_ar.trim(),
-                  description: row.description_en ?? row.description_ar,
-                  description_en: row.description_en,
-                  description_ar: row.description_ar,
-                  price,
-                  status: row.status ?? 'hidden',
-                  published_at: row.status === 'active' ? new Date() : null,
-                  price_approved_at: new Date(),
-                  price_proposed_by: actor.id,
+          if (
+            !fresh ||
+            fresh.status !== 'committing' ||
+            fresh.commit_attempt !== commitAttempt
+          )
+            return new Map(groupedProducts);
+          const existing = await tx.catalogImportRowResult.findMany({
+            where: {
+              import_id: record.id,
+              sheet: 'Products+Variants',
+              row_number: { in: batch.map((item) => item.row) },
+              status: 'applied',
+            },
+            select: { row_number: true },
+          });
+          const alreadyApplied = new Set(
+            existing.map((item) => item.row_number),
+          );
+          const localGroups = new Map(groupedProducts);
+          for (const item of batch) {
+            if (alreadyApplied.has(item.row)) continue;
+            failingRow = item;
+            const row = item.product!;
+            try {
+              const ids = await this.resolveTaxonomy(
+                tx,
+                row,
+                fresh.create_missing,
+              );
+              const existingVariant = await tx.productVariant.findUnique({
+                where: { sku: row.sku },
+                include: { product: true },
+              });
+              const price = await this.price(tx, row);
+              const groupKey = [
+                ids.categoryId,
+                ids.brandId ?? '',
+                normalize(row.product_name_en),
+                normalize(row.product_name_ar),
+              ].join('|');
+              let productId = existingVariant?.product_id;
+              let variantId: string;
+              if (!productId) {
+                productId = localGroups.get(groupKey);
+                if (!productId) {
+                  const product = await tx.product.create({
+                    data: {
+                      category_id: ids.categoryId,
+                      brand_id: ids.brandId,
+                      name_en: row.product_name_en.trim(),
+                      name_ar: row.product_name_ar.trim(),
+                      description: row.description_en ?? row.description_ar,
+                      description_en: row.description_en,
+                      description_ar: row.description_ar,
+                      price,
+                      status: row.status ?? 'hidden',
+                      published_at: row.status === 'active' ? new Date() : null,
+                      price_approved_at: new Date(),
+                      price_proposed_by: record.committed_by!,
+                    },
+                  });
+                  productId = product.id;
+                  localGroups.set(groupKey, productId);
+                }
+                const variant = await tx.productVariant.create({
+                  data: this.variantData(
+                    row,
+                    productId,
+                    price,
+                    record.committed_by!,
+                  ),
+                });
+                variantId = variant.id;
+              } else {
+                await tx.product.update({
+                  where: { id: productId },
+                  data: {
+                    category_id: ids.categoryId,
+                    brand_id: ids.brandId,
+                    name_en: row.product_name_en.trim(),
+                    name_ar: row.product_name_ar.trim(),
+                    description: row.description_en ?? row.description_ar,
+                    description_en: row.description_en,
+                    description_ar: row.description_ar,
+                    price,
+                    ...(row.status ? { status: row.status } : {}),
+                    updated_at: new Date(),
+                    search_sync_required: true,
+                  },
+                });
+                const variant = await tx.productVariant.update({
+                  where: { id: existingVariant!.id },
+                  data: this.variantData(
+                    row,
+                    productId,
+                    price,
+                    record.committed_by!,
+                  ),
+                });
+                variantId = variant.id;
+                localGroups.set(groupKey, productId);
+              }
+              if (row.image_urls.length)
+                await this.attachRemoteImages(
+                  tx,
+                  productId,
+                  row.image_urls,
+                  record.committed_by!,
+                );
+              await tx.catalogImportRowResult.upsert({
+                where: {
+                  import_id_sheet_row_number: {
+                    import_id: record.id,
+                    sheet: item.sheet,
+                    row_number: item.row,
+                  },
+                },
+                create: {
+                  import_id: record.id,
+                  sheet: item.sheet,
+                  row_number: item.row,
+                  status: 'applied',
+                  action: item.apply_action,
+                  result: json({
+                    sku: row.sku,
+                    product_id: productId,
+                    variant_id: variantId,
+                    group_key: groupKey,
+                  }),
+                },
+                update: {
+                  status: 'applied',
+                  action: item.apply_action,
+                  result: json({
+                    sku: row.sku,
+                    product_id: productId,
+                    variant_id: variantId,
+                    group_key: groupKey,
+                  }),
+                  error_code: null,
+                  error_message: null,
+                  updated_at: new Date(),
                 },
               });
-              productId = product.id;
-              groupedProducts.set(groupKey, productId);
+            } catch (error) {
+              throw new CatalogImportRowError(item, error);
             }
-            const variant = await tx.productVariant.create({
-              data: this.variantData(row, productId, price, actor.id),
-            });
-            skuVariants.set(row.sku, variant.id);
-          } else {
-            await tx.product.update({
-              where: { id: productId },
-              data: {
-                category_id: ids.categoryId,
-                brand_id: ids.brandId,
-                name_en: row.product_name_en.trim(),
-                name_ar: row.product_name_ar.trim(),
-                description: row.description_en ?? row.description_ar,
-                description_en: row.description_en,
-                description_ar: row.description_ar,
-                price,
-                ...(row.status ? { status: row.status } : {}),
-                updated_at: new Date(),
-                search_sync_required: true,
-              },
-            });
-            const variant = await tx.productVariant.update({
-              where: { id: existing!.id },
-              data: this.variantData(row, productId, price, actor.id),
-            });
-            skuVariants.set(row.sku, variant.id);
           }
-          if (row.image_urls.length) {
-            await this.attachRemoteImages(
-              tx,
-              productId,
-              row.image_urls,
-              actor.id,
-            );
-          }
-        }
-        let openingId: string | null = null;
-        if (stockRows.length) {
-          const lines = [];
-          for (const item of stockRows) {
-            const row = item.stock!;
-            const variantId =
-              skuVariants.get(row.sku) ??
-              (
-                await tx.productVariant.findUnique({
-                  where: { sku: row.sku },
-                  select: { id: true },
-                })
-              )?.id;
-            const locations = await tx.warehouseLocation.findMany({
-              where: {
-                code: row.location_code,
-                is_active: true,
-                warehouse: { is_active: true },
-              },
-              select: { id: true },
-            });
-            if (!variantId || locations.length !== 1) {
-              throw new ConflictException(
-                'Validated stock references changed before commit',
-              );
-            }
-            lines.push({
-              variant_id: variantId,
-              location_id: locations[0].id,
-              quantity: row.quantity,
-              unit_cost_iqd: row.unit_cost_iqd,
-              ...(row.expiry ? { expiry_date: row.expiry } : {}),
-            });
-          }
-          const opening = await this.inventory.createOpeningInTransaction(
-            tx,
-            actor.id,
-            actor.permissions,
-            {
-              operation_id: `${operationId}:opening`.slice(0, 128),
-              document_date: businessDateText(),
-              lines,
+          const appliedCount = await tx.catalogImportRowResult.count({
+            where: { import_id: record.id, status: 'applied' },
+          });
+          await tx.catalogImport.update({
+            where: { id: record.id },
+            data: {
+              applied_count: appliedCount,
+              progress: this.commitProgress(
+                appliedCount,
+                this.validRowCount(preview),
+              ),
+              updated_at: new Date(),
             },
+          });
+          return localGroups;
+        },
+        { timeout: 60_000 },
+      );
+      groupedProducts.clear();
+      for (const [key, productId] of committedGroups)
+        groupedProducts.set(key, productId);
+    } catch (error) {
+      const failure =
+        error instanceof CatalogImportRowError
+          ? error
+          : new CatalogImportRowError(failingRow, error);
+      await this.failCommit(record, preview, failure, commitAttempt);
+      throw error;
+    }
+  }
+
+  private async finishCommit(
+    record: ImportRecord,
+    preview: ImportPreview,
+    stockRows: ImportPreviewRow[],
+    commitAttempt: number,
+  ) {
+    let failingRow = stockRows[0];
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT id FROM catalog_imports WHERE id = ${record.id}::uuid FOR UPDATE`;
+          const fresh = await tx.catalogImport.findUnique({
+            where: { id: record.id },
+          });
+          if (
+            !fresh ||
+            fresh.status !== 'committing' ||
+            fresh.commit_attempt !== commitAttempt
+          )
+            return;
+          if (!fresh.operation_id || !fresh.committed_by)
+            throw new ConflictException(
+              'Catalog import commit ownership is missing',
+            );
+          const appliedStock = await tx.catalogImportRowResult.findMany({
+            where: {
+              import_id: record.id,
+              sheet: 'Stock',
+              status: 'applied',
+            },
+            select: { row_number: true },
+          });
+          const appliedStockRows = new Set(
+            appliedStock.map((item) => item.row_number),
           );
-          openingId = (opening as { id: string }).id;
-        }
-        const result = {
-          id,
-          status: 'completed',
-          operation_id: operationId,
-          created: preview.counts.create,
-          updated: preview.counts.update,
-          skipped_errors: preview.counts.error,
-          opening_id: openingId,
-        };
-        await tx.catalogImport.update({
-          where: { id },
-          data: {
+          const pendingStock = stockRows.filter(
+            (item) => !appliedStockRows.has(item.row),
+          );
+          let openingId = fresh.opening_id;
+          if (pendingStock.length) {
+            const lines = [];
+            for (const item of pendingStock) {
+              failingRow = item;
+              const row = item.stock!;
+              const variant = await tx.productVariant.findUnique({
+                where: { sku: row.sku },
+                select: { id: true },
+              });
+              const locations = await tx.warehouseLocation.findMany({
+                where: {
+                  code: row.location_code,
+                  is_active: true,
+                  warehouse: { is_active: true },
+                },
+                select: { id: true },
+              });
+              if (!variant || locations.length !== 1)
+                throw new CatalogImportRowError(
+                  item,
+                  new ConflictException(
+                    'Validated stock references changed before commit',
+                  ),
+                );
+              lines.push({
+                variant_id: variant.id,
+                location_id: locations[0].id,
+                quantity: row.quantity,
+                unit_cost_iqd: row.unit_cost_iqd,
+                ...(row.expiry ? { expiry_date: row.expiry } : {}),
+              });
+            }
+            const opening = await this.inventory.createOpeningInTransaction(
+              tx,
+              fresh.committed_by,
+              ['inventory.manage', 'cost.view'],
+              {
+                operation_id: `${fresh.operation_id.slice(0, 70)}:${record.id}:opening`,
+                document_date: businessDateText(),
+                lines,
+              },
+            );
+            openingId = (opening as { id: string }).id;
+            for (const item of pendingStock) {
+              await tx.catalogImportRowResult.upsert({
+                where: {
+                  import_id_sheet_row_number: {
+                    import_id: record.id,
+                    sheet: item.sheet,
+                    row_number: item.row,
+                  },
+                },
+                create: {
+                  import_id: record.id,
+                  sheet: item.sheet,
+                  row_number: item.row,
+                  status: 'applied',
+                  action: item.apply_action,
+                  result: json({ opening_id: openingId, sku: item.sku }),
+                },
+                update: {
+                  status: 'applied',
+                  action: item.apply_action,
+                  result: json({ opening_id: openingId, sku: item.sku }),
+                  error_code: null,
+                  error_message: null,
+                  updated_at: new Date(),
+                },
+              });
+            }
+          }
+          const appliedCount = await tx.catalogImportRowResult.count({
+            where: { import_id: record.id, status: 'applied' },
+          });
+          const result = {
+            id: record.id,
             status: 'completed',
-            progress: 100,
+            operation_id: fresh.operation_id,
+            created: preview.counts.create,
+            updated: preview.counts.update,
+            skipped_errors: preview.counts.error,
+            applied_rows: appliedCount,
+            total_rows: this.validRowCount(preview),
             opening_id: openingId,
-            committed_by: actor.id,
-            completed_at: new Date(),
+          };
+          await tx.catalogImport.update({
+            where: { id: record.id },
+            data: {
+              status: 'completed',
+              progress: 100,
+              applied_count: appliedCount,
+              opening_id: openingId,
+              completed_at: new Date(),
+              updated_at: new Date(),
+            },
+          });
+          await this.audit.record(tx, {
+            actorId: fresh.committed_by,
+            action: 'catalog.import.commit',
+            entityType: 'catalog_import',
+            entityId: record.id,
+            after: json(result),
+          });
+        },
+        // The product work is deliberately split into short transactions. The
+        // final opening balance is one immutable phase-5 document, so all its
+        // stock lines must be posted atomically.
+        { timeout: 120_000 },
+      );
+    } catch (error) {
+      const failure =
+        error instanceof CatalogImportRowError
+          ? error
+          : new CatalogImportRowError(failingRow ?? stockRows[0], error);
+      await this.failCommit(record, preview, failure, commitAttempt);
+      throw error;
+    }
+  }
+
+  private async failCommit(
+    record: ImportRecord,
+    preview: ImportPreview,
+    failure: CatalogImportRowError,
+    commitAttempt: number,
+  ) {
+    const detail = this.failureDetail(failure.original);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM catalog_imports WHERE id = ${record.id}::uuid FOR UPDATE`;
+      const fresh = await tx.catalogImport.findUnique({
+        where: { id: record.id },
+      });
+      if (
+        !fresh ||
+        fresh.status !== 'committing' ||
+        fresh.commit_attempt !== commitAttempt
+      )
+        return;
+      if (failure.row) {
+        await tx.catalogImportRowResult.upsert({
+          where: {
+            import_id_sheet_row_number: {
+              import_id: record.id,
+              sheet: failure.row.sheet,
+              row_number: failure.row.row,
+            },
+          },
+          create: {
+            import_id: record.id,
+            sheet: failure.row.sheet,
+            row_number: failure.row.row,
+            status: 'failed',
+            action: failure.row.apply_action,
+            error_code: detail.code,
+            error_message: detail.message,
+          },
+          update: {
+            status: 'failed',
+            action: failure.row.apply_action,
+            result: Prisma.JsonNull,
+            error_code: detail.code,
+            error_message: detail.message,
             updated_at: new Date(),
           },
         });
-        await this.audit.record(tx, {
-          actorId: actor.id,
-          action: 'catalog.import.commit',
-          entityType: 'catalog_import',
-          entityId: id,
-          after: result,
-        });
-        return result;
-      },
+      }
+      const appliedCount = await tx.catalogImportRowResult.count({
+        where: { import_id: record.id, status: 'applied' },
+      });
+      await tx.catalogImport.update({
+        where: { id: record.id },
+        data: {
+          status: 'failed',
+          applied_count: appliedCount,
+          progress: this.commitProgress(
+            appliedCount,
+            this.validRowCount(preview),
+          ),
+          updated_at: new Date(),
+        },
+      });
+      await this.audit.record(tx, {
+        actorId: fresh.committed_by ?? record.created_by,
+        action: 'catalog.import.commit_failed',
+        entityType: 'catalog_import',
+        entityId: record.id,
+        after: json({
+          commit_attempt: commitAttempt,
+          applied_rows: appliedCount,
+          failed_row: failure.row
+            ? { sheet: failure.row.sheet, row: failure.row.row }
+            : null,
+          ...detail,
+        }),
+      });
     });
+  }
+
+  private failureDetail(error: unknown) {
+    if (error && typeof error === 'object' && 'getResponse' in error) {
+      const response = (error as { getResponse(): unknown }).getResponse();
+      if (response && typeof response === 'object') {
+        const body = response as { code?: unknown; message?: unknown };
+        return {
+          code:
+            typeof body.code === 'string'
+              ? body.code
+              : 'CATALOG_IMPORT_ROW_FAILED',
+          message:
+            typeof body.message === 'string'
+              ? body.message.slice(0, 500)
+              : 'The row could not be applied because catalog data changed',
+        };
+      }
+    }
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'P2002'
+    )
+      return {
+        code: 'CATALOG_IMPORT_UNIQUE_CONFLICT',
+        message: 'A unique catalog value changed after preview',
+      };
+    return {
+      code: 'CATALOG_IMPORT_ROW_FAILED',
+      message: 'The row could not be applied because catalog data changed',
+    };
+  }
+
+  private validRowCount(preview: ImportPreview) {
+    return preview.rows.filter(
+      (row) =>
+        row.apply_action &&
+        !row.issues.some((issue) => issue.severity === 'error'),
+    ).length;
+  }
+
+  private commitProgress(applied: number, total: number) {
+    return total ? Math.min(95, Math.floor((applied / total) * 95)) : 0;
+  }
+
+  private commitResult(record: ImportRecord, preview: ImportPreview) {
+    return {
+      id: record.id,
+      status: record.status,
+      operation_id: record.operation_id,
+      created: preview.counts.create,
+      updated: preview.counts.update,
+      skipped_errors: preview.counts.error,
+      applied_rows: record.applied_count,
+      total_rows: this.validRowCount(preview),
+      opening_id: record.opening_id,
+    };
   }
 
   async bulkImages(
@@ -1039,6 +1557,7 @@ export class CatalogImportService {
   private async require(id: string) {
     const record = await this.prisma.catalogImport.findUnique({
       where: { id },
+      include: importWithCreator,
     });
     if (!record) throw new NotFoundException('Catalog import not found');
     return record;
@@ -1050,21 +1569,57 @@ export class CatalogImportService {
       source_checksum: string;
       error_report_key: string | null;
       preview: Prisma.JsonValue | null;
+      status: string;
+      creator: Parameters<typeof actorDisplayName>[0];
     },
-  >(record: T, permissions: string[]) {
+  >(
+    record: T,
+    permissions: string[],
+    results: Array<{
+      sheet: string;
+      row_number: number;
+      status: string;
+      error_code: string | null;
+      error_message: string | null;
+    }> = [],
+  ) {
     const {
       source_object_key: _objectKey,
       source_checksum: _checksum,
+      creator,
       ...safe
     } = record;
     void _objectKey;
     void _checksum;
     const publicSafe = {
       ...safe,
+      created_by_name: actorDisplayName(creator),
       error_report_key: safe.error_report_key ? 'available' : null,
     };
     if (!record.preview) return publicSafe;
     const preview = JSON.parse(JSON.stringify(record.preview)) as ImportPreview;
+    const byRow = new Map(
+      results.map((result) => [`${result.sheet}:${result.row_number}`, result]),
+    );
+    const completedWithoutMarkers =
+      safe.status === 'completed' && results.length === 0;
+    for (const row of preview.rows) {
+      const result = byRow.get(`${row.sheet}:${row.row}`);
+      row.commit_status = row.apply_action
+        ? result?.status === 'applied' || completedWithoutMarkers
+          ? 'applied'
+          : result?.status === 'failed'
+            ? 'failed'
+            : 'pending'
+        : 'skipped';
+      row.commit_error =
+        result?.status === 'failed'
+          ? {
+              code: result.error_code ?? 'CATALOG_IMPORT_ROW_FAILED',
+              message: result.error_message ?? 'The row could not be applied',
+            }
+          : null;
+    }
     if (!permissions.includes('cost.view')) {
       for (const row of preview.rows) {
         if (row.stock)
@@ -1072,6 +1627,20 @@ export class CatalogImportService {
       }
     }
     return { ...publicSafe, preview };
+  }
+
+  private presentSummary<
+    T extends {
+      creator: Parameters<typeof actorDisplayName>[0];
+      error_report_key: string | null;
+    },
+  >(record: T) {
+    const { creator, ...safe } = record;
+    return {
+      ...safe,
+      created_by_name: actorDisplayName(creator),
+      error_report_key: safe.error_report_key ? 'available' : null,
+    };
   }
 
   private errorReport(preview: ImportPreview) {

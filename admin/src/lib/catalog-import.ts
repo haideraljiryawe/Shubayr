@@ -13,6 +13,7 @@ import type { components } from "@/types/api";
  * ------------------------------------------------------------------------- */
 
 export type CatalogImport = components["schemas"]["CatalogImport"];
+export type CatalogImportSummary = components["schemas"]["CatalogImportSummary"];
 export type ImportRow = components["schemas"]["CatalogImportPreviewRow"];
 export type ImportAction = ImportRow["action"];
 export type CommitResult = components["schemas"]["CatalogImportCommitResult"];

@@ -30,6 +30,8 @@ const importRecord = (preview: ImportPreview | null = null) => ({
   update_count: preview?.counts.update ?? 0,
   error_count: preview?.counts.error ?? 0,
   warning_count: preview?.counts.warning ?? 0,
+  applied_count: 0,
+  commit_attempt: 0,
   preview,
   error_report_key: preview ? 'catalog/report.csv' : null,
   operation_id: null,
@@ -39,6 +41,12 @@ const importRecord = (preview: ImportPreview | null = null) => ({
   created_at: new Date('2026-10-13T00:00:00Z'),
   updated_at: new Date('2026-10-13T00:00:00Z'),
   completed_at: null,
+  creator: {
+    id: actor.id,
+    name: 'Catalog Admin',
+    username: 'catalog.admin',
+    phone: null,
+  },
 });
 
 function dependencies(prisma: Record<string, unknown>) {
@@ -53,7 +61,7 @@ function dependencies(prisma: Record<string, unknown>) {
     operations: { execute: jest.fn() },
     inventory: { createOpeningInTransaction: jest.fn() },
     audit: { record: jest.fn() },
-    queue: { add: jest.fn() },
+    queue: { add: jest.fn(), getJob: jest.fn().mockResolvedValue(undefined) },
   };
 }
 
@@ -70,6 +78,30 @@ function service(deps: ReturnType<typeof dependencies>) {
 }
 
 describe('CatalogImportService', () => {
+  it('requeues an interrupted commit with its durable attempt on worker startup', async () => {
+    const prisma = {
+      catalogImport: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { id: '00000000-0000-4000-8000-000000000010', commit_attempt: 3 },
+          ]),
+      },
+    };
+    const deps = dependencies(prisma);
+    await service(deps).onModuleInit();
+    expect(deps.queue.add).toHaveBeenCalledWith(
+      'commit',
+      {
+        importId: '00000000-0000-4000-8000-000000000010',
+        commitAttempt: 3,
+      },
+      expect.objectContaining({
+        jobId: 'commit-00000000-0000-4000-8000-000000000010-3',
+      }),
+    );
+  });
+
   it('previews valid and mixed files without writing catalog or inventory rows', async () => {
     const workbook = await buildTemplate();
     const record = importRecord();
@@ -167,7 +199,7 @@ describe('CatalogImportService', () => {
     });
   });
 
-  it('commits product and Stock rows once when an operation is submitted twice', async () => {
+  it('queues one deterministic background commit when an operation is submitted twice', async () => {
     const product: ParsedProductRow = {
       sheet: 'Products+Variants',
       row: 2,
@@ -222,62 +254,38 @@ describe('CatalogImportService', () => {
       counts: { total: 2, create: 2, update: 0, error: 0, warning: 0 },
     };
     const record = importRecord(preview);
-    const root = {
-      id: 'root',
-      parent_id: null,
-      name_en: 'Root',
-      name_ar: 'Root',
+    const committing = {
+      ...record,
+      status: 'committing',
+      progress: 0,
+      operation_id: 'operation-import-1',
+      committed_by: actor.id,
+      commit_attempt: 1,
     };
-    const leaf = {
-      id: 'leaf',
-      parent_id: 'root',
-      name_en: 'Leaf',
-      name_ar: 'Leaf',
-    };
+    let current: Record<string, unknown> = record;
     const tx = {
       $queryRaw: jest.fn(),
       catalogImport: {
-        findUnique: jest.fn().mockResolvedValue(record),
-        update: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockImplementation(() => current),
+        update: jest.fn().mockImplementation(() => {
+          current = committing;
+          return committing;
+        }),
       },
-      category: {
-        findMany: jest.fn().mockResolvedValue([root, leaf]),
-        create: jest.fn(),
-      },
-      brand: { findMany: jest.fn().mockResolvedValue([]), create: jest.fn() },
-      product: {
-        create: jest.fn().mockResolvedValue({ id: 'product-1' }),
-        update: jest.fn(),
-      },
-      productVariant: {
-        findUnique: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockResolvedValue({ id: 'variant-1' }),
-        update: jest.fn(),
-      },
-      warehouseLocation: {
-        findMany: jest.fn().mockResolvedValue([{ id: 'location-1' }]),
-      },
-      productImage: { aggregate: jest.fn(), create: jest.fn() },
     };
     const prisma = {
-      catalogImport: { findUnique: jest.fn().mockResolvedValue(record) },
+      catalogImport: {
+        findUnique: jest.fn().mockImplementation(() => current),
+        updateMany: jest.fn(),
+      },
+      $transaction: jest
+        .fn()
+        .mockImplementation((work: (client: typeof tx) => Promise<unknown>) =>
+          work(tx),
+        ),
     };
     const deps = dependencies(prisma);
-    const cache = new Map<string, unknown>();
-    deps.operations.execute.mockImplementation(
-      async (input: {
-        operationId: string;
-        work(client: typeof tx): Promise<unknown>;
-      }) => {
-        if (cache.has(input.operationId)) return cache.get(input.operationId);
-        const value = await input.work(tx);
-        cache.set(input.operationId, value);
-        return value;
-      },
-    );
-    deps.inventory.createOpeningInTransaction.mockResolvedValue({
-      id: 'opening-1',
-    });
     const instance = service(deps);
     const first = await instance.commit(record.id, 'operation-import-1', actor);
     const replay = await instance.commit(
@@ -286,13 +294,55 @@ describe('CatalogImportService', () => {
       actor,
     );
     expect(replay).toEqual(first);
-    expect(tx.product.create).toHaveBeenCalledTimes(1);
-    expect(tx.productVariant.create).toHaveBeenCalledTimes(1);
-    expect(deps.inventory.createOpeningInTransaction).toHaveBeenCalledTimes(1);
+    expect(tx.catalogImport.update).toHaveBeenCalledTimes(1);
+    expect(deps.queue.add).toHaveBeenCalledTimes(2);
+    expect(deps.queue.add).toHaveBeenLastCalledWith(
+      'commit',
+      { importId: record.id, commitAttempt: 1 },
+      expect.objectContaining({ jobId: `commit-${record.id}-1` }),
+    );
     expect(first).toMatchObject({
-      opening_id: 'opening-1',
-      status: 'completed',
+      opening_id: null,
+      status: 'committing',
+      applied_rows: 0,
+      total_rows: 2,
     });
+  });
+
+  it('keeps preview rows out of history and includes the creator display name', async () => {
+    const record = importRecord({
+      rows: [],
+      counts: { total: 0, create: 0, update: 0, error: 0, warning: 0 },
+    });
+    const {
+      preview: _preview,
+      source_object_key: _objectKey,
+      source_checksum: _checksum,
+      ...summary
+    } = record;
+    void _preview;
+    void _objectKey;
+    void _checksum;
+    const prisma = {
+      catalogImport: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([summary]),
+      },
+      $transaction: jest
+        .fn()
+        .mockImplementation((operations: Array<Promise<unknown>>) =>
+          Promise.all(operations),
+        ),
+    };
+    const result = await service(dependencies(prisma)).list();
+    expect(result.data[0]).toMatchObject({
+      created_by_name: 'Catalog Admin',
+      row_count: 0,
+    });
+    expect(result.data[0]).not.toHaveProperty('preview');
+    const [options] = prisma.catalogImport.findMany.mock
+      .calls[0] as unknown as [{ select: Record<string, unknown> }];
+    expect(options.select).not.toHaveProperty('preview');
   });
 
   it('attaches matched ZIP images in order and reports unmatched files', async () => {
