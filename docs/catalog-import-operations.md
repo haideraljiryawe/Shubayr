@@ -9,8 +9,9 @@ Product and variant rows commit in batches of at most 250. Each applied row has
 a durable checkpoint keyed by import id, sheet and workbook row number. A
 repeated operation id cannot apply the import twice, and a worker restart
 requeues `committing` imports and skips rows whose checkpoint already says
-`applied`. Progress and `applied_count` only advance after a batch transaction
-commits.
+`applied`. Progress, `applied_count`, `commit_batches_done` and
+`commit_batches_total` are poll-friendly and only advance after a batch
+transaction commits. The optional final Stock posting counts as one batch.
 
 If a row fails, its cell row is marked `failed` with a safe error code and
 message. The import stops, while earlier committed batches remain applied and
@@ -30,3 +31,8 @@ the detail preview. Stock costs remain visible only to callers with
 The history endpoint returns summary fields only: creator id and display name,
 timestamps, status, progress and counts. Full preview rows, including per-row
 commit status and error detail, are available only from the detail endpoint.
+
+Multipart upload names are decoded from their UTF-8 bytes before storage, so
+Arabic workbook names remain readable in the preview and history. Validation
+CSV downloads start with a UTF-8 BOM for Excel. Bulk-image matches return both
+Arabic and English product names alongside the product id and SKU.

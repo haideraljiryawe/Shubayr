@@ -66,6 +66,8 @@ const item = (patch: Partial<CatalogImport>): CatalogImport => ({
   error_count: 1,
   warning_count: 1,
   applied_count: 0,
+  commit_batches_done: 0,
+  commit_batches_total: 2,
   commit_attempt: 0,
   preview: { rows, counts: { total: 5, create: 3, update: 1, error: 1, warning: 1 } },
   error_report_key: "available",
@@ -166,14 +168,15 @@ describe("commit identity", () => {
 describe("bulk images", () => {
   it("groups matched pictures by product", () => {
     const groups = groupMatched([
-      { file: "A.jpg", sku: "A", product_id: "p1", url: "https://x/1" },
-      { file: "B.jpg", sku: "B", product_id: "p2", url: "https://x/2" },
-      { file: "A-2.jpg", sku: "A", product_id: "p1", url: "https://x/3" },
+      { file: "A.jpg", sku: "A", product_id: "p1", product_name_ar: "أ", product_name_en: "Alpha", url: "https://x/1" },
+      { file: "B.jpg", sku: "B", product_id: "p2", product_name_ar: "ب", product_name_en: "Beta", url: "https://x/2" },
+      { file: "A-2.jpg", sku: "A", product_id: "p1", product_name_ar: "أ", product_name_en: "Alpha", url: "https://x/3" },
     ]);
     expect(groups.map((group) => [group.productId, group.files.map((file) => file.file)])).toEqual([
       ["p1", ["A.jpg", "A-2.jpg"]],
       ["p2", ["B.jpg"]],
     ]);
+    expect(groups[0]).toMatchObject({ productNameAr: "أ", productNameEn: "Alpha" });
   });
 
   it("recognises the files each screen takes", () => {

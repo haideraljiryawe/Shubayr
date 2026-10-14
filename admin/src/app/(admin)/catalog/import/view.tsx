@@ -297,6 +297,16 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
           {running ? (
             <div className="flex flex-col gap-2">
               <Progress value={current.progress} label={t("progress.label")} testId="import-progress" />
+              {current.status === "committing" ? (
+                <p className="text-sm font-medium" data-testid="import-commit-progress">
+                  {t("progress.applying", {
+                    rowsApplied: current.applied_count,
+                    rowsTotal: applicableRows(current),
+                    batchesDone: current.commit_batches_done,
+                    batchesTotal: current.commit_batches_total,
+                  })}
+                </p>
+              ) : null}
               <p className="text-sm text-text-muted">{t("progress.background")}</p>
             </div>
           ) : null}

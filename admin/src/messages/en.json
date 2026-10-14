@@ -3294,6 +3294,7 @@
     },
     "progress": {
       "label": "Checking progress",
+      "applying": "Applied {rowsApplied} of {rowsTotal} rows; batch {batchesDone} of {batchesTotal}.",
       "background": "Large file: checking runs in the background. You can leave this page and come back to it from the import history below.",
       "failed": "This file could not be checked. Make sure it comes from the template, then upload it again."
     },

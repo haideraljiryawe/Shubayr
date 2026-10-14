@@ -103,6 +103,23 @@ function json(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
+/** Multer/Busboy exposes multipart filename bytes as latin-1 on some stacks. */
+function multipartFileName(value: string | undefined, fallback: string) {
+  const original = value || fallback;
+  let decoded = original;
+  if ([...original].every((character) => character.charCodeAt(0) <= 0xff)) {
+    const bytes = Buffer.from(original, 'latin1');
+    const candidate = bytes.toString('utf8');
+    if (
+      !candidate.includes('\uFFFD') &&
+      Buffer.from(candidate, 'utf8').equals(bytes)
+    ) {
+      decoded = candidate;
+    }
+  }
+  return path.posix.basename(decoded.replace(/\\/g, '/'));
+}
+
 @Injectable()
 export class CatalogImportService implements OnModuleInit {
   constructor(
@@ -186,7 +203,7 @@ export class CatalogImportService implements OnModuleInit {
     try {
       record = await this.prisma.catalogImport.create({
         data: {
-          file_name: path.basename(file.originalname || 'catalog.xlsx'),
+          file_name: multipartFileName(file.originalname, 'catalog.xlsx'),
           source_object_key: objectKey,
           source_checksum: checksum,
           create_missing: createMissing,
@@ -985,6 +1002,11 @@ export class CatalogImportService implements OnModuleInit {
   }
 
   private commitResult(record: ImportRecord, preview: ImportPreview) {
+    const batches = this.commitBatchProgress(
+      preview,
+      record.applied_count,
+      record.status,
+    );
     return {
       id: record.id,
       status: record.status,
@@ -994,6 +1016,7 @@ export class CatalogImportService implements OnModuleInit {
       skipped_errors: preview.counts.error,
       applied_rows: record.applied_count,
       total_rows: this.validRowCount(preview),
+      ...batches,
       opening_id: record.opening_id,
     };
   }
@@ -1035,7 +1058,11 @@ export class CatalogImportService implements OnModuleInit {
       payload: { operation_id: operationId, checksum },
       work: async (tx) => {
         const variants = await tx.productVariant.findMany({
-          select: { sku: true, product_id: true },
+          select: {
+            sku: true,
+            product_id: true,
+            product: { select: { name_ar: true, name_en: true } },
+          },
         });
         const bySku = new Map(
           variants.map((row) => [row.sku.toLowerCase(), row]),
@@ -1044,6 +1071,8 @@ export class CatalogImportService implements OnModuleInit {
           file: string;
           sku: string;
           product_id: string;
+          product_name_ar: string;
+          product_name_en: string;
           url: string;
         }> = [];
         const unmatched: string[] = [];
@@ -1084,6 +1113,8 @@ export class CatalogImportService implements OnModuleInit {
             file: entry.name,
             sku: variant.sku,
             product_id: variant.product_id,
+            product_name_ar: variant.product.name_ar,
+            product_name_en: variant.product.name_en,
             url: uploaded.public_url,
           });
         }
@@ -1570,6 +1601,7 @@ export class CatalogImportService implements OnModuleInit {
       error_report_key: string | null;
       preview: Prisma.JsonValue | null;
       status: string;
+      applied_count: number;
       creator: Parameters<typeof actorDisplayName>[0];
     },
   >(
@@ -1595,6 +1627,11 @@ export class CatalogImportService implements OnModuleInit {
       ...safe,
       created_by_name: actorDisplayName(creator),
       error_report_key: safe.error_report_key ? 'available' : null,
+      ...this.commitBatchProgress(
+        record.preview ? (record.preview as unknown as ImportPreview) : null,
+        safe.applied_count,
+        safe.status,
+      ),
     };
     if (!record.preview) return publicSafe;
     const preview = JSON.parse(JSON.stringify(record.preview)) as ImportPreview;
@@ -1677,5 +1714,34 @@ export class CatalogImportService implements OnModuleInit {
         );
     }
     return `\uFEFF${lines.join('\r\n')}\r\n`;
+  }
+
+  private commitBatchProgress(
+    preview: ImportPreview | null,
+    appliedRows: number,
+    status: string,
+  ) {
+    if (!preview) return { commit_batches_done: 0, commit_batches_total: 0 };
+    const applicable = preview.rows.filter(
+      (row) =>
+        row.apply_action &&
+        !row.issues.some((issue) => issue.severity === 'error'),
+    );
+    const productRows = applicable.filter((row) => row.product).length;
+    const stockRows = applicable.filter((row) => row.stock).length;
+    const productBatches = Math.ceil(productRows / COMMIT_BATCH_ROWS);
+    const stockBatches = stockRows ? 1 : 0;
+    const total = productBatches + stockBatches;
+    if (status === 'completed')
+      return { commit_batches_done: total, commit_batches_total: total };
+    const appliedProducts = Math.min(appliedRows, productRows);
+    const completedProductBatches =
+      appliedProducts === productRows
+        ? productBatches
+        : Math.floor(appliedProducts / COMMIT_BATCH_ROWS);
+    return {
+      commit_batches_done: completedProductBatches,
+      commit_batches_total: total,
+    };
   }
 }

@@ -374,7 +374,12 @@ try {
     '/admin/catalog-imports/preview?create_missing=false',
     token,
     mixedFile,
-    'mixed.xlsx',
+    'منتجات-جديدة.xlsx',
+  );
+  check(
+    mixed.file_name,
+    'منتجات-جديدة.xlsx',
+    'Arabic multipart file names remain UTF-8',
   );
   check(mixed.preview.counts.error, 2, 'mixed preview lists every invalid row');
   check(
@@ -396,8 +401,14 @@ try {
     { headers: { authorization: `Bearer ${token}` } },
   );
   check(errorReport.status, 200, 'error report downloads');
+  const errorReportBytes = Buffer.from(await errorReport.arrayBuffer());
   check(
-    (await errorReport.text()).includes('Products+Variants!H2'),
+    [...errorReportBytes.subarray(0, 3)],
+    [0xef, 0xbb, 0xbf],
+    'error report starts with a UTF-8 BOM for Excel',
+  );
+  check(
+    errorReportBytes.toString('utf8').includes('Products+Variants!H2'),
     true,
     'error report contains exact cell references',
   );
@@ -478,6 +489,13 @@ try {
   );
   check(imageResult.matched.length, 2, 'two SKU images are attached');
   check(
+    imageResult.matched.every(
+      (item) => item.product_name_ar && item.product_name_en,
+    ),
+    true,
+    'matched image results include both product names',
+  );
+  check(
     imageResult.unmatched,
     [`UNMATCHED-${suffix}.jpg`],
     'unmatched image is reported',
@@ -541,6 +559,11 @@ try {
     failedImport.applied_count,
     500,
     'the first two batches stay committed',
+  );
+  check(
+    [failedImport.commit_batches_done, failedImport.commit_batches_total],
+    [2, 3],
+    'failed commit reports completed and total batches',
   );
   check(
     failedImport.preview.rows.find((item) => item.row === 502).commit_status,
@@ -633,6 +656,11 @@ try {
     },
   );
   check(largeQueued.status, 'committing', '5,000-row commit is queued');
+  check(
+    [largeQueued.commit_batches_done, largeQueued.commit_batches_total],
+    [0, 20],
+    'queued 5,000-row commit exposes poll-friendly batch progress',
+  );
   const largeCompleted = await waitForCommit(
     largeReady.id,
     token,
@@ -642,6 +670,11 @@ try {
   const largeCommitMs = performance.now() - largeCommitStarted;
   check(largeCompleted.status, 'completed', '5,000-row commit succeeds');
   check(largeCompleted.applied_count, 5_000, 'all 5,000 rows are checkpointed');
+  check(
+    [largeCompleted.commit_batches_done, largeCompleted.commit_batches_total],
+    [20, 20],
+    'completed 5,000-row commit reports every batch done',
+  );
   check(
     Number(
       (
