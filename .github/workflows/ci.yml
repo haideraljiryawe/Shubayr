@@ -620,7 +620,10 @@ jobs:
       - name: The owner account (and a second run is refused)
         run: |
           deploy/scripts/create-owner.sh --username owner --name "Store owner"
-          if deploy/scripts/create-owner.sh --username owner --name "Again" 2>&1 | tee /tmp/again.log; then exit 1; fi
+          if deploy/scripts/create-owner.sh --username owner --name "Again" > /tmp/again.log 2>&1; then
+            cat /tmp/again.log; echo "a second owner with the same name was accepted"; exit 1
+          fi
+          cat /tmp/again.log
           grep -q USERNAME_TAKEN /tmp/again.log
       - name: Smoke (HTTPS, first sign-in, product with a picture, store preview)
         working-directory: admin
