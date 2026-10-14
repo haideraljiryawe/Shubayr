@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 15.1.0
+  version: 15.1.1
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -153,7 +153,8 @@ paths:
   /auth/logout:
     post:
       tags: [Auth]
-      summary: Revoke one refresh token on its original surface
+      summary: Revoke one refresh-session family on its original surface
+      description: Revokes the rotating refresh lineage and deactivates only device registrations bound to that session. Other sessions and devices for the account are unchanged.
       security: []
       requestBody:
         required: true
@@ -2224,6 +2225,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/DeviceToken" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
     delete:
       tags: [Devices]

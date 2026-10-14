@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import type { Queue } from 'bullmq';
+import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -29,6 +30,7 @@ import type {
 import type { NotificationProvider } from './notification-provider';
 import {
   InvalidNotificationRecipientError,
+  NotificationDeliveryError,
   PUSH_PROVIDER,
   SMS_PROVIDER,
 } from './notification-provider';
@@ -242,8 +244,8 @@ export class NotificationsService
             { eventId: event.id },
             {
               jobId: event.id,
-              attempts: 3,
-              backoff: { type: 'exponential', delay: 1000 },
+              attempts: 5,
+              backoff: { type: 'push' },
               removeOnComplete: { count: 10000 },
               removeOnFail: false,
             },
@@ -266,27 +268,67 @@ export class NotificationsService
     }
   }
 
-  async register(userId: string, input: RegisterDeviceDto) {
+  async register(
+    userId: string,
+    sessionId: string | null | undefined,
+    sessionVersion: number,
+    input: RegisterDeviceDto,
+  ) {
     return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${input.token}, 0))`;
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+      const user = await tx.user.findFirst({
+        where: { id: userId, is_active: true, session_version: sessionVersion },
+        select: { id: true },
+      });
+      if (!user) throw new ForbiddenException('Session is no longer active');
+      if (sessionId) {
+        const activeSession = await tx.refreshToken.findFirst({
+          where: {
+            user_id: userId,
+            session_id: sessionId,
+            session_version: sessionVersion,
+            revoked_at: null,
+            expires_at: { gt: new Date() },
+          },
+          select: { id: true },
+        });
+        if (!activeSession)
+          throw new ForbiddenException('Session is no longer active');
+      }
       const prior = await tx.deviceToken.findUnique({
         where: { token: input.token },
       });
+      const now = new Date();
+      if (sessionId) {
+        await tx.deviceToken.updateMany({
+          where: {
+            user_id: userId,
+            session_id: sessionId,
+            token: { not: input.token },
+            is_active: true,
+          },
+          data: { is_active: false, deactivated_at: now },
+        });
+      }
       const row = await tx.deviceToken.upsert({
         where: { token: input.token },
         create: {
           user_id: userId,
+          session_id: sessionId ?? null,
           token: input.token,
           platform: input.platform,
           locale: input.locale ?? null,
-          last_seen_at: new Date(),
+          last_seen_at: now,
         },
         update: {
           user_id: userId,
+          session_id: sessionId ?? null,
           platform: input.platform,
           locale: input.locale ?? null,
           is_active: true,
           deactivated_at: null,
-          last_seen_at: new Date(),
+          last_seen_at: now,
         },
       });
       await this.audit.record(tx, {
@@ -299,7 +341,17 @@ export class NotificationsService
           : undefined,
         after: { user_id: userId, platform: row.platform, is_active: true },
       });
-      return row;
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        token: row.token,
+        platform: row.platform,
+        locale: row.locale,
+        is_active: row.is_active,
+        last_seen_at: row.last_seen_at,
+        deactivated_at: row.deactivated_at,
+        created_at: row.created_at,
+      };
     });
   }
 
@@ -420,6 +472,7 @@ export class NotificationsService
     const per_page = query.per_page ?? 20;
     const where: Prisma.NotificationEventWhereInput = {
       user_id: userId,
+      is_test: false,
       ...(query.unread ? { read_at: null } : {}),
       ...(query.type ? { type: query.type } : {}),
     };
@@ -454,7 +507,7 @@ export class NotificationsService
   async unreadCount(userId: string) {
     return {
       unread_count: await this.prisma.notificationEvent.count({
-        where: { user_id: userId, read_at: null },
+        where: { user_id: userId, read_at: null, is_test: false },
       }),
     };
   }
@@ -493,13 +546,13 @@ export class NotificationsService
       const unread = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT id
         FROM notification_events
-        WHERE user_id = ${userId}::uuid AND read_at IS NULL
+        WHERE user_id = ${userId}::uuid AND read_at IS NULL AND NOT is_test
         ORDER BY id
         FOR UPDATE`;
       const readAt = new Date();
       if (unread.length) {
         await tx.notificationEvent.updateMany({
-          where: { user_id: userId, read_at: null },
+          where: { user_id: userId, read_at: null, is_test: false },
           data: { read_at: readAt },
         });
         await this.recordReadEvents(
@@ -526,7 +579,7 @@ export class NotificationsService
       unread_count: 0,
     };
     const unreadCount = await tx.notificationEvent.count({
-      where: { user_id: userId, read_at: null },
+      where: { user_id: userId, read_at: null, is_test: false },
     });
     data.unread_count = unreadCount;
     await tx.notificationStreamEvent.createMany({
@@ -577,29 +630,135 @@ export class NotificationsService
     };
   }
 
+  async eligibleDevices(userId: string, requestedIds?: string[]) {
+    const staleBefore = this.staleBefore();
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        user_id: string;
+        session_id: string;
+        token: string;
+        platform: string;
+        locale: string | null;
+        last_seen_at: Date;
+      }>
+    >(Prisma.sql`
+      SELECT d.id, d.user_id, d.session_id, d.token, d.platform, d.locale,
+             d.last_seen_at
+      FROM device_tokens d
+      JOIN users u ON u.id = d.user_id
+      WHERE d.user_id = ${userId}::uuid
+        AND d.is_active
+        AND d.session_id IS NOT NULL
+        AND d.last_seen_at >= ${staleBefore}
+        AND u.is_active
+        AND EXISTS (
+          SELECT 1 FROM refresh_tokens r
+          WHERE r.user_id = d.user_id
+            AND r.session_id = d.session_id
+            AND r.session_version = u.session_version
+            AND r.revoked_at IS NULL
+            AND r.expires_at > NOW()
+        )
+      ORDER BY d.last_seen_at DESC, d.id`);
+    if (!requestedIds?.length) return rows;
+    const requested = new Set(requestedIds);
+    return rows.filter((row) => requested.has(row.id));
+  }
+
+  async recordTestPush(input: {
+    userId: string;
+    deviceIds: string[];
+    title: string;
+    body: string;
+    operationId: string;
+    operatorId: string;
+  }) {
+    const eventId = randomUUID();
+    return this.prisma.$transaction(async (tx) => {
+      const event = await tx.notificationEvent.upsert({
+        where: {
+          event_key_user_id: {
+            event_key: `push_test:${input.operationId}`,
+            user_id: input.userId,
+          },
+        },
+        update: {},
+        create: {
+          id: eventId,
+          event_key: `push_test:${input.operationId}`,
+          user_id: input.userId,
+          type: 'push_test',
+          target_role: 'customer',
+          entity_type: 'push_test',
+          entity_id: eventId,
+          title_ar: input.title,
+          body_ar: input.body,
+          title_en: input.title,
+          body_en: input.body,
+          deep_link: '/notifications',
+          is_test: true,
+          target_device_ids: input.deviceIds,
+        },
+      });
+      await this.audit.record(tx, {
+        actorId: input.operatorId,
+        action: 'push_test.enqueue',
+        entityType: 'notification_event',
+        entityId: event.id,
+        after: {
+          operation_id: input.operationId,
+          target_user_id: input.userId,
+          target_device_ids: input.deviceIds,
+          test: true,
+        },
+      });
+      return event;
+    });
+  }
+
+  async testPushResults(eventId: string) {
+    return this.prisma.notificationLog.findMany({
+      where: { event_id: eventId, channel: 'push' },
+      orderBy: { delivery_key: 'asc' },
+      select: {
+        delivery_key: true,
+        status: true,
+        error_code: true,
+        provider_message_id: true,
+        attempt_count: true,
+      },
+    });
+  }
+
   async dispatch(eventId: string) {
     const event = await this.prisma.notificationEvent.findUnique({
       where: { id: eventId },
       include: { user: true },
     });
-    if (!event || event.processed_at) return;
+    if (!event || event.processed_at || !event.user.is_active) return;
     const type = event.type as NotificationType;
-    if (!notificationTypes.includes(type))
+    if (!event.is_test && !notificationTypes.includes(type))
       throw new ConflictException('Unknown notification type');
+    const requestedIds = event.is_test ? event.target_device_ids : undefined;
     const [tokens, legacy, overrides] = await Promise.all([
-      this.prisma.deviceToken.findMany({
-        where: { user_id: event.user_id, is_active: true },
-        orderBy: { last_seen_at: 'desc' },
-      }),
-      this.prisma.notificationPreference.findUnique({
-        where: { user_id: event.user_id },
-      }),
-      this.prisma.notificationChannelPreference.findMany({
-        where: { user_id: event.user_id, type },
-      }),
+      this.eligibleDevices(event.user_id, requestedIds),
+      event.is_test
+        ? Promise.resolve(null)
+        : this.prisma.notificationPreference.findUnique({
+            where: { user_id: event.user_id },
+          }),
+      event.is_test
+        ? Promise.resolve([])
+        : this.prisma.notificationChannelPreference.findMany({
+            where: { user_id: event.user_id, type },
+          }),
     ]);
-    for (const channel of notificationChannels) {
+    let transient: NotificationDeliveryError | undefined;
+    const channels = event.is_test ? (['push'] as const) : notificationChannels;
+    for (const channel of channels) {
       const enabled =
+        event.is_test ||
         criticalPair(type, channel) ||
         (overrides.find((row) => row.channel === channel)?.enabled ??
           defaultEnabled(type, channel, legacy));
@@ -617,12 +776,20 @@ export class NotificationsService
                 locale: tokens[0]?.locale,
               },
             ];
-      if (!targets.length)
+      if (!targets.length && !event.is_test)
         targets.push({ key: 'none', recipient: '', locale: null });
       for (const target of targets) {
-        await this.dispatchOne(event, type, channel, target, enabled);
+        const error = await this.dispatchOne(
+          event,
+          type,
+          channel,
+          target,
+          enabled,
+        );
+        if (error?.retryable) transient = error;
       }
     }
+    if (transient) throw transient;
     await this.prisma.notificationEvent.updateMany({
       where: { id: event.id, processed_at: null },
       data: { processed_at: new Date() },
@@ -635,66 +802,163 @@ export class NotificationsService
       user_id: string;
       entity_type: string;
       entity_id: string;
+      is_test: boolean;
+      title_ar: string;
+      body_ar: string;
+      title_en: string;
+      body_en: string;
     },
     type: NotificationType,
     channel: NotificationChannel,
     target: { key: string; recipient: string; locale?: string | null },
     enabled: boolean,
-  ) {
+  ): Promise<NotificationDeliveryError | undefined> {
     const locale = normalizedLocale(target.locale);
-    const content = message(type, locale);
-    const row = await this.prisma.notificationLog.upsert({
-      where: { delivery_key: `${event.id}:${channel}:${target.key}` },
-      update: {},
-      create: {
-        event_id: event.id,
-        user_id: event.user_id,
-        type,
-        channel,
-        delivery_key: `${event.id}:${channel}:${target.key}`,
-        status: 'queued',
-        locale,
-        ...content,
-        entity_type: event.entity_type,
-        entity_id: event.entity_id,
-      },
-    });
-    if (row.status === 'sent' || row.status === 'skipped') return;
-    if (!enabled || !target.recipient) {
-      await this.prisma.notificationLog.update({
-        where: { id: row.id },
-        data: { status: 'skipped' },
-      });
-      return;
-    }
-    try {
-      await (channel === 'push' ? this.push : this.sms).send({
-        recipient: target.recipient,
-        ...content,
-      });
-      await this.prisma.notificationLog.update({
-        where: { id: row.id },
-        data: { status: 'sent', sent_at: new Date(), error: null },
-      });
-    } catch (error) {
-      this.logger.warn(`Notification ${row.id} failed: ${String(error)}`);
-      if (
-        channel === 'push' &&
-        error instanceof InvalidNotificationRecipientError
-      ) {
-        await this.prisma.deviceToken.updateMany({
-          where: {
-            id: target.key,
-            token: target.recipient,
-            is_active: true,
-          },
-          data: { is_active: false, deactivated_at: new Date() },
-        });
+    const content = event.is_test
+      ? locale === 'ar'
+        ? { title: event.title_ar, body: event.body_ar }
+        : { title: event.title_en, body: event.body_en }
+      : message(type, locale);
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      if (channel === 'push' && target.recipient) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${target.recipient}, 0))`;
+        const stillEligible = await this.eligibleDeviceInTransaction(
+          tx,
+          event.user_id,
+          target.key,
+          target.recipient,
+        );
+        if (!stillEligible) return undefined;
       }
-      await this.prisma.notificationLog.update({
-        where: { id: row.id },
-        data: { status: 'failed', error: String(error).slice(0, 500) },
+      const row = await tx.notificationLog.upsert({
+        where: { delivery_key: `${event.id}:${channel}:${target.key}` },
+        update: {},
+        create: {
+          event_id: event.id,
+          user_id: event.user_id,
+          type: event.is_test ? 'push_test' : type,
+          channel,
+          delivery_key: `${event.id}:${channel}:${target.key}`,
+          status: 'queued',
+          locale,
+          ...content,
+          entity_type: event.entity_type,
+          entity_id: event.entity_id,
+        },
       });
-    }
+      if (row.status === 'sent' || row.status === 'skipped') return undefined;
+      if (!enabled || !target.recipient) {
+        await tx.notificationLog.update({
+          where: { id: row.id },
+          data: { status: 'skipped', lease_until: null },
+        });
+        return undefined;
+      }
+      const now = new Date();
+      const claimed = await tx.notificationLog.updateMany({
+        where: {
+          id: row.id,
+          OR: [
+            { status: { in: ['queued', 'failed'] } },
+            { status: 'sending', lease_until: { lt: now } },
+          ],
+        },
+        data: {
+          status: 'sending',
+          lease_until: new Date(now.getTime() + 120_000),
+          attempt_count: { increment: 1 },
+          error: null,
+          error_code: null,
+        },
+      });
+      if (!claimed.count) return undefined;
+      try {
+        const result = await (channel === 'push' ? this.push : this.sms).send({
+          recipient: target.recipient,
+          ...content,
+        });
+        await tx.notificationLog.update({
+          where: { id: row.id },
+          data: {
+            status: 'sent',
+            sent_at: new Date(),
+            error: null,
+            error_code: null,
+            provider_message_id: result.messageId,
+            lease_until: null,
+          },
+        });
+        return undefined;
+      } catch (caught) {
+        const error =
+          caught instanceof NotificationDeliveryError
+            ? caught
+            : new NotificationDeliveryError('PROVIDER_FAILURE', false);
+        this.logger.warn(
+          `Notification delivery failed id=${row.id} code=${error.code}`,
+        );
+        if (
+          channel === 'push' &&
+          error instanceof InvalidNotificationRecipientError
+        ) {
+          await tx.deviceToken.updateMany({
+            where: {
+              id: target.key,
+              user_id: event.user_id,
+              token: target.recipient,
+              is_active: true,
+            },
+            data: { is_active: false, deactivated_at: new Date() },
+          });
+        }
+        await tx.notificationLog.update({
+          where: { id: row.id },
+          data: {
+            status: 'failed',
+            error: error.code,
+            error_code: error.code,
+            lease_until: null,
+          },
+        });
+        return error;
+      }
+    });
+    return outcome;
+  }
+
+  private async eligibleDeviceInTransaction(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    deviceId: string,
+    token: string,
+  ) {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT d.id
+      FROM device_tokens d
+      JOIN users u ON u.id = d.user_id
+      WHERE d.id = ${deviceId}::uuid
+        AND d.user_id = ${userId}::uuid
+        AND d.token = ${token}
+        AND d.is_active
+        AND d.session_id IS NOT NULL
+        AND d.last_seen_at >= ${this.staleBefore()}
+        AND u.is_active
+        AND EXISTS (
+          SELECT 1 FROM refresh_tokens r
+          WHERE r.user_id = d.user_id
+            AND r.session_id = d.session_id
+            AND r.session_version = u.session_version
+            AND r.revoked_at IS NULL
+            AND r.expires_at > NOW()
+        )
+      FOR UPDATE OF d`);
+    return rows.length === 1;
+  }
+
+  private staleBefore() {
+    const configured = Number(process.env.PUSH_DEVICE_MAX_AGE_DAYS ?? 45);
+    const days =
+      Number.isFinite(configured) && configured > 0 ? configured : 45;
+    return new Date(Date.now() - days * 86_400_000);
   }
 }

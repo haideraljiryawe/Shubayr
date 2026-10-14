@@ -1,12 +1,14 @@
 import { Logger } from '@nestjs/common';
-import { createSign } from 'node:crypto';
+import { createHash, createSign, randomUUID } from 'node:crypto';
+
+export type NotificationProviderResult = { messageId: string };
 
 export interface NotificationProvider {
   send(input: {
     recipient: string;
     title: string;
     body: string;
-  }): Promise<void>;
+  }): Promise<NotificationProviderResult>;
 }
 
 export const PUSH_PROVIDER = Symbol('PUSH_PROVIDER');
@@ -20,19 +22,33 @@ type FcmServiceAccount = {
 };
 
 type FcmErrorResponse = {
+  name?: string;
   error?: {
-    code?: number;
-    message?: string;
     status?: string;
     details?: Array<{ errorCode?: string }>;
   };
 };
 
-export class InvalidNotificationRecipientError extends Error {
-  constructor(message = 'Push token is no longer registered') {
-    super(message);
+export class NotificationDeliveryError extends Error {
+  constructor(
+    readonly code: string,
+    readonly retryable: boolean,
+    readonly retryAfterMs?: number,
+  ) {
+    super(code);
+    this.name = NotificationDeliveryError.name;
+  }
+}
+
+export class InvalidNotificationRecipientError extends NotificationDeliveryError {
+  constructor() {
+    super('FCM_UNREGISTERED', false);
     this.name = InvalidNotificationRecipientError.name;
   }
+}
+
+export function maskedRecipientId(recipient: string): string {
+  return createHash('sha256').update(recipient).digest('hex').slice(0, 12);
 }
 
 export class FcmPushProvider implements NotificationProvider {
@@ -72,38 +88,72 @@ export class FcmPushProvider implements NotificationProvider {
     }
   }
 
-  async send(input: { recipient: string; title: string; body: string }) {
-    const response = await this.http(
-      `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(this.projectId)}/messages:send`,
-      {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${await this.getAccessToken()}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: {
-            token: input.recipient,
-            notification: { title: input.title, body: input.body },
+  async diagnose(): Promise<{ projectId: string; authenticated: true }> {
+    await this.getAccessToken();
+    return { projectId: this.projectId, authenticated: true };
+  }
+
+  async send(input: {
+    recipient: string;
+    title: string;
+    body: string;
+  }): Promise<NotificationProviderResult> {
+    let response: Response;
+    try {
+      response = await this.http(
+        `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(this.projectId)}/messages:send`,
+        {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${await this.getAccessToken()}`,
+            'content-type': 'application/json',
           },
-        }),
-      },
-    );
-    if (response.ok) return;
+          body: JSON.stringify({
+            message: {
+              token: input.recipient,
+              notification: { title: input.title, body: input.body },
+            },
+          }),
+        },
+      );
+    } catch (error) {
+      if (error instanceof NotificationDeliveryError) throw error;
+      throw new NotificationDeliveryError('FCM_NETWORK_ERROR', true);
+    }
 
     const payload = (await response
       .json()
       .catch(() => ({}))) as FcmErrorResponse;
-    const codes = payload.error?.details
-      ?.map((detail) => detail.errorCode)
-      .filter((code): code is string => Boolean(code));
-    if (
-      codes?.some((code) => ['UNREGISTERED', 'INVALID_ARGUMENT'].includes(code))
-    ) {
+    if (response.ok) {
+      return { messageId: payload.name ?? `accepted-${randomUUID()}` };
+    }
+
+    const codes = new Set(
+      payload.error?.details
+        ?.map((detail) => detail.errorCode)
+        .filter((code): code is string => Boolean(code)) ?? [],
+    );
+    if (codes.has('UNREGISTERED')) {
       throw new InvalidNotificationRecipientError();
     }
-    throw new Error(
-      `FCM request failed (${response.status} ${payload.error?.status ?? 'UNKNOWN'}): ${payload.error?.message ?? 'no message'}`,
+    if (response.status === 429 || response.status >= 500) {
+      throw new NotificationDeliveryError(
+        response.status === 429 ? 'FCM_RATE_LIMITED' : 'FCM_UNAVAILABLE',
+        true,
+        retryAfterMilliseconds(response.headers?.get('retry-after')),
+      );
+    }
+    if (
+      codes.has('INVALID_ARGUMENT') ||
+      payload.error?.status === 'INVALID_ARGUMENT'
+    ) {
+      // INVALID_ARGUMENT can describe our payload, not the registration token.
+      // Only FCM's explicit UNREGISTERED code is allowed to retire a token.
+      throw new NotificationDeliveryError('FCM_INVALID_ARGUMENT', false);
+    }
+    throw new NotificationDeliveryError(
+      `FCM_${payload.error?.status ?? `HTTP_${response.status}`}`,
+      false,
     );
   }
 
@@ -129,22 +179,30 @@ export class FcmPushProvider implements NotificationProvider {
     const assertion = `${unsigned}.${signer
       .sign(this.credentials.private_key)
       .toString('base64url')}`;
-    const response = await this.http(tokenUri, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion,
-      }),
-    });
+    let response: Response;
+    try {
+      response = await this.http(tokenUri, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+          assertion,
+        }),
+      });
+    } catch {
+      throw new NotificationDeliveryError('FCM_AUTH_NETWORK_ERROR', true);
+    }
     const payload = (await response.json().catch(() => ({}))) as {
       access_token?: string;
       expires_in?: number;
-      error_description?: string;
     };
     if (!response.ok || !payload.access_token) {
-      throw new Error(
-        `FCM OAuth token request failed (${response.status}): ${payload.error_description ?? 'no access token'}`,
+      throw new NotificationDeliveryError(
+        response.status === 429 || response.status >= 500
+          ? 'FCM_AUTH_UNAVAILABLE'
+          : 'FCM_AUTH_REJECTED',
+        response.status === 429 || response.status >= 500,
+        retryAfterMilliseconds(response.headers?.get('retry-after')),
       );
     }
     this.accessToken = {
@@ -161,11 +219,12 @@ export class DevPushProvider implements NotificationProvider {
     recipient: string;
     title: string;
     body: string;
-  }): Promise<void> {
+  }): Promise<NotificationProviderResult> {
+    const messageId = `dev-${randomUUID()}`;
     this.logger.log(
-      `DEV push dispatched: ${input.title} (${input.recipient.length} token characters)`,
+      `DEV push accepted recipient=${maskedRecipientId(input.recipient)} message=${messageId}`,
     );
-    return Promise.resolve();
+    return Promise.resolve({ messageId });
   }
 }
 
@@ -175,16 +234,28 @@ export class DevSmsProvider implements NotificationProvider {
     recipient: string;
     title: string;
     body: string;
-  }): Promise<void> {
+  }): Promise<NotificationProviderResult> {
+    const messageId = `dev-${randomUUID()}`;
     this.logger.log(
-      `DEV SMS dispatched: ${input.title} (${input.recipient.slice(-4)})`,
+      `DEV SMS accepted recipient=${maskedRecipientId(input.recipient)} message=${messageId}`,
     );
-    return Promise.resolve();
+    return Promise.resolve({ messageId });
   }
 }
 
 export class DisabledNotificationProvider implements NotificationProvider {
-  send(): Promise<void> {
-    return Promise.reject(new Error('Notification gateway is not configured'));
+  send(): Promise<NotificationProviderResult> {
+    return Promise.reject(
+      new NotificationDeliveryError('NOTIFICATION_PROVIDER_DISABLED', false),
+    );
   }
+}
+
+function retryAfterMilliseconds(value: string | null | undefined) {
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const date = Date.parse(value);
+  if (!Number.isNaN(date)) return Math.max(0, date - Date.now());
+  return undefined;
 }
