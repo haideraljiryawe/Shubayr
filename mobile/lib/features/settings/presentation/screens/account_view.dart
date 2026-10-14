@@ -4,6 +4,7 @@ import '../../../../core/storage/session_credentials.dart';
 import '../providers/privacy_policy_provider.dart';
 import '../providers/support_provider.dart';
 import '../../../notifications/presentation/notification_button.dart';
+import '../../../notifications/presentation/notification_providers.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
@@ -56,14 +57,9 @@ class AccountView extends ConsumerWidget {
                       : const _SignInCard(),
                   const SizedBox(height: AppSpacing.lg),
                   if (isSignedIn) ...[
-                    AppCard(
+                    const AppCard(
                       padding: EdgeInsets.zero,
-                      child: ListTile(
-                        leading: const Icon(Icons.notifications_outlined),
-                        title: Text(l10n.notificationsTitle),
-                        trailing: const NotificationButton(),
-                        onTap: () => context.push(AppRoutes.notifications),
-                      ),
+                      child: _NotificationsTile(),
                     ),
                     const SizedBox(height: AppSpacing.md),
                   ],
@@ -130,6 +126,29 @@ class AccountView extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _NotificationsTile extends ConsumerWidget {
+  const _NotificationsTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final count = ref.watch(notificationIdentityProvider).signedIn
+        ? ref.watch(unreadCountProvider).value ?? 0
+        : 0;
+    return ListTile(
+      leading: ExcludeSemantics(child: NotificationIcon(count: count)),
+      title: Text(
+        l10n.notificationsTitle,
+        semanticsLabel: count > 0
+            ? l10n.notificationsUnreadCount('$count')
+            : l10n.notificationsTitle,
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.push(AppRoutes.notifications),
     );
   }
 }

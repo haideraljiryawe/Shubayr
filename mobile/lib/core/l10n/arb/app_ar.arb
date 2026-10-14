@@ -611,6 +611,7 @@
   "roleMonitor": "متابع الطلبات",
   "monitorTitle": "متابعة الطلبات",
   "notificationsTitle": "الإشعارات",
+  "notificationsUnreadCount": "الإشعارات، غير المقروءة: {count}",
   "notificationsEmpty": "لا توجد إشعارات حتى الآن",
   "actionLoadMore": "تحميل المزيد",
   "quantityInvalid": "أدخل كمية ضمن الحدود، بثلاث منازل عشرية كحد أقصى.",

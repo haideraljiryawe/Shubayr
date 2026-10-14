@@ -726,6 +726,12 @@
   "roleMonitor": "Order monitor",
   "monitorTitle": "Order monitoring",
   "notificationsTitle": "Notifications",
+  "notificationsUnreadCount": "Notifications, unread: {count}",
+  "@notificationsUnreadCount": {
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
   "notificationsEmpty": "No notifications yet",
   "actionLoadMore": "Load more",
   "quantityInvalid": "Enter a quantity within the limits, with up to 3 decimal places.",

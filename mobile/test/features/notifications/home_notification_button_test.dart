@@ -120,10 +120,24 @@ Future<ProviderContainer> _container(
 
 Finder _bell(Type screen) => find.descendant(
   of: find.byType(screen),
-  matching: find.byType(NotificationButton),
+  matching: screen == AccountView
+      ? find.widgetWithIcon(ListTile, Icons.notifications_outlined)
+      : find.byType(NotificationButton),
 );
 
 void _expectCount(WidgetTester tester, Type screen, int count) {
+  if (screen == AccountView) {
+    for (final icon in [Icons.notifications_outlined, Icons.chevron_right]) {
+      expect(
+        find.descendant(of: _bell(screen), matching: find.byIcon(icon)),
+        findsOneWidget,
+      );
+    }
+    expect(
+      find.descendant(of: _bell(screen), matching: find.byType(IconButton)),
+      findsNothing,
+    );
+  }
   final badge = find.descendant(
     of: _bell(screen),
     matching: find.byType(Badge),
@@ -198,13 +212,32 @@ void main() {
             1,
             reason: 'Account shares the Home read',
           );
-          await tester.tap(_bell(AccountView));
-          await tester.pumpAndSettle();
-          expect(find.byType(NotificationsScreen), findsOneWidget);
-          expect(router.state.uri.path, AppRoutes.notifications);
-          await tester.tap(find.byType(BackButton));
-          await tester.pumpAndSettle();
-          expect(find.byType(AccountView), findsOneWidget);
+          final accountRow = _bell(AccountView);
+          for (final target in [
+            accountRow,
+            find.descendant(
+              of: accountRow,
+              matching: find.byType(NotificationIcon),
+            ),
+            find.descendant(
+              of: accountRow,
+              matching: find.byIcon(Icons.chevron_right),
+            ),
+          ]) {
+            await tester.tap(target);
+            await tester.pumpAndSettle();
+            expect(find.byType(NotificationsScreen), findsOneWidget);
+            expect(router.state.uri.path, AppRoutes.notifications);
+            await tester.tap(find.byType(BackButton));
+            await tester.pumpAndSettle();
+            expect(find.byType(AccountView), findsOneWidget);
+            _expectCount(tester, AccountView, 2);
+            expect(
+              inbox.reads,
+              isEmpty,
+              reason: 'Opening the inbox is not reading',
+            );
+          }
 
           await tester.tap(find.byIcon(Icons.home_outlined));
           await tester.pumpAndSettle();
@@ -287,6 +320,136 @@ void main() {
 
   for (final language in ['ar', 'en']) {
     for (final dark in [false, true]) {
+      testWidgets(
+        'account notification row geometry and semantics $language $dark',
+        (tester) async {
+          final inbox = _Inbox()..count = 123456;
+          final session = TestSession();
+          final container = (await tester.runAsync(
+            () => _container(inbox, session: session),
+          ))!;
+          addTearDown(container.dispose);
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          final semantics = tester.ensureSemantics();
+          try {
+            for (final width in [
+              320.0,
+              390.0,
+              600.0,
+              900.0,
+              1200.0,
+              1536.0,
+              1920.0,
+            ]) {
+              for (final scale in [1.0, 2.0]) {
+                await tester.binding.setSurfaceSize(Size(width, 1000));
+                await tester.pumpWidget(
+                  UncontrolledProviderScope(
+                    container: container,
+                    child: MaterialApp(
+                      locale: Locale(language),
+                      localizationsDelegates:
+                          AppLocalizations.localizationsDelegates,
+                      supportedLocales: AppLocalizations.supportedLocales,
+                      theme: dark
+                          ? AppTheme.dark(const Brand.bundled())
+                          : AppTheme.light(const Brand.bundled()),
+                      builder: (context, child) => MediaQuery(
+                        data: MediaQuery.of(
+                          context,
+                        ).copyWith(textScaler: TextScaler.linear(scale)),
+                        child: child!,
+                      ),
+                      home: const Scaffold(body: AccountView()),
+                    ),
+                  ),
+                );
+                await tester.pumpAndSettle();
+                final row = _bell(AccountView);
+                await tester.ensureVisible(row);
+                await tester.pumpAndSettle();
+                _expectCount(tester, AccountView, 123456);
+                final l10n = AppLocalizations.of(tester.element(row));
+                final title = tester.getRect(
+                  find.text(l10n.notificationsTitle),
+                );
+                final bell = tester.getRect(
+                  find.descendant(
+                    of: row,
+                    matching: find.byIcon(Icons.notifications_outlined),
+                  ),
+                );
+                final arrow = tester.getRect(
+                  find.descendant(
+                    of: row,
+                    matching: find.byIcon(Icons.chevron_right),
+                  ),
+                );
+                final badge = tester.getRect(
+                  find.descendant(of: row, matching: find.byType(Badge)),
+                );
+                final bounds = tester.getRect(row);
+                expect(badge.overlaps(title), isFalse);
+                expect(badge.left, greaterThanOrEqualTo(bounds.left));
+                expect(badge.right, lessThanOrEqualTo(bounds.right));
+                expect(badge.top, greaterThanOrEqualTo(bounds.top));
+                expect(badge.bottom, lessThanOrEqualTo(bounds.bottom));
+                expect(badge.top, lessThan(bell.top));
+                if (language == 'ar') {
+                  expect(bell.left, greaterThan(title.right));
+                  expect(arrow.right, lessThan(title.left));
+                  expect(badge.left, lessThan(bell.left));
+                } else {
+                  expect(bell.right, lessThan(title.left));
+                  expect(arrow.left, greaterThan(title.right));
+                  expect(badge.right, greaterThan(bell.right));
+                }
+                final node = tester.getSemantics(row);
+                expect(node.label, l10n.notificationsUnreadCount('123456'));
+                expect(
+                  node.getSemanticsData().hasAction(SemanticsAction.tap),
+                  isTrue,
+                );
+                var tapTargets = 0;
+                void countTargets(SemanticsNode child) {
+                  if (child.getSemanticsData().hasAction(SemanticsAction.tap)) {
+                    tapTargets++;
+                  }
+                  child.visitChildren((descendant) {
+                    countTargets(descendant);
+                    return true;
+                  });
+                }
+
+                countTargets(node);
+                expect(tapTargets, 1);
+                expect(
+                  tester.takeException(),
+                  isNull,
+                  reason: '$width / $scale',
+                );
+              }
+            }
+            // A new account uses the existing session-bound count provider.
+            inbox.count = 0;
+            session.setSession(monitorSession);
+            await tester.pumpAndSettle();
+            _expectCount(tester, AccountView, 0);
+            final row = _bell(AccountView);
+            final l10n = AppLocalizations.of(tester.element(row));
+            expect(tester.getSemantics(row).label, l10n.notificationsTitle);
+            expect(inbox.countRequests, 2);
+            session.setSession(const Session.signedOut());
+            await tester.pumpAndSettle();
+            expect(row, findsNothing);
+            expect(inbox.countRequests, 2);
+            await tester.pumpWidget(const SizedBox.shrink());
+          } finally {
+            semantics.dispose();
+          }
+        },
+      );
+
       testWidgets('toolbar geometry and semantics $language dark=$dark', (
         tester,
       ) async {

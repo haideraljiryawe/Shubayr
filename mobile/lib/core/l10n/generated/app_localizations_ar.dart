@@ -1748,6 +1748,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notificationsTitle => 'الإشعارات';
 
   @override
+  String notificationsUnreadCount(String count) {
+    return 'الإشعارات، غير المقروءة: $count';
+  }
+
+  @override
   String get notificationsEmpty => 'لا توجد إشعارات حتى الآن';
 
   @override

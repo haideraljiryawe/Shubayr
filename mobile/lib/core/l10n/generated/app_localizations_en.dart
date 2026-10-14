@@ -1762,6 +1762,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notificationsTitle => 'Notifications';
 
   @override
+  String notificationsUnreadCount(String count) {
+    return 'Notifications, unread: $count';
+  }
+
+  @override
   String get notificationsEmpty => 'No notifications yet';
 
   @override

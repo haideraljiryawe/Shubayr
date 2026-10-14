@@ -3434,6 +3434,12 @@ abstract class AppLocalizations {
   /// **'Notifications'**
   String get notificationsTitle;
 
+  /// No description provided for @notificationsUnreadCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications, unread: {count}'**
+  String notificationsUnreadCount(String count);
+
   /// No description provided for @notificationsEmpty.
   ///
   /// In en, this message translates to:
