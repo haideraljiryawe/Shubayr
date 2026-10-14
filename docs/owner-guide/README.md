@@ -17,5 +17,3 @@ ADMIN_DOCS_API=http://localhost:8000/api/v1 npm run docs:screenshots
 
 It starts the admin itself with the launch modules (`ADMIN_MODULES=catalog,stock,orders,settings,users`)
 and writes `images/<step>.<ar|en>.png`.
-
-Section 6 (Excel import and bulk images) is a placeholder until the import screens (A3) are released.

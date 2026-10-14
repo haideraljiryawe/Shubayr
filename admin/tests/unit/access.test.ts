@@ -32,6 +32,12 @@ describe("visibleNav", () => {
     expect(
       visibleNav(["catalog.categories", "catalog.brands"]).map((item) => item.key),
     ).toEqual(["dashboard", "categories", "brands"]);
+    // Excel import and bulk images share catalog.import (API 15.1).
+    expect(visibleNav(["catalog.import"]).map((item) => item.key)).toEqual([
+      "dashboard",
+      "catalogImport",
+      "catalogImages",
+    ]);
     expect(visibleNav(["users.manage"]).map((item) => item.key)).toEqual([
       "dashboard",
       "staff",
@@ -76,6 +82,7 @@ describe("visibleNav", () => {
         "catalog.products",
         "catalog.categories",
         "catalog.brands",
+        "catalog.import",
         "suppliers.view",
         "ledger.view",
         "fx_rates.view",

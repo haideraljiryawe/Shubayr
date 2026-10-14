@@ -1,24 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Copy, EyeOff, ImageOff, Send, X } from "lucide-react";
+import { CheckCircle2, Copy, EyeOff, ImageOff, ListChecks, Send, X, XCircle } from "lucide-react";
 import { Alert, Badge, Button, Select } from "@/components/ui";
 import { DataTable, TableFilter, TableSearch, type Column, type TableState } from "@/components/table/data-table";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { flattenTree, subcategories, type Brand, type Category, type Product } from "@/lib/catalog";
+import { OperationKey } from "@/lib/finance/cash-receipts";
 import { formatAmount } from "@/lib/finance/money";
 import { availabilityTone } from "@/lib/inventory";
 import {
+  BULK_LIMIT,
+  MAX_PER_PAGE,
   STATUS_FILTERS,
   STOCK_FILTERS,
+  bulkBody,
+  bulkOutcome,
   bulkTargets,
   primaryImage,
   type BulkAction,
   type BulkOutcome,
+  type ProductListQuery,
 } from "@/lib/product-list";
 
 /** Whole units for the dinar; the product carries its currency code. */
@@ -27,21 +33,26 @@ export function priceText(value: number | null | undefined, currency: string, lo
 }
 
 /**
- * Every product, a page at a time from the server, searched and filtered by
- * category, brand, status and stock. Rows can be selected (this page) for a
- * bulk change — publish, hide, move to a subcategory, change brand — applied
- * in one idempotent transaction. A row the API refuses (publishing without an
- * approved price, say) is reported by name and stays selected.
+ * Every product, a page at a time from the server: searched (names, SKU,
+ * barcode), filtered by category, brand, status, stock and picture, and
+ * sorted — all in the database. Rows can be selected on this page, or every
+ * matching product up to the bulk limit (500), for one bulk change — show,
+ * hide, move to a subcategory, change brand — applied in one idempotent
+ * transaction; the result is listed product by product, and the ones the API
+ * refused (showing without an approved price, say) stay selected.
  */
 export function ProductsTable({
   rows,
   state,
+  query,
   tree,
   brands,
   canBulkEdit,
 }: {
   rows: Product[];
   state: TableState;
+  /** The list's filters, search and sort as API parameters (for "select all matching"). */
+  query: ProductListQuery;
   tree: Category[];
   brands: Brand[];
   /** Product changes need prices.change as well as catalog.products. */
@@ -54,15 +65,27 @@ export function ProductsTable({
     (locale === "ar" ? item.name_ar : item.name_en) || item.name_en || item.name_ar || "";
   const nodes = new Map(flattenTree(tree).map(({ category }) => [category.id, category]));
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [running, setRunning] = useState<{ done: number; total: number } | null>(null);
+  // Every product matching the list, read for "select all matching"; kept
+  // only while the list's query is the one it was read for.
+  const queryKey = JSON.stringify(query);
+  const [matching, setMatching] = useState<{ key: string; products: Product[] } | null>(null);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [running, setRunning] = useState(false);
   const [outcome, setOutcome] = useState<BulkOutcome | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const [moveTo, setMoveTo] = useState("");
   const [brandTo, setBrandTo] = useState("");
+  // One operation id per exact change: a double click or a retry after a lost
+  // answer replays it instead of applying it twice.
+  const operation = useRef(new OperationKey(() => `bulk-${crypto.randomUUID()}`));
+  const pool = matching?.key === queryKey ? matching.products : rows;
+  const known = new Map(pool.concat(rows).map((product) => [product.id ?? "", product]));
   const pageIds = rows.map((product) => product.id ?? "").filter(Boolean);
-  // A selection only ever covers the rows on screen (after paging or a filter
-  // change the rows that left simply drop out).
-  const chosen = rows.filter((product) => product.id && selected.has(product.id));
-  const allChosen = pageIds.length > 0 && chosen.length === pageIds.length;
+  const chosen = pool.filter((product) => product.id && selected.has(product.id));
+  const allChosen = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  const reachable = Math.min(state.total, BULK_LIMIT);
+  const busy = running || loadingAll;
+  const canSelectMatching = allChosen && state.total > pageIds.length && chosen.length < reachable;
 
   function toggle(id: string, on: boolean) {
     setSelected((current) => {
@@ -73,49 +96,63 @@ export function ProductsTable({
     });
   }
 
+  /** Reads every matching product (at most the bulk limit) and selects them. */
+  async function selectMatching() {
+    setLoadingAll(true);
+    setProblem(null);
+    try {
+      const pages = Math.ceil(reachable / MAX_PER_PAGE);
+      const results = await Promise.all(
+        Array.from({ length: pages }, (_, index) =>
+          unwrap(browserApi.GET("/admin/products", { params: { query: { ...query, page: index + 1, per_page: MAX_PER_PAGE } } })),
+        ),
+      );
+      const products = results.flatMap((page) => page.data).slice(0, BULK_LIMIT);
+      setMatching({ key: queryKey, products });
+      setSelected(new Set(products.map((product) => product.id ?? "").filter(Boolean)));
+    } catch (cause) {
+      setProblem(cause instanceof ApiError ? cause.message : t("bulk.failedUnknown"));
+    } finally {
+      setLoadingAll(false);
+    }
+  }
+
+  function clearSelection() {
+    setSelected(new Set());
+    setMatching(null);
+  }
+
   async function apply(action: BulkAction) {
     const targets = bulkTargets(chosen, action);
     setOutcome(null);
-    setRunning({ done: 0, total: targets.length });
+    setProblem(null);
     if (targets.length === 0) {
-      setRunning(null);
-      setOutcome({ done: 0, failed: [] });
+      setOutcome({ done: 0, failed: 0, lines: [] });
       return;
     }
-    const common = {
-      operation_id: crypto.randomUUID(),
-      ids: targets.map((product) => product.id ?? ""),
-    };
-    const body =
-      action.kind === "category"
-        ? { ...common, action: "set_category" as const, category_id: action.categoryId }
-        : action.kind === "brand"
-          ? { ...common, action: "set_brand" as const, brand_id: action.brandId }
-          : { ...common, action: action.kind as "publish" | "hide" };
+    const request = bulkBody(action, targets.map((product) => product.id ?? ""));
+    const body = { ...request, operation_id: operation.current.id(JSON.stringify(request)) };
+    setRunning(true);
     try {
       const result = await unwrap(browserApi.POST("/admin/products/bulk", { body }));
-      const byId = new Map(targets.map((product) => [product.id ?? "", product]));
-      const failed = result.results.flatMap((item) => {
-        if (item.status !== "error") return [];
-        const product = byId.get(item.id);
-        return [{
-          id: item.id,
-          name: product ? nameOf(product) : item.id,
-          message: item.message ?? item.code ?? t("bulk.failedUnknown"),
-        }];
-      });
-      setRunning(null);
-      setOutcome({ done: result.results.length - failed.length, failed });
-      setSelected(new Set(failed.map((item) => item.id)));
+      operation.current.reset();
+      const report = bulkOutcome(
+        result,
+        (id) => {
+          const product = known.get(id);
+          return product ? nameOf(product) : id;
+        },
+        t("bulk.failedUnknown"),
+      );
+      setOutcome(report);
+      setSelected(new Set(report.lines.filter((line) => !line.ok).map((line) => line.id)));
+      if (report.failed === 0) setMatching(null);
       router.refresh();
     } catch (cause) {
-      const failed = targets.map((product) => ({
-        id: product.id ?? "",
-        name: nameOf(product),
-        message: cause instanceof ApiError ? cause.message : t("bulk.failedUnknown"),
-      }));
-      setRunning(null);
-      setOutcome({ done: 0, failed });
+      // Nothing was applied (one transaction); the same click retries the same operation.
+      setProblem(cause instanceof ApiError ? cause.message : t("bulk.failedUnknown"));
+    } finally {
+      setRunning(false);
     }
   }
 
@@ -126,8 +163,8 @@ export function ProductsTable({
         type="checkbox"
         aria-label={t("bulk.selectPage")}
         checked={allChosen}
-        disabled={running !== null || pageIds.length === 0}
-        onChange={(event) => setSelected(event.target.checked ? new Set(pageIds) : new Set())}
+        disabled={busy || pageIds.length === 0}
+        onChange={(event) => (event.target.checked ? setSelected(new Set(pageIds)) : clearSelection())}
         data-testid="products-select-all"
       />
     ),
@@ -137,7 +174,7 @@ export function ProductsTable({
         type="checkbox"
         aria-label={t("bulk.selectOne", { name: nameOf(product) })}
         checked={selected.has(product.id ?? "")}
-        disabled={running !== null}
+        disabled={busy}
         onChange={(event) => toggle(product.id ?? "", event.target.checked)}
         data-testid="product-select"
       />
@@ -149,6 +186,7 @@ export function ProductsTable({
     {
       key: "name",
       header: t("columns.name"),
+      sortKey: "name",
       cell: (product) => {
         const image = primaryImage(product);
         return (
@@ -198,7 +236,9 @@ export function ProductsTable({
     {
       key: "skus",
       header: t("columns.skus"),
-      className: "hidden xl:table-cell",
+      sortKey: "sku",
+      // Visible on a tablet: it carries the SKU sort.
+      className: "hidden md:table-cell",
       cell: (product) => (
         <span className="text-sm" data-testid="product-sku-count">
           {t("skuCount", { count: product.variants?.length ?? 0 })}
@@ -268,7 +308,7 @@ export function ProductsTable({
 
   return (
     <div className="flex flex-col gap-3">
-      {canBulkEdit && (chosen.length > 0 || running) ? (
+      {canBulkEdit && (chosen.length > 0 || busy) ? (
         <div
           className="sticky top-16 z-20 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-surface px-4 py-3 shadow-sm"
           data-testid="bulk-bar"
@@ -276,13 +316,23 @@ export function ProductsTable({
           aria-label={t("bulk.label")}
         >
           <span className="me-2 text-sm font-semibold" data-testid="bulk-count" aria-live="polite">
-            {running ? t("bulk.running", { done: running.done, total: running.total }) : t("bulk.selected", { count: chosen.length })}
+            {running ? t("bulk.applying", { count: chosen.length }) : t("bulk.selected", { count: chosen.length })}
           </span>
-          <Button size="sm" onClick={() => void apply({ kind: "publish" })} disabled={running !== null} data-testid="bulk-publish">
+          {canSelectMatching ? (
+            <Button size="sm" variant="ghost" onClick={() => void selectMatching()} disabled={busy} data-testid="bulk-select-matching">
+              <ListChecks className="size-4" aria-hidden />
+              {loadingAll
+                ? t("bulk.selectingMatching")
+                : state.total > BULK_LIMIT
+                  ? t("bulk.selectFirstMatching", { count: BULK_LIMIT, total: state.total })
+                  : t("bulk.selectMatching", { count: state.total })}
+            </Button>
+          ) : null}
+          <Button size="sm" onClick={() => void apply({ kind: "publish" })} disabled={busy} data-testid="bulk-publish">
             <Send className="size-4 rtl:-scale-x-100" aria-hidden />
             {t("bulk.publish")}
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => void apply({ kind: "hide" })} disabled={running !== null} data-testid="bulk-hide">
+          <Button size="sm" variant="secondary" onClick={() => void apply({ kind: "hide" })} disabled={busy} data-testid="bulk-hide">
             <EyeOff className="size-4" aria-hidden />
             {t("bulk.hide")}
           </Button>
@@ -292,7 +342,7 @@ export function ProductsTable({
               value={moveTo}
               onChange={(e) => setMoveTo(e.target.value)}
               aria-label={t("bulk.moveTo")}
-              disabled={running !== null}
+              disabled={busy}
               data-testid="bulk-category"
             >
               <option value="">{t("bulk.moveTo")}</option>
@@ -309,7 +359,7 @@ export function ProductsTable({
             <Button
               size="sm"
               variant="secondary"
-              disabled={running !== null || !moveTo}
+              disabled={busy || !moveTo}
               onClick={() => void apply({ kind: "category", categoryId: moveTo })}
               data-testid="bulk-category-apply"
             >
@@ -322,7 +372,7 @@ export function ProductsTable({
               value={brandTo}
               onChange={(e) => setBrandTo(e.target.value)}
               aria-label={t("bulk.brandTo")}
-              disabled={running !== null}
+              disabled={busy}
               data-testid="bulk-brand"
             >
               <option value="">{t("bulk.brandTo")}</option>
@@ -336,34 +386,51 @@ export function ProductsTable({
             <Button
               size="sm"
               variant="secondary"
-              disabled={running !== null || !brandTo}
+              disabled={busy || !brandTo}
               onClick={() => void apply({ kind: "brand", brandId: brandTo === "none" ? null : brandTo })}
               data-testid="bulk-brand-apply"
             >
               {t("bulk.apply")}
             </Button>
           </span>
-          <Button size="sm" variant="ghost" className="ms-auto" disabled={running !== null} onClick={() => setSelected(new Set())} data-testid="bulk-clear">
+          <Button size="sm" variant="ghost" className="ms-auto" disabled={busy} onClick={clearSelection} data-testid="bulk-clear">
             <X className="size-4" aria-hidden />
             {t("bulk.clear")}
           </Button>
         </div>
       ) : null}
 
+      {problem ? (
+        <Alert tone="danger" data-testid="bulk-problem">
+          {t("bulk.problem")} {problem}
+        </Alert>
+      ) : null}
+
       {outcome ? (
-        <Alert tone={outcome.failed.length ? "danger" : "success"} data-testid="bulk-outcome">
+        <Alert tone={outcome.failed ? "danger" : "success"} data-testid="bulk-outcome">
           <p className="font-semibold">{t("bulk.done", { count: outcome.done })}</p>
-          {outcome.failed.length ? (
-            <>
-              <p className="mt-1">{t("bulk.failed", { count: outcome.failed.length })}</p>
-              <ul className="mt-1 list-disc ps-5">
-                {outcome.failed.map((item) => (
-                  <li key={item.id}>
-                    <span className="font-semibold">{item.name}</span>: {item.message}
+          {outcome.failed ? <p className="mt-1">{t("bulk.failed", { count: outcome.failed })}</p> : null}
+          {outcome.lines.length ? (
+            <details className="mt-2" open={outcome.failed > 0 && outcome.lines.length <= 20}>
+              <summary className="cursor-pointer text-sm font-semibold">{t("bulk.perProduct", { count: outcome.lines.length })}</summary>
+              <ul className="mt-2 max-h-72 space-y-1 overflow-y-auto pe-2 text-sm" data-testid="bulk-results">
+                {outcome.lines.map((line) => (
+                  <li key={line.id} className="flex items-start gap-2" data-testid="bulk-result" data-status={line.ok ? "updated" : "error"}>
+                    {line.ok ? (
+                      <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-label={t("bulk.updated")} />
+                    ) : (
+                      <XCircle className="mt-0.5 size-4 shrink-0 text-error" aria-label={t("bulk.notUpdated")} />
+                    )}
+                    <span>
+                      <Link href={`/catalog/products/${line.id}`} className="font-semibold hover:underline">
+                        {line.name}
+                      </Link>
+                      {line.message ? <>: {line.message}</> : null}
+                    </span>
                   </li>
                 ))}
               </ul>
-            </>
+            </details>
           ) : null}
         </Alert>
       ) : null}

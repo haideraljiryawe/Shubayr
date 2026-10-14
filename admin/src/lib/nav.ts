@@ -16,6 +16,8 @@ export type NavKey =
   | "products"
   | "categories"
   | "brands"
+  | "catalogImport"
+  | "catalogImages"
   | "stock"
   | "movements"
   | "warehouses"
@@ -55,6 +57,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "products", href: "/catalog/products", requires: ["catalog.products"] },
   { key: "categories", href: "/catalog/categories", requires: ["catalog.categories"] },
   { key: "brands", href: "/catalog/brands", requires: ["catalog.brands"] },
+  // Excel import and bulk images (API 15.1).
+  { key: "catalogImport", href: "/catalog/import", requires: ["catalog.import"] },
+  { key: "catalogImages", href: "/catalog/images", requires: ["catalog.import"] },
   // Inventory (API 8.2): every screen reads with inventory.view; each action
   // carries its own permission (manage, transfer, count, adjust, write_down).
   { key: "stock", href: "/inventory/stock", requires: ["inventory.view"] },
