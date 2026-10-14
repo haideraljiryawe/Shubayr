@@ -83,6 +83,23 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
 
+  // The address names the import (?id=). Opening another one — from the
+  // history, or "import another file" — shows it; the server's copy of the
+  // import already on screen (after an upload or a commit) never replaces
+  // the newer state held here.
+  const [shownId, setShownId] = useState(initial?.id ?? null);
+  if ((initial?.id ?? null) !== shownId) {
+    setShownId(initial?.id ?? null);
+    if ((initial?.id ?? null) !== (current?.id ?? null)) {
+      setCurrent(initial);
+      setResult(null);
+      setProblem(null);
+      setActions(new Set());
+      setQuery("");
+      setPage(0);
+    }
+  }
+
   // A check running in the background is followed until it settles.
   const running = current ? isRunning(current.status) : false;
   useEffect(() => {

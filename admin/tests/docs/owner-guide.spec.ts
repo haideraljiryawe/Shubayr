@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API, KNOWN_PASSWORD, activateStaff, adminApiToken, bearer, createStaff, placeOrder, uiLogin } from "../live/helpers";
+import { catalogWorkbook, zip } from "../live/xlsx";
 
 /**
  * The owner's guide screenshots (docs/owner-guide), in Arabic and English.
@@ -324,6 +325,45 @@ for (const locale of LOCALES) {
       await page.getByTestId("products-select-all").check();
       await expect(page.getByTestId("bulk-bar")).toBeVisible();
       await shot(page, "05-bulk", locale);
+    });
+
+    test(`6 · Excel import and bulk images (${locale})`, async ({ page }) => {
+      await loginOwner(page);
+      // A workbook as an owner fills it: new accessories, one row missing its
+      // price and one without a status. Previewed only — nothing is applied.
+      const accessory = { category1: "إلكترونيات", category2: "إكسسوارات", brand: "سامسونج", status: "hidden" };
+      const workbook = catalogWorkbook([
+        { ...accessory, nameAr: "كفر سيليكون A15", nameEn: "A15 Silicone Case", sku: "CASE-A15-BLK", attributes: "اللون=أسود", price: 12000 },
+        { ...accessory, nameAr: "كفر سيليكون A15", nameEn: "A15 Silicone Case", sku: "CASE-A15-BLU", attributes: "اللون=أزرق", price: 12000 },
+        { ...accessory, nameAr: "واقي شاشة زجاجي", nameEn: "Glass Screen Protector", sku: "GLASS-A15", price: "" },
+        { ...accessory, nameAr: "كابل USB-C متر", nameEn: "USB-C Cable 1 m", sku: "CABLE-USBC-1M", price: 7000, status: "" },
+      ]);
+      await page.goto("/catalog/import");
+      await hydrated(page, "import-file");
+      await page.getByTestId("import-file").setInputFiles({
+        name: locale === "ar" ? "منتجات-جديدة.xlsx" : "new-products.xlsx",
+        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        buffer: workbook,
+      });
+      await page.getByTestId("import-check").click();
+      await expect(page.getByTestId("import-current")).toHaveAttribute("data-status", "ready");
+      await expect(page.getByTestId("import-filter-error")).toHaveAttribute("data-count", "1");
+      await shot(page.getByTestId("catalog-import"), "06-import", locale);
+
+      // Pictures named by SKU: one matches a product, one does not.
+      await page.goto("/catalog/images");
+      await hydrated(page, "images-file");
+      await page.getByTestId("images-file").setInputFiles({
+        name: "pictures.zip",
+        mimeType: "application/zip",
+        buffer: zip([
+          { name: "DEMO-WIRELESS-BUDS-2.png", data: photo(480, [236, 240, 246], [250, 250, 250]) },
+          { name: "CASE-A15-RED.png", data: photo(480, [244, 236, 236], [200, 60, 60]) },
+        ]),
+      });
+      await page.getByTestId("images-upload").click();
+      await expect(page.getByTestId("images-result")).toBeVisible();
+      await shot(page, "06-images", locale);
     });
 
     test(`7 · delivery zones and discount tiers (${locale})`, async ({ page }) => {

@@ -68,7 +68,6 @@ export default async function CatalogImportPage({
       />
       <div className="flex flex-col gap-6">
         <CatalogImportView
-          key={initial?.id ?? "new"}
           initial={initial}
           canPostStock={permissions.includes("inventory.manage") && permissions.includes("cost.view")}
         />

@@ -71,15 +71,38 @@ A product shows as available only once it has stock.
 
 ## 5. Bulk actions in the product list
 
-1. In **Products**, filter by category, brand, **status** or **stock**, or search by name.
-2. Select products (or the whole page from the header box).
-3. From the bar that appears: **Show in store**, **Hide**, **Move to category** or **Change brand**. Anything that cannot be changed is named and stays selected.
+1. In **Products**, search by name, **SKU** or **barcode**, or filter by category, brand, **status**, **stock** or **picture**. Click a column title (name, SKU, price) to sort.
+2. Select products (or the whole page from the header box). To include every product the filter found, press **Select all matching** — up to 500 at a time.
+3. From the bar that appears: **Show in store**, **Hide**, **Move to category** or **Change brand**. The result lists each product: anything that could not be changed says why and stays selected.
 
 ![Bulk actions](images/05-bulk.en.png)
 
 ## 6. Excel import and bulk images
 
-> **Coming soon.** This section is completed once the import screens are released (an Excel file of products, then uploading pictures in bulk and matching them to products). Until then, add products with "New product" and use **Duplicate** for similar ones.
+Add many products at once from Excel, update existing ones, and enter opening stock — then add their pictures from one ZIP file. Both are in the menu, below **Brands**: **Excel import** and **Bulk images**.
+
+**Excel import**
+
+1. Open **Excel import** and press **Download template**. Fill in the **Products+Variants** sheet: one row per variant, with its own **SKU**. Rows with the same names, category and brand become one product with several variants. Don't rename the sheets or the headers, and delete the two example rows.
+2. Categories have two levels: the main category (level 1) and the subcategory under it (level 2), where the product goes. Write the names as they appear in **Categories**.
+3. Optional: fill the **Stock** sheet (SKU, location code, quantity, unit cost) to enter opening stock at the same time.
+4. Choose the file and press **Check the file**. Nothing is saved yet. Large files are checked in the background with a progress bar; you can leave and reopen them from **Import history**.
+5. Review the preview. Each row is **New**, **Update** (the SKU already exists), **Warning** or **Error**. Press a result to see only those rows; each error names its cell (for example `Products+Variants!L4`: column L, row 4) and how to fix it. **How to fill in the workbook** on the same page explains every column and the common errors. **Download the validation report** gives the same list as a file for Excel.
+6. If categories or brands are missing, either correct the names, or tick **Create missing categories and brands** and check the file again — new ones are created hidden, so you can review them in **Categories** before customers see them.
+7. Press **Apply valid rows**. Rows with errors are skipped; fix them in Excel and import them again. The import is applied once, even if the button is pressed twice. The result shows how many products were added and updated, and links to the opening-stock document when the file had a Stock sheet.
+
+For a large catalog, import it in files of a few hundred rows each.
+
+![The import preview: results by row, with the cell to fix](images/06-import.en.png)
+
+**Bulk images**
+
+1. Name each picture by the variant's SKU: `TSHIRT-RED-M.jpg`. For a second and third picture of the same product add `-2` and `-3`: `TSHIRT-RED-M-2.jpg`.
+2. Put the pictures in one ZIP file (JPG, PNG, WebP or AVIF).
+3. Open **Bulk images**, choose the ZIP and press **Upload pictures**. A bar shows the upload.
+4. The result lists the pictures added to each product, with a link to it, and the files that matched no SKU. Rename those and upload them again in a new ZIP.
+
+![Bulk images: matched and unmatched files](images/06-images.en.png)
 
 ## 7. Delivery zones, governorates and automatic discounts
 

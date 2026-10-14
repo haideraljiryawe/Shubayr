@@ -237,7 +237,8 @@ export function ProductsTable({
       key: "skus",
       header: t("columns.skus"),
       sortKey: "sku",
-      className: "hidden lg:table-cell",
+      // Visible on a tablet: it carries the SKU sort.
+      className: "hidden md:table-cell",
       cell: (product) => (
         <span className="text-sm" data-testid="product-sku-count">
           {t("skuCount", { count: product.variants?.length ?? 0 })}
