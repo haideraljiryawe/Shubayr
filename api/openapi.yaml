@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 16.1.0
+  version: 16.2.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -325,16 +325,35 @@ paths:
     get:
       tags: [Delivery Pricing]
       summary: List active Iraqi governorates
-      description: Includes the 18 governorates and Halabja. is_served is true only when the governorate is attached to an active delivery zone.
+      description: Includes the 18 governorates and Halabja. is_served is true only when the governorate is attached to an active delivery zone; delivery_fee is that zone's current IQD fee, or null when unserved. Catalog-tier rate limits apply and responses are cacheable for 30 seconds.
       security: []
       responses:
         "200":
           description: Active governorates
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "public, max-age=30, must-revalidate" }
           content:
             application/json:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Governorate" }
+
+  /discount-tiers:
+    get:
+      tags: [Delivery Pricing]
+      summary: List active automatic discount tiers for storefront progress displays
+      description: Public, catalog-tier read of active IQD thresholds and percentages plus the current coupon-stacking setting. Checkout remains authoritative. Responses are cacheable for 30 seconds and server cache entries are invalidated after owner edits.
+      security: []
+      responses:
+        "200":
+          description: Active public discount-tier settings
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "public, max-age=30, must-revalidate" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicDiscountTierSettings" }
 
   /admin/governorates:
     get:
@@ -395,6 +414,7 @@ paths:
       x-surface: admin
       x-permission: delivery_zones.manage
       x-error-codes: [GOVERNORATE_ALREADY_IN_DELIVERY_ZONE]
+      description: A 409 names every clashing governorate and the existing zone in errors[].
       requestBody:
         required: true
         content:
@@ -417,6 +437,7 @@ paths:
       x-surface: admin
       x-permission: delivery_zones.manage
       x-error-codes: [GOVERNORATE_ALREADY_IN_DELIVERY_ZONE]
+      description: A 409 names every clashing governorate and the existing zone in errors[].
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -726,12 +747,25 @@ paths:
     get:
       tags: [Cart]
       summary: Get the authenticated caller's repriced cart
+      x-error-codes: [ADDRESS_GOVERNORATE_REQUIRED, DELIVERY_LOCATION_SELECTOR_CONFLICT, DELIVERY_ZONE_NOT_SERVED]
       description: >
         Guest carts remain client-side. After login, clients atomically attach
         them through POST /cart/merge. Every response reprices from current server-time
-        effective_price. Subtotal is the sum of effective-price line totals;
-        discount is the coupon amount only, and delivery_fee is zero until a
-        delivery-fee policy is configured at checkout.
+        effective_price. Supply governorate_id or an owned address_id to include
+        the current zone delivery fee and full total. Without either selector,
+        delivery_fee remains zero for backward compatibility. The checkout
+        calculation remains authoritative and snapshots its own fee.
+      parameters:
+        - name: governorate_id
+          in: query
+          required: false
+          description: Price delivery for this active, served governorate. Mutually exclusive with address_id.
+          schema: { type: string, format: uuid }
+        - name: address_id
+          in: query
+          required: false
+          description: Price delivery for this authenticated customer's saved address. Mutually exclusive with governorate_id.
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: Cart
@@ -739,6 +773,9 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
   /cart/items:
     post:
       tags: [Cart]
@@ -5144,6 +5181,13 @@ components:
         threshold_percent: { type: number }
         cost: { type: number }
         minimum_price: { type: number }
+        governorate_id: { type: string, format: uuid, description: Governorate involved in a delivery-zone assignment conflict. }
+        governorate_code: { type: string, description: Stable governorate code involved in a delivery-zone assignment conflict. }
+        governorate_name_ar: { type: string }
+        governorate_name_en: { type: string }
+        delivery_zone_id: { type: string, format: uuid, description: Existing delivery zone holding the governorate. }
+        delivery_zone_name_ar: { type: string }
+        delivery_zone_name_en: { type: string }
 
     Money:
       type: number
@@ -5243,9 +5287,15 @@ components:
         - { $ref: "#/components/schemas/GovernorateRecord" }
         - type: object
           additionalProperties: false
-          required: [is_served]
+          required: [is_served, delivery_fee, currency]
           properties:
             is_served: { type: boolean }
+            delivery_fee:
+              oneOf:
+                - { $ref: "#/components/schemas/Money" }
+                - { type: "null" }
+              description: Current active-zone fee in IQD, or null when unserved.
+            currency: { type: string, enum: [IQD] }
 
     AdminGovernorate:
       allOf:
@@ -5349,6 +5399,25 @@ components:
         min_subtotal_iqd: { type: integer, minimum: 0 }
         percent: { type: number, exclusiveMinimum: 0, maximum: 50, multipleOf: 0.01 }
         is_active: { type: boolean }
+
+    PublicDiscountTier:
+      type: object
+      additionalProperties: false
+      required: [min_subtotal, percent]
+      properties:
+        min_subtotal: { $ref: "#/components/schemas/Money" }
+        percent: { type: number, exclusiveMinimum: 0, maximum: 50, multipleOf: 0.01 }
+
+    PublicDiscountTierSettings:
+      type: object
+      additionalProperties: false
+      required: [currency, coupon_stacking_enabled, tiers]
+      properties:
+        currency: { type: string, enum: [IQD] }
+        coupon_stacking_enabled: { type: boolean }
+        tiers:
+          type: array
+          items: { $ref: "#/components/schemas/PublicDiscountTier" }
 
     AppliedDiscountTier:
       type: object
@@ -6164,7 +6233,7 @@ components:
           oneOf:
             - { $ref: "#/components/schemas/NextDiscountTier" }
             - { type: "null" }
-        delivery_fee: { $ref: "#/components/schemas/Money", description: Zero in the cart because the governorate is selected at checkout. }
+        delivery_fee: { $ref: "#/components/schemas/Money", description: Current zone fee when governorate_id or address_id was supplied; otherwise zero. }
         total: { $ref: "#/components/schemas/Money" }
 
     WishlistItem:

@@ -15,6 +15,7 @@ import {
   DeliveryZonesController,
   DiscountTiersController,
   GovernoratesController,
+  PublicDiscountTiersController,
 } from './delivery-pricing.controller';
 import { DeliveryPricingService } from './delivery-pricing.service';
 
@@ -28,6 +29,7 @@ import { DeliveryPricingService } from './delivery-pricing.service';
     MonitorOrdersController,
     AddressesController,
     GovernoratesController,
+    PublicDiscountTiersController,
     AdminGovernoratesController,
     DeliveryZonesController,
     DiscountTiersController,

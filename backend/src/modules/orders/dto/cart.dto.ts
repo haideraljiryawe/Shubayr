@@ -52,3 +52,13 @@ export class ValidateCouponDto {
   @MaxLength(60)
   code!: string;
 }
+
+export class CartPricingQueryDto {
+  @IsOptional()
+  @IsUUID()
+  governorate_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  address_id?: string;
+}

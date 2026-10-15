@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
@@ -17,6 +18,7 @@ import { AppPolicy } from '../../common/decorators/access-policy.decorator';
 import { CartService } from './cart.service';
 import {
   AddCartItemDto,
+  CartPricingQueryDto,
   MergeCartDto,
   UpdateCartItemDto,
   ValidateCouponDto,
@@ -34,8 +36,12 @@ export class CartController {
   constructor(private readonly cart: CartService) {}
 
   @Get()
-  get(@Req() request: AuthenticatedRequest) {
-    return this.cart.get(request.user.id);
+  @RateLimitTier(RateLimitRisk.Catalog)
+  get(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: CartPricingQueryDto,
+  ) {
+    return this.cart.get(request.user.id, query);
   }
 
   @Post('items')
