@@ -31,6 +31,8 @@ const importRecord = (preview: ImportPreview | null = null) => ({
   error_count: preview?.counts.error ?? 0,
   warning_count: preview?.counts.warning ?? 0,
   applied_count: 0,
+  commit_batches_done: 0,
+  commit_batches_total: 0,
   commit_attempt: 0,
   preview,
   error_report_key: preview ? 'catalog/report.csv' : null,
@@ -417,6 +419,51 @@ describe('CatalogImportService', () => {
     const [options] = prisma.catalogImport.findMany.mock
       .calls[0] as unknown as [{ select: Record<string, unknown> }];
     expect(options.select).not.toHaveProperty('preview');
+  });
+
+  it('returns lightweight poll progress without loading or returning preview rows', async () => {
+    const prisma = {
+      catalogImport: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: '00000000-0000-4000-8000-000000000010',
+          status: 'failed',
+          commit_batches_done: 2,
+          commit_batches_total: 3,
+          applied_count: 500,
+        }),
+      },
+      catalogImportRowResult: {
+        count: jest.fn().mockResolvedValue(1),
+        findFirst: jest.fn().mockResolvedValue({
+          sheet: 'Products+Variants',
+          row_number: 502,
+          error_code: 'CATALOG_IMPORT_UNIQUE_CONFLICT',
+          error_message: 'Barcode already exists',
+        }),
+      },
+    };
+    const result = await service(dependencies(prisma)).progress(
+      '00000000-0000-4000-8000-000000000010',
+    );
+    expect(result).toEqual({
+      id: '00000000-0000-4000-8000-000000000010',
+      status: 'failed',
+      batches_done: 2,
+      batches_total: 3,
+      rows_applied: 500,
+      rows_failed: 1,
+      last_error: {
+        code: 'CATALOG_IMPORT_UNIQUE_CONFLICT',
+        message: 'Barcode already exists',
+        sheet: 'Products+Variants',
+        row_number: 502,
+      },
+    });
+    expect(result).not.toHaveProperty('preview');
+    expect(result).not.toHaveProperty('rows');
+    const [query] = prisma.catalogImport.findUnique.mock
+      .calls[0] as unknown as [{ select: Record<string, unknown> }];
+    expect(query.select).not.toHaveProperty('preview');
   });
 
   it('attaches matched ZIP images in order and reports unmatched files', async () => {

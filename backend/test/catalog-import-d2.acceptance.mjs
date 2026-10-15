@@ -576,6 +576,34 @@ try {
     'CATALOG_IMPORT_UNIQUE_CONFLICT',
     'the failed row has a clear error code',
   );
+  const failedProgress = await request(
+    `/admin/catalog-imports/${failingReady.id}/progress`,
+    { token },
+  );
+  check(
+    failedProgress,
+    {
+      id: failingReady.id,
+      status: 'failed',
+      batches_done: 2,
+      batches_total: 3,
+      rows_applied: 500,
+      rows_failed: 1,
+      last_error: {
+        code: 'CATALOG_IMPORT_UNIQUE_CONFLICT',
+        message: failedProgress.last_error.message,
+        sheet: 'Products+Variants',
+        row_number: 502,
+      },
+    },
+    'lightweight progress reports the retained batches and last failure',
+  );
+  check(
+    Object.hasOwn(failedProgress, 'preview') ||
+      Object.hasOwn(failedProgress, 'rows'),
+    false,
+    'lightweight progress contains no preview row data',
+  );
   check(
     Number(
       (
