@@ -468,6 +468,20 @@ test("a 3,000-row import applies in batches with live progress; then filters, SK
   expect((await products(request, `q=${prefix}&per_page=1`)).total).toBe(0);
 
   // Applied by the worker in batches of 250, then the Stock rows as one batch, with live progress.
+  // Every read of the import from the browser is recorded: while it applies,
+  // only the light progress resource (API 16.3) may be read — never the whole
+  // import with its preview rows — and the whole import once at the end.
+  const reads: Array<{ progress: boolean; status: string; hasPreview: boolean; at: number }> = [];
+  page.on("response", async (response) => {
+    const match = /\/api\/proxy\/admin\/catalog-imports\/[0-9a-f-]{36}(\/progress)?(?:\?|$)/.exec(response.url());
+    if (!match || response.request().method() !== "GET" || !response.ok()) return;
+    try {
+      const body = (await response.json()) as { status: string; preview?: unknown };
+      reads.push({ progress: Boolean(match[1]), status: body.status, hasPreview: "preview" in body, at: Date.now() });
+    } catch {
+      // Not JSON: not a read of the import.
+    }
+  });
   await hydrated(page, "import-commit");
   await page.getByTestId("import-commit").click();
   const progress = page.getByTestId("import-commit-progress");
@@ -486,6 +500,18 @@ test("a 3,000-row import applies in batches with live progress; then filters, SK
     )
     .toBe("completed");
   console.log(`rows applied as seen while it ran: ${[...seen].join(", ")}`);
+  const progressReads = reads.filter((read) => read.progress);
+  const fullReads = reads.filter((read) => !read.progress);
+  console.log(`progress reads: ${progressReads.length}, full reads: ${fullReads.map((read) => read.status).join(", ")}`);
+  expect(progressReads.length, "progress was polled while it applied").toBeGreaterThan(0);
+  expect(progressReads.every((read) => !read.hasPreview), "no preview rows in a progress read").toBe(true);
+  expect(fullReads.filter((read) => read.status === "committing"), "the whole import is never re-read while it applies").toEqual([]);
+  expect(fullReads.filter((read) => read.status === "completed"), "the whole import is read once, at the end").toHaveLength(1);
+  // About every 1.5 s while it ran.
+  if (progressReads.length > 2) {
+    const gaps = progressReads.slice(1).map((read, index) => read.at - progressReads[index].at);
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(1000);
+  }
   await expect(page.getByTestId("import-result")).toBeVisible();
   await expect(page.getByTestId("import-result-created")).toContainText(String(SCALE + stock.length));
   await expect(page.getByTestId("import-result-opening")).toBeVisible();

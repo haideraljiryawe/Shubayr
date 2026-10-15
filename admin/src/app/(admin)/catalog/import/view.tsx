@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { CheckCircle2, Download, FileSpreadsheet, RotateCw, Upload } from "lucide-react";
@@ -27,7 +27,10 @@ import {
   isKnownIssue,
   isRunning,
   looksLikeWorkbook,
-  pollInterval,
+  POLL_MS,
+  pollsProgress,
+  withCommitResult,
+  withProgress,
   statusTone,
   type CatalogImport,
   type CommitResult,
@@ -39,6 +42,18 @@ import { postFile } from "@/lib/file-upload";
 import { documentHref } from "@/lib/inventory";
 
 const PREVIEW_PAGE = 50;
+
+/** Whether this tab is showing (polling pauses while it is hidden). */
+function usePageVisible(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      document.addEventListener("visibilitychange", onChange);
+      return () => document.removeEventListener("visibilitychange", onChange);
+    },
+    () => document.visibilityState !== "hidden",
+    () => true,
+  );
+}
 
 function sessionStore(): Storage | null {
   try {
@@ -110,14 +125,34 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
     }
   }
 
-  // A background check, or the worker applying batches, is followed until it settles.
+  // A background check, or the worker applying batches, is followed until it
+  // settles — while the page is visible. Applying, each read is the light
+  // progress resource; the full import (with per-row results) is read once,
+  // when the commit settles.
   const running = current ? isRunning(current.status) : false;
+  const visible = usePageVisible();
   useEffect(() => {
-    if (!current || !running) return;
+    if (!current || !running || !visible) return;
     let stopped = false;
+    const readFull = () => unwrap(browserApi.GET("/admin/catalog-imports/{id}", { params: { path: { id: current.id } } }));
     const timer = window.setTimeout(async () => {
       try {
-        const next = await unwrap(browserApi.GET("/admin/catalog-imports/{id}", { params: { path: { id: current.id } } }));
+        if (pollsProgress(current.status)) {
+          const progress = await unwrap(
+            browserApi.GET("/admin/catalog-imports/{id}/progress", { params: { path: { id: current.id } } }),
+          );
+          if (stopped) return;
+          if (pollsProgress(progress.status)) {
+            setCurrent(withProgress(current, progress));
+            return;
+          }
+          const settled = await readFull();
+          if (stopped) return;
+          setCurrent(settled);
+          router.refresh();
+          return;
+        }
+        const next = await readFull();
         if (stopped) return;
         setCurrent(next);
         if (!isRunning(next.status)) router.refresh();
@@ -125,12 +160,12 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
         // Try again on the next tick.
         if (!stopped) setCurrent({ ...current });
       }
-    }, pollInterval(current));
+    }, POLL_MS);
     return () => {
       stopped = true;
       window.clearTimeout(timer);
     };
-  }, [current, running, router]);
+  }, [current, running, visible, router]);
 
   function errorText(cause: unknown): string {
     if (cause instanceof ApiError) {
@@ -185,10 +220,16 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
         }),
       );
       setResult(done);
-      try {
-        setCurrent(await unwrap(browserApi.GET("/admin/catalog-imports/{id}", { params: { path: { id: current.id } } })));
-      } catch {
-        setCurrent({ ...current, status: done.status, opening_id: done.opening_id });
+      if (done.status === "committing") {
+        // Queued: the progress read follows it from here.
+        setCurrent(withCommitResult(current, done));
+      } else {
+        // Already applied (a replay): the full import once, for the per-row results.
+        try {
+          setCurrent(await unwrap(browserApi.GET("/admin/catalog-imports/{id}", { params: { path: { id: current.id } } })));
+        } catch {
+          setCurrent(withCommitResult(current, done));
+        }
       }
       router.refresh();
     } catch (cause) {
