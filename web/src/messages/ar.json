@@ -265,7 +265,12 @@
       "top": "تحصل على خصم {percent}٪",
       "current": "خصمك الحالي {percent}٪",
       "label": "التقدّم نحو الخصم التالي"
-    }
+    },
+    "deliveryTo": "التوصيل إلى",
+    "savedAddress": "العنوان",
+    "governorate": "المحافظة",
+    "chooseGovernorate": "اختر المحافظة لتعرف رسوم التوصيل والإجمالي.",
+    "governorateFee": "{name} — {fee}"
   },
   "checkout": {
     "title": "إتمام الطلب",
@@ -342,7 +347,6 @@
     },
     "governorateUnserved": "لا نوصل إلى {name} بعد. اختر محافظة أخرى.",
     "governorateNotServedYet": "لا نوصل إليها بعد",
-    "deliveryForGovernorate": "حسب {name}، تظهر في طلبك",
     "delivery": {
       "missingGovernorate": "اختر محافظة هذا العنوان لنحسب التوصيل.",
       "unserved": "لا نوصل إلى {name} بعد.",

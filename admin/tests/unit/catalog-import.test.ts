@@ -7,10 +7,17 @@ import {
   STOCK_COLUMNS,
   actionCounts,
   actionTone,
+  appliedPercent,
   applicableRows,
   canCommit,
+  canResume,
+  checkFailed,
+  commitCounts,
   commitOperationId,
+  commitOutcome,
+  commitTone,
   filterRows,
+  pollInterval,
   groupMatched,
   hasStockRows,
   isKnownIssue,
@@ -30,6 +37,8 @@ const row = (patch: Partial<ImportRow>): ImportRow => ({
   action: "create",
   apply_action: "create",
   issues: [],
+  commit_status: "pending",
+  commit_error: null,
   ...patch,
 });
 
@@ -63,11 +72,16 @@ const item = (patch: Partial<CatalogImport>): CatalogImport => ({
   update_count: 1,
   error_count: 1,
   warning_count: 1,
+  applied_count: 0,
+  commit_batches_done: 0,
+  commit_batches_total: 2,
+  commit_attempt: 0,
   preview: { rows, counts: { total: 5, create: 3, update: 1, error: 1, warning: 1 } },
   error_report_key: "available",
   operation_id: null,
   opening_id: null,
   created_by: "22222222-2222-4222-8222-222222222222",
+  created_by_name: "Import Owner",
   committed_by: null,
   created_at: "2026-10-14T08:00:00Z",
   updated_at: "2026-10-14T08:00:00Z",
@@ -131,6 +145,67 @@ describe("preview filters", () => {
   });
 });
 
+describe("applying (API 16.1: queued, in batches, resumable)", () => {
+  const applying = row({ row: 2, sku: "A-1", commit_status: "applied" });
+  const stopped = row({
+    row: 3,
+    sku: "B-1",
+    action: "update",
+    apply_action: "update",
+    commit_status: "failed",
+    commit_error: { code: "EXCHANGE_RATE_REQUIRED", message: "No USD rate" },
+  });
+  const waiting = row({ row: 4, sku: "C-1", commit_status: "pending" });
+  const committedRows = [applying, stopped, waiting, row({ row: 5, action: "error", apply_action: null, commit_status: "skipped" })];
+
+  it("tells a running, finished, partial and failed commit apart from a failed check", () => {
+    expect(commitOutcome({ status: "ready", operation_id: null, applied_count: 0 })).toBe("none");
+    expect(commitOutcome({ status: "committing", operation_id: "import-x", applied_count: 250 })).toBe("applying");
+    expect(commitOutcome({ status: "completed", operation_id: "import-x", applied_count: 3000 })).toBe("completed");
+    expect(commitOutcome({ status: "failed", operation_id: "import-x", applied_count: 500 })).toBe("partial");
+    expect(commitOutcome({ status: "failed", operation_id: "import-x", applied_count: 0 })).toBe("failed");
+    // A workbook that failed its check was never committed.
+    expect(commitOutcome({ status: "failed", operation_id: null, applied_count: 0 })).toBe("none");
+    expect(checkFailed({ status: "failed", operation_id: null })).toBe(true);
+    expect(checkFailed({ status: "failed", operation_id: "import-x" })).toBe(false);
+  });
+
+  it("resumes only a stopped commit", () => {
+    expect(canResume(item({ status: "failed", operation_id: "import-x", applied_count: 500 }))).toBe(true);
+    expect(canResume(item({ status: "failed", operation_id: null }))).toBe(false);
+    expect(canResume(item({ status: "failed", operation_id: "import-x", preview: null }))).toBe(false);
+    expect(canResume(item({ status: "committing", operation_id: "import-x" }))).toBe(false);
+  });
+
+  it("reports progress as a share of the rows the commit applies", () => {
+    expect(appliedPercent(item({ status: "committing", applied_count: 0 }))).toBe(0);
+    expect(appliedPercent(item({ status: "committing", applied_count: 3 }))).toBe(75);
+    expect(appliedPercent(item({ status: "completed", applied_count: 4 }))).toBe(100);
+    expect(appliedPercent(item({ preview: { rows: [], counts: { total: 0, create: 0, update: 0, error: 0, warning: 0 } } }))).toBe(0);
+  });
+
+  it("counts and filters rows by apply result", () => {
+    expect(commitCounts(committedRows)).toEqual({ applied: 1, failed: 1, pending: 1, skipped: 1 });
+    expect(filterRows(committedRows, new Set(), "", new Set(["failed"])).map((r) => r.sku)).toEqual(["B-1"]);
+    expect(filterRows(committedRows, new Set(["update"]), "", new Set(["applied"]))).toEqual([]);
+    expect(commitTone("applied")).toBe("success");
+    expect(commitTone("failed")).toBe("danger");
+    expect(commitTone("pending")).toBe("neutral");
+  });
+
+  it("reads a large import less often", () => {
+    expect(pollInterval({ row_count: 40 })).toBe(1500);
+    expect(pollInterval({ row_count: 3000 })).toBe(3000);
+  });
+
+  it("uses the import's own operation id to resume from any browser", () => {
+    const stored = new Map<string, string>();
+    const storage = { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => void stored.set(key, value) };
+    // (The view passes current.operation_id when the import has one; this is the first-commit id.)
+    expect(commitOperationId("fresh", storage, () => "u1")).toBe("import-u1");
+  });
+});
+
 describe("commit identity", () => {
   it("keeps one operation id per import across clicks and reloads", () => {
     const store = new Map<string, string>();
@@ -161,14 +236,15 @@ describe("commit identity", () => {
 describe("bulk images", () => {
   it("groups matched pictures by product", () => {
     const groups = groupMatched([
-      { file: "A.jpg", sku: "A", product_id: "p1", url: "https://x/1" },
-      { file: "B.jpg", sku: "B", product_id: "p2", url: "https://x/2" },
-      { file: "A-2.jpg", sku: "A", product_id: "p1", url: "https://x/3" },
+      { file: "A.jpg", sku: "A", product_id: "p1", product_name_ar: "أ", product_name_en: "Alpha", url: "https://x/1" },
+      { file: "B.jpg", sku: "B", product_id: "p2", product_name_ar: "ب", product_name_en: "Beta", url: "https://x/2" },
+      { file: "A-2.jpg", sku: "A", product_id: "p1", product_name_ar: "أ", product_name_en: "Alpha", url: "https://x/3" },
     ]);
     expect(groups.map((group) => [group.productId, group.files.map((file) => file.file)])).toEqual([
       ["p1", ["A.jpg", "A-2.jpg"]],
       ["p2", ["B.jpg"]],
     ]);
+    expect(groups[0]).toMatchObject({ productNameAr: "أ", productNameEn: "Alpha" });
   });
 
   it("recognises the files each screen takes", () => {

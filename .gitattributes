@@ -1,0 +1,4 @@
+# Shell scripts and container files run on Linux: keep LF everywhere.
+*.sh text eol=lf
+deploy/** text eol=lf
+deploy/caddy/Caddyfile text eol=lf

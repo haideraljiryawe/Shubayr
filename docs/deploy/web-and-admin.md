@@ -7,7 +7,9 @@ Next.js apps:
 - **Web Admin** (`admin/`): the staff tool. Browsers talk only to the admin's
   own server (a "BFF"), which calls the API.
 
-The API (`backend/`) is deployed separately.
+The API (`backend/`) is deployed separately. To run everything together on one
+server — API, worker, both apps, databases, HTTPS proxy and backups — use the
+production kit: [production.md](production.md).
 
 ## How settings are read
 

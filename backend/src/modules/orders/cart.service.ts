@@ -15,6 +15,7 @@ import {
   MergeCartDto,
   UpdateCartItemDto,
   ValidateCouponDto,
+  CartPricingQueryDto,
 } from './dto/cart.dto';
 import {
   activeCoupon,
@@ -23,6 +24,7 @@ import {
   skuPriceVersion,
   MAX_CART_ITEM_QUANTITY,
 } from './cart-pricing';
+import { DeliveryPricingService } from './delivery-pricing.service';
 
 const cartInclude = {
   coupon: true,
@@ -39,11 +41,16 @@ export class CartService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly products: ProductsService,
+    private readonly deliveryPricing: DeliveryPricingService,
   ) {}
 
-  async get(userId: string) {
+  async get(userId: string, query: CartPricingQueryDto = {}) {
     const { id } = await this.getOrCreate(userId);
-    return this.response(id);
+    const deliveryFee = await this.deliveryPricing.resolveDeliveryFee(
+      userId,
+      query,
+    );
+    return this.response(id, deliveryFee);
   }
 
   async add(userId: string, input: AddCartItemDto, rawKey?: string) {
@@ -265,16 +272,16 @@ export class CartService {
     });
   }
 
-  private async response(cartId: string) {
+  private async response(cartId: string, deliveryFee = 0) {
     const cart = await this.prisma.cart.findUnique({
       where: { id: cartId },
       include: cartInclude,
     });
     if (!cart) throw new NotFoundException('Cart not found');
-    return this.toResponse(cart);
+    return this.toResponse(cart, deliveryFee);
   }
 
-  private async toResponse(cart: CartRow) {
+  private async toResponse(cart: CartRow, deliveryFee: number) {
     const at = new Date();
     const [items, tiers, stackingSetting] = await Promise.all([
       Promise.all(
@@ -341,7 +348,7 @@ export class CartService {
         })),
         coupon,
         at,
-        0,
+        deliveryFee,
         tiers,
         stackingSetting?.value === 'true',
       ),

@@ -1,0 +1,87 @@
+# Production images for a release: push a git tag v* (or run it by hand) and
+# this publishes, to GitHub Container Registry,
+#   ghcr.io/<owner>/shubayr-api:<tag>          the API and the worker
+#   ghcr.io/<owner>/shubayr-api-migrate:<tag>  prisma migrate deploy
+#   ghcr.io/<owner>/shubayr-admin:<tag>        the Web Admin
+#   ghcr.io/<owner>/shubayr-web:<tag>          the store, built for vars.SHUBAYR_DOMAIN
+#   ghcr.io/<owner>/shubayr-backup:<tag>       the backup job
+# which deploy/scripts/deploy.sh <tag> pulls (docs/deploy/production.md).
+#
+# The store bakes its public URLs in at build time, so set the repository
+# variable SHUBAYR_DOMAIN (Settings → Secrets and variables → Actions →
+# Variables) first. No secret is used or baked into any image.
+name: Release images
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish (e.g. v1.0.0-rc1); the current commit is built"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  images:
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - image: shubayr-api
+            context: backend
+            file: backend/Dockerfile
+            target: production
+          - image: shubayr-api-migrate
+            context: backend
+            file: backend/Dockerfile
+            target: migrate
+          - image: shubayr-admin
+            context: .
+            file: admin/Dockerfile
+            target: production
+          - image: shubayr-web
+            context: web
+            file: web/Dockerfile
+            target: production
+          - image: shubayr-backup
+            context: deploy/backup
+            file: deploy/backup/Dockerfile
+            target: ""
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag and names
+        id: names
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          OWNER: ${{ github.repository_owner }}
+          DOMAIN: ${{ vars.SHUBAYR_DOMAIN }}
+        run: |
+          tag="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad tag: $tag"; exit 1; }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${OWNER,,}/${{ matrix.image }}:$tag" >> "$GITHUB_OUTPUT"
+          if [ "${{ matrix.image }}" = shubayr-web ]; then
+            [ -n "$DOMAIN" ] || { echo "Set the repository variable SHUBAYR_DOMAIN"; exit 1; }
+            echo "web_args=--build-arg NEXT_PUBLIC_API_URL=https://api.$DOMAIN/api/v1 --build-arg NEXT_PUBLIC_SITE_URL=https://$DOMAIN" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Log in to GHCR
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build
+        run: |
+          target=()
+          [ -n "${{ matrix.target }}" ] && target=(--target "${{ matrix.target }}")
+          docker build "${target[@]}" ${{ steps.names.outputs.web_args }} \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.version=${{ steps.names.outputs.tag }}" \
+            --file "${{ matrix.file }}" --tag "${{ steps.names.outputs.image }}" "${{ matrix.context }}"
+      - name: Push
+        run: docker push "${{ steps.names.outputs.image }}"

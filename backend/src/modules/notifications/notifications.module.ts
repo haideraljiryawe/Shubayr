@@ -14,6 +14,11 @@ import {
   PUSH_PROVIDER,
   SMS_PROVIDER,
 } from './notification-provider';
+import { NotificationsScheduler } from './notifications.scheduler';
+import { runsBackgroundJobs } from '../../config/process-role';
+
+export const notificationWorkerProviders = () =>
+  runsBackgroundJobs() ? [NotificationsProcessor, NotificationsScheduler] : [];
 
 @Global()
 @Module({
@@ -46,8 +51,8 @@ import {
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
-    NotificationsProcessor,
     NotificationStreamService,
+    ...notificationWorkerProviders(),
     {
       provide: PUSH_PROVIDER,
       inject: [ConfigService],

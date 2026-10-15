@@ -28,17 +28,19 @@
     "db:drop-verify": "node scripts/drop-verify-dbs.mjs",
     "catalog:depth-report": "node scripts/category-depth-report.mjs",
     "push:diagnose": "ts-node --transpile-only src/cli/push-diagnostic.ts",
-    "push:test": "ts-node --transpile-only src/cli/push-test.ts"
+    "push:test": "ts-node --transpile-only src/cli/push-test.ts",
+    "bootstrap:reference": "node dist/src/cli/bootstrap-reference.js",
+    "bootstrap:owner": "node dist/src/cli/create-owner.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1135.0",
     "@nestjs/bullmq": "^12.0.0",
-    "@nestjs/common": "^11.2.3",
+    "@nestjs/common": "^11.2.7",
     "@nestjs/config": "^12.0.0",
-    "@nestjs/core": "^11.2.3",
+    "@nestjs/core": "^11.2.7",
     "@nestjs/jwt": "^12.0.1",
     "@nestjs/passport": "^12.0.0",
-    "@nestjs/platform-express": "^11.2.3",
+    "@nestjs/platform-express": "^11.2.7",
     "@nestjs/swagger": "^11.4.7",
     "@nestjs/terminus": "^11.1.1",
     "@nestjs/throttler": "^6.5.0",
@@ -50,7 +52,7 @@
     "class-validator": "^0.15.1",
     "exceljs": "^4.4.0",
     "ioredis": "^5.11.1",
-    "joi": "^18.2.8",
+    "joi": "^18.2.9",
     "jszip": "^3.10.2",
     "meilisearch": "^0.60.0",
     "nestjs-pino": "^5.1.0",
@@ -67,7 +69,7 @@
     "@eslint/js": "^10.0.1",
     "@nestjs/cli": "^11.0.24",
     "@nestjs/schematics": "^11.1.0",
-    "@nestjs/testing": "^11.2.3",
+    "@nestjs/testing": "^11.2.7",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.4.1",
@@ -92,5 +94,13 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.69.0",
     "yaml": "^2.9.1"
+  },
+  "_securityOverrideComment": "Prisma 7.10.0 is the latest stable Prisma 7 release but pins advisory-affected deepmerge-ts and mysql2 versions; @nestjs/swagger 11.4.7 pins an affected js-yaml patch while the next parent release is a major. Keep these tested overrides until patched compatible parents ship; do not use npm audit's proposed Prisma downgrade or Swagger major upgrade.",
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "mysql2": "3.24.5",
+    "@nestjs/swagger": {
+      "js-yaml": "5.4.3"
+    }
   }
 }

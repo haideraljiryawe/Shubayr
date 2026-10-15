@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -14,6 +15,10 @@ import type { Request } from 'express';
 import { AdminPolicy } from '../../common/decorators/access-policy.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
+import {
+  RateLimitRisk,
+  RateLimitTier,
+} from '../../common/rate-limit/rate-limit-tier';
 import { DeliveryPricingService } from './delivery-pricing.service';
 import {
   DeliveryZoneCreateDto,
@@ -30,9 +35,24 @@ export class GovernoratesController {
   constructor(private readonly pricing: DeliveryPricingService) {}
 
   @Public()
+  @RateLimitTier(RateLimitRisk.Catalog)
+  @Header('Cache-Control', 'public, max-age=30, must-revalidate')
   @Get()
   list() {
     return this.pricing.listPublicGovernorates();
+  }
+}
+
+@Controller('discount-tiers')
+export class PublicDiscountTiersController {
+  constructor(private readonly pricing: DeliveryPricingService) {}
+
+  @Public()
+  @RateLimitTier(RateLimitRisk.Catalog)
+  @Header('Cache-Control', 'public, max-age=30, must-revalidate')
+  @Get()
+  list() {
+    return this.pricing.listPublicTiers();
   }
 }
 

@@ -38,7 +38,6 @@ import {
   listFilters,
   primaryImage,
   productQuery,
-  shownDir,
 } from "@/lib/product-list";
 
 /* ------------------------------------------------------------ modules */
@@ -312,10 +311,8 @@ describe("product list filters and bulk actions", () => {
     expect(apiSort("price", "desc")).toBe("price_desc");
     expect(apiSort("name", "asc")).toBe("name_asc");
     expect(apiSort("name", "desc")).toBe("name_desc");
-    // The API sorts SKUs A→Z only; the header shows it that way.
-    expect(apiSort("sku", "desc")).toBe("sku_asc");
-    expect(shownDir("sku", "desc")).toBe("asc");
-    expect(shownDir("name", "desc")).toBe("desc");
+    expect(apiSort("sku", "asc")).toBe("sku_asc");
+    expect(apiSort("sku", "desc")).toBe("sku_desc");
     expect(apiSort("newest", "asc")).toBe("newest");
   });
 

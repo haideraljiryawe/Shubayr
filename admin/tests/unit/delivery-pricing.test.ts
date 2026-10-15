@@ -6,7 +6,8 @@ import {
   tierWarnings,
   totalWithFee,
   unservedGovernorates,
-  zoneConflicts,
+  conflictsFromErrors,
+  localName,
   type AdminGovernorate,
   type DiscountTier,
 } from "@/lib/delivery-pricing";
@@ -46,10 +47,30 @@ describe("delivery zones", () => {
     ]);
   });
 
-  it("flags chosen governorates another zone holds — not the zone's own", () => {
-    expect(zoneConflicts(["g-BGD", "g-HAL"], all, null).map(({ governorate, zone }) => [governorate.code, zone.id])).toEqual([["BGD", "a"]]);
-    expect(zoneConflicts(["g-BGD", "g-HAL"], all, "a")).toEqual([]);
-    expect(zoneConflicts(["g-BSR"], all, "a").map(({ zone }) => zone.id)).toEqual(["b"]);
+  it("lists the conflicts the API names (API 16.2), each with the zone holding it", () => {
+    const conflicts = conflictsFromErrors([
+      {
+        field: "governorate_ids",
+        code: "GOVERNORATE_ALREADY_IN_DELIVERY_ZONE",
+        message: "Baghdad is already in Central",
+        governorate_id: "g-BGD",
+        governorate_code: "BGD",
+        governorate_name_ar: "بغداد",
+        governorate_name_en: "Baghdad",
+        delivery_zone_id: "a",
+        delivery_zone_name_ar: "الوسط",
+        delivery_zone_name_en: "Central",
+      },
+      // A missing English name falls back to the Arabic one.
+      { field: "governorate_ids", code: "GOVERNORATE_ALREADY_IN_DELIVERY_ZONE", message: "…", governorate_id: "g-BSR", governorate_name_ar: "البصرة", delivery_zone_id: "b", delivery_zone_name_ar: "الجنوب" },
+      // An entry that names no governorate is not a conflict.
+      { field: "name_ar", code: "required", message: "required" },
+    ]);
+    expect(conflicts).toEqual([
+      { governorateId: "g-BGD", governorate: { name_ar: "بغداد", name_en: "Baghdad" }, zone: { id: "a", name_ar: "الوسط", name_en: "Central" } },
+      { governorateId: "g-BSR", governorate: { name_ar: "البصرة", name_en: "البصرة" }, zone: { id: "b", name_ar: "الجنوب", name_en: "الجنوب" } },
+    ]);
+    expect(localName(conflicts[1].zone, "en")).toBe("الجنوب");
   });
 });
 

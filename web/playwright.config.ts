@@ -34,6 +34,7 @@ export default defineConfig({
           "**/product.spec.ts",
           "**/cart.spec.ts",
           "**/checkout.spec.ts",
+          "**/delivery-pricing.spec.ts",
           "**/account.spec.ts",
           "**/account-wishlist.spec.ts",
           "**/account-returns.spec.ts",

@@ -78,6 +78,7 @@ export class ProductQueryDto {
     'name_asc',
     'name_desc',
     'sku_asc',
+    'sku_desc',
   ])
   sort?:
     | 'newest'
@@ -86,7 +87,8 @@ export class ProductQueryDto {
     | 'rating'
     | 'name_asc'
     | 'name_desc'
-    | 'sku_asc';
+    | 'sku_asc'
+    | 'sku_desc';
 
   @IsOptional()
   @Type(() => Number)

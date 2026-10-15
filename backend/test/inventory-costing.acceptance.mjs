@@ -173,7 +173,7 @@ try {
   );
 
   const categoryId = await scalar(
-    'SELECT id::text AS value FROM categories WHERE parent_id IS NOT NULL ORDER BY id LIMIT 1',
+    'SELECT id::text AS value FROM categories WHERE parent_id IS NOT NULL AND is_visible=true ORDER BY id LIMIT 1',
   );
   const productId = randomUUID();
   const fifoVariant = randomUUID();

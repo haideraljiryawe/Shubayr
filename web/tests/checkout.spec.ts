@@ -99,13 +99,13 @@ test("review shows the order, then placing it confirms and clears the cart", asy
   await page.getByTestId("address-submit").click();
 
   // Review carries the items, the address (with its governorate, which sets
-  // the delivery fee) and the same totals as the cart.
+  // the delivery fee: Wasit's $5) and the full total.
   await expect(page.getByText("سماعات لاسلكية")).toBeVisible();
   await expect(page.getByText("واسط — حي الزهراء — شارع 14")).toBeVisible();
   await expect(page.getByTestId("review-governorate")).toBeVisible();
-  await expect(page.getByTestId("summary-delivery")).toContainText("حسب");
+  await expect(page.getByTestId("summary-delivery")).toHaveText("$5");
   await expect(page.getByText("الدفع عند الاستلام").first()).toBeVisible();
-  await expect(page.getByTestId("summary-total")).toHaveText("$89");
+  await expect(page.getByTestId("summary-total")).toHaveText("$94");
 
   await page.getByTestId("place-order").click();
   await expect(page.getByTestId("auth-phone")).toBeVisible();
@@ -122,8 +122,8 @@ test("review shows the order, then placing it confirms and clears the cart", asy
   ).toBeVisible();
   await expect(page.getByTestId("order-number")).toHaveText(/^SB-\d+$/);
   await expect(confirmation.getByText("الدفع عند الاستلام")).toBeVisible();
-  // The confirmation shows the order's own figures (here the mock's, no fee).
-  await expect(page.getByTestId("summary-total")).toHaveText("$89");
+  // The confirmation shows the order's own figures.
+  await expect(page.getByTestId("summary-total")).toHaveText("$94");
 
   // The order emptied the cart.
   await expect(page.getByTestId("cart-badge")).toHaveCount(0);
@@ -150,9 +150,10 @@ test("a coupon applied in the cart carries into the order", async ({
   await fillAddress(page);
   await page.getByTestId("address-submit").click();
 
-  // $89 − $5 fixed coupon; delivery is added by governorate.
+  // $89 − $5 fixed coupon + $5 delivery to Wasit.
   await expect(page.getByTestId("summary-discount")).toHaveText("−$5");
-  await expect(page.getByTestId("summary-total")).toHaveText("$84");
+  await expect(page.getByTestId("summary-delivery")).toHaveText("$5");
+  await expect(page.getByTestId("summary-total")).toHaveText("$89");
 
   await page.getByTestId("place-order").click();
   await signIn(page);
@@ -160,7 +161,7 @@ test("a coupon applied in the cart carries into the order", async ({
 
   await expect(page.getByTestId("order-confirmation")).toBeVisible();
   await expect(page.getByTestId("summary-discount")).toHaveText("−$5");
-  await expect(page.getByTestId("summary-total")).toHaveText("$84");
+  await expect(page.getByTestId("summary-total")).toHaveText("$89");
 });
 
 for (const [name, width, height] of [

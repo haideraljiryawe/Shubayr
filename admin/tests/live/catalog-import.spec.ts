@@ -65,9 +65,15 @@ async function apiPreview(request: APIRequestContext, file: Buffer, createMissin
 }
 
 async function apiImport(request: APIRequestContext, file: Buffer, createMissing = false): Promise<Import> {
-  const item = await apiPreview(request, file, createMissing);
+  let item = await apiPreview(request, file, createMissing);
   const commit = await api(request, "POST", `/admin/catalog-imports/${item.id}/commit`, { operation_id: `seed-${item.id}` });
   expect(commit.status, JSON.stringify(commit.body)).toBe(201);
+  for (let tries = 0; item.status === "ready" || item.status === "committing"; tries += 1) {
+    expect(tries, `import ${item.id} did not finish`).toBeLessThan(240);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    item = (await api(request, "GET", `/admin/catalog-imports/${item.id}`)).body as Import;
+  }
+  expect(item.status).toBe("completed");
   return item;
 }
 
@@ -132,8 +138,11 @@ test("preview writes nothing; a double-clicked commit is one import; the product
     line(`${RUN}-C1`, { status: "" }),
   ]);
 
+  const fileName = `منتجات-تجربة-${RUN}.xlsx`;
   await uiLoginAsAdmin(page);
-  await uploadWorkbook(page, file);
+  await uploadWorkbook(page, file, { name: fileName });
+  // An Arabic file name reads correctly (API 16.1 decodes it as UTF-8).
+  await expect(page.getByTestId("import-current")).toContainText(fileName);
 
   await expect(page.getByTestId("import-filter-create")).toHaveAttribute("data-count", "3");
   await expect(page.getByTestId("import-filter-warning")).toHaveAttribute("data-count", "1");
@@ -186,8 +195,82 @@ test("preview writes nothing; a double-clicked commit is one import; the product
   await expect(page.getByTestId("import-result")).toBeVisible();
   const row = page.locator(`[data-testid="import-history-row"][data-id="${id}"]`);
   await expect(row).toHaveAttribute("data-status", "completed");
+  await expect(row).toContainText(fileName);
   await expect(row.getByTestId("import-history-who")).toHaveText("أنت");
   await expect(row.getByTestId("import-history-counts")).toContainText("4 جديد");
+  await expect(row.getByTestId("import-history-counts")).toContainText("4 مطبّق");
+  // Every row says it was applied.
+  await expect(page.getByTestId("import-applied-applied")).toHaveAttribute("data-count", "4");
+});
+
+test("a batch that fails stops the import part-way; resuming finishes it without repeating rows", async ({ page, request }) => {
+  test.setTimeout(300_000);
+  // 300 rows = two batches (250 + 50). Row 262 (the 261st product) carries a barcode that,
+  // after the check, another product takes: its batch fails at apply time.
+  const barcode = `FAIL${RUN}`.slice(0, 30);
+  const rows = Array.from({ length: 300 }, (_, index) =>
+    line(`${RUN}-P-${String(index).padStart(3, "0")}`, {
+      nameAr: `دفعة ${RUN} ${index}`,
+      nameEn: `Batch ${RUN} ${index}`,
+      barcode: index === 260 ? barcode : undefined,
+    }),
+  );
+  await uiLoginAsAdmin(page);
+  await uploadWorkbook(page, catalogWorkbook(rows), { name: "دفعات.xlsx" });
+  await expect(page.getByTestId("import-filter-create")).toHaveAttribute("data-count", "300");
+
+  // Another product takes the barcode now.
+  const tree = (await api(request, "GET", "/admin/categories")).body as Array<{ name_en: string; children: Array<{ id: string }> }>;
+  const categoryId = tree.find((node) => node.name_en === DEPARTMENT)!.children[0].id;
+  const blocker = await api(request, "POST", "/admin/products", {
+    category_id: categoryId,
+    name_ar: `حاجز ${RUN}`,
+    name_en: `Blocker ${RUN}`,
+    price: 1000,
+    discount_type: null,
+    tracks_expiry: false,
+    status: "hidden",
+    published: false,
+    variants: [{ sku: `${RUN}-BLOCKER`, barcode, base_unit: "piece", whole_units_only: true, pricing_mode: "fixed" }],
+  });
+  expect(blocker.status, JSON.stringify(blocker.body)).toBe(201);
+
+  await hydrated(page, "import-commit");
+  await page.getByTestId("import-commit").click();
+  const stopped = page.getByTestId("import-stopped");
+  await expect(stopped).toBeVisible({ timeout: 120_000 });
+  await expect(stopped).toHaveAttribute("data-outcome", "partial");
+  await expect(page.getByTestId("import-status")).toHaveAttribute("data-outcome", "partial");
+  await expect(page.getByTestId("import-stopped-counts")).toContainText("250");
+  await expect(page.getByTestId("import-failed-row")).toHaveCount(1);
+  await expect(page.getByTestId("import-failed-row")).toHaveAttribute("data-sku", `${RUN}-P-260`);
+  await expect(page.getByTestId("import-applied-applied")).toHaveAttribute("data-count", "250");
+  await expect(page.getByTestId("import-applied-failed")).toHaveAttribute("data-count", "1");
+  // The first batch stays applied; nothing of the failed batch was kept.
+  expect((await products(request, `q=${RUN}-P-&per_page=1`)).total).toBe(250);
+  const id = await page.getByTestId("import-current").getAttribute("data-id");
+  await page.goto("/catalog/import");
+  await expect(page.locator(`[data-testid="import-history-row"][data-id="${id}"]`).getByTestId("import-history-status")).toHaveAttribute(
+    "data-outcome",
+    "partial",
+  );
+
+  // Fix the cause (the other product gives the barcode up), then resume.
+  const variant = (blocker.body as Product & { variants: Array<{ id: string; sku: string }> }).variants[0];
+  const freed = await request.fetch(`${API}/admin/products/${(blocker.body as Product).id}`, {
+    method: "PATCH",
+    headers: bearer(await adminApiToken(request)),
+    data: { variants: [{ id: variant.id, sku: variant.sku, barcode: null }] },
+  });
+  expect(freed.status(), await freed.text()).toBe(200);
+  await page.goto(`/catalog/import?id=${id}`);
+  await hydrated(page, "import-resume");
+  await page.getByTestId("import-resume").click();
+  await expect(page.getByTestId("import-result")).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByTestId("import-applied-applied")).toHaveAttribute("data-count", "300");
+  // Resumed from its checkpoints: every row once.
+  expect((await products(request, `q=${RUN}-P-&per_page=1`)).total).toBe(300);
+  expect((await productBySku(request, `${RUN}-P-260`))?.variants[0].sku).toBe(`${RUN}-P-260`);
 });
 
 test("a file with errors writes nothing, shows each cell, and its report downloads", async ({ page, request }) => {
@@ -350,34 +433,81 @@ test("a picture ZIP attaches matched files by SKU and lists the unmatched", asyn
 /* ------------------------------------------------------------ at scale */
 
 const SCALE = 3000;
-const CHUNK = 250;
 
-test("thousands of products: background preview, server-side filters, SKU search, sort and a 500-product bulk change", async ({ page, request }) => {
+test("a 3,000-row import applies in batches with live progress; then filters, SKU search, sort and a 500-product bulk change", async ({ page, request }) => {
   test.setTimeout(900_000);
   const prefix = `${RUN}-Z`;
   const sku = (index: number) => `${prefix}-${String(index).padStart(4, "0")}`;
+  const lines = Array.from({ length: SCALE }, (_, index) =>
+    line(sku(index), {
+      nameAr: `صنف ${prefix} ${String(index).padStart(4, "0")}`,
+      nameEn: `Item ${prefix} ${String(index).padStart(4, "0")}`,
+      status: index % 3 === 0 ? "active" : "hidden",
+      lowStock: 5,
+    }),
+  );
+  // Opening stock too: 10 in stock, 10 low.
+  const stock = [
+    ...Array.from({ length: 10 }, (_, i) => ({ sku: sku(i + 1), location: LOCATION, quantity: 50, cost: 1000 })),
+    ...Array.from({ length: 10 }, (_, i) => ({ sku: sku(i + 101), location: LOCATION, quantity: 2, cost: 1000 })),
+  ];
 
-  // Seed in chunks the API commits within its transaction limit (see the PR's backend gaps).
-  for (let start = 0; start < SCALE; start += CHUNK) {
-    const lines = Array.from({ length: CHUNK }, (_, offset) => {
-      const index = start + offset;
-      return line(sku(index), {
-        nameAr: `صنف ${prefix} ${String(index).padStart(4, "0")}`,
-        nameEn: `Item ${prefix} ${String(index).padStart(4, "0")}`,
-        status: index % 3 === 0 ? "active" : "hidden",
-        lowStock: 5,
-      });
-    });
-    // The first chunk brings stock: 10 in stock, 10 low.
-    const stock =
-      start === 0
-        ? [
-            ...Array.from({ length: 10 }, (_, i) => ({ sku: sku(i + 1), location: LOCATION, quantity: 50, cost: 1000 })),
-            ...Array.from({ length: 10 }, (_, i) => ({ sku: sku(i + 101), location: LOCATION, quantity: 2, cost: 1000 })),
-          ]
-        : undefined;
-    await apiImport(request, catalogWorkbook(lines, stock));
-  }
+  await uiLoginAsAdmin(page);
+  await page.goto("/catalog/import");
+  await hydrated(page, "import-file");
+  await page.getByTestId("import-file").setInputFiles({ name: "كتالوج-كبير.xlsx", mimeType: XLSX, buffer: catalogWorkbook(lines, stock) });
+  // Checked in the background (over 500 rows), and nothing is written.
+  const [previewResponse] = await Promise.all([
+    page.waitForResponse((candidate) => candidate.url().includes("/api/catalog-imports/preview")),
+    page.getByTestId("import-check").click(),
+  ]);
+  expect(((await previewResponse.json()) as Import).status).toBe("queued");
+  await expect(page.getByTestId("import-current")).toHaveAttribute("data-status", "ready", { timeout: 180_000 });
+  await expect(page.getByTestId("import-filter-create")).toHaveAttribute("data-count", String(SCALE + stock.length));
+  await expect(page.getByTestId("import-row")).toHaveCount(50);
+  expect((await products(request, `q=${prefix}&per_page=1`)).total).toBe(0);
+
+  // Applied by the worker in batches of 250, then the Stock rows as one batch, with live progress.
+  await hydrated(page, "import-commit");
+  await page.getByTestId("import-commit").click();
+  const progress = page.getByTestId("import-commit-progress");
+  await expect(page.getByTestId("import-applying")).toBeVisible({ timeout: 60_000 });
+  await expect(progress).toHaveAttribute("data-batches-total", String(SCALE / 250 + 1));
+  await expect(page.getByTestId("import-apply-progress")).toBeVisible();
+  const seen = new Set<string>();
+  await expect
+    .poll(
+      async () => {
+        const applied = await progress.getAttribute("data-applied").catch(() => null);
+        if (applied) seen.add(applied);
+        return page.getByTestId("import-current").getAttribute("data-status");
+      },
+      { timeout: 600_000, intervals: [1000] },
+    )
+    .toBe("completed");
+  console.log(`rows applied as seen while it ran: ${[...seen].join(", ")}`);
+  await expect(page.getByTestId("import-result")).toBeVisible();
+  await expect(page.getByTestId("import-result-created")).toContainText(String(SCALE + stock.length));
+  await expect(page.getByTestId("import-result-opening")).toBeVisible();
+  await expect(page.getByTestId("import-applied-applied")).toHaveAttribute("data-count", String(SCALE + stock.length));
+  await expect(page.getByTestId("import-applied-failed")).toHaveAttribute("data-count", "0");
+  const id = await page.getByTestId("import-current").getAttribute("data-id");
+  const finished = (await api(request, "GET", `/admin/catalog-imports/${id}`)).body as Import & {
+    applied_count: number;
+    commit_batches_done: number;
+    commit_batches_total: number;
+  };
+  expect([finished.applied_count, finished.commit_batches_done, finished.commit_batches_total]).toEqual([
+    SCALE + stock.length,
+    SCALE / 250 + 1,
+    SCALE / 250 + 1,
+  ]);
+  // The Arabic file name reads correctly in the history too.
+  await page.goto("/catalog/import");
+  const historyRow = page.locator(`[data-testid="import-history-row"][data-id="${id}"]`);
+  await expect(historyRow).toContainText("كتالوج-كبير.xlsx");
+  await expect(historyRow.getByTestId("import-history-status")).toHaveAttribute("data-outcome", "completed");
+
   // Two of them get pictures.
   const pictures = await request.post(`${API}/admin/catalog-images/bulk?operation_id=scale-${RUN}`, {
     headers: bearer(await adminApiToken(request)),
@@ -389,24 +519,6 @@ test("thousands of products: background preview, server-side filters, SKU search
 
   const all = await products(request, `q=${prefix}&per_page=1`);
   expect(all.total).toBe(SCALE);
-
-  await uiLoginAsAdmin(page);
-
-  // A large file is checked in the background, with progress, and writes nothing.
-  const big = catalogWorkbook(Array.from({ length: 600 }, (_, index) => line(`${RUN}-Q-${index}`)));
-  await page.goto("/catalog/import");
-  await hydrated(page, "import-file");
-  await page.getByTestId("import-file").setInputFiles({ name: "big.xlsx", mimeType: XLSX, buffer: big });
-  const [previewResponse] = await Promise.all([
-    page.waitForResponse((candidate) => candidate.url().includes("/api/catalog-imports/preview")),
-    page.getByTestId("import-check").click(),
-  ]);
-  expect(((await previewResponse.json()) as Import).status).toBe("queued");
-  await expect(page.getByTestId("import-current")).toHaveAttribute("data-status", "ready", { timeout: 120_000 });
-  await expect(page.getByTestId("import-filter-create")).toHaveAttribute("data-count", "600");
-  await expect(page.getByTestId("import-row")).toHaveCount(50);
-  await expect(page.getByTestId("import-next-page")).toBeEnabled();
-  expect((await products(request, `q=${RUN}-Q&per_page=1`)).total).toBe(0);
 
   const range = page.getByTestId("table-range");
   const listed = async () => Number(((await range.textContent()) ?? "").replace(/[^\d\s]/g, " ").trim().split(/\s+/).pop());
@@ -434,6 +546,12 @@ test("thousands of products: background preview, server-side filters, SKU search
   await page.getByTestId("sort-sku").click();
   await expect(page).toHaveURL(/sort=sku/);
   await expect(page.getByTestId("product-link").first()).toHaveText(`صنف ${prefix} 0001`);
+  // …and Z→A (API 16.1).
+  await page.getByTestId("sort-sku").click();
+  await expect(page).toHaveURL(/dir=desc/);
+  await expect(page.getByTestId("product-link").first()).toHaveText(`صنف ${prefix} 2999`);
+  await page.getByTestId("sort-sku").click();
+  await expect(page).toHaveURL(/dir=asc/);
 
   // A bulk move of every matching product the API takes at once (500 of 2,000).
   const tree = (await api(request, "GET", "/admin/categories")).body as Array<{ name_en: string; children: Array<{ id: string }> }>;

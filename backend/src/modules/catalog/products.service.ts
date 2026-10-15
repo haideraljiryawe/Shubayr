@@ -895,7 +895,9 @@ export class ProductsService {
                 ? Prisma.sql`p.name_en DESC, p.id DESC`
                 : sort === 'sku_asc'
                   ? Prisma.sql`(SELECT MIN(v.sku) FROM product_variants v WHERE v.product_id = p.id) ASC NULLS LAST, p.id ASC`
-                  : Prisma.sql`p.created_at DESC, p.id DESC`;
+                  : sort === 'sku_desc'
+                    ? Prisma.sql`(SELECT MIN(v.sku) FROM product_variants v WHERE v.product_id = p.id) DESC NULLS LAST, p.id DESC`
+                    : Prisma.sql`p.created_at DESC, p.id DESC`;
     const [countRows, idRows] = await this.prisma.$transaction([
       this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
         ${stockCte}
@@ -1016,6 +1018,12 @@ export class ProductsService {
           (left.variants[0]?.sku ?? '').localeCompare(
             right.variants[0]?.sku ?? '',
           ) || left.id.localeCompare(right.id)
+        );
+      if (sort === 'sku_desc')
+        return (
+          (right.variants[0]?.sku ?? '').localeCompare(
+            left.variants[0]?.sku ?? '',
+          ) || right.id.localeCompare(left.id)
         );
       return right.created_at.getTime() - left.created_at.getTime();
     });

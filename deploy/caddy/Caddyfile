@@ -1,0 +1,75 @@
+# Shubayr production reverse proxy (docker-compose.prod.yml).
+#
+#   https://{$SHUBAYR_DOMAIN}         the web store
+#   https://admin.{$SHUBAYR_DOMAIN}   the Web Admin (noindex)
+#   https://api.{$SHUBAYR_DOMAIN}     the API
+#
+# Caddy gets and renews Let's Encrypt certificates itself (ports 80 and 443
+# must reach this server, and the three DNS names must point at it), and
+# redirects every http:// request to https://. For a local test stack set
+# CADDY_TLS="tls internal" to use Caddy's own certificate authority instead.
+#
+# The proxy chain (docs/deploy/production.md): Caddy believes X-Forwarded-For
+# only from the private edge network (EDGE_SUBNET) — the store's server calling
+# the API goes through here — and replaces it for everyone else, so a browser
+# cannot choose the address the API rate-limits and audits.
+
+{
+	email {$ACME_EMAIL}
+	servers {
+		trusted_proxies static {$EDGE_SUBNET}
+		client_ip_headers X-Forwarded-For
+	}
+}
+
+(common) {
+	{$CADDY_TLS}
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+		-X-Powered-By
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+{$SHUBAYR_DOMAIN} {
+	import common
+	reverse_proxy web:3000 {
+		health_uri /api/health
+		health_interval 30s
+	}
+}
+
+admin.{$SHUBAYR_DOMAIN} {
+	import common
+	# Staff tool: never indexed, never framed.
+	header {
+		?X-Robots-Tag "noindex, nofollow, noarchive"
+		X-Frame-Options "DENY"
+	}
+	reverse_proxy admin:3200 {
+		health_uri /api/health
+		health_interval 30s
+	}
+}
+
+api.{$SHUBAYR_DOMAIN} {
+	import common
+	header X-Robots-Tag "noindex, nofollow"
+	# Excel imports and picture ZIPs are the largest uploads.
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy api:8000 {
+		health_uri /api/v1/health
+		health_interval 30s
+		# The notification stream (server-sent events) stays open.
+		flush_interval -1
+	}
+}

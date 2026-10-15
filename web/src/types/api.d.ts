@@ -537,7 +537,7 @@ export interface paths {
         };
         /**
          * List active Iraqi governorates
-         * @description Includes the 18 governorates and Halabja. is_served is true only when the governorate is attached to an active delivery zone.
+         * @description Includes the 18 governorates and Halabja. is_served is true only when the governorate is attached to an active delivery zone; delivery_fee is that zone's current IQD fee, or null when unserved. Catalog-tier rate limits apply and responses are cacheable for 30 seconds.
          */
         get: {
             parameters: {
@@ -551,10 +551,51 @@ export interface paths {
                 /** @description Active governorates */
                 200: {
                     headers: {
+                        "Cache-Control"?: string;
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": components["schemas"]["Governorate"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/discount-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active automatic discount tiers for storefront progress displays
+         * @description Public, catalog-tier read of active IQD thresholds and percentages plus the current coupon-stacking setting. Checkout remains authoritative. Responses are cacheable for 30 seconds and server cache entries are invalidated after owner edits.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Active public discount-tier settings */
+                200: {
+                    headers: {
+                        "Cache-Control"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicDiscountTierSettings"];
                     };
                 };
             };
@@ -679,7 +720,10 @@ export interface paths {
             };
         };
         put?: never;
-        /** Create a delivery zone */
+        /**
+         * Create a delivery zone
+         * @description A 409 names every clashing governorate and the existing zone in errors[].
+         */
         post: {
             parameters: {
                 query?: never;
@@ -748,7 +792,10 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        /** Update a delivery zone and its governorates */
+        /**
+         * Update a delivery zone and its governorates
+         * @description A 409 names every clashing governorate and the existing zone in errors[].
+         */
         patch: {
             parameters: {
                 query?: never;
@@ -1398,11 +1445,16 @@ export interface paths {
         };
         /**
          * Get the authenticated caller's repriced cart
-         * @description Guest carts remain client-side. After login, clients atomically attach them through POST /cart/merge. Every response reprices from current server-time effective_price. Subtotal is the sum of effective-price line totals; discount is the coupon amount only, and delivery_fee is zero until a delivery-fee policy is configured at checkout.
+         * @description Guest carts remain client-side. After login, clients atomically attach them through POST /cart/merge. Every response reprices from current server-time effective_price. Supply governorate_id or an owned address_id to include the current zone delivery fee and full total. Without either selector, delivery_fee remains zero for backward compatibility. The checkout calculation remains authoritative and snapshots its own fee.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Price delivery for this active, served governorate. Mutually exclusive with address_id. */
+                    governorate_id?: string;
+                    /** @description Price delivery for this authenticated customer's saved address. Mutually exclusive with governorate_id. */
+                    address_id?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -1419,6 +1471,9 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
             };
         };
         put?: never;
@@ -6955,7 +7010,7 @@ export interface paths {
         };
         /**
          * Get preview rows and progress for one import
-         * @description Stock unit cost is omitted unless the caller has cost.view.
+         * @description Stock unit cost is omitted unless the caller has cost.view. While a commit is running, poll this resource for rows applied plus completed/total commit batches.
          */
         get: {
             parameters: {
@@ -6990,6 +7045,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/catalog-imports/{id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get lightweight progress for one catalog import
+         * @description Poll-friendly commit progress without preview rows or other workbook data.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Lightweight import progress */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImportProgress"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/catalog-imports/{id}/error-report": {
         parameters: {
             query?: never;
@@ -7009,7 +7108,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description UTF-8 CSV report */
+                /** @description UTF-8 CSV report with a BOM for correct Arabic display in Excel */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -7041,8 +7140,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Atomically commit all valid preview rows
-         * @description The operation id makes double submission return the original result. Valid Stock rows create exactly one posted inventory-opening document in the same transaction.
+         * Queue a resumable commit of all valid preview rows
+         * @description Product rows are committed by the background worker in batches of at most 250 and progress is exposed on the detail resource. The operation id and durable per-row checkpoints make double submission and worker restart safe. A failed batch leaves earlier batches applied and reports the failed row. Valid Stock rows create exactly one posted inventory-opening document only after all product rows succeed.
          */
         post: {
             parameters: {
@@ -7061,7 +7160,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Committed import result */
+                /** @description Queued/in-progress result, or the completed result on an idempotent replay */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -7074,6 +7173,7 @@ export interface paths {
                 404: components["responses"]["NotFound"];
                 409: components["responses"]["PostingConflict"];
                 422: components["responses"]["Validation"];
+                503: components["responses"]["ServiceUnavailable"];
             };
         };
         delete?: never;
@@ -7158,7 +7258,7 @@ export interface paths {
                     status?: ("active" | "hidden" | "archived")[];
                     availability?: ("in_stock" | "low_stock" | "out_of_stock")[];
                     has_image?: boolean;
-                    sort?: "newest" | "price_asc" | "price_desc" | "rating" | "name_asc" | "name_desc" | "sku_asc";
+                    sort?: "newest" | "price_asc" | "price_desc" | "rating" | "name_asc" | "name_desc" | "sku_asc" | "sku_desc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -11300,6 +11400,22 @@ export interface components {
             threshold_percent?: number;
             cost?: number;
             minimum_price?: number;
+            /**
+             * Format: uuid
+             * @description Governorate involved in a delivery-zone assignment conflict.
+             */
+            governorate_id?: string;
+            /** @description Stable governorate code involved in a delivery-zone assignment conflict. */
+            governorate_code?: string;
+            governorate_name_ar?: string;
+            governorate_name_en?: string;
+            /**
+             * Format: uuid
+             * @description Existing delivery zone holding the governorate.
+             */
+            delivery_zone_id?: string;
+            delivery_zone_name_ar?: string;
+            delivery_zone_name_en?: string;
         };
         /** @description Decimal money amount displayed at the associated currency precision (IQD 0, USD 2). */
         Money: number;
@@ -11377,6 +11493,10 @@ export interface components {
         };
         Governorate: components["schemas"]["GovernorateRecord"] & {
             is_served: boolean;
+            /** @description Current active-zone fee in IQD, or null when unserved. */
+            delivery_fee: components["schemas"]["Money"] | null;
+            /** @enum {string} */
+            currency: "IQD";
         };
         AdminGovernorate: components["schemas"]["GovernorateRecord"] & {
             delivery_zone: components["schemas"]["DeliveryZoneSummary"] | null;
@@ -11437,6 +11557,16 @@ export interface components {
             min_subtotal_iqd?: number;
             percent?: number;
             is_active?: boolean;
+        };
+        PublicDiscountTier: {
+            min_subtotal: components["schemas"]["Money"];
+            percent: number;
+        };
+        PublicDiscountTierSettings: {
+            /** @enum {string} */
+            currency: "IQD";
+            coupon_stacking_enabled: boolean;
+            tiers: components["schemas"]["PublicDiscountTier"][];
         };
         AppliedDiscountTier: {
             /**
@@ -11898,6 +12028,12 @@ export interface components {
             /** @enum {string|null} */
             apply_action: "create" | "update" | null;
             issues: components["schemas"]["CatalogImportIssue"][];
+            /** @enum {string} */
+            commit_status: "pending" | "applied" | "failed" | "skipped";
+            commit_error: null | {
+                code: string;
+                message: string;
+            };
             product?: components["schemas"]["CatalogImportProductRow"];
             stock?: components["schemas"]["CatalogImportStockRow"];
         };
@@ -11924,6 +12060,12 @@ export interface components {
             update_count: number;
             error_count: number;
             warning_count: number;
+            applied_count: number;
+            /** @description Fully committed product batches plus the final Stock batch when applicable. */
+            commit_batches_done: number;
+            /** @description Product batches of at most 250 rows plus one final Stock batch when applicable. */
+            commit_batches_total: number;
+            commit_attempt: number;
             preview: components["schemas"]["CatalogImportPreview"] | null;
             /** @description Internal report availability marker; download through the error-report route. */
             error_report_key: string | null;
@@ -11932,6 +12074,7 @@ export interface components {
             opening_id: string | null;
             /** Format: uuid */
             created_by: string;
+            created_by_name: string;
             /** Format: uuid */
             committed_by: string | null;
             /** Format: date-time */
@@ -11942,17 +12085,69 @@ export interface components {
             completed_at: string | null;
         };
         CatalogImportPage: components["schemas"]["Pagination"] & {
-            data: components["schemas"]["CatalogImport"][];
+            data: components["schemas"]["CatalogImportSummary"][];
+        };
+        CatalogImportProgress: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "validating" | "ready" | "committing" | "completed" | "failed";
+            batches_done: number;
+            batches_total: number;
+            rows_applied: number;
+            rows_failed: number;
+            last_error: {
+                code: string;
+                message: string;
+                /** @enum {string} */
+                sheet: "Products+Variants" | "Stock";
+                row_number: number;
+            } | null;
+        };
+        CatalogImportSummary: {
+            /** Format: uuid */
+            id: string;
+            file_name: string;
+            create_missing: boolean;
+            /** @enum {string} */
+            status: "queued" | "validating" | "ready" | "committing" | "completed" | "failed";
+            progress: number;
+            row_count: number;
+            create_count: number;
+            update_count: number;
+            error_count: number;
+            warning_count: number;
+            applied_count: number;
+            commit_attempt: number;
+            error_report_key: string | null;
+            operation_id: string | null;
+            /** Format: uuid */
+            opening_id: string | null;
+            /** Format: uuid */
+            created_by: string;
+            created_by_name: string;
+            /** Format: uuid */
+            committed_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
         };
         CatalogImportCommitResult: {
             /** Format: uuid */
             id: string;
-            /** @constant */
-            status: "completed";
+            /** @enum {string} */
+            status: "committing" | "completed";
             operation_id: string;
             created: number;
             updated: number;
             skipped_errors: number;
+            applied_rows: number;
+            total_rows: number;
+            commit_batches_done: number;
+            commit_batches_total: number;
             /** Format: uuid */
             opening_id: string | null;
         };
@@ -11963,6 +12158,8 @@ export interface components {
                 sku: string;
                 /** Format: uuid */
                 product_id: string;
+                product_name_ar: string;
+                product_name_en: string;
                 /** Format: uri */
                 url: string;
             }[];
@@ -12210,7 +12407,7 @@ export interface components {
             discount_source: "none" | "coupon" | "tier" | "stacked";
             applied_tier: components["schemas"]["AppliedDiscountTier"] | null;
             next_tier: components["schemas"]["NextDiscountTier"] | null;
-            /** @description Zero in the cart because the governorate is selected at checkout. */
+            /** @description Current zone fee when governorate_id or address_id was supplied; otherwise zero. */
             delivery_fee: components["schemas"]["Money"];
             total: components["schemas"]["Money"];
         };
@@ -15456,6 +15653,15 @@ export interface components {
         };
         /** @description Missing permission (`FORBIDDEN`) */
         Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Background worker queue is unavailable */
+        ServiceUnavailable: {
             headers: {
                 [name: string]: unknown;
             };
