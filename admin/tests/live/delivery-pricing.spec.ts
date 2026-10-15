@@ -123,13 +123,23 @@ test("delivery zones: create, the one-zone conflict, edit, deactivate, delete", 
   const baghdad = form.locator('[data-testid="zone-governorate-option"][data-code="baghdad"]');
   await expect(baghdad.locator("xpath=ancestor::label")).toContainText("في منطقة:");
   await baghdad.check();
-  // Flagged before saving, with the zone that holds it…
+  // Refused by the API, which names (API 16.2) each clashing governorate and
+  // the zone holding it — the form lists exactly those.
   const conflict = form.getByTestId("zone-conflict");
-  await expect(conflict).toContainText("بعض المحافظات المختارة تتبع منطقة أخرى");
-  await expect(conflict).toContainText("بغداد");
-  // …and refused by the API, said in words.
+  await expect(conflict).toHaveCount(0);
+  const baghdadId = await baghdad.getAttribute("value");
+  const holder = ((await api(request, "GET", "/admin/governorates")).body as Array<{ code: string; delivery_zone: { id: string; name_ar: string } | null }>).find(
+    (row) => row.code === "baghdad",
+  )!.delivery_zone!;
   await form.getByTestId("dialog-submit").click();
+  await expect(conflict).toHaveAttribute("data-source", "api");
   await expect(conflict).toContainText("لم تُحفظ المنطقة: المحافظة الواحدة تتبع منطقة واحدة فقط.");
+  const items = conflict.getByTestId("zone-conflict-item");
+  await expect(items).toHaveCount(1);
+  await expect(items.first()).toHaveAttribute("data-zone", holder.id);
+  if (baghdadId) await expect(items.first()).toHaveAttribute("data-governorate", baghdadId);
+  await expect(items.first()).toContainText("بغداد");
+  await expect(items.first()).toContainText(holder.name_ar);
   await expect(form).toBeVisible();
 
   // Without Baghdad it saves.

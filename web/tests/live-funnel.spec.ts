@@ -236,6 +236,9 @@ test.describe("live purchase funnel", () => {
       "data-server-priced",
       "true",
     );
+    // The saved address's delivery fee is in the total once the server has
+    // priced it (API 16.2): read the total after that, not before.
+    await expect(page.getByTestId("summary-delivery")).not.toHaveText("حسب المحافظة");
 
     const total = page.getByTestId("summary-total");
     const before = (await total.textContent()) ?? "";
