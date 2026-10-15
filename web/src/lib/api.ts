@@ -99,6 +99,9 @@ export type Address = Schemas["Address"];
 export type AddressCreate = Schemas["AddressCreate"];
 export type AddressPatch = Schemas["AddressPatch"];
 export type Governorate = Schemas["Governorate"];
+export type PublicDiscountTierSettings = Schemas["PublicDiscountTierSettings"];
+/** Prices GET /cart's delivery line (API 16.2): one or the other, never both. */
+export type CartDeliverySelector = { governorate_id: string } | { address_id: string };
 export type Order = Schemas["Order"];
 export type OrderItem = Schemas["OrderItem"];
 export type UserSelfUpdate = Schemas["UserSelfUpdate"];
@@ -516,7 +519,8 @@ export const api = {
           name_en: "Wasit",
           is_active: true,
           is_served: true,
-          delivery_fee: 5000,
+          // The sample store prices in dollars, so its fees are dollar-sized.
+          delivery_fee: 5,
           currency: "IQD",
         },
         {
@@ -526,7 +530,7 @@ export const api = {
           name_en: "Baghdad",
           is_active: true,
           is_served: true,
-          delivery_fee: 6000,
+          delivery_fee: 6,
           currency: "IQD",
         },
         // In no active delivery zone: checkout must say so.
@@ -543,6 +547,26 @@ export const api = {
       ];
     }
     return request<Governorate[]>("/governorates", init);
+  },
+
+  /**
+   * The active automatic-discount tiers and whether a coupon stacks with
+   * them (API 16.2, public): a guest's progress bar and totals. Checkout and
+   * the signed-in cart stay the authority.
+   */
+  async listDiscountTiers(init?: RequestInit): Promise<PublicDiscountTierSettings> {
+    if (!isLive("addresses")) {
+      // Sample store, in dollars: 5% from $200, 10% from $400.
+      return {
+        currency: "IQD",
+        coupon_stacking_enabled: false,
+        tiers: [
+          { min_subtotal: 200, percent: 5 },
+          { min_subtotal: 400, percent: 10 },
+        ],
+      };
+    }
+    return request<PublicDiscountTierSettings>("/discount-tiers", init);
   },
 
   /** Departments with their subcategories — exactly two levels, see twoLevelTree. */
@@ -1563,10 +1587,15 @@ export const api = {
    * response is the authority: prices, availability and every total come back
    * computed, and the store adopts them verbatim rather than recomputing.
    */
-  async getCart(): Promise<Cart> {
+  async getCart(delivery?: CartDeliverySelector | null): Promise<Cart> {
+    // With a governorate or a saved address, the cart carries that zone's
+    // delivery fee and the full total (API 16.2); without, the fee is 0.
+    const query = delivery
+      ? `?${new URLSearchParams("address_id" in delivery ? { address_id: delivery.address_id } : { governorate_id: delivery.governorate_id })}`
+      : "";
     return withFreshToken(async () => {
       requireAuthenticated();
-      return request<Cart>("/cart");
+      return request<Cart>(`/cart${query}`);
     });
   },
 
