@@ -2,8 +2,10 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
 import { NotificationsService } from './notifications.service';
 import { NotificationDeliveryError } from './notification-provider';
+import { NotificationStreamService } from './notification-stream.service';
 
 @Processor('notifications', {
+  maxStalledCount: 2,
   settings: {
     backoffStrategy: (attemptsMade, type, error) => {
       if (type !== 'push') return -1;
@@ -16,12 +18,22 @@ import { NotificationDeliveryError } from './notification-provider';
   },
 })
 export class NotificationsProcessor extends WorkerHost {
-  constructor(private readonly notifications: NotificationsService) {
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly stream: NotificationStreamService,
+  ) {
     super();
   }
 
-  async process(job: Job<{ eventId: string }>) {
-    if (job.name !== 'fanout') return;
-    await this.notifications.dispatch(job.data.eventId);
+  async process(job: Job<{ eventId?: string }>) {
+    if (job.name === 'fanout' && job.data.eventId) {
+      await this.notifications.dispatch(job.data.eventId);
+      return;
+    }
+    if (job.name === 'outbox-scan') {
+      await this.notifications.enqueuePending();
+      return;
+    }
+    if (job.name === 'stream-publish') await this.stream.publishPending();
   }
 }

@@ -25,6 +25,7 @@ x-api-environment: &api-environment
   APP_ENV: production
   NODE_ENV: production
   API_PORT: "8000"
+  WORKER_HEALTH_FILE: ${WORKER_HEALTH_FILE:-/tmp/shubayr-worker-ready}
   DATABASE_URL: postgresql://${POSTGRES_USER:-shubayr}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-shubayr}?schema=public
   REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD}@redis:6379
   MEILI_HOST: http://search:7700
@@ -161,7 +162,9 @@ services:
   api:
     <<: *api-image
     restart: unless-stopped
-    environment: *api-environment
+    environment:
+      <<: *api-environment
+      PROCESS_ROLE: api
     depends_on:
       db:
         condition: service_healthy
@@ -175,18 +178,29 @@ services:
     networks: [edge, data]
     logging: *logging
 
-  # Background jobs: catalog-import checks, notification delivery and the
-  # order timeout scans. The same build as the API; the proxy sends it no
-  # traffic. Those jobs lock what they work on, so the API's own copy and any
-  # number of workers can run side by side (`--scale worker=2`).
+  # Background jobs only. The same image as the API, but no HTTP listener.
   worker:
     <<: *api-image
     restart: unless-stopped
-    environment: *api-environment
+    environment:
+      <<: *api-environment
+      PROCESS_ROLE: worker
     depends_on:
-      api:
+      db:
         condition: service_healthy
-    stop_grace_period: 30s
+      redis:
+        condition: service_healthy
+      search:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    stop_grace_period: 2m
+    healthcheck:
+      test: ["CMD-SHELL", "test -s $${WORKER_HEALTH_FILE:-/tmp/shubayr-worker-ready} && kill -0 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 4
     networks: [edge, data]
     logging: *logging
 
