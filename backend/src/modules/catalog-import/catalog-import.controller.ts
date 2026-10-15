@@ -75,6 +75,11 @@ export class CatalogImportController {
     );
   }
 
+  @Get(':id/progress')
+  progress(@Param('id', uuid) id: string) {
+    return this.imports.progress(id);
+  }
+
   @Get(':id')
   get(@Req() request: AdminRequest, @Param('id', uuid) id: string) {
     return this.imports.get(id, request.user.permissions);

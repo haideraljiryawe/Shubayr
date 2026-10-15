@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 16.2.0
+  version: 16.3.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -3430,6 +3430,22 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/catalog-imports/{id}/progress:
+    get:
+      tags: [Admin, Catalog import]
+      summary: Get lightweight progress for one catalog import
+      description: Poll-friendly commit progress without preview rows or other workbook data.
+      x-permission: catalog.import
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Lightweight import progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogImportProgress" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/catalog-imports/{id}/error-report:
     get:
       tags: [Admin, Catalog import]
@@ -5909,6 +5925,29 @@ components:
           required: [data]
           properties:
             data: { type: array, items: { $ref: "#/components/schemas/CatalogImportSummary" } }
+
+    CatalogImportProgress:
+      type: object
+      additionalProperties: false
+      required: [id, status, batches_done, batches_total, rows_applied, rows_failed, last_error]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [queued, validating, ready, committing, completed, failed] }
+        batches_done: { type: integer, minimum: 0 }
+        batches_total: { type: integer, minimum: 0 }
+        rows_applied: { type: integer, minimum: 0 }
+        rows_failed: { type: integer, minimum: 0 }
+        last_error:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [code, message, sheet, row_number]
+              properties:
+                code: { type: string }
+                message: { type: string }
+                sheet: { type: string, enum: [Products+Variants, Stock] }
+                row_number: { type: integer, minimum: 2 }
+            - type: "null"
 
     CatalogImportSummary:
       type: object

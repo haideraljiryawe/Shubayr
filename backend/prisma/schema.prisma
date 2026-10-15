@@ -941,33 +941,35 @@ model ProductImage {
 }
 
 model CatalogImport {
-  id                String                   @id(map: "catalog_imports_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  file_name         String                   @db.VarChar(255)
-  source_object_key String                   @db.VarChar(500)
-  source_checksum   String                   @db.Char(64)
-  create_missing    Boolean                  @default(false)
-  status            String                   @default("queued") @db.VarChar(24)
-  progress          Int                      @default(0)
-  row_count         Int                      @default(0)
-  create_count      Int                      @default(0)
-  update_count      Int                      @default(0)
-  error_count       Int                      @default(0)
-  warning_count     Int                      @default(0)
-  applied_count     Int                      @default(0)
-  commit_attempt    Int                      @default(0)
-  preview           Json?                    @db.JsonB
-  error_report_key  String?                  @db.VarChar(500)
-  operation_id      String?                  @unique(map: "catalog_imports_operation_id_key") @db.VarChar(128)
-  opening_id        String?                  @unique(map: "catalog_imports_opening_id_key") @db.Uuid
-  created_by        String                   @db.Uuid
-  committed_by      String?                  @db.Uuid
-  created_at        DateTime                 @default(now()) @db.Timestamptz(6)
-  updated_at        DateTime                 @default(now()) @db.Timestamptz(6)
-  completed_at      DateTime?                @db.Timestamptz(6)
-  creator           User                     @relation("CatalogImportCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "catalog_imports_created_by_fkey")
-  committer         User?                    @relation("CatalogImportCommitter", fields: [committed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "catalog_imports_committed_by_fkey")
-  opening           InventoryOpening?        @relation(fields: [opening_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "catalog_imports_opening_id_fkey")
-  row_results       CatalogImportRowResult[]
+  id                   String                   @id(map: "catalog_imports_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  file_name            String                   @db.VarChar(255)
+  source_object_key    String                   @db.VarChar(500)
+  source_checksum      String                   @db.Char(64)
+  create_missing       Boolean                  @default(false)
+  status               String                   @default("queued") @db.VarChar(24)
+  progress             Int                      @default(0)
+  row_count            Int                      @default(0)
+  create_count         Int                      @default(0)
+  update_count         Int                      @default(0)
+  error_count          Int                      @default(0)
+  warning_count        Int                      @default(0)
+  applied_count        Int                      @default(0)
+  commit_batches_done  Int                      @default(0)
+  commit_batches_total Int                      @default(0)
+  commit_attempt       Int                      @default(0)
+  preview              Json?                    @db.JsonB
+  error_report_key     String?                  @db.VarChar(500)
+  operation_id         String?                  @unique(map: "catalog_imports_operation_id_key") @db.VarChar(128)
+  opening_id           String?                  @unique(map: "catalog_imports_opening_id_key") @db.Uuid
+  created_by           String                   @db.Uuid
+  committed_by         String?                  @db.Uuid
+  created_at           DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime                 @default(now()) @db.Timestamptz(6)
+  completed_at         DateTime?                @db.Timestamptz(6)
+  creator              User                     @relation("CatalogImportCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "catalog_imports_created_by_fkey")
+  committer            User?                    @relation("CatalogImportCommitter", fields: [committed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "catalog_imports_committed_by_fkey")
+  opening              InventoryOpening?        @relation(fields: [opening_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "catalog_imports_opening_id_fkey")
+  row_results          CatalogImportRowResult[]
 
   @@index([created_at(sort: Desc), id(sort: Desc)], map: "idx_catalog_imports_history")
   @@index([status, updated_at], map: "idx_catalog_imports_status")
