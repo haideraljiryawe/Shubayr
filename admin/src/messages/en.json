@@ -3192,7 +3192,6 @@
     "inZone": "In zone: {zone}",
     "inThisZone": "In this zone",
     "noZoneYet": "No zone",
-    "conflictWarning": "Some chosen governorates belong to another zone:",
     "conflictRefused": "Not saved: a governorate can belong to one zone only.",
     "conflictItem": "{governorate} — in “{zone}”",
     "conflictHint": "Remove them from that zone first, or unselect them here.",

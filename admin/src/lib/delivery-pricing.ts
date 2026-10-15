@@ -1,4 +1,5 @@
 import type { components } from "@/types/api";
+import type { FieldError } from "@/lib/api/errors";
 
 /* ---------------------------------------------------------------------------
  * Delivery zones, governorates and automatic discount tiers (API 15.0),
@@ -8,8 +9,9 @@ import type { components } from "@/types/api";
  *   zone's fee while the zone is active. A governorate with no zone, or in an
  *   inactive zone, is not served: the store says so at checkout.
  * - The API refuses a zone that would take a governorate another zone holds
- *   (409 GOVERNORATE_ALREADY_IN_DELIVERY_ZONE) without saying which; the
- *   screen works that out from the governorates it already has.
+ *   (409 GOVERNORATE_ALREADY_IN_DELIVERY_ZONE) and names, in errors[], every
+ *   clashing governorate and the zone that holds it (API 16.2); the screen
+ *   lists exactly those.
  * - The highest active tier the goods subtotal reaches applies, as a whole-IQD
  *   amount rounded half away from zero — the server's own arithmetic, so the
  *   example shown is the discount a customer gets.
@@ -40,20 +42,34 @@ export function unservedGovernorates(
     );
 }
 
+export interface ZoneConflict {
+  governorateId: string;
+  governorate: { name_ar: string; name_en: string };
+  zone: { id: string | null; name_ar: string; name_en: string };
+}
+
 /**
- * The chosen governorates another zone already holds — what the API would
- * refuse — with the zone each one is in. `zoneId` is the zone being edited
- * (null for a new one): its own governorates are no conflict.
+ * The governorates a 409 GOVERNORATE_ALREADY_IN_DELIVERY_ZONE names, each with
+ * the zone that holds it, from the API's errors[] (API 16.2). Entries that do
+ * not name a governorate are not conflicts.
  */
-export function zoneConflicts(
-  selected: readonly string[],
-  governorates: readonly AdminGovernorate[],
-  zoneId: string | null,
-): Array<{ governorate: AdminGovernorate; zone: NonNullable<AdminGovernorate["delivery_zone"]> }> {
-  const chosen = new Set(selected);
-  return governorates.flatMap((governorate) =>
-    chosen.has(governorate.id) && governorate.delivery_zone && governorate.delivery_zone.id !== zoneId
-      ? [{ governorate, zone: governorate.delivery_zone }]
+export function conflictsFromErrors(errors: readonly FieldError[]): ZoneConflict[] {
+  return errors.flatMap((error) =>
+    error.governorate_id
+      ? [
+          {
+            governorateId: error.governorate_id,
+            governorate: {
+              name_ar: error.governorate_name_ar ?? error.governorate_name_en ?? error.governorate_code ?? "",
+              name_en: error.governorate_name_en ?? error.governorate_name_ar ?? error.governorate_code ?? "",
+            },
+            zone: {
+              id: error.delivery_zone_id ?? null,
+              name_ar: error.delivery_zone_name_ar ?? error.delivery_zone_name_en ?? "",
+              name_en: error.delivery_zone_name_en ?? error.delivery_zone_name_ar ?? "",
+            },
+          },
+        ]
       : [],
   );
 }

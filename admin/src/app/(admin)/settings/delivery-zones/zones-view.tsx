@@ -17,12 +17,13 @@ import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
 import { englishOrArabic } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
 import {
+  conflictsFromErrors,
   localName,
   sortZones,
   unservedGovernorates,
-  zoneConflicts,
   type AdminGovernorate,
   type DeliveryZone,
+  type ZoneConflict,
 } from "@/lib/delivery-pricing";
 import { formatAmount } from "@/lib/finance/money";
 
@@ -211,15 +212,15 @@ function ZoneForm({
   const [selected, setSelected] = useState<string[]>(zone?.governorates.map((governorate) => governorate.id) ?? []);
   const [filter, setFilter] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [refused, setRefused] = useState(false);
-  const conflicts = zoneConflicts(selected, governorates, zone?.id ?? null);
+  // The API's refusal names every clashing governorate and the zone holding it.
+  const [refused, setRefused] = useState<ZoneConflict[] | null>(null);
   const shown = governorates.filter((governorate) => {
     const query = filter.trim().toLowerCase();
     return !query || governorate.name_ar.includes(query) || governorate.name_en.toLowerCase().includes(query);
   });
 
   function toggle(id: string, on: boolean) {
-    setRefused(false);
+    setRefused(null);
     setSelected((current) => (on ? [...current, id] : current.filter((entry) => entry !== id)));
   }
 
@@ -228,7 +229,7 @@ function ZoneForm({
     if (!nameAr.trim()) found.name_ar = t("errors.nameAr");
     if (fee === null || fee < 0 || !Number.isInteger(fee)) found.fee_iqd = t("errors.fee");
     setErrors(found);
-    setRefused(false);
+    setRefused(null);
     if (Object.keys(found).length) return;
     const body = {
       name_ar: nameAr.trim(),
@@ -243,7 +244,7 @@ function ZoneForm({
           ? await unwrap(browserApi.PATCH("/admin/delivery-zones/{id}", { params: { path: { id: zone.id } }, body }))
           : await unwrap(browserApi.POST("/admin/delivery-zones", { body }));
       } catch (cause) {
-        if (cause instanceof ApiError && cause.code === "GOVERNORATE_ALREADY_IN_DELIVERY_ZONE") setRefused(true);
+        if (cause instanceof ApiError && cause.code === "GOVERNORATE_ALREADY_IN_DELIVERY_ZONE") setRefused(conflictsFromErrors(cause.errors));
         throw cause;
       }
     });
@@ -330,12 +331,14 @@ function ZoneForm({
         </ul>
       </fieldset>
 
-      {conflicts.length ? (
-        <Alert tone={refused ? "danger" : "info"} data-testid="zone-conflict">
-          <p className="font-semibold">{refused ? t("conflictRefused") : t("conflictWarning")}</p>
+      {refused?.length ? (
+        <Alert data-testid="zone-conflict" data-source="api">
+          <p className="font-semibold">{t("conflictRefused")}</p>
           <ul className="mt-1 list-disc ps-5">
-            {conflicts.map(({ governorate, zone: owner }) => (
-              <li key={governorate.id}>{t("conflictItem", { governorate: localName(governorate, locale), zone: localName(owner, locale) })}</li>
+            {refused.map((conflict) => (
+              <li key={conflict.governorateId} data-testid="zone-conflict-item" data-governorate={conflict.governorateId} data-zone={conflict.zone.id ?? ""}>
+                {t("conflictItem", { governorate: localName(conflict.governorate, locale), zone: localName(conflict.zone, locale) })}
+              </li>
             ))}
           </ul>
           <p className="mt-1 text-xs">{t("conflictHint")}</p>

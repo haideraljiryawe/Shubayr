@@ -150,9 +150,6 @@ export function ReviewStep({
           totals={totals}
           couponCode={couponCode ?? undefined}
           serverPriced={serverPriced}
-          deliveryNote={
-            address.governorate ? t("deliveryForGovernorate", { name: address.governorate }) : undefined
-          }
         >
           {blocked ? (
             <p

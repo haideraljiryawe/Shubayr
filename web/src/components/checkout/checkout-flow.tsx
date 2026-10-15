@@ -12,7 +12,9 @@ import { ApiError, api, type Address, type Governorate, type Order, type OrderIt
 import { deliveryProblem, governorateName, isAddressRefusal, type DeliveryProblem } from "@/lib/delivery";
 import type { CartTotals } from "@/lib/cart";
 import { cartStore } from "@/lib/cart-store";
+import { deliveryLocation, useDeliveryLocation } from "@/lib/delivery-location";
 import { useCart, type CartViewLine } from "@/lib/use-cart";
+import { useDeliveryPricing } from "@/lib/use-pricing";
 import { acceptedPriceVersions, priceChanges, type PriceChange } from "@/lib/order-lifecycle";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -90,8 +92,11 @@ export function CheckoutFlow() {
   const showToast = useToast();
   const router = useRouter();
   const { currency } = useTheme();
-  const { lines, totals, hydrated, couponCode, isServerBacked, tiers } = useCart();
+  const view = useCart();
+  const { lines, hydrated, couponCode } = view;
   const { isAuthenticated, user } = useAuth();
+  // The delivery location chosen in the cart, if any: the starting point here.
+  const remembered = useDeliveryLocation();
 
   const [stage, setStage] = useState<Stage>("address");
   const [delivery, setDelivery] = useState<DeliveryDetails>(EMPTY_DELIVERY);
@@ -151,17 +156,19 @@ export function CheckoutFlow() {
   // first one. No effect has to reconcile a selection with a list that arrives
   // later.
   const saved =
-    addressBook.find((item) => item.id === chosenId) ??
+    addressBook.find((item) => item.id === (chosenId ?? remembered.addressId)) ??
     addressBook.find((item) => item.is_default) ??
     addressBook[0] ??
     null;
 
   // A signed-in shopper's own name and number are the delivery contact, so the
-  // "new address" form starts filled in rather than blank.
+  // "new address" form starts filled in rather than blank — and its
+  // governorate is the one chosen in the cart, if any.
   const deliveryValues: DeliveryDetails = {
     ...delivery,
     name: delivery.name || (user?.name ?? ""),
     phone: delivery.phone || (user?.phone ?? ""),
+    governorate_id: delivery.governorate_id || (remembered.governorateId ?? ""),
   };
 
   const pickingSaved = isAuthenticated && !typingNew && addressBook.length > 0;
@@ -172,7 +179,18 @@ export function CheckoutFlow() {
     !pickingSaved && governoratesReady && deliveryValues.governorate_id
       ? deliveryProblem({ governorate_id: deliveryValues.governorate_id }, governorates)
       : null;
-  const blocked = problemText(pickingSaved ? savedProblem : typedProblem, pickingSaved ? saved?.governorate_id : deliveryValues.governorate_id);
+  // The delivery fee and the full total for the address being ordered to:
+  // the server's figures when signed in, the same arithmetic for a guest.
+  const location =
+    pickingSaved && saved
+      ? { addressId: saved.id ?? null, governorateId: saved.governorate_id ?? null }
+      : { addressId: null, governorateId: deliveryValues.governorate_id || null };
+  const pricing = useDeliveryPricing(view, location);
+  const totals = pricing.totals;
+  const blocked =
+    problemText(pickingSaved ? savedProblem : typedProblem, pickingSaved ? saved?.governorate_id : deliveryValues.governorate_id) ??
+    // The server refused to price it (the governorate stopped being served).
+    problemText(pricing.problem, location.governorateId);
 
   async function setGovernorate(address: Address, governorateId: string) {
     if (!address.id) return;
@@ -403,14 +421,14 @@ export function CheckoutFlow() {
         <ReviewStep
           lines={lines}
           couponCode={couponCode}
-          serverPriced={isServerBacked}
+          serverPriced={pricing.serverPriced}
           totals={totals}
           address={
             pickingSaved && saved
               ? summariseSaved(saved, nameOf(saved.governorate_id))
               : summariseTyped(deliveryValues, nameOf(deliveryValues.governorate_id))
           }
-          tiers={tiers}
+          tiers={pricing.tiers}
           blocked={blocked}
           error={error}
           placing={placing}
@@ -458,7 +476,10 @@ export function CheckoutFlow() {
             failed={savedAddresses.failed}
             onRetry={savedAddresses.reload}
             selectedId={saved?.id ?? null}
-            onSelect={(address) => setChosenId(address.id ?? null)}
+            onSelect={(address) => {
+              setChosenId(address.id ?? null);
+              deliveryLocation.setAddress(address.id ?? null, address.governorate_id ?? null);
+            }}
             onUseNew={() => setTypingNew(true)}
           />
         ) : null}
@@ -480,7 +501,11 @@ export function CheckoutFlow() {
         ) : (
           <AddressForm
             values={deliveryValues}
-            onChange={setDelivery}
+            onChange={(next) => {
+              setDelivery(next);
+              // The governorate typed here prices the cart too.
+              if (next.governorate_id !== deliveryValues.governorate_id) deliveryLocation.setGovernorate(next.governorate_id || null);
+            }}
             onSubmit={() => {
               // A typed address wins over the book until they go back.
               setTypingNew(true);
