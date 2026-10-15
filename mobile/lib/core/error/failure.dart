@@ -87,6 +87,10 @@ class AppFailure implements Exception {
       'SUPPORT_OPEN_FAILED' => l10n.supportOpenFailed,
       'IDEMPOTENCY_KEY_REUSED' => l10n.errorCheckoutIdentity,
       'CART_EMPTY' => l10n.errorCartEmpty,
+      'ADDRESS_GOVERNORATE_REQUIRED' => l10n.errorAddressGovernorateRequired,
+      'DELIVERY_ZONE_NOT_SERVED' => l10n.errorDeliveryZoneNotServed,
+      'DELIVERY_LOCATION_SELECTOR_CONFLICT' =>
+        l10n.errorDeliveryLocationSelector,
       'CART_QUANTITY_INVALID' => l10n.errorCartQuantity,
       'CART_PRODUCT_UNAVAILABLE' ||
       'CART_VARIANT_UNAVAILABLE' ||

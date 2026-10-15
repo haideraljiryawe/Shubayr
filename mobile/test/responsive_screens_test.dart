@@ -1,3 +1,4 @@
+import 'helpers/governorates.dart';
 import 'package:shubayr/features/dev/presentation/screens/design_gallery_screen.dart';
 import 'helpers/page_layout_expectations.dart';
 import 'package:shubayr/features/settings/presentation/screens/account_screen.dart';
@@ -156,6 +157,7 @@ void main() {
               retry: (retryCount, error) => null,
               key: UniqueKey(),
               overrides: [
+                testGovernoratesOverride,
                 notificationSyncProvider.overrideWith((ref) {}),
                 unreadCountProvider.overrideWith((ref) async => 0),
                 dataSourceProvider.overrideWithValue(DataSource.mock),

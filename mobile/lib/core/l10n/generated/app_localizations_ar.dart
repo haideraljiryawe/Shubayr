@@ -2063,4 +2063,19 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get stockCorrectCart => 'تعديل السلة';
+
+  @override
+  String get addressGovernorate => 'المحافظة';
+
+  @override
+  String get errorAddressGovernorateRequired =>
+      'اختر المحافظة في عنوان التوصيل قبل إتمام الطلب.';
+
+  @override
+  String get errorDeliveryZoneNotServed =>
+      'التوصيل غير متاح للمحافظة المختارة حاليًا. اختر عنوانًا ضمن مناطق التوصيل أو تواصل مع المتجر.';
+
+  @override
+  String get errorDeliveryLocationSelector =>
+      'تعذر تحديد موقع التوصيل. اختر عنوان التوصيل مجددًا.';
 }

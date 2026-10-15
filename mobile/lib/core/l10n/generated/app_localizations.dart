@@ -3965,6 +3965,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Correct cart'**
   String get stockCorrectCart;
+
+  /// No description provided for @addressGovernorate.
+  ///
+  /// In en, this message translates to:
+  /// **'Governorate'**
+  String get addressGovernorate;
+
+  /// No description provided for @errorAddressGovernorateRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a governorate in your delivery address before placing the order.'**
+  String get errorAddressGovernorateRequired;
+
+  /// No description provided for @errorDeliveryZoneNotServed.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery is currently unavailable for this governorate. Choose an address in a served area or contact the store.'**
+  String get errorDeliveryZoneNotServed;
+
+  /// No description provided for @errorDeliveryLocationSelector.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not determine the delivery location. Select your delivery address again.'**
+  String get errorDeliveryLocationSelector;
 }
 
 class _AppLocalizationsDelegate

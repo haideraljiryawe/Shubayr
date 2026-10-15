@@ -23,7 +23,6 @@ migrate_working_dir/
 /.vscode/*
 !/.vscode/launch.json
 !/.vscode/tasks.json
-!/.vscode/iphone.json
 
 # Flutter/Dart/Pub related
 **/doc/api/

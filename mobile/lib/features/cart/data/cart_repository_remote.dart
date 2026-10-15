@@ -11,8 +11,13 @@ class CartRepositoryRemote implements CartRepository {
   final ApiClient _api;
 
   @override
-  Future<Cart> fetchCart() => decodeResponse(
-    () async => Cart.fromJson(await _api.get<Map<String, dynamic>>('/cart')),
+  Future<Cart> fetchCart({String? addressId}) => decodeResponse(
+    () async => Cart.fromJson(
+      await _api.get<Map<String, dynamic>>(
+        '/cart',
+        query: {'address_id': ?addressId},
+      ),
+    ),
   );
 
   @override

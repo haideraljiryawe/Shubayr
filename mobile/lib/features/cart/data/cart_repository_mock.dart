@@ -31,7 +31,7 @@ class CartRepositoryMock implements CartRepository {
   }
 
   @override
-  Future<Cart> fetchCart() async {
+  Future<Cart> fetchCart({String? addressId}) async {
     await Future<void>.delayed(delay);
     return _cart();
   }

@@ -725,5 +725,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "addressGovernorate": "المحافظة",
+  "errorAddressGovernorateRequired": "اختر المحافظة في عنوان التوصيل قبل إتمام الطلب.",
+  "errorDeliveryZoneNotServed": "التوصيل غير متاح للمحافظة المختارة حاليًا. اختر عنوانًا ضمن مناطق التوصيل أو تواصل مع المتجر.",
+  "errorDeliveryLocationSelector": "تعذر تحديد موقع التوصيل. اختر عنوان التوصيل مجددًا."
 }

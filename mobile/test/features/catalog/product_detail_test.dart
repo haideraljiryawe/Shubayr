@@ -221,7 +221,7 @@ class _FakeCatalog implements CatalogRepository {
 class _PendingCart extends CartRepositoryMock {
   final result = Completer<Cart>();
   @override
-  Future<Cart> fetchCart() async => const Cart(id: 'valid');
+  Future<Cart> fetchCart({String? addressId}) async => const Cart(id: 'valid');
   @override
   Future<Cart> addItem({
     required String idempotencyKey,

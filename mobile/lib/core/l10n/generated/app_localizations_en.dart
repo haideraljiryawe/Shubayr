@@ -2082,4 +2082,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stockCorrectCart => 'Correct cart';
+
+  @override
+  String get addressGovernorate => 'Governorate';
+
+  @override
+  String get errorAddressGovernorateRequired =>
+      'Select a governorate in your delivery address before placing the order.';
+
+  @override
+  String get errorDeliveryZoneNotServed =>
+      'Delivery is currently unavailable for this governorate. Choose an address in a served area or contact the store.';
+
+  @override
+  String get errorDeliveryLocationSelector =>
+      'Could not determine the delivery location. Select your delivery address again.';
 }

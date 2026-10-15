@@ -50,25 +50,26 @@ test('missing and malformed external files fail safely; valid file succeeds', as
 });
 
 for (const folder of ['../../.vscode/', '../.vscode/']) {
-  test(`${folder} standard device launches use platform config and matching preflight`, async () => {
+  test(`${folder} has five Mobile profiles plus the local Web Admin launcher`, async () => {
     const read = async (name) => JSON.parse(await readFile(new URL(folder + name, import.meta.url), 'utf8'));
-    const launches = (await read('launch.json')).configurations;
+    const config = await read('launch.json');
     const tasks = (await read('tasks.json')).tasks;
-    for (const [name, platform, target] of [['iPhone Device', 'ios', 'iphone'], ['Android Device', 'android', 'android']]) {
-      const launch = launches.find((c) => c.name === name);
-      const path = `\${env:HOME}/Documents/firebase/shubayr-${platform}.json`;
+    assert.deepEqual(config.configurations.map((c) => c.name), [
+      'iPhone Simulator', 'iPad Simulator', 'Android Emulator', 'iPhone Device — iPhone 16 Pro', 'Android Device — Galaxy A34', 'Web Admin',
+    ]);
+    assert.equal(config.compounds, undefined);
+    assert.equal(tasks.length, 5);
+    const admin = config.configurations.find((c) => c.name === 'Web Admin');
+    assert.equal(admin.type, 'node-terminal');
+    assert.equal(admin.command, 'node tool/run_web_admin.mjs');
+    for (const launch of config.configurations.filter((c) => c.type === 'dart')) {
+      const platform = launch.name.startsWith('Android') ? 'android' : 'ios';
       assert.equal(launch.flutterMode, 'debug');
       assert.equal(launch.type, 'dart');
-      assert.ok(launch.toolArgs.includes('--dart-define=DATA_SOURCE=remote'));
-      assert.ok(launch.toolArgs.includes(`--dart-define-from-file=${path}`));
-      assert.equal(launch.toolArgs.filter((arg) => arg.endsWith('/.vscode/iphone.json')).length, 1);
+      assert.ok(launch.toolArgs.includes(`--dart-define-from-file=\${env:HOME}/Documents/firebase/shubayr-${platform}.json`));
       const task = tasks.find((t) => t.label === launch.preLaunchTask);
       assert.equal(task.command, 'node');
-      assert.deepEqual(task.args.slice(1), [target, path]);
+      assert.ok(launch.toolArgs.some((arg) => arg.endsWith(`/.dart_tool/run/${task.args[1]}.json`)));
     }
-    const standard = launches.find((c) => c.name === 'iPhone Device');
-    const legacy = launches.find((c) => c.name === 'Shubayr – iPhone Firebase');
-    assert.deepEqual(standard.toolArgs, legacy.toolArgs);
-    assert.equal(standard.deviceId, legacy.deviceId);
   });
 }

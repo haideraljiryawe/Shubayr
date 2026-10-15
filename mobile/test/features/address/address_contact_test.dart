@@ -1,3 +1,4 @@
+import '../../helpers/governorates.dart';
 import 'dart:async';
 import 'package:shubayr/core/layout/app_layout.dart';
 import 'package:shubayr/core/widgets/app_button.dart';
@@ -24,6 +25,7 @@ import 'support/address_fakes.dart';
 Future<ProviderContainer> _start(RecordingAddresses repo) async {
   final container = ProviderContainer(
     overrides: [
+      testGovernoratesOverride,
       dataSourceProvider.overrideWithValue(DataSource.mock),
       notificationSyncProvider.overrideWith((ref) {}),
       unreadCountProvider.overrideWith((ref) async => 0),
@@ -88,7 +90,11 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _open(WidgetTester tester) => _tap(tester, find.text('Open form'));
+Future<void> _open(WidgetTester tester) async {
+  await _tap(tester, find.text('Open form'));
+  await selectTestGovernorate(tester);
+}
+
 Future<void> _save(WidgetTester tester) async {
   FocusManager.instance.primaryFocus?.unfocus();
   await tester.pumpAndSettle();
@@ -595,6 +601,7 @@ void main() {
     final repo = RecordingAddresses();
     final remote = ProviderContainer(
       overrides: [
+        testGovernoratesOverride,
         notificationSyncProvider.overrideWith((ref) {}),
         unreadCountProvider.overrideWith((ref) async => 0),
         dataSourceProvider.overrideWithValue(DataSource.remote),

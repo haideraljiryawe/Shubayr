@@ -1,3 +1,4 @@
+import '../../helpers/governorates.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
@@ -29,6 +30,7 @@ Widget _host(
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    testGovernoratesOverride,
     notificationSyncProvider.overrideWith((ref) {}),
     unreadCountProvider.overrideWith((ref) async => 0),
     dataSourceProvider.overrideWithValue(DataSource.mock),
@@ -204,6 +206,7 @@ void main() {
     await tester.tap(find.text('Open form'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).at(1), 'Baghdad');
+    await selectTestGovernorate(tester);
     await tester.ensureVisible(find.text('Save'));
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();

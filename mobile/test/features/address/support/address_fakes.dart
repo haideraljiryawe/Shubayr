@@ -71,6 +71,7 @@ AddressPage addressPage(
         contactPhone: '07700000000',
         label: 'Address $i',
         city: 'Baghdad',
+        governorateId: 'test-baghdad',
         isDefault: i == defaultIndex,
       ),
   ],

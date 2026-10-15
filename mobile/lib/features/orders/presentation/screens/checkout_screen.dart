@@ -26,6 +26,7 @@ import '../../data/order.dart';
 import '../providers/order_providers.dart';
 import '../providers/order_action_providers.dart';
 import '../providers/pending_checkout_provider.dart';
+import '../providers/checkout_pricing_provider.dart';
 
 /// Cash-on-Delivery checkout: pick a delivery address, optionally apply a
 /// coupon, review the server cart summary and place the order. Checkout
@@ -215,6 +216,12 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
         return;
       }
       final error = result.error;
+      if (error is AppFailure &&
+          (error.code == 'ADDRESS_GOVERNORATE_REQUIRED' ||
+              error.code == 'DELIVERY_ZONE_NOT_SERVED')) {
+        ref.invalidate(addressesControllerProvider);
+        ref.invalidate(checkoutPricingProvider);
+      }
       if (error is AppFailure && error.isStockShortage) {
         final correct = await showStockShortageDialog(
           context,
@@ -313,7 +320,15 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
     final addressState = ref.watch(addressesControllerProvider);
     final addresses = addressState.value;
     final address = addresses == null ? null : _resolveAddress(addresses);
+    final pricing = address == null
+        ? const AsyncValue<Cart>.loading()
+        : ref.watch(checkoutPricingProvider(address));
+    final quotedCart = pricing.asData?.value;
     final canPlace =
+        quotedCart != null &&
+        quotedCart.canCheckout &&
+        !pricing.isLoading &&
+        !pricing.hasError &&
         address != null &&
         !addressState.isLoading &&
         !addressState.hasError &&
@@ -372,6 +387,17 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
                             : () => _pickAddress(loaded, address.id),
                       ),
                     ),
+                    if (address != null &&
+                        (address.governorateId == null || pricing.hasError))
+                      TextButton(
+                        onPressed: _placing
+                            ? null
+                            : () => context.pushNamed(
+                                AppRoutes.addressFormName,
+                                extra: address,
+                              ),
+                        child: Text(l10n.addressEdit),
+                      ),
                     const SizedBox(height: AppSpacing.lg),
                     _SectionTitle(l10n.checkoutCoupon),
                     _CouponSection(
@@ -412,7 +438,7 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
                   ],
                 ),
                 AsyncValueView<Cart>(
-                  value: cartState,
+                  value: address == null ? cartState : pricing,
                   loading: const AppCard(
                     child: Column(
                       children: [
@@ -424,7 +450,12 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
                       ],
                     ),
                   ),
-                  onRetry: () => ref.invalidate(cartControllerProvider),
+                  onRetry: () {
+                    ref.invalidate(cartControllerProvider);
+                    if (address != null) {
+                      ref.invalidate(checkoutPricingProvider(address));
+                    }
+                  },
                   builder: (context, cart) => _Summary(
                     subtotal: cart.subtotal,
                     discount: cart.discount,
@@ -439,11 +470,15 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
         ),
       ),
       bottomNavigationBar:
-          cart == null || cartState.isLoading || cartState.hasError
+          quotedCart == null ||
+              pricing.isLoading ||
+              pricing.hasError ||
+              cartState.isLoading ||
+              cartState.hasError
           ? null
           : ResponsiveContent.page(
               child: _PlaceOrderBar(
-                total: cart.total,
+                total: quotedCart.total,
                 money: _money,
                 enabled: canPlace,
                 busy: _placing,

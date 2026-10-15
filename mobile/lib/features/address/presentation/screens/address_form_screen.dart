@@ -18,6 +18,9 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/address.dart';
 import '../providers/address_providers.dart';
+import '../providers/governorate_provider.dart';
+import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/widgets/skeleton.dart';
 
 /// Full-screen add/edit address form (reached with a back button, like the
 /// profile editor). A full page — rather than a bottom sheet — so the fields
@@ -46,6 +49,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
     text: normalizeDigits(widget.address?.details ?? ''),
   );
   late bool _isDefault = widget.address?.isDefault ?? false;
+  late String? _governorateId = widget.address?.governorateId;
   bool _busy = false;
   bool _usePrimaryPhone = true;
   final _otherPhone = TextEditingController();
@@ -77,7 +81,12 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   }
 
   Future<void> _save() async {
-    if (_busy) return;
+    if (_busy ||
+        !ref.read(governoratesProvider).hasValue ||
+        ref.read(governoratesProvider).isLoading ||
+        ref.read(governoratesProvider).hasError) {
+      return;
+    }
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final navigator = Navigator.of(context);
     final credentials = ref.read(sessionCredentialsProvider);
@@ -93,6 +102,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
     final input = AddressInput(
       label: _label.text.trim(),
       city: _city.text.trim(),
+      governorateId: _governorateId,
       area: _area.text.trim(),
       street: _street.text.trim(),
       details: details.isEmpty ? null : details,
@@ -126,6 +136,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final governorates = ref.watch(governoratesProvider);
     ref.watch(sessionControllerProvider);
     final isRemote = ref.watch(dataSourceProvider) == DataSource.remote;
     return Scaffold(
@@ -141,6 +152,42 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
             padding: AppLayout.formScrollInsets(context),
             child: ResponsiveFields(
               children: [
+                ResponsiveField(
+                  fullWidth: true,
+                  child: AsyncValueView(
+                    value: governorates,
+                    loading: const Skeleton.line(),
+                    onRetry: () => ref.invalidate(governoratesProvider),
+                    builder: (context, rows) => DropdownButtonFormField<String>(
+                      key: ValueKey(rows),
+                      initialValue: rows.any((g) => g.id == _governorateId)
+                          ? _governorateId
+                          : null,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: l10n.addressGovernorate,
+                      ),
+                      items: [
+                        for (final g in rows)
+                          DropdownMenuItem(
+                            value: g.id,
+                            child: Text(
+                              Localizations.localeOf(context).languageCode ==
+                                      'ar'
+                                  ? g.nameAr
+                                  : g.nameEn,
+                            ),
+                          ),
+                      ],
+                      onChanged: _busy
+                          ? null
+                          : (value) => setState(() => _governorateId = value),
+                      validator: (value) => value == null
+                          ? l10n.errorAddressGovernorateRequired
+                          : null,
+                    ),
+                  ),
+                ),
                 TextFormField(
                   contextMenuBuilder: appTextSelectionToolbar,
                   controller: _label,
@@ -281,7 +328,9 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                     label: l10n.actionSave,
                     icon: Icons.check,
                     isLoading: _busy,
-                    onPressed: _save,
+                    onPressed: governorates.isLoading || governorates.hasError
+                        ? null
+                        : _save,
                   ),
                 ),
               ],

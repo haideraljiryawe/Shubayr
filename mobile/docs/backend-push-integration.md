@@ -60,9 +60,9 @@ or automated evidence as specified, never implied physical delivery.
 2. Provision the two client-only JSON files once as described in
    [README](../README.md#vs-code-simulators-and-physical-devices). Existing local
    files already validate. No Firebase values need entering per launch.
-3. Keep API_URL in the existing `mobile/.vscode/iphone.json`; both platforms use
-   it. Update only that value if the Mac LAN address changes. Confirm `/health`
-   from the phone browser on the same network; Mac preflight alone cannot prove it.
+3. Home/work IP selection is automatic through the shared Mobile preflight;
+   see the README. Confirm the active Mac `/health` endpoint from the phone
+   browser on the same network; Mac preflight alone cannot prove it.
 4. Select **iPhone Device** (existing Ahmed iPhone UDID) or **Android Device**
    (existing Samsung serial). Trust/authorize the Mac, enable Developer Mode or
    USB debugging, and update deviceId only if the actual device changes.
@@ -77,14 +77,11 @@ or automated evidence as specified, never implied physical delivery.
    authorized customer/registration selection. No runnable send command exists
    today; do not substitute direct client-side sending or credentials.
 
-The special **Shubayr – iPhone Firebase** profile is retained for compatibility;
-its Flutter arguments equal standard iPhone's. Standard F5 launch and registration
-are confirmed. Backend receipt/tap and debugger/hot-reload verification remain
-separate checks; removing the legacy profile is not part of this publication.
-Simulator, web and admin profiles are unchanged. The pre-existing Git
-`skip-worktree` flags on both launch files were cleared for publication so the
-shared launch changes are tracked and included. Firebase file references use
-`${env:HOME}`; their contents remain outside the repository.
+The former duplicate Firebase launch was removed on 2026-10-15. All five Mobile
+profiles now include their platform's existing Firebase client file; simulator
+support remains platform-dependent. The audit table above records the earlier
+snapshot, not the current Docker sender state. Current local runtime and source
+provenance are documented in [local development](local-real-data.md).
 
 Profile/Release must separately receive approved per-platform Firebase client
 defines, production HTTPS API_URL, privacy configuration and distribution signing.

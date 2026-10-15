@@ -4,70 +4,145 @@ Flutter talks to the Backend API; it never connects directly to PostgreSQL.
 Normal application launches use database-backed remote repositories only.
 Isolated automated tests explicitly inject their fixtures.
 
-## Workstation setup snapshot
+## Active workstation runtime (2026-10-15)
 
-The local stack uses PostgreSQL, Redis, Meilisearch, MinIO and the API in Docker.
-The API is `http://localhost:8000/api/v1`. Database and image data live in named
-Docker volumes (`shubayr_db_data` and `shubayr_minio_data`). The initial catalog
-is development seed data, not production records and not Flutter mock fixtures.
+The existing Docker API container is `shubayr_backend_test_api`. Despite its
+historical name, inspection confirms **APP_ENV/NODE_ENV=development** and the
+single database `db:5432/shubayr` in `shubayr_db`, using the existing
+`shubayr_db_data` volume. No alternate test database is used by the app.
 
-The local `store_settings.primary_color` value is `#396D48`, matching Mobile's
-approved bundled green. The Backend seed supplies navy `#0B2A54`; Remote mode
-honors that setting for the whole brand theme, including selected navigation
-icons. After seeding a fresh local database, set the `primary_color` row to
-`#396D48` to keep this design. The shared Backend seed is unchanged.
-
-From the repository root, start or resume the configured stack:
+Its persistent workstation configuration is:
+`$HOME/.config/shubayr/backend-test/compose.local.json`.
+Start/resume that API without starting a competing API on port 8000:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full up -d api
+docker compose -f "$HOME/.config/shubayr/backend-test/compose.local.json" up -d --no-deps api
 ```
 
-`docker-compose.local.yml` is an ignored workstation configuration. It publishes
-only API port 8000 on `0.0.0.0` for localhost and physical devices on the LAN;
-database and internal service ports stay bound to localhost. It permits Flutter
-Web on `http://localhost:7357`, and
-overrides API startup to generate Prisma, deploy migrations and run the API
-**without reseeding**. It does not modify Backend source or the shared compose
-file. If this file is missing on another machine, recreate those overrides
-before using this command.
+The API now publishes `0.0.0.0:8000:8000` so home/work network changes do not
+require recreating it. PostgreSQL and other internal ports remain localhost-only.
+The previous compose settings are retained beside it as
+`compose.before-mobile-run-cleanup.json`. The existing external Backend env file,
+FCM provider/service-account configuration, network and database were preserved.
+Startup generates/builds the existing API; it does **not** migrate or seed.
+Do not run seed, `down -v`, or reset the existing database.
 
-The fresh database was migrated and seeded once. Do not repeat `npm run seed`
-on a working development database: it rewrites seeded catalog records and stock.
-Likewise, the base compose API command seeds automatically; keep using the local
-override. Do not use `docker compose down -v` to stop work; that deletes volumes.
+The pre-existing runtime was older than API 16.2's address-aware cart pricing.
+Image `shubayr-backend-dev:pricing-16.2` layers the exact Backend source changes
+from reviewed `origin/main` commit `fd6a3bc8ddcb612dd6f672538aaaf992f3ab4f6b`
+(PR #142) onto the existing push-enabled image. Every replaced production source
+file matched that commit's parent before replacement. This preserves the
+workstation's existing notification changes. Build context and source attribution:
+`$HOME/.config/shubayr/backend-test/pricing-16.2/`. The image build passed the
+pricing/cart/route-policy unit suites (1057 tests); it performs no DB writes.
+No Backend source, contract, or migration in the Mobile checkout was edited.
 
-To stop these services without removing data:
+For another workstation, configure its existing real development API to use
+Docker database `shubayr`, expose port 8000, and preserve its environment/signing.
+Do not run the base compose API command blindly: it includes seeding. The older
+ignored `docker-compose.local.yml` is retained for its other services, but should
+not start a second API while the above runtime owns port 8000.
+
+## Run & Debug and notifications
+
+Both workspace roots contain the same five Mobile profiles plus **Web Admin**. See
+[README](../README.md#vs-code-simulators-and-physical-devices) for automatic
+home/work selection, emulator routing and the existing external Firebase files.
+Mobile preflight is read-only for Docker and the database; generated debug defines are
+ignored. Select **Web Admin** in Run & Debug and press F5, or run
+`node mobile/tool/run_web_admin.mjs` from the repository root. The launcher checks
+the same Docker API/database, serves `http://localhost:3200`, and uses an exported
+copy of main `fd6a3bc` (API 16.2.0), including its shared styles/font/forwarding
+files. The copy and locked dependencies live outside the checkout under
+`$HOME/.config/shubayr/web-admin/<revision>/`. It is a runtime distribution, not a
+Git clone/worktree. Updating the pinned revision is deliberate, not automatic
+on every F5. The older `admin/` checkout remains untouched.
+
+Sign in with your existing Web Admin staff account. Open **Settings →
+Governorates** (`/settings/governorates`) and **Settings → Delivery zones**
+(`/settings/delivery-zones`). The launcher never signs in, creates users, seeds,
+migrates, or changes delivery settings. Its server uses
+`API_URL=http://localhost:8000/api/v1`, `ADMIN_ORIGIN=http://localhost:3200`, secure
+localhost cookies, and all modules enabled; the Backend still enforces account
+permissions.
+
+### Automatic permissions for this workstation's admin
+
+The owner opted the existing local `admin` into automatic permission grants.
+The opt-in is outside Git at
+`$HOME/.config/shubayr/local-admin-access.json` (`enabled: true`, `userId`: the
+existing account UUID). An absent/disabled file leaves normal permissions alone.
+On every **Web Admin** launch, including F5 when its server is already running,
+`tool/local_admin_access.mjs` reads the **running Backend's** permission registry,
+registers missing permission definitions and adds missing direct grants to that
+active account only. It preserves shared presets, other accounts, credentials
+and business data, increments `permission_version` and audits actual additions.
+Repeated launches without new permissions do not write grants or audit entries.
+
+After upgrading the local Backend, launch **Web Admin** and refresh the page;
+no manual permission assignment is needed. This is a launch-time sync, not a
+background watcher or automatic source upgrade. The launcher refuses a remote
+Docker endpoint, production environment, alternate database, renamed/deactivated
+account or a replacement account with a different UUID. Backend authorization
+and production source/configuration are unchanged. Set `enabled` to `false` to
+stop future synchronization; this does not revoke previously granted permissions.
+
+Verification (creates and then drops a unique empty verification database):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full stop api db redis search minio
+RUN_LOCAL_ADMIN_ACCESS_ACCEPTANCE=1 node --test mobile/tool/local_admin_access.test.mjs mobile/tool/debug_environment.test.mjs
 ```
+
+## Checkout: delivery setup required
+
+The reported 409 was traced to legacy addresses without `governorate_id`.
+The existing cart subtotal was 1,844,500 IQD, matching the screenshot. Both saved
+addresses lacked the governorate and the database had no delivery zones. The
+running Backend rejects these before creating an order with
+`ADDRESS_GOVERNORATE_REQUIRED`, then `DELIVERY_ZONE_NOT_SERVED` for unserved areas.
+This is a real contract/setup requirement, not a payment gateway failure (the
+flow uses cash on delivery).
+
+Mobile now preserves/saves the selected governorate, provides an explicit edit
+path for legacy addresses, and loads `GET /cart?address_id=...` for authoritative
+fees/discounts/totals. Placement stays unavailable while pricing loads or fails.
+Server checks, explicit price-change consent and idempotency are preserved;
+conflicts never silently retry an order.
+
+The owner must finish setup through **Web Admin**, now available from the
+separate VS Code launcher with the current delivery settings screens:
+
+1. Enable the governorates the store serves.
+2. Create/enable delivery zones, assign those governorates and set their actual
+   IQD delivery fees. A governorate must belong to an active zone.
+3. In Mobile, edit the saved delivery address and explicitly select its correct
+   governorate. The existing city text is preserved; no city-to-governorate guess
+   or automatic address backfill is performed.
+4. Return to checkout, refresh if needed, review the server's delivery fee and
+   total, then place the order.
+
+No zones, rates, address corrections or orders were inserted into development
+as part of this repair. Production was not accessed. Governorate metadata may
+be cached for 30 seconds by the Backend; cart pricing remains authoritative.
+
+## Verification of the 2026-10-15 repair
+
+- All five preflights passed against the actual local Docker API, including the
+  current work LAN endpoint; home/work detection also passed isolated tests.
+- `flutter analyze --no-pub`: no issues. Full Flutter suite: 2131 passed,
+  5 conditional tests skipped. After the final fresh-quote availability guard,
+  all 29 focused delivery/checkout widget/repository tests passed.
+- Debug/Firebase preparation: 10 Node tests passed. Runtime pricing/cart/policy
+  suites: 1057 tests passed during the image build, without a database connection.
+- Final `flutter build apk --debug --no-pub` using the Android emulator/Firebase
+  files succeeded. `git diff --check` passed.
+- No additional simulator was started. Physical-device reachability, native
+  notification receipt and a completed live order still need manual verification;
+  live checkout is correctly blocked until the owner configures delivery zones
+  and explicitly repairs the saved address. Existing development data was not
+  seeded, reset or backfilled. No temporary acceptance database was used.
 
 ## Flutter and development sign-in
-
-Current API 11.0.0 configuration and phone roles are documented in
-[README](../README.md) and [AGENTS](../AGENTS.md). This workstation setup is not
-evidence of a currently running/migrated backend. In VS Code, select **iOS + Web Admin (Remote)** and press F5 to launch the phone
-simulator and Web Admin together against `http://localhost:8000/api/v1`.
-Open `http://localhost:3200` for Web Admin. Stopping either debug session stops
-both sessions in this compound. Start the existing backend before launching.
-
-Standalone profiles remain available: **iPhone Simulator**,
-**Web Admin (Remote)** and **Chrome Preview (Remote)**. Chrome uses
-`http://localhost:7357` for CORS and separate browser storage; the compound does
-not launch Chrome. Stop an existing standalone session before starting the
-compound to avoid duplicate processes.
-
-For a physical iPhone, select **iPhone Device** instead. The shared
-Mac address setting, local network requirements, and health check are described
-in [VS Code: iOS Simulator and real iPhone](../README.md#vs-code-ios-simulator-and-real-iphone).
-
-Pre-launch tasks use Node.js to check API health and require a free port for
-Admin/Chrome. Admin also requires Node.js >=22.12 and installed dependencies
-(`npm ci` inside `admin`, once). These checks never stop existing processes,
-install packages, start Docker or migrate/seed the database. API health does not
-confirm database migrations or account readiness. Refresh the relevant mobile
-list after an Admin change; shared remote data does not imply live list updates.
 
 Normal application launches always use remote. Development OTP must be obtained
 from the configured backend; fixture OTP and role selection are test-only.

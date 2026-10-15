@@ -56,79 +56,78 @@ the OTP response determines the role.
 
 ### VS Code: simulators and physical devices
 
-Both opening the repository root and opening `mobile/` in VS Code provide:
+Opening either the repository root or `mobile/` provides these five Mobile profiles
+and a separate **Web Admin** launcher:
 
-- **iPhone Simulator**: the existing iPhone 17 Pro simulator, debug mode,
-  `http://localhost:8000/api/v1`, and the existing API preflight.
-- **iPad Simulator**: iPad Pro 11-inch (M5) on iPadOS 26.5, pinned to UDID
-  `F58BF179-6ED2-4FCE-BA8B-0CA661CC37EE`, with the same debug mode, API URL,
-  and API preflight as the iPhone simulator. If shut down, open this device from
-  Simulator's **File > Open Simulator** menu before pressing **F5**.
-- **iPhone Device**: Ahmed's connected physical iPhone, debug mode, with the
-  shared development API file and external iOS Firebase client file.
-- **Android Device**: the configured Samsung device, debug mode, with the same
-  API file and the external Android Firebase client file.
+| Profile | Target | Development API |
+|---|---|---|
+| iPhone Simulator | iPhone 17 Pro simulator | `http://localhost:8000/api/v1` |
+| iPad Simulator | Existing iPad Pro simulator | `http://localhost:8000/api/v1` |
+| Android Emulator | `emulator-5554` | `http://10.0.2.2:8000/api/v1` |
+| iPhone Device — iPhone 16 Pro | Existing iPhone 16 Pro UDID | Active home/work Mac address |
+| Android Device — Galaxy A34 | Existing Galaxy A34 serial | Active home/work Mac address |
 
-Both physical-device profiles use the existing explicit `FirebaseOptions`
-implementation. Provision these client-only files once, outside the repository:
+Select the profile and press **F5**. Start the selected simulator or connect the
+physical device first. Device IDs remain pinned in the two launch files; check
+`flutter devices` if replacing a device. VS Code's extension-provided entries
+such as “Node.js…” and “Add Configuration…” are commands, not project profiles.
+Select **Web Admin** and press F5 to run the current compatible admin at
+`http://localhost:3200`. Its shared `tool/run_web_admin.mjs` launcher exports the
+pinned main revision `fd6a3bc` into `$HOME/.config/shubayr/web-admin/<revision>/`,
+installs its locked dependencies once with Node 22.12+ (Node 22), and starts it
+against the same local Docker API/database. No branch switch or changes to the
+older `admin/` checkout are needed. Repeated F5 reuses that admin if already
+running; another program on port 3200 is left untouched. Stop the originating
+terminal/debug session to stop the server. No database setup runs automatically.
+Mobile profiles never start Web Admin as a side effect.
+
+`tool/check_debug_environment.mjs` is the single preparation entry point. It:
+
+1. Validates the existing platform-specific external Firebase client file.
+2. Checks that the API publishing Docker port 8000 runs in development and points
+   to `db:5432/shubayr` on the same Docker network as `shubayr_db`.
+3. Checks API health, then writes an ignored `.dart_tool/run/<target>.json`
+   containing the real-data mode and the appropriate API URL.
+
+Physical-device profiles automatically detect **192.168.3.50** at home or
+**192.168.4.50** at work from the Mac's active interfaces. An unknown or ambiguous
+network fails clearly. No manual IP edits, network picker, alternate database,
+mock fallback, installation, seed or migration occurs during F5. Stop/relaunch
+after changing networks: Dart defines are build-time values. Resolve any pending
+checkout before switching networks; pending-operation storage is API-URL scoped.
+
+The development API must publish `0.0.0.0:8000:8000`; internal/database services
+stay bound to localhost. Keep both phone and Mac on the same LAN. Allow iOS
+**Local Network** access and the Mac firewall's development API access. Verify
+`http://<active-Mac-IP>:8000/api/v1/health` in the phone browser. A Mac-side
+preflight cannot prove the phone's Wi-Fi/firewall reachability. Trust the iPhone
+and enable Developer Mode; authorize USB debugging on Android.
+
+All five profiles load the same existing per-platform client files:
 
 - `$HOME/Documents/firebase/shubayr-ios.json`
 - `$HOME/Documents/firebase/shubayr-android.json`
 
-Each must contain exactly four non-empty string keys: `FIREBASE_API_KEY`,
-`FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID`. Obtain
-their real values from the registered Firebase apps for `com.shubayr.app`.
-Use each platform's own App ID; the sender/project must match the intended
-Backend Firebase project. Never put service-account JSON, private keys, auth
-tokens or Backend secrets in these files. The device preflight checks file
-shape, platform/sender consistency and API health without printing client values.
-It does not establish Firebase credentials, APNs or actual delivery.
+Each file contains only four non-empty string keys: `FIREBASE_API_KEY`,
+`FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID`. Use the
+existing registered `com.shubayr.app` clients, platform-specific App IDs and the
+Backend's Firebase project. Server credentials stay outside these client files.
+The preflight validates the file shape/platform/sender without printing values.
+Existing native signing, entitlements, APNs-token waiting and session-scoped
+registration remain unchanged. No special Firebase launch profile is needed.
 
-No values need entering on each F5 launch. Debugging, breakpoints, Hot Reload
-and Hot Restart remain available. Stop and relaunch after changing Dart defines.
-The standard iPhone profile has passed physical launch and Backend registration
-verification (HTTP 201). `Shubayr – iPhone Firebase` remains for compatibility;
-its Flutter arguments match the standard profile, so it is not required for
-normal development. Backend-originated delivery verification remains pending.
-See [Backend push integration and handoff](docs/backend-push-integration.md)
-for the audit, outstanding sender setup, developer tooling and device test plan.
+For push testing, Android needs Google Play services / a supported Google APIs
+emulator image. Apple simulator remote notifications require a supported host
+and iOS runtime (Apple introduced support with iOS 16 on macOS 13 on Apple
+silicon/T2 Macs); Firebase still needs a real APNs token, correct signing and
+permission. Local `simctl push` alone does not verify FCM end-to-end delivery.
+See [Firebase's Flutter setup](https://firebase.google.com/docs/cloud-messaging/flutter/get-started)
+and [Apple's simulator support](https://developer.apple.com/documentation/xcode-release-notes/xcode-14-release-notes).
 
-Select the configuration in **Run and Debug**, then press **F5**. No file edits
-are needed to switch environments. The **only Mac IP setting** is `API_URL` in
-[`mobile/.vscode/iphone.json`](.vscode/iphone.json); both launch files and the
-physical-device preflights read that same file. If the Mac IP changes, update it there
-(Wi-Fi address: `ipconfig getifaddr en0`), then stop and relaunch the app because
-Dart defines are build-time values. Keep the backend port and `/api/v1` suffix.
-
-The iPhone must be paired/trusted, unlocked, have Developer Mode enabled, and
-use the same local network as the Mac. Use the existing
-[local signing setup](docs/ios-local-signing.md). The device profile pins Ahmed's
-physical device ID so selecting a simulator in the status bar cannot redirect
-it; a replacement phone requires updating `deviceId` in the launch files using
-`flutter devices`.
-Android similarly uses the existing Samsung serial; enable USB debugging and
-authorize the Mac. Use a device with Google Play services and verify its serial
-with `flutter devices`. Its browser must also reach the shared API health URL.
-
-Start the existing backend first. Its server listens on `0.0.0.0:8000` inside
-the container, but Docker must also publish API port 8000 to the Mac's LAN
-interface; a `127.0.0.1:8000:8000` mapping only supports the simulator. Keep
-database and other service ports restricted to localhost. Allow the API's
-incoming connections through the Mac firewall if prompted. Open the value
-of `API_URL` plus `/health` in **Safari on the iPhone**: an HTTP 200 JSON response
-confirms phone-to-backend connectivity. Then launch the app, allow **Local
-Network** access when asked, and check that the catalog loads. If access was
-denied, enable Shubayr under iOS Settings → Privacy & Security → Local Network.
-The preflight only checks the LAN endpoint from the Mac; it cannot prove the
-iPhone's network access or permission.
-
-Only the Xcode **Debug** configuration uses `ios/Runner/Info-Debug.plist`, adding
-the local-network usage message and `NSAllowsLocalNetworking` for local HTTP.
-It does not enable `NSAllowsArbitraryLoads`. Flutter supplies its own Bonjour
-VM-service entry during development builds. Release and Profile keep the
-original `Info.plist` and existing production HTTPS validation. Keep shared app
-metadata in both plist files in sync when changing it. See Apple's
-[local networking policy](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking).
+Only Xcode **Debug** uses `ios/Runner/Info-Debug.plist` and local networking;
+Profile/Release keep the existing production HTTPS guards and signing settings.
+For the local Docker runtime and checkout setup, see
+[Local real-data development](docs/local-real-data.md).
 
 ### Production release configuration
 

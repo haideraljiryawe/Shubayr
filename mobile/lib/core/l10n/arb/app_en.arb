@@ -855,5 +855,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "addressGovernorate": "Governorate",
+  "errorAddressGovernorateRequired": "Select a governorate in your delivery address before placing the order.",
+  "errorDeliveryZoneNotServed": "Delivery is currently unavailable for this governorate. Choose an address in a served area or contact the store.",
+  "errorDeliveryLocationSelector": "Could not determine the delivery location. Select your delivery address again."
 }

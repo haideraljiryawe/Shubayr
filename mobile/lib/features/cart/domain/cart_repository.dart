@@ -3,8 +3,8 @@ import '../data/cart.dart';
 /// The cart is server-side and user-scoped (auth required). Every mutation
 /// returns the updated [Cart] so the UI always renders the server's truth.
 abstract interface class CartRepository {
-  /// `GET /cart`.
-  Future<Cart> fetchCart();
+  /// `GET /cart`; an owned address includes authoritative delivery pricing.
+  Future<Cart> fetchCart({String? addressId});
 
   /// `POST /coupons/validate`, then `GET /cart` for authoritative totals.
   Future<Cart> applyCoupon(String code);

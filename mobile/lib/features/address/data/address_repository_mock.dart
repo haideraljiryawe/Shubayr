@@ -3,7 +3,7 @@ import '../../../core/utils/validators.dart';
 import '../domain/address_repository.dart';
 import 'address.dart';
 
-/// In-memory addresses for development. Enforces a single default (setting one
+/// Explicit test-fixture addresses. Enforces a single default (setting one
 /// clears the others), the same invariant the server keeps. Ten addresses
 /// exercise multiple pages in the address list and checkout picker.
 class AddressRepositoryMock implements AddressRepository {
@@ -18,6 +18,7 @@ class AddressRepositoryMock implements AddressRepository {
       contactPhone: '07700000000',
       label: 'المنزل',
       city: 'بغداد',
+      governorateId: 'test-baghdad',
       area: 'الكرادة',
       street: 'شارع ٦٢',
       isDefault: true,
@@ -28,6 +29,7 @@ class AddressRepositoryMock implements AddressRepository {
         contactPhone: '07810000000',
         label: 'عنوان $i',
         city: 'بغداد',
+        governorateId: 'test-baghdad',
         area: 'الكرادة',
         street: 'شارع $i',
       ),
@@ -38,6 +40,7 @@ class AddressRepositoryMock implements AddressRepository {
     userId: userId,
     label: input.label,
     city: input.city,
+    governorateId: input.governorateId,
     area: input.area,
     street: input.street,
     details: input.details,
