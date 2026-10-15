@@ -17,7 +17,10 @@ import {
   commitOutcome,
   commitTone,
   filterRows,
-  pollInterval,
+  POLL_MS,
+  pollsProgress,
+  withCommitResult,
+  withProgress,
   groupMatched,
   hasStockRows,
   isKnownIssue,
@@ -193,9 +196,42 @@ describe("applying (API 16.1: queued, in batches, resumable)", () => {
     expect(commitTone("pending")).toBe("neutral");
   });
 
-  it("reads a large import less often", () => {
-    expect(pollInterval({ row_count: 40 })).toBe(1500);
-    expect(pollInterval({ row_count: 3000 })).toBe(3000);
+  it("follows a commit with the light progress read (API 16.3)", () => {
+    expect(POLL_MS).toBeLessThanOrEqual(2000);
+    expect(pollsProgress("committing")).toBe(true);
+    // A check in progress has no preview yet: the import itself is light.
+    expect(pollsProgress("validating")).toBe(false);
+    expect(pollsProgress("completed")).toBe(false);
+    const applying = withProgress(item({ status: "committing", applied_count: 0, commit_batches_done: 0, commit_batches_total: 13 }), {
+      id: "11111111-1111-4111-8111-111111111111",
+      status: "committing",
+      batches_done: 4,
+      batches_total: 13,
+      rows_applied: 1000,
+      rows_failed: 0,
+      last_error: null,
+    });
+    expect([applying.status, applying.applied_count, applying.commit_batches_done, applying.commit_batches_total]).toEqual(["committing", 1000, 4, 13]);
+    // The preview rows are kept as they were until the full import is read.
+    expect(applying.preview).toEqual(item({}).preview);
+  });
+
+  it("folds the commit's answer in without reading the whole import", () => {
+    const queued = withCommitResult(item({ status: "ready", operation_id: null }), {
+      id: "11111111-1111-4111-8111-111111111111",
+      status: "committing",
+      operation_id: "import-x",
+      created: 3,
+      updated: 1,
+      skipped_errors: 1,
+      applied_rows: 0,
+      total_rows: 4,
+      commit_batches_done: 0,
+      commit_batches_total: 2,
+      opening_id: null,
+    });
+    expect([queued.status, queued.operation_id, queued.applied_count, queued.commit_batches_total]).toEqual(["committing", "import-x", 0, 2]);
+    expect(commitOutcome(queued)).toBe("applying");
   });
 
   it("uses the import's own operation id to resume from any browser", () => {

@@ -20,6 +20,7 @@ export type CatalogImportSummary = components["schemas"]["CatalogImportSummary"]
 export type ImportRow = components["schemas"]["CatalogImportPreviewRow"];
 export type ImportAction = ImportRow["action"];
 export type CommitResult = components["schemas"]["CatalogImportCommitResult"];
+export type ImportProgress = components["schemas"]["CatalogImportProgress"];
 export type ImageResult = components["schemas"]["CatalogImageBulkResult"];
 
 export type CommitStatus = ImportRow["commit_status"];
@@ -97,11 +98,43 @@ export function commitCounts(rows: readonly ImportRow[]): Record<CommitStatus, n
 }
 
 /**
- * How often to read an import while it works. Each read carries every
- * preview row, so a large file is read less often.
+ * How often to read an import while it works. While it applies, each read is
+ * the light progress resource (no preview rows, API 16.3); while it is being
+ * checked, the import itself has no preview yet.
  */
-export function pollInterval(item: Pick<CatalogImport, "row_count">): number {
-  return item.row_count > 500 ? 3000 : 1500;
+export const POLL_MS = 1500;
+
+/** While committing, poll GET …/{id}/progress instead of the whole import. */
+export function pollsProgress(status: CatalogImport["status"]): boolean {
+  return status === "committing";
+}
+
+/**
+ * The progress read folded into the import on screen: its state, rows and
+ * batches applied. The per-row results come with the full import, read once
+ * when the commit settles.
+ */
+export function withProgress(item: CatalogImport, progress: ImportProgress): CatalogImport {
+  return {
+    ...item,
+    status: progress.status,
+    applied_count: progress.rows_applied,
+    commit_batches_done: progress.batches_done,
+    commit_batches_total: progress.batches_total,
+  };
+}
+
+/** The commit's answer (queued, or the result on a replay) folded in the same way. */
+export function withCommitResult(item: CatalogImport, result: CommitResult): CatalogImport {
+  return {
+    ...item,
+    status: result.status,
+    operation_id: result.operation_id,
+    opening_id: result.opening_id,
+    applied_count: result.applied_rows,
+    commit_batches_done: result.commit_batches_done,
+    commit_batches_total: result.commit_batches_total,
+  };
 }
 
 /** Commit is offered once validation is done and something can be applied. */
