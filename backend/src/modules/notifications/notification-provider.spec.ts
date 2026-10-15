@@ -27,7 +27,7 @@ function response(ok: boolean, status: number, payload: unknown) {
 }
 
 describe('FcmPushProvider', () => {
-  it('uses a service-account OAuth token and sends an HTTP v1 notification', async () => {
+  it('sends the visible HTTP v1 payload with default APNs sound and no Android overrides', async () => {
     const http = jest
       .fn()
       .mockResolvedValueOnce(
@@ -71,6 +71,7 @@ describe('FcmPushProvider', () => {
               title: 'Order update',
               body: 'Your order is ready.',
             },
+            apns: { payload: { aps: { sound: 'default' } } },
           },
         }),
       }),

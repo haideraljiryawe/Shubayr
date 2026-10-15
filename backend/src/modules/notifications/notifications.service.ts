@@ -118,7 +118,7 @@ export class NotificationsService {
       },
     });
     const unreadCount = await tx.notificationEvent.count({
-      where: { user_id: input.userId, read_at: null },
+      where: { user_id: input.userId, read_at: null, is_test: false },
     });
     await tx.notificationStreamEvent.createMany({
       data: [
