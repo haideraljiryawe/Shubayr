@@ -161,6 +161,12 @@ try {
   closingCreated = false;
   console.log(`Dropped disposable closing database: ${closingName}`);
 
+  // This pack deliberately deploys every later migration first, then adds the
+  // older corrective push-test migration. Keep it in the CI acceptance run so
+  // both historical-upgrade ordering and the isolated delivery safeguards are
+  // continuously verified.
+  await run('test/push-test-migration.acceptance.mjs', [], environment);
+
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
   const acceptanceEnv = {
