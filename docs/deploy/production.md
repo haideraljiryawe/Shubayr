@@ -30,8 +30,8 @@ store/admin setting and the proxy chain in depth) and
 | Service | Image | Notes |
 |---|---|---|
 | `caddy` | `caddy:2.8.4-alpine` | The only published ports. Let's Encrypt certificates, HTTPS redirect, HSTS, `X-Robots-Tag: noindex` on admin and API. `deploy/caddy/Caddyfile` |
-| `api` | `shubayr-api` | NestJS API, non-root. Also runs background jobs. |
-| `worker` | `shubayr-api` (same build) | More capacity for background jobs (catalog-import checks, notification delivery, order timeouts). Gets no web traffic. Scale with `--scale worker=2`. |
+| `api` | `shubayr-api` | NestJS HTTP API, non-root, with `PROCESS_ROLE=api`. It enqueues jobs but never processes them. |
+| `worker` | `shubayr-api` (same build) | BullMQ processors and schedulers with `PROCESS_ROLE=worker`; it opens no HTTP port. Scale with `--scale worker=2`. |
 | `migrate` | `shubayr-api-migrate` | One-off: `prisma migrate deploy`. Run by the scripts only. |
 | `admin` | `shubayr-admin` | Web Admin (BFF), non-root. |
 | `web` | `shubayr-web` | The store, non-root. Built for one domain (its URLs are baked in). |
@@ -41,6 +41,42 @@ store/admin setting and the proxy chain in depth) and
 Every service restarts automatically (`unless-stopped`), has a health check,
 and keeps at most 5 × 10 MB of logs (`docker compose logs`). Mailpit and
 Adminer are development tools and are not in this file.
+
+### API and worker roles
+
+The same backend image has three process roles. `api` starts the HTTP server
+and queue producers but no BullMQ processors. `worker` starts an application
+context with processors and schedulers but no HTTP listener. `all` does both
+and is the default when `PROCESS_ROLE` is unset, preserving the local and CI
+workflow. Production Compose pins the first two roles explicitly.
+
+The worker inventory is:
+
+| Queue | Work |
+|---|---|
+| `notifications` | transactional-outbox scan, notification fan-out/provider delivery, notification-stream publish |
+| `catalog-imports` | workbook validation, resumable commit batches, interrupted-import recovery |
+| `catalog-search` | individual product indexing and the pending-product catch-up scan |
+| `order-maintenance` | pending-order acceptance and automatic-cancellation timeout scan |
+
+Each scheduled scan uses one stable BullMQ scheduler id. Every worker upserts
+that same id at startup, so scaling does not create duplicate schedules.
+Individual jobs also remain safe if BullMQ redelivers them: notification
+delivery/outbox records are claimed idempotently, import rows are keyed by
+import plus row number and opening stock has one operation id, order timeouts
+lock and recheck the order, and search writes are upserts.
+
+`api` and `worker` receive the same PostgreSQL, Redis, object-storage,
+Meilisearch, SMS and FCM settings. This is required because queued work may
+touch any of those services. `WORKER_HEALTH_FILE` controls the jobs-only
+readiness file; Compose checks it and the worker process instead of probing an
+HTTP port.
+
+Scale only the worker service, for example `dc up -d --scale worker=2`.
+During a normal stop, Nest closes BullMQ workers gracefully and waits for the
+active job; Compose allows two minutes. If the process is killed after that
+grace period, BullMQ returns the stalled job to the queue and the idempotency
+rules above prevent a second business effect.
 
 ## 1. Requirements
 

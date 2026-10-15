@@ -89,7 +89,7 @@ describe('CatalogImportService', () => {
       },
     };
     const deps = dependencies(prisma);
-    await service(deps).onModuleInit();
+    await service(deps).resumeInterrupted();
     expect(deps.queue.add).toHaveBeenCalledWith(
       'commit',
       {

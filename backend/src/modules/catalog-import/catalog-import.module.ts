@@ -9,6 +9,11 @@ import {
 } from './catalog-import.controller';
 import { CatalogImportProcessor } from './catalog-import.processor';
 import { CatalogImportService } from './catalog-import.service';
+import { CatalogImportScheduler } from './catalog-import.scheduler';
+import { runsBackgroundJobs } from '../../config/process-role';
+
+export const catalogImportWorkerProviders = () =>
+  runsBackgroundJobs() ? [CatalogImportProcessor, CatalogImportScheduler] : [];
 
 @Module({
   imports: [
@@ -18,6 +23,6 @@ import { CatalogImportService } from './catalog-import.service';
     MediaModule,
   ],
   controllers: [CatalogImportController, CatalogImageImportController],
-  providers: [CatalogImportService, CatalogImportProcessor],
+  providers: [CatalogImportService, ...catalogImportWorkerProviders()],
 })
 export class CatalogImportModule {}
