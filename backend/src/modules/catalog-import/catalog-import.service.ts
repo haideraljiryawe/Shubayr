@@ -264,6 +264,7 @@ export class CatalogImportService {
           update_count: preview.counts.update,
           error_count: preview.counts.error,
           warning_count: preview.counts.warning,
+          ...this.commitBatchProgress(preview, 0, 'ready'),
           updated_at: new Date(),
         },
         include: importWithCreator,
@@ -332,6 +333,52 @@ export class CatalogImportService {
       },
     });
     return this.present(record, permissions, results);
+  }
+
+  async progress(id: string) {
+    const record = await this.prisma.catalogImport.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        commit_batches_done: true,
+        commit_batches_total: true,
+        applied_count: true,
+      },
+    });
+    if (!record) throw new NotFoundException('Catalog import not found');
+    const [failedCount, lastError] = await Promise.all([
+      this.prisma.catalogImportRowResult.count({
+        where: { import_id: id, status: 'failed' },
+      }),
+      this.prisma.catalogImportRowResult.findFirst({
+        where: { import_id: id, status: 'failed' },
+        select: {
+          sheet: true,
+          row_number: true,
+          error_code: true,
+          error_message: true,
+        },
+        orderBy: [{ updated_at: 'desc' }, { row_number: 'desc' }],
+      }),
+    ]);
+    return {
+      id: record.id,
+      status: record.status,
+      batches_done: record.commit_batches_done,
+      batches_total: record.commit_batches_total,
+      rows_applied: record.applied_count,
+      rows_failed: failedCount,
+      last_error: lastError
+        ? {
+            code: lastError.error_code ?? 'CATALOG_IMPORT_ROW_FAILED',
+            message:
+              lastError.error_message ?? 'The import row could not be applied',
+            sheet: lastError.sheet,
+            row_number: lastError.row_number,
+          }
+        : null,
+    };
   }
 
   async errorReportFile(id: string) {
@@ -428,6 +475,11 @@ export class CatalogImportService {
           committed_by: actor.id,
           commit_attempt: { increment: 1 },
           progress: this.commitProgress(fresh.applied_count, applicable.length),
+          ...this.commitBatchProgress(
+            preview,
+            fresh.applied_count,
+            'committing',
+          ),
           updated_at: new Date(),
         },
         include: importWithCreator,
@@ -699,6 +751,7 @@ export class CatalogImportService {
                 appliedCount,
                 this.validRowCount(preview),
               ),
+              ...this.commitBatchProgress(preview, appliedCount, 'committing'),
               updated_at: new Date(),
             },
           });
@@ -849,6 +902,7 @@ export class CatalogImportService {
               status: 'completed',
               progress: 100,
               applied_count: appliedCount,
+              ...this.commitBatchProgress(preview, appliedCount, 'completed'),
               opening_id: openingId,
               completed_at: new Date(),
               updated_at: new Date(),
@@ -935,6 +989,7 @@ export class CatalogImportService {
             appliedCount,
             this.validRowCount(preview),
           ),
+          ...this.commitBatchProgress(preview, appliedCount, 'failed'),
           updated_at: new Date(),
         },
       });

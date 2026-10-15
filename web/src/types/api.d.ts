@@ -7045,6 +7045,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/catalog-imports/{id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get lightweight progress for one catalog import
+         * @description Poll-friendly commit progress without preview rows or other workbook data.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Lightweight import progress */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImportProgress"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/catalog-imports/{id}/error-report": {
         parameters: {
             query?: never;
@@ -12042,6 +12086,23 @@ export interface components {
         };
         CatalogImportPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["CatalogImportSummary"][];
+        };
+        CatalogImportProgress: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "validating" | "ready" | "committing" | "completed" | "failed";
+            batches_done: number;
+            batches_total: number;
+            rows_applied: number;
+            rows_failed: number;
+            last_error: {
+                code: string;
+                message: string;
+                /** @enum {string} */
+                sheet: "Products+Variants" | "Stock";
+                row_number: number;
+            } | null;
         };
         CatalogImportSummary: {
             /** Format: uuid */
