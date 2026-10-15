@@ -3,7 +3,6 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  OnModuleInit,
   PayloadTooLargeException,
   ServiceUnavailableException,
   UnprocessableEntityException,
@@ -121,7 +120,7 @@ function multipartFileName(value: string | undefined, fallback: string) {
 }
 
 @Injectable()
-export class CatalogImportService implements OnModuleInit {
+export class CatalogImportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: ObjectStorageService,
@@ -132,7 +131,7 @@ export class CatalogImportService implements OnModuleInit {
     @InjectQueue('catalog-imports') private readonly queue: Queue,
   ) {}
 
-  async onModuleInit() {
+  async resumeInterrupted() {
     const interrupted = await this.prisma.catalogImport.findMany({
       where: { status: 'committing', operation_id: { not: null } },
       select: { id: true, commit_attempt: true },

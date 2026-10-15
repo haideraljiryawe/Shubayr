@@ -28,6 +28,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { TieredThrottlerGuard } from './common/guards/tiered-throttler.guard';
+import { WorkerHealthService } from './config/worker-health.service';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { TieredThrottlerGuard } from './common/guards/tiered-throttler.guard';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     RoutePolicyCoverageService,
+    WorkerHealthService,
   ],
 })
 export class AppModule {}

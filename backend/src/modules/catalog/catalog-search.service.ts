@@ -1,37 +1,32 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import type { Queue } from 'bullmq';
 import type { Meilisearch } from 'meilisearch';
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { processRole } from '../../config/process-role';
 
 type SearchProduct = Prisma.ProductGetPayload<{
   include: { brand: true; variants: true };
 }>;
 
 @Injectable()
-export class CatalogSearchService implements OnModuleInit, OnModuleDestroy {
+export class CatalogSearchService {
   private readonly logger = new Logger(CatalogSearchService.name);
   private client?: Meilisearch;
   private readonly indexName = 'products';
-  private retryTimer?: NodeJS.Timeout;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    @Inject('BullQueue_catalog-search')
+    private readonly queue?: Queue,
+  ) {}
 
   async onModuleInit() {
-    await this.connectAndCatchUp();
-    this.retryTimer = setInterval(() => void this.connectAndCatchUp(), 30_000);
-    this.retryTimer.unref();
+    if (processRole() === 'all') await this.connectAndCatchUp();
   }
 
-  onModuleDestroy() {
-    if (this.retryTimer) clearInterval(this.retryTimer);
-  }
-
-  private async connectAndCatchUp() {
+  async connectAndCatchUp() {
     try {
       if (!this.client) {
         const { Meilisearch } = await import('meilisearch');
@@ -72,11 +67,10 @@ export class CatalogSearchService implements OnModuleInit, OnModuleDestroy {
   }
 
   async rebuild() {
-    if (!this.client) return;
     await this.prisma.product.updateMany({
       data: { search_sync_required: true },
     });
-    await this.reindexPending();
+    await this.requestCatchUp();
   }
 
   private document(product: SearchProduct) {
@@ -110,7 +104,7 @@ export class CatalogSearchService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.product.updateMany({
       data: { search_sync_required: true },
     });
-    await this.connectAndCatchUp();
+    await this.requestCatchUp();
     const remaining = await this.prisma.product.count({
       where: { search_sync_required: true },
     });
@@ -144,6 +138,51 @@ export class CatalogSearchService implements OnModuleInit, OnModuleDestroy {
   }
 
   async indexProduct(id: string) {
+    if (processRole() === 'api') {
+      if (!this.queue) throw new Error('Catalog search queue is unavailable');
+      try {
+        await this.queue.add(
+          'index-product',
+          { productId: id },
+          {
+            jobId: `product-${id}`,
+            removeOnComplete: true,
+            removeOnFail: 100,
+          },
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Catalog search enqueue deferred for ${id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      return;
+    }
+    await this.syncProduct(id);
+  }
+
+  private async requestCatchUp() {
+    if (processRole() !== 'api') {
+      await this.connectAndCatchUp();
+      return;
+    }
+    if (!this.queue) throw new Error('Catalog search queue is unavailable');
+    try {
+      await this.queue.add(
+        'catch-up',
+        {},
+        {
+          removeOnComplete: true,
+          removeOnFail: 100,
+        },
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Catalog search catch-up enqueue deferred: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async syncProduct(id: string) {
     if (!this.client) return;
     try {
       const product = await this.prisma.product.findUnique({

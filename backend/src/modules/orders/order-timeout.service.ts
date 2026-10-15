@@ -1,20 +1,12 @@
-import {
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-  OnModuleDestroy,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
-export class OrderTimeoutService
-  implements OnApplicationBootstrap, OnModuleDestroy
-{
+export class OrderTimeoutService {
   private readonly logger = new Logger(OrderTimeoutService.name);
-  private timer?: ReturnType<typeof setInterval>;
   private running = false;
 
   constructor(
@@ -23,16 +15,6 @@ export class OrderTimeoutService
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
   ) {}
-
-  onApplicationBootstrap() {
-    this.timer = setInterval(() => void this.run(), 30_000);
-    this.timer.unref();
-    void this.run();
-  }
-
-  onModuleDestroy() {
-    if (this.timer) clearInterval(this.timer);
-  }
 
   async run(now = new Date()) {
     if (this.running) return;

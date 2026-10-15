@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
-import { AppModule } from './app.module';
+import { existsSync } from 'node:fs';
 import { ApiExceptionFilter } from './common/http/api-exception.filter';
 import { validationExceptionFactory } from './common/http/api-error';
 import { DecimalResponseInterceptor } from './common/http/decimal-response.interceptor';
@@ -11,8 +11,19 @@ import { parseCorsOrigins } from './config/cors';
 import { compileTrustedProxies } from './config/trusted-proxies';
 import { runWithClientIp } from './modules/audit/audit-context';
 import type { NextFunction, Request, Response } from 'express';
+import { runsHttpServer } from './config/process-role';
 
 async function bootstrap(): Promise<void> {
+  if (existsSync('.env')) process.loadEnvFile('.env');
+  const { AppModule } = await import('./app.module');
+  if (!runsHttpServer()) {
+    const worker = await NestFactory.createApplicationContext(AppModule, {
+      bufferLogs: true,
+    });
+    worker.useLogger(worker.get(Logger));
+    worker.enableShutdownHooks();
+    return;
+  }
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });

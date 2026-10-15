@@ -4,8 +4,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  OnApplicationBootstrap,
-  OnModuleDestroy,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
@@ -41,11 +39,8 @@ import {
 } from './dto/notification.dto';
 
 @Injectable()
-export class NotificationsService
-  implements OnApplicationBootstrap, OnModuleDestroy
-{
+export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
-  private timer?: ReturnType<typeof setInterval>;
   private pumping = false;
 
   constructor(
@@ -55,16 +50,6 @@ export class NotificationsService
     @Inject(PUSH_PROVIDER) private readonly push: NotificationProvider,
     @Inject(SMS_PROVIDER) private readonly sms: NotificationProvider,
   ) {}
-
-  onApplicationBootstrap() {
-    this.timer = setInterval(() => void this.enqueuePending(), 1000);
-    this.timer.unref();
-    void this.enqueuePending();
-  }
-
-  onModuleDestroy() {
-    if (this.timer) clearInterval(this.timer);
-  }
 
   /** Transactional outbox: the request writes only PostgreSQL, never waits for Redis. */
   record(
