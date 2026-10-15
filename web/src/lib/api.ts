@@ -516,6 +516,8 @@ export const api = {
           name_en: "Wasit",
           is_active: true,
           is_served: true,
+          delivery_fee: 5000,
+          currency: "IQD",
         },
         {
           id: "22222222-2222-4222-8222-222222222222",
@@ -524,6 +526,8 @@ export const api = {
           name_en: "Baghdad",
           is_active: true,
           is_served: true,
+          delivery_fee: 6000,
+          currency: "IQD",
         },
         // In no active delivery zone: checkout must say so.
         {
@@ -533,6 +537,8 @@ export const api = {
           name_en: "Basra",
           is_active: true,
           is_served: false,
+          delivery_fee: null,
+          currency: "IQD",
         },
       ];
     }

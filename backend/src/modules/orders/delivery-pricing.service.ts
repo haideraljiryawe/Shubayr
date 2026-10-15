@@ -14,7 +14,8 @@ import {
   DiscountTierPatchDto,
   GovernoratePatchDto,
 } from './dto/delivery-pricing.dto';
-import { conflict } from '../../common/http/api-error';
+import { conflict, invalid } from '../../common/http/api-error';
+import type { CartPricingQueryDto } from './dto/cart.dto';
 
 const zoneInclude = {
   governorates: {
@@ -24,6 +25,17 @@ const zoneInclude = {
 
 @Injectable()
 export class DeliveryPricingService {
+  private publicTierCache:
+    | {
+        expiresAt: number;
+        tiers: Array<{
+          id: string;
+          min_subtotal_iqd: Prisma.Decimal;
+          percent: Prisma.Decimal;
+        }>;
+      }
+    | undefined;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -32,7 +44,9 @@ export class DeliveryPricingService {
   async listPublicGovernorates() {
     const rows = await this.prisma.governorate.findMany({
       where: { is_active: true },
-      include: { delivery_zone: { select: { is_active: true } } },
+      include: {
+        delivery_zone: { select: { is_active: true, fee_iqd: true } },
+      },
       orderBy: [{ name_en: 'asc' }, { id: 'asc' }],
     });
     return rows.map((row) => ({
@@ -42,7 +56,43 @@ export class DeliveryPricingService {
       name_en: row.name_en,
       is_active: row.is_active,
       is_served: row.delivery_zone?.is_active === true,
+      delivery_fee:
+        row.delivery_zone?.is_active === true
+          ? Number(row.delivery_zone.fee_iqd)
+          : null,
+      currency: 'IQD',
     }));
+  }
+
+  async resolveDeliveryFee(userId: string, query: CartPricingQueryDto) {
+    if (query.governorate_id && query.address_id) {
+      throw invalid(
+        'DELIVERY_LOCATION_SELECTOR_CONFLICT',
+        'Choose either governorate_id or address_id, not both',
+      );
+    }
+    if (query.address_id) {
+      const address = await this.prisma.address.findFirst({
+        where: { id: query.address_id, user_id: userId },
+        include: { governorate: { include: { delivery_zone: true } } },
+      });
+      if (!address) throw new NotFoundException('Address not found');
+      if (!address.governorate_id || !address.governorate) {
+        throw conflict(
+          'ADDRESS_GOVERNORATE_REQUIRED',
+          'Select a governorate for this address before pricing delivery',
+        );
+      }
+      return this.servedDeliveryFee(address.governorate);
+    }
+    if (query.governorate_id) {
+      const governorate = await this.prisma.governorate.findUnique({
+        where: { id: query.governorate_id },
+        include: { delivery_zone: true },
+      });
+      return this.servedDeliveryFee(governorate);
+    }
+    return 0;
   }
 
   async listGovernorates() {
@@ -207,8 +257,32 @@ export class DeliveryPricingService {
     return rows.map((row) => this.tier(row));
   }
 
+  async listPublicTiers() {
+    const now = Date.now();
+    let tiers = this.publicTierCache?.tiers;
+    if (!tiers || this.publicTierCache!.expiresAt <= now) {
+      tiers = await this.prisma.discountTier.findMany({
+        where: { is_active: true },
+        select: { id: true, min_subtotal_iqd: true, percent: true },
+        orderBy: [{ min_subtotal_iqd: 'asc' }, { id: 'asc' }],
+      });
+      this.publicTierCache = { expiresAt: now + 30_000, tiers };
+    }
+    const stackingSetting = await this.prisma.storeSetting.findUnique({
+      where: { key: 'discount_tier_coupon_stacking_enabled' },
+    });
+    return {
+      currency: 'IQD',
+      coupon_stacking_enabled: stackingSetting?.value === 'true',
+      tiers: tiers.map((row) => ({
+        min_subtotal: Number(row.min_subtotal_iqd),
+        percent: Number(row.percent),
+      })),
+    };
+  }
+
   async createTier(actorId: string, input: DiscountTierCreateDto) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await this.assertTierThresholdAvailable(tx, input.min_subtotal_iqd);
       const created = await tx.discountTier.create({
         data: {
@@ -226,11 +300,13 @@ export class DeliveryPricingService {
       });
       return this.tier(created);
     });
+    this.invalidatePublicTierCache();
+    return result;
   }
 
   async updateTier(actorId: string, id: string, input: DiscountTierPatchDto) {
     this.requirePatch(input);
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const before = await tx.discountTier.findUnique({ where: { id } });
       if (!before) throw new NotFoundException('Discount tier not found');
       if (input.min_subtotal_iqd !== undefined) {
@@ -250,6 +326,8 @@ export class DeliveryPricingService {
       });
       return this.tier(updated);
     });
+    this.invalidatePublicTierCache();
+    return result;
   }
 
   async deleteTier(actorId: string, id: string): Promise<void> {
@@ -265,6 +343,7 @@ export class DeliveryPricingService {
         before: this.json(this.tier(before)),
       });
     });
+    this.invalidatePublicTierCache();
   }
 
   private async assertGovernoratesAvailable(
@@ -272,19 +351,17 @@ export class DeliveryPricingService {
     ids: string[],
     currentZoneId?: string,
   ) {
-    const rows = await tx.governorate.findMany({ where: { id: { in: ids } } });
+    const rows = await tx.governorate.findMany({
+      where: { id: { in: ids } },
+      include: { delivery_zone: true },
+    });
     if (rows.length !== ids.length) {
       throw new UnprocessableEntityException('Every governorate_id must exist');
     }
-    const conflictRow = rows.find(
+    const conflicts = rows.filter(
       (row) => row.delivery_zone_id && row.delivery_zone_id !== currentZoneId,
     );
-    if (conflictRow) {
-      throw conflict(
-        'GOVERNORATE_ALREADY_IN_DELIVERY_ZONE',
-        'A governorate can belong to only one delivery zone',
-      );
-    }
+    if (conflicts.length) this.throwGovernorateConflicts(conflicts);
   }
 
   private async assertTierThresholdAvailable(
@@ -318,10 +395,15 @@ export class DeliveryPricingService {
       data: { delivery_zone_id: zoneId, updated_at: new Date() },
     });
     if (assigned.count !== ids.length) {
-      throw conflict(
-        'GOVERNORATE_ALREADY_IN_DELIVERY_ZONE',
-        'A governorate can belong to only one delivery zone',
-      );
+      const conflicts = await tx.governorate.findMany({
+        where: {
+          id: { in: ids },
+          delivery_zone_id: { not: null },
+          NOT: { delivery_zone_id: zoneId },
+        },
+        include: { delivery_zone: true },
+      });
+      this.throwGovernorateConflicts(conflicts);
     }
   }
 
@@ -329,6 +411,59 @@ export class DeliveryPricingService {
     if (!Object.keys(input).length) {
       throw new UnprocessableEntityException('At least one field is required');
     }
+  }
+
+  private servedDeliveryFee(
+    governorate: {
+      is_active: boolean;
+      delivery_zone: { is_active: boolean; fee_iqd: Prisma.Decimal } | null;
+    } | null,
+  ) {
+    if (!governorate?.is_active || !governorate.delivery_zone?.is_active) {
+      throw conflict(
+        'DELIVERY_ZONE_NOT_SERVED',
+        'The selected governorate is not served by an active delivery zone',
+      );
+    }
+    return Number(governorate.delivery_zone.fee_iqd);
+  }
+
+  private throwGovernorateConflicts(
+    rows: Array<{
+      id: string;
+      code: string;
+      name_ar: string;
+      name_en: string;
+      delivery_zone: {
+        id: string;
+        name_ar: string;
+        name_en: string;
+      } | null;
+    }>,
+  ): never {
+    throw conflict(
+      'GOVERNORATE_ALREADY_IN_DELIVERY_ZONE',
+      'One or more governorates already belong to another delivery zone',
+      rows
+        .filter((row) => row.delivery_zone)
+        .sort((left, right) => left.code.localeCompare(right.code))
+        .map((row) => ({
+          field: 'governorate_ids',
+          code: 'GOVERNORATE_ALREADY_IN_DELIVERY_ZONE',
+          message: `${row.name_en} already belongs to ${row.delivery_zone!.name_en}`,
+          governorate_id: row.id,
+          governorate_code: row.code,
+          governorate_name_ar: row.name_ar,
+          governorate_name_en: row.name_en,
+          delivery_zone_id: row.delivery_zone!.id,
+          delivery_zone_name_ar: row.delivery_zone!.name_ar,
+          delivery_zone_name_en: row.delivery_zone!.name_en,
+        })),
+    );
+  }
+
+  private invalidatePublicTierCache() {
+    this.publicTierCache = undefined;
   }
 
   private governorate(row: {

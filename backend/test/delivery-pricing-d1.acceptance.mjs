@@ -233,6 +233,32 @@ try {
     [6000, 9000],
     'zones retain independent whole-IQD fees',
   );
+  const pricedGovernorates = await request('/governorates');
+  const pricedBaghdad = present(
+    pricedGovernorates.find((entry) => entry.code === 'baghdad'),
+    'public governorates retain Baghdad',
+  );
+  const pricedBasra = present(
+    pricedGovernorates.find((entry) => entry.code === 'basra'),
+    'public governorates retain Basra',
+  );
+  const pricedHalabja = present(
+    pricedGovernorates.find((entry) => entry.code === 'halabja'),
+    'public governorates retain Halabja',
+  );
+  check(
+    [
+      pricedBaghdad.is_served,
+      pricedBaghdad.delivery_fee,
+      pricedBaghdad.currency,
+      pricedBasra.is_served,
+      pricedBasra.delivery_fee,
+      pricedHalabja.is_served,
+      pricedHalabja.delivery_fee,
+    ],
+    [true, 6000, 'IQD', true, 9000, false, null],
+    'guests can read each governorate fee and an explicit unserved state',
+  );
   const duplicateZone = await request('/admin/delivery-zones', {
     token: adminToken,
     method: 'POST',
@@ -241,13 +267,24 @@ try {
       name_ar: 'تعارض',
       name_en: 'Conflict',
       fee_iqd: 1,
-      governorate_ids: [baghdad.id],
+      governorate_ids: [baghdad.id, basra.id],
     },
   });
   check(
     duplicateZone.code,
     'GOVERNORATE_ALREADY_IN_DELIVERY_ZONE',
     'one governorate cannot be attached to two zones',
+  );
+  check(
+    duplicateZone.errors.map((entry) => [
+      entry.governorate_code,
+      entry.delivery_zone_name_en,
+    ]),
+    [
+      ['baghdad', 'Baghdad zone'],
+      ['basra', 'Basra zone'],
+    ],
+    'zone conflicts name every clashing governorate and existing zone',
   );
 
   const baghdadAddress = await createAddress(
@@ -306,6 +343,35 @@ try {
     method: 'POST',
     expected: 201,
     body: { min_subtotal_iqd: 20000, percent: 15 },
+  });
+  const guestTiers = await request('/discount-tiers');
+  check(
+    guestTiers,
+    {
+      currency: 'IQD',
+      coupon_stacking_enabled: false,
+      tiers: [
+        { min_subtotal: 10000, percent: 5 },
+        { min_subtotal: 20000, percent: 15 },
+      ],
+    },
+    'guests can read active tiers and the coupon-stacking setting',
+  );
+  await request(`/admin/discount-tiers/${tierFive.id}`, {
+    token: adminToken,
+    method: 'PATCH',
+    body: { percent: 6 },
+  });
+  const editedGuestTiers = await request('/discount-tiers');
+  check(
+    editedGuestTiers.tiers[0].percent,
+    6,
+    'an owner tier edit invalidates the public cache immediately',
+  );
+  await request(`/admin/discount-tiers/${tierFive.id}`, {
+    token: adminToken,
+    method: 'PATCH',
+    body: { percent: 5 },
   });
 
   let cart = await setSingleCartLine(
@@ -395,6 +461,39 @@ try {
     [20000, 'tier', 3000, null],
     'the higher tier wins over the coupon at its exact threshold',
   );
+  const baghdadGovernorateQuote = await request(
+    `/cart?governorate_id=${baghdad.id}`,
+    { token: customer.access_token },
+  );
+  const baghdadAddressQuote = await request(
+    `/cart?address_id=${baghdadAddress.id}`,
+    { token: customer.access_token },
+  );
+  const basraAddressQuote = await request(
+    `/cart?address_id=${basraAddress.id}`,
+    { token: customer.access_token },
+  );
+  check(
+    [
+      baghdadGovernorateQuote.delivery_fee,
+      baghdadGovernorateQuote.total,
+      baghdadAddressQuote.delivery_fee,
+      baghdadAddressQuote.total,
+      basraAddressQuote.delivery_fee,
+      basraAddressQuote.total,
+    ],
+    [6000, 23000, 6000, 23000, 9000, 26000],
+    'signed-in cart pricing supports governorate and owned-address selectors',
+  );
+  const unservedCart = await request(`/cart?governorate_id=${halabja.id}`, {
+    token: customer.access_token,
+    expected: 409,
+  });
+  check(
+    unservedCart.code,
+    'DELIVERY_ZONE_NOT_SERVED',
+    'cart pricing and checkout share the unserved-governorate code',
+  );
 
   const reservationBefore = Number(
     (
@@ -445,9 +544,17 @@ try {
     'raised',
   );
   check(
-    [raisedOrder.original_delivery_fee, raisedOrder.delivery_fee],
-    [6000, 6000],
-    'Baghdad checkout snapshots its zone fee',
+    [
+      raisedOrder.original_delivery_fee,
+      raisedOrder.delivery_fee,
+      raisedOrder.total,
+    ],
+    [
+      baghdadGovernorateQuote.delivery_fee,
+      baghdadAddressQuote.delivery_fee,
+      baghdadAddressQuote.total,
+    ],
+    'Baghdad checkout exactly matches and snapshots the pre-order cart quote',
   );
   check(
     raisedOrder.items.reduce((sum, item) => sum + item.discount_share, 0),
