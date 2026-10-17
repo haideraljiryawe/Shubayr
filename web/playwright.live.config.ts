@@ -47,6 +47,7 @@ export default defineConfig({
     "**/live-lifecycle.spec.ts",
     "**/live-privacy.spec.ts",
     "**/live-delivery-pricing.spec.ts",
+    "**/live-account-deletion.spec.ts",
   ],
   timeout: 90000,
   use: {
