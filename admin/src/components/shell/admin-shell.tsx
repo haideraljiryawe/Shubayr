@@ -42,6 +42,7 @@ import {
   HandCoins,
   Banknote,
   Route,
+  RotateCcw,
   ShieldAlert,
   ShoppingCart,
   Truck,
@@ -88,6 +89,7 @@ async function fetchSession(): Promise<SessionResult> {
 const ICONS: Record<NavKey, LucideIcon> = {
   dashboard: LayoutDashboard,
   orders: ClipboardList,
+  returns: RotateCcw,
   deliveryParties: Bike,
   products: Package,
   catalogImport: FileSpreadsheet,

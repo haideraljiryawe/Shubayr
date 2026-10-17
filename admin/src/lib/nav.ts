@@ -11,6 +11,7 @@ import { isNavEnabled, type ModuleKey } from "./modules";
 export type NavKey =
   | "dashboard"
   | "orders"
+  | "returns"
   | "deliveryParties"
   | "trips"
   | "products"
@@ -70,6 +71,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "counts", href: "/inventory/counts", requires: ["inventory.view"] },
   { key: "writeDowns", href: "/inventory/write-downs", requires: ["inventory.view"] },
   { key: "orders", href: "/orders", requires: ["orders.view"] },
+  // Customer returns v2 (API 17.0): approve, receive, inspect, refund — each
+  // step its own permission. Its own module, off at launch.
+  { key: "returns", href: "/returns", requires: ["returns.view"] },
   { key: "settings", href: "/settings", requires: ["settings.manage"] },
   // Delivery pricing (API 15.0): zones and governorates, automatic discounts.
   { key: "deliveryZones", href: "/settings/delivery-zones", requires: ["delivery_zones.manage"] },
